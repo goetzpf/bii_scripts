@@ -457,20 +457,24 @@ sub object_addicts
 
     die if (!defined $table_owner); # assertion !
 
-    my $SQL= "select CONSTRAINT_NAME NAME" .
+    my $SQL= "select CONSTRAINT_NAME NAME, \'$table_owner\' OWNER, 'C' TYPE" .
                 " from ALL_CONSTRAINTS" .
                 " where OWNER = \'$table_owner\' and " .
                 " CONSTRAINT_TYPE = 'C' AND " .
                 " TABLE_NAME = \'$table_name\'" .
              " union " .
-             "select TRIGGER_NAME NAME" .
+             "select TRIGGER_NAME NAME, \'$table_owner\' OWNER, 'T' TYPE" .
                 " from ALL_TRIGGERS" .
                 " where OWNER = \'$table_owner\' and " .
                 " table_name = \'$table_name\'";
 
+#warn "$SQL\n";
+
     sql_trace($SQL) if ($sql_trace);
     my $res_r=
       $dbh->selectall_arrayref($SQL);
+
+#print Dumper($res_r),"\n";
 
     if (!defined $res_r)
       { dberror($mod_l,'db_object_addicts',__LINE__,
