@@ -1120,104 +1120,127 @@ sub tk_quit
 
     my($r_glbl, $r_tbh, $noclose)= @_;
     my $message = "\nor do you want to save your changes before?";
-    my $choice = "No";
-    my $flag = 0; # close application
+    my $choice;
+    my $mode; 
     my $Top;
+    my @options;
 
 #warn "tk_quit ($r_glbl, $r_tbh, $noclose): ".$r_glbl->{top_widget};
 
     if (!defined ($r_tbh))
-      {
-        $Top = $r_glbl->{main_menu_widget};
-        $message = 'Do you really want to quit '.$message;
+      { $Top = $r_glbl->{main_menu_widget};
+        $mode= 'app-close'; 
+        my $r_tab= $r_glbl->{all_tables};
+        if ((!defined $r_tab) or (!%$r_tab)) # no open tables
+          { $choice="close"; }
+        else
+          { $message = "save your open tables as a collection before " .
+                       "quitting?";
+            @options= ('save', 'quit without save', 'cancel'); 
+          };
       }
     else
       {
         $Top = $r_tbh->{top_widget};
         if ($noclose)
           {
-            $flag = -1; # reload table window
-            $message = "Do you really want to reload and " .
-                       "loose the content of\n" .
+            $mode= 'table-reload'; 
+            $message = "save changes in " .
                        $r_tbh->{table_type} . " " .
-                       $r_tbh->{table_name} . $message;
+                       $r_tbh->{table_name} .
+                       " before re-loading from the database ?";
+            @options= ('save to file', 'reload without save', 'cancel'); 
           }
         else
           {
-            $flag = 1;  # close window
-            $message = "Do you really want to close the window for ".
+            $mode= 'table-close'; 
+            $message = "save changes in ".
                        $r_tbh->{table_type} . " " .
-                       $r_tbh->{table_name} . $message;
+                       $r_tbh->{table_name} . "?"; 
+            @options= ('save to file', 'save to database', 
+                       'close without save', 'cancel'); 
           }
       }
       
     if ($fast_test)
-      { $choice = "Yes";
-        warn "Quit without warning!";
+      { $choice = "close";
       };
       
-    if (($flag != 0) && (!table_changed($r_tbh)))
-      { $choice = "Yes"; };  
+    if (($mode ne 'app-close') && (!table_changed($r_tbh)))
+      { $choice = "close"; };  
 
-    while($choice ne 'Yes')
+    while(!defined $choice)
       { 
           
+
         my $DlgQuit = $Top->Dialog(
                     -title => 'Quit',
                     -text => $message,
                     -default_button => 'No',
-                    -buttons => [ 'Yes', 'Save', 'No'],
+                    -buttons => \@options,
                     );
         $choice = $DlgQuit->Show;
 
-        if ($choice eq 'No')
-          { return 1; };
-
-        if ($choice eq 'Save')
+        if    ($choice eq 'cancel')
+          { return 1; }
+        elsif ($choice eq 'save')
           {
-            if ($flag == 0)
+            if ($mode eq 'app-close')
               {
-# no return values, thats why automatically will be quit
-                if (tk_save_collection ($Top, $r_glbl))
-                  { $choice = "Yes";
-                    last;
+                if (!tk_save_collection ($Top, $r_glbl))
+                  { $choice=undef;
+                    next;
                   };  
               }
             else
-              {
-                if (tk_save_to_file ("",$r_tbh))
-                  { $choice = "Yes";
-                    last; 
-                  };
-              }
+              { die "assertion: mode is \"$mode\""; };
           }
-          
+        elsif ($choice eq 'save to file')
+          { if (!tk_save_to_file ("",$r_tbh))
+              { 
+                $choice=undef;
+                next;
+              }; 
+          }
+        elsif ($choice eq 'save to database') 
+          { if (!cb_store_db($r_tbh))
+              { $choice=undef;
+                next;
+              };  
+          }
+        else
+          { last; };
       }; # while()
 
-    if ($flag == 0 && exists($r_glbl->{handle_sql_history}))
+    if (($mode eq 'app-close') && exists($r_glbl->{handle_sql_history}))
       {
         my $fh = $r_glbl->{handle_sql_history};
         $fh->flush();
         $fh->close();
       }
-    if ($flag > 0)      # close window
-      {
-        $Top->destroy();
+    
+    
+    if    ($mode eq 'table-reload')
+      { return; }
+    elsif ($mode eq 'table-close')   
+      { $Top->destroy();
         return;
       }
-    elsif ($flag == 0)  # close application
+    elsif ($mode eq 'app-close')  # close application
       { my $r_tab= $r_glbl->{all_tables};
       
-        foreach my $tab (keys %$r_tab)
-          { if (tk_quit($r_glbl, $r_tab->{$tab}))
-              { return(1); };
-          };
-        
+        if (defined $r_tab)
+          { # now close every single table window
+            foreach my $tab (keys %$r_tab)
+              { if (tk_quit($r_glbl, $r_tab->{$tab}))
+                  { return(1); };
+              };
+          }; 
         exit(0);
       }
     else
       {
-        return;         # reload table window
+        die "assertion: mode is \"$mode\"";
       }
   }
 
@@ -3175,16 +3198,13 @@ sub tk_find_line
       { $colname= $given_colname; };
 
     $col_search_data{colname}= $colname;
-    my $fromOpt = 'current';
-    my $directionOpt = 'down';
-    my $exactOpt = 1;
+#    my $fromOpt = 'current';
 
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= mk_toplevel($r_glbl,
                          parent_widget=> $TableWidget,
                          title=>"$r_tbh->{table_name}"
                         );
-
 
 
     $Top->Label(-text => "find in column $colname:"
@@ -3198,42 +3218,54 @@ sub tk_find_line
                 -fill=>'x',
                 -expand=>'y');
 
-    my $rbfrom1 = $FrTop->Radiobutton(-variable => \$fromOpt,
-                                     -value => 'current',
-                                     -text => 'from here',
-        )->grid(-row=>0, -column=>0,  -sticky=> "w");
-    my $rbfrom2 = $FrTop->Radiobutton(-variable => \$fromOpt,
-                  -value => 'top',
-                  -text => 'from top'
-        )->grid(-row=>1, -column=>0,  -sticky=> "w");
+#    my $rbfrom1 = $FrTop->Radiobutton(-variable => \$fromOpt,
+#                                     -value => 'current',
+#                                     -text => 'from here',
+#        )->grid(-row=>0, -column=>0,  -sticky=> "w");
+#    my $rbfrom2 = $FrTop->Radiobutton(-variable => \$fromOpt,
+#                  -value => 'top',
+#                  -text => 'from top'
+#        )->grid(-row=>1, -column=>0,  -sticky=> "w");
 
 
+    $col_search_data{direction}= "down";
+
+    $FrTop->Radiobutton( -variable => \$col_search_data{direction},
+                         -value => 'down',
+                         -text => 'downwards',
+                       )->grid(-row=>0, -column=>1,  -sticky=> "w");
+    $FrTop->Radiobutton( -variable =>\$col_search_data{direction},
+                         -value => 'up',
+                         -text => 'upwards',
+                       )->grid(-row=>1, -column=>1,  -sticky=> "w");
 
 
-    my $rbdirection1 = $FrTop->Radiobutton(
-                            -variable => \$directionOpt,
-                            -value => 'down',
-                            -text => 'downwards',
-        )->grid(-row=>0, -column=>1,  -sticky=> "w");
-    my $rbdirection2 = $FrTop->Radiobutton(-variable =>\$directionOpt,
-                            -value => 'up',
-                            -text => 'upwards',
-        )->grid(-row=>1, -column=>1,  -sticky=> "w");
+    $col_search_data{exact}= 1;
 
+    $FrTop->Radiobutton( -variable => \$col_search_data{exact},
+                         -value => 1,
+                         -text => 'literal',
+                       )->grid(-row=>0, -column=>2,  -sticky=> "w");
+    $FrTop->Radiobutton( -variable => \$col_search_data{exact},
+                         -value => 0,
+                         -text => 'regexp match',
+                       )->grid(-row=>1, -column=>2,  -sticky=> "w");
 
+    $col_search_data{case_insensitive}= 0;
 
-    my $rbexact1 = $FrTop->Radiobutton(-variable => \$exactOpt,
-                                     -value => 1,
-                                     -text => 'exact match',
-        )->grid(-row=>0, -column=>2,  -sticky=> "w");
-    my $rbexact2 = $FrTop->Radiobutton(-variable => \$exactOpt,
-                                     -value => 0,
-                                     -text => 'regular expression match',
-        )->grid(-row=>1, -column=>2,  -sticky=> "w");
+    $FrTop->Radiobutton( -variable => \$col_search_data{case_insensitive},
+                         -value => 0,
+                         -text => 'case sensitive',
+                       )->grid(-row=>0, -column=>3,  -sticky=> "w");
+    $FrTop->Radiobutton( -variable => \$col_search_data{case_insensitive},
+                         -value => 1,
+                         -text => 'case insensitive',
+                       )->grid(-row=>1, -column=>3,  -sticky=> "w");
 
-    $rbfrom1->select;
-    $rbdirection1->select;
-    $rbexact1->select;
+    #$rbfrom1->select;
+    #$rbdirection1->select;
+    #$rbexact1->select;
+    
     my $FrBottom = $Top->Frame( -borderwidth=>2,
                                 -background=>$BG
         )->pack(-side=>'top' ,
@@ -3247,12 +3279,13 @@ sub tk_find_line
 
     $Top->bind('<Return>',
             sub {  my $row= find_next_col($r_tbh,
-                                          string=>\$col_search_data{string},
-                                          colname=>$colname,
-                                          use_colmap=>1,
-                                          from=>$fromOpt,
-                                          direction=>$directionOpt,
-                                          exact=>$exactOpt);
+                                          
+                                          use_colmap=>1,                                          
+                                          from=>'current',
+                                          %col_search_data
+                                          );
+                   # used elements in col_search_data:
+                   # colname string direction extact case_insensitive       
 
                    if (!defined $row)
                      { tk_err_dialog($Top,
@@ -3290,10 +3323,14 @@ sub tk_find_line_next
     my $colname= $r_col_search_data->{colname};
 
     my $row= find_next_col($r_tbh,
-                           string=> $r_col_search_data->{string},
-                           colname=>$colname,
                            use_colmap=>1,
                            from=>'current',
+                           
+                           %$r_col_search_data,
+                   # used elements in col_search_data:
+                   # colname string direction extact case_insensitive       
+                   # note: the following line effectively overwrites
+                   # a direction that in stored in col_search_data:
                            direction=> ($dir eq 'next') ? 'down' : 'up');
 
     if (!defined $row)
@@ -4485,9 +4522,13 @@ sub tk_delete_line_dialog
 sub cb_store_db
 # global variables used: NONE
  { my($r_tbh)= @_;
-   tk_remove_changed_cell_tag($r_tbh);
 
-   $r_tbh->{dbitable}->store();
+
+   # do not reload if storing fails!
+   if (!$r_tbh->{dbitable}->store())
+     { return; };
+
+   tk_remove_changed_cell_tag($r_tbh);
 
    # reload the table, its safer to do this in case
    # that another person has also changed the table in the meantime
@@ -4510,6 +4551,8 @@ sub cb_store_db
 
    # the following would also force a redraw
    # $Table->configure(-padx => ($Table->cget('-padx')) );
+  
+   return(1);
  }
 
 sub cb_reload_db
@@ -5764,6 +5807,7 @@ sub find_next_col
 # from => "current","top"
 # direction=> 'down', 'up'
 # exact => 1 or undef
+# case_insensitive => 1 or undef
 # use_colmap => 1 (0 is default)
 # NOTE: row 0 is the heading!!!
   { my($r_tbh,%options)= @_;
@@ -5796,15 +5840,22 @@ sub find_next_col
       {
         # make things faster if the column to search is
         # a primary key column:
-        if (exists $r_tbh->{pks_h}->{$colname}) # it's a primary key
-          { if ($#{$r_tbh->{pks}}==0) # only one primary key
-              {
-                return($r_tbh->{pk_hash}->{$str});
+        if (!$options{case_insensitive})
+          { 
+            if (exists $r_tbh->{pks_h}->{$colname}) # it's a primary key
+              { if ($#{$r_tbh->{pks}}==0) # only one primary key
+                  {
+                    return($r_tbh->{pk_hash}->{$str});
+                  };
               };
           };
-
+          
         return if (!defined $str);
 
+        my $case= $options{case_insensitive};
+        $str= lc($str) if ($case);
+        my $val;
+        
         for(my $i=0; $i<$max; $i++)
           { $row+= $dir;
             if    ($row<=0)
@@ -5812,13 +5863,22 @@ sub find_next_col
             elsif ($row>$max)
               { $row=1; };
 
-            if (put_get_val_direct($r_tbh,$use_colmap,
-                                   row2pk($r_tbh,$row),$colname) eq $str)
+            $val= put_get_val_direct($r_tbh,$use_colmap,
+                                   row2pk($r_tbh,$row),$colname);
+            $val= lc($val) if ($case);
+            
+            if ($val eq $str)
               { return($row); };
           };
       }
     else
       { my $val;
+        my $regexp;
+        if ($options{case_insensitive})
+          { $regexp= qr/$str/i; }
+        else
+          { $regexp= qr/$str/; }
+        
         for(my $i=0; $i<$max; $i++)
           { $row+= $dir;
             if    ($row<=0)
@@ -5828,7 +5888,7 @@ sub find_next_col
             $val= put_get_val_direct($r_tbh,$use_colmap,
                                    row2pk($r_tbh,$row),$colname);
             next if (!defined $val);
-            if ($val=~/$str/)
+            if ($val=~ $regexp)
               { return($row); };
           };
       };
