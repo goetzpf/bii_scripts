@@ -12,7 +12,7 @@ use strict;
 use FindBin;
 use Getopt::Long;
 
-use vars qw($opt_help $opt_multiple $opt_header $opt_part $opt_check);
+use vars qw($opt_help $opt_quiet $opt_multiple $opt_header $opt_part $opt_check);
 
 my $version = "1.5p";
 
@@ -28,7 +28,7 @@ if (($#ARGV==0) && ($ARGV[0] eq '-h'))
     exit;
   };  
 
-if (!GetOptions("help","multiple|m","header|h=s","part|p=s","check|c"))
+if (!GetOptions("help","quiet|q", "multiple|m","header|h=s","part|p=s","check|c"))
   { die "parameter error, use \"$0 -h\" to display the online-help\n"; };
 
 if ($opt_help)
@@ -84,8 +84,10 @@ else
 foreach my $file (@files)
   { local *IN;
     open(IN, $file) || die "unable to open $file\n";
-    print "header file generated: $opt_header\n";
-    print "processing $file...\n";
+    if (!$opt_quiet)
+      { print "header file generated: $opt_header\n";
+        print "processing $file...\n";
+      };
     process_file(*IN,*OUT);
     close(IN);
   }  
@@ -109,8 +111,14 @@ if (defined $org_header)
         unlink($org_header) || die "unable to remove $opt_header\n";
         rename($opt_header,$org_header) ||
 	  die "unable to rename $opt_header to $org_header\n";
-      };
-  };
+        if ($opt_quiet)
+          { print "header generated: $opt_header\n"; };
+          };
+  }
+else
+  { if ($opt_quiet)
+      { print "header generated: $opt_header\n"; };
+  }
        
 
 sub process_file
@@ -402,6 +410,7 @@ options:
   -c check wether the new header-file differs from the old one. If no
      difference is found, the header file is left intact. Useful when hgen.p
      is called from within a makefile.
+  -q less messages on the screen
 
 hgen-commands in sourcecode:
 a command starts with a \'\@\' and is followed by 2 to 3 letters. A command
