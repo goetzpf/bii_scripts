@@ -245,7 +245,7 @@ sub accessible_objects_hash
 	  };		       
 
 	foreach my $t (@types)
-	  { my $SQL= "SELECT asyn.owner||\'.\'||asyn.synonym_name " .
+	  { my $SQL= "SELECT asyn.synonym_name " .
         	     "FROM all_synonyms asyn, all_${t}s aobj " .
 		     "WHERE $owner_filter AND " .
 
