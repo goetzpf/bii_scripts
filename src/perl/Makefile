@@ -2,7 +2,7 @@
 
 .PHONY : Pezca
 
-all: Pezca
+all:# Pezca
 
 cwd:=$(shell pwd)
 
