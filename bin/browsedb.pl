@@ -871,6 +871,21 @@ sub tk_main_window
         tk_login(\%global_data); # calls tk_main_window_finish
   }
 
+sub tk_bind_scroll_wheel
+  { my($widget)= @_;
+  
+    $widget->bind('<4>',['yview','scroll',-5,'units']);
+    $widget->bind('<5>',['yview','scroll', 5,'units']);
+
+    $widget->bind('<Shift-4>',['yview','scroll',-1,'units']);
+    $widget->bind('<Shift-5>',['yview','scroll', 1,'units']);
+
+    $widget->bind('<Control-4>',['yview','scroll',-1,'pages']);
+    $widget->bind('<Control-5>',['yview','scroll', 1,'pages']);
+    
+  }
+
+
 sub tk_clear_undefkey
   {
     my ($this_widget) = @_;
@@ -2828,6 +2843,8 @@ sub make_table_window
                                    -orient => 'vertical',
                                   )->grid(-row=>0, -column=>1, -sticky=> "ns");
 
+    tk_bind_scroll_wheel($Table);
+
     $Table->configure(-yscrollcommand => ['set', $yscroll]);
 
 
@@ -3323,13 +3340,13 @@ sub tk_text_search
                                             $r_text->{search},'1.0' 
                                            );
                        if (!$r)
-                         { 
+                          { my $s= $r_text->{search};
                            $r_text->{search_widget}->destroy;
                            delete $r_text->{search_widget};
                            delete $r_text->{search};
                            delete $r_text->{last_search};
                            tk_err_dialog($r_glbl->{main_menu_widget},
-                                         "not found");
+                                         "\"$s\" not found");
                          }
                        else
                          { 
@@ -4770,10 +4787,16 @@ sub get_pk_list
 # the sort order is taken according to $r_tbh->{sort_columns}
   { my($r_tbh)= @_;
 
-    my @pk= $r_tbh->{dbitable}->primary_keys(
+    my @pk;
+    
+    if ($r_tbh->{table_order})
+      { @pk= $r_tbh->{dbitable}->primary_keys(order_native=>1); }
+    else
+      { @pk= $r_tbh->{dbitable}->primary_keys(
                              order_by=> $r_tbh->{sort_columns}
-                                           );
-
+                                             );
+      };
+      
 #warn "sort order:" . join ("|",@{$r_tbh->{sort_columns}});
     return(\@pk);
   }
@@ -4891,7 +4914,9 @@ sub get_dbitable
                              $r_tbh->{table_name},
                             );
         if ($r_tbh->{table_filter})
-          { $load_options{filter}= ['SQL',$r_tbh->{table_filter}]; };
+          { $load_options{filter}  = ['SQL',$r_tbh->{table_filter}]; };
+        if ($r_tbh->{table_order})
+          { $load_options{order_by}= $r_tbh->{table_order}; };
       }
     else
       { $ntab= dbitable->new('view',$r_tbh->{dbh},
