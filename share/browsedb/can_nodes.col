@@ -1,0 +1,161 @@
+%save = (
+  'foreigners' => {
+    'P_SELECTRON_NAMES' => {
+      'P_CAN_NODE' => [
+        'NODE_KEY',
+        'SELECTRON_KEY'
+      ]
+    },
+    'P_EC_NAMES' => {
+      'P_CAN_NODE' => [
+        'NODE_KEY',
+        'EC_KEY'
+      ]
+    },
+    'P_CAN_NODE_TO_IOC_PORT' => {
+      'P_IOC_PORT' => [
+        'PORT_KEY',
+        'PORT_KEY'
+      ],
+      'P_CAN_NODE' => [
+        'NODE_KEY',
+        'NODE_KEY'
+      ]
+    }
+  },
+  'open_tables' => {
+    'P_SELECTRON_NAMES' => {
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'DOMAIN' => '1',
+        'SUBDOMAIN' => '1',
+        'MEMBER' => '1',
+        'SELECTRON_KEY' => '1',
+        'DESCRIPTION' => '1',
+        'FAMILY' => '1',
+        'COUNTER' => '1',
+        'IND' => '1'
+      },
+      'geometry' => '670x119+426+459',
+      'sql' => 'select * from P_SELECTRON_NAMES ',
+      'col_map_flags' => {
+        'DOMAIN' => 'N',
+        'SUBDOMAIN' => 'N',
+        'MEMBER' => 'N',
+        'SELECTRON_KEY' => 'N',
+        'DESCRIPTION' => 'N',
+        'FAMILY' => 'N',
+        'COUNTER' => 'N',
+        'IND' => 'N'
+      },
+      'sort_columns' => [
+        'SELECTRON_KEY',
+        'MEMBER',
+        'IND',
+        'FAMILY',
+        'COUNTER',
+        'SUBDOMAIN',
+        'DOMAIN',
+        'DESCRIPTION'
+      ]
+    },
+    'P_EC_NAMES' => {
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'DOMAIN' => '1',
+        'SUBDOMAIN' => '1',
+        'MEMBER' => '1',
+        'DESCRIPTION' => '1',
+        'FAMILY' => '1',
+        'EC_KEY' => '1',
+        'COUNTER' => '1',
+        'IND' => '1'
+      },
+      'geometry' => '638x117+426+647',
+      'sql' => 'select * from P_EC_NAMES ',
+      'col_map_flags' => {
+        'DOMAIN' => 'N',
+        'SUBDOMAIN' => 'N',
+        'MEMBER' => 'N',
+        'DESCRIPTION' => 'N',
+        'FAMILY' => 'N',
+        'EC_KEY' => 'N',
+        'COUNTER' => 'N',
+        'IND' => 'N'
+      },
+      'sort_columns' => [
+        'EC_KEY',
+        'MEMBER',
+        'IND',
+        'FAMILY',
+        'COUNTER',
+        'SUBDOMAIN',
+        'DOMAIN',
+        'DESCRIPTION'
+      ]
+    },
+    'P_CAN_NODE_TO_IOC_PORT' => {
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'PORT_KEY' => '1',
+        'NODE_KEY' => '1'
+      },
+      'geometry' => '306x117+425+837',
+      'sql' => 'select * from P_CAN_NODE_TO_IOC_PORT ',
+      'col_map_flags' => {
+        'PORT_KEY' => 'N',
+        'NODE_KEY' => 'N'
+      },
+      'sort_columns' => [
+        'PORT_KEY',
+        'NODE_KEY'
+      ]
+    },
+    'P_IOC_PORT' => {
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'PORT' => '1',
+        'PORT_KEY' => '1',
+        'CAN_SEG_KEY' => '1',
+        'IOC_KEY' => '1'
+      },
+      'geometry' => '308x117+743+837',
+      'sql' => 'select * from P_IOC_PORT ',
+      'col_map_flags' => {
+        'PORT' => 'N',
+        'PORT_KEY' => 'N',
+        'CAN_SEG_KEY' => 'N',
+        'IOC_KEY' => 'M'
+      },
+      'sort_columns' => [
+        'PORT_KEY',
+        'CAN_SEG_KEY',
+        'IOC_KEY',
+        'PORT'
+      ]
+    },
+    'P_CAN_NODE' => {
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'NODE_REFERENCE' => '1',
+        'CAN_SEG_KEY' => '1',
+        'NODE_KEY' => '1',
+        'NODE_ID' => '1'
+      },
+      'geometry' => '503x117+591+256',
+      'sql' => 'select * from P_CAN_NODE ',
+      'col_map_flags' => {
+        'NODE_REFERENCE' => 'N',
+        'CAN_SEG_KEY' => 'M',
+        'NODE_KEY' => 'M',
+        'NODE_ID' => 'N'
+      },
+      'sort_columns' => [
+        'NODE_KEY',
+        'CAN_SEG_KEY',
+        'NODE_ID',
+        'NODE_REFERENCE'
+      ]
+    }
+  }
+);

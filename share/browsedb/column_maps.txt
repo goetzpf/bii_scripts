@@ -1,4 +1,6 @@
 P_ADIDAS_ADA16 ADIDAS_KEY "SELECT adidas_key, member||ind||family||counter||subdomain||domain name FROM p_adidas_names"
+P_CAN_NODE CAN_SEG_KEY "SELECT can_seg_key, 'Seg:' || can_seg_key || ',' || baud || ' Baud' AS seg FROM p_can_seg"
+P_CAN_NODE NODE_KEY   "SELECT selectron_key AS key, name FROM selectron_names union SELECT ec_key AS key, name FROM ec_names union SELECT node_key AS key, name || ':' || port FROM p_can_node_to_ioc_port nip, p_ioc_port ip, ioc_names ion WHERE ion.ioc_key=ip.ioc_key AND ip.port_key=nip.port_key"
 P_INSERTION IOC_KEY    "SELECT ioc_key,name FROM ioc_names"
 P_INSERTION NAME_KEY   "SELECT key,name FROM id_names"
 P_INSERTION_EPICS_POS CIOC_PORT_KEY "SELECT p.port_key, n.name || ',Port ' || p.port AS ioc_port FROM p_ioc_port p ,ioc_names n WHERE n.ioc_key=p.ioc_key"
