@@ -44,7 +44,7 @@ use dbdrv 1.2;
 use dbitable 2.1;
 
 use Data::Dumper;
-my $VERSION= "0.92";
+my $VERSION= "0.93";
 
 our %save; # global configuration variable
 
@@ -273,7 +273,7 @@ sub tk_main_window
                 -label=> 'Windows',
                 -accelerator => 'Meta+W',
                 -underline  => 0,
-                 -menu=> $MnWindow
+                -menu=> $MnWindow
                );
     $MnTop->add('cascade',
                 -label=> 'Help',
@@ -285,13 +285,17 @@ sub tk_main_window
     $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
 
     # configure File-menu:
+    $Top->bind($Top,'<Control-o>'=> [\&tk_load_collection,$r_glbl]);
     $MnFile->add('command',
                -label=> 'open collection',
-               -command=> [\&tk_load_collection, $r_glbl]
+               -accelerator => 'Control-o',
+               -command=> [\&tk_load_collection,"",$r_glbl]
               );
+    $Top->bind($Top,'<Control-s>'=> [\&tk_save_collection,$r_glbl]); 
     $MnFile->add('command',
                -label=> 'save collection',
-               -command=> [\&tk_save_collection, $r_glbl]
+               -accelerator => 'Control-s',
+               -command=> [\&tk_save_collection,"",$r_glbl]
               );
     $MnFile->add('separator');
     $MnFile->add('command',
@@ -907,9 +911,10 @@ sub tk_handle_table_browse_entry
 
 sub tk_open_new_object
 # $condition can be the Where-Clause
+# $type can be "view", "table","sql" or "table_or_view"
+#  the latter means that the type of the object is not known 
   { my($r_glbl, $type, $condition)= @_;
-    # $type can be "view", "table" or "sql"
-    my %known_types= map { $_ =>1 } qw( table view sql );
+    my %known_types= map { $_ =>1 } qw( table view sql table_or_view);
 
     my %params;
     $params{table_name}= uc( $r_glbl->{new_table_name} );
@@ -1368,119 +1373,28 @@ sub tk_dependency_dialog
 
         foreach my $r_sublist (@$r_list)
           {
-
             push @{ $resident_tables{$r_sublist->[0]} },
                  [ $r_sublist->[1] , $col_name ];
 
           };
       };
-
-    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
-
-    $Top->title("dependents from $r_tbh->{table_name}");
-
-    my $FrTop = $Top->Frame(-borderwidth=>2,
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'both',
-                                  -expand=>'y');
-
+      
     my @resident_table_list= sort keys %resident_tables;
 
-    my $max_height= 10;
-    
-#----------------------------------------------
-#    my %listbox_options= (-selectmode => 'single',
-#                          -width=>0,
-#                          -height=> $max_height,
-#                         );
-
-#    if ($#resident_table_list > $max_height)
-#      {
-#        $listbox_options{-height}= $#resident_table_list + 1;
-#     };
-#
-#    my $listbox= $FrTop->Scrolled( 'Listbox',
-#                                   -scrollbars=> 'e',
-#                                   %listbox_options );
-                                   
-#-------------------------------------------------
-    my $listbox;
-    my %listbox_options= (-selectmode => 'single',
-                          -width=>0,
-                          -height=> $max_height);
-    if ($#resident_table_list>$max_height)
-      { $listbox= $FrTop->Scrolled( 'Listbox', %listbox_options ); }
-    else
-      { $listbox_options{-height}= $#resident_table_list + 1;
-        $listbox= $FrTop->Listbox(%listbox_options );
-      };
-    $Top->resizable(1,0); # disable vertical resize
-
-#-------------------------------------------------
-
-    foreach my $res_table (@resident_table_list)
-      { $listbox->insert('end', $res_table); };
-
-    $listbox->pack(-fill=>'both',-expand=>'y');
-
-    $Top->bind('<Return>', 
-                   sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
-
-    $listbox->bind('<Double-1>', 
-                   sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
-
-    # not need anymore, because the action is bind to mouse and enter key
-    #$FrDn->Button(-text => 'open table',
-    #              %std_button_options,
-    #             -command => [\&tk_dependency_dialog_finish, $r_glbl, $r_tbh],
-    #             )->pack(-side=>'left' ,-fill=>'y');
-
-
-    $Top->bind('<Destroy>', sub {  
-                             delete $r_tbh->{dependency_dialog_top_widget};
-                             delete $r_tbh->{dependency_dialog_listbox};
-                             delete $r_tbh->{resident_tables};
-                             delete $r_tbh->{resident_table_list};
-                                 });
-
-
-    $FrTop->Label(-text => 'double-click to open'
-                 )->pack(-side=>'left' ,-fill=>'y',
-                 
-                         );
-
-    $r_tbh->{dependency_dialog_top_widget}= $Top;
-    $r_tbh->{dependency_dialog_listbox}   = $listbox;
-    $r_tbh->{resident_tables}             = \%resident_tables;
-    $r_tbh->{resident_table_list}         = \@resident_table_list;
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
-
-
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "dependend_tables_dialog",
+                     title=> "dependents from $r_tbh->{table_name}",
+                     items=> \@resident_table_list,
+                     text => 'double-click to open',
+                     callback=> [\&tk_dependency_dialog_finish,
+                                 \%resident_tables]
+                    );
+                                 
   }
 
 sub tk_dependency_dialog_finish
-  { my($r_glbl,$r_tbh)= @_;
+  { my($r_glbl,$r_tbh,$res_table,$r_resident_tables)= @_;
 
-    my $Top                  = $r_tbh->{dependency_dialog_top_widget};
-    my $listbox              = $r_tbh->{dependency_dialog_listbox};
-    my $r_resident_table_list= $r_tbh->{resident_table_list};
-    my $r_resident_tables    = $r_tbh->{resident_tables};
-
-
-    my @selection= $listbox->curselection();
-
-    if (!@selection)
-      { tk_err_dialog($Top, "no table selected");
-        return;
-      };
-
-    my $res_table= $r_resident_table_list->[ $selection[0] ];
-
-    # warn "open new table: $res_table";
-
-    $Top->destroy;  # @@@@
 
     my $r_all_tables= $r_glbl->{all_tables};
     tkdie($r_glbl,"assertion in line " . __LINE__)
@@ -1513,13 +1427,199 @@ sub tk_dependency_dialog_finish
           };
       }
 
-    delete $r_tbh->{dependency_dialog_top_widget};
-    delete $r_tbh->{dependency_dialog_listbox};
-    delete $r_tbh->{resident_tables};
-    delete $r_tbh->{resident_table_list};
   }
 
+sub tk_dependend_views_dialog
+  { my($r_glbl,$r_tbh)= @_;
 
+    my $parent_widget= $r_tbh->{table_widget};
+
+    tk_set_busy($r_glbl,1);
+    my $dbh= $r_glbl->{dbh};
+    
+    my ($object_name, $object_owner)=
+          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
+          
+    my @dependents= 
+          dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+          
+    tk_set_busy($r_glbl,0);
+    
+    # filter-out views
+    if (@dependents)
+      { @dependents= grep { $_->[2] eq 'VIEW' } @dependents; };
+
+    if (!@dependents)
+      { tk_err_dialog($parent_widget,
+                      "no view depends on this object");
+        return;
+      };
+      
+    my @objects= map{ dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                           $_->[1], $_->[0]) } @dependents;
+    @objects= sort @objects;                                       
+
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "dependend_views_dialog",
+                     title=> "dependent views of $r_tbh->{table_name}",
+                     items=> \@objects,
+                     text => 'double-click to open',
+                     callback=> [\&tk_dependend_views_dialog_finish]
+                    );
+
+  }
+
+sub tk_dependend_views_dialog_finish
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($r_glbl,$r_tbh,$obj)= @_;
+
+    make_table_hash_and_window($r_glbl,
+                               table_name=>$obj,
+                               table_type=>'view');
+  }    
+
+sub tk_view_dependency_dialog
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $parent_widget= $r_tbh->{table_widget};
+
+    tk_set_busy($r_glbl,1);
+    my $dbh= $r_glbl->{dbh};
+    
+    my ($object_name, $object_owner)=
+          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
+          
+    my @referenced= 
+          dbdrv::object_references($dbh,$object_name,$object_owner);
+          
+    tk_set_busy($r_glbl,0);
+    
+    if (!@referenced)
+      { tk_err_dialog($parent_widget,
+                      "this view seems to depend on no other object?");
+        return;
+      };
+      
+    my @objects= map{ dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                           $_->[1], $_->[0]) } @referenced;
+    
+    my %types;
+    for(my $i=0; $i<= $#objects; $i++)
+      { my $t= $referenced[$i]->[2];
+        
+        $types{ $objects[$i] } = ($t eq 'TABLE') ? 'table' : 'view' ;
+      };
+    
+    @objects= sort @objects;                                       
+
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "view_dependendcy_dialog",
+                     title=> "by $r_tbh->{table_name} referenced objects",
+                     items=> \@objects,
+                     text => 'double-click to open',
+                     callback=> [\&tk_view_dependency_dialog_finish,
+                                 \%types]
+                    );
+  }
+  
+sub tk_view_dependency_dialog_finish
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($r_glbl,$r_tbh,$obj,$r_types)= @_;
+
+    make_table_hash_and_window($r_glbl,
+                               table_name=>$obj,
+                               table_type=>$r_types->{$obj});
+  }    
+  
+
+sub tk_object_dialog
+# known options:
+# title
+# items -> reference to a list of items
+# text -> text at the bottom of the widget
+# callback -> callback after something was selected
+  { my($r_glbl,$r_tbh,%options)= @_;
+  
+    my $tag= $options{tag};
+    
+    die if (!defined $tag); # assertion
+    
+    my %h;
+    
+    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
+    $Top->title($options{title});
+    
+    my $FrTop = $Top->Frame(-borderwidth=>2,
+                           -background=>$BG
+                           )->pack(-side=>'top' ,-fill=>'both',
+                                  -expand=>'y');
+    
+    my $Listbox= $FrTop->Scrolled( 'Listbox', 
+                                   -scrollbars=>"oe",
+                                   -selectmode => 'single',
+                                   -width=>0,
+                                   -height=>0);
+  
+    $Listbox->insert('end', @{$options{items}});
+    $Listbox->pack(-fill=>'both',-expand=>'y');
+
+    $Top->bind('<Return>',
+               [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]);
+
+    $Listbox->bind('<Double-1>',
+                   [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]); 
+
+    $Top->bind('<Destroy>', sub {  
+                             delete $r_tbh->{$tag};
+                                }
+              );
+
+    $FrTop->Label(-text => $options{text}
+                 )->pack(-side=>'left' ,-fill=>'y',
+                        );
+
+    $h{top}     = $Top;
+    $h{listbox} = $Listbox;
+    $h{callback}= $options{callback};
+    
+    $r_tbh->{$tag}= \%h;
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+  }
+
+sub tk_object_dialog_finish 
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_glbl,$r_tbh,$tag)= @_;
+
+    my $r_h= $r_tbh->{$tag};
+    
+    my $Top     = $r_h->{top};                 
+    my $Listbox = $r_h->{listbox};             
+    
+    my @selection= $Listbox->curselection();
+
+    if (!@selection)
+      { tk_err_dialog($Top, "nothing selected");
+        return;
+      };
+
+    my $obj= $Listbox->get($selection[0]);
+    $Top->destroy;  # @@@@
+    
+    my @callback= @{$r_h->{callback}};
+    
+    delete $r_tbh->{$tag};
+    
+    if (@callback)
+      { my $r_f= shift @callback;
+        &$r_f($r_glbl,$r_tbh,$obj,@callback);
+      }
+  }
+  
 sub tk_find_line
 # if $given_colname is undefined, take it from the active cell
   { my($r_tbh, $given_colname)= @_;
@@ -1757,7 +1857,8 @@ sub make_table_hash_and_window
   { my($r_glbl,%options)= @_;
 # known options:
 #   table_name   => $table_name
-#   table_type   => $type, $type either 'table','view', or 'sql'
+#   table_type   => $type, $type either 'table','view', 'sql' or
+#                   'table_or_view'
 #   table_filter => $WHERE_part
 #        $WHERE_part is added after "WHERE" to the SQL fetch command
 #        this is not allowed for the type "sql" (see above)
@@ -1765,8 +1866,14 @@ sub make_table_hash_and_window
 #        only for the type "sql", specifies the SQL fetch command
 #   geometry     => $geometry_string
 #                   can be used to set the window geometry
+#   displayed_cols=> %\display_col_hash
+#        where column-names are hash-keys, values are "1" 
+#        for displayed and "0" for hidden columns
+#        this parameter is optional !
+#   sort_columns  => a list of columns that defines the sort-order
+#        OPTIONAL
 
-    if ($options{table_type} =~ /(table|view|sql)/)
+    if ($options{table_type} =~ /(table|view|sql|table_or_view)/)
       {
         if (!exists $r_glbl->{all_tables})
           { $r_glbl->{all_tables}= {}; };
@@ -1829,15 +1936,19 @@ sub make_table_hash
 # elements of %hash_defaults (the table-hash):
 #
 #   table_name   => $table_name
-#   table_type   => $type, $type either 'table','view', or 'sql'
+#   table_type   => $type, $type either 'table','view', ,'sql' or 
+#                   'table_or_view'
 #   table_filter => $WHERE_part
 #        $WHERE_part is added after "WHERE" to the SQL fetch command
 #        this is not allowed for the type "sql" (see above)
 #   sequel       => $sql_statement
 #        only for the type "sql", specifies the SQL fetch command
-#   displayed_cols  => \%displayed_columns
-#                      used to initialize the same item in the table_hash,
-#                      this parameter is optional !
+#   displayed_cols=> %\display_col_hash
+#        where column-names are hash-keys, values are "1" 
+#        for displayed and "0" for hidden columns
+#        this parameter is optional !
+#  sort_columns    => a list of columns that defines the sort-order
+#        OPTIONAL
 # -------------------------------------------------------------------
 # creates a table_hash with these contents:
 #  table_widget    => table-widget
@@ -1875,9 +1986,6 @@ sub make_table_hash
 #                     entry for each changed cell
 #  changed_rows    => initially empty, later this is a hash mapping
 #                      "$pk" to "$row"
-#  curr_sort_col   => primary_sort_column
-#                     this is needed for the radiobuttons in the sort
-#                     dialog
 #  displayed_cols  => \%displayed_columns
 #                     this hash has an entry for each column. It is
 #                     set to 1 when the column is actually displayed,
@@ -1947,10 +2055,11 @@ sub make_table_hash
     $table_hash{write_protected_cols}= \%wp;
 
     # the hash that is used for sorting:
-    $table_hash{sort_columns}= [ @{$table_hash{column_list}} ];
-
-    initialize_sort_columns(\%table_hash);
-
+    if (!exists $table_hash{sort_columns})
+      { $table_hash{sort_columns}= [ @{$table_hash{column_list}} ];
+        initialize_sort_columns(\%table_hash);
+      };
+      
     # this list of primary key values,
     # maps the row-index to the primary key value
     $table_hash{pk_list} = get_pk_list(\%table_hash);
@@ -1964,9 +2073,6 @@ sub make_table_hash
     $table_hash{changed_cells}  = {};
     $table_hash{changed_rows}   = {};
 
-    $table_hash{curr_sort_col}= $table_hash{sort_columns}->[0];
-                          # only needed to give the sort-
-                          # radiobuttons a visible initial state
 
     return(\%table_hash);
   }
@@ -1980,13 +2086,11 @@ sub make_table_window
 #  geometry      => $geometry_string
 #                   can be used to set the window geometry
 #  column_list   => \@column_names_list
-#  curr_sort_col => primary_sort_column
-#                   this is needed for the radiobuttons in the sort
-#                   dialog
 #  displayed_cols=> \%displayed_columns
 #                   this hash has an entry for each column. It is
 #                   set to 1 when the column is actually displayed,
 #                   else it is set to 0
+#                   OPTIONAL
 #  vis_column_no => number of visible columns
 #  row_no        => the number of rows of the table
 # -----------------------------------------------------
@@ -2065,6 +2169,7 @@ sub make_table_window
     # configure file-menu:
     my $MnFileOpen= $MnFile->Menu();
     my $MnFileSave= $MnFile->Menu();
+
     $MnFile->add('cascade',
                 -label=> 'Import',
                 -underline   => 0,
@@ -2194,19 +2299,43 @@ sub make_table_window
 
 
     # configure relations-menu:
-    $MnRela->add('command',
-                  -label=> 'dependend tables',
-                  -accelerator => 'Meta+D',
-                  -underline   => 0,
-                  -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
-                );
-    $MnRela->add('command',
-                  -label=> 'referenced tables',
-                  -accelerator => 'Meta+R',
-                  -underline   => 0,
-                  -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
-                );
+    if ($r_tbh->{table_type} eq 'table')
+      { $MnRela->add('command',
+                      -label=> 'dependend tables',
+                      -accelerator => 'Meta+D',
+                      -underline   => 0,
+                      -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
+                    );
+      };
+      
+    if ($r_tbh->{table_type} ne 'sql')
+      {
+        $MnRela->add('command',
+                      -label=> 'dependend views',
+                      -accelerator => 'Meta+D',
+                      -underline   => 0,
+                      -command => [\&tk_dependend_views_dialog, $r_glbl, $r_tbh],
+                    );
+      };
+      
+    if ($r_tbh->{table_type} eq 'table')
+      { $MnRela->add('command',
+                      -label=> 'referenced tables',
+                      -accelerator => 'Meta+R',
+                      -underline   => 0,
+                      -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
+                    );
+      };
+    if ($r_tbh->{table_type} eq 'view')
+      { $MnRela->add('command',
+                      -label=> 'referenced objects',
+                      -accelerator => 'Meta+R',
+                      -underline   => 0,
+                      -command => [\&tk_view_dependency_dialog, $r_glbl, $r_tbh],
+                    );
+      };
 
+ 
     $MnRela->add('command',
                   -label=> 'add scroll-relation',
                   -accelerator => 'Meta+A',
@@ -2230,14 +2359,12 @@ sub make_table_window
 
     # configure view-menu:
     # create the sub-menue:
-    my $MnViewSort = $MnView->Menu();
 
-
-    $MnView->add('cascade',
+    $MnView->add('command',
                   -label=> 'Sort rows',
                   -accelerator => 'Meta+S',
                   -underline   => 0,
-                  -menu => $MnViewSort
+                  -command=> [\&tk_sort_menu, $r_glbl, $r_tbh]
                 );
     my $MnViewHCol = $MnView->Menu();
     $MnView->add('cascade',
@@ -2260,15 +2387,7 @@ sub make_table_window
                 );
 
     foreach my $col (@{$r_tbh->{column_list}})
-      { $MnViewSort->add('radiobutton',
-                         -value=> $col,
-                         -variable => \$r_tbh->{curr_sort_col},
-                         -label=> $col,
-                         -command=> [\&tk_resort_and_redisplay,
-                                     $r_tbh,
-                                     $col],
-                    );
-        $MnViewHCol->add('checkbutton',
+      { $MnViewHCol->add('checkbutton',
                          -variable=> \$r_tbh->{displayed_cols}->{$col},
                          -label=> $col,
                          -command=>  [\&cb_set_visible_columns,
@@ -2508,11 +2627,14 @@ sub tk_save_to_file
   { my($r_tbh)= @_;
 
     # warn "save to file";
-    my $Fs= $r_tbh->{top_widget}->FileSelect(
-                                               -defaultextension=> ".dbt"
-                                            );
 
-    my $file= $Fs->Show();
+    my $file= tk_simple_file_menu(widget=> $r_tbh->{top_widget},
+                                  type=> 'save',
+                                  extension=>'.dbt',
+                                  #defaultdir=>$PrgDir,
+                                  title=>'save table to *.dbt',
+                                  extension_description=> 
+                                              'browsedb table files');
 
     # warn "filename: $file ";
     return if (!defined $file);
@@ -2534,11 +2656,14 @@ sub tk_save_to_file
 sub tk_load_from_file
   { my($r_tbh)= @_;
 
-    my $Fs= $r_tbh->{top_widget}->FileSelect(
-                  -defaultextension=> ".dbt"
-                                            );
+    my $file= tk_simple_file_menu(widget=> $r_tbh->{top_widget},
+                                  type=> 'load',
+                                  extension=>'.dbt',
+                                  #defaultdir=>$PrgDir,
+                                  title=>'save table to *.dbt',
+                                  extension_description=> 
+                                              'browsedb table files');
 
-    my $file= $Fs->Show();
 
     # warn "filename: $file ";
     return if (!defined $file);
@@ -2590,11 +2715,14 @@ sub tk_export_csv
 
     # warn "save to file";
 
-    my $Fs= $r_tbh->{top_widget}->FileSelect(
-                                               -defaultextension=> ".csv"
-                                            );
+    my $file= tk_simple_file_menu(widget=> $r_tbh->{top_widget},
+                                  type=> 'save',
+                                  extension=>'.csv',
+                                  #defaultdir=>$PrgDir,
+                                  title=>'export to csv',
+                                  extension_description=> 
+                                              'browsedb csv files');
 
-    my $file= $Fs->Show();
 
     # warn "filename: $file ";
     return if (!defined $file);
@@ -2613,12 +2741,14 @@ sub tk_import_csv
 
     # warn "save to file";
 
-    my $Fs= $r_tbh->{top_widget}->FileSelect(
-                                               -defaultextension=> ".csv"
-                                            );
+    my $file= tk_simple_file_menu(widget=> $r_tbh->{top_widget},
+                                  type=> 'load',
+                                  extension=>'.csv',
+                                  #defaultdir=>$PrgDir,
+                                  title=>'export to csv',
+                                  extension_description=> 
+                                              'browsedb csv files');
 
-
-    my $file= $Fs->Show();
 
     # warn "filename: $file ";
     return if (!defined $file);
@@ -2713,46 +2843,44 @@ sub tk_make_text_widget
                );
 
     # configure File-menu:
-    my $fr_text_save= sub { tk_text_save($r_glbl,\%text); };
-    $Top->bind($Top,'<Control-s>'=> $fr_text_save);
+    $Top->bind($Top,'<Control-s>'=> [\&tk_text_save,$r_glbl,\%text]);
     $MnFile->add('command',
                -label=> 'save',
                -accelerator => 'Control-s',
-               -command=> $fr_text_save
+               -command=>  [\&tk_text_save,"",$r_glbl,\%text]
               );
 
     # configure search-menu:
-    my $fr_text_search= sub { tk_text_search($r_glbl,\%text); };
-    $Top->bind($Top,'<Control-f>'=> $fr_text_search);
+    $Top->bind($Top,'<Control-f>'=> [\&tk_text_search,$r_glbl,\%text]);
     $MnSearch->add('command',
                  -label=> 'find',
                  -accelerator => 'Control-f',
-                 -command=> $fr_text_search
+                 -command=> [\&tk_text_search,"",$r_glbl,\%text]
               );
 
 
-    my $fr_text_search_next= 
-                     sub { tk_text_search_next($r_glbl,'next',\%text); };
-    $Top->bind($Top,'<Control-g>'=> $fr_text_search_next);
+    $Top->bind($Top,'<Control-g>'=> 
+               [\&tk_text_search_next,$r_glbl,'next',\%text]);
     $MnSearch->add('command',
                  -label=> 'find next',
                  -accelerator => 'Control-g',
-                 -command=> $fr_text_search_next
+                 -command=> [\&tk_text_search_next,"",$r_glbl,'next',\%text]
               );
     
-    my $fr_text_search_prev=
-                    sub { tk_text_search_next($r_glbl,'prev',\%text); };
-    $Top->bind($Top,'<Shift-Control-G>'=> $fr_text_search_prev);
+    $Top->bind($Top,'<Shift-Control-G>'=> 
+              [\&tk_text_search_next,$r_glbl,'prev',\%text]);
     $MnSearch->add('command',
                  -label=> 'find prev',
                  -accelerator => 'Shift-Control-G',
-                 -command=> $fr_text_search_prev
+                 -command=> [\&tk_text_search_next,"",$r_glbl,'prev',\%text]
               );
 
 
     $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
 
-    my $text_widget=  $Top->Scrolled('Text');
+    my $text_widget=  $Top->Scrolled('Text',
+                                     -scrollbars=>"ose",
+                                    );
 
     # ----------------------------------------------------
     # special handling for Control Keyboard bindings:
@@ -2783,7 +2911,9 @@ sub tk_make_text_widget
 
   
 sub tk_text_search
-  { my($r_glbl,$r_text)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget, $r_glbl,$r_text)= @_;
   
     my $text= $r_text->{text_widget};
     
@@ -2844,7 +2974,9 @@ sub tk_text_search
   }
 
 sub tk_text_search_next
-  { my($r_glbl,$dir,$r_text)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget, $r_glbl,$dir,$r_text)= @_;
   
     my $text= $r_text->{text_widget};
     
@@ -2892,13 +3024,18 @@ sub tk_text_search_next
     
 
 sub tk_text_save
-  { my($r_glbl,$r_text)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_glbl,$r_text)= @_;
   
-    my $Fs= $r_text->{Top}->FileSelect(
-                                        -defaultextension=> ".txt"
-                                      );
 
-    my $file= $Fs->Show();
+    my $file= tk_simple_file_menu(widget=> $r_text->{Top},
+                                  type=> 'save',
+                                  extension=>'.txt',
+                                  defaultdir=>$PrgDir,
+                                  title=>'save text',
+                                  extension_description=> 
+                                              'ascii text files');
 
     # warn "filename: $file ";
     return if (!defined $file);
@@ -3160,10 +3297,10 @@ sub tk_update_window_menu
   { my($r_glbl) =@_;
     my $r_all_tables= $r_glbl->{all_tables};
 
-    return if (!defined $r_all_tables); # shouldn't happen
-    my @all_table_names  = (sort keys %$r_all_tables);
-
-    return if (!@all_table_names);
+    my @all_table_names;
+    
+    if (defined $r_all_tables)
+      { @all_table_names  = (sort keys %$r_all_tables); };
 
     my $MnWindow= $r_glbl->{menu_windows_widget};
     $MnWindow->delete(0,'end');
@@ -3227,7 +3364,6 @@ sub cb_close_window
     conn_delete_table($r_glbl, $table_name);
 
     delete $r_all_tables->{ $r_tbh->{table_name} };
-
     tk_update_window_menu($r_glbl);
 # warn "Table $table_name successfully deleted !\n";
  }
@@ -3497,11 +3633,14 @@ sub cb_export_selection
           { push @col_selection,$colname; };
       };
 
-    my $Fs= $r_tbh->{top_widget}->FileSelect(
-                                               -defaultextension=> ".csv"
-                                            );
+    my $file= tk_simple_file_menu(widget=> $r_tbh->{top_widget},
+                                  type=> 'save',
+                                  extension=>'.csv',
+                                  #defaultdir=>$PrgDir,
+                                  title=>'export to csv',
+                                  extension_description=> 
+                                              'browsedb csv files');
 
-    my $file= $Fs->Show();
 
     # warn "filename: $file ";
     return if (!defined $file);
@@ -3512,7 +3651,6 @@ sub cb_export_selection
     
     my @pk_selection= sort { $pk_selection{$a} <=>  $pk_selection{$b} } 
                              (keys %pk_selection);
-#@@@@@@@@@@@@@@
 
     $dbitable->export_csv($file, 
                           #order_by=> $r_tbh->{sort_columns},
@@ -4135,6 +4273,7 @@ sub tk_remove_changed_cell_tag
 
 sub tk_resort_and_redisplay
 # global variables used: NONE
+# if $col is undef, do not call put_new_sort_column_first
   { my($r_tbh,$col)= @_;
 
     my $Table_widget= $r_tbh->{table_widget};
@@ -4153,7 +4292,7 @@ sub tk_resort_and_redisplay
         $Table_widget->tagCell('',$r_changed_cells->{$k});
       };
 
-    put_new_sort_column_first($r_tbh,$col);
+    reorder_sort_columns($r_tbh,$col,'top') if (defined $col);
 
 
     $r_tbh->{pk_list}= get_pk_list($r_tbh);
@@ -4254,13 +4393,15 @@ sub initialize_sort_columns
     my @pks= @{$r_tbh->{pks}};
 
     for(my $i= $#pks; $i>=0; $i--)
-      { put_new_sort_column_first($r_tbh, $pks[$i] ); };
+      { reorder_sort_columns($r_tbh, $pks[$i], 'top'); };
   }
 
-sub put_new_sort_column_first
+#sub put_new_sort_column_first
+sub reorder_sort_columns
 # global variables used: NONE
 # changes $r_tbh->{sort_columns}
-  { my($r_tbh,$col_name)= @_;
+# mode: top, up, down
+  { my($r_tbh,$col_name,$mode)= @_;
 
     my $r_cols= $r_tbh->{sort_columns};
     my $i;
@@ -4278,8 +4419,24 @@ sub put_new_sort_column_first
                      "column $col_name not found");
         return;
       };
-    splice( @$r_cols,$i,1 );
-    unshift @$r_cols,$col_name;
+    if    ($mode eq 'top')
+      { return if ($i==0);
+        splice( @$r_cols,$i,1 );
+        unshift @$r_cols,$col_name;
+      }
+    elsif ($mode eq 'up')
+      { return if ($i==0);
+        splice( @$r_cols,$i,1 );
+        splice( @$r_cols,$i-1,0,$col_name);
+      }
+    elsif ($mode eq 'down')
+      { return if ($i==$max);
+        splice( @$r_cols,$i,1 );
+        splice( @$r_cols,$i+1,0,$col_name);
+      }
+    else
+      { die "unknown mode: $mode"; # assertion 
+      };
   }
 
 sub get_dbitable
@@ -4290,7 +4447,8 @@ sub get_dbitable
 #
 #   dbh          => $database_handle
 #   table_name   => $table_name
-#   table_type   => $type, $type either 'table','view', or 'sql'
+#   table_type   => $type, $type either 'table','view', 'sql' or
+#                   'table_or_view' 
 #   table_filter => $WHERE_part
 #        $WHERE_part is added after "WHERE" to the SQL fetch command
 #        this is not allowed for the type "sql" (see above)
@@ -4318,7 +4476,14 @@ sub get_dbitable
     my %load_options;
 
     if ($r_tbh->{table_type} ne "sql")
-      { $ntab= dbitable->new('table',$r_tbh->{dbh},
+      { if ($r_tbh->{table_type} eq 'table_or_view')
+          { if (dbdrv::object_is_table($r_glbl->{dbh},$r_tbh->{table_name}))
+              { $r_tbh->{table_type}= 'table'; }
+            else
+              { $r_tbh->{table_type}= 'view'; }; 
+          };
+        
+        $ntab= dbitable->new('table',$r_tbh->{dbh},
                              $r_tbh->{table_name},
                             );
         if ($r_tbh->{table_filter})
@@ -4475,33 +4640,32 @@ sub same_start
   }
 
 sub tk_load_collection
-  { my($r_glbl)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_glbl)= @_;
     local(*F);
     
     my $Top= $r_glbl->{main_menu_widget};
     
-    my $Fs= $Top->FileSelect( -directory => $PrgDir, 
-                              -defaultextension=> ".col");
-
-    #$Fs->Popup(-popover=> $Top ); doesn't work !
-
-    my $file= $Fs->Show();
+    my $file= tk_simple_file_menu(widget=> $Top,
+                                  type=> 'load',
+                                  extension=>'.col',
+                                  defaultdir=>$PrgDir,
+                                  title=>'open collection',
+                                  extension_description=> 
+                                              'browsedb collections');
 
 
     # warn "filename: $file ";
     return if (!defined $file);
 
-#    my $filename= $PrgDir . join("_","/test",
-#                                     $r_glbl->{db_driver},
-#                                     $r_glbl->{db_source},
-#                                     $r_glbl->{user});
     
-    print Dumper(\%save);
-print join(" ",keys %save),"\n";
+#print Dumper(\%save);
+#print join(" ",keys %save),"\n";
     do $file;
     
-    print Dumper(\%save);
-print join(" ",keys %save),"\n";
+#print Dumper(\%save);
+#print join(" ",keys %save),"\n";
 
     my $r_all_tables= $save{open_tables};
     
@@ -4515,7 +4679,8 @@ print join(" ",keys %save),"\n";
                              table_type=>$r_dat->{table_type},
                              sequel=> $r_dat->{sql},
                              geometry=> $r_dat->{geometry},
-                             displayed_cols => $r_dat->{displayed_cols}
+                             displayed_cols => $r_dat->{displayed_cols},
+                             sort_columns=> $r_dat->{sort_columns}
                                                  );
 
       };                                   
@@ -4543,19 +4708,23 @@ print join(" ",keys %save),"\n";
   }
 
 sub tk_save_collection
-  { my($r_glbl)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { 
+    my($widget,$r_glbl)= @_;
     local(*F);
     
     my $Top= $r_glbl->{main_menu_widget};
 
-    my $Fs= $Top->FileSelect( -directory => $PrgDir,
-                              -defaultextension=> ".col");
 
-    #$Fs->Popup(-popover=> $Top ); doesn't work !
+    my $file= tk_simple_file_menu(widget=> $Top,
+                                  type=> 'save',
+                                  extension=>'.col',
+                                  defaultdir=>$PrgDir,
+                                  title=>'save collection',
+                                  extension_description=> 
+                                              'browsedb collections');
 
-    my $file= $Fs->Show();
-
-#warn "filename: $file ";
     return if (!defined $file);
 
     my $r_all_tables= $r_glbl->{all_tables};
@@ -4568,6 +4737,7 @@ sub tk_save_collection
                   sql        => $r_tbh->{dbitable}->{_fetch_cmd},
                   geometry   => $r_tbh->{top_widget}->geometry(),
                   displayed_cols => $r_tbh->{displayed_cols},
+                  sort_columns => $r_tbh->{sort_columns},
                  );
         
         $open_tables{$table_name}= \%dat;
@@ -4589,6 +4759,151 @@ sub tk_save_collection
     print F Data::Dumper->Dump([\%save], [qw(*save)]);
     close(F);
   
+  }
+
+sub tk_simple_file_menu
+# options:
+# type: 'load' or 'save'
+# extension: extension
+# defaultdir: dir
+# title: title
+# extension_description
+# widget: parent widget
+  { my(%options)= @_;
+  
+    my $ext= $options{extension};
+    die if (!defined $ext); #assertion
+    $ext=~ s/\.//;
+    
+    my $type= $options{type};
+    die if (!defined $type); #assertion
+    die if (($type ne 'load') && ($type ne 'save'));
+    
+    my $widget= $options{widget};
+    die if (!defined $widget);
+  
+    my %args;
+    
+    $args{-filetypes}= [ [$options{extension_description},"*.$ext",undef],
+                         ['All Files', '*',undef] ];
+                     
+    if (exists $options{defaultdir})
+      { $args{-initialdir}= $options{defaultdir}; };
+
+    if (exists $options{title})
+      { $args{-title}= $options{title}; };
+    
+    $args{-defaultextension}= ".$ext";
+    
+    if ($type eq 'load')
+      { return( $widget->getOpenFile(%args)); }
+    else  
+      { my $file= $widget->getSaveFile(%args);
+        return if (!defined $file);
+        if ($file!~ /\.\w+$/)
+          { $file.= ".$ext"; };
+        return($file);
+      }
+  }
+ 
+sub tk_sort_menu  
+  { my($r_glbl, $r_tbh)= @_;
+  
+    my %sort_popup;
+    
+    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
+    $Top->title("sort $r_tbh->{table_name}");
+    
+    $r_tbh->{sort_popup}= \%sort_popup;
+    
+
+    my $MnPopup= $Top->Menu(-type=> 'normal', -tearoff=>0);
+    
+    $sort_popup{popup_widget}= $MnPopup;
+
+    $MnPopup->add('command',
+                  -label=> 'move to top',
+                  -command => [\&tk_sort_mv_top, $r_tbh, 'top']
+                 );  
+    $MnPopup->add('command',
+                  -label=> 'move up',
+                  -command => [\&tk_sort_mv_top, $r_tbh, 'up']
+                 );  
+    $MnPopup->add('command',
+                  -label=> 'move down',
+                  -command => [\&tk_sort_mv_top, $r_tbh, 'down']
+                 );  
+                                    
+    
+    my $Listbox = $Top->Scrolled(
+                                  "Listbox",
+                                  -scrollbars=>"oe",
+                                  #-width=>34,
+                                  -selectmode=>"browse",
+                                  -width=>0,
+                                  -height=>0,
+                                )->pack(-side=>'top',-fill=>'x',
+                                        expand=>'y');
+    
+
+    $Top->Label(-text => "right-button click to move\n" .
+                         "close window to activate sort order"
+               )->pack(-side=>'top' ,-fill=>'x');
+
+
+    $sort_popup{listbox}= $Listbox;
+
+    $Listbox->insert("end",@{$r_tbh->{sort_columns}}); 
+    
+    $Top->bind('<Destroy>', sub { delete $r_tbh->{sort_popup}; 
+                                  tk_resort_and_redisplay($r_tbh);
+                                }
+              );
+    
+    $Listbox->bind('<3>',  [\&cb_sort_popup_menu, $r_glbl, $r_tbh, Ev('@')]);
+
+    $Top->Popup(-popover => "cursor",
+                    -popanchor => 'nw');
+
+  }
+
+sub cb_sort_popup_menu
+  { my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
+  
+    my $r_popup= $r_tbh->{sort_popup};
+    
+    my $MnPopup= $r_popup->{popup_widget};
+    
+    $r_popup->{at}= $at;
+
+    $MnPopup->Popup(-popover => "cursor",
+                    -popanchor => 'nw');
+  }    
+    
+sub tk_sort_mv_top
+  { my($r_tbh,$mode)= @_;
+  
+    my $r_sort_popup= $r_tbh->{sort_popup};
+
+    my $Listbox= $r_sort_popup->{listbox};
+    
+    #my $col= $Listbox->get('active');
+
+    
+    my $index= ($Listbox->curselection())[0];
+    
+    if (!$index)
+      { # at is of the form "@x,y", this must be converted to
+        # a listbox-index:
+        $index= $Listbox->index($r_sort_popup->{at});
+      };
+      
+    # now we can get the value of the column
+    my $col= $Listbox->get($index);
+
+    reorder_sort_columns($r_tbh,$col,$mode);
+    $Listbox->delete(0, 'end');
+    $Listbox->insert("end",@{$r_tbh->{sort_columns}});
   }
 
 __END__
