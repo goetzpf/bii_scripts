@@ -1900,9 +1900,12 @@ sub make_table_window
 
     
     # popup-menu for the columns in the tablematrix widget
+    my $itemcnt=0;
+    my $r_itemhash={};
     my %column_popup;
 
     my $MnColPopup= $Table->Menu(-type=> 'normal', -tearoff=>0);
+    $r_itemhash->{'sort by column'}= $itemcnt++;
     $MnColPopup->add('command',
                      -label=> 'sort by column',
                      -command => 
@@ -1911,6 +1914,7 @@ sub make_table_window
                                     $column_popup{current_col});
                             }
                     );
+    $r_itemhash->{'find in column'}= $itemcnt++;
     $MnColPopup->add('command',
                      -label=> 'find in column',
                      -command => 
@@ -1919,42 +1923,62 @@ sub make_table_window
                                     $column_popup{current_col});
                             }
                     );
+    $r_itemhash->{'open/raise foreign table'}= $itemcnt++;
+    $MnColPopup->add('command',
+                     -label=> 'open/raise foreign table',
+                     -command => 
+                        sub { cb_open_foreign_table(
+                                     $r_glbl, $r_tbh,
+                                     $column_popup{current_col});
+                            }
+                    );
+
+    $column_popup{popup_items} = $itemcnt;
+    $column_popup{popup_item_h}= $r_itemhash;
+    
+    $column_popup{popup_disable_lists}= 
+                 { default        => ['open/raise foreign table'],
+                 };
+                  
+    $column_popup{popup_enable_lists} = 
+                 { foreign_key => ['open/raise foreign table'] };
+
     
     $r_tbh->{column_popup}= \%column_popup;
     $column_popup{popup_widget}= $MnColPopup;
 
     # popup-menu for the tablematrix widget:
-    my $itemcnt=0;
-    my %itemhash;
+    $itemcnt=0;
+    $r_itemhash={};
     my $MnPopup= $Table->Menu(-type=> 'normal', -tearoff=>0);
-    $itemhash{edit}= $itemcnt++;
+    $r_itemhash->{edit}= $itemcnt++;
     $MnPopup->add('command',
                    -label=> 'edit',
                    -command => [\&tk_field_edit, $r_tbh],
                  );
-    $itemhash{copy}= $itemcnt++;
+    $r_itemhash->{copy}= $itemcnt++;
     $MnPopup->add('command',
                   -label=> 'copy',
                   -command => [\&cb_copy_paste_field,
                                $r_glbl, $r_tbh, 'copy'],
                  );
-    $itemhash{paste}= $itemcnt++;
+    $r_itemhash->{paste}= $itemcnt++;
     $MnPopup->add('command',
                    -label=> 'paste',
                    -command => [\&cb_copy_paste_field,
                                 $r_glbl, $r_tbh, 'paste'],
                  );
-    $itemhash{'find in column'}= $itemcnt++;
+    $r_itemhash->{'find in column'}= $itemcnt++;
     $MnPopup->add('command',
                   -label=> 'find in column',
                   -command => [\&tk_find_line, $r_tbh],
                 );
-    $itemhash{'select THIS as foreign key'}= $itemcnt++;
+    $r_itemhash->{'select THIS as foreign key'}= $itemcnt++;
     $MnPopup->add('command',
                    -label=> 'select THIS as foreign key',
                    -command => [\&cb_select, $r_glbl, $r_tbh],
                  );
-    $itemhash{'open foreign table'}= $itemcnt++;
+    $r_itemhash->{'open foreign table'}= $itemcnt++;
     $MnPopup->add('command',
                   -label=> 'open foreign table',
                   -command => [\&cb_open_foreign_table, $r_glbl, $r_tbh],
@@ -1966,7 +1990,7 @@ sub make_table_window
 
     $default_popup{popup_widget}= $MnPopup;
     $default_popup{popup_items} = $itemcnt;
-    $default_popup{popup_item_h}= \%itemhash;
+    $default_popup{popup_item_h}= $r_itemhash;
 
     $default_popup{popup_disable_lists}= 
                   { default => ['open foreign table',
@@ -2352,6 +2376,13 @@ sub cb_column_popup_menu
 
     my $MnPopup= $r_popup->{popup_widget};
 
+    my @cell_attributes= ('default');
+
+    if (exists $r_tbh->{foreign_key_hash}->{$colname})
+      { push @cell_attributes, 'foreign_key'; };
+      
+    popup_enable_disable($r_popup,@cell_attributes);
+
     $MnPopup->Popup(-popover => "cursor",
                     -popanchor => 'nw');
   }
@@ -2385,7 +2416,17 @@ sub cb_default_popup_menu
           { push @cell_attributes, 'write_protected'; };
       };
     
+    popup_enable_disable($r_popup,@cell_attributes);
+
+    $MnPopup->Popup(-popover => "cursor",
+                    -popanchor => 'nw');
+  }                  
+
+sub popup_enable_disable
+  { my($r_popup,@cell_attributes)= @_;
+    my $MnPopup= $r_popup->{popup_widget};
     my $r_items= $r_popup->{popup_item_h};
+
     my @entrystates;
     for(my $i=0; $i<$r_popup->{popup_items}; $i++)
       { $entrystates[$i]=1; };
@@ -2416,13 +2457,10 @@ sub cb_default_popup_menu
         else  
           { $MnPopup->entryconfigure($i, -state => 'disabled'); }
       };
-
-    $MnPopup->Popup(-popover => "cursor",
-                    -popanchor => 'nw');
-  }                  
+  }    
 
 sub cb_open_foreign_table
- {  my($r_glbl, $r_tbh)= @_;
+ {  my($r_glbl, $r_tbh, $given_colname)= @_;
 
     my $Table_Widget= $r_tbh->{table_widget};
 
@@ -2433,6 +2471,7 @@ sub cb_open_foreign_table
     my($row,$col)= split(",",$Table_Widget->index('active'));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
+    $colname= $given_colname if (defined $given_colname);
 
     # using Table->get() would be unnecessary slow
     my $cell_value= put_get_val_direct($r_tbh,$pk,$colname);
@@ -2464,7 +2503,10 @@ sub cb_open_foreign_table
       if (!defined $r_all_tables); # assertion, shouldn't happen
 
     my $r_tbh_fk= $r_all_tables->{$fk_table};
-    if (!defined $r_tbh_fk)
+    
+    if (defined $r_tbh_fk)
+      { $r_tbh_fk->{top_widget}->raise(); }
+    else
       { # 'resident_there' must be given as parameter to
         # make_table_hash_and_window since make_table_window looks for
         # this part of the table-hash and creates the "select" button if
@@ -2479,9 +2521,8 @@ sub cb_open_foreign_table
          conn_add($r_glbl,$r_tbh->{table_name},$colname,
                   $fk_table,$fk_col);
 
+         tk_activate_cell($r_tbh_fk,$fk_col, $cell_value);
       }
-
-    tk_activate_cell($r_tbh_fk,$fk_col, $cell_value);
   }
 
 
