@@ -4679,7 +4679,7 @@ sub tk_resort_and_redisplay
       { my($pk,$colname)= split(";",$k);
         my ($row,$col)= pkcolname2rowcol($r_tbh,$pk,$colname);
         $r_changed_cells->{$k}= "$row,$col";
-        tk_add_changed_cell_tag($r_tbh,"$row,$col");
+        tk_add_changed_cell_tag($r_tbh,cell=>"$row,$col");
       };
 
     # the following forces a redraw
