@@ -143,14 +143,14 @@ sub resident_keys
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
-    
+
     if ($table_name =~ /\./)
       { ($table_owner,$table_name)= split(/\./,$table_name); };
 
     if (!defined $table_owner)
       { ($table_name,$table_owner)=
                     dbdrv::real_name($dbh,$user_name,$table_name);
-      }; 
+      };
 
     my $SQL= "select ST.TABLE_NAME, ST.OWNER, CL.COLUMN_NAME, " .
                    "ST.CONSTRAINT_NAME, " .
@@ -162,7 +162,7 @@ sub resident_keys
              "all_constraints ST, all_constraints ST2,  " .
              "all_cons_columns CL, all_cons_columns CL2 " .
              "where ";
-             
+
 # Oracle is too slow for this:
 #    if (defined $table_owner)
 #      { $SQL.=      "ST.OWNER=\'$table_owner\' AND "; };
@@ -179,26 +179,26 @@ sub resident_keys
     my $res_r=
       $dbh->selectall_arrayref($SQL);
     # gives:
-    # TABLE_NAME TABLE_OWNER COLUMN_NAME CONSTRAINT_NAME 
+    # TABLE_NAME TABLE_OWNER COLUMN_NAME CONSTRAINT_NAME
     #  R_TABLE R_COLUMN R_CONSTRAINT_NAME R_OWNER
-        
+
     if (!defined $res_r)
       { dberror($mod_l,'db_get_resident_keys',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
 
     # build a hash,
     # col_name => [ [resident_table1,resident_column1,resident_owner],
-    #               [resident_table2,resident_column2,resident_owner], 
+    #               [resident_table2,resident_column2,resident_owner],
     #                    ...
     #             ]
     #      resident_table may occur more than once
-    
+
     my @res;
     if (defined $table_owner)
       { foreach my $r_line (@$res_r)
-          { next if ($r_line->[1] ne $table_owner); 
+          { next if ($r_line->[1] ne $table_owner);
             push @res, $r_line;
           }
       }
@@ -210,17 +210,16 @@ sub resident_keys
       { # no resident keys found, just return "undef"
         return;
       };
-      
+
     my %resident_keys;
     foreach my $r_line (@res)
-      { 
+      {
         push @{ $resident_keys{ $r_line->[2] } },
-                 [ $r_line->[4],$r_line->[5], $r_line->[7] ]; 
+                 [ $r_line->[4],$r_line->[5], $r_line->[7] ];
       };
 
     return( \%resident_keys);
   }
-
 
 sub get_user_objects
 # INTERNAL
@@ -238,9 +237,9 @@ sub get_user_objects
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
- 
+
     my $sql;
-    
+
     $sql= "SELECT table_name from user_tables";
 
     sql_trace($sql) if ($sql_trace);
@@ -249,35 +248,35 @@ sub get_user_objects
 
     if (!defined $res)
       { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
-      
+
     # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
       { $r_tab->{ $line->[0] } = ['T',$user ]; };
-      
+
     $sql= "SELECT view_name from user_views";
-      
+
     sql_trace($sql) if ($sql_trace);
 
     my $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
       { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
-      
+
     # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_tab{ $line->[0] } = ['V',$user ]; 
+      { $r_tab{ $line->[0] } = ['V',$user ];
       };
-     
+
     #print Dumper($r_tab);
     return(1);
-  } 
-     
+  }
+
 sub get_synonyms
 # INTERNAL
 # returns a ref to a hash : syn_name => [$type, $own, $t_name, $t_own]
@@ -286,48 +285,48 @@ sub get_synonyms
 # $t_own: owner of referred table or view
 # $r_reverse_syn : a hash: owner.table => synonym
   { my($dbh,$r_syn,$r_reverse_syn)= @_;
-    
+
     die if (!defined $r_syn);
     die if (ref($r_syn) ne 'HASH');
-    
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     my $sql;
-    
+
     $sql= "SELECT asyn.synonym_name,asyn.owner, " .
-                  "asyn.table_name,asyn.table_owner " . 
+                  "asyn.table_name,asyn.table_owner " .
           "FROM all_synonyms asyn, all_tables at " .
-          "WHERE " . 
+          "WHERE " .
                    "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
-                   "asyn.table_name=at.table_name AND " . 
+                   "asyn.table_name=at.table_name AND " .
                    "asyn.table_owner=at.owner" ;
-                      
+
     sql_trace($sql) if ($sql_trace);
 
     my $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
       { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
-      
+
     # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_syn->{ $line->[0] } = 
-                    ['T',$line->[1], $line->[2], $line->[3] ]; 
-                    
-        $r_reverse_syn->{$line->[3] . '.' . $line->[2]}= $line->[0]; 
+      { $r_syn->{ $line->[0] } =
+                    ['T',$line->[1], $line->[2], $line->[3] ];
+
+        $r_reverse_syn->{$line->[3] . '.' . $line->[2]}= $line->[0];
       };
 
 
     $sql= "SELECT asyn.synonym_name,asyn.owner, " .
-                  "asyn.table_name,asyn.table_owner " . 
+                  "asyn.table_name,asyn.table_owner " .
           "FROM all_synonyms asyn, all_views av " .
-          "WHERE " . 
+          "WHERE " .
                    "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
-                   "asyn.table_name=av.view_name AND " . 
+                   "asyn.table_name=av.view_name AND " .
                    "asyn.table_owner=av.owner" ;
                       
     sql_trace($sql) if ($sql_trace);
@@ -342,21 +341,203 @@ sub get_synonyms
 
     # hash: [type('T'or'V'),synonym-owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_syn->{ $line->[0] } 
-                 = ['V',$line->[1], $line->[2], $line->[3] ]; 
+      { $r_syn->{ $line->[0] }
+                 = ['V',$line->[1], $line->[2], $line->[3] ];
 
-        $r_reverse_syn->{$line->[3] . '.' . $line->[2]}= $line->[0]; 
+        $r_reverse_syn->{$line->[3] . '.' . $line->[2]}= $line->[0];
       };
 
     #print Dumper($r_syn);
     return(1);
   }
 
+sub object_dependencies
+# INTENRAL
+# read the owner, name and of dependend objects
+  { my($dbh,$table_name,$table_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    if ($table_name =~ /\./)
+      { ($table_owner,$table_name)= split(/\./,$table_name); };
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$user_name,$table_name);
+      };
+
+    my $SQL= "select OWNER, NAME, TYPE ".
+                   " from ALL_DEPENDENCIES AD" .
+                   " AD.REFERENCED_NAME=\'$table_name\' AND " .
+                   " AD.REFERENCED_OWNER=\'$table_owner\'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_read_dependencies',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( $res_r );
+  }
+
+sub object_references
+# INTENRAL
+# read the owner, name  and of referencing objects
+  { my($dbh,$table_name,$table_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    if ($table_name =~ /\./)
+      { ($table_owner,$table_name)= split(/\./,$table_name); };
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$user_name,$table_name);
+      };
+
+    my $SQL= "select REFERENCED_OWNER OWNER, REFERENCED_NAME NAME, REFERENCED_TYPE TYPE".
+                   " from ALL_DEPENDENCIES AD" .
+                   " AD.NAME=\'$table_name\' AND " .
+                   " AD.OWNER=\'$table_owner\'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_read_references',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( $res_r );
+  }
+
+sub read_viewtext
+# INTERNAL
+# read the text of a view
+  { my($dbh,$table_name,$table_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    if ($table_name =~ /\./)
+      { ($table_owner,$table_name)= split(/\./,$table_name); };
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$user_name,$table_name);
+      };
+
+    my $SQL= "select TEXT from ALL_VIEWS AV" .
+                   " AV.VIEW_NAME=\'$table_name\' AND " .
+                   " AV.OWNER=\'$table_owner\'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_read_viewtext',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( $res_r );
+  }
+
+sub read_checktext
+# INTERNAL
+# read the name, condition of a check constraint
+  { my($dbh,$constraint_name,$table_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    if ($table_name =~ /\./)
+      { ($table_owner,$table_name)= split(/\./,$table_name); };
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$user_name,$table_name);
+      };
+
+    my $SQL= "select SEARCH_CONDITION CONDITION from ALL_CONSTRAINTS AC" .
+                   " AC.CONSTRAINT_NAME=\'$table_name\' AND " .
+                   " AC.OWNER=\'$table_owner\' AND " .
+                   " AC.CONSTRAINT_TYPE = 'C'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_read_checks',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( $res_r );
+  }
+
+sub read_triggertext
+# INTERNAL
+# reads the name, type, event, referer, clause, status
+# body and description of a trigger
+  { my($dbh,$trigger_name,$table_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    if ($table_name =~ /\./)
+      { ($table_owner,$table_name)= split(/\./,$table_name); };
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$user_name,$table_name);
+      };
+
+    my $SQL= "select TRIGGER_NAME NAME, TRIGGER_TYPE TYPE, TRIGGERING_EVENT EVENT, " .
+                   " REFERENCING_NAME REFERER, WHEN_CLAUSE CLAUSE, STATUS, " .
+                   " TRIGGER_BODY BODY, DESCRIPTION " .
+                   " from ALL_TRIGGERS AT" .
+                   " AT.TABLE_NAME=\'$table_name\' AND " .
+                   " AT.TABLE_OWNER=\'$table_owner\'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_read_triggertext',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( $res_r );
+  }
+
 
 sub sql_request_to_hash
 # internal
   { my($dbh,$sql,$r_h)= @_;
-  
+
     sql_trace($sql) if ($sql_trace);
 
     my $res=
@@ -364,14 +545,14 @@ sub sql_request_to_hash
 
     if (!defined $res)
       { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
     foreach my $line (@$res)
       { $r_h->{$line->[0]}= 1;
       };
   };
-   
+
 
 
 1;
@@ -382,9 +563,9 @@ SELECT distinct(asyn.table_name) FROM all_synonyms asyn, all_tables aobj
 WHERE asyn.owner NOT IN ('SYSTEM', 'SYS') AND
   asyn.owner IN ('PUBLIC', 'GUEST') AND
   asyn.table_name=aobj.table_name;
-                                                                                  
+
 SELECT distinct(asyn.table_name) FROM all_synonyms asyn, all_views aobj
 WHERE asyn.owner NOT IN ('SYSTEM', 'SYS') AND
   asyn.owner IN ('PUBLIC', 'GUEST') AND
   asyn.table_name=aobj.view_name;
-                                                                                  
+

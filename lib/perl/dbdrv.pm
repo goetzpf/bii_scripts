@@ -301,7 +301,7 @@ sub load_object_dict
                 'loading of user-objects failed');
         return;
       };
-      
+
     if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
       { dberror($mod,'load_object_dict',__LINE__,
                 'loading of synonyms failed');
@@ -311,9 +311,9 @@ sub load_object_dict
 
 sub check_existence
   { my($dbh,$table_name,$user_name)= @_;
-  
+
     # when the table has the form "owner.table", the check cannot
-    # be made, since it's no public synonym and not in the 
+    # be made, since it's no public synonym and not in the
     # synonym list
     return(1) if ($table_name=~ /\./);
     
@@ -368,7 +368,7 @@ sub accessible_objects
           { @keys= grep { $r_db_objects->{$_}->[0] eq 'V' } @keys; };
       };
 
-     
+
     if (!defined $access)
       { %access= ("public" => 1); }
     else
@@ -377,76 +377,76 @@ sub accessible_objects
         foreach my $t (keys %access)
           { if (!exists $known_acc{$t})
               { dberror($mod,'accessible_objects',__LINE__,
-                    "unknown object access type: $t"); 
+                    "unknown object access type: $t");
                 return;
               };
           };
       };
 
     my @result;
-    
+
     if (exists $access{public})
-      { push @result, 
-             grep { $r_db_objects->{$_}->[1] eq 'PUBLIC' } @keys; 
+      { push @result,
+             grep { $r_db_objects->{$_}->[1] eq 'PUBLIC' } @keys;
       };
-    
+
     if (exists $access{user})
-      { push @result, 
-             grep { $r_db_objects->{$_}->[1] eq $user_name } @keys; 
+      { push @result,
+             grep { $r_db_objects->{$_}->[1] eq $user_name } @keys;
       };
 
 #print Dumper(\@result);
-    
+
     return(sort @result);
-  } 
-        
+  }
+
 sub real_name
-# resolves a given table-name or synonym, 
+# resolves a given table-name or synonym,
 # returns the table-owner and the table-name
   { my($dbh,$user_name,$object_name)= @_;
-  
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
-  
-    load_object_dict($dbh,$user_name);  
-    
+
+    load_object_dict($dbh,$user_name);
+
     my $data= $r_db_objects->{$object_name};
     return if (!defined $data); # not in list of synonyms and
                                 # user objects
-    
+
     if ($#$data>1) # more than 2 objects in hash:synonym
       { return( $data->[2], $data->[3] ); };
-      
+
     return( $object_name, $data->[1] );
-  } 
-    
+  }
+
 sub canonify_name
   { my($dbh,$user_name,$object_name,$object_owner)= @_;
 
     if ($object_name =~ /\./)
       { ($object_owner,$object_name)= split(/\./,$object_name); };
-    
+
     return($object_name) if (!defined $object_owner);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    load_object_dict($dbh,$user_name);  
-    
+    load_object_dict($dbh,$user_name);
+
     my $name= $object_owner . '.' . $object_name;
-    
+
     my $new_name= $r_db_reverse_synonyms->{$name};
 
     if (defined $new_name)
       { return($new_name); };
-      
+
     return($name);
   }
-    
+
 
 sub load
   { my($driver_name)= @_;
-  
+
     if (!exists $drivers{$driver_name})
       { dberror($mod,'load_driver',__LINE__,
                 'unknown db driver:$driver_name');
@@ -457,24 +457,24 @@ sub load
                 "unable to load db driver $driver_name: $@");
         return;
       };
-    return(1); 
-  }     
+    return(1);
+  }
 
 sub connect_database
 # if dbname=="", use DBD::AnyData
   { my($dbname,$username,$password)= @_;
-  
+
     warn "connecting to database...\n" if ($db_trace);
-    
+
 #    if ($dbname eq "")
 #      { $dbname= "DBI:AnyData:"; };
-    
+
     my $dbh    = DBI->connect($dbname,
-                              #"DBI:AnyData:",# driver-name 
+                              #"DBI:AnyData:",# driver-name
                               $username,     # user-name
                               $password,     # password
                              {RaiseError=>0, # errors abort the script
-                              PrintError=>0, # not needed bec. of RaiseError 
+                              PrintError=>0, # not needed bec. of RaiseError
                               AutoCommit=>1} # automatically commit changes
                              );
 
@@ -510,20 +510,20 @@ sub disconnect_database
 
 sub check_dbi_handle
   { my($dbh)= @_;
-  
+
     # test wether to use internal standard database handle
     if (!defined $dbh)
       { $dbh= $std_dbh; }
-    elsif ($dbh eq "") 
+    elsif ($dbh eq "")
       { $dbh= $std_dbh; };
     if (ref($dbh) !~ /^DBI::/)
       { dberror($mod,'check_dbi_handle',__LINE__,
-                "error: parameter is not a DBI handle!"); 
+                "error: parameter is not a DBI handle!");
         return;
       };
     if (!defined $dbh)
       { dberror($mod,'check_dbi_handle',__LINE__,
-                "standard dbi handle not initialized!"); 
+                "standard dbi handle not initialized!");
         return;
       };
     return($dbh);
@@ -535,7 +535,7 @@ sub check_dbi_handle
 
 =head1 NAME
 
-dbdrv - a Perl module for low-level utility function to access 
+dbdrv - a Perl module for low-level utility function to access
 an SQL database.
 
 =head1 SYNOPSIS
@@ -543,9 +543,9 @@ an SQL database.
   use dbdrv;
 
   dbdrv::load("Oracle"); # load oracle driver
-  
+
   my @all_tables= dbdrv::all_tables();
-  
+
 
 =head1 DESCRIPTION
 
@@ -553,24 +553,24 @@ an SQL database.
 
 This module contains low-level functions for accessing an SQL database
 which are not part of the standard DBD database drivers. Examples
-of such functions are getting a list of all tables, 
-getting a list of all views or getting the primary key(s) of a 
-certain table. 
+of such functions are getting a list of all tables,
+getting a list of all views or getting the primary key(s) of a
+certain table.
 
 Since the implementation of these functions is different for each database,
 the module dbdrv provides a unified interface, just like DBI does.
 And just like DBI knows driver modules like DBD::Oracle, this module
-has driver modules, too, for example dbdrv:oci. 
+has driver modules, too, for example dbdrv:oci.
 
 =head2 initialization and database drivers
 
-The module should I<always> be initialized with a call of 
+The module should I<always> be initialized with a call of
 C<dbdrv::load>. Before the call of this function, the other functions
-to access the database are not defined. This is how C<dbdrv::load> is 
+to access the database are not defined. This is how C<dbdrv::load> is
 called:
 
-  dbdrv::load($driver_name); 
-  
+  dbdrv::load($driver_name);
+
 Known driver names are:
 
 =over 4
@@ -581,15 +581,15 @@ This loads the driver for the oracle database (dbdrv_oci.pm).
 
 =back
 
-The function calls C<dbdrv::dberror()> if the loading of the driver 
+The function calls C<dbdrv::dberror()> if the loading of the driver
 failed. See also L</error handling> further below.
 
 =head2 error handling
-  
-dbdrv uses two error handling functions, for fatal and non-fatal 
+
+dbdrv uses two error handling functions, for fatal and non-fatal
 errors. These functions are C<dbdrv::dberror()> and C<dbdrv::dbwarn()>,
-you can use them for your application, too. This may be useful since 
-it is easy to ovveride these functions and provide a method of 
+you can use them for your application, too. This may be useful since
+it is easy to ovveride these functions and provide a method of
 your own to print out the error messages.
 
 =over 4
@@ -598,11 +598,11 @@ your own to print out the error messages.
 
   if ($not_fatal_error)
     { dbdrv::dbwarn($module_name,$function,__LINE__,
-                    "a non fatal error occured"); 
+                    "a non fatal error occured");
     }
 
-This function takes 4 arguments. C<$module_name> is the name 
-of your perl-module, C<$function> the name of your function 
+This function takes 4 arguments. C<$module_name> is the name
+of your perl-module, C<$function> the name of your function
 where the error occured. The 3rd parameter is the line-number and
 the fourth is the error-string. C<dbdrv::dbwarn()> returns after
 it has printed the error-message.
@@ -611,15 +611,15 @@ it has printed the error-message.
 
   if ($fatal_error)
     { dbdrv::dberror($module_name,$function,__LINE__,
-                     "a fatal error occured, aborting the program"); 
+                     "a fatal error occured, aborting the program");
     }
-    
+
 This function takes the same parameters as C<dbdrv::dbwarn()>, the
 only difference is that it terminates your program by calling C<die>.
 
 =back
 
-Both functions mentioned above print messages to STDERR. 
+Both functions mentioned above print messages to STDERR.
 You can, however override these two functions. This is useful when
 your application is for example a graphical application and you
 want error-messages to appear in a graphical error-box.
@@ -777,7 +777,7 @@ This function performs a simple check wether a table exists.
 C<$dbh> is the database handle, C<$table_name> the name of the table.
 C<$user_name> is the username and optional. The username is
 storedin the variable C<dbdrv::std_username> when C<connect_database()> 
-is called. The function returns C<1> when the table is accessible and 
+is called. The function returns C<1> when the table is accessible and
 C<undef> when not.
 
 =item dbdrv::primary_keys()
@@ -797,12 +797,12 @@ keys in a hash. Note that foreign keys may have a different column
 name in the foreign table they refer to.
 The foreign key hash has the following format:
 
-  my %fk_hash= ( $column_name1 => 
+  my %fk_hash= ( $column_name1 =>
                        [$foreign_table1,$foreign_column_name1],
-                 $column_name2 => 
+                 $column_name2 =>
                        [$foreign_table2,$foreign_column_name2],
                         ...
-                 $column_nameN => 
+                 $column_nameN =>
                        [$foreign_tableN,$foreign_column_nameN],
                )
 
@@ -810,17 +810,17 @@ The foreign key hash has the following format:
 
   my %rk_hash= dbdrv::resident_keys($dbh,$table_name)
 
-This function returns all tables where one of the primary key 
+This function returns all tables where one of the primary key
 columns in the given table C<$table_name> is used as foreign key.
-It returns a hash of the following format 
+It returns a hash of the following format
 
-  my %rk_hash= ( $primary_key1 => 
+  my %rk_hash= ( $primary_key1 =>
                         [$resident_table11,$resident_column11],
                         [$resident_table12,$resident_column12],
                            ...
                         [$resident_table1N,$resident_column1N],
-                                  
-                 $primary_key2 => 
+
+                 $primary_key2 =>
                         [$resident_table21,$resident_column21],
                         [$resident_table22,$resident_column22],
                            ...
@@ -832,7 +832,7 @@ It returns a hash of the following format
 =item dbdrv::accessible_objects
 
   my @objects= accessible_objects($dbh,$table_name,$user_name)
-  
+
 This function returns all accessible public objects (tables and
 views) for a given user (C<$user_name>).
 
@@ -848,8 +848,45 @@ it's owner.
   my $new_name=canonify_name($dbh,$user_name,$object_name,$object_owner)
 
 This converts a given object and it's owner to a name in the form
-"owner.name" or a synonym that maps to the given object. 
+"owner.name" or a synonym that maps to the given object.
 
+=item dbdrv::object_dependencies
+
+  my %rk_hash= dbdrv::object_dependencies($dbh,$table_name,$table_owner)
+
+This function returns information of all dependend objects, they
+will need the given object as a list of owner, name and type
+It returns a hash of the following format
+
+=item dbdrv::object_references
+
+  my %rk_hash= dbdrv::object_references($dbh,$table_name,$table_owner)
+
+This function returns the information about all referenced objects, they
+will need by this object as a list of owner, name and type
+It returns a hash of the following format
+
+=item dbdrv::read_viewtext()
+
+  my %rk_hash= dbdrv::read_viewtext($dbh,$view_name, $view_owner)
+
+This function returns the text of a view definition
+It returns a hash of the following format
+
+=item dbdrv::read_checktext()
+
+  my %rk_hash= dbdrv::read_checktext($dbh,$constraint_name, $constraint_owner)
+
+This function returns the condition of a check constraint definition
+It returns a hash of the following format
+
+=item dbdrv::read_triggertext()
+
+  my %rk_hash= dbdrv::read_triggertext($dbh,$trigger_name, $trigger_owner)
+
+This function returns name, type, event, referer, clause, status
+body and description of a trigger definition
+It returns a hash of the following format
 
 --- to be continued ---
 
