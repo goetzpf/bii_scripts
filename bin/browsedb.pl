@@ -7,7 +7,7 @@ use strict;
 
 use FindBin;
 
-# enable this if you want to search modules like dbitable.pm 
+# enable this if you want to search modules like dbitable.pm
 # relative to the location of THIS script:
 # ------------------------------------------------------------
 # use lib "$FindBin::RealBin/../lib/perl";
@@ -21,6 +21,7 @@ use FindBin;
 
 use Sys::Hostname;
 use Config;
+use File::Spec;
 
 #use Tk 800.024; <-- problems on ocean
 use Tk;
@@ -51,7 +52,7 @@ use dbdrv 1.2;
 use dbitable 2.1;
 
 use Data::Dumper;
-my $VERSION= "0.93";
+my $VERSION= "0.94";
 
 #warn "TK Version: " . $Tk::VERSION;
 
@@ -74,6 +75,11 @@ our %save; # global configuration variable
 my $home= $ENV{"HOME"};
 if (!defined $home)
   { $home=""; };
+
+
+my $sharedir= "$FindBin::RealBin/../share";
+if ((!-d $sharedir) or (!-r $sharedir))
+  { $sharedir= undef; };
 
 my $PrgDir = $home."/.browsedb";
 if (! -e $PrgDir)
@@ -976,9 +982,26 @@ sub tk_main_window
                      }
                 );
         # read column-map definitions:
-        my $r_c= load_column_maps($r_glbl,"$PrgDir/$column_map_file");
-        if (defined $r_c)
-          { $r_glbl->{column_map_definitions}= $r_c; };
+        my $r_c;
+        if (defined $sharedir)
+          { $r_c= load_column_maps($r_glbl,
+                                   File::Spec->catdir($sharedir,
+                                                      $column_map_file
+                                                     )
+                                   );
+            if (defined $r_c)
+              { $r_glbl->{column_map_definitions_global}= $r_c; };
+          };
+
+        if ((-d $PrgDir) and (-r $PrgDir))
+          { $r_c= load_column_maps($r_glbl,
+                                   File::Spec->catdir($PrgDir,
+                                                      $column_map_file
+                                                     )
+                                   );
+            if (defined $r_c)
+              { $r_glbl->{column_map_definitions_local}= $r_c; };
+          };
 
         # dont remove these update, because of .toplevel
         # problems for destroy operations
@@ -1413,7 +1436,7 @@ sub tk_execute_new_query
             }
 
         }
-        tk_progress($r_glbl, ($counter/$size)*100);
+        tk_progress($r_glbl, ($counter/($size+1))*100);
         if (! defined ($r_glbl->{dbh}->err))
         {
             $sql_history_widget->insert('end', "\n");
@@ -1698,7 +1721,7 @@ sub make_table_hash
       { $wp{$col}='P'; };
     $table_hash{write_protected_cols}= \%wp;
 
-    # get column-maps from the database:
+    # column-maps specified as a parameter:
     my $r_col_maps= $table_hash{col_maps};
     if (defined $r_col_maps)
       { my %maps= %{$table_hash{col_maps}};
@@ -1709,14 +1732,17 @@ sub make_table_hash
           };
       };
 
-    $r_col_maps= $r_glbl->{column_map_definitions};
-    if (defined $r_col_maps)
-      { $r_col_maps= $r_col_maps->{$table_hash{table_name}};
+    # now apply local and global column-maps
+    foreach my $k (qw(local global))
+      { $r_col_maps= $r_glbl->{"column_map_definitions_$k"};
         if (defined $r_col_maps)
-          { foreach my $c ( keys %$r_col_maps )
-              { next if (column_has_a_map(\%table_hash,$c));
-                set_column_map($r_glbl,\%table_hash,
-                               $r_col_maps->{$c},$c);
+          { $r_col_maps= $r_col_maps->{$table_hash{table_name}};
+            if (defined $r_col_maps)
+              { foreach my $c ( keys %$r_col_maps )
+                  { next if (column_has_a_map(\%table_hash,$c));
+                    set_column_map($r_glbl,\%table_hash,
+                                   $r_col_maps->{$c},$c);
+                  };
               };
           };
       };
@@ -1820,11 +1846,13 @@ sub make_table_window
                 -underline   => 0,
                 -menu=> $MnFile
                 );
+
     $MnTop->add('cascade',
-                -label=> 'Database',
-                -underline   => 0,
-                -menu=> $MnDbase
-                );
+               -label=> 'Database',
+               -underline   => 0,
+               -menu=> $MnDbase
+               );
+
     $MnTop->add('cascade',
                 -label=> 'Edit',
                 -underline   => 0,
@@ -1890,11 +1918,15 @@ sub make_table_window
                     );
 
     # configure database-menu:
-    $MnDbase->add('command',
-                  -label=> 'Store',
-                  -underline   => 0,
-                  -command => [\&cb_store_db, $r_tbh],
-                );
+    if ($r_tbh->{table_type} eq 'table')
+      {
+        $MnDbase->add('command',
+                      -label=> 'Store',
+                      -underline   => 0,
+                      -command => [\&cb_store_db, $r_tbh],
+                    );
+      };
+
     $MnDbase->add('command',
                   -label=> 'Reload',
                   -underline   => 0,
@@ -2025,7 +2057,7 @@ sub make_table_window
                       -label=> 'add column map to file',
                       -underline   => 0,
                       -command =>
-                        sub { add_to_column_maps($r_glbl,$r_tbh,
+                        sub { add_to_local_column_maps($r_glbl,$r_tbh,
                                                  "$PrgDir/$column_map_file");
                             }
                     );
@@ -2155,7 +2187,10 @@ sub make_table_window
 
 
     # mark changed cells by changing the foreground color to red
-    $Table->tagConfigure('changed_cell', -foreground => 'red');
+    $Table->tagConfigure('changed_cell'   , -foreground => 'red');
+
+    # mark changed cells by changing the foreground color to red
+    $Table->tagConfigure('changed_cell_ro', -foreground => 'orange');
 
     # create a tag for the primary key column
     $Table->tagConfigure('pk_cell', -foreground => 'blue');
@@ -2251,9 +2286,7 @@ sub make_table_window
                         sub { tk_define_col_map($r_glbl, $r_tbh,
                                                  $column_popup{current_col}
                                                 );
-                              tk_rewrite_active_cell($r_tbh);
-                              table_window_title_tags($r_tbh,
-                                                 $column_popup{current_col});
+
                             }
                    );
     $MnColMap->add('command',
@@ -2505,7 +2538,7 @@ sub table_window_title_tags
           { @cols= ($col); }
       };
 
-    if (!defined $col)  
+    if (!defined $col)
       { @cols= keys %$r_col_hash; }; # only visible columns
 
     foreach my $colname (@cols)
@@ -2515,14 +2548,14 @@ sub table_window_title_tags
           { if (!exists $r_cm->{$colname})
               { $Table_Widget->tagCell('', "0,$col"); }
             else
-              { $Table_Widget->tagCell('mapped_col_off', "0,$col"); 
+              { $Table_Widget->tagCell('mapped_col_off', "0,$col");
               }
           }
         else
           { $Table_Widget->tagCell('mapped_col_on', "0,$col"); }
 
-      }; 
-  }  
+      };
+  }
 
 sub table_window_set_column_width
   { my($r_tbh)= @_;
@@ -3343,13 +3376,13 @@ sub tk_load_from_file
       {
         $row= pk2row($r_tbh,$pk);
         $r_chg->{$pk}= $row;
-        $Table->tagRow('changed_cell',$row);
+        tk_add_changed_cell_tag($r_tbh,row=>$row);
       };
 
     foreach my $pk ($dbitable->primary_keys(filter=>'inserted'))
       { $row= pk2row($r_tbh,$pk);
         $r_chg->{$pk}= $row;
-        $Table->tagRow('changed_cell',$row);
+        tk_add_changed_cell_tag($r_tbh,row=>$row);
       };
 
     # the following forces a redraw
@@ -3426,13 +3459,13 @@ sub tk_import_csv
       {
         $row= pk2row($r_tbh,$pk);
         $r_chg->{$pk}= $row;
-        $Table->tagRow('changed_cell',$row);
+        tk_add_changed_cell_tag($r_tbh,row=>$row);
       };
 
     foreach my $pk ($dbitable->primary_keys(filter=>'inserted'))
       { $row= pk2row($r_tbh,$pk);
         $r_chg->{$pk}= $row;
-        $Table->tagRow('changed_cell',$row);
+        tk_add_changed_cell_tag($r_tbh,row=>$row);
       };
 
     # the following forces a redraw
@@ -4181,7 +4214,7 @@ sub cb_put_get_val
 
         $r_tbh->{dbitable}->value($pk,$colname,$putval);
         $r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
-        $r_tbh->{table_widget}->tagCell('changed_cell',"$row,$col");
+        tk_add_changed_cell_tag($r_tbh,cell=>"$row,$col");
         #warn "set tag to $row,$col";
 
         return($val);
@@ -4471,6 +4504,9 @@ sub tk_define_col_map_finish
     if (!set_column_map($r_glbl,$r_tbh,$sql_command,$column_name))
       { return; };
 
+    tk_rewrite_active_cell($r_tbh);
+    table_window_title_tags($r_tbh,$column_name);
+
     # the following forces a redraw
     my $Table= $r_tbh->{table_widget};
     $Table->configure(-padx => ($Table->cget('-padx')) );
@@ -4599,6 +4635,48 @@ sub tk_activate_cell
     $Table->yview($row-1);
   }
 
+# add changed-cell tag:
+#_______________________________________________________
+
+sub tk_add_changed_cell_tag
+# options: row=> row-number
+#          cell=> "row,col"  (cell-index)
+#          cells=> ["row,col", "row2,col2" ... ]
+#          redraw=> trigger widget redraw
+  { my($r_tbh,%options)= @_;
+
+    my $Table_widget= $r_tbh->{table_widget};
+    my $tagname;
+
+    if ($r_tbh->{table_type} eq 'table')
+      { $tagname= 'changed_cell'; }
+    else
+      { $tagname= 'changed_cell_ro'; }
+
+    my $row= $options{row};
+    if (defined $row)
+      { $Table_widget->tagRow($tagname,$row);
+      }
+    else
+      { if (exists $options{cell})
+          { $Table_widget->tagCell($tagname,$options{cell});
+          }
+        else
+          { foreach my $cell (@{$options{cells}})
+              { $Table_widget->tagCell($tagname,$cell); };
+          };
+      };
+
+
+    # the following forces a redraw
+    # (maybe not necessary ???)
+    if (exists $options{redraw})
+      { $Table_widget->configure(-padx =>
+                                 ($Table_widget->cget('-padx'))
+                                );
+      };
+  }
+
 # remove changed-cell tags:
 #_______________________________________________________
 
@@ -4664,7 +4742,7 @@ sub tk_resort_and_redisplay
       { my($pk,$colname)= split(";",$k);
         my ($row,$col)= pkcolname2rowcol($r_tbh,$pk,$colname);
         $r_changed_cells->{$k}= "$row,$col";
-        $Table_widget->tagCell('changed_cell',"$row,$col");
+        tk_add_changed_cell_tag($r_tbh,"$row,$col");
       };
 
     # the following forces a redraw
@@ -5578,6 +5656,8 @@ sub find_next_col
     if (ref($str))
       { $str= $$str; };
 
+    return if (!defined $str); # seems sometimes to happen
+
     my $dir= ($options{direction} eq 'down') ? 1 : -1;
 
     my $max= $r_tbh->{row_no};
@@ -5716,6 +5796,7 @@ sub load_column_maps
   { my($r_glbl,$file)= @_;
 
     local(*F);
+
     my %h;
 
     if (!-e $file)
@@ -5740,7 +5821,7 @@ sub load_column_maps
     return(\%h);
   }
 
-sub add_to_column_maps
+sub add_to_local_column_maps
   { my($r_glbl,$r_tbh,$file)= @_;
 
     local(*F);
@@ -5752,7 +5833,34 @@ sub add_to_column_maps
 
     my $tablename= $r_tbh->{table_name};
     foreach my $col (keys %$r_colmaps)
-      { $r_h->{$tablename}->{$col}= $r_colmaps->{$col}->{sql_command}; };
+      {
+        $r_h->{$tablename}->{$col}= $r_colmaps->{$col}->{sql_command};
+      };
+
+    # now weed out definitions that are already contained
+    # in the global definitions:
+    my $r_g_colmaps= $r_glbl->{column_map_definitions_global};
+    if (defined $r_g_colmaps)
+      { foreach my $tablename (keys %$r_g_colmaps)
+          { next if (!exists $r_h->{$tablename});
+            my $r_g_tmap= $r_g_colmaps->{$tablename};
+            my $r_l_tmap= $r_h->{$tablename};
+            foreach my $col (keys %$r_g_tmap)
+              { next if (!exists $r_l_tmap->{$col});
+                my $l_sql= $r_l_tmap->{$col};
+                my $g_sql= $r_g_tmap->{$col};
+                if ($l_sql eq $g_sql)
+                  { delete $r_l_tmap->{$col}; };
+              };
+            if (!(keys %$r_l_tmap)) # empty list
+              { delete $r_h->{$tablename}; };
+          };
+        if (!(keys %$r_h)) # nothing to save
+          { return; # we could also delete the local
+                    # column-map file...
+          };
+      };
+
     if (-e $file)
       { if (system("mv $file $file.old"))
           { warn "unable to make safety copy, aborted!";
@@ -5773,7 +5881,8 @@ sub add_to_column_maps
       { warn "unable to write file!\n";
       };
 
-    $r_glbl->{column_map_definitions}= $r_h;
+
+    # $r_glbl->{column_map_definitions_local}= $r_h;
   }
 
 
