@@ -10,7 +10,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 #pragmas:
 use strict;
 
-use lib ".";
+use lib "$FindBin::RealBin/..lib/perl";
 
 use FindBin;
 use Getopt::Long;
