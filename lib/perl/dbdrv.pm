@@ -50,6 +50,7 @@ our $sql_trace=0;
 our $db_trace  =0;
 
 my $mod= "dbdrv";
+my $r_db_objects;
 
 my $no_dbi= $ENV{DBITABLE_NO_DBI};
 
@@ -83,7 +84,7 @@ sub set_warn_func
       { dberror($mod,'set_warn_func',__LINE__,
                 'parameter is not a reference to a subroutine!');
       };
-    $errorfunc= $f_ref;
+    $warnfunc= $f_ref;
   }  
 
 sub set_sql_trace_func
@@ -154,7 +155,98 @@ sub execute
 
     return( $sth->execute( @args));
   };    
-  
+
+
+sub load_object_dict 
+  { my($dbh,$user)= @_;
+    return if (defined $r_db_objects);
+    my %h;
+    $r_db_objects= \%h;
+    if (!get_user_objects($dbh,$user,$r_db_objects))
+      { dberror($mod,'load_object_dict',__LINE__,
+                'loading of user-objects failed');
+	return;
+      };
+      
+    if (!get_synonyms($dbh,$r_db_objects))
+      { dberror($mod,'load_object_dict',__LINE__,
+                'loading of synonyms failed');
+	return;
+      };
+  }
+
+sub accessible_objects
+  { my($dbh,$user_name,$types,$access)= @_;
+    my %known_types= (table => 'T', view => 'V');
+    my %known_acc  = map { $_ =>1 } qw( user public );
+    my %types;
+    my %access;
+
+    
+    if (!defined $types)
+      { %types= (T=>1); }
+    else
+      { $types= lc($types);
+        my @types= split(",",$types);
+	foreach my $t (@types)
+	  { my $c= $known_types{$t};
+	    if (!defined $c)
+	      { dberror($mod,'accessible_objects',__LINE__,
+                    "unknown object type: $t"); 
+        	return;
+              };
+	    $types{$c}=1;
+          };
+      };
+      
+    load_object_dict($dbh,$user_name);  
+    my @keys= keys %$r_db_objects;
+
+#print Dumper(\%types);
+
+    if ((!exists $types{T}) || (!exists $types{V}))
+      { # there are only tables and views, so only if not BOTH
+        # are wanted, we have to filter
+	if (exists $types{T})
+	  { @keys= grep { $r_db_objects->{$_}->[0] eq 'T' } @keys; }
+	else
+	  { @keys= grep { $r_db_objects->{$_}->[0] eq 'V' } @keys; };
+      };
+
+     
+    if (!defined $access)
+      { %access= ("public" => 1); }
+    else
+      { $access= lc($access);
+        %access= map { $_ => 1} split(",",$access);
+	foreach my $t (keys %access)
+	  { if (!exists $known_acc{$t})
+	      { dberror($mod,'accessible_objects',__LINE__,
+                    "unknown object access type: $t"); 
+        	return;
+              };
+          };
+      };
+
+    my @result;
+    
+    if (exists $access{public})
+      { push @result, 
+             grep { $r_db_objects->{$_}->[1] eq 'PUBLIC' } @keys; 
+      };
+    
+    if (exists $access{user})
+      { push @result, 
+             grep { $r_db_objects->{$_}->[1] eq $user_name } @keys; 
+      };
+
+#print Dumper(\@result);
+    
+    return(sort @result);
+  } 
+        
+
+
 
 sub load
   { my($driver_name)= @_;
