@@ -70,6 +70,7 @@ my $ACTBG= "gray73";
 
 # re-define the dbitable error-handler:
 dbdrv::set_err_func(\&dbidie);
+dbdrv::set_warn_func(\&dbiwarn);
 $dbitable::sim_delete = 0;
 
 my %std_button_options= (-font=> ['helvetica',10,'normal'],
@@ -663,20 +664,25 @@ sub tk_open_new_object
     # $type can be "view", "table" or "sql"
     my %known_types= map { $_ =>1 } qw( table view sql );
 
-        # setting kind of db object
-    if (lc($type) =~ /(view|table)/)
-      {  $r_glbl->{new_table_type} = lc($type); }
-    else
-      {  $r_glbl->{new_table_type} = "sql"; }
+    my %params;
+    $params{table_name}= uc( $r_glbl->{new_table_name} );
+    delete $r_glbl->{new_table_name};
 
-        make_table_hash_and_window($r_glbl,uc($r_glbl->{new_table_name}));
+    
+    # setting kind of db object
+    if (lc($type) =~ /(table|view|sql)/)
+      {  $params{table_type} = lc($type); }
+    else
+      {  die "unsupported table type: $type"; #$params{table_type} = "sql"; 
+      }
+
+    make_table_hash_and_window($r_glbl,%params);
 
     if ($fast_test)
       { $fast_test=0;
         return;
       };
 
-    delete $r_glbl->{new_table_name};
     delete $r_glbl->{new_where_clause};
 
     if (exists $r_glbl->{table_dialog_widget})
@@ -693,7 +699,16 @@ sub tk_execute_new_query
     chomp $sqlquery;
     $sqlquery =~ s/\s*;\s*$//;
     $sqlquery =~ s/^\s*$//m;
-    if (length($sqlquery) > 6) {
+    
+    
+    if (length($sqlquery) >= 6) {
+
+#@@@@@@@@@@@@@@@    
+make_table_hash_and_window($r_glbl,
+                           table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
+			   table_type=>"sql",
+			   sequel=>$sqlquery);
+
         $r_glbl->{sql_history_widget}->insert('end', "\n");
         $r_glbl->{sql_history_widget}->insert('end', $sqlquery);
         $r_glbl->{sql_command_widget}->delete('1.0', "end");
@@ -840,11 +855,10 @@ sub tk_foreign_key_dialog_finish
        # make_table_hash_and_window since make_table_window looks for
        # this part of the table-hash and creates the "select" button if
        # that member of the hash is found
-       $r_tbh_fk= make_table_hash_and_window(
-                       $r_glbl,
-                       $fk_table,
-                       resident_there=>1
-                                            );
+       $r_tbh_fk= make_table_hash_and_window($r_glbl, 
+       					     table_name=> $fk_table, 
+					     table_type=> 'table', 
+       		                             resident_there=>1);
 
         conn_add($r_glbl,$r_tbh->{table_name},$colname,
                  $fk_table,$fk_col);
@@ -992,7 +1006,9 @@ sub tk_dependency_dialog_finish
     my $r_tbh_res= $r_all_tables->{$res_table};
     if (!defined $r_tbh_res)
       { # create a window fore the resident-table:
-        $r_tbh_res= make_table_hash_and_window($r_glbl, $res_table);
+        $r_tbh_res= make_table_hash_and_window($r_glbl, 
+	                                       table_name=>$res_table,
+					       table_type=>'table');
       
         # get the name of the current table:
         my $my_table= $r_tbh->{table_name};
@@ -1179,21 +1195,23 @@ sub tk_field_edit
   }
 
 sub make_table_hash_and_window
-  { my($r_glbl,$table_name,%hash_defaults)= @_;
+  { my($r_glbl,%options)= @_;
 
-    if ($r_glbl->{new_table_type} =~ /(table|view)/) {
+    if ($options{table_type} =~ /(table|view|sql)/) 
+      {
         if (!exists $r_glbl->{all_tables})
-                { $r_glbl->{all_tables}= {}; };
-        } else {
-                    tk_err_dialog($r_glbl->{main_menu_widget},
-                      "sequels are not supported for now!");
-                return;
-        }
+          { $r_glbl->{all_tables}= {}; };
+      } 
+    else 
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "unsupported table type: $options{table_type}");
+        return;
+      }
 
-        my $r_all_tables= $r_glbl->{all_tables};
+    my $r_all_tables= $r_glbl->{all_tables};
 
     my $r_tbh=
-                make_table_hash($r_glbl,$table_name,%hash_defaults);
+                make_table_hash($r_glbl,%options);
 
     if (!defined $r_tbh)
       { tk_err_dialog($r_glbl->{main_menu_widget},
@@ -1201,7 +1219,7 @@ sub make_table_hash_and_window
         return;
       };
 
-    $r_all_tables->{$table_name}= $r_tbh;
+    $r_all_tables->{$options{table_name}}= $r_tbh;
 
     make_table_window($r_glbl,$r_tbh);
 
@@ -1209,7 +1227,7 @@ sub make_table_hash_and_window
   }
 
 sub make_table_hash
-  { my($r_glbl,$table_name,%hash_defaults)= @_;
+  { my($r_glbl,%hash_defaults)= @_;
 
     my $dbh= $r_glbl->{dbh};
 
@@ -1217,9 +1235,6 @@ sub make_table_hash
 
     # the database-handle:
     $table_hash{dbh}        = $dbh;
-
-    # the table-name:
-    $table_hash{table_name} = $table_name;
 
     # the dbitable object:
     $table_hash{dbitable}   = get_dbitable($r_glbl,\%table_hash);
@@ -1907,6 +1922,12 @@ sub tk_err_dialog
     $dialog->Show();
   }
 
+sub dbiwarn
+# uses a global variable !!
+  {
+    tkwarn(\%global_data,@_);
+  }
+
 sub dbidie
 # uses a global variable !!
   {
@@ -1937,6 +1958,19 @@ sub tkdie2
     $dialog->Show();
     exit(0);
   }
+
+sub tkwarn
+  { my($r_glbl,$message)= @_;
+  
+    my $Top= $r_glbl->{main_menu_widget};
+    if (!defined $Top)
+      { $Top= $r_glbl->{login_widget}; };
+    my $dialog= $Top->Dialog(
+                             -title=>'Fatal Error',
+                             -text=> $message
+                            );
+    $dialog->Show();
+  }    
 
 sub cf_open_window
   { my($parent_window, $r_glbl, $window_title) = @_;
@@ -2095,11 +2129,10 @@ sub cb_open_foreign_table
         # make_table_hash_and_window since make_table_window looks for
         # this part of the table-hash and creates the "select" button if
         # that member of the hash is found
-        $r_tbh_fk= make_table_hash_and_window(
-                        $r_glbl,
-                        $fk_table,
-                        resident_there=>1
-                                             );
+        $r_tbh_fk= make_table_hash_and_window( $r_glbl,
+                        		       table_name=>$fk_table,
+					       table_type=>'table',
+                        		       thash_defaults=> {resident_there=>1});
 
          conn_add($r_glbl,$r_tbh->{table_name},$colname,
                   $fk_table,$fk_col);
@@ -2801,12 +2834,25 @@ sub get_dbitable
 
 # warn "get from oracle: $r_tbh->{table_name} ";
   
-    my $ntab= dbitable->new('table',$r_tbh->{dbh},
-                           $r_tbh->{table_name},
-                           );
+    my $ntab;
+    
+    if ($r_tbh->{table_type} ne "sql")
+      { $ntab= dbitable->new('table',$r_tbh->{dbh},
+                             $r_tbh->{table_name},
+                            );
+      }
+    else		   
+      { $ntab= dbitable->new('view',$r_tbh->{dbh},
+                             $r_tbh->{table_name},"",$r_tbh->{sequel}
+                            );
+      };
+
     if (!defined $ntab)
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-                      $dbitable::last_error);
+      { # dbitable prints an error-message of it's own, so there is 
+        # no need to print the same error here again
+      
+        #tk_err_dialog($r_glbl->{main_menu_widget},
+        #              $dbitable::last_error);
         return;
       };              
       
