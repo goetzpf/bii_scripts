@@ -26,11 +26,11 @@ use Text::ParseWords;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.5';
+our $VERSION     = '1.6';
 
 our $export_version= "1.0";
 
-our $sql_trace= 0;
+our $sql_trace= undef;
 our $db_trace  =0;
 our $prelim_key=0;
 our $sim_delete=1; # deletions in the DB are only simulated
@@ -949,8 +949,8 @@ sub max_key
     if ($arg eq 'capped')
       { $cmd.= " where $pk<$key_fact"; };
     
-    print "$cmd\n" if ($sql_trace);
-    
+    my_sql_trace("$cmd\n") if ($sql_trace);
+
     my @array = $dbh->selectrow_array($cmd);
     if (!@array)
       { dbierror('max_key',__LINE__,
@@ -1189,7 +1189,7 @@ sub load_from_db
       };
     
     my $cmd= $self->{_fetch_cmd};
-    print "$cmd\n" if ($sql_trace);
+    my_sql_trace("$cmd\n") if ($sql_trace);
 
 #warn "|$cmd|\n";
     $r= $dbh->selectall_arrayref($cmd);
@@ -2155,7 +2155,7 @@ sub db_get_foreign_keys
 		   "ST.CONSTRAINT_NAME=CL.CONSTRAINT_NAME AND " .
 		   "ST.R_CONSTRAINT_NAME= ST2.CONSTRAINT_NAME AND " .
 		   "CL2.CONSTRAINT_NAME=ST2.CONSTRAINT_NAME";   
-    print $SQL,"\n" if ($sql_trace);
+    my_sql_trace("$SQL\n") if ($sql_trace);
     my $res=
       $dbh->selectall_arrayref($SQL);
     # gives:
@@ -2199,7 +2199,7 @@ sub db_get_resident_keys
 		   " ST.CONSTRAINT_NAME=CL.CONSTRAINT_NAME AND " .
 		   " ST2.CONSTRAINT_NAME=CL2.CONSTRAINT_NAME ";
 
-    print $SQL,"\n" if ($sql_trace);
+    my_sql_trace("$SQL\n") if ($sql_trace);
     my $res=
       $dbh->selectall_arrayref($SQL);
     # gives:
@@ -2246,7 +2246,7 @@ sub db_get_primary_keys
 		  " a.constraint_name=b.constraint_name AND " .
 		  " a.table_name = \'$table_name\'";
     
-    print $SQL,"\n" if ($sql_trace);
+    my_sql_trace("$SQL\n") if ($sql_trace);
     
     my $res=
       $dbh->selectall_arrayref($SQL);
@@ -2294,8 +2294,9 @@ sub db_execute
 # internal
   { my($format,$dbh,$sth,@args)= @_;
   
-    printf($format, map {quote($dbh,$_)} @args 
-           ) if ($sql_trace);
+    if ($sql_trace)
+      { my_sql_trace( sprintf($format, map {quote($dbh,$_)} @args) );
+      };	   
 
     return( $sth->execute( map {quote($dbh,$_)} @args));
   };    
@@ -2406,6 +2407,20 @@ sub dbierror
 sub my_err_func
   { die $_[0]; }
     
+sub my_sql_trace
+  { if (!ref($sql_trace))
+      { print $_[0]; 
+        return;
+      };
+    if (ref($sql_trace) eq 'CODE')
+      { $sql_trace->($_[0]);
+        return;
+      };
+    dbierror('my_sql_trace',__LINE__,
+             "\$sql_trace is wrong reference type:" .
+	     ref($sql_trace));
+  };
+      
 1;
 
 __END__
@@ -3079,12 +3094,22 @@ to a list of column names.
 =item $sql_trace
 
 when set to "1", all SQL commands are printed on STDOUT. The default of
-this variable is 0.
+this variable is 0. When this variable is a reference to a function
+like in this example
+
+  sub my_trace 
+    { print "SQL: ",$_[0],"\n"; }
+    
+  $dbitable::sql_trace= \&my_trace;  
+
+the function referenced is called with the string that would 
+otherwise be printed as a parameter.
 
 =item $sim_delete
 
 when set to 1, the deletion of lines in the table is only simulated
-and not done for real. The default of this variable is 1.
+and not done for real. The default of this variable is 1, so deleting
+lines is disabled as default !
 
 =item $errorfunc
 
