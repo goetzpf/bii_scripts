@@ -183,110 +183,114 @@ sub resident_keys
     return( \%resident_keys);
   }
 
-sub accessible_public_objects
+
+sub accessible_objects
 # returns the one primary key or the list of columns
 # that form the primary key
-  { my($dbh,$type,$user_name)= @_;
+# $types: a comma separated list of :"TABLE", "VIEW", "SYNONYM"
+# $access: a comma separated list of "USER", "PUBLIC"
+  { my($dbh,$user_name,$types,$access)= @_;
+    my %known_types= map { $_ =>1 } qw( table view synonym );
+    my %known_acc  = map { $_ =>1 } qw( user public );
+    my @types;
+    my %access;
+    my %result;
+
+# $sql_trace=1; 
+
+    $user_name= uc($user_name);
   
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
       
-    if (!defined $type)
-      { $type= "table"; }
+    if (!defined $types)
+      { @types= ("table"); }
     else
-      { $type= lc($type);
-        if (($type ne "table") && ($type ne "view"))
-	  { dberror($mod_l,'accessible_objects',__LINE__,
-                "unknown object type: $type"); 
-            return;
+      { $types= lc($types);
+        @types= split(",",$types);
+	foreach my $t (@types)
+	  { if (!exists $known_types{$t})
+	      { dberror($mod_l,'accessible_objects',__LINE__,
+                    "unknown object type: $t"); 
+        	return;
+              };
           };
       };
       
-    my @users= ('PUBLIC');
-    if (defined $user_name)
-      { push @users, $user_name; };
-    
-    my $owner_filter;
-    if ($#users<=0)
-      { $owner_filter= "asyn.owner=\'$users[0]\'"; }
+    if (!defined $access)
+      { %access= ("public" => 1); }
     else
-      { $owner_filter= "asyn.owner IN (" .
-                        join(", ", map { "\'$_\'" } @users) .
-		       ")";
-      };		       
-     
-#$sql_trace=1; 
-
-    my $SQL= "SELECT asyn.synonym_name " .
-             "FROM all_synonyms asyn, all_${type}s aobj " .
-	     "WHERE $owner_filter AND " .
-
-	     "asyn.table_owner NOT IN (\'SYS\', \'SYSTEM\') AND " .
-
-  	     "asyn.table_name=aobj.${type}_name AND " .
-	     "asyn.table_owner=aobj.owner";
-    
-    sql_trace($SQL) if ($sql_trace);
-    
-    my $res=
-      $dbh->selectall_arrayref($SQL);
-		      	   
-    if (!defined $res)
-      { dberror($mod_l,'accessible_tables',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
-        return;
+      { $access= lc($access);
+        %access= map { $_ => 1} split(",",$access);
+	foreach my $t (@access)
+	  { if (!exists $known_acc{$t})
+	      { dberror($mod_l,'accessible_objects',__LINE__,
+                    "unknown object access type: $t"); 
+        	return;
+              };
+          };
       };
-    my @list;
-    foreach my $line (@$res)
-      { push @list, $line->[0];
+      
+    if (exists $access{public})
+      {
+	my @users= ('PUBLIC');
+	if (defined $user_name)
+	  { push @users, $user_name; };
+
+	my $owner_filter;
+	if ($#users<=0)
+	  { $owner_filter= "asyn.owner=\'$users[0]\'"; }
+	else
+	  { $owner_filter= "asyn.owner IN (" .
+                            join(", ", map { "\'$_\'" } @users) .
+			   ")";
+	  };		       
+
+	foreach my $t (@types)
+	  { my $SQL= "SELECT asyn.owner||\'.\'||asyn.synonym_name " .
+        	     "FROM all_synonyms asyn, all_${t}s aobj " .
+		     "WHERE $owner_filter AND " .
+
+		     "asyn.table_owner NOT IN (\'SYS\', \'SYSTEM\') AND " .
+
+  		     "asyn.table_name=aobj.${t}_name AND " .
+		     "asyn.table_owner=aobj.owner";
+
+	    sql_request_to_hash($dbh, $SQL, \%result); 
+	  };
+      };
+    
+    if (exists $access{user})
+      { foreach my $t (@types)
+	  { my $SQL= "SELECT ${t}_name " .
+             "FROM user_${t}s aobj";
+	    sql_request_to_hash($dbh, $SQL, \%result); 
+          };
       };
 
     #print join(",",@list),"\n";
-    return( sort @list );
+    return( sort keys %result );
   }
 
-sub accessible_user_objects
-# returns the one primary key or the list of columns
-# that form the primary key
-  { my($dbh,$type)= @_;
+sub sql_request_to_hash
+# internal
+  { my($dbh,$sql,$r_h)= @_;
   
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-      
-    if (!defined $type)
-      { $type= "table"; }
-    else
-      { $type= lc($type);
-        if (($type ne "table") && ($type ne "view"))
-	  { dberror($mod_l,'accessible_objects',__LINE__,
-                "unknown object type: $type"); 
-            return;
-          };
-      };
-    
-#$sql_trace=1; 
+    sql_trace($sql) if ($sql_trace);
 
-    my $SQL= "SELECT ${type}_name " .
-             "FROM user_${type}s aobj";
-
-    sql_trace($SQL) if ($sql_trace);
-    
     my $res=
-      $dbh->selectall_arrayref($SQL);
-		      	   
+      $dbh->selectall_arrayref($sql);
+
     if (!defined $res)
-      { dberror($mod_l,'accessible_user_objects',__LINE__,
+      { dberror($mod_l,'sql_request_to_hash',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
         return;
       };
-    my @list;
     foreach my $line (@$res)
-      { push @list, $line->[0];
+      { $r_h->{$line->[0]}= 1;
       };
-
-    #print join(",",@list),"\n";
-    return( sort @list );
-  }
+  };
+   
 
 
 1;
