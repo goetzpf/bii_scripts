@@ -3,12 +3,19 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 # the above is a more portable way to find perl
 # ! /usr/bin/perl
 
-#use lib "$ENV{'HOME'}/project/perl/lib/site_perl";
 use strict;
 
-use lib "$ENV{HOME}/pmodules";
+# search dbitable.pm ralative to the location of THIS script:
+use lib "$FindBin::RealBin/../lib/perl";
 
-use perl_site;
+#You may specify where to find Tk::TableMatrix, when
+#it is not installed globally like this:
+#use lib "$ENV{HOME}/project/perl/lib/site_perl";
+
+
+# the following is only for my testing perl-environment:
+#use lib "$ENV{HOME}/pmodules";
+#use perl_site; 
 
 use FindBin;
 use Tk;
@@ -25,7 +32,8 @@ use dbitable 1.4;
 
 use Data::Dumper;
 
-my $VERSION= "0.8";
+my $VERSION= "0.85";
+
 
 my $PrgTitle= 'BrowseDB';
 
@@ -158,25 +166,74 @@ sub tk_main_window
 
     $r_glbl->{main_menu_widget}= $Top;
     
-    $Top->Button(-text => 'Open',
-                 %std_button_options,
-		 -command => [\&tk_open_new_table, $r_glbl],
-        	 )->pack(-side=>'left', -anchor=>'nw');
-    $Top->Button(-text => 'Quit',
-                 %std_button_options,
+    my $BtDb   = $Top->Menubutton(-text => 'Database',
+        		          %std_menue_button_options, 
+        		         )->pack(-side=>'left', -anchor=>'nw');
+    my $BtHelp = $Top->Menubutton(-text => 'Help',
+        		          %std_menue_button_options, 
+        		         )->pack(-side=>'left', -anchor=>'nw');
+    
+
+    # configure Database-menu:
+    my $MnDb = $BtDb->Menu();
+    $BtDb->configure(-menu=>$MnDb);
+    $MnDb->add('command',
+               -label=> 'Open Table',
+	       -command=> [\&tk_open_new_table, $r_glbl]
+	      ); 
+    $MnDb->add('command',
+               -label=> 'quit',
 		 -command => sub { $Top->destroy(); exit(0); },
-        	 )->pack(-side=>'left', -anchor=>'nw');
+	      ); 
+
+
+    # configure Help-menu:
+    my $MnHelp = $BtHelp->Menu();
+    $BtHelp->configure(-menu=>$MnHelp);
+    $MnHelp->add('command',
+                 -label=> 'About',
+	         -command=> [\&tk_about]
+	        ); 
+    $MnHelp->add('command',
+                 -label=> 'dump global datastructure',
+		 -command => [\&tk_dump_global, $r_glbl],
+	        ); 
 
     if ($fast_test)
       { tk_open_new_table($r_glbl); };	 
   }
+
+sub tk_about
+ { 
+   my $Top= MainWindow->new(-background=>$BG);
+   $Top->title("About $PrgTitle");
+
+   my @text= ("$PrgTitle $VERSION\n",
+               "written by Goetz Pfeiffer\n",
+	       "for BESSY GmbH, Berlin, Adlershof\n",
+	       "Comments/Suggestions, please mail to:\n",
+	       "(pfeiffer\@mail.bessy.de)\n"
+	     );
   
+   my $h= $#text+1;
+   my $w=0;
+   foreach my $l (@text) 
+     { $w=length($l) if ($w<length($l)); };
+   
+   my $Text= $Top->Text(-width=> $w, -height=>$h);
+
+   foreach my $l (@text) 
+     { $Text->insert('end',$l); };
+     
+   $Text->pack(-fill=>'both',expand=>'y');
+ }
+
 sub tk_open_new_table  
   { my($r_glbl)= @_;
   
     if ($fast_test)
       { $r_glbl->{new_table_name}= $fast_table; 
-        tk_open_new_table_finish($r_glbl);
+        tk_ppen_new_table_finish($r_glbl);
 	return; 
       }
     else
@@ -189,7 +246,7 @@ sub tk_open_new_table
                  )->pack(-side=>'left', -fill=>'y');
     $Top->Button(-text => 'accept',
                  %std_button_options,
-		  -command => [\&tk_open_new_table_finish, $r_glbl ],
+		  -command => [\&tk_ppen_new_table_finish, $r_glbl ],
         	 )->pack(-side=>'left', -fill=>'y');
     $Top->Button(-text => 'abort',
                  %std_button_options,
@@ -200,7 +257,7 @@ sub tk_open_new_table
     $r_glbl->{table_dialog_widget}= $Top;
   }
   
-sub tk_open_new_table_finish
+sub tk_ppen_new_table_finish
   { my($r_glbl)= @_;
   
     make_table_hash_and_window($r_glbl,uc($r_glbl->{new_table_name}));
@@ -218,6 +275,8 @@ sub tk_foreign_key_dialog
   
     my $parent_widget= $r_tbh->{table_widget};
 
+#@@@@@@@@@@@@@@@@ must be updated, when this foreign table no
+#@@@@@@@@@@@@@@@@ longer exists
     my $fkh= $r_tbh->{foreign_key_hash};
     # col_name => [foreign_table,foreign_column]
 
@@ -328,7 +387,7 @@ sub tk_foreign_key_dialog_finish
    # using Table->get() would be unnecessary slow
    my $cell_value= put_get_val_direct($r_tbh,$pk,$colname);
 
-   activate_cell($r_tbh_fk,$fk_col, $cell_value);
+   tk_activate_cell($r_tbh_fk,$fk_col, $cell_value);
     
    delete $r_glbl->{foreign_key_dialog_widget};
    delete $r_glbl->{foreign_key_dialog_listbox};
@@ -468,8 +527,8 @@ sub tk_dependency_dialog_finish
 	my $r_col_relations= $r_resident_tables->{$res_table};
 	# [res_col1, col1], [res_col2, col2], ...
 	
-warn "new table: col_relations: $r_col_relations\n";
-warn "array content: " , Dumper($r_col_relations) , "\n";
+#warn "new table: col_relations: $r_col_relations\n";
+#warn "array content: " , Dumper($r_col_relations) , "\n";
 
         foreach my $r_col_relation (@$r_col_relations)
 	  { # save information on connection between the 
@@ -630,8 +689,6 @@ sub make_table_hash
     return(\%table_hash);
   }
 
-    
-
 sub make_table_window
   { my($r_glbl,$r_tbh)= @_;
   
@@ -675,11 +732,11 @@ sub make_table_window
     $BtFile->configure(-menu=>$MnFile);
     $MnFile->add('command',
 		 -label=> 'Save',
-		 -command=> [\&save_to_file, $r_tbh]
+		 -command=> [\&tk_save_to_file, $r_tbh]
 		); 
     $MnFile->add('command',
 		 -label=> 'Load',
-		 -command=> [\&load_from_file, $r_tbh]
+		 -command=> [\&tk_load_from_file, $r_tbh]
 		); 
 
     # configure database-menu:
@@ -687,11 +744,11 @@ sub make_table_window
     $BtDbase->configure(-menu=>$MnDbase);
     $MnDbase->add('command',
 		  -label=> 'Store',
-		  -command => [\&Commit, $r_tbh],
+		  -command => [\&cb_store_db, $r_tbh],
 		); 
     $MnDbase->add('command',
 		  -label=> 'Reload',
-		  -command => [\&Reload, $r_tbh],
+		  -command => [\&cb_reload_db, $r_tbh],
 		); 
 
 
@@ -699,7 +756,11 @@ sub make_table_window
     my $MnEdit = $BtEdit->Menu();
     $BtEdit->configure(-menu=>$MnEdit);
     $MnEdit->add('command',
-		  -label=> 'edit field',
+		  -label=> 'edit current field',
+		  -command => [\&tk_field_edit, $r_tbh],
+		); 
+    $MnEdit->add('command',
+		  -label=> 'insert line',
 		  -command => [\&tk_field_edit, $r_tbh],
 		); 
 		
@@ -719,7 +780,7 @@ sub make_table_window
     if ($r_tbh->{resident_there})
       { $MnRela->add('command',
                      -label=> 'Select value',
-		     -command => [\&Select, $r_glbl, $r_tbh],
+		     -command => [\&cb_select, $r_glbl, $r_tbh],
         	    );
       }
     else
@@ -737,11 +798,11 @@ sub make_table_window
 		); 
     $MnView->add('command',
 		  -label=> 'Object-Dump',
-		  -command => [\&Dump, $r_tbh],
+		  -command => [\&tk_table_dump, $r_tbh],
 		); 
     $MnView->add('command',
 		  -label=> 'dbitable-Dump',
-		  -command => [\&Dump_dbitable, $r_tbh],
+		  -command => [\&tk_dbitable_dump, $r_tbh],
 		); 
 
 
@@ -751,7 +812,7 @@ sub make_table_window
                 	 -value=> $col, 
 			 -variable => \$r_tbh->{curr_sort_col},
 			 -label=> $col,
-			 -command=> [\&resort_and_redisplay, 
+			 -command=> [\&tk_resort_and_redisplay, 
 		        	     $r_tbh,
 				     $col],
 		    );
@@ -759,11 +820,14 @@ sub make_table_window
       
 
     
-
-    $FrTop->Button(-text => 'Close',
-                   %std_button_options,
-		   -command => [\&close_window, $r_glbl, $r_tbh]
-        	   )->pack(-side=>'left', -anchor=>'nw');
+    # there is no Close Button, the function that
+    # cleans up is bound to the window <Destroy> event
+    #  (see further below, '<Destroy>'
+    
+    #$FrTop->Button(-text => 'Close',
+    #               %std_button_options,
+    #		   -command => [\&cb_close_window, $r_glbl, $r_tbh]
+    #     	   )->pack(-side=>'left', -anchor=>'nw');
 
 
 
@@ -777,12 +841,12 @@ sub make_table_window
     my $Table= $FrDn->TableMatrix
     #my $Table= $FrDn->Spreadsheet
                                  (-command => 
-                                	 [\&put_get_val,
+                                	 [\&cb_put_get_val,
 					  $r_tbh
 					 ],
                         	  -usecommand=> 1,
 				  -browsecommand=> 
-				           [\&handle_browse,$r_glbl,$r_tbh],
+				        [\&cb_handle_browse,$r_glbl,$r_tbh],
 				  #-coltagcommand =>\&coltag,
 				  -selecttitle=> 0, 
 				  -titlerows => 1,
@@ -851,9 +915,142 @@ sub make_table_window
     # bind the right mouse button to a function,
     # give it the current mouse position in the
     # form '@x,y' 
-    $Table->bind('<3>', [\&handle_right_button, $r_glbl, $r_tbh, Ev('@')] );
+    $Table->bind('<3>', [\&cb_handle_right_button, $r_glbl, $r_tbh, Ev('@')] );
+
+    $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
       
   }
+
+sub tk_save_to_file
+  { my($r_tbh)= @_;
+  
+    warn "save to file";
+    my $Fs= $r_tbh->{top_widget}->FileSelect(
+                  -defaultextension=> ".dbt"
+		                            );
+    
+    my $file= $Fs->Show();
+
+    warn "filename: $file ";
+    return if (!defined $file);
+    
+    return if ($file=~ /^\s*$/);
+    
+    my $dbitable= $r_tbh->{dbitable};
+    my $table_name=  $r_tbh->{table_name};
+    
+    my $new_dbi= $dbitable->new('file',$file,
+                                $table_name
+                       )->store(pretty=> 1);  
+    
+    warn "$file was updated/created";
+  }
+
+sub tk_load_from_file
+  { my($r_tbh)= @_;
+
+    my $Fs= $r_tbh->{top_widget}->FileSelect(
+                  -defaultextension=> ".dbt"
+		                            );
+    
+    my $file= $Fs->Show();
+
+    warn "filename: $file ";
+    return if (!defined $file);
+
+    
+    my $Table= $r_tbh->{table_widget};
+    my $dbitable= $r_tbh->{dbitable};
+    my $table_name=  $r_tbh->{table_name};
+   
+    my $ftab= dbitable->new('file',$file,$table_name,
+                           )->load(pretty=>1,primary_key=>"generate");
+    
+    
+    
+    $dbitable->import_table($ftab,
+                            mode=> 'add_lines',
+                            primary_key=> 'generate');
+    			    
+    my $r_chg= $r_tbh->{changed_rows};
+    my $row;
+    
+    foreach my $pk ($dbitable->primary_keys(filter=>'updated'))
+      { 
+        $row= pk2row($r_tbh,$pk);
+        $r_chg->{$pk}= $row;
+        $Table->tagRow('changed_cell',$row);
+      };
+
+    foreach my $pk ($dbitable->primary_keys(filter=>'inserted'))
+      { $row= pk2row($r_tbh,$pk);
+        $r_chg->{$pk}= $row;
+        $Table->tagRow('changed_cell',$row);
+      };
+    
+  }   
+
+sub tk_dump_global
+ { my($r_glbl)= @_;
+# ommit dumping the tables-structures completely 
+ 
+   my $Top= MainWindow->new(-background=>$BG);
+   $Top->title("Global Datastructure-Dump");
+
+   my %glbl_copy;
+   foreach my $k (keys %$r_glbl)
+     { if ($k eq 'all_tables')
+         { my $r_t= $r_glbl->{$k};
+	   foreach my $tab_name (keys %$r_t)
+	     { $glbl_copy{all_tables}->{$tab_name}= "REF TO TABLE-HASH"; }
+           next;
+	 };
+       $glbl_copy{$k}= $r_glbl->{$k};
+     }; 	 
+
+   my $text= $Top->Scrolled('Text');
+   my $buffer;
+   
+   rdump(\$buffer,\%glbl_copy,0);
+   
+   $text->insert('end',$buffer);
+     
+   $text->pack(-fill=>'both',expand=>'y');
+ }
+
+sub tk_table_dump
+ { my($r_tbh)= @_;
+   my $name= $r_tbh->{table_name};
+ 
+   my $Top= MainWindow->new(-background=>$BG);
+   $Top->title("$name:Object-Dump");
+
+   my $text= $Top->Scrolled('Text');
+   my $buffer;
+   
+   rdump(\$buffer,$r_tbh,0);
+   
+   $text->insert('end',$buffer);
+     
+   $text->pack(-fill=>'both',expand=>'y');
+ }
+
+sub tk_dbitable_dump
+ { my($r_tbh)= @_;
+   my $name= $r_tbh->{table_name};
+   my $dbitable= $r_tbh->{dbitable};
+ 
+   my $Top= MainWindow->new(-background=>$BG);
+   $Top->title("$name:DBITable-Dump");
+
+   my $text= $Top->Scrolled('Text');
+   
+   my $r_buffer= $dbitable->dump_s(); 
+   
+   $text->insert('end',$$r_buffer);
+     
+   $text->pack(-fill=>'both',expand=>'y');
+ }
 
 sub tk_err_dialog
   { my($parent,$message)= @_;
@@ -878,9 +1075,28 @@ sub tkdie
     exit(0);				     
   }
 
+sub cb_close_window
+# global variables used: NONE
+ { my($parent_widget, $r_glbl, $r_tbh)= @_;
+   
+   # $r_tbh->{top_widget}->destroy();
+   
+   # remove the table-hash from the all_tables variable
+   # caution: a global variable is used !
+   
+   my $r_all_tables= $r_glbl->{all_tables};
+   
+   tkdie("assertion in line " . __LINE__)
+     if (!defined $r_all_tables); #assertion 
 
+   my $table_name= $r_tbh->{table_name};
+   conn_delete_table($r_glbl, $table_name);
 
-sub handle_right_button
+   delete $r_all_tables->{ $r_tbh->{table_name} };
+warn "Table $table_name successfully deleted !\n";
+ }
+
+sub cb_handle_right_button
   { my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
     
     # $at has the form '@x,y' 
@@ -935,49 +1151,10 @@ sub handle_right_button
 	 
       }
 	
-    activate_cell($r_tbh_fk,$fk_col, $cell_value);
+    tk_activate_cell($r_tbh_fk,$fk_col, $cell_value);
   }
 
-sub put_get_val
-# global variables used: NONE
-  { my($r_tbh,$set,$row,$col,$val)= @_;
-  
-    if ($row==0) # row 0 has the column-names
-      { return( $r_tbh->{column_list}->[$col] ); };
-  
-    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
-    
-    if ($set)
-      { my $flag= $r_tbh->{write_protected_cols}->[$col];
-      
-        if ($flag eq 'P')
-          { $r_tbh->{table_widget}->bell();
-	    # warn "no writing allowed on this column
-            return($r_tbh->{dbitable}->value($pk,$colname));
-	  };
-	if ($flag eq 'T')  
-	  { $r_tbh->{write_protected_cols}->[$col]= 'P'; };   
-    
-        chomp($val);
-        $r_tbh->{dbitable}->value($pk,$colname,$val);
-	$r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
-	$r_tbh->{table_widget}->tagCell('changed_cell',"$row,$col");
-	#warn "set tag to $row,$col";
-	
-        return($val);
-      }
-    else
-      { return($r_tbh->{dbitable}->value($pk,$colname));
-      };
-  }
-
-sub put_get_val_direct
-  { my($r_tbh,$pk,$column,$val)= @_;
- 
-    return($r_tbh->{dbitable}->value($pk,$column,$val));
-  }
-
-sub handle_browse
+sub cb_handle_browse
 # $oldrowcol may be empty !!
  { my($r_glbl,$r_tbh,$oldrowcol,$newrowcol)= @_;
 
@@ -1005,7 +1182,7 @@ sub handle_browse
        if ($#$r_cols==1)
          { # only one reference to the foreign table, this is the
 	   # simple case
-	   activate_cell($f_tbh,$r_cols->[0],
+	   tk_activate_cell($f_tbh,$r_cols->[0],
                          put_get_val_direct($r_tbh,$pk,$r_cols->[1])
                         );
 	 }
@@ -1017,7 +1194,7 @@ sub handle_browse
 	     { if ($r_cols->[$i] eq $colname)
 	         { # current column is a resident column, now we know
 		   # what to do
-	           activate_cell($f_tbh,$r_cols->[0],
+	           tk_activate_cell($f_tbh,$r_cols->[0],
                          put_get_val_direct($r_tbh,$pk,$colname)
                                 );
 		 };
@@ -1027,170 +1204,8 @@ sub handle_browse
      };
      		     
  }
-  
-sub save_to_file
-  { my($r_tbh)= @_;
-  
-    warn "save to file";
-    my $Fs= $r_tbh->{top_widget}->FileSelect(
-                  -defaultextension=> ".dbt"
-		                            );
-    
-    my $file= $Fs->Show();
 
-    warn "filename: $file ";
-    return if (!defined $file);
-    
-    return if ($file=~ /^\s*$/);
-    
-    my $dbitable= $r_tbh->{dbitable};
-    my $table_name=  $r_tbh->{table_name};
-    
-    my $new_dbi= $dbitable->new('file',$file,
-                                $table_name
-                       )->store(pretty=> 1);  
-    
-    warn "$file was updated/created";
-  }
-
-sub load_from_file
-  { my($r_tbh)= @_;
-
-    my $Fs= $r_tbh->{top_widget}->FileSelect(
-                  -defaultextension=> ".dbt"
-		                            );
-    
-    my $file= $Fs->Show();
-
-    warn "filename: $file ";
-    return if (!defined $file);
-
-    
-    my $Table= $r_tbh->{table_widget};
-    my $dbitable= $r_tbh->{dbitable};
-    my $table_name=  $r_tbh->{table_name};
-   
-    my $ftab= dbitable->new('file',$file,$table_name,
-                           )->load(pretty=>1,primary_key=>"generate");
-    
-    
-    
-    $dbitable->import_table($ftab,
-                            mode=> 'add_lines',
-                            primary_key=> 'generate');
-    			    
-    my $r_chg= $r_tbh->{changed_rows};
-    my $row;
-    
-    foreach my $pk ($dbitable->primary_keys(filter=>'updated'))
-      { 
-        $row= pk2row($r_tbh,$pk);
-        $r_chg->{$pk}= $row;
-        $Table->tagRow('changed_cell',$row);
-      };
-
-    foreach my $pk ($dbitable->primary_keys(filter=>'inserted'))
-      { $row= pk2row($r_tbh,$pk);
-        $r_chg->{$pk}= $row;
-        $Table->tagRow('changed_cell',$row);
-      };
-    
-  }   
-   
-sub Dump
- { my($r_tbh)= @_;
-   my $name= $r_tbh->{table_name};
- 
-   my $Top= MainWindow->new(-background=>$BG);
-   $Top->title("$name:Object-Dump");
-
-   my $text= $Top->Scrolled('Text');
-   my $buffer;
-   
-   rdump(\$buffer,$r_tbh,0);
-   
-   $text->insert('end',$buffer);
-     
-   $text->pack(-fill=>'both',expand=>'y');
- }
-
-sub Dump_dbitable
- { my($r_tbh)= @_;
-   my $name= $r_tbh->{table_name};
-   my $dbitable= $r_tbh->{dbitable};
- 
-   my $Top= MainWindow->new(-background=>$BG);
-   $Top->title("$name:DBITable-Dump");
-
-   my $text= $Top->Scrolled('Text');
-   
-   my $r_buffer= $dbitable->dump_s(); 
-   
-   $text->insert('end',$$r_buffer);
-     
-   $text->pack(-fill=>'both',expand=>'y');
- }
-   
-   
-sub rdump
-#internal
-  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
-  
-    my $r= ref($val);
-    if (!$r)
-      { $$r_buf.= " " x $indent if ($is_newline);
-	$$r_buf.= "\'$val\'$comma\n"; 
-        return;
-      };
-    if ($r eq 'ARRAY')
-      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
-        $$r_buf.= "[ \n"; $indent+=2;
-        for(my $i=0; $i<= $#$val; $i++)
-	  { rdump($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
-	  };
-	$indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
-	return;
-      };
-    if ($r eq 'HASH')
-      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
-        $$r_buf.=  "{ \n"; $indent+=2;
-        my @k= sort keys %$val;
-	for(my $i=0; $i<= $#k; $i++)
-          { my $k= $k[$i];
-	    my $st= (" " x $indent) . $k . " => ";
-	    my $nindent= length($st); 
-	    $$r_buf.= ($st); 
-            rdump($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
-	  };
-        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
-        return;
-      };
-    $$r_buf.=  " " x $indent if ($is_newline);
-    $$r_buf.=  "REF TO: \'$r\'$comma\n"; 
-  }
-
-sub Commit
-# global variables used: NONE
- { my($r_tbh)= @_;
-   remove_changed_cell_tag($r_tbh);
-   
-   $r_tbh->{dbitable}->store();
-   
- }
-
-sub Reload
-# global variables used: NONE
- { my($r_tbh)= @_;
-   remove_changed_cell_tag($r_tbh);
-   
-   $r_tbh->{dbitable}->load();
-   
- }
-
-# $Table->tag
-# $Table->tagCell(tagName, ?)
-
-sub Select
+sub cb_select
 # global variables used: NONE
 # bound to the 'Select' button
  { my($r_glbl, $r_tbh)= @_;
@@ -1277,24 +1292,112 @@ warn "SELECT WARN4\n";
            
  }
 
-sub close_window
-# global variables used: NONE
- { my($r_glbl, $r_tbh)= @_;
-   
-   $r_tbh->{top_widget}->destroy();
-   
-   # remove the table-hash from the all_tables variable
-   # caution: a global variable is used !
-   
-   my $r_all_tables= $r_glbl->{all_tables};
-   
-   tkdie("assertion in line " . __LINE__)
-     if (!defined $r_all_tables); #assertion 
 
-   delete $r_all_tables->{ $r_tbh->{table_name} };
+sub cb_put_get_val
+# global variables used: NONE
+  { my($r_tbh,$set,$row,$col,$val)= @_;
+  
+    if ($row==0) # row 0 has the column-names
+      { return( $r_tbh->{column_list}->[$col] ); };
+  
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+    
+    if ($set)
+      { my $flag= $r_tbh->{write_protected_cols}->[$col];
+      
+        if ($flag eq 'P')
+          { $r_tbh->{table_widget}->bell();
+	    # warn "no writing allowed on this column
+            return($r_tbh->{dbitable}->value($pk,$colname));
+	  };
+	if ($flag eq 'T')  
+	  { $r_tbh->{write_protected_cols}->[$col]= 'P'; };   
+    
+        chomp($val);
+        $r_tbh->{dbitable}->value($pk,$colname,$val);
+	$r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
+	$r_tbh->{table_widget}->tagCell('changed_cell',"$row,$col");
+	#warn "set tag to $row,$col";
+	
+        return($val);
+      }
+    else
+      { return($r_tbh->{dbitable}->value($pk,$colname));
+      };
+  }
+
+sub put_get_val_direct
+  { my($r_tbh,$pk,$column,$val)= @_;
+ 
+    return($r_tbh->{dbitable}->value($pk,$column,$val));
+  }
+
+sub rdump
+#internal
+  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
+  
+    my $r= ref($val);
+    if (!$r)
+      { $$r_buf.= " " x $indent if ($is_newline);
+	$$r_buf.= "\'$val\'$comma\n"; 
+        return;
+      };
+    if ($r eq 'ARRAY')
+      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
+        $$r_buf.= "[ \n"; $indent+=2;
+        for(my $i=0; $i<= $#$val; $i++)
+	  { rdump($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
+	  };
+	$indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
+	return;
+      };
+    if ($r eq 'HASH')
+      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
+        $$r_buf.=  "{ \n"; $indent+=2;
+        my @k= sort keys %$val;
+	for(my $i=0; $i<= $#k; $i++)
+          { my $k= $k[$i];
+	    my $st= (" " x $indent) . $k . " => ";
+	    my $nindent= length($st); 
+	    $$r_buf.= ($st); 
+            rdump($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
+	  };
+        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
+        return;
+      };
+    $$r_buf.=  " " x $indent if ($is_newline);
+    $$r_buf.=  "REF TO: \'$r\'$comma\n"; 
+  }
+
+sub insert_line
+ { my($r_tbh)= @_;
+ 
+   # @@@@@@@@@@@@@@@@@
+
+  }
+  
+sub cb_store_db
+# global variables used: NONE
+ { my($r_tbh)= @_;
+   tk_remove_changed_cell_tag($r_tbh);
+   
+   $r_tbh->{dbitable}->store();
+   
  }
 
-sub activate_cell
+sub cb_reload_db
+# global variables used: NONE
+ { my($r_tbh)= @_;
+   tk_remove_changed_cell_tag($r_tbh);
+   
+   $r_tbh->{dbitable}->load();
+   
+ }
+
+# $Table->tag
+# $Table->tagCell(tagName, ?)
+
+sub tk_activate_cell
 # makes a cell active, given by column-name and value
   { my($r_tbh,$colname,$value)= @_;
   
@@ -1318,7 +1421,7 @@ sub activate_cell
   }
     
 
-sub remove_changed_cell_tag
+sub tk_remove_changed_cell_tag
 # global variables used:  changed_cells !!! @@@@@@@@@@
   { my($r_tbh)= @_;
   
@@ -1346,7 +1449,7 @@ sub remove_changed_cell_tag
   }
       
 
-sub resort_and_redisplay
+sub tk_resort_and_redisplay
 # global variables used: NONE
   { my($r_tbh,$col)= @_;
   
@@ -1531,16 +1634,40 @@ sub conn_add
     
   } 
   
-   
-    
 sub conn_delete_table
   { my($r_glbl,$table)= @_;
   
+#@@@@@@@ doesn't work correctly, when the table
+#@@@@@@@@@ "in the middle" between two tables is deleted
+
     tkdie("assertion in line " . __LINE__)
       if (ref($table)); # assertion
 
-    delete $r_glbl->{foreigners}->{$table};
-    delete $r_glbl->{residents}->{$table};
+    my %resident_tables;
+    
+    my $r_residents= $r_glbl->{residents}->{$table};
+    if (defined $r_residents)
+      { foreach my $col (keys %$r_residents) 
+          { foreach my $table_name (keys %{$r_residents->{$col}})
+	      { $resident_tables{$table_name}=1; };
+	  };
+	delete $r_glbl->{residents}->{$table};
+      };
+ 
+print "resident tables: ",join("|",(keys %resident_tables)),"\n"; 
+      
+    my $r_foreigners= $r_glbl->{foreigners};
+    if (defined $r_foreigners)
+      { foreach my $table_name (keys %resident_tables)
+          { 
+print "table_name: $table_name, orig table: $table\n";	  
+	    delete $r_foreigners->{$table_name}->{$table};
+	    if (!keys %{$r_foreigners->{$table_name}})
+	      { delete $r_foreigners->{$table_name}; };
+	  
+	  };
+	#delete $r_glbl->{foreigners}->{$table};
+      };
   }
   
   
