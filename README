@@ -17,6 +17,9 @@ doc/txt/INSTALL
 	how to install the bundle 
 	(only needed if you did a CVS checkout)
 
+doc/txt/USE_PERL
+	how to use the perl-modules of the bundle
+
 LICENSE
 	the text of the software license 
 
