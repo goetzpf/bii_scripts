@@ -298,11 +298,11 @@ sub load_object_dict
     $r_db_reverse_synonyms= \%r;
     if ((defined $user) && ($user ne ""))
       {
-	if (!get_user_objects($dbh,$user,$r_db_objects))
-	  { dberror($mod,'load_object_dict',__LINE__,
+        if (!get_user_objects($dbh,$user,$r_db_objects))
+          { dberror($mod,'load_object_dict',__LINE__,
                     'loading of user-objects failed');
             return;
-	  };
+          };
       };
 
     if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
@@ -464,7 +464,7 @@ sub canonify_name
     foreach my $n (@$r_list)
       { my($owner,$obj)= split(/\./,$n);
         if ($owner eq 'PUBLIC')
-	  { return($obj); };
+          { return($obj); };
       };
       
     return($name);
@@ -486,6 +486,48 @@ sub load
       };
     return(1);
   }
+
+sub set_autocommit
+  { my($dbh,$val)= @_;
+  
+    if (!defined $dbh)
+      { $dbh= $std_dbh; }
+    elsif ($dbh eq "")
+      { $dbh= $std_dbh; };
+
+    $dbh->{AutoCommit}= ($val) ? 1 : 0;
+    
+#    warn "set to: " . $dbh->{AutoCommit};
+  }
+
+sub commit
+  { my($dbh)= @_;
+
+    if (!defined $dbh)
+      { $dbh= $std_dbh; }
+    elsif ($dbh eq "")
+      { $dbh= $std_dbh; };
+  
+    if (!$dbh->commit)
+      { dbwarn($mod,'commit',__LINE__,
+               "commit returned an error, error-code: \n$DBI::errstr");
+      };
+  }
+
+sub rollback
+  { my($dbh)= @_;
+  
+    if (!defined $dbh)
+      { $dbh= $std_dbh; }
+    elsif ($dbh eq "")
+      { $dbh= $std_dbh; };
+    
+    if (!$dbh->rollback)
+      { dbwarn($mod,'rollback',__LINE__,
+               "rollback returned an error, error-code: \n$DBI::errstr");
+      };
+  }
+
 
 sub connect_database
 # if dbname=="", use DBD::AnyData
@@ -767,6 +809,25 @@ that were given to C<dbdrv::prepare> in the SQL statement string.
 
 =over 4
 
+=item dbitable::commit()
+
+  dbitable::commit($dbh)
+  
+This performs a commit on the database  
+
+=item dbitable::rollback()
+
+  dbitable::rollback($dbh)
+  
+This performs a rollback on the database  
+
+=item dbitable::set_autocommit()
+
+  dbitable::set_autocommit($dbh,$val)
+  
+This sets the autocommit-feature of the given database-handle.
+Autocommit is switched on or off according to to value of C<$val>.
+
 =item dbitable::connect_database()
 
   my $dbh= dbitable::connect_database($dbname,$username,$password)
@@ -893,8 +954,8 @@ It returns an array of the following format
               [$owner2, $name2, $type2],
                            ...
             )
-	    
-The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".	    
+            
+The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".        
 
 =item dbdrv::object_references
 
@@ -909,8 +970,8 @@ It returns a hash of the following format
               [$owner2, $name2, $type2],
                            ...
             )
-	    
-The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".	    
+            
+The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".        
 
 =item dbdrv::object_addicts
 
@@ -928,7 +989,7 @@ It returns an array of the following format
             )
 
 The field C<$type> is either "C", for constraints or "T" for
-triggers.	    
+triggers.           
 
 =item dbdrv::read_viewtext()
 
