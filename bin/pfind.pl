@@ -26,7 +26,7 @@ use vars qw($opt_help $opt_summary
            $opt_text $opt_ccode $opt_make $opt_perl 
             $opt_progress
             $opt_perl_ex
-            $opt_blank $opt_no_filenames $opt_list 
+            $opt_blank $opt_no_filenames $opt_list $opt_list_nomatch 
 	    $opt_stdin_list
 	    $opt_mult
 	    );
@@ -46,7 +46,9 @@ if (!GetOptions("help|h","summary",
                 "text|t", "ccode|c", "make|m", "perl|p", 
                 "perl_ex|P",
 		"progress",
-                "list|l", "blank|b", "no_filenames|n",
+                "list|l", 
+		"list_nomatch|L",
+		"blank|b", "no_filenames|n",
 		"mult:i",
 		"stdin_list|I",
 		))
@@ -220,8 +222,20 @@ sub wanted
 
 sub check_file
   { my($fullname,$name)= @_;
-    my($line);
-    my($lineno)=0;
+    my $line;
+    my $lineno=0;
+    my $was_matched;
+    
+    my $filename_print_mode='P';
+    # P:normal print, N:no print, L:list-print I:inverse List-print
+    
+    if ($opt_no_filenames)
+      { $filename_print_mode= 'N'; };
+    if ($opt_list)
+      { $filename_print_mode= 'L'; };
+    if ($opt_list_nomatch)
+      { $filename_print_mode= 'I'; };
+    
     if (!open(F,$name))
       { warn "unable to open file $name in path $File::Find::dir\n";
         return; 
@@ -237,41 +251,55 @@ sub check_file
         pos($content)=0;
 	
 	while(line_filter($content))
-	  { if ($fullname)
-	      { if ($opt_list)
-  		  { print "$fullname\n"; }
-		else
-		  { print "\n-------> $fullname\n"; };
+	  { $was_matched=1;
+	    
+	    if ($filename_print_mode eq 'L')
+  	      { print "$fullname\n"; 
+	        last;
+	      };
+	    if ($filename_print_mode eq 'I')
+  	      { last; };
+	    if ($fullname)
+	      { if ($filename_print_mode ne 'N')
+                  { print "\n-------> $fullname\n"; };
 		$fullname= undef;
 	      };
+		     
 	    my $pos= pos($content) - length($&);
 	    if ($opt_mult)
 	      { print "match at position ",$pos,"\n"; }; 
-	    if (!$opt_list)
-              { my($lineno,$line)= find_position_in_file($name,$pos);
-		chomp($line);
-		if ($opt_blank)
-		  { print "$line\n"; }
-		else
-		  { printf("%5d: %s\n",$lineno,$line); };
-	      };
+            my($lineno,$line)= find_position_in_file($name,$pos);
+	    chomp($line);
+	    if ($opt_blank)
+	      { print "$line\n"; }
+	    else
+	      { printf("%5d: %s\n",$lineno,$line); };
 	  };
+	
+	if ($filename_print_mode eq 'I')
+	  { if (!$was_matched)
+  	      { print "$fullname\n"; }
+	  }; 
 	return;
       };      
     
     while ($line=<F>)
       { $lineno++;
         next unless line_filter($line);
-	if (!$opt_no_filenames)
-	  { if ($fullname)
-	      { if ($opt_list)
-		  { print "$fullname\n"; }
-		else
-		  { print "\n-------> $fullname\n"; };
-		$fullname= undef;
-	      }; 
+	$was_matched=1;
+	
+	if ($filename_print_mode eq 'L')
+  	  { print "$fullname\n"; 
+	    last;
 	  };
-	next if ($opt_list);
+	if ($filename_print_mode eq 'I')
+  	  { last; };
+	if ($fullname)
+	  { if ($filename_print_mode ne 'N')
+              { print "\n-------> $fullname\n"; };
+	    $fullname= undef;
+	  };
+	  
         chomp($line);
 	if ($opt_blank)
 	  { print "$line\n"; }
@@ -279,6 +307,10 @@ sub check_file
 	  { printf("%5d: %s\n",$lineno,$line); };
       };
     close(F);
+    if ($filename_print_mode eq 'I')
+      { if (!$was_matched)
+  	  { print "$fullname\n"; }
+      }; 
   }	
   
 sub find_position_in_file
@@ -361,6 +393,7 @@ Syntax:
     -m: only check makefiles: Makefile, makefile, *.mak
         -c, -p and -m may be combined
     -l: just list the files that matched
+    -L: just list the files that did not match
     -b: blank, print just matching lines, no line-numbers
     -n: no filenames, do not print the filenames
     -I: take list of files to search from STDIN, this allows searching
