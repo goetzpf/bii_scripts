@@ -11,12 +11,14 @@ Options::register(
   ["file", "f", "=s", "Read (additional) names from a file"]
 );
 
-my $config = Options::parse();
-
 my $usage = "import a list of names into the bessy device name service
 usage: bdns_import [options] names...
 options:
-$Options::help";
+";
+
+my $config = Options::parse($usage);
+
+$usage = $usage . $Options::help;
 
 die $usage if not $config or $config->{"help"};
 

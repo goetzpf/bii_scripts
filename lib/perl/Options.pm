@@ -47,7 +47,7 @@ sub help {
 }
 
 sub parse {
-  my $usage = shift;
+  my $usage = shift() . help();
   if (not $config) {
     Getopt::Long::Configure("bundling");
     $config = {};
