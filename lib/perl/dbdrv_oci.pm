@@ -317,11 +317,11 @@ sub get_synonyms
         my $obj= $line->[3] . '.' . $line->[2];
       
         $r_syn->{$syn} = ['T', $obj ];
-		    
-	if (!exists $r_reverse_syn->{$obj})
-	  { $r_reverse_syn->{$obj}= [$syn]; }
-	else
-	  { push @{$r_reverse_syn->{$obj}}, $syn; };	    
+                    
+        if (!exists $r_reverse_syn->{$obj})
+          { $r_reverse_syn->{$obj}= [$syn]; }
+        else
+          { push @{$r_reverse_syn->{$obj}}, $syn; };        
       };
 
 
@@ -349,16 +349,57 @@ sub get_synonyms
         my $obj= $line->[3] . '.' . $line->[2];
       
         $r_syn->{$syn} = ['V', $obj ];
-		    
-	if (!exists $r_reverse_syn->{$obj})
-	  { $r_reverse_syn->{$obj}= [$syn]; }
-	else
-	  { push @{$r_reverse_syn->{$obj}}, $syn; };	    
+                    
+        if (!exists $r_reverse_syn->{$obj})
+          { $r_reverse_syn->{$obj}= [$syn]; }
+        else
+          { push @{$r_reverse_syn->{$obj}}, $syn; };        
       };
 
     #print Dumper($r_syn);
     return(1);
   }
+
+sub object_is_table
+# return 1 when it is a table
+  { my($dbh,$table_name,$table_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    if ($table_name =~ /\./)
+      { ($table_owner,$table_name)= split(/\./,$table_name); };
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$table_owner,$table_name);
+      };
+
+    return(0) if (!defined $table_owner); 
+    # shouldn't happen !
+    
+    my $SQL= "select OWNER,TABLE_NAME from " .
+             "all_tables " .
+             "where table_name=\'$table_name\' and owner=\'$table_owner\'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_object_addicts',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    if (@$res_r)
+      { return(1); };
+    return(0);
+  }
+
+
 
 sub object_dependencies
 # INTERNAL
