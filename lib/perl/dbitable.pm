@@ -26,7 +26,7 @@ use Text::ParseWords;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.6';
+our $VERSION     = '1.7';
 
 our $export_version= "1.0";
 
@@ -36,6 +36,8 @@ our $prelim_key=0;
 our $sim_delete=1; # deletions in the DB are only simulated
 
 our $errorfunc= \&my_err_func;
+
+our $last_error;
 
 my $slim_format=0; # do not save all elements of "table" element
 
@@ -156,14 +158,18 @@ sub new
 # type is changed. For example, the user might simply want to change
 # the database-handle, not the type
 #	    if ($newtype ne $self->{_type})
-#	      { 
+#	      {   
 	        if ($newtype eq 'file')
-		  { $self->init_filetype($newtype,@_); }
+		  { if (!$self->init_filetype($newtype,@_))
+		      { return; };
+		  }
 
 		elsif (($newtype eq 'table') || ($newtype eq 'view') ||
 		      ($newtype eq 'new_table')
 		      )
-		  { $self->init_tableviewtype($newtype,@_); }
+		  { if (!$self->init_tableviewtype($newtype,@_))
+		      { return; };
+		  }
 		else
 		  { dbierror('new',__LINE__,"unknown type: $newtype"); 
 		    return;
@@ -178,12 +184,13 @@ sub new
         $self->{_type}= $type;
 	
 	if   ($type eq 'file')
-	  { $self->init_filetype('file',@_); 
-	    
+	  { if (!$self->init_filetype('file',@_))
+	      { return; }; 
 	  }
 	  
 	elsif (($type eq 'table') || ($type eq 'view'))
-	  { $self->init_tableviewtype($type,@_);
+	  { if (!$self->init_tableviewtype($type,@_))
+	      { return; };
           }
 	else
 	  { dbierror('new',__LINE__,"unknown dbitable-type: \"$type\"");
@@ -252,11 +259,14 @@ sub init_tableviewtype
           { $table= $self->{_table}; }
       };
     if (!defined $table)
-      { dbierror('init_tableviewtype',__LINE__,
-                 "table name missing");
+      { $last_error= "table name missing"; 
         return;
       };
 		 
+    if (!db_check_existence($dbh,$table))
+      { $last_error= "table \"$table\" doesn\'t exist"; 
+        return;
+      };
  
     # if self->{_pks} already exists, take this if no primary-key
     # parameter is found in the argument-list    
@@ -278,18 +288,37 @@ sub init_tableviewtype
       };
 
     if (!@primary_keys)
-      { if (exists $self->{_pks})
-          { @primary_keys= @{$self->{_pks}};
+      { 
+        if (exists $self->{_pks})
+          { 
+	    @primary_keys= @{$self->{_pks}};
 	  }
 	else
-	  { # try to determine primary key by a tricky SQL statement:
-	    @primary_keys= db_get_primary_keys($dbh,$table);
-	    
+	  { 
+	    if    ($type eq 'table')
+	      { # try to determine primary key by a tricky SQL statement:
+	        @primary_keys= db_get_primary_keys($dbh,$table);
+		if (!@primary_keys)
+		  { # use a "simulated" primary key, with is just
+	            # a line counter
+		    @primary_keys= (undef);
+		    $self->{_counter_pk}= 1;  
+		    # a "undef" in the list indicates a counter-pk
+        	  };	    
+
+	      }
+	    elsif ($type eq 'view')
+	      { # use a "simulated" primary key, with is just
+	        # a line counter
+		@primary_keys= (undef);
+		$self->{_counter_pk}= 1;  
+		# a "undef" in the list indicates a counter-pk
+              };	    
 	  };  
       };
-    
     if (!@primary_keys)
-      { dbierror('init_tableviewtype',__LINE__,
+      { 
+        dbierror('init_tableviewtype',__LINE__,
                 "primary key name(s) missing");
 	return;
       };	
@@ -340,7 +369,7 @@ sub init_tableviewtype
 #print Dumper($dbh->type_info_all);
 
 
-    $self->init_columns(\@primary_keys,@column_list);
+    return($self->init_columns(\@primary_keys,@column_list));
     # ^^^ sets also $self->{_pkis}
   }   
 
@@ -403,18 +432,22 @@ sub init_columns
     my @pki;
     my $i;
     my $r_col_hash= $self->{_columns};
-    foreach my $pk (@primary_keys)
-      { $i= $r_col_hash->{$pk};
-        if (!defined $i)
-          { dbierror('init_columns',__LINE__,
-	            "assertion failed, primary key " .
-		    "column $pk not found"); 
-	    return;
+    if ($self->{_counter_pk})
+      { @pki= (undef); }
+    else
+      { foreach my $pk (@primary_keys)
+	  { $i= $r_col_hash->{$pk};
+            if (!defined $i)
+              { dbierror('init_columns',__LINE__,
+	        	"assertion failed, primary key " .
+			"column $pk not found"); 
+		return;
+	      };
+            push @pki, $i;
 	  };
-        push @pki, $i;
       };
-    
     $self->{_pkis}= \@pki;
+    return(1); # OK
   }            
      
 
@@ -450,7 +483,8 @@ sub import_table
     my %options= @_;
     my $v;
 
-    my $is_multi_pk= $self->{_multi_pk};
+    my $is_multi_pk  = $self->{_multi_pk};
+    my $counter_pk   = $self->{_counter_pk};
     my $single_pki;
     
     $v= $options{mode};
@@ -474,6 +508,15 @@ sub import_table
           { dbierror('import_table',__LINE__,
 	             "primary_key=generate not allowed for tables\n" .
 	             "with more than one primary key column!!");
+            return;
+	  };
+      };
+
+    if ($counter_pk)
+      { if ($v ne 'generate')
+          { dbierror('import_table',__LINE__,
+	             "primary_key=preserve not allowed for tables\n" .
+	             "with counter-primary key");
             return;
 	  };
       };
@@ -509,15 +552,17 @@ sub import_table
       };      
       
     my @mapped_pkis;
-    foreach my $pki (@pkis)
-      { my $mpki= $col_mapping{$pki};
-        if (!defined $mpki)
-          { dbierror('import_table',__LINE__,
-	            "error: no mapping for primary key " .
-		    "(index $pki) defined, cannot import");
-	    return;	     
+    if (!$counter_pk)
+      { foreach my $pki (@pkis)
+	  { my $mpki= $col_mapping{$pki};
+            if (!defined $mpki)
+              { dbierror('import_table',__LINE__,
+	        	"error: no mapping for primary key " .
+			"(index $pki) defined, cannot import");
+		return;	     
+	      };
+	    push @mapped_pkis, $mpki;
 	  };
-	push @mapped_pkis, $mpki;
       };
       
     my $r_other_lines= $other->{_lines};
@@ -530,20 +575,30 @@ sub import_table
       { my $r_other_line= $r_other_lines->{$other_pk};
       
         # now find the corresponding line in THIS table:
-        my $self_pk= compose_primary_key_str(\@mapped_pkis,$r_other_line);
-        
-        my $r_self_line= $r_self_lines->{$self_pk};
+        my $self_pk;
+	my $r_self_line;
+	
+	if ($counter_pk)
+	  { $self_pk= $self->new_counter_key(); }
+	else
+	  { $self_pk = compose_primary_key_str(\@mapped_pkis,$r_other_line);
+          };
+	  
+	$r_self_line= $r_self_lines->{$self_pk};
 	my $operation;
 	if (!defined $r_self_line)
-	  { if ($options{primary_key} eq 'generate')
-	      { $self_pk= $self->new_prelim_key(); 
-	        $self->{_preliminary}->{$self_pk}= 1;
+	  { if (!$counter_pk)
+	      { if ($options{primary_key} eq 'generate')
+		  { $self_pk= $self->new_prelim_key(); 
+	            $self->{_preliminary}->{$self_pk}= 1;
+		  };
 	      };
 	    my @l; 
 	    $r_self_line= \@l;
 	    $r_self_lines->{$self_pk}= \@l; 
 	    $r_self_aliases->{$self_pk}= $self_pk;
-	    if (!$is_multi_pk) # only one primary key, set it in the table
+	    if ((!$counter_pk) && (!$is_multi_pk))
+	       # only one primary key, set it in the table
 	      { $r_self_line->[$single_pki]= $self_pk; };
 	    $self->{_inserted}->{$self_pk}= 1;
 	    $operation= 'inserted';
@@ -552,7 +607,8 @@ sub import_table
 	
 	for(my $i=0; $i<$self_column_no; $i++)
 	  { 
-	    if (!$is_multi_pk) # only one primary key, set it in the table
+	    if ((!$counter_pk) && (!$is_multi_pk))
+	        # only one primary key, set it in the table
 	      { # then the primary key field is already set
 	        next if ($i==$single_pki);
 	      };
@@ -653,12 +709,14 @@ sub primary_keys
 sub primary_key_columns
   { my $self= shift;
     
+    return if ($self->{_counter_pk});
     return( @{$self->{_pks}} );
   }
 
 sub primary_key_column_indices
   { my $self= shift;
     
+    return if ($self->{_counter_pk});
     return( @{$self->{_pkis}} );
   }
 
@@ -762,7 +820,7 @@ sub value
 	  { dbierror('value',__LINE__,"error: unknown column: $column");
 	    return; 
 	  };
-        if (!$self->{_multi_pk})
+        if ((!$self->{_multi_pk}) && (!$self->{_counter_pk}))
 	  { # in the simple case the primary key must not be changed
 	    if ($i== $self->{_pkis}->[0]) 
 	      { dbierror('value',__LINE__,
@@ -790,6 +848,7 @@ sub find
     my @pk_list;
     my $r_l= $self->{_lines};
     my $is_multi_pk= $self->{_multi_pk};
+    my $counter_pk   = $self->{_counter_pk};
     
     my $colindex= $self->{_columns}->{$column};
     if (!defined $colindex)
@@ -798,7 +857,8 @@ sub find
       };
 
     my $r_pkis= $self->{_pkis};
-    if (!$is_multi_pk) # there is only one primary key
+    if ((!$counter_pk) && (!$is_multi_pk)) 
+      # there is only one primary key
       { if ($colindex == $r_pkis->[0])
 	  { # the primary key is given, this is the simple case
             if (exists $r_l->{$value})
@@ -808,7 +868,7 @@ sub find
 	  };
       };
      
-    if (($flags{warn_not_pk}) && (!$is_multi_pk))
+    if (($flags{warn_not_pk}) && (!$is_multi_pk) && (!$counter_pk))
       { warn "$column is not the primary key (dbitable::find)\n"; };  
       
     # from here: the complicated case, a real search
@@ -840,8 +900,13 @@ sub add_line
 
     my $r_pkis= $self->{_pkis};
     my $is_multi_pk= $self->{_multi_pk};
+    my $counter_pk   = $self->{_counter_pk};
     
-    my $new_key= build_primary_key_str($self->{_pks},\%values);
+    my $new_key;
+    if ($counter_pk)
+      { $new_key= $self->new_counter_key(); }
+    else
+      { $new_key= build_primary_key_str($self->{_pks},\%values); };
 
     if (!defined $new_key)
       { if ($is_multi_pk)
@@ -869,7 +934,8 @@ sub add_line
     
     $r_aliases->{ $new_key }= $new_key;
     foreach my $col (@{$self->{_column_list}})
-      { if (!$is_multi_pk) # there is only one primary key
+      { if ((!$counter_pk) && (!$is_multi_pk)) 
+        # there is only one primary key
           { if ($col eq $first_pk)
               { push @line, $new_key; next; };
           };
@@ -1125,6 +1191,7 @@ sub load_from_db
     
     my $dbh   = $self->{_dbh};
     my $r_pkis= $self->{_pkis};
+    my $counter_pk   = $self->{_counter_pk};
 
     my $r;
     my $errstr= "selectall_arrayref() failed, errcode:\n";
@@ -1224,7 +1291,10 @@ sub load_from_db
     
     foreach my $rl (@$r) # for all lines than came from the DB
       { 
-        $pk= compose_primary_key_str($r_pkis,$rl); 
+        if ($counter_pk)
+	  { $pk= $self->new_counter_key(); }
+	else
+	  { $pk= compose_primary_key_str($r_pkis,$rl); };
 	
         if ($mode ne 'set')
 	  {
@@ -1454,6 +1524,13 @@ sub insert
     return if (!$self->{_inserted});
     
     
+    if ($self->{_counter_pk})
+      { dbierror('insert',__LINE__,
+                 "insert() called with table or view of type \n" .
+		 "counter-pk! (assertion)");
+        return;
+      };
+    
     my $v= $options{primary_key};
     if (!$is_multi_pk)
       { $v= 'generate' if (!defined $v); }
@@ -1679,7 +1756,14 @@ sub load_from_file
 	        if    ($t eq 'TABLE')
 	          { $self->{_table}= $tokens[$i+1]; }
 		elsif ($t eq 'PK')
-	          { $self->{_pks}   = [ split(/\s+/, uc($tokens[$i+1])) ]; 
+	          { if (!$tokens[$i+1])
+		      { # no PK set, this means : counter_pk mode !
+		        $self->{_pks}= [undef];
+			$self->{_counter_pk}= 1;
+		      }
+		    else
+		      { $self->{_pks}   = [ split(/\s+/, uc($tokens[$i+1])) ]; 
+		      };
 		  }
 		elsif ($t eq 'TYPE')
 	          { $self->{_type} = $tokens[$i+1]; }
@@ -1767,17 +1851,23 @@ sub load_from_file
     $self->{_columns}= \%colindices;
 
     my @pkis;
-    my $r_col_hash= $self->{_columns};
-    my $i;
-    foreach my $pk (@primary_keys)
-      { $i= $r_col_hash->{$pk};
-        if (!defined $i)
-          { dbierror('load_from_file',__LINE__,
-	             "assertion failed, primary key column $pk" .
-	             " not found"); 
-            return;
+    
+    if ($self->{_counter_pk})
+      { @pkis= (undef); 
+      }
+    else
+      { my $r_col_hash= $self->{_columns};
+	my $i;
+	foreach my $pk (@primary_keys)
+	  { $i= $r_col_hash->{$pk};
+            if (!defined $i)
+              { dbierror('load_from_file',__LINE__,
+	        	 "assertion failed, primary key column $pk" .
+	        	 " not found"); 
+        	return;
+	      };
+            push @pkis, $i;
 	  };
-        push @pkis, $i;
       };
     
     $self->{_pkis}= \@pkis;
@@ -1793,10 +1883,14 @@ sub load_from_file
                  "can\'t generate pk on multi-pk tables (assertion)"); 
         return;
       };
+    my $counter_pk   = $self->{_counter_pk};
     
     foreach my $rl (@line_list)
-      { 
-        $pk= compose_primary_key_str(\@pkis,$rl); 
+      { if ($counter_pk)
+	  { $pk= $self->new_counter_key(); }
+	else
+          { $pk= compose_primary_key_str(\@pkis,$rl); };
+	  
         if (($gen_pk) && ($pk==0))
 	  { $pk= $self->new_prelim_key(); 
 	    $self->{_preliminary}->{$pk}= 1;
@@ -1879,7 +1973,7 @@ sub store_to_file
 	    return;
 	  };	     
       };
-    
+
     print G "[Tag $tag]\n"; 
     print G "[Version $export_version]\n";
     if (!$slim_format)
@@ -2003,6 +2097,20 @@ sub get_hash
     return(\%h);
   }
     
+
+sub new_counter_key
+#internal
+  { my $self= shift;
+    
+    my $counter_pk   = $self->{_counter_pk};
+    if (!$counter_pk)
+      { dbierror('new_counter_key',__LINE__,
+                 "table or view is not of type counter-pk! (assertion)");
+        return;
+      };
+    $self->{_counter_pk}= ++$counter_pk;
+    return($counter_pk);
+  }  
 
 sub new_prelim_key
 #internal
@@ -2268,13 +2376,47 @@ sub db_get_primary_keys
       { push @pks, $line->[2]; };
     
     if (!@pks)
-      { dbierror('db_get_primary_keys',__LINE__,
-                 "error: primary key(s) not found"); 
+      { $last_error= "error: primary key(s) not found via SQL";
         return;
       };
     return(@pks);
   }
     
+sub db_check_existence
+# internal
+# returns the one primary key or the list of columns
+# that form the primary key
+  { my($dbh,$table_name)= @_;
+  
+    $table_name= uc($table_name);
+    
+
+    my $SQL= "SELECT * from all_objects " .
+             "WHERE object_name=\'$table_name\' " .
+	           " AND object_type IN (\'TABLE\',\'VIEW\')";
+
+    my_sql_trace("$SQL\n") if ($sql_trace);
+    
+    my $res=
+      $dbh->selectall_arrayref($SQL);
+		      	   
+    if (!defined $res)
+      { dbierror('db_check_existence',__LINE__,
+                 "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
+
+    # returns  OWNER TABLE_NAME COLUMN_NAME  
+
+    # NOTE: in some tables, only the combination of several rows is
+    # the primary key, in this case, the SQL statement above returns
+    # more than a single line. 
+    
+    if (!@$res)
+      { return; }; # doesn't exist
+    return(1);
+  }
+
 
 sub db_prepare
 # internal
@@ -2533,7 +2675,66 @@ created with the C<connect_database> function, or an empty string. In
 this case, the default database-handle is used (see description of
 C<connect_database>).
 
-The 1st parameter specifies the type of the dbitable-object
+Notes on the primary key:
+
+The primary key is a single column or a combination of columns that
+is unique for each line in a table and gives a means to access single
+lines of the table. However, dbitable also supports tables, where such
+a column with unique values doesn't exist. In this case, dbitable just
+assigns a number to all lines in the table, starting with "1".
+
+The primary key is set or found in the following way:
+
+=over 4
+
+=item direct specification of a single column
+
+In this case, the user supplies the information, which column is to 
+use as primary key. The C<$primary_key> parameter in the examples 
+above is a string with the name of that column. Note that this column
+must have a value that is unique for each line. Otherwise several
+lines will occupy the same space in the dbitable-object which means
+that some lines in the dbitable-object will be missing.
+
+=item direct specification several columns
+
+In this case, the user supplies the information, which columns are to 
+use as primary key. The C<$primary_key> parameter is in this case
+a reference to an array of column names. The primary key is then
+composed by the value of all the columns concatenated with the 
+character seqeuence "||". Example:
+
+  my $tab= dbitable->new('table',$database_handle,
+                         $table_name, 
+			 [$primary_key1_column1, 
+			  $primary_key1_column2 ...]
+			 );  
+
+=item automatic determination of the primary key columns
+
+If you give "" (the empty string) or <undef> as value for the
+C<$primary_key> parameter, dbitable tries to find out the 
+primary key columns itself by querying the database. In many cases,
+dbitable will determine the correct primary key columns, which are
+then used to identify each single line of the table. If dbitable
+is not able to find the primary key columns, it will use line-numbering
+(see below) to access the lines of the table.
+
+=item line numbering
+
+For tables of the type "view" when the user didn't specify the 
+primary key columns like shown above or for tables of the type
+"table" where the user didn't specify and dbitable couldn't find the
+primary key columns by another database query, the lines of the table
+are simply numbered. Each line of the table is accessed with a number,
+starting with "1" for the first line. There are no primary key columns
+in this case. Note that functions like C<primary_keys()> return
+C<undef> for such an object.  
+
+=back
+
+
+The three object types
 
 =over 4
 
@@ -2543,15 +2744,8 @@ The 1st parameter specifies the type of the dbitable-object
 
 With "table" the dbi-table object will hold a some or all parts of a
 single table. The name of the table is given with the C<$table_name> parameter,
-the name of the primary key is given with the C<$primary_key> parameter.
-A primary key here is a column, which has a unique value for each line of
-the table. As an alternative, a list of columns can be supplied, where
-only each combination of columns is unique. In this case the primary 
-key columns are give as an anonymous list like that:
-
-  [$primary_key1_column1, $primary_key1_column2 ...] 
-
-
+the name of the primary key is given with the C<$primary_key> parameter
+(see the section above on primary keys).
 Note that dbitable will not work correctly, if the primary key is not
 unique for each line of the table. Note too, that usually the 
 primary key is a numeric (integer) field in the table.
@@ -2567,6 +2761,8 @@ they must be given a unique name with the "AS" SQL-statement. Of course,
 a dbitable object, that was created as "view" cannot be written back to 
 the database, so C<store> will return an error. The table-name parameter 
 has in this case no special meaning.
+The name of the primary key is given with the C<$primary_key> parameter
+(see the section above on primary keys).
 
 =item *
 
@@ -3120,6 +3316,14 @@ order to call your own error-handler. Usually, the program should be
 terminated after an error, although there may be cases, where it makes
 sense to continue.
 
+=item $last_error
+
+This variable contains the error-message for the last error
+non-fatal that occured. An example is the case, when a new object
+of type "table" is created, but the table doesn't exist. C<new()> 
+returns C<undef> in this case and C<$last_error> is set to
+"table doesn't exist".
+
 =back
 
 =head1 EXAMPLES
@@ -3307,6 +3511,7 @@ _lines:       a ref to a hash, each primary key points to a reference
 _pks: 	      the column-name(s) of the primary key, usually lower-case
 _pkis: 	      the column-index/indices of the primary key(s)
 _multi_pk     1 if there's more than one primary key
+_counter_pk   1 if the primary key is just a line-counter
 _table:       the name of the table, as it's used in oracle
 _type: 	      the type of the table, "table","view" or "file"
 _types:	      the types of the columns, "number" or "string"
