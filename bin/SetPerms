@@ -5,7 +5,7 @@
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
 # Time-stamp: <99/05/20 17:02:29 lange>
-# $Id: SetPerms,v 1.2 2003-10-21 10:54:41 franksen Exp $
+# $Id: SetPerms,v 1.3 2004-01-14 11:01:26 franksen Exp $
 #
 PROG=`basename $0`
 
@@ -38,15 +38,15 @@ do
 
 ###############################################################################
 
-    *CVS/epics* | *CVS/support* | *CVS/ioc* | *CVS/IOC* | *CVS/OPI* | *CVS/RulesFiles* )
+    *CVS/epics* | *CVS/IOC* | *CVS/OPI* | *CVS/RulesFiles* )
 
 # Set everything to group epics and ???r-X---
 
 	echo EPICS related repository: $f
 	echo Setting everything to group epics and mode ???r-X--- ...
 		       
-	chgrp -R epics $f/* $f/.* > /dev/null 2>&1
-	chmod -R g=rX,o= $f/* $f/.* > /dev/null 2>&1
+	chgrp -R epics $f > /dev/null 2>&1
+	chmod -R g=rX,o= $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
@@ -69,8 +69,8 @@ do
 	echo MultiCAN repository: $f
 	echo Setting everything to group interf and mode ???r-X--- ...
 
-	chgrp -R interf $f/* > /dev/null 2>&1
-	chmod -R g=rX,o= $f/* > /dev/null 2>&1
+	chgrp -R interf $f > /dev/null 2>&1
+	chmod -R g=rX,o= $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
@@ -93,8 +93,8 @@ do
 	echo medmPanels repository: $f
 	echo Setting everything to group swdevel and mode ???r-X--- ...
 
-	chgrp -R swdevel $f/* > /dev/null 2>&1
-	chmod -R g=rX,o= $f/* > /dev/null 2>&1
+	chgrp -R swdevel $f > /dev/null 2>&1
+	chmod -R g=rX,o= $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
@@ -117,8 +117,8 @@ do
 	echo CapFast tree: $f
 	echo Setting everything to group epics and mode ???r-Xr-X ...
 		       
-	chgrp -R epics $f/* > /dev/null 2>&1
-	chmod -R go=rX $f/* > /dev/null 2>&1
+	chgrp -R epics $f > /dev/null 2>&1
+	chmod -R go=rX $f > /dev/null 2>&1
 		       
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
@@ -148,8 +148,8 @@ do
 	echo EPICS templates tree: $f
 	echo Setting everything to group epics and mode ???r-Xr-X ...
 		       
-	chgrp -R epics $f/* > /dev/null 2>&1
-	chmod -R g=rX,o=rX $f/* > /dev/null 2>&1
+	chgrp -R epics $f > /dev/null 2>&1
+	chmod -R g=rX,o=rX $f > /dev/null 2>&1
 		       
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
@@ -171,8 +171,8 @@ do
 	echo EPICS/vxWorks  tree: $f
 	echo Setting everything to group epics and mode ???r-X--- ...
 		       
-	chgrp -R epics $f/* > /dev/null 2>&1
-	chmod -R g=rX,o= $f/* > /dev/null 2>&1
+	chgrp -R epics $f > /dev/null 2>&1
+	chmod -R g=rX,o= $f > /dev/null 2>&1
 		       
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
@@ -221,38 +221,14 @@ do
 	echo Web tree: $f
 	echo Setting everything to group wwwadm and mode ???r-Xr-X ...
 		       
-	chgrp -R wwwadm $f/* > /dev/null 2>&1
-	chmod -R go=rX $f/* > /dev/null 2>&1
+	chgrp -R wwwadm $f > /dev/null 2>&1
+	chmod -R go=rX $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
 	echo Setting all directories to mode rwxrwxr-x ...
 
 	find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=rwx,o=rx 2>/dev/null
-
-	;;
-
-###############################################################################
-
-    *CVS/bii_scripts*)
-
-# Set everything to group interf and ???r-X---
-
-	echo bii_scripts related repository: $f
-	echo Setting everything to group interf and mode ???r-X--- ...
-
-	chgrp -R interf $f/* > /dev/null 2>&1
-	chmod -R g=rX,o= $f/* > /dev/null 2>&1
-
-# Set all directories to mode rwxrwxr-x
-
-	echo Setting all directories to mode rwxrwxr-x ...
-
-	find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=rwx,o=rx 2>/dev/null
-
-# Set all fileattr g+w
-
-	find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
 
 	;;
 
