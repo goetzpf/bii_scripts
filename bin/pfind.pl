@@ -182,7 +182,9 @@ sub wanted
 	      };
 
             if ($opt_make)
-              { last if ($file =~ /^([Mm]akefile|[Mm]akefile\.\w+|\.mak)$/); };
+              { last if ($file =~ /^([Mm]akefile|
+	                             [Mm]akefile\.\w+|
+				     \w+\.mak)$/x); };
 	      
 	    # return if the filename didn't match the wanted file-scheme
 	    # AND if not one of the text-file search filters is on
