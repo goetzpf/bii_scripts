@@ -379,7 +379,7 @@ sub text_save
 
 
     my $file= simple_file_menu(widget=> $r_text->{Top},
-                                  type=> 'Save',
+                                  type=> 'save',
                                   extension=>'.txt',
                                   defaultdir=>$r_glbl->{dir},
                                   title=>'Save text',
@@ -422,8 +422,9 @@ sub simple_file_menu
 
     $ext=~ s/\.//;
 
-    my $type= $options{type};
+    my $type= lc($options{type});
     die if (!defined $type); #assertion
+
     die if (($type ne 'load') && ($type ne 'save'));
 
     my $widget= $options{widget};
