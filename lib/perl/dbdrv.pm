@@ -14,7 +14,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.0;
+    $VERSION     = 1.1;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -41,7 +41,8 @@ use Data::Dumper;
 # initialize package globals
 
 our %drivers= ( Oracle => 'dbdrv_oci.pm' );
-our $std_dbh; # internal standard database-handle
+our $std_dbh;      # internal standard database-handle
+our $std_username; # internal standard username
 
 our $errorfunc= \&my_err_func;
 our $warnfunc = \&my_warn_func;
@@ -175,6 +176,19 @@ sub load_object_dict
       };
   }
 
+sub check_existence
+  { my($dbh,$table_name,$user_name)= @_;
+  
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+    load_object_dict($dbh,$user_name);  
+    
+    return( exists $r_db_objects->{$table_name} );
+  }
+
+
 sub accessible_objects
   { my($dbh,$user_name,$types,$access)= @_;
     my %known_types= (table => 'T', view => 'V');
@@ -183,6 +197,9 @@ sub accessible_objects
     my %access;
 
     
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
     if (!defined $types)
       { %types= (T=>1); }
     else
@@ -291,7 +308,9 @@ sub connect_database
       };
       
     if (!defined $std_dbh)
-      { $std_dbh= $dbh; };
+      { $std_dbh= $dbh; 
+        $std_username= $username;
+      };
       
     return($dbh);
   }
@@ -572,14 +591,20 @@ is not a valid DBI handle, it returns C<undef>.
 
 =item dbdrv::check_existence()
 
-  if (dbdrv::check_existence($dbh,$table_name))
-    { print "table exists\n"; }
+  if (dbdrv::check_existence($dbh,$table_name,$user_name))
+    { print "table exists and can be accessed\n"; }
   else
-    { print "table does not exist\n"; }
+    { print "table does not exist or is not accessible\n"; }
   
 This function performs a simple check wether a table exists. 
 C<$dbh> is the database handle, C<$table_name> the name of the table.
-The function returns C<1> when the table exists and C<undef> when not.
+C<$user_name> is the username and optional. The username is
+stored when C<connect_database()> is called. If the database-handle
+provided is identical with the standard database handle or of
+the database handle is "" or C<undef>, that username ,
+C<dbdrv::std_username> is taken, if not specified differently.
+The function returns C<1> when the table is accessible and 
+C<undef> when not.
 
 =item dbdrv::primary_keys()
 
