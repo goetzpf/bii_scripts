@@ -12,8 +12,10 @@ use strict;
 
 use FindBin;
 
-# search dbitable.pm ralative to the location of THIS script:
-use lib "$FindBin::RealBin/../lib/perl";
+# enable this if you want to search modules like dbitable.pm 
+# relative to the location of THIS script:
+# ------------------------------------------------------------
+# use lib "$FindBin::RealBin/../lib/perl";
 
 use DBI;
 use Options;

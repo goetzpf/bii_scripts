@@ -7,17 +7,18 @@ use strict;
 
 use FindBin;
 
-# search dbitable.pm ralative to the location of THIS script:
-use lib "$FindBin::RealBin/../lib/perl";
+# enable this if you want to search modules like dbitable.pm 
+# relative to the location of THIS script:
+# ------------------------------------------------------------
+# use lib "$FindBin::RealBin/../lib/perl";
 
-#You may specify where to find Tk::TableMatrix, when
-#it is not installed globally like this:
-#use lib "$ENV{HOME}/project/perl/lib/site_perl";
-#use lib "/home/unix/pfeiffer/project/perl/lib/site_perl";
 
-# the following is only for my testing perl-environment:
-#use lib "$ENV{HOME}/pmodules";
-#use perl_site;
+# You may specify where to look for perl extensions like Tk or
+# find Tk::TableMatrix here. The following line activates
+# my private installed extensions on host ocean:
+# ------------------------------------------------------------
+# use lib "/home/unix/pfeiffer/project/perl/lib/site_perl";
+
 use Sys::Hostname;
 use Config;
 

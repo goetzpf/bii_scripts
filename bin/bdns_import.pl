@@ -2,7 +2,11 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
   if 0;
 
 use FindBin;
-use lib "$FindBin::RealBin/../lib/perl";
+
+# enable this if you want to search modules like dbitable.pm 
+# relative to the location of THIS script:
+# ------------------------------------------------------------
+# use lib "$FindBin::RealBin/../lib/perl";
 
 use strict;
 use DBI;
