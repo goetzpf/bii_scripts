@@ -3,7 +3,7 @@
 
 
 # a list of CPAN modules:
-modules:= Pezca
+#modules:= Pezca
 
 # -------------------------------------------------
 
