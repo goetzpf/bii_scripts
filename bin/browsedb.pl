@@ -6,7 +6,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 use strict;
 
 # search dbitable.pm ralative to the location of THIS script:
-use lib "$FindBin::RealBin/../lib/perl";
+#use lib "$FindBin::RealBin/../lib/perl";
 
 #You may specify where to find Tk::TableMatrix, when
 #it is not installed globally like this:
@@ -14,8 +14,8 @@ use lib "$FindBin::RealBin/../lib/perl";
 
 
 # the following is only for my testing perl-environment:
-#use lib "$ENV{HOME}/pmodules";
-#use perl_site; 
+use lib "$ENV{HOME}/pmodules";
+use perl_site; 
 
 use FindBin;
 use Tk;
@@ -26,7 +26,7 @@ use Tk::FileSelect;
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
 
-#use Tk::ErrorDialog;
+use Tk::ErrorDialog;
 
 use dbitable 1.4;
 
@@ -56,6 +56,10 @@ my $db_password  = "bessyguest";
 my $BG= "gray81";
 my $BUTBG= "gray73";
 my $ACTBG= "gray73";
+
+# re-define the dbitable error-handler:
+$dbitable::errorfunc= \&dbidie;
+
 
 my %std_button_options= (-font=> ['helvetica',10,'normal'],
         	         -background=>$BUTBG, -activebackground=>$ACTBG);
@@ -208,22 +212,31 @@ sub tk_about
    my $Top= MainWindow->new(-background=>$BG);
    $Top->title("About $PrgTitle");
 
-   my @text= ("$PrgTitle $VERSION\n",
-               "written by Goetz Pfeiffer\n",
-	       "for BESSY GmbH, Berlin, Adlershof\n",
-	       "Comments/Suggestions, please mail to:\n",
-	       "(pfeiffer\@mail.bessy.de)\n"
+   my @text= ("$PrgTitle $VERSION",
+               "written by Goetz Pfeiffer",
+	       "for BESSY GmbH, Berlin, Adlershof",
+	       "Comments/Suggestions, please mail to:",
+	       "pfeiffer\@mail.bessy.de"
 	     );
   
    my $h= $#text+1;
    my $w=0;
    foreach my $l (@text) 
      { $w=length($l) if ($w<length($l)); };
+
+   foreach my $l (@text) 
+     { my $len= length($l);
+       next if ($len>=$w);
+       my $d= $w-$len;
+       my $dl= int($d / 2);
+       $l= (' ' x $dl) . $l . (' ' x ($d-$dl));
+     };  
+     
    
    my $Text= $Top->Text(-width=> $w, -height=>$h);
 
    foreach my $l (@text) 
-     { $Text->insert('end',$l); };
+     { $Text->insert('end',$l . "\n"); };
      
    $Text->pack(-fill=>'both',expand=>'y');
  }
@@ -233,7 +246,7 @@ sub tk_open_new_table
   
     if ($fast_test)
       { $r_glbl->{new_table_name}= $fast_table; 
-        tk_ppen_new_table_finish($r_glbl);
+        tk_open_new_table_finish($r_glbl);
 	return; 
       }
     else
@@ -246,7 +259,7 @@ sub tk_open_new_table
                  )->pack(-side=>'left', -fill=>'y');
     $Top->Button(-text => 'accept',
                  %std_button_options,
-		  -command => [\&tk_ppen_new_table_finish, $r_glbl ],
+		  -command => [\&tk_open_new_table_finish, $r_glbl ],
         	 )->pack(-side=>'left', -fill=>'y');
     $Top->Button(-text => 'abort',
                  %std_button_options,
@@ -257,13 +270,15 @@ sub tk_open_new_table
     $r_glbl->{table_dialog_widget}= $Top;
   }
   
-sub tk_ppen_new_table_finish
+sub tk_open_new_table_finish
   { my($r_glbl)= @_;
   
     make_table_hash_and_window($r_glbl,uc($r_glbl->{new_table_name}));
 
     if ($fast_test)
-      { return; };
+      { $fast_test=0;
+        return; 
+      };
       
     delete $r_glbl->{new_table_name};
     
@@ -275,8 +290,6 @@ sub tk_foreign_key_dialog
   
     my $parent_widget= $r_tbh->{table_widget};
 
-#@@@@@@@@@@@@@@@@ must be updated, when this foreign table no
-#@@@@@@@@@@@@@@@@ longer exists
     my $fkh= $r_tbh->{foreign_key_hash};
     # col_name => [foreign_table,foreign_column]
 
@@ -361,7 +374,7 @@ sub tk_foreign_key_dialog_finish
    $Top->destroy;  # @@@@
 
    my $r_all_tables= $r_glbl->{all_tables};
-   tkdie("assertion in line " . __LINE__)
+   tkdie($r_glbl,"assertion in line " . __LINE__)
      if (!defined $r_all_tables); # assertion, shouldn't happen
 
    my $r_tbh_fk= $r_all_tables->{$fk_table};
@@ -511,7 +524,7 @@ sub tk_dependency_dialog_finish
     $Top->destroy;  # @@@@
     
     my $r_all_tables= $r_glbl->{all_tables};
-    tkdie("assertion in line " . __LINE__)
+    tkdie($r_glbl,"assertion in line " . __LINE__)
        if (!defined $r_all_tables); # assertion, shouldn't happen
     
     my $r_tbh_res= $r_all_tables->{$res_table};
@@ -607,6 +620,12 @@ sub make_table_hash_and_window
     my $r_tbh= 
             make_table_hash($r_glbl->{dbh},$table_name,%hash_defaults);
 
+    if (!defined $r_tbh)
+      { tk_err_dialog($r_glbl->{main_menu_widget}, 
+                      "opening of the table failed!");
+	return;
+      };	      
+    
     $r_all_tables->{$table_name}= $r_tbh;
 
     make_table_window($r_glbl,$r_tbh);
@@ -628,6 +647,14 @@ sub make_table_hash
 
     # the dbitable object:
     $table_hash{dbitable}   = get_dbitable(\%table_hash,$table_name);
+
+    if (!defined $table_hash{dbitable})
+      { 
+        #warn "unable to open!!";
+	return; 
+      
+      }; # was unable to open table
+
 
     # $table_hash{dbitable}->dump(); die;
 
@@ -653,6 +680,9 @@ sub make_table_hash
                       [ $table_hash{dbitable}->primary_key_column_indices() ];
 
     # the foreign-key hash
+    # this is just the pure information from the database which
+    # columns are foreign keys. This has nothing to do with the
+    # fact wether that foreign key table is displayed or not
     $table_hash{foreign_key_hash}= $table_hash{dbitable}->foreign_keys();
 
     
@@ -761,7 +791,31 @@ sub make_table_window
 		); 
     $MnEdit->add('command',
 		  -label=> 'insert line',
-		  -command => [\&tk_field_edit, $r_tbh],
+		  -command => [\&cb_insert_line, $r_tbh],
+		); 
+    $MnEdit->add('command',
+		  -label=> 'delete line',
+		  -command => [\&tk_delete_line_dialog, $r_tbh],
+		); 
+    $MnEdit->add('command',
+		  -label=> 'copy field',
+		  -command => [\&cb_copy_paste_field, 
+		               $r_glbl, $r_tbh, 'copy'],
+		); 
+    $MnEdit->add('command',
+		  -label=> 'paste field',
+		  -command => [\&cb_copy_paste_field, 
+		               $r_glbl, $r_tbh, 'paste'],
+		); 
+    $MnEdit->add('command',
+		  -label=> 'copy line',
+		  -command => [\&cb_copy_paste_line, 
+		               $r_glbl, $r_tbh, 'copy'],
+		); 
+    $MnEdit->add('command',
+		  -label=> 'paste line',
+		  -command => [\&cb_copy_paste_line, 
+		               $r_glbl, $r_tbh, 'paste'],
 		); 
 		
 
@@ -975,6 +1029,12 @@ sub tk_load_from_file
     my $r_chg= $r_tbh->{changed_rows};
     my $row;
     
+    # re-calc list of primary keys:
+    $r_tbh->{pk_list}= get_pk_list($r_tbh);
+    $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+    $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+    $Table->configure(-rows => $r_tbh->{row_no} + 1);
+    
     foreach my $pk ($dbitable->primary_keys(filter=>'updated'))
       { 
         $row= pk2row($r_tbh,$pk);
@@ -987,6 +1047,9 @@ sub tk_load_from_file
         $r_chg->{$pk}= $row;
         $Table->tagRow('changed_cell',$row);
       };
+ 
+    # the following forces a redraw:
+    $Table->configure(-padx => ($Table->cget('-padx')) );
     
   }   
 
@@ -1062,15 +1125,28 @@ sub tk_err_dialog
     $dialog->Show();				     
   }
 
-sub tkdie
-  { my($message)= @_;
-   
-    my $Top= MainWindow->new(-background=>$BG);
+sub dbidie
+# uses a global variable !!
+  { 
+#warn "dbidie was called";  
+    tkdie(\%global_data,@_); 
+  }
 
-    my $dialog= $Top->Dialog(
-	                    -title=>'Fatal Error',
-		            -text=> $message
-		               );
+sub tkdie
+  { my($r_glbl,$message)= @_;
+   
+    my $Top= $r_glbl->{main_menu_widget};
+   
+    $Top->afterIdle([\&tkdie2,$Top,$message]);
+  }
+  
+sub tkdie2
+  { my($parent_widget,$message)= @_;
+    
+    my $dialog= $parent_widget->Dialog(
+	                               -title=>'Fatal Error',
+		                       -text=> $message
+		                      );
     $dialog->Show();
     exit(0);				     
   }
@@ -1086,7 +1162,7 @@ sub cb_close_window
    
    my $r_all_tables= $r_glbl->{all_tables};
    
-   tkdie("assertion in line " . __LINE__)
+   tkdie($r_glbl,"assertion in line " . __LINE__)
      if (!defined $r_all_tables); #assertion 
 
    my $table_name= $r_tbh->{table_name};
@@ -1131,7 +1207,7 @@ sub cb_handle_right_button
     print "foreign key data: $fk_table,$fk_col\n";
     
     my $r_all_tables= $r_glbl->{all_tables};
-    tkdie("assertion in line " . __LINE__)
+    tkdie($r_glbl,"assertion in line " . __LINE__)
       if (!defined $r_all_tables); # assertion, shouldn't happen
     
     my $r_tbh_fk= $r_all_tables->{$fk_table};
@@ -1176,7 +1252,7 @@ sub cb_handle_browse
        # $r_cols: list reference: [f_col,r_col1,r_col2...]
       
        my $f_tbh= $r_glbl->{all_tables}->{$f_table};
-       tkdie("assertion in line " . __LINE__)
+       tkdie($r_glbl,"assertion in line " . __LINE__)
          if (!defined $f_tbh); # assertion
 
        if ($#$r_cols==1)
@@ -1292,6 +1368,70 @@ warn "SELECT WARN4\n";
            
  }
 
+sub cb_copy_paste_field
+  { my($r_glbl,$r_tbh,$mode)= @_;
+  
+    my $Table= $r_tbh->{table_widget};
+
+    # get actibe cell:
+    my($row,$col)= split(",",$Table->index('active'));
+
+    if ($mode eq 'copy')
+      { 
+        $r_tbh->{paste_buffer}= cb_put_get_val($r_tbh,0,$row,$col);
+        return;
+      };
+    if ($mode eq 'paste')
+      { my $r_wp_flags= $r_tbh->{write_protected_cols};
+        if ($r_wp_flags->[$col] eq 'P')
+	  { $r_wp_flags->[$col]= 'T';
+	    # remove write protection temporarily
+	  };  
+        $Table->set("$row,$col",$r_tbh->{paste_buffer} );
+
+        return;
+      };
+
+    tkdie($r_glbl,"assertion in line " . __LINE__ .
+          ", unknown mode: $mode");
+  }
+
+sub cb_copy_paste_line
+  { my($r_glbl,$r_tbh,$mode)= @_;
+  
+    my $Table= $r_tbh->{table_widget};
+
+    # get actibe cell:
+    my($row,$col)= split(",",$Table->index('active'));
+
+    if ($mode eq 'copy')
+      { my %line;
+        my $pk= row2pk($r_tbh,$row);
+        foreach my $colname (keys %{$r_tbh->{column_hash}})
+	  { $line{$colname}= put_get_val_direct($r_tbh,$pk,$colname); };
+	  
+        $r_tbh->{paste_linebuffer}= \%line;
+        return;
+      };
+      
+    if ($mode eq 'paste')
+      { my $r_line= $r_tbh->{paste_linebuffer};
+        my $r_wp_flags= $r_tbh->{write_protected_cols};
+	my $pk= row2pk($r_tbh,$row);
+        foreach my $colname (keys %$r_line)
+	  { my $this_col= colname2col($r_tbh,$colname);
+	    next if ($r_wp_flags->[$this_col] eq 'P'); 
+	    # do not overwrite primary keys or foreign keys
+	    $Table->set("$row,$this_col", $r_line->{$colname});
+          };
+        return;
+      };
+
+    tkdie($r_glbl,"assertion in line " . __LINE__ .
+          ", unknown mode: $mode");
+  }
+
+
 
 sub cb_put_get_val
 # global variables used: NONE
@@ -1369,12 +1509,102 @@ sub rdump
     $$r_buf.=  "REF TO: \'$r\'$comma\n"; 
   }
 
-sub insert_line
+sub cb_insert_line
  { my($r_tbh)= @_;
  
-   # @@@@@@@@@@@@@@@@@
+   my @pk_cols= @{$r_tbh->{pks}};
+   my $dbitable= $r_tbh->{dbitable};
+   
+   if ($#pk_cols>0)
+     { tk_err_dialog($r_tbh->{table_widget},
+                     "this table has more than one " .
+		     "primary key column. Direct inserting " .
+		     "of an empty line is not possible here!"
+		     );
+       return;
+     };
+   my $r_col_hash= $r_tbh->{column_hash};
+   my %h;
+   foreach my $col (keys %$r_col_hash)
+     { next if ($col eq $pk_cols[0]);
+       $h{$col}="";
+     };
+     
+   my $new_pk= $dbitable->add_line(%h);
+
+   my $Table= $r_tbh->{table_widget};
+
+   # re-calc list of primary keys:
+   # (there may be new lines inserted in the table)
+   $r_tbh->{pk_list}= get_pk_list($r_tbh);
+   $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+   # the number of rows is now different:
+   $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+   $Table->configure(-rows => $r_tbh->{row_no} + 1);
+     	     
+   my($row,$col)= pkcolname2rowcol($r_tbh,$new_pk,$pk_cols[0]);
+   $Table->activate("$row,$col");
+   $Table->see("$row,$col");
 
   }
+
+sub tk_delete_line_dialog
+  { my($r_tbh)= @_;
+
+    my $Table= $r_tbh->{table_widget};
+
+    # get row-column of the active cell in the current table
+    my($row,$col)= split(",",$Table->index('active'));
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+
+    my $Top= MainWindow->new(-background=>$BG);
+    
+    $Top->title($r_tbh->{table_name});
+
+    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
+                           -background=>$BG
+                	   )->pack(-side=>'top' ,-fill=>'x',
+			          -expand=>'y');
+    my $FrDn  = $Top->Frame(-background=>$BG
+                	   )->pack(-side=>'top' ,-fill=>'y',
+			          -expand=>'y'
+			          );
+    $FrTop->Label(-text=>"delete line with primary key $pk ?"
+                 )->pack(-side=>'left');
+   
+
+    $FrDn->Button(-text => 'accept',
+                 %std_button_options,
+		  -command => 
+		       sub { $r_tbh->{dbitable}->delete_line(
+		                                 $r_tbh->{line_to_delete}
+						           );
+							   
+			     # re-calc list of primary keys:
+			     $r_tbh->{pk_list}= get_pk_list($r_tbh);
+			     $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+			     $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+
+			     $Table->configure(-rows => $r_tbh->{row_no} + 1);
+
+my($row,$col)= split(",",$Table->index('active'));
+$Table->activate("$row,$col");
+#$Table->set("$row,$col",cb_put_get_val($r_tbh,0,$row,$col));
+
+		  	     $Top->destroy;
+			   }		      
+        	 )->pack(-side=>'left', -fill=>'y');
+    $FrDn->Button(-text => 'abort',
+                 %std_button_options,
+		 -command => sub { delete $r_tbh->{line_to_delete};
+				   $Top->destroy; 
+				  }
+        	 )->pack(-side=>'left', -fill=>'y');
+
+    $r_tbh->{line_to_delete}= $pk;
+
+  }
+
   
 sub cb_store_db
 # global variables used: NONE
@@ -1383,14 +1613,46 @@ sub cb_store_db
    
    $r_tbh->{dbitable}->store();
    
+   # reload the table, it's safer to do this in case 
+   # that another person has also changed the table in the meantime
+   $r_tbh->{dbitable}->load();
+   
+   # preliminary primary keys may have been changed, so 
+   # re-display the table:
+   
+   # re-calc list of primary keys:
+   # (there may be new lines inserted in the table)
+   $r_tbh->{pk_list}= get_pk_list($r_tbh);
+   $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+   $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+
+   my $Table= $r_tbh->{table_widget};
+   # the following forces a redraw
+   # $Table->configure(-padx => ($Table->cget('-padx')) );
+   # needed when the number of rows was changed:
+   $Table->configure(-rows => $r_tbh->{row_no} + 1);
  }
 
 sub cb_reload_db
 # global variables used: NONE
  { my($r_tbh)= @_;
+
+   my $Table= $r_tbh->{table_widget};
+
    tk_remove_changed_cell_tag($r_tbh);
    
    $r_tbh->{dbitable}->load();
+
+   # re-calc list of primary keys:
+   # (there may be new lines inserted in the table)
+   $r_tbh->{pk_list}= get_pk_list($r_tbh);
+   $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+   $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+
+   # the following forces a redraw
+   # $Table_widget->configure(-padx => ($Table_widget->cget('-padx')) );
+   # needed when the number of rows was changed:
+   $Table->configure(-rows => $r_tbh->{row_no} + 1);
    
  }
 
@@ -1422,7 +1684,6 @@ sub tk_activate_cell
     
 
 sub tk_remove_changed_cell_tag
-# global variables used:  changed_cells !!! @@@@@@@@@@
   { my($r_tbh)= @_;
   
     my $Table_widget= $r_tbh->{table_widget};
@@ -1468,8 +1729,8 @@ sub tk_resort_and_redisplay
  
 
     $r_tbh->{pk_list}= get_pk_list($r_tbh);
-
     $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+    # $r_tbh->{row_no} did NOT change in this case!
 			      
     # now re-calc the "changed-cell" tags: 
     foreach my $k (keys %$r_changed_cells)
@@ -1615,9 +1876,9 @@ sub conn_add
 # $r_table must be a string !
   { my($r_glbl,$r_table,$r_col,$f_table,$f_col)= @_;
   
-    tkdie("assertion in line " . __LINE__)
+    tkdie($r_glbl,"assertion in line " . __LINE__)
       if (ref($r_table)); # assertion
-    tkdie("assertion in line " . __LINE__)
+    tkdie($r_glbl,"assertion in line " . __LINE__)
       if (ref($f_table)); # assertion
     
     push @{$r_glbl->{residents}->{$f_table}->{$f_col}->{$r_table}},
@@ -1637,39 +1898,60 @@ sub conn_add
 sub conn_delete_table
   { my($r_glbl,$table)= @_;
   
-#@@@@@@@ doesn't work correctly, when the table
-#@@@@@@@@@ "in the middle" between two tables is deleted
-
-    tkdie("assertion in line " . __LINE__)
+    # deleting a table is unfortunately rather complicated
+    # especially, when a table "in the middle" with respect
+    # to table->foreign_key->foreign_table->2nd. foreign_key->2nd foreign table
+    # is deleted 
+  
+    tkdie($r_glbl,"assertion in line " . __LINE__)
       if (ref($table)); # assertion
 
     my %resident_tables;
     
-    my $r_residents= $r_glbl->{residents}->{$table};
+    my $r_residents = $r_glbl->{residents}->{$table};
+    my $r_foreigners= $r_glbl->{foreigners}->{$table};
+
+    # now find all resident_tables:
+    my %resident_tables;
     if (defined $r_residents)
       { foreach my $col (keys %$r_residents) 
           { foreach my $table_name (keys %{$r_residents->{$col}})
 	      { $resident_tables{$table_name}=1; };
 	  };
-	delete $r_glbl->{residents}->{$table};
       };
- 
-print "resident tables: ",join("|",(keys %resident_tables)),"\n"; 
-      
-    my $r_foreigners= $r_glbl->{foreigners};
+
+    # now find all foreign tables
+    my %foreign_tables;
     if (defined $r_foreigners)
-      { foreach my $table_name (keys %resident_tables)
-          { 
-print "table_name: $table_name, orig table: $table\n";	  
-	    delete $r_foreigners->{$table_name}->{$table};
-	    if (!keys %{$r_foreigners->{$table_name}})
-	      { delete $r_foreigners->{$table_name}; };
-	  
-	  };
-	#delete $r_glbl->{foreigners}->{$table};
+      { foreach my $tab (keys %$r_foreigners) 
+          { $foreign_tables{$tab}=1; };
       };
+      
+    # clean up the global 'residents' hash:
+    delete $r_glbl->{residents}->{$table};
+    foreach my $ftab (keys %foreign_tables)
+      { my $r_colhash= $r_glbl->{residents}->{$ftab};
+        next if (!defined $r_colhash);
+	foreach my $col (keys %$r_colhash)
+	  { delete $r_colhash->{$col}->{$table};  
+	    if (!keys %{$r_colhash->{$col}})
+	      { delete $r_colhash->{$col}; }; 
+	  };
+	if (!keys %$r_colhash)
+	  { delete $r_glbl->{residents}->{$ftab}; };
+      };
+      
+    # clean up the global 'foreigners' hash          
+    delete $r_glbl->{foreigners}->{$table};
+    foreach my $rtab (keys %resident_tables)
+      { my $r_tabhash= $r_glbl->{foreigners}->{$rtab};
+        next if (!defined $r_tabhash);
+ 	delete $r_tabhash->{$table};
+	if (!keys %$r_tabhash)
+	  { delete $r_glbl->{foreigners}->{$rtab}; };
+      };     
+        
   }
-  
   
 sub conn_r_find
 # find connections for a given resident-table
