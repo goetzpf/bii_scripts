@@ -8,7 +8,7 @@ htmldir:=$(cwd)/../../doc/html
 mandir:=$(cwd)/../../doc/man
 man3dir:=$(mandir)/man3
 
-modules:= idcp_data canlink parse_db parse_subst dbitable 
+modules:= idcp_data canlink parse_db parse_subst dbitable dbdrv
 
 manpages:=$(addprefix $(man3dir)/,$(addsuffix .3,$(modules)))
 

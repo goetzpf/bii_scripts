@@ -32,6 +32,7 @@ BEGIN {
 
 }
 use vars      @EXPORT_OK;
+use Data::Dumper;
 
 # used modules
 
@@ -536,6 +537,19 @@ It returns a hash of the following format
                     ...
 	        )
 
+
+=item dbdrv::accessible_public_objects
+
+  my @objects= accessible_public_objects($dbh,$type,$user_name)
+  
+This function returns all accessible public objects (tables and
+views) for a given user.
+
+--- to be continued ---
+
+=item dbdrv::accessible_public_objects
+
+--- to be continued ---
 
 =back
 

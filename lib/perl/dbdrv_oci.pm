@@ -5,7 +5,6 @@
 my $mod_l= "dbdrv_oci";
 
 sub check_existence
-# internal
 # returns the one primary key or the list of columns
 # that form the primary key
   { my($dbh,$table_name)= @_;
@@ -43,7 +42,6 @@ sub check_existence
   }
 
 sub primary_keys
-# internal
 # returns the one primary key or the list of columns
 # that form the primary key
   { my($dbh,$table_name)= @_;
@@ -86,7 +84,6 @@ sub primary_keys
   }
 
 sub foreign_keys
-# internal
   { my($dbh,$table_name)= @_;
 
     $dbh= check_dbi_handle($dbh);
@@ -131,7 +128,6 @@ sub foreign_keys
 
 
 sub resident_keys
-# internal
 # the opposite of foreign keys,
 # find where the primary key of this table is used as foreign key
   { my($dbh,$table_name)= @_;
@@ -186,6 +182,112 @@ sub resident_keys
 
     return( \%resident_keys);
   }
+
+sub accessible_public_objects
+# returns the one primary key or the list of columns
+# that form the primary key
+  { my($dbh,$type,$user_name)= @_;
+  
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+      
+    if (!defined $type)
+      { $type= "table"; }
+    else
+      { $type= lc($type);
+        if (($type ne "table") && ($type ne "view"))
+	  { dberror($mod_l,'accessible_objects',__LINE__,
+                "unknown object type: $type"); 
+            return;
+          };
+      };
+      
+    my @users= ('PUBLIC');
+    if (defined $user_name)
+      { push @users, $user_name; };
+    
+    my $owner_filter;
+    if ($#users<=0)
+      { $owner_filter= "asyn.owner=\'$users[0]\'"; }
+    else
+      { $owner_filter= "asyn.owner IN (" .
+                        join(", ", map { "\'$_\'" } @users) .
+		       ")";
+      };		       
+     
+#$sql_trace=1; 
+
+    my $SQL= "SELECT asyn.synonym_name " .
+             "FROM all_synonyms asyn, all_${type}s aobj " .
+	     "WHERE $owner_filter AND " .
+
+	     "asyn.table_owner NOT IN (\'SYS\', \'SYSTEM\') AND " .
+
+  	     "asyn.table_name=aobj.${type}_name AND " .
+	     "asyn.table_owner=aobj.owner";
+    
+    sql_trace($SQL) if ($sql_trace);
+    
+    my $res=
+      $dbh->selectall_arrayref($SQL);
+		      	   
+    if (!defined $res)
+      { dberror($mod_l,'accessible_tables',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
+    my @list;
+    foreach my $line (@$res)
+      { push @list, $line->[0];
+      };
+
+    #print join(",",@list),"\n";
+    return( sort @list );
+  }
+
+sub accessible_user_objects
+# returns the one primary key or the list of columns
+# that form the primary key
+  { my($dbh,$type)= @_;
+  
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+      
+    if (!defined $type)
+      { $type= "table"; }
+    else
+      { $type= lc($type);
+        if (($type ne "table") && ($type ne "view"))
+	  { dberror($mod_l,'accessible_objects',__LINE__,
+                "unknown object type: $type"); 
+            return;
+          };
+      };
+    
+#$sql_trace=1; 
+
+    my $SQL= "SELECT ${type}_name " .
+             "FROM user_${type}s aobj";
+
+    sql_trace($SQL) if ($sql_trace);
+    
+    my $res=
+      $dbh->selectall_arrayref($SQL);
+		      	   
+    if (!defined $res)
+      { dberror($mod_l,'accessible_user_objects',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
+    my @list;
+    foreach my $line (@$res)
+      { push @list, $line->[0];
+      };
+
+    #print join(",",@list),"\n";
+    return( sort @list );
+  }
+
 
 1;
 
