@@ -256,7 +256,6 @@ sub init_tableviewtype
         return;
       };
 
-
     if ($type eq 'table')
       { my $user;
         $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
@@ -265,7 +264,7 @@ sub init_tableviewtype
 
             return;
           };
-          $self->{_owner} = $user;
+        $self->{_owner} = $user;
       };
 
     # if self->{_pks} already exists, take this if no primary-key
@@ -322,6 +321,7 @@ sub init_tableviewtype
               };
           };
       };
+
     if (!@primary_keys)
       {
         dbdrv::dberror($mod,'init_tableviewtype',__LINE__,

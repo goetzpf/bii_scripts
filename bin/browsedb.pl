@@ -6167,7 +6167,8 @@ sub get_dbitable
           { $load_options{order_by}= $r_tbh->{table_order}; };
       }
     else
-      { $ntab= dbitable->new('view',$r_tbh->{dbh},
+      { 
+        $ntab= dbitable->new('view',$r_tbh->{dbh},
                              $r_tbh->{table_name},"",$r_tbh->{sequel}
                             );
       };
