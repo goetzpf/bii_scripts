@@ -1606,10 +1606,12 @@ sub cb_copy_paste_field
       };
     if ($mode eq 'paste')
       { my $r_wp_flags= $r_tbh->{write_protected_cols};
-        if ($r_wp_flags->[$col] eq 'P')
-	  { $r_wp_flags->[$col]= 'T';
-	    # remove write protection temporarily
-	  };  
+	if (defined $r_wp_flags->[$col])
+	  { if ($r_wp_flags->[$col] eq 'P')
+	      { $r_wp_flags->[$col]= 'T';
+		# remove write protection temporarily
+	      };  
+          };
         $Table->set("$row,$col",$r_tbh->{paste_buffer} );
 
         return;
@@ -2255,3 +2257,5 @@ sub conn_f_find
     # return a hash-ref: res-table-name => [res_col1,res_col2...]
     return($r_residents);   
   }  
+
+
