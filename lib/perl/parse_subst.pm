@@ -165,7 +165,7 @@ sub parse
 		next;
 	      };
 	    carp "ERROR: string: \"" . substr($db,pos($db)) . "\"\n";
-	    croak "parse 5 error at byte ",pos($db)," of input stream";   
+	    croak "parse error 5 at byte ",pos($db)," of input stream";   
 	  };
       };
     return(\%templates);    
