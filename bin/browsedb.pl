@@ -22,7 +22,7 @@ use Sys::Hostname;
 use Config;
 
 #use Tk 800.024; <-- problems on ocean
-use Tk
+use Tk;
 use Tk::Menu;
 use Tk::Dialog;
 use Tk::NoteBook;
@@ -5702,9 +5702,9 @@ sub tk_load_collection
 
     my $Top= $r_glbl->{main_menu_widget};
 
-    if (! -r $file)
+    if ((!defined $file) or (! -r $file))
       {
-        my $file= tk_simple_file_menu(widget=> $Top,
+        $file= tk_simple_file_menu(widget=> $Top,
                                   type=> 'load',
                                   extension=>'.col',
                                   defaultdir=>$PrgDir,
