@@ -23,6 +23,7 @@ use Tk;
 use Tk::Menu;
 use Tk::Dialog;
 use Tk::NoteBook;
+use Tk::ROText;
 use Tk::BrowseEntry;
 use Tk::Listbox;
 use Tk::FileSelect;
@@ -31,8 +32,6 @@ use Tk::TableMatrix;
 use Tk::ProgressBar;
 use Tk::Date;
 use Tk::NumEntry;
-use Tk::DBI::Form;
-
 
 #use Tk::ErrorDialog;
 
@@ -146,7 +145,7 @@ sub tk_login
     $e1->bind('<Return>', sub { $e2->focus() } );
     $e2->bind('<Return>', sub { $e3->focus() } );
     $e3->bind('<Return>', sub { tk_login_finish($r_glbl); } );
-    # [\&tk_login_finish, $r_glbl ] doesn't work!
+    # [\&tk_login_finish, $r_glbl ] doesnt work!
 
     $FrDn->Button(-text => 'Login',
                   %std_button_options,
@@ -164,11 +163,11 @@ sub tk_login_finish
   { my($r_glbl)= @_;
 
     my $db_handle;
-    if (defined($r_glbl->{dbh})) 
-      { dbitable::disconnect_database($r_glbl->{dbh}); 
+    if (defined($r_glbl->{dbh}))
+      { dbitable::disconnect_database($r_glbl->{dbh});
         delete $r_glbl->{dbh};
       };
-      
+
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -184,6 +183,8 @@ sub tk_login_finish
     $r_glbl->{dbh}= $db_handle;
 
     tk_main_window_finish($r_glbl);
+    $r_glbl->{progress}=0;
+    $r_glbl->{progress_widget}->update;
 
   }
 
@@ -195,6 +196,8 @@ sub tk_main_window
     $r_glbl->{password}    = $password;
 
     my $Top= MainWindow->new(-background=>$BG);
+    $Top->minsize(400,400);
+    $Top->maxsize(800,800);
     $r_glbl->{main_widget} = $Top;
     $Top->title("$PrgTitle");
     $r_glbl->{main_menu_widget}= $Top;
@@ -255,6 +258,59 @@ sub tk_main_window
                  -command => [\&tk_dump_global, $r_glbl],
                 );
 
+        # statusbar
+     my $MnStatus = $Top->Frame(
+                -relief=>"groove",
+                -height=>14
+     )->pack(
+                -side=> "bottom",
+                -fill=> "x",
+                -anchor=> "sw",
+                -expand=> 0,
+                );
+     $MnStatus->Label(
+                -text=>$r_glbl->{user}."@".$r_glbl->{db_name},
+        )->pack(
+                -side=>"left",
+                -expand=>1,
+                -anchor=>"w"
+                );
+     my $MnStatusInfo = $MnStatus->Label(
+                -textvariable=>\$r_glbl->{info},
+        )->pack(
+                -side=>"left",
+                -expand=>1,
+                -anchor=>"w"
+                );
+     $MnStatusInfo = $r_glbl->{info_widget};
+     $MnStatus->Label(
+                -text=>'%'
+        )->pack(
+                -padx=> 2,
+                -pady=> 2,
+                -side=> "right",
+                -anchor=> "e",
+                -expand=> "0",
+                );
+     my $MnStatusProgress = $MnStatus->ProgressBar(
+#                -width=>50,
+                -height=>10,
+                -length=>100,
+                -from=>0,
+                -to=>100,
+                -blocks=> 10,
+                -colors=>[ 0, 'blue' ],
+                -variable=> \$r_glbl->{progress},
+        )->pack(
+                -side=> "right",
+                -anchor=> "e",
+                -expand=> 0,
+#               -fill=>'y'
+                );
+        $r_glbl->{progress_widget} = $MnStatusProgress;
+
+        $Top->update();
+
     # prepareing mainwindow with dialog
         my $DlgTop = $Top->NoteBook()->pack(
                 -fill=>'both',
@@ -304,9 +360,8 @@ sub tk_main_window
                                             $r_glbl]
                                 )->pack( %dlg_def_labentry);
 
-        $r_glbl->{table_browse_widget}->bind(
-                            '<Return>',
-                            sub { my $b= $r_glbl->{table_browse_button};
+        $r_glbl->{table_browse_widget}->bind('<Return>', sub
+                                { my $b= $r_glbl->{table_browse_button};
                                   return if ($b->cget('-state') eq "disabled");
                                   tk_open_new_object($r_glbl, "table");
                                 }
@@ -350,7 +405,8 @@ sub tk_main_window
         $DlgTbl->Label(
                 -text=>"Where Clause :",
         )->pack( %dlg_def_labentry, );
-        my $DlgTblWhere = $DlgTbl->Text(
+        my $DlgTblWhere = $DlgTbl->Scrolled(
+                "Text",
                 -height=>5,
                 -wrap=>"word",
         )->pack( %dlg_def_labentry, );
@@ -368,8 +424,8 @@ sub tk_main_window
                                 }
                         );
 
-    $DlgTblListbox->bind('<Return>' => sub { tk_open_new_object($r_glbl, "table"); } );
-    $DlgTblListbox->bind('<Double-1>' => sub { tk_open_new_object($r_glbl, "table"); } );
+        $DlgTblListbox->bind('<Return>' => sub { tk_open_new_object($r_glbl, "table"); } );
+        $DlgTblListbox->bind('<Double-1>' => sub { tk_open_new_object($r_glbl, "table"); } );
         $r_glbl->{table_listbox_widget}=$DlgTblListbox;
         $Top->update();
 
@@ -383,7 +439,8 @@ sub tk_main_window
         $DlgVw->Label(
                 -text=>"Where Clause :",
         )->pack( %dlg_def_labentry, );
-        my $DlgVwWhere = $DlgVw->Text(
+        my $DlgVwWhere = $DlgVw->Scrolled(
+                "Text",
                 -height=>5,
                 -wrap=>"word",
         )->pack( %dlg_def_labentry, );
@@ -396,10 +453,10 @@ sub tk_main_window
         )->pack( %dlg_def_okbutton, );
 
         $DlgVwListbox->bind('<Button-1>' => sub {
-                                        $DlgVwOk->configure(-state=>"active");
-                                        $r_glbl->{new_table_name} = $DlgVwListbox->get($DlgVwListbox->curselection, $DlgVwListbox->curselection);
-                                }
-                        );
+                                $DlgVwOk->configure(-state=>"active");
+                                $r_glbl->{new_table_name} = $DlgVwListbox->get($DlgVwListbox->curselection, $DlgVwListbox->curselection);
+                        }
+                );
         $DlgVwListbox->bind(
                             '<Return>' => sub { tk_open_new_object($r_glbl, "view"); }
                                         );
@@ -407,73 +464,43 @@ sub tk_main_window
                             '<Double-1>' => sub { tk_open_new_object($r_glbl, "view"); }
                                         );
         $r_glbl->{view_listbox_widget}=$DlgVwListbox;
+
         # dialog sequel
         $DlgSQL->Label(
-                -text=>"Statement :",
+                -text=> "Statement :",
         )->pack( %dlg_def_labentry, );
-        my $DlgSQLCommand = $DlgSQL->Text(
+        my $DlgSQLCommand = $DlgSQL->Scrolled(
+                "Text",
+                -height=> 10,
+                -wrap=> "word",
+                -scrollbars=> "se",
         )->pack( %dlg_def_labentry, );
-        $DlgSQL->Button(
-                -state=>"disabled",
-                -text=>"Show",
-                -underline=>0,
-                -justify=>"center",
-                -command=> [ \&tk_open_new_object, $r_glbl, "sql" ],
+        $r_glbl->{sql_command_widget}=$DlgSQLCommand;
+        $DlgSQL->Label(
+                -text=>"History :",
+        )->pack( %dlg_def_labentry, );
+        my $DlgSQLHistory = $DlgSQL->Scrolled(
+                "ROText",
+                -scrollbars=> "se",
+        )->pack( %dlg_def_labentry, );
+        $r_glbl->{sql_history_widget}=$DlgSQLHistory;
+        my $DlgSQLOk = $DlgSQL->Button(
+                -state=> "disabled",
+                -text=> "Show",
+                -underline=> 0,
+                -justify=> "center",
+                -command=>  [ \&tk_execute_new_query, $r_glbl, $DlgSQLCommand->get('1.0', 'end')],
         )->pack( %dlg_def_okbutton, );
-        $Top->update();
-
-        # statusbar
-        my $MnStatus = $Top->Frame(
-                -relief=>"groove",
-                -height=>20
-        )->pack(
-                -side=>"bottom",
-                -fill=>"x",
-                -anchor=>"sw"
+        $DlgSQLCommand->bind('<Control-Return>' => sub
+                    {
+                        &tk_execute_new_query ($r_glbl, $DlgSQLCommand->get('1.0', 'end'));
+                    }
                 );
-        $MnStatus->Label(
-                -text=>$r_glbl->{user}."@".$r_glbl->{db_name},
-        )->pack(
-                -side=>"left",
-                -expand=>1,
-                -anchor=>"w"
-                );
-        my $MnStatusInfo = $MnStatus->Label(
-                -textvariable=>\$r_glbl->{info},
-        )->pack(
-                -side=>"left",
-                -expand=>1,
-                -anchor=>"w"
-                );
-        $MnStatusInfo = $r_glbl->{info_widget};
-        $MnStatus->Label(
-                -text=>'%'
-        )->pack(
-                -padx=>2,
-                -pady=>2,
-                -side=>"right",
-                -anchor=>"e"
-                );
-        my $MnStatusProgress = $MnStatus->ProgressBar(
-                -width=>50,
-                -length=>100,
-                -from=>0,
-                -to=>100,
-                -blocks=> 10,
-                -colors=>[ 0, 'blue' ],
-                -variable=> \$r_glbl->{progress},
-        )->pack(
-                -side=>"right",
-                -anchor=>"e",
-                -fill=>'y'
-                );
-        $r_glbl->{progress_widget} = $MnStatusProgress;
-
         $Top->update();
 
         if (! defined ($r_glbl->{dbh}))
           {
-                tk_login($r_glbl); 
+                tk_login($r_glbl);
                         tk_window_positioning($Top, $r_glbl->{login_widget});
 
       }
@@ -488,22 +515,22 @@ sub tk_main_window_finish
                 $r_glbl->{login_widget}->destroy;
                 delete $r_glbl->{login_widget};
         }
-        $r_glbl->{accessible_objects_views} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
-                                                        $r_glbl->{user},
-                                        "VIEW",
-                                                        "PUBLIC,USER")
-                                            ];
+        $r_glbl->{accessible_objects_views} = [ dbdrv::accessible_objects($r_glbl->{'dbh'},
+                        $r_glbl->{user},
+                        "VIEW",
+                        "PUBLIC,USER")
+                ];
         $r_glbl->{progress}=20;
         $r_glbl->{progress_widget}->update;
         $r_glbl->{view_listbox_widget}->delete(0, 'end');
         $r_glbl->{view_listbox_widget}->insert("end", @{ $r_glbl->{accessible_objects_views} } );
         $r_glbl->{progress}=25;
         $r_glbl->{progress_widget}->update;
-        $r_glbl->{accessible_objects_tables} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
-                                                        $r_glbl->{user}, 
-                                        "TABLE", 
-                                                    "PUBLIC,USER")
-                                            ];
+        $r_glbl->{accessible_objects_tables} = [ dbdrv::accessible_objects($r_glbl->{'dbh'},
+                        $r_glbl->{user},
+                        "TABLE",
+                        "PUBLIC,USER")
+                ];
         $r_glbl->{progress}=45;
         $r_glbl->{progress_widget}->update;
         $r_glbl->{table_listbox_widget}->delete(0, 'end');
@@ -511,10 +538,10 @@ sub tk_main_window_finish
         $r_glbl->{progress}=50;
         $r_glbl->{progress_widget}->update;
         $r_glbl->{accessible_objects_all} = [ dbdrv::accessible_objects($r_glbl->{'dbh'},
-                                     $r_glbl->{user}, 
-                                     "TABLE,VIEW", 
-                                                     "PUBLIC,USER")
-                                                ];
+                        $r_glbl->{user},
+                        "TABLE,VIEW",
+                        "PUBLIC,USER")
+                ];
         $r_glbl->{progress}=90;
         $r_glbl->{progress_widget}->update;
         $r_glbl->{table_browse_widget}->delete(0, 'end');
@@ -533,9 +560,9 @@ sub tk_wait
         );
         $DlgWait->show();
         return $DlgWait;
-        
+
  }
- 
+
 sub tk_about
  { my($r_glbl)= @_;
 
@@ -572,8 +599,8 @@ sub tk_about
  }
 
 sub tk_handle_table_browse_entry
-# action:1 insert 0: delete, -1: forced validation   
-  { my($r_glbl, $proposed, $chars_added, 
+# action:1 insert 0: delete, -1: forced validation
+  { my($r_glbl, $proposed, $chars_added,
        $value_before, $index, $action)= @_;
 
     my $rewrite_value;
@@ -584,7 +611,7 @@ sub tk_handle_table_browse_entry
       { $proposed= uc($proposed);
         $rewrite_value= 1;
       };
-    
+
     # print join(",",$proposed, $chars_added,$value_before, $index, $action),"\n";
 
     my @matches= grep { $_ =~ /^$proposed/ } (@$r_all_objects);
@@ -594,14 +621,14 @@ sub tk_handle_table_browse_entry
         $r_glbl->{table_browse_widget}->bell();
         return(0);
       };
-    
+
     if ($#matches != $#{$r_glbl->{table_browse_objs}})
       { #  $r_glbl->{table_browse_widget}->configure(-choices=>\@matches);
         $r_glbl->{table_browse_widget}->delete(0,'end');
         $r_glbl->{table_browse_widget}->insert('end', @matches);
         $r_glbl->{table_browse_objs}= \@matches;
-      };        
-        
+      };
+
     my $completion= same_start(\@matches);
     if ((defined $completion) && ($action==1)) # action=1: insert
       {
@@ -614,12 +641,12 @@ sub tk_handle_table_browse_entry
     my @exact  = grep { $_ eq $proposed } (@$r_all_objects);
     if ($#exact<0)
       { $r_glbl->{table_browse_button}->configure(-state=>"disabled"); }
-    else  
+    else
       { $r_glbl->{table_browse_button}->configure(-state=>"active");
-        
+
         $r_glbl->{new_table_name}= $proposed;
       };
-      
+
     if ($rewrite_value)
       { my $Entry= $r_glbl->{table_browse_widget}->Subwidget('entry');
         my $r_var= ($Entry->configure('-textvariable'))[4];
@@ -627,7 +654,7 @@ sub tk_handle_table_browse_entry
         $Entry->icursor('end');
         return(0);
       };
-      
+
     return(1);
   }
 
@@ -635,20 +662,20 @@ sub tk_open_new_object
   { my($r_glbl, $type)= @_;
     # $type can be "view", "table" or "sql"
     my %known_types= map { $_ =>1 } qw( table view sql );
-    
+
         # setting kind of db object
-    if (lc($type) =~ /(view|table)/) 
+    if (lc($type) =~ /(view|table)/)
       {  $r_glbl->{new_table_type} = lc($type); }
-        else 
-          {  $r_glbl->{new_table_type} = "sql"; }
-          
+    else
+      {  $r_glbl->{new_table_type} = "sql"; }
+
         make_table_hash_and_window($r_glbl,uc($r_glbl->{new_table_name}));
-        
+
     if ($fast_test)
       { $fast_test=0;
         return;
       };
-      
+
     delete $r_glbl->{new_table_name};
     delete $r_glbl->{new_where_clause};
 
@@ -657,8 +684,23 @@ sub tk_open_new_object
         delete $r_glbl->{table_dialog_widget};
       };
   }
-        
 
+
+sub tk_execute_new_query
+# routine for executinf free sequel
+  { my($r_glbl, $sqlquery)= @_;
+    #print $sqlparser->structure;
+    chomp $sqlquery;
+    $sqlquery =~ s/\s*;\s*$//;
+    $sqlquery =~ s/^\s*$//m;
+    if (length($sqlquery) > 6) {
+        $r_glbl->{sql_history_widget}->insert('end', "\n");
+        $r_glbl->{sql_history_widget}->insert('end', $sqlquery);
+        $r_glbl->{sql_command_widget}->delete('1.0', "end");
+        $r_glbl->{sql_command_widget}->insert('1.0', $sqlquery);
+    }
+    return $sqlquery;
+}
 
 sub tk_sql_commands
   { my($r_glbl)= @_;
@@ -674,13 +716,13 @@ sub tk_sql_commands
 
    dbdrv::set_sql_trace_func(\&dbi_sql_trace);
    $dbdrv::sql_trace=1;
-   
+
    $Top->bind('<Destroy>', sub { $dbdrv::sql_trace=0;
                                  dbdrv::set_sql_trace_func();
                                 delete $r_glbl->{sql_commands_widget};
                               });
-  }   
-    
+  }
+
 sub dbi_sql_trace
 # uses a global variable !!
   { my $Text= $global_data{sql_commands_widget};
