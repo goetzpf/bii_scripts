@@ -15,13 +15,14 @@ use lib "$FindBin::RealBin/../lib/perl";
 
 # the following is only for my testing perl-environment:
 #use lib "$ENV{HOME}/pmodules";
-#use perl_site; 
+#use perl_site;
 
 use FindBin;
 use Tk;
 use Tk::Menu;
 use Tk::Dialog;
 use Tk::NoteBook;
+use Tk::BrowseEntry;
 use Tk::Listbox;
 use Tk::FileSelect;
 use Tk::TableMatrix;
@@ -220,212 +221,141 @@ sub tk_main_window
                  -label=> 'dump global datastructure',
 		 -command => [\&tk_dump_global, $r_glbl],
 	        );
-    # prepareing mainwindow with dialogs
-    my $DlgTop = $Top->NoteBook()->pack(
-	    -fill=>'both',
-	    -side=>'top',
-	    -expand=>1,
-	    -anchor=>'nw'
-	    );
-    my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables");
-    my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views");
-    my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Sequel");
-    $DlgTbl->Listbox(
-	    -selectmode=>"single",
-    )->pack(
-	    -padx=>2,
-	    -pady=>2,
-	    -ipadx=>3,
-	    -ipady=>3,
-	    -side=>"left",
-	    -fill=>"both",
-	    -expand=>1,
-	    -anchor=>"nw"
-	    );
-	$DlgTbl->LabEntry(
+    # prepareing mainwindow with dialog
+	my $DlgTop = $Top->NoteBook()->pack(
+		-fill=>'both',
+		-side=>'top',
+		-expand=>1,
+		-anchor=>'nw'
+		);
+	my $DlgEnt = $DlgTop->add("DlgEnt", -label=>"Short Exec");
+	my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables");
+	my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views");
+	my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Sequel");
+	my %dlg_def_labentry = (
+		-padx=>2, -pady=>2,
+		-ipadx=>1, -ipady=>1,
+		-fill=>"x",
+		-side=>"top", -anchor=>"nw",
+	);
+	my %dlg_def_okbutton = (
+		-padx=>2,-pady=>2,
+		-ipadx=>1,-ipady=>1,
+		-side=>"right",-anchor=>"se",
+	);
+	my %dlg_def_listbox = (
+	    -padx=>2, -pady=>2,
+	    -ipadx=>3, -ipady=>3,
+	    -side=>"left", -anchor=>"nw",
+	    -fill=>"both", -expand=>1,
+	);
+	if ($fast_test)
+		{ $r_glbl->{new_table_name}= $fast_table;
+	}
+	else
+	{ $r_glbl->{new_table_name}= ""; };
+	my $DlgEntName = $DlgEnt->BrowseEntry(
+		-label=>'please enter the table-name:',
+		-labelPack=>=>[-side=>"left", anchor=>"w"],
+		-width=>34,
+		-text=>$r_glbl->{table_name},
+		-variable=>$r_glbl->{new_table_name},
+	)->pack( %dlg_def_labentry);
+	my $DlgEntOk = $DlgEnt->Button(
+		-state=>"disabled",
+		-text=>"Show",
+		-underline=>0,
+		-justify=>"center",
+		-command => [\&tk_open_new_table_finish, $r_glbl ],
+	)->pack( %dlg_def_okbutton,);
+	#$r_glbl->{table_dialog_widget}= $Top;
+
+	$DlgEntName->insert('end',
+		sort (dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "TABLE"),
+			dbdrv::accessible_public_objects($r_glbl->{'dbh'}, "TABLE", $r_glbl->{'user'}),
+			dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "VIEW"),
+			dbdrv::accessible_public_objects($r_glbl->{'dbh'}, "VIEW", $r_glbl->{'user'})
+		)
+	);
+	# dialog tables
+	my $DlgTblListbox = $DlgTbl->Scrolled(
+		"Listbox",
+		-scrollbars=>"oe",
+		-width=>34,
+		-selectmode=>"single",
+	)->pack( %dlg_def_listbox );
+	my $DlgTblRowMin = $DlgTbl->LabEntry(
 		-label=>'Lowest Rownumber :',
 		-labelPack=>[-side=>"left", anchor=>"w"],
 		-textvariable=>$r_glbl->{varDBRowMin},
 		-width=> 5,
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgTbl->LabEntry(
+	)->pack( %dlg_def_labentry,  );
+	my $DlgTblRowMax = $DlgTbl->LabEntry(
 		-label=>'Highest Rownumber :',
 		-labelPack=>[-side=>"left", anchor=>"w"],
 		-textvariable=>$r_glbl->{varDBRowMin},
 		-width=> 5,
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgTbl->Checkbutton(
+	)->pack( %dlg_def_labentry );
+	my $DlgTblRowId = $DlgTbl->Checkbutton(
 		-text=>"Show RowId",
 		-textvariable=>$r_glbl->{varDBRowId},
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
+	)->pack( %dlg_def_labentry, );
 	$DlgTbl->Label(
 		-text=>"Where Clause :",
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgTbl->Text(
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgTbl->Button(
+	)->pack( %dlg_def_labentry, );
+	my $DlgTblWhere = $DlgTbl->Text(
+		-height=>5,
+	)->pack( %dlg_def_labentry, );
+	my $DlgTblOk = $DlgTbl->Button(
 		-state=>"disabled",
 		-text=>"Show",
 		-underline=>0,
 		-justify=>"center",
 		-command=> [\&tk_open_new_table, $r_glbl]
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-side=>"right",
-		-anchor=>"se",
+	)->pack(%dlg_def_okbutton, );
+	$DlgTblListbox->insert("end", sort(
+		dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "TABLE"),
+		dbdrv::accessible_public_objects($r_glbl->{'dbh'},"TABLE", $r_glbl->{'user'}))
 	);
+
 	# dialog view
-	$DlgVw->Listbox(
+	my $DlgVwListbox = $DlgVw->Scrolled(
+		"Listbox",
+		-scrollbars=>"oe",
+		-width=>34,
 		-selectmode=>"single",
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>3,
-		-ipady=>3,
-		-side=>"left",
-		-fill=>"both",
-		-expand=>1,
-		-anchor=>"nw"
-		);
-	$DlgVw->LabEntry(
-		-label=>'Lowest Rownumber :',
-		-labelPack=>[-side=>"left", anchor=>"w"],
-		-textvariable=>$r_glbl->{varDBRowMin},
-		-width=> 5,
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgVw->LabEntry(
-		-label=>'Highest Rownumber :',
-		-labelPack=>[-side=>"left", anchor=>"w"],
-		-textvariable=>$r_glbl->{varDBRowMin},
-		-width=> 5,
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
+	)->pack( %dlg_def_listbox, );
 	$DlgVw->Label(
 		-text=>"Where Clause :",
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgVw->Text(
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgVw->Button(
+	)->pack( %dlg_def_labentry, );
+	my $DlgVwWhere = $DlgVw->Text(
+		-height=>5,
+	)->pack( %dlg_def_labentry, );
+	my $DlgVwOk = $DlgVw->Button(
 		-state=>"disabled",
 		-text=>"Show",
 		-underline=>0,
 		-justify=>"center",
 		-command=> qw (&tk_open_new_view)
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-side=>"right",
-		-anchor=>"se",
+	)->pack( %dlg_def_okbutton, );
+	$DlgVwListbox->insert("end", sort (
+		dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "TABLE"),
+		dbdrv::accessible_public_objects($r_glbl->{'dbh'}, "TABLE", $r_glbl->{'user'}))
 	);
+
 	# dialog sequel
 	$DlgSQL->Label(
 		-text=>"Statement :",
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-side=>"top",
-		-anchor=>"nw",
-		);
-	$DlgSQL->Text(
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-fill=>"x",
-		-side=>"top",
-		-anchor=>"nw",
-		);
+	)->pack( %dlg_def_labentry, );
+	my $DlgSQLCommand = $DlgSQL->Text(
+	)->pack( %dlg_def_labentry, );
 	$DlgSQL->Button(
 		-state=>"disabled",
 		-text=>"Show",
 		-underline=>0,
 		-justify=>"center",
 		-command=> qw (&tk_open_new_query)
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>1,
-		-ipady=>1,
-		-side=>"right",
-		-anchor=>"se",
-	);
+	)->pack( %dlg_def_okbutton, );
 
 	# statusbar
 	my $MnStatus = $Top->Frame(
@@ -507,21 +437,21 @@ sub tk_open_new_table
         	 )->pack(-side=>'left', -fill=>'y');
     $Top->Button(-text => 'abort',
                  %std_button_options,
-		 -command => sub { $Top->destroy; 
+		 -command => sub { $Top->destroy;
 		                    delete $r_glbl->{table_dialog_widget}
 				  }
         	 )->pack(-side=>'left', -fill=>'y');
     $r_glbl->{table_dialog_widget}= $Top;
   }
-  
+
 sub tk_open_new_table_finish
   { my($r_glbl)= @_;
-  
+
     make_table_hash_and_window($r_glbl,uc($r_glbl->{new_table_name}));
 
     if ($fast_test)
       { $fast_test=0;
-        return; 
+        return;
       };
       
     delete $r_glbl->{new_table_name};
@@ -589,7 +519,7 @@ sub tk_foreign_key_dialog
                 	   )->pack(-side=>'top' ,-fill=>'both',
 			          -expand=>'y');
     my $FrDn  = $Top->Frame(-background=>$BG
-                	   )->pack(-side=>'top' ,-fill=>'y', 
+                	   )->pack(-side=>'top' ,-fill=>'y',
 			          );
     
     my $maxcolsz=0;
@@ -645,7 +575,7 @@ sub tk_foreign_key_dialog_finish
     my @selection= $listbox->curselection();
     
     if (!@selection)
-      { tk_err_dialog($Top, "no table selected"); 
+      { tk_err_dialog($Top, "no table selected");
     	return;
       };
     
@@ -757,7 +687,7 @@ sub tk_dependency_dialog
       { $listbox_options{-height}= $#resident_table_list + 1; 
         $listbox= $FrTop->Listbox(%listbox_options ); 
       };
-      
+
     foreach my $res_table (@resident_table_list)
       { $listbox->insert('end', $res_table); };
       
@@ -783,7 +713,7 @@ sub tk_dependency_dialog
     $r_tbh->{dependency_dialog_listbox}   = $listbox;
     $r_tbh->{resident_tables}             = \%resident_tables;
     $r_tbh->{resident_table_list}         = \@resident_table_list;
-  }		     
+  }
 
 sub tk_dependency_dialog_finish
   { my($r_glbl,$r_tbh)= @_;
@@ -895,7 +825,7 @@ sub tk_find_line
 				     };
 				   delete $r_tbh->{find_cell};
 				   $Top->destroy;
-				  }		      
+				  }
         	 )->pack(-side=>'left', -fill=>'y');
     $FrDn->Button(-text => 'abort',
                  %std_button_options,
@@ -927,7 +857,7 @@ sub tk_field_edit
     # the Tablematrix-Window
     $xroot= '+' . $xroot if ($xroot>=0);
     $yroot= '+' . $yroot if ($yroot>=0);
-    $Top->geometry($x . $y);
+    $Top->geometry($xroot . $yroot);
 
     #my $title= "$r_tbh->{table_name}: Edit $colname";
     $Top->title("$r_tbh->{table_name}");
@@ -940,18 +870,18 @@ sub tk_field_edit
                 	   )->pack(-side=>'top' ,-fill=>'y',
 			          -expand=>'y'
 			          );
-       
+
     $FrTop->Label(-text=>"$colname: ")->pack(-side=>'left');
-    
+
     $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,$pk,$colname);
     my $w= length($r_tbh->{edit_cell});
-    
+
     $w=20 if ($w<20);
-    
+
     $FrTop->Entry(-textvariable => \$r_tbh->{edit_cell},
                   -width=>$w
                  )->pack(-side=>'left',-fill=>'x',-expand=>'y');
-		 
+
     $FrDn->Button(-text => 'accept',
                  %std_button_options,
 		  -command => sub { $TableWidget->set("$row,$col",
