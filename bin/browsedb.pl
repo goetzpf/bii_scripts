@@ -37,6 +37,7 @@ use Tk::ROText;
 use Tk::BrowseEntry;
 use Tk::Listbox;
 use Tk::FileSelect;
+use Tk::Pane;
 #use Tk::Balloon;
 
 use Tk::TableMatrix;
@@ -1617,10 +1618,6 @@ sub tk_open_new_object
 
     make_table_hash_and_window($r_glbl,%params);
 
-    if ($r_glbl->{fast_test})
-      { $r_glbl->{fast_test}=0;
-        return;
-      };
   }
 
 sub make_table_hash_and_window
@@ -2282,34 +2279,34 @@ sub make_table_window
     # create the sub-menue:
 
     # switching between different contents
-    $r_tbh->{fastswitch}->{show} = 0;
+    $r_tbh->{fastswitch}->{show} = 'form';
     $MnView->add('radiobutton',
                 -label=> 'Contenttable',
                 -underline=> 8,
                 -command=> [ \&cb_show_contenttable, $r_glbl, $r_tbh ],
                 -variable=> \$r_tbh->{fastswitch}->{show},
-                -value => 0,
+                -value => 'table',
                 );
     $MnView->add('radiobutton',
                 -label=> 'Contentform',
                 -underline=> 8,
                 -command=> [ \&cb_show_contentform, $r_glbl, $r_tbh ],
                 -variable=> \$r_tbh->{fastswitch}->{show},
-                -value => 1,
+                -value => 'form',
                 );
     $MnView->add('radiobutton',
                 -label=> 'Information',
                 -underline=> 1,
                 -command=> [ \&cb_show_objectinfo, $r_glbl, $r_tbh ],
                 -variable=> \$r_tbh->{fastswitch}->{show},
-                -value => 2,
+                -value => 'info',
                 );
     $MnView->add('radiobutton',
                 -label=> 'Dependencies',
                 -underline=> 0,
                 -command=> [ \&cb_show_dependencies, $r_glbl, $r_tbh ],
                 -variable=> \$r_tbh->{fastswitch}->{show},
-                -value => 3,
+                -value => 'dependencies',
                 );
 
     $MnView->add('separator');
@@ -2407,22 +2404,27 @@ sub make_table_window
 
     $r_tbh->{fastbar}->{order}->bind('<Return>', sub { &cb_reload_db ($r_glbl, $r_tbh); } );
 
-    if ($r_tbh->{fastswitch}->{show} eq 1)
+    
+    if ($r_tbh->{fastswitch}->{show} eq 'table')
+      {
+        cb_show_contenttable($r_glbl, $r_tbh);
+      }
+    elsif ($r_tbh->{fastswitch}->{show} eq 'form')
       {
         cb_show_contentform ($r_glbl, $r_tbh);
       }
-    elsif ($r_tbh->{fastswitch}->{show} eq 2)
+    elsif ($r_tbh->{fastswitch}->{show} eq 'info')
       {
         cb_show_objectinfo ($r_glbl, $r_tbh);
       }
-    elsif ($r_tbh->{fastswitch}->{show} eq 3)
+    elsif ($r_tbh->{fastswitch}->{show} eq 'dependencies')
       {
         cb_show_dependencies ($r_glbl, $r_tbh);
       }
     else
-      {
-        cb_show_contenttable($r_glbl, $r_tbh);
-      }
+      { die "fastswitch has wrong value:" . $r_tbh->{fastswitch}->{show} .
+            "(assertion)";
+      };            
 
   }
 
@@ -2454,10 +2456,17 @@ sub cb_show_contenttable
     my($r_glbl, $r_tbh)= @_;
     # --------------------- table widget
 
-    my $FrDn = $r_tbh->{'frame_down'};
-    $FrDn->gridForget($FrDn->gridSlaves());
+    my $FrDn = $r_tbh->{frame_down};
+    
+    
+    #$FrDn->gridForget($FrDn->gridSlaves());
+    ungrid($FrDn);
+    #$r_glbl->{main_menu_widget}->update();
+    
     $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
     $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
+    $FrDn->gridRowconfigure   (1,-weight=>0); # make it non-stretchable
+    $FrDn->gridColumnconfigure(1,-weight=>0); # make it non-stretchable
 
     my $Table= $FrDn->TableMatrix
     #my $Table= $FrDn->Spreadsheet
@@ -2809,132 +2818,230 @@ sub cb_show_contenttable
 
     $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
 
-    $FrDn->pack(-expand=> 1, -fill=>'both', );
+    #$FrDn->pack(-expand=> 1, -fill=>'both', );
   }
 
 sub cb_show_contentform
   {
-    my($r_glbl, $r_tbh, $key)= @_;
+# adds "current_row" to the table-hash !!!  
+    my($r_glbl, $r_tbh)= @_;
     #$key the actual key
     # --------------------- entry widget
 
     # repacking FrDown is important in order to get a
     # sensible window-size
-    my $FrDn = $r_tbh->{'frame_down'};
-    $FrDn->gridForget($FrDn->gridSlaves());
+    my $FrDn = $r_tbh->{frame_down};
+    
+    #$FrDn->gridForget($FrDn->gridSlaves());
+    ungrid($FrDn);
+    # important to re-pack the frame here:
+    $FrDn->pack(-expand=> 1, -fill=>'both', );
+
+    #$FrDn->gridPropagate(1);
+    
+    #$r_glbl->{main_menu_widget}->update();
+
+    $FrDn->gridColumnconfigure(0,-weight=>0); # make it stretchable
+    $FrDn->gridColumnconfigure(1,-weight=>1); # make it non-stretchable
+    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
+
+
+    #$FrDn->pack(-expand=> 1, -fill=>'both', );
+
+
     my $rowcol = 0;
-    if (! defined $key) {$key = 1;}
-    $key  = cb_show_contentform_get ($r_glbl, $r_tbh, $key);
+
+    if (!exists $r_tbh->{current_row})
+      { $r_tbh->{current_row}= 1; };
+    
     my $FastNav = $FrDn->Frame(
-                    -height=>14,
-                    -relief=>"raised",
-        )->grid(-row=>0, -column=>0, -sticky=>'nsw');
+                    #-height=>14,
+                    -relief=>"raised",-background=>'green',
+        )->grid(-row=>0, -column=>0, 
+                -sticky=>'nw'
+               );
+
     my $ButFirst = $FastNav->Button
       (
-        -text=>"First", -width=>12, -cursor=>"hand1",
+        -text=>"First", -cursor=>"hand1",
+        -padx=>2, -pady=>1,
         -command=>sub {
-                $key = cb_show_contentform_get ($r_glbl, $r_tbh, 1);
+                cb_show_contentform_get ($r_glbl, $r_tbh, 'first');
           },
-      )->grid(-row=>$rowcol, -column=>0, -padx=>1, -pady=>1 );
+      )->grid(-row=>$rowcol, -column=>0, -sticky=>'ew' );
     $rowcol++;
     my $ButBack = $FastNav->Button
       (
         -text=>"Back", -width=>12, -cursor=>"hand1",
+        -padx=>2, -pady=>1,
         -command=>sub {
-                $key = cb_show_contentform_get ($r_glbl, $r_tbh, $key - 1);
+                cb_show_contentform_get ($r_glbl, $r_tbh, -1);
             },
-      )->grid(-row=>$rowcol, -column=>0, -padx=>1, -padx=>1);
+      )->grid(-row=>$rowcol, -column=>0, -sticky=>'ew');
     $rowcol++;
     my $ButNext = $FastNav->Button
       (
           -text=>"Next", -width=>12, -cursor=>"hand1",
+          -padx=>2, -pady=>1,
           -command=>sub {
-                  $key = cb_show_contentform_get ($r_glbl, $r_tbh, $key + 1);
+                  cb_show_contentform_get ($r_glbl, $r_tbh, 1);
           },
-      )->grid(-row=>$rowcol, -column=>0, -pady=>1, -padx=>1);
+      )->grid(-row=>$rowcol, -column=>0, -sticky=>'ew');
     $rowcol++;
     my $ButLast = $FastNav->Button
       (
         -text=>"Last", -width=>12, -cursor=>"hand1",
+        -padx=>2, -pady=>1,
         -command=>sub {
-                $key = cb_show_contentform_get ($r_glbl, $r_tbh, $r_tbh->{row_no});
+                cb_show_contentform_get ($r_glbl, $r_tbh, 'last');
           },
-      )->grid(-row=>$rowcol, -column=>0, -pady=>4, -padx=>1);
+      )->grid(-row=>$rowcol, -column=>0, -sticky=>'ew');
     $rowcol++;
 
-    my $MainText= $FrDn->Scrolled('Text',
-                -wrap=>'none',
-                -scrollbars=>"osoe",
-        )->grid(-column=>1, -row=>0, -sticky=>'nsew',);
+     
+    # it's important that the Pane is not yet packed or gridded
+    # since we can not yet calculate it's size
+    my $Pane= $FrDn->Pane( 
+                           -gridded=>'xy',
+                           -sticky =>'nwe',
+                         );
 
-    $r_tbh->{form_widget} = $MainText;
-    $r_tbh->{form_widget}->{fastnav}->{back} = $ButBack;
-    $r_tbh->{form_widget}->{fastnav}->{next} = $ButNext;
-    $r_tbh->{form_widget}->{fastnav}->{first} = $ButFirst;
-    $r_tbh->{form_widget}->{fastnav}->{last} = $ButLast;
+    # manually add scrollbars:
+    my $xscroll = $FrDn->Scrollbar(-command => ['xview', $Pane],
+                                -orient => 'horizontal',
+                                )->grid(-row=>1, -column=>1, -sticky=> "ew");
 
-    $FrDn->gridColumnconfigure(1, -weight => 2, -minsize => 640);
-    $FrDn->gridColumnconfigure(0, -weight => 0, -minsize => 128);
-    $FrDn->gridRowconfigure(0, -weight => 2, -minsize => 480);
+    $Pane->configure(-xscrollcommand => ['set', $xscroll]);
+
+    my $yscroll = $FrDn->Scrollbar(-command => ['yview', $Pane],
+                                -orient => 'vertical',
+                                )->grid(-row=>0, -column=>2, -sticky=> "ns");
+
+    BrowseDB::TkUtils::bind_scroll_wheel($Pane);
+
+    $Pane->configure(-yscrollcommand => ['set', $yscroll]);
+
+    # now add a frame within the pane, we need this in order
+    # to proceed with adding the entry fields without the
+    # Pane-Widgets having been gridded
+    
+    my $Form= $Pane->Frame->pack(-side=>'top' ,-fill=>'both', -expand=>1);
+
+    $r_tbh->{form_widget}->{contentframe} = $Form;
+    $r_tbh->{form_widget}->{fastnavframe}->{back}  = $ButBack;
+    $r_tbh->{form_widget}->{fastnavframe}->{next}  = $ButNext;
+    $r_tbh->{form_widget}->{fastnavframe}->{first} = $ButFirst;
+    $r_tbh->{form_widget}->{fastnavframe}->{last}  = $ButLast;
+
+#    $FrDn->gridColumnconfigure(1, -weight => 1);
+#    $FrDn->gridColumnconfigure(0, -weight => 0, -minsize => 128);
+#    $FrDn->gridRowconfigure(0, -weight => 1);
     if (!defined($r_tbh->{form}->{label_length}) )
       { $r_tbh->{form}->{label_length} = 32; }
     if (!defined($r_tbh->{form}->{label_anchor}) )
       { $r_tbh->{form}->{label_anchor} = "e"; }
 
-    BrowseDB::TkUtils::SetBusy($r_glbl,1);
+    #BrowseDB::TkUtils::SetBusy($r_glbl,1);
     # getting value
 
-    my @collist = $r_tbh->{dbitable}->column_list();
-    foreach my $colname ( @collist )
+    my $row=0;
+    my $lineno= $r_tbh->{current_row};
+    foreach my $colname ( @{$r_tbh->{column_list}} )
       {
-        cb_show_contentform_retrieve($r_glbl, $r_tbh, row2pk($r_tbh, $key), $colname);
-      };
-    $key  = cb_show_contentform_get ($r_glbl, $r_tbh, $key);
-    $MainText->configure(-state=>"disable");
+       my($LabelWidget,$EntryWidget)=
+        cb_show_contentform_entrywidgets($r_glbl, $r_tbh, 
+                                     row2pk($r_tbh, $lineno), 
+                                     $colname);
 
-    BrowseDB::TkUtils::SetBusy($r_glbl,0);
+       $r_tbh->{form_widget}->{content}->{$colname}=$EntryWidget;
+       
+       $LabelWidget->grid(-row=>$row, -column=>0, -sticky=>'w');
+       $EntryWidget->grid(-row=>$row, -column=>1, -sticky=>'ew');
+
+       $row++;
+      };
+    
+    $Form->gridColumnconfigure   (0,-weight=>0); # make it stretchable
+    $Form->gridColumnconfigure   (1,-weight=>1); # make it stretchable
+
+    # now calculate the requested width:
+
+    $Form->update;
+    my ($height, $width) = ($Form->reqheight, $Form->reqwidth);
+
+
+    $Pane->configure(-height => $height, -width => $width);
+
+    $Pane->grid(-row=>0, -column=>1, -sticky=>'nsew');
+
+
+    cb_show_contentform_get ($r_glbl, $r_tbh);
+
+
+#@@@@@@@@@@@@@    cb_show_contentform_get ($r_glbl, $r_tbh, $lineno);
+    #$MainText->configure(-state=>"disable");
+
+    $FrDn->pack(-expand=> 1, -fill=>'both', );
+#$FrDn->update;
+
+
+    $r_glbl->{main_menu_widget}->update();
+    #BrowseDB::TkUtils::SetBusy($r_glbl,0);
 
 }
 
 sub cb_show_contentform_get
   {
-    my ($r_glbl, $r_tbh, $key) = @_;
+    my ($r_glbl, $r_tbh, $incr) = @_;
     my $back = 'disabled';
     my $next = 'disabled';
     my $new = 'normal';
     my $selection = 'disabled';
-    if (! defined($key))
-      {
-        $key = 1;
-      }
-    if ($key > 1)
+
+    my $lineno;
+    
+    if    (!defined $incr)
+      { $lineno=1; }
+    elsif ($incr eq 'first')
+      { $lineno=1; }
+    elsif ($incr eq 'last')
+      { $lineno= $r_tbh->{row_no}; }
+    else
+      { $lineno= $r_tbh->{current_row} + $incr;
+        $lineno=1 if ($lineno<1);
+        $lineno=$r_tbh->{row_no} if ($lineno>$r_tbh->{row_no});
+      };
+    
+    $r_tbh->{current_row}= $lineno;
+    
+    if ($lineno > 1)
       {
         $back = 'normal';
       };
-    if ($key < $r_tbh->{row_no})
+    if ($lineno < $r_tbh->{row_no})
       {
         $next = 'normal';
       };
-    if (exists $r_tbh->{form_widget}->{fastnav} && exists $r_tbh->{form_widget})
+    if (exists $r_tbh->{form_widget}->{fastnavframe})
       {
-        $r_tbh->{form_widget}->{fastnav}->{back}->
+        $r_tbh->{form_widget}->{fastnavframe}->{back}->
             configure(-state=>$back);
-        $r_tbh->{form_widget}->{fastnav}->{first}->
+        $r_tbh->{form_widget}->{fastnavframe}->{first}->
             configure(-state=>$back);
-        $r_tbh->{form_widget}->{fastnav}->{next}->
+        $r_tbh->{form_widget}->{fastnavframe}->{next}->
             configure(-state=>$next);
-        $r_tbh->{form_widget}->{fastnav}->{last}->
+        $r_tbh->{form_widget}->{fastnavframe}->{last}->
             configure(-state=>$next);
-        my @collist = $r_tbh->{dbitable}->column_list();
-        foreach my $colname ( @collist )
+            
+        foreach my $colname ( @{$r_tbh->{column_list}} )
         {
-            $r_tbh->{form_values}->{$colname} = $r_tbh->{dbitable}->value(row2pk($r_tbh, $key), $colname);
+            $r_tbh->{form_values}->{$colname} = 
+                 put_get_val_direct($r_tbh,0,row2pk($r_tbh, $lineno),$colname);
         };
       }
-    return $key;
   }
 
-sub cb_show_contentform_retrieve
+sub cb_show_contentform_entrywidgets
   {
     # build form for given
     # $r_glbl    : globalhash for config
@@ -2942,76 +3049,85 @@ sub cb_show_contentform_retrieve
     # $pkey    : primary key of the row
     # $colname : columnname
     my ($r_glbl, $r_tbh, $pkey, $colname) = @_;
-    my $ret;
-    if (exists($r_tbh->{form_widget}))
-     {
-        my $ColWidget;
-        my $ColName;
-        $r_tbh->{form_values}->{$colname} = $r_tbh->{dbitable}->value($pkey, $colname);
-        if ($r_tbh->{dbitable}->get_column_property($colname, "null") ne "")
-          {
-            $ColName = "*".$colname;
-          }
-        else
-          {
-            $ColName = $colname;
-          }
-        my $ColLabel = $r_tbh->{form_widget}->Label(
-                -text=>"$ColName : ",
-                -relief=>"groove",
-                -width=>$r_tbh->{form}->{label_length},
-                -anchor=>$r_tbh->{form}->{label_anchor},
-              );
-        $r_tbh->{form_widget}->windowCreate('end', -window=>$ColLabel);
-        if ($r_tbh->{dbitable}->get_object_type() eq 'table')
-          {
-            my $ColWidget;
-            # setting default for new
-            my $coltype = $r_tbh->{dbitable}->get_column_type($colname);
-            if ($coltype eq "number")
-              { $ColWidget = $r_tbh->{form_widget}->NumEntry(
-                        -textvariable=>\$r_tbh->{form_values}->{$colname},
-                        -cursor=>"hand1",
-                  );
-              }
-            elsif($coltype eq "date")
-              {
-                $ColWidget = $r_tbh->{form_widget}->DateEntry
-                  (
-                    -daynames=>$global_data{date_format}{weekdays},
-                    -weekstart=>$global_data{date_format}{firstday},
-                    -variable=>\$r_tbh->{form_values}->{$colname},
-                  );
-              }
-            else
-              { $ColWidget = $r_tbh->{form_widget}->Entry(
-                    -textvariable=>\$r_tbh->{form_values}->{$colname},
-                  );
-              }
-            $ColWidget->configure(
-                    -width=>$r_tbh->{dbitable}->get_column_property(
-                        $colname,
-                        "length") + 2,
-                    -foreground=>$global_data{theme}{text}{foreground},
-                  );
-            $r_tbh->{form_widget}->windowCreate('end', -window=>$ColWidget);
-          }
-        else
-          {
-            $ColWidget = $r_tbh->{form_widget}->Label(
-                    -textvariable=>$r_tbh->{form_values}->{$colname},
-                    -relief=>"sunken",
-                    -width=>$r_tbh->{dbitable}->get_column_property(
-                        $colname,
-                        "length") + 2,
-              );
-            $r_tbh->{form_widget}->windowCreate('end', -window=> $ColWidget);
-          };
-        $r_tbh->{form_widget}->insert('end', "\n");
-        $r_tbh->{form_widget}->{$colname}=$ColWidget;
-        $ret = 1;
-     }
-    return $ret;
+  
+    my $FormWidget= $r_tbh->{form_widget}->{contentframe};
+
+#return($FormWidget->Label(-text=>"first"),
+#       $FormWidget->Label(-text=>"second"));
+
+    #return if (!defined $FormWidget);
+    
+    # read data from the table:
+warn "write to form_values: $colname";
+    $r_tbh->{form_values}->{$colname} = undef; 
+               #put_get_val_direct($r_tbh,0,$pkey,$colname);
+
+#warn "val ( $colname) = " . $r_tbh->{form_values}->{$colname};
+
+    my $ColName = $colname;
+    if ($r_tbh->{dbitable}->get_column_property($colname, "null") ne "")
+      {
+        $ColName = "*".$colname;
+      };
+      
+    
+    my $LabelWidget= $FormWidget->Label(
+                            -text=>"$ColName : ",
+                            -relief=>"groove",
+                            -width=>$r_tbh->{form}->{label_length},
+                            -anchor=>$r_tbh->{form}->{label_anchor},
+                                      );
+ 
+#return($LabelWidget, $FormWidget->Label(-text=>"second"));
+   
+    
+    my $state= ($r_tbh->{table_type} eq 'table') ? 
+                'normal' : 'readonly';
+
+    my $ColWidget;
+    # setting default for new
+    my $coltype = $r_tbh->{dbitable}->get_column_type($colname);
+    if ($coltype eq "number")
+      { $ColWidget = $FormWidget->NumEntry(
+                -textvariable=>\$r_tbh->{form_values}->{$colname},
+                -cursor=>"hand1",
+                -state=>$state
+          );
+      }
+    elsif($coltype eq "date")
+      {
+        $ColWidget = $FormWidget->DateEntry
+          (
+            -daynames=>$global_data{date_format}{weekdays},
+            -weekstart=>$global_data{date_format}{firstday},
+            -textvariable=>\$r_tbh->{form_values}->{$colname},
+            -state=>$state
+          );
+      }
+    else
+      { $ColWidget = $FormWidget->Entry(
+            -textvariable=>\$r_tbh->{form_values}->{$colname},
+            -state=>$state
+          );
+      }
+
+#    $ColWidget->configure(-width=>-1);
+#
+
+    $ColWidget->configure(
+            -width=>$r_tbh->{dbitable}->get_column_property(
+                $colname,
+                "length") + 2,
+            -foreground=>$global_data{theme}{text}{foreground},
+          );
+
+    
+    # update is needed in order for $widget->reqwidth to be 
+    # calculated correctly
+#    $LabelWidget->update;
+#    $ColWidget->update;
+
+    return($LabelWidget,$ColWidget);
   }
 
 sub cb_show_objectinfo
@@ -6608,6 +6724,18 @@ sub rdump
       };
     $$r_buf.=  " " x $indent if ($is_newline);
     $$r_buf.=  "REF TO: \'$r\'$comma\n";
+  }
+
+sub ungrid
+  { my($gridwidget)= @_;
+    
+    my @slaves= $gridwidget->gridSlaves();
+    
+    return if (!@slaves);
+        
+    $gridwidget->gridForget(@slaves);
+    foreach my $w (@slaves)
+      { $w->destroy(); };
   }
 
 __END__
