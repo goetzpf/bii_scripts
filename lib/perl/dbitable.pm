@@ -23,10 +23,12 @@ BEGIN {
 use Data::Dumper;
 use Text::Wrap;
 use Text::ParseWords;
+use File::Spec;
+use Cwd;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.7';
+our $VERSION     = '1.8';
 
 our $export_version= "1.0";
 
@@ -44,6 +46,8 @@ my $slim_format=0; # do not save all elements of "table" element
 my $key_fact= 100000; # for pseudo-random key generation
                       # the primary keys in the table should not
 		      # be greater than this value !
+
+my $max_colwidth= 40; # used for pretty-format (store to file)
 
 my $std_dbh; # internal standard database-handle
 
@@ -78,7 +82,9 @@ sub connect_database
         return;
       };
       
-    $std_dbh= $dbh;
+    if (!defined $std_dbh)
+      { $std_dbh= $dbh; };
+      
     return($dbh);
   }
    
@@ -92,6 +98,8 @@ sub disconnect_database
   
     if (!$dbh->disconnect()) 
       { warn "disconnect returned an error, error-code: \n$DBI::errstr"; };
+    
+    $std_dbh= undef;
   }
 
 sub new
@@ -180,6 +188,7 @@ sub new
       }
     else
       { # direct initialization
+
 	my $type= shift; $type= lc($type);
         $self->{_type}= $type;
 	
@@ -1813,13 +1822,18 @@ sub load_from_file
 	if ($part eq 'Table')
 	  { my @values;
 	    if ($options{pretty}) 
-	      { @values= split(/[;\|]/,$line); 
+	      { 
+		@values=&parse_line('[;\|]',0,$line);
+	        # $values= split(/[;\|]/,$line); 
 	        foreach my $v (@values)
 		  { $v=~ s/\s+$//; };
 	      }
 	    else
-	      { @values= split(/;/,$line); };
-	      
+	      { 
+	        @values=&parse_line(';',0,$line);
+	        #@values= split(/;/,$line); 
+	      };
+
 	    if ($#values != $#{$self->{_column_list}})
 	      { dbierror('load_from_file',__LINE__,"format error");
 	        return;
@@ -1923,22 +1937,39 @@ sub store_to_file
         return;
       };
 
-    my $filename= $self->{_filename};
+    # volume is ignored !!
+    my ($volume,$dir,$filename) = File::Spec->splitpath( $self->{_filename} );
+
+    my $filepath= $filename;
+    # catfile makes an error when $dir is equal to "", so the
+    # following "if" is needed
+    if ($dir) # dir not empty 
+      { $filepath= File::Spec->catfile($dir,$filename); };
+    # NOTE: $dir ends with a '/' !!
+
     my $tag= $self->{_tag};
     local(*F);
     local(*G);
     my $tempname;
+    my $temppath;
     
-    if (-e $filename)
+    if (-e $filepath)
       { $tempname= "dbitable-$$"; 
-        if (!open(F,$filename))
+        my $temppath= $tempname;
+	# catfile makes an error when $dir is equal to "", so the
+	# following "if" is needed
+	if ($dir) # dir not empty 
+	  { $temppath= File::Spec->catfile($dir,$tempname); };
+	# NOTE: $dir ends with a '/' !!
+	
+	if (!open(F,$filepath))
 	  { dbierror('store_to_file',__LINE__,
-	             "unable to read $filename");
+	             "unable to read $filepath");
 	    return;
 	  };
-	if (!open(G,">$tempname"))
+	if (!open(G,">$temppath"))
 	  { dbierror('store_to_file',__LINE__,
-	             "unable to write $tempname");
+	             "unable to write $temppath");
 	    return;
 	  };
 	my $line;
@@ -1962,14 +1993,14 @@ sub store_to_file
 	  }
 	if (!close(F))
 	  { dbierror('store_to_file',__LINE__,
-	             "unable to close $filename");
+	             "unable to close $filepath");
 	    return;
 	  };	     
       }
     else
-      { if (!open(G,">$filename"))
+      { if (!open(G,">$filepath"))
           { dbierror('store_to_file',__LINE__,
-	             "unable to write $tempname"); 
+	             "unable to write $filepath"); 
 	    return;
 	  };	     
       };
@@ -2031,12 +2062,28 @@ sub store_to_file
         my $oolen;
         map { $oolen+= $_ + 1 } @widths; $oolen--;
         my $format= join("|",(map{ '%-' . $_ . 's' } @widths)) . "\n"; 
-        foreach my $pk (@keylist)
-          { printf G ($format,@{$r_l->{$pk}}); }
+        my @cells;
+	foreach my $pk (@keylist)
+          { @cells= @{$r_l->{$pk}};
+	    foreach my $c (@cells)
+	      { $c=~ s/'/\\'/g; # quote quotes ("'" -> "\'")
+	        next if ($c!~ /[\|;]/);
+	        $c= "'" . $c . "'";
+	      };
+            printf G ($format,@cells); 
+	  }
       }
     else
-      { foreach my $pk (@keylist)
-          { print G join(";",@{$r_l->{$pk}}),"\n"; };
+      { my @cells;
+	foreach my $pk (@keylist)
+          { @cells= @{$r_l->{$pk}};
+	    foreach my $c (@cells)
+	      { $c=~ s/'/\\'/g; # quote quotes ("'" -> "\'")
+	        next if ($c!~ /[\|;]/);
+	        $c= "'" . $c . "'";
+	      };
+	    print G join(";",@cells),"\n"; 
+	  };
       };
     
     if ($options{'pretty'})
@@ -2045,26 +2092,50 @@ sub store_to_file
     if (defined $tempname)
       { if (!close(G))
           { dbierror('store_to_file',__LINE__,
-	             "unable to close $tempname");
+	             "unable to close $temppath");
 	    return;
 	  };
-        if (1!=unlink($filename))
+        if (1!=unlink($filepath))
 	  { dbierror('store_to_file',__LINE__,
-	            "unable to delete $filename"); 
+	            "unable to delete $filepath"); 
 	    return;
 	  };
-	if (system("mv $tempname $filename"))
-	  { dbierror('store_to_file',__LINE__,
-	             "unable to rename $tempname to $filename");
-	    return;
+
+	# now rename the thing...
+	my $old;
+	if ($dir ne "")
+	  { $old= getcwd(); # function from Cwd module
+	    $old=~ /^(.*)$/; $old= $1; # explicit untaint
+	    			      # else taint mode make problems
+	    if (!chdir($dir))
+	      { dbierror('store_to_file',__LINE__,
+	            "unable to chdir to $dir"); 
+	        return;
+	      };
 	  };
 	
+	if (!rename($tempname,$filename))
+	  { dbierror('store_to_file',__LINE__,
+	            "renaming $temppath to $filepath failed!"); 
+	    if (!chdir($old))
+	      { dbierror('store_to_file',__LINE__,
+	                 "unable to chdir back to $old"); 
+	      };
+	    return;
+	  };
+	if ($dir ne "")
+	  { if (!chdir($old))
+	      { dbierror('store_to_file',__LINE__,
+	        	 "unable to chdir back to $old"); 
+	      };
+          };
+	  
 	#rename($tempname,$filename) or 
       }
     else
       { if (!close(G))
           { dbierror('store_to_file',__LINE__,
-	             "unable to close $tempname"); 
+	             "unable to close $temppath"); 
 	    return;
 	  };
       };	  
@@ -2146,6 +2217,10 @@ sub col_widths
     foreach my $r_line (@line_list)
       { for(my $i=0; $i<= $#$r_line; $i++)
           { my $l= length($r_line->[$i]);
+
+	    # limit the maximum column width to $max_colwidth
+	    $l= $max_colwidth if ($l>$max_colwidth);
+	  
 	    $widths[$i]= $l if ($l>$widths[$i]);
 	  };
       };
@@ -3536,3 +3611,4 @@ SELECT a.owner, a.table_name, b.column_name
  WHERE a.constraint_type='P'
    AND a.constraint_name=b.constraint_name
    AND a.table_name = 'P_INSERTION_VALUE';
+
