@@ -271,12 +271,11 @@ sub tk_main_window
 	#$r_glbl->{table_dialog_widget}= $Top;
 
 	$DlgEntName->insert('end',
-		sort (dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "TABLE"),
-			dbdrv::accessible_public_objects($r_glbl->{'dbh'}, "TABLE", $r_glbl->{'user'}),
-			dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "VIEW"),
-			dbdrv::accessible_public_objects($r_glbl->{'dbh'}, "VIEW", $r_glbl->{'user'})
-		)
-	);
+		            dbdrv::accessible_objects($r_glbl->{'dbh'},
+			    			      $r_glbl->{user}, 
+		                                      "TABLE,VIEW", 
+					              "PUBLIC,USER"),
+	                   );
 	# dialog tables
 	my $DlgTblListbox = $DlgTbl->Scrolled(
 		"Listbox",
@@ -313,10 +312,12 @@ sub tk_main_window
 		-justify=>"center",
 		-command=> [\&tk_open_new_table, $r_glbl]
 	)->pack(%dlg_def_okbutton, );
-	$DlgTblListbox->insert("end", sort(
-		dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "TABLE"),
-		dbdrv::accessible_public_objects($r_glbl->{'dbh'},"TABLE", $r_glbl->{'user'}))
-	);
+	$DlgTblListbox->insert("end", 
+		               dbdrv::accessible_objects($r_glbl->{'dbh'}, 
+			    				$r_glbl->{user}, 
+		                                        "TABLE", 
+					                "PUBLIC,USER"),
+	                      );
 
 	# dialog view
 	my $DlgVwListbox = $DlgVw->Scrolled(
@@ -338,10 +339,12 @@ sub tk_main_window
 		-justify=>"center",
 		-command=> qw (&tk_open_new_view)
 	)->pack( %dlg_def_okbutton, );
-	$DlgVwListbox->insert("end", sort (
-		dbdrv::accessible_user_objects($r_glbl->{'dbh'}, "TABLE"),
-		dbdrv::accessible_public_objects($r_glbl->{'dbh'}, "TABLE", $r_glbl->{'user'}))
-	);
+	$DlgVwListbox->insert("end", 
+		              dbdrv::accessible_objects($r_glbl->{'dbh'}, 
+			      				$r_glbl->{user}, 
+		                                	"VIEW", 
+					        	"PUBLIC,USER"),
+	                     );
 
 	# dialog sequel
 	$DlgSQL->Label(
