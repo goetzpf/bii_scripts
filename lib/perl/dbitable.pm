@@ -149,8 +149,8 @@ sub new
 # the following is better done always, regardless wether the 
 # type is changed. For example, the user might simply want to change
 # the database-handle, not the type
-	    if ($newtype ne $self->{_type})
-	      { 
+#	    if ($newtype ne $self->{_type})
+#	      { 
 	        if ($newtype eq 'file')
 		  { $self->init_filetype($newtype,@_); }
 
@@ -160,7 +160,7 @@ sub new
 		  { $self->init_tableviewtype($newtype,@_); }
 		else
 		  { die "unknown type: $newtype"; };   
-              };
+#              };
 	  };
 	return($self);
       }
