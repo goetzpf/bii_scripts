@@ -26,7 +26,7 @@ use Text::ParseWords;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.1';
+our $VERSION     = '1.2';
 
 our $export_version= "1.0";
 
@@ -498,9 +498,36 @@ sub mark_inserted
 
 sub primary_keys
   { my $self= shift;
-    return(keys %{$self->{_lines}} );
+    my %options= @_;
+    
+    if (!%options)
+      { return(keys %{$self->{_lines}} ); };
+      
+    $self->gen_sort_prepare(\%options);
+
+    my $s_lines= $self->{_lines};
+    $gen_sort_href= $s_lines;
+    return( sort gen_sort (keys %$s_lines) );
   }
-           
+   
+sub primary_key_column
+  { my $self= shift;
+    
+    return( uc($self->{_pk}) );
+  }
+
+sub primary_key_column_index
+  { my $self= shift;
+    
+    return( $self->{_pki} );
+  }
+
+sub column_list   
+  { my $self= shift;
+
+    return( @{$self->{_column_list}} );
+  }
+               
 sub value 
 # get or set a value
   { my $self= shift;
@@ -532,7 +559,7 @@ sub add_line
 
     # usually this key should be unique, even if several instances of
     # dbitable are running, they shouldn't 'collide'
-    my $pk= $self->{_pk};
+    my $pk= uc($self->{_pk});
     my $new_key= $values{$pk};
     if (!defined $new_key)
       { # if the primary key is not given, create one
@@ -975,7 +1002,9 @@ sub insert
       { die "unknown primary-key-mode:$v"; }; 
  
     my $sth= db_prepare(\$format,$dbh,
-                         "insert into $self->{_table} values( " .
+                         "insert into $self->{_table} " .
+			 " ( " . join(", ",@fields) . ") " .
+			 "values( " .
 			 ("?, " x $#fields) . " ? )" )
         	 or die "prepare failed," .
         		" error-code: \n$DBI::errstr";
@@ -2022,10 +2051,40 @@ returns C<undef>.
 
 =item primary_keys()
 
-  my @keys= $table->primary_keys()
+  my @keys= $table->primary_keys(%options)
  
 This method returns a list consisting of the primary key of each
-line of the table.
+line of the table. If no options are given, the primary keys
+are given in a more or less random order. If the the option
+C<order_by> is given like this:
+
+  my @keys= $table->primary_keys(order_by=>[@column_names_list])
+
+the primary key are sorted according to the contents of the 
+columns given in the list. The first column has the highest precedence.
+When the 1st column is equal in two lines, then the second column is
+used for further sorting and so on. 
+
+=item primary_key_column ()
+
+  my $pk_col= $table->primary_key_column()
+ 
+This method returns the name of the primary-key column in upper case.
+
+=item primary_key_column_index ()
+
+  my $pk_col_index= $table->primary_key_column_index()
+ 
+This method returns the index of the primary-key in the list
+of all columns. The index of all columns starts with C<0>.
+
+
+=item column_list ()
+
+  my @columns= $table->column_list ()
+ 
+This method returns a list consisting of all column names
+in upper case.
 
 =item value()
 
