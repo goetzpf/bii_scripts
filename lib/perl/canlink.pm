@@ -895,11 +895,11 @@ __END__
 =head1 NAME
 
 canlink - a Perl module for the encoding and decoding of the
-MultiCAN Cryptic CAN Link definition
+MultiCAN Cryptic CAN Link definition.
 
 =head1 SYNOPSIS
 
-use canlink;
+  use canlink;
 
 =head1 DESCRIPTION
 
@@ -914,14 +914,13 @@ or copied without permission from BESSY.
 
 =head2 Implemented Functions:
 
-
 =over 4
 
 =item *
 
 B<interview>
 
-%link_definition= canlink::interview()
+  %link_definition= canlink::interview()
 
 This functions creates a CAN link definition by asking the user
 several questions. Note that this function is interactive and
@@ -931,7 +930,7 @@ uses simple terminal I/O.
 
 B<explain>
 
-print canlink::explain(%link_definition)
+  print canlink::explain(%link_definition)
 
 This function returns a string that contains a short explanation on
 each hash key that is used in %link_definition. When called with no
@@ -942,7 +941,7 @@ module.
 
 B<pretty_print>
 
-print canlink::pretty_print(%link_definition)
+  print canlink::pretty_print(%link_definition)
 
 This function returns a string that can be used to print the contents
 of the link-definition in a human-readable form.
@@ -951,7 +950,7 @@ of the link-definition in a human-readable form.
 
 B<encode>
 
-$link_string= canlink::encode(%link_definition)
+  $link_string= canlink::encode(%link_definition)
 
 This function returns the string that is used in the MultiCAN implementation
 in the hardware-link field.
@@ -960,7 +959,7 @@ in the hardware-link field.
 
 B<decode>
 
-%link_definition= canlink::decode($link_string)
+  %link_definition= canlink::decode($link_string)
 
 This function takes the string that is used in the MultiCAN implementation
 in the hardware-link field as parameter and returns the link-definition
@@ -970,7 +969,7 @@ in form of a hash.
 
 B<complete>
 
-%completed_link_definition= canlink::complete(%link_definition)
+  %completed_link_definition= canlink::complete(%link_definition)
 
 This function completes the link-definition by adding default-values
 for some missing hash-keys. E.g. if the "signed" field is missing, the
@@ -982,7 +981,7 @@ from the given can-object-ids (COBs).
 
 B<calc_cob>
 
-%completed_link_definition= canlink::calc_cob(%link_definition)
+  %completed_link_definition= canlink::calc_cob(%link_definition)
 
 This function completes the link-definition by calculating the
 can-object-ids (COBs) from the given node-id and connection-id
@@ -992,7 +991,7 @@ can-object-ids (COBs) from the given node-id and connection-id
 
 B<calc_cidnidsob>
 
-%completed_link_definition= canlink::calc_cidnidsob(%link_definition)
+  %completed_link_definition= canlink::calc_cidnidsob(%link_definition)
 
 This function completes the link-definition by calculating the
 node-id and connection-id (nid,cid) or node-id and sub-object-ids (SOBs)
@@ -1002,7 +1001,7 @@ from the given can-object-ids (COBs)
 
 B<cob2cidnid>
 
-($cid,$d,$nid)= canlink::cob2cidnid($cob)
+  ($cid,$d,$nid)= canlink::cob2cidnid($cob)
 
 This function calculates the connection-id, direction-flag and node-id,
 (cid,d,cid) from the given can-object-id (COB)
@@ -1011,7 +1010,7 @@ This function calculates the connection-id, direction-flag and node-id,
 
 B<cidnid2cob>
 
-$cob= canlink::cidnid2cob($cid,$d,$nid)
+  $cob= canlink::cidnid2cob($cid,$d,$nid)
 
 This function calculates the can-object-id (COB) from the given
 connection-id, direction-flag and node-id  (cid,d,cid)
@@ -1020,7 +1019,7 @@ connection-id, direction-flag and node-id  (cid,d,cid)
 
 B<cob2sobnid>
 
-($sob,$nid)= canlink::cob2sobnid($cob)
+  ($sob,$nid)= canlink::cob2sobnid($cob)
 
 This function calculates the sub-object-id and node-id
 (sob,nid) from the given can-object-id (COB)
@@ -1029,7 +1028,7 @@ This function calculates the sub-object-id and node-id
 
 B<sobnid2cob>
 
-$cob= canlink::sobnid2cob($sob,$nid)
+  $cob= canlink::sobnid2cob($sob,$nid)
 
 This function calculates the can-object-id (COB) from the given
 sub-object-id and node-id
@@ -1208,40 +1207,37 @@ Specify NID and IN-SOB and OUT-SOB. In this case, the node-id of the
 server, C<nid>, the IN-SOB, C<in_sob> and the OUT-SOB, C<out_sob>
 must be specified.
 
-= item 3.
+=item 3.
 
 Specify NID and CID, in this case, define C<nid> and C<cid>
 
 =back
 
-
-
-
 =head1 EXAMPLES
 
 =head2 format a user-defined can-link:
 
-    use canlink;
+  use canlink;
 
-    print "please specify a can link:";
-    my %link= canlink::interview();
-    print canlink::encode(%link),"\n";
+  print "please specify a can link:";
+  my %link= canlink::interview();
+  print canlink::encode(%link),"\n";
 
 =head2 decode and pretty-print a given MultiCAN link-string
 
-    use canlink;
+  use canlink;
 
-    print "please enter a can link string:";
-    my $str= <STDIN>;
-    my %link= canlink::decode($str);
-    die if (!%link);
-    print canlink::pretty_print(%link),"\n";
+  print "please enter a can link string:";
+  my $str= <STDIN>;
+  my %link= canlink::decode($str);
+  die if (!%link);
+  print canlink::pretty_print(%link),"\n";
 
 =head2 explain all known hash-fields
 
-    use canlink;
+  use canlink;
 
-    print canlink::explain();
+  print canlink::explain();
 
 =head1 AUTHOR
 
