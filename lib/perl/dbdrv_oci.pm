@@ -2,55 +2,99 @@
 # it is loaded via "do" into dbdrv.pm !!
 
 use strict;
-our %sql_aliases;
 our $sql_trace;
 our $r_db_objects;
 our $r_db_reverse_synonyms;
 
 my $mod_l= "dbdrv_oci";
 
-%sql_aliases = (
-    "dependants" =>     "SELECT o.object_id, o.created, o.status, o.object_type, \
-                                o.object_name, o.owner \
-                            FROM sys.all_dependencies d, sys.all_objects o \
-                            WHERE d.referenced_name = UPPER('##1##') AND\
-                                d.owner = o.owner AND \
-                                d.name = o.object_name AND \
-                                o.object_type = 'VIEW' ORDER BY o.owner, o.object_name",
-    "depends" =>        "SELECT o.object_id, o.created, o.status, o.object_name, o.owner \
-                            FROM all_dependencies d, all_objects o \
-                            WHERE d.name = UPPER('##1##') AND \
-                                d.referenced_owner = o.owner AND \
-                                d.referenced_name = o.object_name \
-                            ORDER BY o.object_name",
-    "viewtext" =>       "SELECT text \
-                            FROM all_views \
-                            WHERE view_name = UPPER('##1##')",
-    "triggertext" =>    "SELECT trigger_type, triggering_event, trigger_body \
-                            FROM dba_triggers \
-                            WHERE trigger_name = UPPER('##1##')",
-    "describe" =>       "SELECT column_name, table_name, owner, data_type, \
-                                data_length, data_precision, data_scale, nullable, \
-                                column_id, default_length, data_default, num_distinct, \
-                                low_value, high_value
-                            FROM all_tab_columns \
-                            WHERE table_name = UPPER('##1##') \
-                            ORDER BY column_id",
-    "constraints" =>    "SELECT constraint_name, table_name, owner,constraint_type, \
-                                r_owner, r_constraint_name, search_condition \
-                            FROM all_constraints \
-                            WHERE table_name = UPPER('##1##') \
-                            ORDER BY constraint_name, r_owner, r_constraint_name",
-    "triggers" =>       "SELECT DISTINCT trigger_name, owner, table_owner, table_name, \
-                                trigger_type, triggering_event, status, referencing_names \
-                            FROM dba_triggers \
-                            WHERE table_name = UPPER('##1##') \
-                            ORDER BY trigger_name, table_owner, table_name",
-    "objects" =>        "SELECT object_name, status, object_type, owner \
-                            FROM sys.all_objects \
-                            WHERE object_name LIKE UPPER('##1##') AND\
-                                NOT object_type = 'SYNONYM'",
-    );
+our $database_object_types =
+  {
+    'T' => 'TABLE', 'V' => 'VIEW', 'P' => 'PROCEDURE',
+    'F' => 'FUNCTION', 'Q' => 'SEQUENCE'
+  };
+our $database_synonym_types =
+  {
+    'TABLE' => 'T', 'VIEW' => 'V', 'PROCEDURE' => 'P',
+    'FUNCTION' => 'F', 'SEQUENCE' => 'Q'
+  };
+
+
+our $sql_capabilities;
+
+$sql_capabilities->{"generic"}=
+  {
+    "alias"=>
+      {
+        "objects"=>      "SELECT object_name, status, object_type, owner \
+                                    FROM sys.all_objects \
+                                    WHERE object_name LIKE UPPER('##1##') AND\
+                                    NOT object_type = 'SYNONYM'",
+        "describe"=>     "SELECT column_name, table_name, owner, data_type, \
+                                        data_length, data_precision, data_scale, nullable, \
+                                        column_id, default_length, data_default, num_distinct, \
+                                        low_value, high_value
+                                    FROM all_tab_columns \
+                                    WHERE table_name = UPPER('##1##') \
+                                    ORDER BY column_id",
+        "lookup"=>        "SELECT object_name, object_owner, object_type \
+                                    FROM all_objects
+                                    WHERE object_name like '##1##''",
+      },
+  };
+$sql_capabilities->{"table"}=
+  {
+    "alias"=>
+      {
+        "depends" =>    "SELECT o.object_id, o.created, o.status, o.object_name, o.owner \
+                                        FROM all_dependencies d, all_objects o \
+                                        WHERE d.name = UPPER('##1##') AND \
+                                            d.referenced_owner = o.owner AND \
+                                            d.referenced_name = o.object_name \
+                                        ORDER BY o.object_name",
+        "triggertext" =>       "SELECT trigger_type, triggering_event, trigger_body \
+                                            FROM dba_triggers \
+                                            WHERE trigger_name = UPPER('##1##')",
+        "constraints" =>    "SELECT constraint_name, table_name, owner,constraint_type, \
+                                                r_owner, r_constraint_name, search_condition \
+                                            FROM all_constraints \
+                                            WHERE table_name = UPPER('##1##') \
+                                            ORDER BY constraint_name, r_owner, r_constraint_name",
+        "triggers" =>           "SELECT DISTINCT trigger_name, owner, table_owner, table_name, \
+                                                trigger_type, triggering_event, status, referencing_names \
+                                            FROM dba_triggers \
+                                            WHERE table_name = UPPER('##1##') \
+                                            ORDER BY trigger_name, table_owner, table_name",
+      },
+  };
+$sql_capabilities->{"view"}=
+  {
+    "alias"=>
+      {
+        "dependants" =>     "SELECT o.object_id, o.created, o.status, o.object_type, \
+                                                o.object_name, o.owner \
+                                            FROM sys.all_dependencies d, sys.all_objects o \
+                                            WHERE d.referenced_name = UPPER('##1##') AND\
+                                                d.owner = o.owner AND \
+                                                d.name = o.object_name AND \
+                                                o.object_type = 'VIEW' ORDER BY o.owner, o.object_name",
+        "viewtext" =>           "SELECT text \
+                                                FROM all_views \
+                                                WHERE view_name = UPPER('##1##')",
+      },
+  };
+
+our %sql_aliases;
+
+foreach my $cap_aliases (keys %$sql_capabilities)
+  {
+    my $cap_entry =$sql_capabilities->{$cap_aliases}->{alias};
+    if (defined($cap_entry))
+      {
+        foreach my $aliasname ( keys %$cap_entry )
+          { $sql_aliases{$aliasname} = $cap_entry->{$aliasname}; }
+      }
+  }
 
 sub query_limit_rows_str
 # limit number of returned rows in a query
@@ -161,11 +205,7 @@ sub db_types_no2string
     #           ],
 
 
-
-
     my $r_description= shift(@$info); # ref to a hash
-
-
 
     # get the indices for the TYPE_NAME and the DATA_TYPE property:
 
@@ -192,7 +232,7 @@ sub primary_keys
 
     ($table_owner,$table_name)=
                 (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
- 
+
     if (!defined $table_name)
       { # not in list of synonyms and user objects
         # the object is probably not accessible
@@ -433,7 +473,8 @@ sub get_help_topic
 sub get_user_objects
 # INTERNAL to dbdrv_oci!!!
 # returns a ref to a hash : own.obj_name => [$type]
-# type is 'T' (table) or 'V' (view)
+# type is 'T' (table) or 'V' (view) or 'P' (procedure) or
+#         'F' (function) or 'Q' (sequence)
 # $t_name: table or view referred to
 # $t_own: owner of referred table or view (equal to the $user-parameter)
   { my($dbh,$user,$r_tab)= @_;
@@ -450,41 +491,30 @@ sub get_user_objects
     return if (!defined $dbh);
 
     my $sql;
+    # per database_object_type registration of all known objects
+    foreach my $dbobj_type (keys %$database_object_types)
+      {
+        my $dbobj_string = $database_object_types->{$dbobj_type};
+        $sql= "SELECT object_name from user_objects where object_type = '".$dbobj_string."'";
 
-    $sql= "SELECT table_name from user_tables";
+        #print "\n$dbobj_string: $sql";
+        sql_trace($sql) if ($sql_trace);
 
-    sql_trace($sql) if ($sql_trace);
+        my $res= $dbh->selectall_arrayref($sql);
 
-    my $res= $dbh->selectall_arrayref($sql);
+        if (!defined $res)
+        { dberror($mod_l,'sql_request_to_hash',__LINE__,
+                    "selectall_arrayref failed for $dbobj_string request, errcode:\n$DBI::errstr");
+            return;
+        };
 
-    if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
+        foreach my $line (@$res)
+          {
+            $r_tab->{ $user . '.' . $line->[0] } = [$dbobj_type, ];
+            };
+      }
 
-    # hash: [type('T'or'V'),owner,table-name,table-owner
-    foreach my $line (@$res)
-      { $r_tab->{ $user . '.' . $line->[0] } = ['T']; };
-
-    $sql= "SELECT view_name from user_views";
-
-    sql_trace($sql) if ($sql_trace);
-
-    $res= $dbh->selectall_arrayref($sql);
-
-    if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
-
-    # hash: [type('T'or'V'),owner,table-name,table-owner
-    foreach my $line (@$res)
-      { $r_tab->{ $user . '.' . $line->[0] } = ['V'];
-      };
-
-    #print Dumper($r_tab);
+#    print "rtab:".Dumper($r_tab);
     return(1);
   }
 
@@ -505,68 +535,35 @@ sub get_synonyms
 
     my $sql;
 
-    $sql= "SELECT asyn.synonym_name,asyn.owner, " .
-                  "asyn.table_name,asyn.table_owner " .
-          "FROM all_synonyms asyn, all_tables at " .
-          "WHERE " .
-                   "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
-                   "asyn.table_name=at.table_name AND " .
-                   "asyn.table_owner=at.owner" ;
-
+    $sql= "SELECT asyn.synonym_name, asyn.owner, " .
+                "asyn.table_name,asyn.table_owner, ao.object_type " .
+        "FROM all_synonyms asyn, all_objects ao " .
+        "WHERE " .
+                "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
+                "asyn.table_name=ao.object_name AND " .
+                "asyn.table_owner=ao.owner" ;
+    #print Dumper($sql);
     sql_trace($sql) if ($sql_trace);
 
     my $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+    { dberror($mod_l,'sql_request_to_hash',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
-      };
+    };
 
-    # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
-      { my $syn= $line->[1] . '.' . $line->[0];
+    {
+        my $syn= $line->[1] . '.' . $line->[0];
         my $obj= $line->[3] . '.' . $line->[2];
-
-        $r_syn->{$syn} = ['T', $obj ];
+        $r_syn->{$syn} = [$database_synonym_types->{$line->[4]}, $obj ];
 
         if (!exists $r_reverse_syn->{$obj})
-          { $r_reverse_syn->{$obj}= [$syn]; }
+        { $r_reverse_syn->{$obj}= [$syn]; }
         else
-          { push @{$r_reverse_syn->{$obj}}, $syn; };
-      };
-
-
-    $sql= "SELECT asyn.synonym_name,asyn.owner, " .
-                  "asyn.table_name,asyn.table_owner " .
-          "FROM all_synonyms asyn, all_views av " .
-          "WHERE " .
-                   "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
-                   "asyn.table_name=av.view_name AND " .
-                   "asyn.table_owner=av.owner" ;
-
-    sql_trace($sql) if ($sql_trace);
-
-    $res= $dbh->selectall_arrayref($sql);
-
-    if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
-
-    # hash: [type('T'or'V'),synonym-owner,table-name,table-owner
-    foreach my $line (@$res)
-      { my $syn= $line->[1] . '.' . $line->[0];
-        my $obj= $line->[3] . '.' . $line->[2];
-
-        $r_syn->{$syn} = ['V', $obj ];
-
-        if (!exists $r_reverse_syn->{$obj})
-          { $r_reverse_syn->{$obj}= [$syn]; }
-        else
-          { push @{$r_reverse_syn->{$obj}}, $syn; };
-      };
+        { push @{$r_reverse_syn->{$obj}}, $syn; };
+    };
 
     #print Dumper($r_syn);
     return(1);
@@ -616,17 +613,16 @@ sub check_existence
       { return(1); };
     if (exists $r_db_objects->{"PUBLIC." . uc($table_name)})
       { return(1); };
-    
+
     return;
   }
 
 sub accessible_objects
   { my($dbh,$user_name,$types,$access)= @_;
-    my %known_types= (table => 'T', view => 'V');
+#    my %known_types= { table => 'T', view => 'V', scripts => 'S', sequence => 'Q');
     my %known_acc  = map { $_ =>1 } qw( user public );
     my %types;
     my %access;
-
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -634,10 +630,10 @@ sub accessible_objects
     if (!defined $types)
       { %types= (T=>1); }
     else
-      { $types= lc($types);
+      { $types= uc($types);
         my @types= split(",",$types);
         foreach my $t (@types)
-          { my $c= $known_types{$t};
+          { my $c= $database_synonym_types->{$t};
             if (!defined $c)
               { dberror($mod_l,'accessible_objects',__LINE__,
                     "unknown object type: $t");
@@ -651,16 +647,11 @@ sub accessible_objects
     my @keys= keys %$r_db_objects;
 
 #print Dumper(\%types);
-
-    if ((!exists $types{T}) || (!exists $types{V}))
-      { # there are only tables and views, so only if not BOTH
-        # are wanted, we have to filter
-        if (exists $types{T})
-          { @keys= grep { $r_db_objects->{$_}->[0] eq 'T' } @keys; }
-        else
-          { @keys= grep { $r_db_objects->{$_}->[0] eq 'V' } @keys; };
-      };
-
+    my @keys2;
+    foreach my $dbobj_type (keys %types)
+      {
+        push @keys2, (grep { $r_db_objects->{$_}->[0] eq $dbobj_type } @keys);
+      }
 
     if (!defined $access)
       { %access= ("public" => 1); }
@@ -680,13 +671,13 @@ sub accessible_objects
 
     if (exists $access{public})
       { push @result,
-             grep { /^PUBLIC\./ } @keys;
+             grep { /^PUBLIC\./ } @keys2;
       };
 
     if (exists $access{user})
-      { 
+      {
         push @result,
-             grep { /^$user_name\./i } @keys;
+             grep { /^$user_name\./i } @keys2;
       };
 
     #warn join("|",@result) . "\n";
@@ -698,9 +689,10 @@ sub accessible_objects
     return(sort @result);
   }
 
+
 sub full_name
   { my($short_name,$owner,$schema)= @_;
-  
+
     return("$owner.$short_name");
   }
 
@@ -740,7 +732,7 @@ sub real_name
                "warning:no data found for object $obj");
         return;
       };
-        
+
     # user objects have only a type-field !
 
     if ($#$data>0) # more than 2 objects in hash: it's a synonym
@@ -752,7 +744,7 @@ sub real_name
 
     # no synonym, the table is probably owner by the current user:
     my($owner,$short_name)= split(/\./,$object_name);
-    
+
     #warn "realname returns: $object_name,$owner,$short_name";
     return($object_name,$owner,$short_name);
   }
@@ -919,7 +911,7 @@ sub object_addicts
 
     ($table_owner,$table_name)=
                 (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
- 
+
     if (!defined $table_name)
       { # not in list of synonyms and user objects
         # the object is probably not accessible
@@ -949,43 +941,6 @@ sub object_addicts
 
     if (!defined $res_r)
       { dberror($mod_l,'db_object_addicts',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
-
-    return( @$res_r );
-  }
-
-sub script_addicts
-# INTERNAL
-# read all scripts for the given object
-  { my($dbh,$script_name,$script_owner)= @_;
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    $script_name= uc($script_name);
-
-    if ($script_name =~ /\./)
-      { ($script_owner,$script_name)= split(/\./,$script_name); };
-
-    die if (!defined $script_owner); # assertion !
-
-    my $SQL= "select NAME, OWNER, TYPE" .
-                " from ALL_SOURCE" .
-                " where OWNER = \'$script_owner\'" .
-                " GROUP BY owner, type, name";
-
-#warn "$SQL\n";
-
-    sql_trace($SQL) if ($sql_trace);
-    my $res_r=
-      $dbh->selectall_arrayref($SQL);
-
-#print Dumper($res_r),"\n";
-
-    if (!defined $res_r)
-      { dberror($mod_l,'script_addicts',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -1050,7 +1005,7 @@ sub column_properties
     $table_name= uc($table_name);
     ($table_owner,$table_name)=
                 (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
- 
+
     if (!defined $table_name)
       { # not in list of synonyms and user objects
         # the object is probably not accessible
@@ -1059,7 +1014,7 @@ sub column_properties
         return;
       };
 
-    if (!defined $table_owner || !defined $table_name || 
+    if (!defined $table_owner || !defined $table_name ||
         $table_owner eq '' || $table_name eq '')
       { dberror($mod_l,'column_properties',__LINE__,
                 "arguments not complete (assertion) \n" .
@@ -1178,23 +1133,39 @@ sub read_triggertext
 
 sub read_scripttext
 # INTERNAL
-# reads the name, type, text 
-  { my($dbh,$script_name,$script_owner)= @_;
+# reads the name, type, text
+  { my($dbh,$script_name,$user_name)= @_;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $script_name= uc($script_name);
-
     if ($script_name =~ /\./)
-      { ($script_owner,$script_name)= split(/\./,$script_name); };
+      { ($user_name,$script_name)= split(/\./,$script_name); };
+    (my $owner,$script_name)=
+                (dbdrv::real_name($dbh,$user_name,$script_name))[1,2];
 
-    die if (!defined $script_owner); # assertion !
+    if (!defined $script_name)
+      {
+        dbwarn($mod_l,'db_read_scripttext',__LINE__,
+               "warning:no script found for object $script_name");
+        return;
+      };
 
-    my $SQL= "select OWNER, NAME, TYPE, TEXT" .
-                   " from ALL_SOURCE AS where" .
-                   " AS.NAME=\'$script_name\' AND " .
-                   " AT.OWNER=\'$script_owner\'" .
+    if (!defined $owner || !defined $script_name ||
+        $owner eq '' || $script_name eq '')
+      { dberror($mod_l,'db_read_scripttext',__LINE__,
+                "arguments not complete (assertion) \n" .
+                "args:\"$owner.$script_name\"");
+        return;
+      };
+
+    die if (!defined $owner); # assertion !
+
+    my $SQL= "select text" .
+                   " from ALL_SOURCE src where" .
+                   " src.name=\'".uc($script_name)."\' AND " .
+                   " src.owner=\'".uc($owner)."\'" .
                    " ORDER BY LINE ASC";
 
     sql_trace($SQL) if ($sql_trace);
@@ -1206,10 +1177,15 @@ sub read_scripttext
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
-
-    return( @$res_r );
+      my @ret;
+      foreach my $cols ( @$res_r)
+        {
+            push @ret, $cols->[0];
+        }
+#print Dumper(@ret);
+    return( @ret );
   }
-        
+
 sub sql_request_to_hash
 # internal
   { my($dbh,$sql,$r_h)= @_;

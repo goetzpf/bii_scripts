@@ -76,6 +76,7 @@ my %sql_commands = (
     );
 
 
+our $sql_capabilities;
 our %sql_aliases;
 
 my $no_dbi= $ENV{DBITABLE_NO_DBI};
@@ -408,6 +409,11 @@ sub rollback
       { dbwarn($mod,'rollback',__LINE__,
                "rollback returned an error, error-code: \n$DBI::errstr");
       };
+  }
+
+sub get_capabilities
+  {
+    return $sql_capabilities;
   }
 
 sub check_alias
@@ -778,6 +784,12 @@ This performs a rollback on the database
 
 This sets the autocommit-feature of the given database-handle.
 Autocommit is switched on or off according to to value of C<$val>.
+
+=item dbitable::get_capabilities()
+
+  dbitable::get_capabilities(l)
+
+It returns the hash of all driver capabilities (scriptaliases, options).
 
 =item dbitable::check_alias()
 
