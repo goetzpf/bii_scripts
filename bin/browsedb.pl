@@ -59,10 +59,10 @@ my %forkable_os= map { $_=>1 } qw(hpux linux);
 # MSWin32 on windows
 
 if ($forkable_os{$os})
-  { 
+  {
     # switch myself to the background:
     # (doesn't work on windows)
-    if (0 != fork) 
+    if (0 != fork)
       { # parent here
         exit(0);
       };
@@ -73,14 +73,14 @@ our %save; # global configuration variable
 my $home= $ENV{"HOME"};
 if (!defined $home)
   { $home=""; };
-  
+
 my $PrgDir = $home."/.browsedb";
 if (! -e $PrgDir)
   {
     mkdir($PrgDir, 00700) or
       die "Can not create configuration location at ".$PrgDir;
   };
-  
+
 my $column_map_file= 'column_maps.txt';
 
 my $PrgTitle= 'BrowseDB';
@@ -140,6 +140,13 @@ tk_main_window(\%global_data);
 
 MainLoop();
 
+#=======================================================
+# routines that create windows and dialogs:
+#=======================================================
+
+# database login:
+#_______________________________________________________
+
 sub tk_login
 # r_glbl: hash with global entries
   { my($r_glbl)= @_;
@@ -186,7 +193,7 @@ sub tk_login
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
 
     $row=0;
-    
+
     my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
                                 -state=> 'readonly',
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
@@ -204,10 +211,10 @@ sub tk_login
     $Button = $FrTop->Checkbutton(
                 #-text=>"use DBI Proxy",
                 -variable => \$r_glbl->{use_proxy},
-                -command => 
+                -command =>
                    sub { my $state= 'disabled';
                          if ($r_glbl->{use_proxy})
-                           { $state= 'normal'; 
+                           { $state= 'normal';
                              if (!$r_glbl->{proxy})
                                { $r_glbl->{proxy}      = $db_proxy;
                                  $r_glbl->{proxy_port} = $db_proxy_port;
@@ -234,8 +241,8 @@ sub tk_login
       }
 
 # an experiment with the Oracle Proxy:
-#$e0->insert('end', "Proxy:hostname=tarn;port=4097;dsn=DBI:Oracle");     
-      
+#$e0->insert('end', "Proxy:hostname=tarn;port=4097;dsn=DBI:Oracle");
+
     $e0->focus();
     $e0->bind('<Return>', sub { $e1->focus() } );
     $e0->bind('<Tab>', sub { $e1->focus() } );
@@ -277,23 +284,23 @@ sub tk_login_finish
     tk_set_busy($r_glbl,1);
 
     tk_progress($r_glbl,10);
-    
+
     if (!$r_glbl->{use_proxy})
       { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} . ":" .
                              $r_glbl->{db_source};
       }
     else
-      { my $host= $r_glbl->{proxy}; $host=~ s/^\s+//; $host=~ s/\s+$//; 
+      { my $host= $r_glbl->{proxy}; $host=~ s/^\s+//; $host=~ s/\s+$//;
         $r_glbl->{proxy}= $host;
         my $port= $r_glbl->{proxy_port};
-        $port=~ s/^\s+//; $port=~ s/\s+$//; 
+        $port=~ s/^\s+//; $port=~ s/\s+$//;
         $r_glbl->{proxy_port}= $port;
-      
+
         $r_glbl->{db_name} = "DBI:Proxy:hostname=$host;port=$port;dsn=DBI:" .
-                             $r_glbl->{db_driver} . ':' . 
+                             $r_glbl->{db_driver} . ':' .
                              $r_glbl->{db_source};
       };
-    
+
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -328,6 +335,9 @@ sub tk_login_finish
     tk_main_window_finish($r_glbl);
   }
 
+# browsedb main-window:
+#_______________________________________________________
+
 sub tk_main_window
   { my($r_glbl)= @_;
 
@@ -350,7 +360,7 @@ sub tk_main_window
     # the Menu-Bar is now created in a way that works on
     # windows to0. Note that this is a property of the
     # top widget, $MnTop MUST NOT be packed
-    
+
     my $MnTop= $Top->Menu();
     $Top->configure(-menu => $MnTop );
 
@@ -424,7 +434,7 @@ sub tk_main_window
 
     my $c_commit_i;
     my $c_rollback_i;
-    
+
     $MnPref->add(
               'checkbutton',
                -label=> 'autocommit',
@@ -513,15 +523,15 @@ sub tk_main_window
                                       -expand=> 0,
                                       );
 
-     
-    $r_glbl->{MainWindow}->{login_info}= 
+
+    $r_glbl->{MainWindow}->{login_info}=
         $MnStatus->Label(-text=>" ",
                         )->pack(
                                 -side=>"left",
                                 -expand=>1,
                                 -anchor=>"w"
                                 );
-                
+
     $MnStatus->Label(
                -text=>'%'
        )->pack(
@@ -624,14 +634,14 @@ sub tk_main_window
             -width=>48,
             -selectmode=>"browse",
     )->packAdjust( %dlg_def_listbox,);
-    $DlgEnt->Label( -justify=>"center",          
-                    -width=>10,                  
-                    -height=>20,                 
+    $DlgEnt->Label( -justify=>"center",
+                    -width=>10,
+                    -height=>20,
                   )->pack(
-                           -padx=>2,-pady=>2,       
-                           -ipadx=>1,-ipady=>1,     
-                           -anchor=>"se",           
-                           -expand=>0,              
+                           -padx=>2,-pady=>2,
+                           -ipadx=>1,-ipady=>1,
+                           -anchor=>"se",
+                           -expand=>0,
                          );
 
     my $DlgCollOk =
@@ -640,7 +650,7 @@ sub tk_main_window
                             -underline=>1,
                             -justify=>"center",
                             -width=>20,
-                            -command => 
+                            -command =>
                                sub { my $entry =
                                        $DlgCollListbox->get(
                                            $DlgCollListbox->curselection);
@@ -657,7 +667,7 @@ sub tk_main_window
                               -underline=>4,
                               -justify=>"center",
                               -width=>20,
-                              -command => 
+                              -command =>
                                sub { $DlgCollListbox->delete(0, 'end');
                                      if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
                                          while (my $collection =
@@ -677,7 +687,7 @@ sub tk_main_window
                                 -ipadx=>1,-ipady=>1,
                                 -anchor=>"se",
                             );
-                            
+
         if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
             while (my $collection = readdir(BROWSEDBCONFDIR))
               {
@@ -702,7 +712,7 @@ sub tk_main_window
                         {
                             if ($collection =~ /\.col$/)
                             {
-                                $DlgCollListbox->insert("end",  
+                                $DlgCollListbox->insert("end",
                                                  $PrgDir."/".$collection );
                             }
                         }
@@ -975,86 +985,16 @@ sub tk_main_window
         tk_login(\%global_data); # calls tk_main_window_finish
   }
 
-sub tk_bind_scroll_wheel
-  { my($widget)= @_;
-  
-    $widget->bind('<4>',['yview','scroll',-5,'units']);
-    $widget->bind('<5>',['yview','scroll', 5,'units']);
-
-    $widget->bind('<Shift-4>',['yview','scroll',-1,'units']);
-    $widget->bind('<Shift-5>',['yview','scroll', 1,'units']);
-
-    $widget->bind('<Control-4>',['yview','scroll',-1,'pages']);
-    $widget->bind('<Control-5>',['yview','scroll', 1,'pages']);
-    
-  }
-
-sub tk_delete_char
-  { $_[0]->delete('insert - 1 char'); }
-
-sub tk_clear_undefkey
-  {
-    my @keys= ('<Control-1>', '<Control-2>', '<Control-3>', '<Control-4>',
-               '<Control-5>', '<Control-6>', '<Control-7>', '<Control-8>',
-               '<Control-9>', '<Control-0>', '<Control-q>', '<Control-r>',
-               '<Control-u>', '<Control-g>', '<Control-s>', '<Control-l>',
-               '<Control-m>');
-    
-    my ($this_widget) = @_;
-    if (defined ($this_widget))
-      {
-        foreach my $k (@keys)
-          { $this_widget->bind($k => [\&tk_delete_char]); };
-      }
-  }
-
-sub tk_set_busy
-  { my($r_glbl,$val)= @_;
-
-    if (!$val)
-      { if (--$r_glbl->{busy_count} <=0)
-          { $r_glbl->{busy_count}=0;
-            $r_glbl->{main_menu_widget}->Unbusy(-recurse => 1);
-          };
-        return;
-      };
-
-    if ($r_glbl->{busy_count}++ <=0)
-      { $r_glbl->{main_menu_widget}->Busy(-recurse => 1); 
-        
-        if ($os ne "MsWin32")
-          { $r_glbl->{main_menu_widget}->grabRelease(); }
-        else
-          { $r_glbl->{main_menu_widget}->focus(); };
-      };
-  }
-
-
-sub tk_progress
-  { my($r_glbl,$val)= @_;
-
-#my ($p,$f,$l)= caller; print "**** $p $f $l\n";
-#my $x= $r_glbl->{main_menu_widget};
-#print "main-menu-widget: $x\n";
-    my $progress_widget= $r_glbl->{MainWindow}->{progress_widget};
-    return if (!defined $progress_widget);
-
-    $progress_widget->value($val);
-
-    #$r_glbl->{progress_widget}->update();
-    $r_glbl->{main_menu_widget}->update();
-  }
-
 sub tk_main_window_finish
   { my($r_glbl)= @_;
 
     tk_set_busy($r_glbl,1);
-    
+
     my $infotext= $r_glbl->{user} . "@" . $r_glbl->{db_driver} . ':' .
                   $r_glbl->{db_source};
 
     if ($r_glbl->{use_proxy})
-      { $infotext.= " (proxy $r_glbl->{proxy}:$r_glbl->{proxy_port})"; };                 
+      { $infotext.= " (proxy $r_glbl->{proxy}:$r_glbl->{proxy_port})"; };
 
     $r_glbl->{MainWindow}->
              {login_info}->configure(-text =>$infotext);
@@ -1118,7 +1058,7 @@ sub tk_main_window_finish
                       " can not be opened. Error in line " . __LINE__)
               }
             my $fh=$r_glbl->{handle_sql_history};
-            my $sql_history_widget= 
+            my $sql_history_widget=
                   $r_glbl->{MainWindow}->{sql_history_widget};
             while (my $line = <$fh>)
               {
@@ -1151,24 +1091,12 @@ sub tk_main_window_finish
 
   }
 
-sub tk_wait
- {      my($r_glbl, $topwidget, $message)= @_;
-        my $DlgWait = $topwidget->WaitBox(
-                -txt1=>'We are busy for a while.',
-                -txt2=>$message,
-                -title=>$topwidget->{title},
-        );
-        $DlgWait->show();
-        return $DlgWait;
-
- }
-
 sub tk_quit
   {
     my($r_glbl, $widget)= @_;
     my $choice = "No";
     my $Top;
-    
+
     if ((!$fast_test) && (defined $r_glbl))
       {
         $Top = $r_glbl->{main_menu_widget};
@@ -1242,13 +1170,125 @@ sub tk_about
    $Text->pack(-fill=>'both',expand=>'y');
  }
 
+sub tk_dump_global
+  { my($r_glbl)= @_;
+# ommit dumping the tables-structures completely
+
+    my %glbl_copy;
+    foreach my $k (keys %$r_glbl)
+      { if ($k eq 'all_tables')
+          { my $r_t= $r_glbl->{$k};
+            foreach my $tab_name (keys %$r_t)
+              { $glbl_copy{all_tables}->{$tab_name}= "REF TO TABLE-HASH"; }
+            next;
+          };
+        $glbl_copy{$k}= $r_glbl->{$k};
+      };
+
+    my $buffer;
+
+    rdump(\$buffer,\%glbl_copy,0);
+
+    tk_make_text_widget($r_glbl,"global datastructure dump",\$buffer);
+
+  }
+
+sub tk_object_dict_dump
+ { my($r_glbl)= @_;
+
+   my $r_buffer= dbdrv::dump_object_dict_s();
+
+   tk_make_text_widget($r_glbl,"object dictionary dump",$r_buffer);
+
+ }
+
+sub tk_r_object_dict_dump
+ { my($r_glbl)= @_;
+
+   my $r_buffer= dbdrv::dump_r_object_dict_s();
+
+   tk_make_text_widget($r_glbl,"reverse object dictionary dump",$r_buffer);
+ }
+
+sub tk_update_window_menu
+  { my($r_glbl) =@_;
+    my $r_all_tables= $r_glbl->{all_tables};
+
+    my @all_table_names;
+
+    if (defined $r_all_tables)
+      { @all_table_names  = (sort keys %$r_all_tables); };
+
+    my $MnWindow= $r_glbl->{MainWindow}->{menu_windows_widget};
+    $MnWindow->delete(0,'end');
+
+    $MnWindow->add('command',
+                    -label=> 'raise all',
+                   -command =>
+                            sub { foreach my $win (@all_table_names)
+                                    { $r_all_tables->{$win}->
+                                           {top_widget}->raise();
+                                    };
+                                }
+                  );
+
+    foreach my $win (@all_table_names)
+      { $MnWindow->add('command',
+                       -label=> $win,
+                       -command =>
+                            sub { my $w= $r_all_tables->{$win}->{top_widget};
+                                  $w->raise();
+                                  $w->focus();
+                                }
+                      );
+      };
+  }
+
+sub tk_reload_all_objects
+# reloads all objects from the database
+  { my($r_glbl)= @_;
+
+    my $r_all_tables= $r_glbl->{all_tables};
+    return if (!defined $r_all_tables);
+
+   tk_set_busy($r_glbl,1);
+
+    foreach my $table (keys %$r_all_tables)
+      { my $r_tbh= $r_all_tables->{$table};
+        cb_reload_db($r_glbl,$r_tbh);
+      };
+
+   tk_set_busy($r_glbl,0);
+
+  }
+
+
+sub tk_sql_commands
+  { my($r_glbl)= @_;
+
+    my $r_text= tk_make_text_widget($r_glbl,"SQL command trace");
+
+    my $Top= $r_text->{Top};
+
+
+    $r_glbl->{sql_commands_widget}= $r_text->{text_widget};
+
+    dbdrv::set_sql_trace_func(\&dbi_sql_trace);
+    $dbdrv::sql_trace=1;
+
+    $Top->bind('<Destroy>', sub { $dbdrv::sql_trace=0;
+                                  dbdrv::set_sql_trace_func();
+                                  delete $r_glbl->{sql_commands_widget};
+                                });
+  }
+
 sub tk_handle_table_browse_entry
 # action:1 insert 0: delete, -1: forced validation
   { my($r_glbl, $proposed, $chars_added,
        $value_before, $index, $action)= @_;
 
     my $table_browse_widget= $r_glbl->{MainWindow}->{table_browse_widget};
-    
+
     my $rewrite_value;
 
     my $r_all_objects= $r_glbl->{accessible_objects_all};
@@ -1306,44 +1346,6 @@ sub tk_handle_table_browse_entry
     return(1);
   }
 
-sub tk_open_new_object
-# $condition can be the Where-Clause
-# $type can be "view", "table","sql" or "table_or_view"
-#  the latter means that the type of the object is not known
-  { my($r_glbl, $type, $condition, $order)= @_;
-    my %known_types= map { $_ =>1 } qw( table view sql table_or_view);
-
-    my %params;
-    $params{table_name}= uc( $r_glbl->{new_table_name} );
-    delete $r_glbl->{new_table_name};
-
-
-    # setting kind of db object
-    if (lc($type) =~ /(table|view|sql)/)
-      {  $params{table_type} = lc($type); }
-    else
-      {  die "unsupported table type: $type"; #$params{table_type} = "sql";
-      }
-
-    if (defined $condition)
-      { if ($condition!~ /^\s*$/)
-          { chomp($condition);
-            $params{table_filter}= $condition; };
-      };
-
-    if (defined $order)
-      { if ($order!~ /^\s*$/)
-          { chomp($order);
-            $params{table_order}= $order; };
-      };
-
-    make_table_hash_and_window($r_glbl,%params);
-
-    if ($fast_test)
-      { $fast_test=0;
-        return;
-      };
-  }
 
 
 sub tk_execute_new_query
@@ -1428,1004 +1430,47 @@ sub tk_execute_new_query
     return $size;
 }
 
-sub tk_reload_all_objects
-# reloads all objects from the database
-  { my($r_glbl)= @_;
 
-    my $r_all_tables= $r_glbl->{all_tables};
-    return if (!defined $r_all_tables);
+# create table window:
+#_______________________________________________________
 
-   tk_set_busy($r_glbl,1);
+sub tk_open_new_object
+# $condition can be the Where-Clause
+# $type can be "view", "table","sql" or "table_or_view"
+#  the latter means that the type of the object is not known
+  { my($r_glbl, $type, $condition, $order)= @_;
+    my %known_types= map { $_ =>1 } qw( table view sql table_or_view);
 
-    foreach my $table (keys %$r_all_tables)
-      { my $r_tbh= $r_all_tables->{$table};
-        cb_reload_db($r_glbl,$r_tbh);
-      };
+    my %params;
+    $params{table_name}= uc( $r_glbl->{new_table_name} );
+    delete $r_glbl->{new_table_name};
 
-   tk_set_busy($r_glbl,0);
 
-  }
-
-
-sub tk_sql_commands
-  { my($r_glbl)= @_;
-
-    my $r_text= tk_make_text_widget($r_glbl,"SQL command trace");
-
-    my $Top= $r_text->{Top};
-    
-  
-    $r_glbl->{sql_commands_widget}= $r_text->{text_widget};
-
-    dbdrv::set_sql_trace_func(\&dbi_sql_trace);
-    $dbdrv::sql_trace=1;
-
-    $Top->bind('<Destroy>', sub { $dbdrv::sql_trace=0;
-                                  dbdrv::set_sql_trace_func();
-                                  delete $r_glbl->{sql_commands_widget};
-                                });
-  }
-
-sub dbi_sql_trace
-# uses a global variable !!
-  { my $Text= $global_data{sql_commands_widget};
-    $Text->insert('end',$_[0] . "\n");
-    $Text->see('end');
-  }
-
-sub tk_add_relation_dialog
-  { my($r_glbl,$r_tbh)= @_;
-    my $myname= $r_tbh->{table_name};
-
-    my %relation_hash= ( Top=>undef,
-                         ocol_browseentry=>undef,
-                         mycol=>undef,
-                         otab=>undef,
-                         ocol=>undef );
-
-    #my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-
-    $relation_hash{Top}= $Top;
-
-    my @open_tables= grep {$_ ne  $myname}
-                           (sort keys %{$r_glbl->{all_tables}});
-
-    $Top->title("add relation in $r_tbh->{table_name}");
-
-    $Top->Label(-text => 'this table:'
-               )->grid(-row=>0, -column=>0, -sticky=> "w");
-
-    $Top->Label(-text => $myname
-               )->grid(-row=>0, -column=>1, -sticky=> "w");
-
-    $Top->Label(-text => 'this column:'
-               )->grid(-row=>1, -column=>0, -sticky=> "w");
-
-    $Top->Label(-text => 'other table:'
-               )->grid(-row=>2, -column=>0, -sticky=> "w");
-
-    $Top->Label(-text => 'other column:'
-               )->grid(-row=>3, -column=>0, -sticky=> "w");
-
-    my %std_options= (-state=> 'readonly');
-    if ($Tk::VERSION >= 800.025) # in older Tk versions unknown
-      { $std_options{-autolimitheight}=1; };
-
-    $Top->BrowseEntry( %std_options,
-                       -choices=> $r_tbh->{column_list},
-                       -variable=> \$relation_hash{mycol}
-                     )->grid(-row=>1,
-                             -column=>1,
-                             -sticky=> "w");
-
-    $Top->BrowseEntry( %std_options,
-                       -choices=> \@open_tables,
-                       -browsecmd=> [\&cb_add_relation,
-                                     $r_glbl,
-                                     $r_tbh],
-                       -variable=> \$relation_hash{otab}
-                     )->grid(-row=>2,
-                             -column=>1,
-                             -sticky=> "w");
-
-    my $Lb_o_cols = $Top->BrowseEntry( %std_options,
-                                       -variable=> \$relation_hash{ocol}
-                                     )->grid(-row=>3,
-                                             -column=>1,
-                                             -sticky=> "w");
-
-   $relation_hash{ocol_browseentry}= $Lb_o_cols;
-
-
-    $Top->Button(-text => 'select',
-                  %std_button_options,
-                 -command => [\&tk_add_relation_dialog2, $r_glbl, $r_tbh],
-                )->grid(-row=>4, -column=>0, -columnspan=>1,
-                        -sticky=> "w");
-
-    $r_tbh->{relation_hash}= \%relation_hash;
-
-    $Top->bind('<Destroy>', sub { delete $r_tbh->{relation_hash} } );
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
-  }
-
-sub cb_add_relation
-  { my($r_glbl,$r_tbh,$widget,$selected_text)= @_;
-
-    my $r_relation_hash= $r_tbh->{relation_hash};
-
-    my $r_o_tbh= $r_glbl->{all_tables}->{$selected_text};
-
-    die "not a valid table!" if (!defined $r_o_tbh); # assertion
-
-    $r_relation_hash->{ocol_browseentry}->configure(
-                         -choices=> $r_o_tbh->{column_list}
-                                                   );
-  }
-
-sub tk_add_relation_dialog2
-  { my($r_glbl,$r_tbh)= @_;
-
-    my $r_relation_hash= $r_tbh->{relation_hash};
-    my $Top= $r_relation_hash->{Top};
-
-    my $my_tab= $r_tbh->{table_name};
-
-    my $my_col= $r_relation_hash->{mycol};
-    my $o_tab = $r_relation_hash->{otab};
-    my $o_col = $r_relation_hash->{ocol};
-
-    if (!defined $my_col)
-      { tk_err_dialog($Top, "local column not selected");
-        return;
-      };
-
-    if (!defined$o_tab)
-      { tk_err_dialog($Top, "other table not selected");
-        return;
-      };
-
-    if (!defined$o_col)
-      { tk_err_dialog($Top, "other column not selected");
-        return;
-      };
-
-    # warn "selected:$my_tab $my_col $o_tab $o_col";
-
-    $r_relation_hash->{Top}->destroy();
-    $r_glbl->{main_menu_widget}->update; # force destroy to be executed now
-    delete $r_tbh->{relation_hash};
-
-    conn_add($r_glbl,
-             $r_tbh->{table_name},$my_col,
-             $o_tab,$o_col);
-
-    tk_mark_manual_foreign_key_col($r_tbh, $my_col);
-    #table_window_tag_columns($r_tbh);
-
-# @@@@@@@@@@@@@@@@@@@@
-  }
-
-sub tk_mark_manual_foreign_key_col
-  { my($r_tbh,$col_name)= @_;
-
-   my $Table_Widget= $r_tbh->{table_widget};
-
-   # get column-indices of "green" columns
-   my @tagged_cols= $Table_Widget->tagCol('fk_cell');
-
-   my $col= colname2col($r_tbh,$col_name);
-
-   foreach my $i (@tagged_cols)
-     { if ($i==$col)
-         { # col is already tagged
-           return;
-         };
-     };
-   $Table_Widget->tagCol('m_fk_cell', $col );
-  }
-
-
-sub tk_references_dialog
-  { my($r_glbl,$r_tbh)= @_;
-
-    my $parent_widget= $r_tbh->{table_widget};
-
-    my $fkh= $r_tbh->{foreign_key_hash};
-    # col_name => [foreign_table,foreign_column]
-
-    if (!defined $fkh) # no foreign keys defined
-      { tk_err_dialog($parent_widget,
-                      "there are no foreign keys in this table");
-        return;
-      };
-
-    if (!keys %$fkh) # no foreign keys defined
-      { tk_err_dialog($parent_widget,
-                      "there are no foreign keys in this table");
-        return;
-      };
-
-
-    #my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-
-    $Top->title("foreign keys in $r_tbh->{table_name}");
-
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'both',
-                                  -expand=>'y');
-
-    my $maxcolsz=0;
-    my @cols= (sort keys %$fkh);
-    foreach my $col (@cols)
-      { $maxcolsz= length($col) if (length($col)>$maxcolsz); };
-
-    my @lines;
-
-    foreach my $col (@cols)
-      { my $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
-                                           $fkh->{$col}->[0],
-                                           $fkh->{$col}->[2]);
-        push @lines,
-             sprintf("%-" . $maxcolsz . "s -> %s",$col,$fk_table);
-
-#        push @lines,
-#             sprintf("%-" . $maxcolsz . "s -> %s",$col,
-#                     $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
-#                    )
-      };
-
-    my $listbox= $FrTop->Listbox(-selectmode => 'single',
-                                 -width=>0,
-                                 -height=> $#lines+1);
-    foreach my $l (@lines)
-      { $listbox->insert('end', $l); };
-
-    $listbox->pack(-fill=>'both',-expand=>'y');
-
-    $Top->bind('<Return>',
-                   sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
-    $listbox->bind('<Double-1>',
-                   sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
-
-    $Top->bind('<Destroy>', sub { 
-                                delete $r_glbl->{foreign_key_dialog_widget},
-                                delete $r_glbl->{foreign_key_dialog_listbox},
-                                delete $r_glbl->{foreign_key_cols} 
-                                });
-
-    $FrTop->Label(-text => 'double-click to open table'
-                 )->pack(-side=>'left' ,-fill=>'y');
- 
-    $r_glbl->{foreign_key_dialog_widget} = $Top;
-    $r_glbl->{foreign_key_dialog_listbox}= $listbox;
-    $r_glbl->{foreign_key_cols} = \@cols;
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
-  }
-
-sub tk_references_dialog_finish
-  { my($r_glbl,$r_tbh)= @_;
-
-    my $Top    = $r_glbl->{foreign_key_dialog_widget};
-    my $listbox= $r_glbl->{foreign_key_dialog_listbox};
-    my $r_cols = $r_glbl->{foreign_key_cols};
-
-    my @selection= $listbox->curselection();
-
-    if (!@selection)
-      { tk_err_dialog($Top, "no table selected");
-        return;
-      };
-
-   my $colname= $r_cols->[ $selection[0] ];
-
-   my($fk_table,$fk_col,$fk_owner)= @{$r_tbh->{foreign_key_hash}->{$colname}};
-
-   $Top->destroy;  # @@@@
-
-   # new: take the table-owner into account:
-   $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
-                                   $fk_table,$fk_owner);
-
-   my $r_all_tables= $r_glbl->{all_tables};
-   tkdie($r_glbl,"assertion in line " . __LINE__)
-     if (!defined $r_all_tables); # assertion, shouldn't happen
-
-   my $r_tbh_fk= $r_all_tables->{$fk_table};
-   if (!defined $r_tbh_fk)
-     { # 'resident_there' must be given as parameter to
-       # make_table_hash_and_window since make_table_window looks for
-       # this part of the table-hash and creates the "select" button if
-       # that member of the hash is found
-       $r_tbh_fk= make_table_hash_and_window($r_glbl,
-                table_name=> $fk_table,
-                table_type=> 'table',
-                resident_there=>1);
-
-        conn_add($r_glbl,$r_tbh->{table_name},$colname,
-                 $fk_table,$fk_col);
-
-     };
-   my $Table= $r_tbh->{table_widget};
-
-   my($row,$col)= split(",",$Table->index('active'));
-   my($pk)= row2pk($r_tbh,$row);
-   # using Table->get() would be unnecessary slow
-   # 0: do not use column-map
-   my $cell_value= put_get_val_direct($r_tbh,0,$pk,$colname);
-
-   # 0: do not use column-map
-   tk_activate_cell($r_tbh_fk,0, $fk_col, $cell_value);
-
-   delete $r_glbl->{foreign_key_dialog_widget};
-   delete $r_glbl->{foreign_key_dialog_listbox};
-   delete $r_glbl->{foreign_key_cols};
-
-  }
-
-sub tk_dependency_dialog
-  { my($r_glbl,$r_tbh)= @_;
-
-    my $parent_widget= $r_tbh->{table_widget};
-
-    tk_set_busy($r_glbl,1);
-    my $r_resident_keys= $r_tbh->{dbitable}->resident_keys();
-    tk_set_busy($r_glbl,0);
-    if (!defined $r_resident_keys)
-      { tk_err_dialog($parent_widget,
-                      "no other table depends on this one");
-        return;
-      };
-
-    my %resident_tables;
-    # res_table_name => [  [res_col1, col1],
-    #                      [res_col2, col2],
-    #                          ...
-    #                   ]
-
-    foreach my $col_name (keys %$r_resident_keys)
-      { my $r_list= $r_resident_keys->{$col_name};
-
-        foreach my $r_sublist (@$r_list)
-          {
-            push @{ $resident_tables{$r_sublist->[0]} },
-                 [ $r_sublist->[1] , $col_name ];
-
-          };
-      };
-
-    my @resident_table_list= sort keys %resident_tables;
-
-    tk_object_dialog($r_glbl,$r_tbh,
-                     tag=> "dependend_tables_dialog",
-                     title=> "dependents from $r_tbh->{table_name}",
-                     items=> \@resident_table_list,
-                     text => 'double-click to open',
-                     callback=> [\&tk_dependency_dialog_finish,
-                                 \%resident_tables]
-                    );
-                                 
-  }
-
-sub tk_dependency_dialog_finish
-  { my($r_glbl,$r_tbh,$res_table,$r_resident_tables)= @_;
-
-
-    my $r_all_tables= $r_glbl->{all_tables};
-    tkdie($r_glbl,"assertion in line " . __LINE__)
-       if (!defined $r_all_tables); # assertion, shouldn't happen
-
-    my $r_tbh_res= $r_all_tables->{$res_table};
-    if (!defined $r_tbh_res)
-      { # create a window fore the resident-table:
-        $r_tbh_res= make_table_hash_and_window($r_glbl,
-                                               table_name=>$res_table,
-                                               table_type=>'table');
-
-        # get the name of the current table:
-        my $my_table= $r_tbh->{table_name};
-
-        # get the list of relations between the current (the foreign) table
-        # and the resident table:
-        my $r_col_relations= $r_resident_tables->{$res_table};
-        # [res_col1, col1], [res_col2, col2], ...
-
-#warn "new table: col_relations: $r_col_relations\n";
-#warn "array content: " , Dumper($r_col_relations) , "\n";
-
-        foreach my $r_col_relation (@$r_col_relations)
-          { # save information on connection between the
-            # foreign table and the resident table
-            my($res_col,$fk_col)= @$r_col_relation;
-
-            conn_add($r_glbl,$res_table,$res_col,$my_table,$fk_col);
-          };
-      }
-
-  }
-
-sub tk_dependend_views_dialog
-  { my($r_glbl,$r_tbh)= @_;
-
-    my $parent_widget= $r_tbh->{table_widget};
-
-    tk_set_busy($r_glbl,1);
-    my $dbh= $r_glbl->{dbh};
-    
-    my ($object_name, $object_owner)=
-          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
-          
-    my @dependents= 
-          dbdrv::object_dependencies($dbh,$object_name,$object_owner);
-          
-    tk_set_busy($r_glbl,0);
-    
-    # filter-out views
-    if (@dependents)
-      { @dependents= grep { $_->[2] eq 'VIEW' } @dependents; };
-
-    if (!@dependents)
-      { tk_err_dialog($parent_widget,
-                      "no view depends on this object");
-        return;
-      };
-      
-    my @objects= map{ dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
-                                           $_->[1], $_->[0]) } @dependents;
-    @objects= sort @objects;                                       
-
-    tk_object_dialog($r_glbl,$r_tbh,
-                     tag=> "dependend_views_dialog",
-                     title=> "dependent views of $r_tbh->{table_name}",
-                     items=> \@objects,
-                     text => 'double-click to open',
-                     callback=> [\&tk_dependend_views_dialog_finish]
-                    );
-
-  }
-
-sub tk_dependend_views_dialog_finish
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { my($r_glbl,$r_tbh,$obj)= @_;
-
-    make_table_hash_and_window($r_glbl,
-                               table_name=>$obj,
-                               table_type=>'view');
-  }    
-
-sub tk_view_dependency_dialog
-  { my($r_glbl,$r_tbh)= @_;
-
-    my $parent_widget= $r_tbh->{table_widget};
-
-    tk_set_busy($r_glbl,1);
-    my $dbh= $r_glbl->{dbh};
-    
-    my ($object_name, $object_owner)=
-          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
-          
-    my @referenced= 
-          dbdrv::object_references($dbh,$object_name,$object_owner);
-          
-    tk_set_busy($r_glbl,0);
-    
-    if (!@referenced)
-      { tk_err_dialog($parent_widget,
-                      "this view seems to depend on no other object?");
-        return;
-      };
-      
-    my @objects= map{ dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
-                                           $_->[1], $_->[0]) } @referenced;
-    
-    my %types;
-    for(my $i=0; $i<= $#objects; $i++)
-      { my $t= $referenced[$i]->[2];
-        
-        $types{ $objects[$i] } = ($t eq 'TABLE') ? 'table' : 'view' ;
-      };
-    
-    @objects= sort @objects;
-
-    tk_object_dialog($r_glbl,$r_tbh,
-                     tag=> "view_dependendcy_dialog",
-                     title=> "by $r_tbh->{table_name} referenced objects",
-                     items=> \@objects,
-                     text => 'double-click to open',
-                     callback=> [\&tk_view_dependency_dialog_finish,
-                                 \%types]
-                    );
-  }
-  
-sub tk_view_dependency_dialog_finish
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { my($r_glbl,$r_tbh,$obj,$r_types)= @_;
-
-    make_table_hash_and_window($r_glbl,
-                               table_name=>$obj,
-                               table_type=>$r_types->{$obj});
-  }    
-  
-sub tk_simple_text_dialog
-# known options:
-# title
-# callback -> callback after something was selected
-# text -> text at the bottom of the widget
-# tag -> tag-name for the dialog data that 
-#        is stored in the table-handle
-  { my($r_glbl,$r_tbh,%options)= @_;
-
-    my $tag= $options{tag};
-    
-    die if (!defined $tag); # assertion
-
-    my %h;
-
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $Top->title($options{title});
-
-    my $entry=
-       $Top->Entry(-textvariable => \$h{string},
-                   -width=>20
-                  )->pack(-side=>'top',-fill=>'x',-expand=>'y');
-
-    $entry->focus();
-
-    $Top->Label(-text => $options{text}
-               )->pack(-side=>'top' ,-fill=>'y',
-                      );
-
-
-    $Top->bind('<Return>',[ \&tk_simple_text_dialog_finish, $r_glbl,$r_tbh,$tag ]);
-    
-    $Top->bind('<Destroy>',  sub { 
-                                   delete $r_tbh->{$tag};
-                                 }
-              );
-
-    $h{top}     = $Top;
-    $h{callback}= $options{callback};
-    
-    $r_tbh->{$tag}= \%h;
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
-  }                                 
-
-sub tk_simple_text_dialog_finish
-  { my($widget,$r_glbl,$r_tbh,$tag)= @_;
-
-    my $r_h = $r_tbh->{$tag};
-    my $Top = $r_h->{top};                 
-
-    my $str=  $r_h->{string};
-    chomp($str);
-    
-    $Top->destroy;  # @@@@
-    
-    my @callback= @{$r_h->{callback}};
-    
-    delete $r_tbh->{$tag};
-    
-    if (@callback)
-      { my $r_f= shift @callback;
-        &$r_f($r_glbl,$r_tbh,$str,@callback);
-      }
-  }
-  
-  
-sub tk_object_dialog
-# known options:
-# title
-# items -> reference to a list of items
-# text -> text at the bottom of the widget
-# callback -> callback after something was selected
-# tag -> tag-name for the dialog data that is stored in the table-handle
-  { my($r_glbl,$r_tbh,%options)= @_;
-  
-    my $tag= $options{tag};
-    
-    die if (!defined $tag); # assertion
-    
-    my %h;
-    
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $Top->title($options{title});
-    
-    my $FrTop = $Top->Frame(-borderwidth=>2,
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'both',
-                                  -expand=>'y');
-    
-    my $itemno=0;
-    if ($#{$options{items}} > 20)
-      { $itemno=20; }; 
-    
-    my $Listbox= $FrTop->Scrolled( 'Listbox', 
-                                   -scrollbars=>"oe",
-                                   -selectmode => 'single',
-                                   -width=>0,
-                                   -height=>$itemno);
-  
-    $Listbox->insert('end', @{$options{items}});
-    $Listbox->pack(-fill=>'both',-expand=>'y');
-
-    $Top->bind('<Return>',
-               [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]);
-
-    $Listbox->bind('<Double-1>',
-                   [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]); 
-
-    $Top->bind('<Destroy>', sub {  
-                             delete $r_tbh->{$tag};
-                                }
-              );
-
-    $FrTop->Label(-text => $options{text}
-                 )->pack(-side=>'left' ,-fill=>'y',
-                        );
-
-    $h{top}     = $Top;
-    $h{listbox} = $Listbox;
-    $h{callback}= $options{callback};
-    
-    $r_tbh->{$tag}= \%h;
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
-  }
-
-sub tk_object_dialog_finish 
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { my($widget,$r_glbl,$r_tbh,$tag)= @_;
-
-    my $r_h= $r_tbh->{$tag};
-    
-    my $Top     = $r_h->{top};                 
-    my $Listbox = $r_h->{listbox};             
-    
-    my @selection= $Listbox->curselection();
-
-    if (!@selection)
-      { tk_err_dialog($Top, "nothing selected");
-        return;
-      };
-
-    my $obj= $Listbox->get($selection[0]);
-    $Top->destroy;  # @@@@
-    
-    my @callback= @{$r_h->{callback}};
-    
-    delete $r_tbh->{$tag};
-    
-    if (@callback)
-      { my $r_f= shift @callback;
-        &$r_f($r_glbl,$r_tbh,$obj,@callback);
-      }
-  }
-  
-sub tk_find_line
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-# if $given_colname is undefined, take it from the active cell
-  { my($widget, $r_tbh, $given_colname)= @_;
-
-    my $TableWidget= $r_tbh->{table_widget};
-    
-    my %col_search_data;
-    
-    $r_tbh->{col_search_data}= \%col_search_data;
-
-    # get row-column of the active cell in the current table
-    my($row,$col)= split(",",$TableWidget->index('active'));
-    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
-
-    if (defined $given_colname)
-      { $colname= $given_colname; };
-
-    $col_search_data{colname}= $colname;
-
-    # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $TableWidget->Toplevel(-background=>$BG);
-
-    my $title= "$r_tbh->{table_name}: Find $colname";
-    $Top->title($title);
-
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'x',
-                                  -expand=>'y');
-
-    my $entry=
-       $FrTop->Entry(-textvariable => \$col_search_data{string},
-                     -width=>20
-                    )->pack(-side=>'left',-fill=>'x',-expand=>'y');
-    $entry->focus();
-
-    $Top->bind('<Return>', 
-            sub {  my $row= find_next_col($r_tbh,
-                                          string=>\$col_search_data{string},
-                                          colname=>$colname,
-                                          use_colmap=>1,
-                                          from=>'current',
-                                          direction=>'down');
-            
-                   if (!defined $row)
-                     { tk_err_dialog($Top,
-                             "$col_search_data{string} " .
-                             "not found in table");
-                     }
-                   else
-                     { my $col= colname2col($r_tbh, $colname);
-                       $TableWidget->activate("$row,$col");
-                       $TableWidget->yview($row-1);
-                       $Top->destroy;
-                     };
-                }
-              );        
-                                 
-
-    #$Top->bind('<Destroy>', sub { delete $r_tbh->{find_line_data}; });
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
-  }
-
-sub tk_find_line_next
-# $dir: 'prev' or 'next'
-  { my($widget, $r_glbl, $r_tbh, $dir)= @_;
-  
-    my $r_col_search_data= $r_tbh->{col_search_data};
-    
-    if (!defined $r_col_search_data)
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-                      "no search string specified");
-        return;
-      };
-    
-    my $colname= $r_col_search_data->{colname};
-    
-    my $row= find_next_col($r_tbh,
-                           string=> $r_col_search_data->{string},
-                           colname=>$colname,
-                           use_colmap=>1,
-                           from=>'current',
-                           direction=> ($dir eq 'next') ? 'down' : 'up');
-            
-    if (!defined $row)
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-              "$r_col_search_data->{string} " .
-              "not found in table");
-      }
+    # setting kind of db object
+    if (lc($type) =~ /(table|view|sql)/)
+      {  $params{table_type} = lc($type); }
     else
-      { my $col= colname2col($r_tbh, $colname);
-        my $TableWidget= $r_tbh->{table_widget};
-        $TableWidget->activate("$row,$col");
-        $TableWidget->yview($row-1);
-      };
- }
-
-
-sub find_next_col
-# searches a value in a given column
-# returns the row-number or undef
-# known options: 
-# string => $string or reference to a string
-# colname=> $colname
-# from => "current","top"
-# direction=> 'down', 'up'
-# exact => 1 or undef
-# use_colmap => 1 (0 is default)
-# NOTE: row 0 is the heading!!!
-  { my($r_tbh,%options)= @_;
-  
-    my $Table= $r_tbh->{table_widget};
-
-    my $str= $options{string};
-    if (ref($str))
-      { $str= $$str; };    
-    
-    my $dir= ($options{direction} eq 'down') ? 1 : -1;
-
-    my $max= $r_tbh->{row_no};
-    my $colname= $options{colname};
-
-    my $use_colmap= $options{use_colmap};
-    
-    my $row;
-    if ($options{from} eq 'top')
-      { $row=0; 
+      {  die "unsupported table type: $type"; #$params{table_type} = "sql";
       }
-    else
-      { my $c;
-        ($row,$c)= split(",",$Table->index('active'));
-      };        
-    
-    if ($options{exact})
-      { 
-        # make things faster if the column to search is 
-        # a primary key column:
-        if (exists $r_tbh->{pks_h}->{$colname}) # it's a primary key
-          { if ($#{$r_tbh->{pks}}==0) # only one primary key
-              { 
-                return($r_tbh->{pk_hash}->{$str}); 
-              };
-          };
-        
-        return if (!defined $str);
-        
-        for(my $i=0; $i<$max; $i++)
-          { $row+= $dir;
-            if    ($row<=0)
-              { $row= $max; }
-            elsif ($row>$max)
-              { $row=1; };
 
-            if (put_get_val_direct($r_tbh,$use_colmap,
-                                   row2pk($r_tbh,$row),$colname) eq $str)
-              { return($row); };
-          };
-      }
-    else
-      {
-        for(my $i=0; $i<$max; $i++)
-          { $row+= $dir;
-            if    ($row<=0)
-              { $row= $max; }
-            elsif ($row>$max)
-              { $row=1; };
-            if (put_get_val_direct($r_tbh,$use_colmap,
-                                   row2pk($r_tbh,$row),$colname)=~/$str/)
-              { return($row); };
-          };
+    if (defined $condition)
+      { if ($condition!~ /^\s*$/)
+          { chomp($condition);
+            $params{table_filter}= $condition; };
       };
-    return;
-  }
 
+    if (defined $order)
+      { if ($order!~ /^\s*$/)
+          { chomp($order);
+            $params{table_order}= $order; };
+      };
 
-sub tk_window_positioning
-  { my($parent_widget, $client_widget)= @_;
-    my ($parent, $client);
-    # place the client on the center of parent
-    $parent->{x}=$parent_widget->rootx();
-    $parent->{y}=$parent_widget->rooty();
-    $parent->{width}=$parent_widget->width();
-    $parent->{height}=$parent_widget->height();
-    $client->{width}=$client_widget->width();
-    $client->{height}=$client_widget->height();
-        my $x = $parent->{x};
-        my $y = $parent->{y};
-        if ($client->{width} < $parent->{width} && $parent->{x} > 0)
-          { $x = sprintf("+%d", $parent->{x} +
-                                ($parent->{width}/2)-($client->{width}/2));
-          }
-        else
-          { $x = "+0"; }
+    make_table_hash_and_window($r_glbl,%params);
 
-        if ($client->{height} < $parent->{height} && $parent->{x} > 0)
-          { $y = sprintf("+%d", $parent->{y} +
-                                ($parent->{height}/2)-($client->{height}/2));
-          }
-        else
-          { $y = "+0"; }
-
-    $client_widget->geometry($x . $y);
-  }
-
-sub tk_field_edit
-# mode: "active" or "selected"
-  { my($r_tbh, $mode)= @_;
-
-    if (!defined $mode)
-      { $mode= 'active'; };
-
-    my $TableWidget= $r_tbh->{table_widget};
-
-#my($wi,$h,$x,$y)= split(/[x\+\-]/,$TableWidget->geometry());
-#warn join("|",$wi,$h,$x,$y),"\n";
-    
-    my @cells;
-    if ($mode eq 'active')
-      { $cells[0]= $TableWidget->index('active'); }
-    else
-      { @cells=  $TableWidget->curselection(); };
-
-    # get row-column of the active cell in the current table
-    my($row,$col)= split(",",$cells[0]);
-    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
-
-
-    # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $TableWidget->Toplevel(-background=>$BG);
-    #$Top->Popup(-popover    => 'cursor');
- 
-    #my $title= "$r_tbh->{table_name}: Edit $colname";
-    $Top->title("$r_tbh->{table_name}");
-
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'x',
-                                  -expand=>'y');
-    my $FrDn  = $Top->Frame(-background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'y',
-                                  -expand=>'y'
-                                  );
-
-    if ($mode eq 'active')
-      { $FrTop->Label(-text=>"$colname: ")->pack(-side=>'left'); };
-
-    $r_tbh->{edit_cells}= \@cells;
-    
-    # edit_cell is a temporary variable
-    # 1: use column-maps
-    $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,1,$pk,$colname);
-    my $w;
-    
-    if (defined $r_tbh->{edit_cell})
-      { $w= length($r_tbh->{edit_cell}); };
-
-    $w=20 if ($w<20);
-
-    my $Entry= $FrTop->Entry(-textvariable => \$r_tbh->{edit_cell},
-                             -width=>$w
-                            )->pack(-side=>'left',-fill=>'x',-expand=>'y');
-
-    $FrDn->Button(-text => 'accept',
-                  %std_button_options,
-                  -command => sub { foreach my $c (@{$r_tbh->{edit_cells}})
-                                      { $TableWidget->set(
-                                                       $c,
-                                                       $r_tbh->{edit_cell});
-                                      };                       
-                                   delete $r_tbh->{edit_cell};
-                                   delete $r_tbh->{edit_cells};
-                                   $Top->destroy;
-                                  }
-                 )->pack(-side=>'left', -fill=>'y');
-
-
-    $FrDn->Button(-text => 'abort',
-                 %std_button_options,
-                 -command => sub { delete $r_tbh->{edit_cell};
-                                   delete $r_tbh->{edit_cells};
-                                   $Top->destroy;
-                                  }
-                 )->pack(-side=>'left', -fill=>'y');
-
-    #$Top->Popup(-popover    => 'cursor');
-
-    $Top->bind('<Destroy>', 
-               sub { delete $r_tbh->{edit_cell}; 
-                     delete $r_tbh->{edit_cells}; 
-                   } 
-              );
-
- 
-    $Entry->bind('<Return>', 
-                 sub { foreach my $c (@{$r_tbh->{edit_cells}})
-                          { $TableWidget->set(
-                                           $c,
-                                           $r_tbh->{edit_cell});
-                          };                   
-                       delete $r_tbh->{edit_cell};
-                       delete $r_tbh->{edit_cells};
-                       $Top->destroy;
-                     }
-                );
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
-
+    if ($fast_test)
+      { $fast_test=0;
+        return;
+      };
   }
 
 sub make_table_hash_and_window
@@ -2442,7 +1487,7 @@ sub make_table_hash_and_window
 #   geometry     => $geometry_string
 #                   can be used to set the window geometry
 #   displayed_cols=> %\display_col_hash
-#        where column-names are hash-keys, values are "1" 
+#        where column-names are hash-keys, values are "1"
 #        for displayed and "0" for hidden columns
 #        this parameter is optional !
 #   sort_columns  => a list of columns that defines the sort-order
@@ -2518,7 +1563,7 @@ sub make_table_hash
 # elements of %hash_defaults (the table-hash):
 #
 #   table_name   => $table_name
-#   table_type   => $type, $type either 'table','view', ,'sql' or 
+#   table_type   => $type, $type either 'table','view', ,'sql' or
 #                   'table_or_view'
 #   table_filter => $WHERE_part
 #        $WHERE_part is added after "WHERE" to the SQL fetch command
@@ -2526,7 +1571,7 @@ sub make_table_hash
 #   sequel       => $sql_statement
 #        only for the type "sql", specifies the SQL fetch command
 #   displayed_cols=> %\display_col_hash
-#        where column-names are hash-keys, values are "1" 
+#        where column-names are hash-keys, values are "1"
 #        for displayed and "0" for hidden columns
 #        this parameter is optional !
 #   sort_columns    => a list of columns that defines the sort-order
@@ -2543,8 +1588,8 @@ sub make_table_hash
 #  table_widget    => table-widget
 #  dbh             => database-handle
 #  dbitable        => dbitable_object
-#  no_pk_cols      => 1 if there are no primary key columns 
-#  pks             => \@primary_key_column_names 
+#  no_pk_cols      => 1 if there are no primary key columns
+#  pks             => \@primary_key_column_names
 #  pks_h           => \%primary_key_column_hash
 #                     each key in this hash is a primary key column
 #  column_list     => \@column_names_list
@@ -2555,7 +1600,7 @@ sub make_table_hash
 #  vis_column_hash => equal to column_hash
 #  vis_column_no   => equal to column_no
 #  vis_column_width=> equal to column_width
-#  foreign_key_hash=> \%foreign_key_hash 
+#  foreign_key_hash=> \%foreign_key_hash
 #                     this hash maps column-names to a list containing
 #                     two elements, the name of the foreign table and
 #                     the column-name in the foreign table.
@@ -2633,9 +1678,9 @@ sub make_table_hash
     # requesting the foreign keys makes only sense
     # on tables, not on views or SQL statements:
     if ($table_hash{table_type} eq 'table')
-      { $table_hash{foreign_key_hash}= 
+      { $table_hash{foreign_key_hash}=
                   $table_hash{dbitable}->foreign_keys();
-      };                  
+      };
 
     tk_progress($r_glbl,80);
 
@@ -2657,12 +1702,12 @@ sub make_table_hash
     if (defined $r_col_maps)
       { my %maps= %{$table_hash{col_maps}};
         delete $table_hash{col_maps};
-        
+
         foreach my $c (keys %maps)
-          { set_column_map($r_glbl,\%table_hash,$maps{$c},$c); 
+          { set_column_map($r_glbl,\%table_hash,$maps{$c},$c);
           };
       };
-      
+
     $r_col_maps= $r_glbl->{column_map_definitions};
     if (defined $r_col_maps)
       { $r_col_maps= $r_col_maps->{$table_hash{table_name}};
@@ -2670,7 +1715,7 @@ sub make_table_hash
           { foreach my $c ( keys %$r_col_maps )
               { next if (column_has_a_map(\%table_hash,$c));
                 set_column_map($r_glbl,\%table_hash,
-                               $r_col_maps->{$c},$c); 
+                               $r_col_maps->{$c},$c);
               };
           };
       };
@@ -2687,15 +1732,15 @@ sub make_table_hash
           { $r_cm->{$col}= 'N'; next; };
         if (!exists $r_cm->{$col})
           { $r_cm->{$col}= 'N'; };
-      }; 
-    
+      };
+
     # the hash that is used for sorting:
     if (!exists $table_hash{sort_columns})
       { $table_hash{sort_columns}= [ @{$table_hash{column_list}} ];
         initialize_sort_columns(\%table_hash);
       };
-      
-      
+
+
     # this list of primary key values,
     # maps the row-index to the primary key value
     $table_hash{pk_list} = get_pk_list(\%table_hash);
@@ -2717,7 +1762,7 @@ sub make_table_window
 #  table_name    => $table_name
 #  resident_there=> $resident_there
 #                   adds a certain menu entry to the table menu
-#                   if set to 1 
+#                   if set to 1
 #  geometry      => $geometry_string
 #                   can be used to set the window geometry
 #  column_list   => \@column_names_list
@@ -2868,22 +1913,22 @@ sub make_table_window
                   -underline   => 8,
                   -command => [\&tk_find_line, "", $r_tbh],
                 );
-    $Top->bind($Top,'<Control-g>'=> [\&tk_find_line_next,  
+    $Top->bind($Top,'<Control-g>'=> [\&tk_find_line_next,
                                      $r_glbl, $r_tbh,'next']);
     $MnEdit->add('command',
                   -label=> 'find next column',
                   -accelerator => 'Ctrl+g',
                   -underline   => 5,
-                  -command => [\&tk_find_line_next, "", 
+                  -command => [\&tk_find_line_next, "",
                                $r_glbl, $r_tbh,'next'],
                 );
-    $Top->bind($Top,'<Shift-Control-G>'=> [\&tk_find_line_next,  
+    $Top->bind($Top,'<Shift-Control-G>'=> [\&tk_find_line_next,
                                            $r_glbl, $r_tbh,'prev']);
     $MnEdit->add('command',
                   -label=> 'find prev column',
                   -accelerator => 'Shift+Ctrl+g',
                   -underline   => 5,
-                  -command => [\&tk_find_line_next, "", 
+                  -command => [\&tk_find_line_next, "",
                                $r_glbl, $r_tbh,'next'],
                 );
     $MnEdit->add('cascade',
@@ -2949,7 +1994,7 @@ sub make_table_window
                       -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
                     );
       };
-      
+
     if ($r_tbh->{table_type} ne 'sql')
       {
         $MnRela->add('command',
@@ -2958,7 +2003,7 @@ sub make_table_window
                       -command => [\&tk_dependend_views_dialog, $r_glbl, $r_tbh],
                     );
       };
-      
+
     if ($r_tbh->{table_type} eq 'table')
       { $MnRela->add('command',
                       -label=> 'referenced tables',
@@ -2978,7 +2023,7 @@ sub make_table_window
       { $MnRela->add('command',
                       -label=> 'add column map to file',
                       -underline   => 0,
-                      -command => 
+                      -command =>
                         sub { add_to_column_maps($r_glbl,$r_tbh,
                                                  "$PrgDir/$column_map_file");
                             }
@@ -3177,24 +2222,24 @@ sub make_table_window
                               cb_set_visible_columns($r_glbl, $r_tbh);
                             }
                     );
-    
+
     my $MnColMap = $MnColPopup->Menu(-tearoff=>0);
     $r_itemhash->{'column map'}= $itemcnt++;
     $MnColPopup->add('cascade',
                      -label=> 'column map',
                      -menu => $MnColMap
                     );
-                    
-    $MnColMap->add('command',    
+
+    $MnColMap->add('command',
                    -label=> 'define',
                    -command =>
                         sub { tk_define_col_map($r_glbl, $r_tbh,
                                                  $column_popup{current_col}
                                                 );
-                              tk_rewrite_active_cell($r_tbh);  
+                              tk_rewrite_active_cell($r_tbh);
                             }
                    );
-    $MnColMap->add('command',    
+    $MnColMap->add('command',
                    -label=> 'toggle map usage',
                    -command =>
                         sub { my $col= $column_popup{current_col};
@@ -3211,12 +2256,12 @@ sub make_table_window
                                   # the following forces a redraw
                                   my $Table= $r_tbh->{table_widget};
                                   $Table->configure(
-                                            -padx => ($Table->cget('-padx')) 
+                                            -padx => ($Table->cget('-padx'))
                                                    );
-                                  tk_rewrite_active_cell($r_tbh);                  
+                                  tk_rewrite_active_cell($r_tbh);
                                 };
                             }
-                  );                
+                  );
 
     $column_popup{popup_items} = $itemcnt;
     $column_popup{popup_item_h}= $r_itemhash;
@@ -3324,15 +2369,844 @@ sub make_table_window
     # $Table->bind('<3>', [\&cb_handle_right_button,
     #                      $r_glbl, $r_tbh, Ev('@')] );
 
-    $Table->bind('<Control-plus>',  [\&cb_resize_col, 
+    $Table->bind('<Control-plus>',  [\&cb_resize_col,
                                   $r_glbl, $r_tbh, 'inc']);
-    $Table->bind('<Control-minus>',  [\&cb_resize_col, 
+    $Table->bind('<Control-minus>',  [\&cb_resize_col,
                                   $r_glbl, $r_tbh, 'dec']);
 
 
     $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
 
   }
+
+sub cf_open_window
+  { my($parent_window, $r_glbl, $window_title, $geometry) = @_;
+    my $NewTop = $parent_window->Toplevel(-background=>$BG);
+
+    if (defined $geometry)
+      { $NewTop->geometry($geometry); };
+
+    $NewTop->configure(-title=>$window_title);
+
+    tk_update_window_menu($r_glbl);
+
+    $NewTop->eventAdd('<<Paste>>' => '<Control-v>');
+    $NewTop->eventAdd('<<Copy>>' => '<Control-c>');
+    $NewTop->eventAdd('<<Save>>' => '<Control-s>');
+    $NewTop->eventAdd('<<Quit>>' => '<Control-q>');
+
+    return $NewTop;
+  }
+
+sub cb_close_window
+# global variables used: NONE
+ { my($parent_widget, $r_glbl, $r_tbh)= @_;
+
+    # $r_tbh->{top_widget}->destroy();
+
+    # remove the table-hash from the all_tables variable
+    # caution: a global variable is used !
+
+    my $r_all_tables= $r_glbl->{all_tables};
+
+    tkdie($r_glbl,"assertion in line " . __LINE__)
+     if (!defined $r_all_tables); #assertion
+
+    my $table_name= $r_tbh->{table_name};
+    conn_delete_table($r_glbl, $table_name);
+
+    delete $r_all_tables->{ $r_tbh->{table_name} };
+    tk_update_window_menu($r_glbl);
+# warn "Table $table_name successfully deleted !\n";
+ }
+
+sub table_hash_init_columns
+ { my($r_tbh)= @_;
+
+   # get (or set-up) column_list, column_hash, column_no:
+
+   $r_tbh->{column_list} = [ $r_tbh->{dbitable}->column_list() ];
+   $r_tbh->{column_hash} = { $r_tbh->{dbitable}->column_hash() };
+   $r_tbh->{column_no}   = $#{$r_tbh->{column_list}} + 1;
+
+   $r_tbh->{column_width}= [ $r_tbh->{dbitable}->max_column_widths(5,25) ];
+
+   if (!exists $r_tbh->{displayed_cols})
+     { # when displayed_cols is not defined, display
+       # all columns as a default
+       $r_tbh->{displayed_cols}=
+                   { map{ $_=>1 } @{$r_tbh->{column_list}} };
+     };
+
+   calc_visible_columns($r_tbh);
+  }
+
+sub table_window_tag_columns
+ { my($r_tbh)= @_;
+   my $Table_Widget= $r_tbh->{table_widget};
+
+   my $r_col_hash= $r_tbh->{vis_column_hash};
+
+   # remove all cell attributes
+   for(my $i=0; $i< $r_tbh->{vis_column_no}; $i++)
+     { $Table_Widget->tagCol('', $i); };
+
+   # mark the primary key, it may not be edited
+   if (!$r_tbh->{no_pk_cols})
+     { foreach my $colname (@{$r_tbh->{pks}})
+         { next if (!exists $r_col_hash->{$colname});
+           $Table_Widget->tagCol('pk_cell', colname2col($r_tbh,$colname) );
+         };
+     };
+
+   foreach my $fk_col (keys % {$r_tbh->{foreign_key_hash}})
+     { next if (!exists $r_col_hash->{$fk_col});
+       $Table_Widget->tagCol('fk_cell', colname2col($r_tbh,$fk_col) );
+     };
+  }
+
+sub table_window_set_column_width
+ { my($r_tbh)= @_;
+
+   my $Table_Widget= $r_tbh->{table_widget};
+
+   my $r_width= $r_tbh->{vis_column_width};
+
+   for(my $i=0; $i<= $#$r_width; $i++)
+     {
+       $Table_Widget->colWidth($i, $r_width->[$i] + 2);
+       # 2 characters more than the real maximum width
+     };
+ }
+
+sub resize_table
+# must be called, when the number of lines in the table
+# has changed
+# updates the table-hash and the table-widget
+  { my($r_tbh)= @_;
+
+    $r_tbh->{pk_list}= get_pk_list($r_tbh);
+    $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+    $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+
+    $r_tbh->{table_widget}->configure(-rows => $r_tbh->{row_no} + 1);
+  }
+
+#=======================================================
+# utilities for table windows:
+#=======================================================
+
+# add scroll relation:
+#_______________________________________________________
+
+sub tk_add_relation_dialog
+  { my($r_glbl,$r_tbh)= @_;
+    my $myname= $r_tbh->{table_name};
+
+    my %relation_hash= ( Top=>undef,
+                         ocol_browseentry=>undef,
+                         mycol=>undef,
+                         otab=>undef,
+                         ocol=>undef );
+
+    #my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+
+    $relation_hash{Top}= $Top;
+
+    my @open_tables= grep {$_ ne  $myname}
+                           (sort keys %{$r_glbl->{all_tables}});
+
+    $Top->title("add relation in $r_tbh->{table_name}");
+
+    $Top->Label(-text => 'this table:'
+               )->grid(-row=>0, -column=>0, -sticky=> "w");
+
+    $Top->Label(-text => $myname
+               )->grid(-row=>0, -column=>1, -sticky=> "w");
+
+    $Top->Label(-text => 'this column:'
+               )->grid(-row=>1, -column=>0, -sticky=> "w");
+
+    $Top->Label(-text => 'other table:'
+               )->grid(-row=>2, -column=>0, -sticky=> "w");
+
+    $Top->Label(-text => 'other column:'
+               )->grid(-row=>3, -column=>0, -sticky=> "w");
+
+    my %std_options= (-state=> 'readonly');
+    if ($Tk::VERSION >= 800.025) # in older Tk versions unknown
+      { $std_options{-autolimitheight}=1; };
+
+    $Top->BrowseEntry( %std_options,
+                       -choices=> $r_tbh->{column_list},
+                       -variable=> \$relation_hash{mycol}
+                     )->grid(-row=>1,
+                             -column=>1,
+                             -sticky=> "w");
+
+    $Top->BrowseEntry( %std_options,
+                       -choices=> \@open_tables,
+                       -browsecmd=> [\&cb_add_relation,
+                                     $r_glbl,
+                                     $r_tbh],
+                       -variable=> \$relation_hash{otab}
+                     )->grid(-row=>2,
+                             -column=>1,
+                             -sticky=> "w");
+
+    my $Lb_o_cols = $Top->BrowseEntry( %std_options,
+                                       -variable=> \$relation_hash{ocol}
+                                     )->grid(-row=>3,
+                                             -column=>1,
+                                             -sticky=> "w");
+
+   $relation_hash{ocol_browseentry}= $Lb_o_cols;
+
+
+    $Top->Button(-text => 'select',
+                  %std_button_options,
+                 -command => [\&tk_add_relation_dialog2, $r_glbl, $r_tbh],
+                )->grid(-row=>4, -column=>0, -columnspan=>1,
+                        -sticky=> "w");
+
+    $r_tbh->{relation_hash}= \%relation_hash;
+
+    $Top->bind('<Destroy>', sub { delete $r_tbh->{relation_hash} } );
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+  }
+
+sub cb_add_relation
+  { my($r_glbl,$r_tbh,$widget,$selected_text)= @_;
+
+    my $r_relation_hash= $r_tbh->{relation_hash};
+
+    my $r_o_tbh= $r_glbl->{all_tables}->{$selected_text};
+
+    die "not a valid table!" if (!defined $r_o_tbh); # assertion
+
+    $r_relation_hash->{ocol_browseentry}->configure(
+                         -choices=> $r_o_tbh->{column_list}
+                                                   );
+  }
+
+sub tk_add_relation_dialog2
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $r_relation_hash= $r_tbh->{relation_hash};
+    my $Top= $r_relation_hash->{Top};
+
+    my $my_tab= $r_tbh->{table_name};
+
+    my $my_col= $r_relation_hash->{mycol};
+    my $o_tab = $r_relation_hash->{otab};
+    my $o_col = $r_relation_hash->{ocol};
+
+    if (!defined $my_col)
+      { tk_err_dialog($Top, "local column not selected");
+        return;
+      };
+
+    if (!defined$o_tab)
+      { tk_err_dialog($Top, "other table not selected");
+        return;
+      };
+
+    if (!defined$o_col)
+      { tk_err_dialog($Top, "other column not selected");
+        return;
+      };
+
+    # warn "selected:$my_tab $my_col $o_tab $o_col";
+
+    $r_relation_hash->{Top}->destroy();
+    $r_glbl->{main_menu_widget}->update; # force destroy to be executed now
+    delete $r_tbh->{relation_hash};
+
+    conn_add($r_glbl,
+             $r_tbh->{table_name},$my_col,
+             $o_tab,$o_col);
+
+    tk_mark_manual_foreign_key_col($r_tbh, $my_col);
+    #table_window_tag_columns($r_tbh);
+
+# @@@@@@@@@@@@@@@@@@@@
+  }
+
+sub tk_mark_manual_foreign_key_col
+  { my($r_tbh,$col_name)= @_;
+
+   my $Table_Widget= $r_tbh->{table_widget};
+
+   # get column-indices of "green" columns
+   my @tagged_cols= $Table_Widget->tagCol('fk_cell');
+
+   my $col= colname2col($r_tbh,$col_name);
+
+   foreach my $i (@tagged_cols)
+     { if ($i==$col)
+         { # col is already tagged
+           return;
+         };
+     };
+   $Table_Widget->tagCol('m_fk_cell', $col );
+  }
+
+# referenced-tables dialog:
+#_______________________________________________________
+
+sub tk_references_dialog
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $parent_widget= $r_tbh->{table_widget};
+
+    my $fkh= $r_tbh->{foreign_key_hash};
+    # col_name => [foreign_table,foreign_column]
+
+    if (!defined $fkh) # no foreign keys defined
+      { tk_err_dialog($parent_widget,
+                      "there are no foreign keys in this table");
+        return;
+      };
+
+    if (!keys %$fkh) # no foreign keys defined
+      { tk_err_dialog($parent_widget,
+                      "there are no foreign keys in this table");
+        return;
+      };
+
+
+    #my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+
+    $Top->title("foreign keys in $r_tbh->{table_name}");
+
+    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
+                           -background=>$BG
+                           )->pack(-side=>'top' ,-fill=>'both',
+                                  -expand=>'y');
+
+    my $maxcolsz=0;
+    my @cols= (sort keys %$fkh);
+    foreach my $col (@cols)
+      { $maxcolsz= length($col) if (length($col)>$maxcolsz); };
+
+    my @lines;
+
+    foreach my $col (@cols)
+      { my $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                           $fkh->{$col}->[0],
+                                           $fkh->{$col}->[2]);
+        push @lines,
+             sprintf("%-" . $maxcolsz . "s -> %s",$col,$fk_table);
+
+#        push @lines,
+#             sprintf("%-" . $maxcolsz . "s -> %s",$col,
+#                     $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
+#                    )
+      };
+
+    my $listbox= $FrTop->Listbox(-selectmode => 'single',
+                                 -width=>0,
+                                 -height=> $#lines+1);
+    foreach my $l (@lines)
+      { $listbox->insert('end', $l); };
+
+    $listbox->pack(-fill=>'both',-expand=>'y');
+
+    $Top->bind('<Return>',
+                   sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
+    $listbox->bind('<Double-1>',
+                   sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
+
+    $Top->bind('<Destroy>', sub {
+                                delete $r_glbl->{foreign_key_dialog_widget},
+                                delete $r_glbl->{foreign_key_dialog_listbox},
+                                delete $r_glbl->{foreign_key_cols}
+                                });
+
+    $FrTop->Label(-text => 'double-click to open table'
+                 )->pack(-side=>'left' ,-fill=>'y');
+
+    $r_glbl->{foreign_key_dialog_widget} = $Top;
+    $r_glbl->{foreign_key_dialog_listbox}= $listbox;
+    $r_glbl->{foreign_key_cols} = \@cols;
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+  }
+
+sub tk_references_dialog_finish
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $Top    = $r_glbl->{foreign_key_dialog_widget};
+    my $listbox= $r_glbl->{foreign_key_dialog_listbox};
+    my $r_cols = $r_glbl->{foreign_key_cols};
+
+    my @selection= $listbox->curselection();
+
+    if (!@selection)
+      { tk_err_dialog($Top, "no table selected");
+        return;
+      };
+
+   my $colname= $r_cols->[ $selection[0] ];
+
+   my($fk_table,$fk_col,$fk_owner)= @{$r_tbh->{foreign_key_hash}->{$colname}};
+
+   $Top->destroy;  # @@@@
+
+   # new: take the table-owner into account:
+   $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                   $fk_table,$fk_owner);
+
+   my $r_all_tables= $r_glbl->{all_tables};
+   tkdie($r_glbl,"assertion in line " . __LINE__)
+     if (!defined $r_all_tables); # assertion, shouldn't happen
+
+   my $r_tbh_fk= $r_all_tables->{$fk_table};
+   if (!defined $r_tbh_fk)
+     { # 'resident_there' must be given as parameter to
+       # make_table_hash_and_window since make_table_window looks for
+       # this part of the table-hash and creates the "select" button if
+       # that member of the hash is found
+       $r_tbh_fk= make_table_hash_and_window($r_glbl,
+                table_name=> $fk_table,
+                table_type=> 'table',
+                resident_there=>1);
+
+        conn_add($r_glbl,$r_tbh->{table_name},$colname,
+                 $fk_table,$fk_col);
+
+     };
+   my $Table= $r_tbh->{table_widget};
+
+   my($row,$col)= split(",",$Table->index('active'));
+   my($pk)= row2pk($r_tbh,$row);
+   # using Table->get() would be unnecessary slow
+   # 0: do not use column-map
+   my $cell_value= put_get_val_direct($r_tbh,0,$pk,$colname);
+
+   # 0: do not use column-map
+   tk_activate_cell($r_tbh_fk,0, $fk_col, $cell_value);
+
+   delete $r_glbl->{foreign_key_dialog_widget};
+   delete $r_glbl->{foreign_key_dialog_listbox};
+   delete $r_glbl->{foreign_key_cols};
+
+  }
+
+# dependent-tables dialog:
+#_______________________________________________________
+
+sub tk_dependency_dialog
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $parent_widget= $r_tbh->{table_widget};
+
+    tk_set_busy($r_glbl,1);
+    my $r_resident_keys= $r_tbh->{dbitable}->resident_keys();
+    tk_set_busy($r_glbl,0);
+    if (!defined $r_resident_keys)
+      { tk_err_dialog($parent_widget,
+                      "no other table depends on this one");
+        return;
+      };
+
+    my %resident_tables;
+    # res_table_name => [  [res_col1, col1],
+    #                      [res_col2, col2],
+    #                          ...
+    #                   ]
+
+    foreach my $col_name (keys %$r_resident_keys)
+      { my $r_list= $r_resident_keys->{$col_name};
+
+        foreach my $r_sublist (@$r_list)
+          {
+            push @{ $resident_tables{$r_sublist->[0]} },
+                 [ $r_sublist->[1] , $col_name ];
+
+          };
+      };
+
+    my @resident_table_list= sort keys %resident_tables;
+
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "dependend_tables_dialog",
+                     title=> "dependents from $r_tbh->{table_name}",
+                     items=> \@resident_table_list,
+                     text => 'double-click to open',
+                     callback=> [\&tk_dependency_dialog_finish,
+                                 \%resident_tables]
+                    );
+
+  }
+
+sub tk_dependency_dialog_finish
+  { my($r_glbl,$r_tbh,$res_table,$r_resident_tables)= @_;
+
+
+    my $r_all_tables= $r_glbl->{all_tables};
+    tkdie($r_glbl,"assertion in line " . __LINE__)
+       if (!defined $r_all_tables); # assertion, shouldn't happen
+
+    my $r_tbh_res= $r_all_tables->{$res_table};
+    if (!defined $r_tbh_res)
+      { # create a window fore the resident-table:
+        $r_tbh_res= make_table_hash_and_window($r_glbl,
+                                               table_name=>$res_table,
+                                               table_type=>'table');
+
+        # get the name of the current table:
+        my $my_table= $r_tbh->{table_name};
+
+        # get the list of relations between the current (the foreign) table
+        # and the resident table:
+        my $r_col_relations= $r_resident_tables->{$res_table};
+        # [res_col1, col1], [res_col2, col2], ...
+
+#warn "new table: col_relations: $r_col_relations\n";
+#warn "array content: " , Dumper($r_col_relations) , "\n";
+
+        foreach my $r_col_relation (@$r_col_relations)
+          { # save information on connection between the
+            # foreign table and the resident table
+            my($res_col,$fk_col)= @$r_col_relation;
+
+            conn_add($r_glbl,$res_table,$res_col,$my_table,$fk_col);
+          };
+      }
+
+  }
+
+# dependent-views dialog:
+#_______________________________________________________
+
+sub tk_dependend_views_dialog
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $parent_widget= $r_tbh->{table_widget};
+
+    tk_set_busy($r_glbl,1);
+    my $dbh= $r_glbl->{dbh};
+
+    my ($object_name, $object_owner)=
+          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
+
+    my @dependents=
+          dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+
+    tk_set_busy($r_glbl,0);
+
+    # filter-out views
+    if (@dependents)
+      { @dependents= grep { $_->[2] eq 'VIEW' } @dependents; };
+
+    if (!@dependents)
+      { tk_err_dialog($parent_widget,
+                      "no view depends on this object");
+        return;
+      };
+
+    my @objects= map{ dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                           $_->[1], $_->[0]) } @dependents;
+    @objects= sort @objects;
+
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "dependend_views_dialog",
+                     title=> "dependent views of $r_tbh->{table_name}",
+                     items=> \@objects,
+                     text => 'double-click to open',
+                     callback=> [\&tk_dependend_views_dialog_finish]
+                    );
+
+  }
+
+sub tk_dependend_views_dialog_finish
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($r_glbl,$r_tbh,$obj)= @_;
+
+    make_table_hash_and_window($r_glbl,
+                               table_name=>$obj,
+                               table_type=>'view');
+  }
+
+# (by a view-) referenced objects dialog:
+#_______________________________________________________
+
+sub tk_view_dependency_dialog
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $parent_widget= $r_tbh->{table_widget};
+
+    tk_set_busy($r_glbl,1);
+    my $dbh= $r_glbl->{dbh};
+
+    my ($object_name, $object_owner)=
+          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
+
+    my @referenced=
+          dbdrv::object_references($dbh,$object_name,$object_owner);
+
+    tk_set_busy($r_glbl,0);
+
+    if (!@referenced)
+      { tk_err_dialog($parent_widget,
+                      "this view seems to depend on no other object?");
+        return;
+      };
+
+    my @objects= map{ dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                           $_->[1], $_->[0]) } @referenced;
+
+    my %types;
+    for(my $i=0; $i<= $#objects; $i++)
+      { my $t= $referenced[$i]->[2];
+
+        $types{ $objects[$i] } = ($t eq 'TABLE') ? 'table' : 'view' ;
+      };
+
+    @objects= sort @objects;
+
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "view_dependendcy_dialog",
+                     title=> "by $r_tbh->{table_name} referenced objects",
+                     items=> \@objects,
+                     text => 'double-click to open',
+                     callback=> [\&tk_view_dependency_dialog_finish,
+                                 \%types]
+                    );
+  }
+
+sub tk_view_dependency_dialog_finish
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($r_glbl,$r_tbh,$obj,$r_types)= @_;
+
+    make_table_hash_and_window($r_glbl,
+                               table_name=>$obj,
+                               table_type=>$r_types->{$obj});
+  }
+
+# find-in-column dialog:
+#_______________________________________________________
+
+sub tk_find_line
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+# if $given_colname is undefined, take it from the active cell
+  { my($widget, $r_tbh, $given_colname)= @_;
+
+    my $TableWidget= $r_tbh->{table_widget};
+
+    my %col_search_data;
+
+    $r_tbh->{col_search_data}= \%col_search_data;
+
+    # get row-column of the active cell in the current table
+    my($row,$col)= split(",",$TableWidget->index('active'));
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+
+    if (defined $given_colname)
+      { $colname= $given_colname; };
+
+    $col_search_data{colname}= $colname;
+
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $TableWidget->Toplevel(-background=>$BG);
+
+    my $title= "$r_tbh->{table_name}: Find $colname";
+    $Top->title($title);
+
+    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
+                           -background=>$BG
+                           )->pack(-side=>'top' ,-fill=>'x',
+                                  -expand=>'y');
+
+    my $entry=
+       $FrTop->Entry(-textvariable => \$col_search_data{string},
+                     -width=>20
+                    )->pack(-side=>'left',-fill=>'x',-expand=>'y');
+    $entry->focus();
+
+    $Top->bind('<Return>',
+            sub {  my $row= find_next_col($r_tbh,
+                                          string=>\$col_search_data{string},
+                                          colname=>$colname,
+                                          use_colmap=>1,
+                                          from=>'current',
+                                          direction=>'down');
+
+                   if (!defined $row)
+                     { tk_err_dialog($Top,
+                             "$col_search_data{string} " .
+                             "not found in table");
+                     }
+                   else
+                     { my $col= colname2col($r_tbh, $colname);
+                       $TableWidget->activate("$row,$col");
+                       $TableWidget->yview($row-1);
+                       $Top->destroy;
+                     };
+                }
+              );
+
+
+    #$Top->bind('<Destroy>', sub { delete $r_tbh->{find_line_data}; });
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+  }
+
+sub tk_find_line_next
+# $dir: 'prev' or 'next'
+  { my($widget, $r_glbl, $r_tbh, $dir)= @_;
+
+    my $r_col_search_data= $r_tbh->{col_search_data};
+
+    if (!defined $r_col_search_data)
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "no search string specified");
+        return;
+      };
+
+    my $colname= $r_col_search_data->{colname};
+
+    my $row= find_next_col($r_tbh,
+                           string=> $r_col_search_data->{string},
+                           colname=>$colname,
+                           use_colmap=>1,
+                           from=>'current',
+                           direction=> ($dir eq 'next') ? 'down' : 'up');
+
+    if (!defined $row)
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+              "$r_col_search_data->{string} " .
+              "not found in table");
+      }
+    else
+      { my $col= colname2col($r_tbh, $colname);
+        my $TableWidget= $r_tbh->{table_widget};
+        $TableWidget->activate("$row,$col");
+        $TableWidget->yview($row-1);
+      };
+ }
+
+# edit-field dialog:
+#_______________________________________________________
+
+sub tk_field_edit
+# mode: "active" or "selected"
+  { my($r_tbh, $mode)= @_;
+
+    if (!defined $mode)
+      { $mode= 'active'; };
+
+    my $TableWidget= $r_tbh->{table_widget};
+
+#my($wi,$h,$x,$y)= split(/[x\+\-]/,$TableWidget->geometry());
+#warn join("|",$wi,$h,$x,$y),"\n";
+
+    my @cells;
+    if ($mode eq 'active')
+      { $cells[0]= $TableWidget->index('active'); }
+    else
+      { @cells=  $TableWidget->curselection(); };
+
+    # get row-column of the active cell in the current table
+    my($row,$col)= split(",",$cells[0]);
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+
+
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $TableWidget->Toplevel(-background=>$BG);
+    #$Top->Popup(-popover    => 'cursor');
+
+    #my $title= "$r_tbh->{table_name}: Edit $colname";
+    $Top->title("$r_tbh->{table_name}");
+
+    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
+                           -background=>$BG
+                           )->pack(-side=>'top' ,-fill=>'x',
+                                  -expand=>'y');
+    my $FrDn  = $Top->Frame(-background=>$BG
+                           )->pack(-side=>'top' ,-fill=>'y',
+                                  -expand=>'y'
+                                  );
+
+    if ($mode eq 'active')
+      { $FrTop->Label(-text=>"$colname: ")->pack(-side=>'left'); };
+
+    $r_tbh->{edit_cells}= \@cells;
+
+    # edit_cell is a temporary variable
+    # 1: use column-maps
+    $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,1,$pk,$colname);
+    my $w;
+
+    if (defined $r_tbh->{edit_cell})
+      { $w= length($r_tbh->{edit_cell}); };
+
+    $w=20 if ($w<20);
+
+    my $Entry= $FrTop->Entry(-textvariable => \$r_tbh->{edit_cell},
+                             -width=>$w
+                            )->pack(-side=>'left',-fill=>'x',-expand=>'y');
+
+    $FrDn->Button(-text => 'accept',
+                  %std_button_options,
+                  -command => sub { foreach my $c (@{$r_tbh->{edit_cells}})
+                                      { $TableWidget->set(
+                                                       $c,
+                                                       $r_tbh->{edit_cell});
+                                      };
+                                   delete $r_tbh->{edit_cell};
+                                   delete $r_tbh->{edit_cells};
+                                   $Top->destroy;
+                                  }
+                 )->pack(-side=>'left', -fill=>'y');
+
+
+    $FrDn->Button(-text => 'abort',
+                 %std_button_options,
+                 -command => sub { delete $r_tbh->{edit_cell};
+                                   delete $r_tbh->{edit_cells};
+                                   $Top->destroy;
+                                  }
+                 )->pack(-side=>'left', -fill=>'y');
+
+    #$Top->Popup(-popover    => 'cursor');
+
+    $Top->bind('<Destroy>',
+               sub { delete $r_tbh->{edit_cell};
+                     delete $r_tbh->{edit_cells};
+                   }
+              );
+
+
+    $Entry->bind('<Return>',
+                 sub { foreach my $c (@{$r_tbh->{edit_cells}})
+                          { $TableWidget->set(
+                                           $c,
+                                           $r_tbh->{edit_cell});
+                          };
+                       delete $r_tbh->{edit_cell};
+                       delete $r_tbh->{edit_cells};
+                       $Top->destroy;
+                     }
+                );
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+
+  }
+
+# file dialog:
+#_______________________________________________________
 
 sub tk_save_to_file
 # note: $widget is not really needed, it's just here
@@ -3346,7 +3220,7 @@ sub tk_save_to_file
                                   extension=>'.dbt',
                                   #defaultdir=>$PrgDir,
                                   title=>'save table to *.dbt',
-                                  extension_description=> 
+                                  extension_description=>
                                               'browsedb table files');
 
     # warn "filename: $file ";
@@ -3437,7 +3311,7 @@ sub tk_export_csv
                                   extension=>'.csv',
                                   #defaultdir=>$PrgDir,
                                   title=>'export to csv',
-                                  extension_description=> 
+                                  extension_description=>
                                               'browsedb csv files');
 
 
@@ -3447,7 +3321,7 @@ sub tk_export_csv
     return if ($file=~ /^\s*$/);
 
     my $dbitable= $r_tbh->{dbitable};
-    
+
     $dbitable->export_csv($file, order_by=> $r_tbh->{sort_columns});
 
     # warn "$file was updated/created";
@@ -3465,7 +3339,7 @@ sub tk_import_csv
                                   extension=>'.csv',
                                   #defaultdir=>$PrgDir,
                                   title=>'load from csv',
-                                  extension_description=> 
+                                  extension_description=>
                                               'browsedb csv files');
 
 
@@ -3473,11 +3347,11 @@ sub tk_import_csv
     return if (!defined $file);
 
     return if ($file=~ /^\s*$/);
-    
+
     my $Table= $r_tbh->{table_widget};
 
     my $dbitable= $r_tbh->{dbitable};
-    
+
     $dbitable->import_csv($file);
 
     my $r_chg= $r_tbh->{changed_rows};
@@ -3507,277 +3381,8 @@ sub tk_import_csv
     $Table->configure(-padx => ($Table->cget('-padx')) );
   }
 
-
-sub tk_dump_global
-  { my($r_glbl)= @_;
-# ommit dumping the tables-structures completely
-
-    my %glbl_copy;
-    foreach my $k (keys %$r_glbl)
-      { if ($k eq 'all_tables')
-          { my $r_t= $r_glbl->{$k};
-            foreach my $tab_name (keys %$r_t)
-              { $glbl_copy{all_tables}->{$tab_name}= "REF TO TABLE-HASH"; }
-            next;
-          };
-        $glbl_copy{$k}= $r_glbl->{$k};
-      };
-
-    my $buffer;
-
-    rdump(\$buffer,\%glbl_copy,0);
-
-    tk_make_text_widget($r_glbl,"global datastructure dump",\$buffer);
-    
-  }
-
-sub tk_make_text_widget
-  { my($r_glbl,$title,$r_content)= @_;
-
-    my %text;
-
-    # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-
-    $text{Top}= $Top;
-
-    $Top->title("$title");
-
-    my $text;
-
-    # the Menu-Bar is now created in a way that works on
-    # windows to0. Note that this is a property of the
-    # top widget, $MnTop MUST NOT be packed
-    
-    my $MnTop= $Top->Menu();
-    $Top->configure(-menu => $MnTop );
-    
-    my $MnFile   = $MnTop->Menu();
-    my $MnSearch = $MnTop->Menu();
-    $MnTop->add('cascade',
-                -label=> 'File',
-                -underline   => 0,
-                -menu=> $MnFile
-               );
-    $MnTop->add('cascade',
-                -label=> 'Search',
-                -underline   => 0,
-                -menu=> $MnSearch
-               );
-
-    # configure File-menu:
-    $Top->bind($Top,'<Control-s>'=> [\&tk_text_save,$r_glbl,\%text]);
-    $MnFile->add('command',
-               -label=> 'save',
-               -accelerator => 'Control-s',
-               -underline   => 0,
-               -command=>  [\&tk_text_save,"",$r_glbl,\%text]
-              );
-
-    # configure search-menu:
-    $Top->bind($Top,'<Control-f>'=> [\&tk_text_search,$r_glbl,\%text]);
-    $MnSearch->add('command',
-                 -label=> 'find',
-                 -accelerator => 'Control-f',
-                 -underline   => 0,
-                 -command=> [\&tk_text_search,"",$r_glbl,\%text]
-              );
-
-
-    $Top->bind($Top,'<Control-g>'=>
-               [\&tk_text_search_next,$r_glbl,'next',\%text]);
-    $MnSearch->add('command',
-                 -label=> 'find next',
-                 -accelerator => 'Control-g',
-                 -command=> [\&tk_text_search_next,"",$r_glbl,'next',\%text]
-              );
-
-    $Top->bind($Top,'<Shift-Control-G>'=>
-              [\&tk_text_search_next,$r_glbl,'prev',\%text]);
-    $MnSearch->add('command',
-                 -label=> 'find prev',
-                 -accelerator => 'Shift-Control-G',
-                 -command=> [\&tk_text_search_next,"",$r_glbl,'prev',\%text]
-              );
-
-
-    my $text_widget=  $Top->Scrolled('Text',
-                                     -scrollbars=>"ose",
-                                    );
-
-    # ----------------------------------------------------
-    # special handling for Control Keyboard bindings:
-    # this is needed in order avoid that strange square chars
-    # appear in the text-widget whenever control characters are
-    # pressed:
-    my $fr_delchar= sub{$text_widget->delete('insert - 1 char')};
-
-    foreach my $key ('<Control-s>',
-                     # '<Control-f>', not on Ctrl-F!!
-                     '<Control-g>','<Shift-Control-G>')
-      { $text_widget->bind($key,$fr_delchar); };
-    # ----------------------------------------------------
-
-    $text{text_widget}= $text_widget;
-
-#    $text_widget->bind('<Control-s>'=> sub{ Tk->break(); } );
-#    $text_widget->bind('<Control-f>'=> sub{ Tk->break(); });
-#    $text_widget->bind('<Control-g>'=> sub{ Tk->break(); });
-#    $text_widget->bind('<Shift-Control-G>'=> sub{ Tk->break(); });
-    
-    $text_widget->insert('end',$$r_content) if (defined $r_content);
-
-    $text_widget->pack(-fill=>'both',expand=>'y');
-    
-    return(\%text);
-  }
-
-  
-sub tk_text_search
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { my($widget, $r_glbl,$r_text)= @_;
-  
-    my $text= $r_text->{text_widget};
-    
-    my $Top= $r_text->{Top}->Toplevel(-background=>$BG);
-    
-    $r_text->{search_widget}= $Top;
-    
-    $Top->title("search");
-    
-    my $Entry= $Top->Entry(-textvariable => \$r_text->{search},
-                           -width=>20
-                          )->pack(-side=>'left',-fill=>'x',-expand=>'y');
-
-
-    $Entry->bind('<Return>', 
-                 sub {
-                       my $r= $text->search(-count=> \$r_text->{search_cnt},
-                                            $r_text->{search},'1.0' 
-                                           );
-                       if (!$r)
-                          { my $s= $r_text->{search};
-                           $r_text->{search_widget}->destroy;
-                           delete $r_text->{search_widget};
-                           delete $r_text->{search};
-                           delete $r_text->{last_search};
-                           tk_err_dialog($r_glbl->{main_menu_widget},
-                                         "\"$s\" not found");
-                         }
-                       else
-                         { 
-                           $r_text->{last_found}= $r;
-                           $r_text->{last_search}= $r_text->{search};
-                           $text->see($r);
-                           $text->tagRemove('FOUNDTAG','1.0','end');
-                           $text->tagAdd('FOUNDTAG',
-                                         $r,
-                                         $r . '+ ' . $r_text->{search_cnt} .
-                                         ' chars');
-
-                           $text->tagConfigure('FOUNDTAG',-foreground=>'red');
-                           $r_text->{search_widget}->destroy;
-                           delete $r_text->{search_widget};
-                         };
-                     }
-                );
-                
-    $Top->bind('<Destroy>', 
-                 sub {
-                       delete $r_text->{search_widget};
-                       delete $r_text->{search};
-                     }
-                );
-
-    $Entry->focus();
-
-    $Top->Popup(-popover    => 'cursor');
-
-  }
-
-sub tk_text_search_next
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { my($widget, $r_glbl,$dir,$r_text)= @_;
-  
-    my $text= $r_text->{text_widget};
-    
-    if (!defined $r_text->{last_search})
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-                      "no search string specified");
-        return;
-      }
-   
-   
-    my @args= (-count, \$r_text->{search_cnt});
-    my $from;
-    if ($dir eq 'next')
-      { $from= $r_text->{last_found} . '+ ' . 
-               $r_text->{search_cnt} . ' chars';
-      }
-    else
-      { push @args, '-backwards'; 
-        $from= $r_text->{last_found} . '- 1 chars';
-      };
-      
-    my $r= $text->search(@args,
-                         $r_text->{last_search},
-                         $from
-                        );
-    if (!$r)
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-                      "not found");
-      };
-        
-        
-    $r_text->{last_found}= $r;
-    $text->see($r);
-    $text->tagRemove('FOUNDTAG','1.0','end');
-    $text->tagAdd('FOUNDTAG',
-                  $r,
-                  $r . '+ ' . $r_text->{search_cnt} .
-                  ' chars'
-                 );
-
-    $text->tagConfigure('FOUNDTAG',-foreground=>'red');         
-                                           
-  }
- 
-    
-
-sub tk_text_save
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { my($widget,$r_glbl,$r_text)= @_;
-  
-
-    my $file= tk_simple_file_menu(widget=> $r_text->{Top},
-                                  type=> 'save',
-                                  extension=>'.txt',
-                                  defaultdir=>$PrgDir,
-                                  title=>'save text',
-                                  extension_description=>
-                                              'ascii text files');
-
-    # warn "filename: $file ";
-    return if (!defined $file);
-    
-    my $text= $r_text->{text_widget}->get('1.0','end');
-    local(*F);
-    if (!open(F, ">$file"))
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-                      "unable to open $file for writing");
-        return; 
-      };
-    print F $text;
-    if (!close(F))    
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-                      "error while closing $file");
-        return; 
-      };
-  }
-
+# tableinfo window:
+#_______________________________________________________
 
 sub tk_table_info
  { my($r_glbl,$r_tbh)= @_;
@@ -3809,29 +3414,29 @@ sub tk_table_info
    my($object_name, $object_owner);
    if ($r_tbh->{table_type} ne 'sql')
      { ($object_name, $object_owner)=
-          dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name}); 
-       
-       my @dependents= 
+          dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
+
+       my @dependents=
               dbdrv::object_dependencies($dbh,$object_name,$object_owner);
        if (@dependents)
          { $text->insert('end',"\ndependents:\n");
            foreach my $r_s (@dependents)
-             { my $st= sprintf("%s.%s (%s)\n",@$r_s);         
+             { my $st= sprintf("%s.%s (%s)\n",@$r_s);
                $text->insert('end',$st);
              };
          };
-         
-       my @referenced=  
+
+       my @referenced=
              dbdrv::object_references($dbh,$object_name,$object_owner);
        if (@referenced)
          { $text->insert('end',"\nreferenced objects:\n");
            foreach my $r_s (@referenced)
-             { my $st= sprintf("%s.%s (%s)\n",@$r_s);         
+             { my $st= sprintf("%s.%s (%s)\n",@$r_s);
                $text->insert('end',$st);
              };
          };
-         
-       my @constraints_triggers=        
+
+       my @constraints_triggers=
              dbdrv::object_addicts($dbh,$object_name,$object_owner);
        if (@constraints_triggers)
          { $text->insert('end',"\nconstraints/triggers:\n");
@@ -3843,24 +3448,24 @@ sub tk_table_info
                  { $text->insert('end',"constraint-text:\n");
                    my $st= dbdrv::read_checktext($dbh,
                             $r_s->[0], $r_s->[1]);
-                   $text->insert('end',"$st\n");            
+                   $text->insert('end',"$st\n");
                  }
              };
          };
-         
+
 
      };
-   
+
    my $dbitable= $r_tbh->{dbitable};
    $str= "\nSQL command:\n" . $r_tbh->{dbitable}->{_fetch_cmd} . "\n";
 
    $text->insert('end',$str);
-   
+
    if ($r_tbh->{table_type} eq 'view')
-     { 
+     {
 #warn "$object_name, $object_owner";
        my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
-     
+
 #warn $sql;
 
        $str= "\nSQL command of the view:\n" . $sql. "\n";
@@ -3872,6 +3477,10 @@ sub tk_table_info
    tk_set_busy($r_glbl,0);
 
  }
+
+# dump routines:
+#_______________________________________________________
+
 
 sub tk_table_dump
  { my($r_glbl, $r_tbh)= @_;
@@ -3894,208 +3503,14 @@ sub tk_dbitable_dump
 
  }
 
-sub tk_object_dict_dump
- { my($r_glbl)= @_;
- 
-   my $r_buffer= dbdrv::dump_object_dict_s();
-
-   tk_make_text_widget($r_glbl,"object dictionary dump",$r_buffer);
-
- }
-
-sub tk_r_object_dict_dump
- { my($r_glbl)= @_;
-
-   my $r_buffer= dbdrv::dump_r_object_dict_s();
-
-   tk_make_text_widget($r_glbl,"reverse object dictionary dump",$r_buffer);
- }
-
-sub tk_wait_box
-  { my $r_glbl= shift;
-    my $action= shift;
-
-    $action=lc($action);
-    if ($action eq 'create')
-      { my($msg)= @_;
-
-        my $MyTop= MainWindow->new(-background=>$BG);
-
-        $r_glbl->{wait_box_widget}= $MyTop;
-        $MyTop->title("wait");
-        my $MsgWin= $MyTop->Message(-textvariable=> \$msg);
-        $r_glbl->{wait_box_text_ref}= \$msg;
-        $MsgWin->pack();
-        $MyTop->update();
-        return;
-      };
-    if ($action eq 'update')
-      { my($msg)= @_;
-        my $MyTop= $r_glbl->{wait_box_widget};
-
-        my $r_var= $r_glbl->{wait_box_text_ref};
-        if (!defined $r_var)
-          { tkdie($r_glbl,"assertion in line " . __LINE__); };
-        $$r_var= $msg;
-        $MyTop->update();
-        return;
-      };
-    if ($action eq 'destroy')
-      { my $MyTop= $r_glbl->{wait_box_widget};
-        if (!defined $MyTop)
-          { tkdie($r_glbl,"assertion in line " . __LINE__); };
-        $MyTop->destroy;
-        delete $r_glbl->{wait_box_text_ref};
-        delete $r_glbl->{wait_box_widget};
-        $MyTop->update();
-        return;
-      };
-    tkdie($r_glbl,"unknown action:$action in line " . __LINE__);
-  };
-
-
-
-
-sub tk_err_dialog
-  { my($parent,$message)= @_;
-
-    my $dialog= $parent->Dialog(
-                                 -title=>'Error',
-                                 -text=> $message
-                               );
-    $dialog->Show();
-  }
-
-sub dbiwarn
-# uses a global variable !!
-  {
-    tkwarn(\%global_data,@_);
-  }
-
-sub dbidie
-# uses a global variable !!
-  {
-#warn "dbidie was called";
-    tkdie(\%global_data,@_);
-  }
-
-sub tkdie
-  { my($r_glbl,$message)= @_;
-
-#warn "MSG:$message\n";
-
-    my $Top= $r_glbl->{main_menu_widget};
-    if (!defined $Top)
-      { $Top= $r_glbl->{login_widget}; };
-
-    #$Top->afterIdle([\&tkdie2,$Top,$message]);
-    tkdie2($Top,$message);
-  }
-
-sub tkdie2
-  { my($parent_widget,$message)= @_;
-
-    my $dialog= $parent_widget->Dialog(
-                                       -title=>'Fatal Error',
-                                       -text=> $message
-                                      );
-    $dialog->Show();
-    exit(0);
-  }
-
-sub tkwarn
-  { my($r_glbl,$message)= @_;
-
-    my $Top= $r_glbl->{main_menu_widget};
-    if (!defined $Top)
-      { $Top= $r_glbl->{login_widget}; };
-    my $dialog= $Top->Dialog(
-                             -title=>'warning',
-                             -text=> $message
-                            );
-    $dialog->Show();
-  }
-
-sub tk_update_window_menu
-  { my($r_glbl) =@_;
-    my $r_all_tables= $r_glbl->{all_tables};
-
-    my @all_table_names;
-
-    if (defined $r_all_tables)
-      { @all_table_names  = (sort keys %$r_all_tables); };
-
-    my $MnWindow= $r_glbl->{MainWindow}->{menu_windows_widget};
-    $MnWindow->delete(0,'end');
-
-    $MnWindow->add('command',
-                    -label=> 'raise all',
-                   -command =>
-                            sub { foreach my $win (@all_table_names)
-                                    { $r_all_tables->{$win}->
-                                           {top_widget}->raise();
-                                    };
-                                }
-                  );
-
-    foreach my $win (@all_table_names)
-      { $MnWindow->add('command',
-                       -label=> $win,
-                       -command =>
-                            sub { my $w= $r_all_tables->{$win}->{top_widget};
-                                  $w->raise();
-                                  $w->focus();
-                                }
-                      );
-      };
-  }
-
-sub cf_open_window
-  { my($parent_window, $r_glbl, $window_title, $geometry) = @_;
-    my $NewTop = $parent_window->Toplevel(-background=>$BG);
-
-    if (defined $geometry)
-      { $NewTop->geometry($geometry); };
-
-    $NewTop->configure(-title=>$window_title);
-
-    tk_update_window_menu($r_glbl);
-
-    $NewTop->eventAdd('<<Paste>>' => '<Control-v>');
-    $NewTop->eventAdd('<<Copy>>' => '<Control-c>');
-    $NewTop->eventAdd('<<Save>>' => '<Control-s>');
-    $NewTop->eventAdd('<<Quit>>' => '<Control-q>');
-
-    return $NewTop;
-  }
-
-sub cb_close_window
-# global variables used: NONE
- { my($parent_widget, $r_glbl, $r_tbh)= @_;
-
-    # $r_tbh->{top_widget}->destroy();
-
-    # remove the table-hash from the all_tables variable
-    # caution: a global variable is used !
-
-    my $r_all_tables= $r_glbl->{all_tables};
-
-    tkdie($r_glbl,"assertion in line " . __LINE__)
-     if (!defined $r_all_tables); #assertion
-
-    my $table_name= $r_tbh->{table_name};
-    conn_delete_table($r_glbl, $table_name);
-
-    delete $r_all_tables->{ $r_tbh->{table_name} };
-    tk_update_window_menu($r_glbl);
-# warn "Table $table_name successfully deleted !\n";
- }
+# resize column:
+#_______________________________________________________
 
 sub cb_resize_col
   { my($parent_widget, $r_glbl, $r_tbh, $mode, $at)= @_;
 
     my($row,$col)= split(",",$parent_widget->index('active'));
-    
+
     my $w= $parent_widget->colWidth($col);
     if ($mode eq 'inc')
       { $w++; }
@@ -4104,7 +3519,9 @@ sub cb_resize_col
     return if ($w<2);
     $parent_widget->colWidth($col,$w);
   }
-    
+
+# popup-menues:
+#_______________________________________________________
 
 sub cb_popup_menu
   { my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
@@ -4169,8 +3586,8 @@ sub cb_default_popup_menu
           { push @cell_attributes, 'primary_key'; };
       };
     if (exists $r_tbh->{col_maps}->{$colname})
-      { push @cell_attributes, 'column_map'; }; 
-    
+      { push @cell_attributes, 'column_map'; };
+
     my $r_wp_flags= $r_tbh->{write_protected_cols};
     if (defined $r_wp_flags->{$colname})
       { if ($r_wp_flags->{$colname} eq 'P')
@@ -4207,7 +3624,7 @@ sub popup_enable_disable
       { my $r_l= $r_enable_list->{$attr};
         if (defined $r_l)
           { foreach my $item (@$r_l)
-              { 
+              {
                 $entrystates[$r_items->{$item}]=1;
 
               };
@@ -4222,64 +3639,8 @@ sub popup_enable_disable
       };
   }
 
-sub table_hash_init_columns
- { my($r_tbh)= @_;
-
-   # get (or set-up) column_list, column_hash, column_no:
-
-   $r_tbh->{column_list} = [ $r_tbh->{dbitable}->column_list() ];
-   $r_tbh->{column_hash} = { $r_tbh->{dbitable}->column_hash() };
-   $r_tbh->{column_no}   = $#{$r_tbh->{column_list}} + 1;
-
-   $r_tbh->{column_width}= [ $r_tbh->{dbitable}->max_column_widths(5,25) ];
-
-   if (!exists $r_tbh->{displayed_cols})
-     { # when displayed_cols is not defined, display
-       # all columns as a default 
-       $r_tbh->{displayed_cols}= 
-                   { map{ $_=>1 } @{$r_tbh->{column_list}} };
-     };
-   
-   calc_visible_columns($r_tbh);
-  }
-
-sub table_window_tag_columns
- { my($r_tbh)= @_;
-   my $Table_Widget= $r_tbh->{table_widget};
-
-   my $r_col_hash= $r_tbh->{vis_column_hash};
-
-   # remove all cell attributes
-   for(my $i=0; $i< $r_tbh->{vis_column_no}; $i++)
-     { $Table_Widget->tagCol('', $i); };
-
-   # mark the primary key, it may not be edited
-   if (!$r_tbh->{no_pk_cols})
-     { foreach my $colname (@{$r_tbh->{pks}})
-         { next if (!exists $r_col_hash->{$colname});
-           $Table_Widget->tagCol('pk_cell', colname2col($r_tbh,$colname) );
-         };
-     };
-
-   foreach my $fk_col (keys % {$r_tbh->{foreign_key_hash}})
-     { next if (!exists $r_col_hash->{$fk_col});
-       $Table_Widget->tagCol('fk_cell', colname2col($r_tbh,$fk_col) );
-     };
-  }
-
-sub table_window_set_column_width
- { my($r_tbh)= @_;
-
-   my $Table_Widget= $r_tbh->{table_widget};
-
-   my $r_width= $r_tbh->{vis_column_width};
-
-   for(my $i=0; $i<= $#$r_width; $i++)
-     {
-       $Table_Widget->colWidth($i, $r_width->[$i] + 2);
-       # 2 characters more than the real maximum width
-     };
- }
+# manage visible columns:
+#_______________________________________________________
 
 sub cb_set_visible_columns
 # parameters in $r_tbh:
@@ -4317,7 +3678,7 @@ sub cb_set_visible_columns
 
 sub calc_visible_columns
  { my($r_tbh)= @_;
- 
+
    my $r_visible_columns= $r_tbh->{displayed_cols};
 
    my $r_col_hash    = $r_tbh->{column_hash};
@@ -4328,7 +3689,7 @@ sub calc_visible_columns
 
    if (exists($r_tbh->{vis_column_hash}))
      { %new_col_hash= %{ $r_tbh->{vis_column_hash} }; };
-     
+
    foreach my $c (keys %$r_visible_columns)
      { if ($r_visible_columns->{$c})
          { $new_col_hash{$c}=1; }        # make column visible
@@ -4352,9 +3713,12 @@ sub calc_visible_columns
    $r_tbh->{vis_column_width}= \@new_widths;
  }
 
+# export selection dialog:
+#_______________________________________________________
+
 sub cb_export_selection
  {  my($r_glbl, $r_tbh)= @_;
- 
+
     my $Table_Widget= $r_tbh->{table_widget};
 
     my $r_cells= $Table_Widget->curselection();
@@ -4380,7 +3744,7 @@ sub cb_export_selection
                                   extension=>'.csv',
                                   #defaultdir=>$PrgDir,
                                   title=>'export to csv',
-                                  extension_description=> 
+                                  extension_description=>
                                               'browsedb csv files');
 
 
@@ -4390,21 +3754,23 @@ sub cb_export_selection
     return if ($file=~ /^\s*$/);
 
     my $dbitable= $r_tbh->{dbitable};
-    
-    my @pk_selection= sort { $pk_selection{$a} <=>  $pk_selection{$b} } 
+
+    my @pk_selection= sort { $pk_selection{$a} <=>  $pk_selection{$b} }
                              (keys %pk_selection);
 
-    $dbitable->export_csv($file, 
+    $dbitable->export_csv($file,
                           #order_by=> $r_tbh->{sort_columns},
                           col_selection=> \@col_selection,
                           pk_selection => \@pk_selection
                          );
 
     # warn "$file was updated/created";
-       
-    
+
+
  }
 
+# open foreign table:
+#_______________________________________________________
 
 sub cb_open_foreign_table
  {  my($r_glbl, $r_tbh, $given_colname)= @_;
@@ -4476,6 +3842,8 @@ sub cb_open_foreign_table
       }
   }
 
+# handle browsing in tables:
+#_______________________________________________________
 
 sub cb_handle_browse
 # $oldrowcol may be empty !!
@@ -4530,6 +3898,9 @@ sub cb_handle_browse
      };
 
  }
+
+# "select THIS as foreign key" callback:
+#_______________________________________________________
 
 sub cb_select
 # global variables used: NONE
@@ -4605,13 +3976,13 @@ sub cb_select
                # take column-maps in the foreign table into account:
                my $flag= $res_tbh->{col_map_flags}->{$res_colname};
                if ($flag eq 'M') # map is active
-                 { my $r_h= 
+                 { my $r_h=
                       $res_tbh->{col_maps}->{$res_colname}->{key_to_str};
-                   
+
                    my $n= $r_h->{$value};
                    $value= $n if (defined $n);
                  };
-                 
+
                $Res_Table->set("$res_row,$res_col",$value);
                $found=1;
                last;
@@ -4629,6 +4000,9 @@ sub cb_select
      };
 
  }
+
+# copy and paste field callback:
+#_______________________________________________________
 
 sub cb_copy_paste_field
   { my($r_glbl,$r_tbh,$mode)= @_;
@@ -4660,6 +4034,9 @@ sub cb_copy_paste_field
           ", unknown mode: $mode");
   }
 
+# copy and paste line callback:
+#_______________________________________________________
+
 sub cb_copy_paste_line
   { my($r_glbl,$r_tbh,$mode)= @_;
 
@@ -4673,7 +4050,7 @@ sub cb_copy_paste_line
         my $pk= row2pk($r_tbh,$row);
         foreach my $colname (keys %{$r_tbh->{column_hash}})
           { # 1: use column-maps
-            $line{$colname}= put_get_val_direct($r_tbh,1,$pk,$colname); 
+            $line{$colname}= put_get_val_direct($r_tbh,1,$pk,$colname);
           };
 
         $r_tbh->{paste_linebuffer}= \%line;
@@ -4697,6 +4074,9 @@ sub cb_copy_paste_line
           ", unknown mode: $mode");
   }
 
+# put/get value callback:
+#_______________________________________________________
+
 sub cb_put_get_val
 # global variables used: NONE
 # if $visual, use visual column lists
@@ -4708,8 +4088,8 @@ sub cb_put_get_val
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
     if ($set)
-      { 
-# @@@@@@@@@@@@@@@@@@@@      
+      {
+# @@@@@@@@@@@@@@@@@@@@
         if ($r_tbh->{sim_put})
           { # just simulate the put, do nothing real
             delete $r_tbh->{sim_put};
@@ -4728,10 +4108,10 @@ sub cb_put_get_val
               { $r_tbh->{write_protected_cols}->{$colname}= 'P'; };
           };
 
-        
+
         chomp($val);
         my $putval= $val;
-        
+
         $flag= $r_tbh->{col_map_flags}->{$colname};
         if ($flag eq 'M') # column-map is active
           { my $r_h= $r_tbh->{col_maps}->{$colname}->{str_to_key};
@@ -4739,7 +4119,7 @@ sub cb_put_get_val
             if (defined $n)
               { $putval= $n; };
           };
-              
+
         $r_tbh->{dbitable}->value($pk,$colname,$putval);
         $r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
         $r_tbh->{table_widget}->tagCell('changed_cell',"$row,$col");
@@ -4749,9 +4129,9 @@ sub cb_put_get_val
       }
     else
       { my $flag= $r_tbh->{col_map_flags}->{$colname};
-      
+
         return($r_tbh->{dbitable}->value($pk,$colname)) if ($flag ne 'M');
-        
+
         my $r_h= $r_tbh->{col_maps}->{$colname}->{key_to_str};
         my $val= $r_tbh->{dbitable}->value($pk,$colname);
         return ("") if (!defined $val);
@@ -4766,11 +4146,11 @@ sub put_get_val_direct
 
     if (!$use_colmap)
       { return($r_tbh->{dbitable}->value($pk,$column,$val)); };
-      
+
     my $flag= $r_tbh->{col_map_flags}->{$column};
     if ($flag ne 'M')
       { return($r_tbh->{dbitable}->value($pk,$column,$val)); };
-    
+
     if (defined $val)
       { # set a value
         my $putval= $val;
@@ -4782,60 +4162,18 @@ sub put_get_val_direct
         return($val);
       }
     else
-      { # read a value 
+      { # read a value
         my $r_h= $r_tbh->{col_maps}->{$column}->{key_to_str};
         my $val= $r_tbh->{dbitable}->value($pk,$column);
         my $n= $r_h->{$val};
         return($n) if (defined $n);
         return($val);
-      };        
-              
+      };
+
   }
 
-sub rdump
-#internal
-  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
-
-    $comma= '' if (!defined $comma);
-
-    my $r= ref($val);
-    if (!$r)
-      { $val= "<undef>" if (!defined $val);
-        $$r_buf.= " " x $indent if ($is_newline);
-        $$r_buf.= "\'$val\'$comma\n";
-        return;
-      };
-    if ($r eq 'ARRAY')
-      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
-        $$r_buf.= "[ \n"; $indent+=2;
-        for(my $i=0; $i<= $#$val; $i++)
-          { rdump($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
-          };
-        $indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
-        return;
-      };
-    if ($r eq 'HASH')
-      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
-        $$r_buf.=  "{ \n"; $indent+=2;
-        my @k= sort keys %$val;
-        for(my $i=0; $i<= $#k; $i++)
-          { my $k= $k[$i];
-            my $st= (" " x $indent) . $k . " => ";
-            my $nindent= length($st);
-            if ($nindent-$indent > 20)
-              { $nindent= $indent+20; 
-                $st.= "\n" . (" " x $nindent)
-              };
-              
-            $$r_buf.= ($st);
-            rdump($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
-          };
-        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
-        return;
-      };
-    $$r_buf.=  " " x $indent if ($is_newline);
-    $$r_buf.=  "REF TO: \'$r\'$comma\n";
-  }
+# insert-line callback:
+#_______________________________________________________
 
 sub cb_insert_line
  { my($r_glbl,$r_tbh)= @_;
@@ -4852,7 +4190,7 @@ sub cb_insert_line
                      );
        return;
      };
-     
+
    if (!$r_glbl->{primary_key_auto_generate})
      { tk_simple_text_dialog($r_glbl,$r_tbh,
                              tag=> "primary_key_dialog",
@@ -4860,25 +4198,25 @@ sub cb_insert_line
                              text=> "enter a new primary key",
                              callback=> [\&cb_insert_line_check]
                             );
-       return;  
+       return;
      };
- 
+
    cb_insert_line_finish($r_glbl,$r_tbh,undef);
 
   }
 
 sub cb_insert_line_check
   { my($r_glbl,$r_tbh,$pk)= @_;
-  
+
     if (exists $r_tbh->{pk_hash}->{$pk})
-      { 
+      {
         tk_err_dialog($r_tbh->{table_widget},
                      "error: primary key \"$pk\" is already taken");
         return;
       };
     cb_insert_line_finish($r_glbl,$r_tbh,$pk);
-  }  
-  
+  }
+
 sub cb_insert_line_finish
  { my($r_glbl,$r_tbh,$pk)= @_;
    my @pk_cols;
@@ -4907,8 +4245,8 @@ sub cb_insert_line_finish
 
    if (defined $pk)
      { $h{ $r_tbh->{pks}->[0] } = $pk; };
-   
-   # if the primary key is specified in add_line, it 
+
+   # if the primary key is specified in add_line, it
    # will use that primary key and not a generated one
    my $new_pk= $dbitable->add_line(%h);
 
@@ -4923,6 +4261,9 @@ sub cb_insert_line_finish
    $Table->see("$row,$col");
 
  }
+
+# delete-line dialog:
+#_______________________________________________________
 
 sub tk_delete_line_dialog
   { my($r_tbh)= @_;
@@ -4980,6 +4321,8 @@ sub tk_delete_line_dialog
 
   }
 
+# store and load to/from database:
+#_______________________________________________________
 
 sub cb_store_db
 # global variables used: NONE
@@ -5018,7 +4361,7 @@ sub cb_reload_db
    my $Table= $r_tbh->{table_widget};
 
    tk_set_busy($r_glbl,1);
-   
+
    tk_remove_changed_cell_tag($r_tbh);
 
    $r_tbh->{dbitable}->load();
@@ -5040,23 +4383,14 @@ sub cb_reload_db
 # $Table->tag
 # $Table->tagCell(tagName, ?)
 
-sub resize_table
-# must be called, when the number of lines in the table
-# has changed
-# updates the table-hash and the table-widget
-  { my($r_tbh)= @_;
 
-    $r_tbh->{pk_list}= get_pk_list($r_tbh);
-    $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
-    $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
-
-    $r_tbh->{table_widget}->configure(-rows => $r_tbh->{row_no} + 1);
-  }
+# handle column-maps:
+#_______________________________________________________
 
 sub tk_define_col_map
 # define a map for a cell
   { my($r_glbl,$r_tbh,$column_name)= @_;
-  
+
     tk_simple_text_dialog($r_glbl,$r_tbh,
                           tag=> "col_map_sql_dialog",
                           title=> "define cell map",
@@ -5065,90 +4399,72 @@ sub tk_define_col_map
                                       $column_name]
                          );
   }
-  
-sub tk_define_col_map_finish 
+
+sub tk_define_col_map_finish
   { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
-  
+
     if (!set_column_map($r_glbl,$r_tbh,$sql_command,$column_name))
       { return; };
 
     # the following forces a redraw
     my $Table= $r_tbh->{table_widget};
     $Table->configure(-padx => ($Table->cget('-padx')) );
-          
-  }  
-  
-sub set_column_map
-  { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
-  
-    
-    my($r_key_to_str,$r_str_to_key)= 
-            get_column_map($r_glbl,$sql_command,$column_name);
 
-    return if (!defined $r_str_to_key);
-    
-    my %col_map;
-    $col_map{key_to_str} = $r_key_to_str;     
-    $col_map{str_to_key} = $r_str_to_key; 
-    $col_map{sql_command}= dbdrv::format_sql_command($sql_command);
-    
-    $r_tbh->{col_map_flags}->{$column_name}= 'M';
-    
-    $r_tbh->{col_maps}->{$column_name}= \%col_map;        
- 
-    return(1);
-  }  
- 
-sub column_has_a_map
-  { my($r_tbh,$column_name)= @_;
-  
-    return( exists $r_tbh->{col_maps}->{$column_name} );
   }
 
-sub get_column_map
-  { my($r_glbl,$sql_command,$column_name)= @_;
+# select foreign key from column-map dialog:
+#_______________________________________________________
 
-    $sql_command= dbdrv::format_sql_command($sql_command);
+sub tk_fk_select_dialog
+  { my($r_glbl,$r_tbh)= @_;
 
-    my $r_map_hash= $r_glbl->{map_hash};
-    if (!defined $r_map_hash)
-      { my %h;
-        $r_glbl->{map_hash}= \%h;
-        $r_map_hash= \%h;
+    my $TableWidget= $r_tbh->{table_widget};
+
+    my($row,$col)= split(",", $TableWidget->index('active'));
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+
+    my $r_map= $r_tbh->{col_maps}->{$colname};
+    return if (!defined $r_map);
+
+    my @values= sort keys %{ $r_map->{str_to_key} };
+
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "fk_select_dialog",
+                     title=> "select a value",
+                     items=> \@values,
+                     text => 'double-click to select',
+                     callback=> [\&tk_fk_select_dialog_finish,
+                                 $pk,$colname]
+                    );
+
+  }
+
+sub tk_fk_select_dialog_finish
+  { my($r_glbl,$r_tbh,$str,$pk,$colname)= @_;
+
+    my $flag= $r_tbh->{col_map_flags}->{$colname};
+    if ($flag ne 'M') # col-map is inactive
+      { my $r_h= $r_tbh->{col_maps}->{$colname}->{str_to_key};
+
+        my $n= $r_h->{$str};
+        if (!defined $n)
+          { warn "assertion!";
+            return;
+          };
+        $str= $n;
       };
 
-    if (exists $r_map_hash->{$sql_command})
-      { return($r_map_hash->{$sql_command}->{key_to_str},
-               $r_map_hash->{$sql_command}->{str_to_key}
-              );
-      };
+    # remove cell write-protection temporarily:
+    $r_tbh->{write_protected_cols}->{$colname}= 'T';
+    my($row,$col)= pkcolname2rowcol($r_tbh,$pk,$colname);
 
-    my $ntab= dbitable->new('view',$r_glbl->{dbh},
-                             'col_map_query',"",$sql_command
-                           );
-                            
-    $ntab->load();
-    return if (!defined $ntab);
- 
-    my @columns= $ntab->column_list();
-    my $c1= $columns[0];
-    my $c2= $columns[1];
-    
-    my $key;
-    my $str;
-    my %key_to_str;
-    my %str_to_key;
-    foreach my $pk ($ntab->primary_keys())
-      { $key= $ntab->value($pk,$c1);
-        $str= $ntab->value($pk,$c2);
-        $key_to_str{$key}= $str;
-        $str_to_key{$str}= $key;
-      };
+    my $Table= $r_tbh->{table_widget};
+    $Table->set("$row,$col",$str);
+  }
 
-    $r_map_hash->{$sql_command}->{key_to_str}= \%key_to_str;
-    $r_map_hash->{$sql_command}->{str_to_key}= \%str_to_key;
-    return(\%key_to_str,\%str_to_key);
-  }       
+
+# rewrite active cell (when value has changed):
+#_______________________________________________________
 
 sub tk_rewrite_active_cell
 # updates the active cell by re-writing the value
@@ -5169,6 +4485,9 @@ sub tk_rewrite_active_cell
     $Table->set("$row,$col",cb_put_get_val($r_tbh,0,$row,$col));
   }
 
+# activate cell (when value has changed):
+#_______________________________________________________
+
 sub tk_activate_cell
 # makes a cell active, given by column-name and value
   { my($r_tbh,$use_colmap,$colname,$value)= @_;
@@ -5186,7 +4505,7 @@ sub tk_activate_cell
                            exact=>1);
 #warn "search val $value, col $colname result $row";
 
-    
+
 #    if (!@pks)
 #      { tk_err_dialog($r_tbh->{table_widget},
 #                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
@@ -5203,7 +4522,7 @@ sub tk_activate_cell
     return if (!defined $row);
 
     my $col= colname2col($r_tbh,$colname);
-        
+
     my $Table= $r_tbh->{table_widget};
     $Table->activate("$row,$col");
 
@@ -5215,6 +4534,8 @@ sub tk_activate_cell
     $Table->yview($row-1);
   }
 
+# remove changed-cell tags:
+#_______________________________________________________
 
 sub tk_remove_changed_cell_tag
   { my($r_tbh)= @_;
@@ -5242,6 +4563,8 @@ sub tk_remove_changed_cell_tag
     $r_tbh->{changed_rows} = {};
   }
 
+# resort a table:
+#_______________________________________________________
 
 sub tk_resort_and_redisplay
 # global variables used: NONE
@@ -5286,6 +4609,1105 @@ sub tk_resort_and_redisplay
     $Table_widget->activate("$a_row,$a_col");
     $Table_widget->yview($a_row-1);
   }
+
+sub tk_sort_menu
+  { my($r_glbl, $r_tbh)= @_;
+
+    my %sort_popup;
+
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    $Top->title("sort $r_tbh->{table_name}");
+
+    $r_tbh->{sort_popup}= \%sort_popup;
+
+
+    my $MnPopup= $Top->Menu(-type=> 'normal', -tearoff=>0);
+
+    $sort_popup{popup_widget}= $MnPopup;
+
+    $MnPopup->add('command',
+                  -label=> 'move to top',
+                  -command => [\&tk_sort_mv_top, $r_tbh, 'top']
+                 );
+    $MnPopup->add('command',
+                  -label=> 'move up',
+                  -command => [\&tk_sort_mv_top, $r_tbh, 'up']
+                 );
+    $MnPopup->add('command',
+                  -label=> 'move down',
+                  -command => [\&tk_sort_mv_top, $r_tbh, 'down']
+                 );
+
+
+    my $Listbox = $Top->Scrolled(
+                                  "Listbox",
+                                  -scrollbars=>"oe",
+                                  #-width=>34,
+                                  -selectmode=>"browse",
+                                  -width=>0,
+                                  -height=>0,
+                                )->pack(-side=>'top',-fill=>'x',
+                                        expand=>'y');
+
+
+    $Top->Label(-text => "right-button click to move\n" .
+                         "close window to activate sort order"
+               )->pack(-side=>'top' ,-fill=>'x');
+
+
+    $sort_popup{listbox}= $Listbox;
+
+    $Listbox->insert("end",@{$r_tbh->{sort_columns}});
+
+    $Top->bind('<Destroy>', sub { delete $r_tbh->{sort_popup};
+                                  tk_resort_and_redisplay($r_tbh);
+                                }
+              );
+
+    $Listbox->bind('<3>',  [\&cb_sort_popup_menu, $r_glbl, $r_tbh, Ev('@')]);
+
+    $Top->Popup(-popover => "cursor",
+                    -popanchor => 'nw');
+
+  }
+
+sub cb_sort_popup_menu
+  { my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
+
+    my $r_popup= $r_tbh->{sort_popup};
+
+    my $MnPopup= $r_popup->{popup_widget};
+
+    $r_popup->{at}= $at;
+
+    $MnPopup->Popup(-popover => "cursor",
+                    -popanchor => 'nw');
+  }
+
+sub tk_sort_mv_top
+  { my($r_tbh,$mode)= @_;
+
+    my $r_sort_popup= $r_tbh->{sort_popup};
+
+    my $Listbox= $r_sort_popup->{listbox};
+
+    #my $col= $Listbox->get('active');
+
+
+    my $index= ($Listbox->curselection())[0];
+
+    if (!$index)
+      { # at is of the form "@x,y", this must be converted to
+        # a listbox-index:
+        $index= $Listbox->index($r_sort_popup->{at});
+      };
+
+    # now we can get the value of the column
+    my $col= $Listbox->get($index);
+
+    reorder_sort_columns($r_tbh,$col,$mode);
+    $Listbox->delete(0, 'end');
+    $Listbox->insert("end",@{$r_tbh->{sort_columns}});
+  }
+
+
+# collection dialogs:
+#_______________________________________________________
+
+sub tk_load_collection
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_glbl,$file)= @_;
+
+    my $Top= $r_glbl->{main_menu_widget};
+
+    if ((!defined $file) or (! -r $file))
+      {
+        $file= tk_simple_file_menu(widget=> $Top,
+                                  type=> 'load',
+                                  extension=>'.col',
+                                  defaultdir=>$PrgDir,
+                                  title=>'open collection',
+                                  extension_description=>
+                                              'browsedb collections');
+
+      }
+    # warn "filename: $file ";
+    return if (!defined $file);
+
+
+#print Dumper(\%save);
+#print join(" ",keys %save),"\n";
+    do $file;
+
+#print Dumper(\%save);
+#print join(" ",keys %save),"\n";
+
+    my $r_all_tables= $save{open_tables};
+
+    foreach my $tab (keys %$r_all_tables)
+      { my $r_dat= $r_all_tables->{$tab};
+
+
+        $r_dat->{tbh}= make_table_hash_and_window(
+                            $r_glbl,
+                             table_name=>$tab,
+                             table_type=>$r_dat->{table_type},
+                             sequel=> $r_dat->{sql},
+                             geometry=> $r_dat->{geometry},
+                             displayed_cols => $r_dat->{displayed_cols},
+                             sort_columns=> $r_dat->{sort_columns},
+                             col_map_flags=> $r_dat->{col_map_flags},
+                             col_maps=> $r_dat->{colmaps}
+                                                 );
+
+      };
+
+
+    foreach my $tab (keys %{$save{foreigners}})
+      { my $r_tbh= $r_all_tables->{$tab}->{tbh};
+
+        my $r_c= $save{foreigners}->{$tab};
+        foreach my $o_tab (keys %$r_c)
+          { my $r_columns= $r_c->{$o_tab};
+
+            my $f_col= $r_columns->[0];
+            for(my $i=1; $i<= $#$r_columns; $i++)
+              { conn_add($r_glbl,
+                         $tab,$r_columns->[$i],
+                         $o_tab,$f_col);
+
+                tk_mark_manual_foreign_key_col($r_tbh, $r_columns->[$i]);
+
+              };
+          };
+      };
+
+  }
+
+sub tk_save_collection
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  {
+    my($widget,$r_glbl)= @_;
+    local(*F);
+
+    my $Top= $r_glbl->{main_menu_widget};
+
+
+    my $file= tk_simple_file_menu(widget=> $Top,
+                                  type=> 'save',
+                                  extension=>'.col',
+                                  defaultdir=>$PrgDir,
+                                  title=>'save collection',
+                                  extension_description=>
+                                              'browsedb collections');
+
+    return if (!defined $file);
+
+    my $r_all_tables= $r_glbl->{all_tables};
+
+    my %open_tables;
+    foreach my $table_name ( keys %$r_all_tables )
+      { my $r_tbh= $r_all_tables->{$table_name};
+
+        my %dat= (table_type => $r_tbh->{table_type},
+                  sql        => $r_tbh->{dbitable}->{_fetch_cmd},
+                  geometry   => $r_tbh->{top_widget}->geometry(),
+                  displayed_cols => $r_tbh->{displayed_cols},
+                  sort_columns => $r_tbh->{sort_columns},
+                  col_map_flags=> $r_tbh->{col_map_flags},
+                 );
+
+        my %colmaps;
+        my $r_cm= $r_tbh->{col_maps};
+        if (defined $r_cm)
+          { foreach my $c (keys %$r_cm)
+              { $colmaps{$c}= $r_cm->{$c}->{sql_command}; };
+            $dat{colmaps}= \%colmaps;
+          };
+
+        $open_tables{$table_name}= \%dat;
+      };
+
+    $save{open_tables}= \%open_tables;
+    $save{foreigners} = $r_glbl->{foreigners};
+
+    #$save{residents}  = $r_glbl->{residents};
+
+    $Data::Dumper::Indent= 1;
+
+#    my $file= $PrgDir . join("_","/test",
+#                            $r_glbl->{db_driver},
+#                            $r_glbl->{db_source},
+#                            $r_glbl->{user});
+
+    open(F, ">$file") or die;
+    print F Data::Dumper->Dump([\%save], [qw(*save)]);
+    close(F);
+
+  }
+
+
+#=======================================================
+# routines that create Windows and Dialogs in a generic way
+#=======================================================
+
+# get text input from a simple entry field:
+#_______________________________________________________
+
+sub tk_simple_text_dialog
+# known options:
+# title
+# callback -> callback after something was selected
+# text -> text at the bottom of the widget
+# tag -> tag-name for the dialog data that
+#        is stored in the table-handle
+  { my($r_glbl,$r_tbh,%options)= @_;
+
+    my $tag= $options{tag};
+
+    die if (!defined $tag); # assertion
+
+    my %h;
+
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    $Top->title($options{title});
+
+    my $entry=
+       $Top->Entry(-textvariable => \$h{string},
+                   -width=>20
+                  )->pack(-side=>'top',-fill=>'x',-expand=>'y');
+
+    $entry->focus();
+
+    $Top->Label(-text => $options{text}
+               )->pack(-side=>'top' ,-fill=>'y',
+                      );
+
+
+    $Top->bind('<Return>',[ \&tk_simple_text_dialog_finish, $r_glbl,$r_tbh,$tag ]);
+
+    $Top->bind('<Destroy>',  sub {
+                                   delete $r_tbh->{$tag};
+                                 }
+              );
+
+    $h{top}     = $Top;
+    $h{callback}= $options{callback};
+
+    $r_tbh->{$tag}= \%h;
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+  }
+
+sub tk_simple_text_dialog_finish
+  { my($widget,$r_glbl,$r_tbh,$tag)= @_;
+
+    my $r_h = $r_tbh->{$tag};
+    my $Top = $r_h->{top};
+
+    my $str=  $r_h->{string};
+    chomp($str);
+
+    $Top->destroy;  # @@@@
+
+    my @callback= @{$r_h->{callback}};
+
+    delete $r_tbh->{$tag};
+
+    if (@callback)
+      { my $r_f= shift @callback;
+        &$r_f($r_glbl,$r_tbh,$str,@callback);
+      }
+  }
+
+
+# create a text-widget with a standard-menu:
+#_______________________________________________________
+
+
+sub tk_make_text_widget
+  { my($r_glbl,$title,$r_content)= @_;
+
+    my %text;
+
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+
+    $text{Top}= $Top;
+
+    $Top->title("$title");
+
+    my $text;
+
+    # the Menu-Bar is now created in a way that works on
+    # windows to0. Note that this is a property of the
+    # top widget, $MnTop MUST NOT be packed
+
+    my $MnTop= $Top->Menu();
+    $Top->configure(-menu => $MnTop );
+
+    my $MnFile   = $MnTop->Menu();
+    my $MnSearch = $MnTop->Menu();
+    $MnTop->add('cascade',
+                -label=> 'File',
+                -underline   => 0,
+                -menu=> $MnFile
+               );
+    $MnTop->add('cascade',
+                -label=> 'Search',
+                -underline   => 0,
+                -menu=> $MnSearch
+               );
+
+    # configure File-menu:
+    $Top->bind($Top,'<Control-s>'=> [\&tk_text_save,$r_glbl,\%text]);
+    $MnFile->add('command',
+               -label=> 'save',
+               -accelerator => 'Control-s',
+               -underline   => 0,
+               -command=>  [\&tk_text_save,"",$r_glbl,\%text]
+              );
+
+    # configure search-menu:
+    $Top->bind($Top,'<Control-f>'=> [\&tk_text_search,$r_glbl,\%text]);
+    $MnSearch->add('command',
+                 -label=> 'find',
+                 -accelerator => 'Control-f',
+                 -underline   => 0,
+                 -command=> [\&tk_text_search,"",$r_glbl,\%text]
+              );
+
+
+    $Top->bind($Top,'<Control-g>'=>
+               [\&tk_text_search_next,$r_glbl,'next',\%text]);
+    $MnSearch->add('command',
+                 -label=> 'find next',
+                 -accelerator => 'Control-g',
+                 -command=> [\&tk_text_search_next,"",$r_glbl,'next',\%text]
+              );
+
+    $Top->bind($Top,'<Shift-Control-G>'=>
+              [\&tk_text_search_next,$r_glbl,'prev',\%text]);
+    $MnSearch->add('command',
+                 -label=> 'find prev',
+                 -accelerator => 'Shift-Control-G',
+                 -command=> [\&tk_text_search_next,"",$r_glbl,'prev',\%text]
+              );
+
+
+    my $text_widget=  $Top->Scrolled('Text',
+                                     -scrollbars=>"ose",
+                                    );
+
+    # ----------------------------------------------------
+    # special handling for Control Keyboard bindings:
+    # this is needed in order avoid that strange square chars
+    # appear in the text-widget whenever control characters are
+    # pressed:
+    my $fr_delchar= sub{$text_widget->delete('insert - 1 char')};
+
+    foreach my $key ('<Control-s>',
+                     # '<Control-f>', not on Ctrl-F!!
+                     '<Control-g>','<Shift-Control-G>')
+      { $text_widget->bind($key,$fr_delchar); };
+    # ----------------------------------------------------
+
+    $text{text_widget}= $text_widget;
+
+#    $text_widget->bind('<Control-s>'=> sub{ Tk->break(); } );
+#    $text_widget->bind('<Control-f>'=> sub{ Tk->break(); });
+#    $text_widget->bind('<Control-g>'=> sub{ Tk->break(); });
+#    $text_widget->bind('<Shift-Control-G>'=> sub{ Tk->break(); });
+
+    $text_widget->insert('end',$$r_content) if (defined $r_content);
+
+    $text_widget->pack(-fill=>'both',expand=>'y');
+
+    return(\%text);
+  }
+
+
+sub tk_text_search
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget, $r_glbl,$r_text)= @_;
+
+    my $text= $r_text->{text_widget};
+
+    my $Top= $r_text->{Top}->Toplevel(-background=>$BG);
+
+    $r_text->{search_widget}= $Top;
+
+    $Top->title("search");
+
+    my $Entry= $Top->Entry(-textvariable => \$r_text->{search},
+                           -width=>20
+                          )->pack(-side=>'left',-fill=>'x',-expand=>'y');
+
+
+    $Entry->bind('<Return>',
+                 sub {
+                       my $r= $text->search(-count=> \$r_text->{search_cnt},
+                                            $r_text->{search},'1.0'
+                                           );
+                       if (!$r)
+                          { my $s= $r_text->{search};
+                           $r_text->{search_widget}->destroy;
+                           delete $r_text->{search_widget};
+                           delete $r_text->{search};
+                           delete $r_text->{last_search};
+                           tk_err_dialog($r_glbl->{main_menu_widget},
+                                         "\"$s\" not found");
+                         }
+                       else
+                         {
+                           $r_text->{last_found}= $r;
+                           $r_text->{last_search}= $r_text->{search};
+                           $text->see($r);
+                           $text->tagRemove('FOUNDTAG','1.0','end');
+                           $text->tagAdd('FOUNDTAG',
+                                         $r,
+                                         $r . '+ ' . $r_text->{search_cnt} .
+                                         ' chars');
+
+                           $text->tagConfigure('FOUNDTAG',-foreground=>'red');
+                           $r_text->{search_widget}->destroy;
+                           delete $r_text->{search_widget};
+                         };
+                     }
+                );
+
+    $Top->bind('<Destroy>',
+                 sub {
+                       delete $r_text->{search_widget};
+                       delete $r_text->{search};
+                     }
+                );
+
+    $Entry->focus();
+
+    $Top->Popup(-popover    => 'cursor');
+
+  }
+
+sub tk_text_search_next
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget, $r_glbl,$dir,$r_text)= @_;
+
+    my $text= $r_text->{text_widget};
+
+    if (!defined $r_text->{last_search})
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "no search string specified");
+        return;
+      }
+
+
+    my @args= (-count, \$r_text->{search_cnt});
+    my $from;
+    if ($dir eq 'next')
+      { $from= $r_text->{last_found} . '+ ' .
+               $r_text->{search_cnt} . ' chars';
+      }
+    else
+      { push @args, '-backwards';
+        $from= $r_text->{last_found} . '- 1 chars';
+      };
+
+    my $r= $text->search(@args,
+                         $r_text->{last_search},
+                         $from
+                        );
+    if (!$r)
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "not found");
+      };
+
+
+    $r_text->{last_found}= $r;
+    $text->see($r);
+    $text->tagRemove('FOUNDTAG','1.0','end');
+    $text->tagAdd('FOUNDTAG',
+                  $r,
+                  $r . '+ ' . $r_text->{search_cnt} .
+                  ' chars'
+                 );
+
+    $text->tagConfigure('FOUNDTAG',-foreground=>'red');
+
+  }
+
+sub tk_text_save
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_glbl,$r_text)= @_;
+
+
+    my $file= tk_simple_file_menu(widget=> $r_text->{Top},
+                                  type=> 'save',
+                                  extension=>'.txt',
+                                  defaultdir=>$PrgDir,
+                                  title=>'save text',
+                                  extension_description=>
+                                              'ascii text files');
+
+    # warn "filename: $file ";
+    return if (!defined $file);
+
+    my $text= $r_text->{text_widget}->get('1.0','end');
+    local(*F);
+    if (!open(F, ">$file"))
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "unable to open $file for writing");
+        return;
+      };
+    print F $text;
+    if (!close(F))
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "error while closing $file");
+        return;
+      };
+  }
+
+
+
+# a simple file menu for loading or storing of a file:
+#_______________________________________________________
+
+sub tk_simple_file_menu
+# options:
+# type: 'load' or 'save'
+# extension: extension
+# defaultdir: dir
+# title: title
+# extension_description
+# widget: parent widget
+  { my(%options)= @_;
+
+    my $ext= $options{extension};
+    die if (!defined $ext); #assertion
+    $ext=~ s/\.//;
+
+    my $type= $options{type};
+    die if (!defined $type); #assertion
+    die if (($type ne 'load') && ($type ne 'save'));
+
+    my $widget= $options{widget};
+    die if (!defined $widget);
+
+    my %args;
+
+    $args{-filetypes}= [ [$options{extension_description},"*.$ext",undef],
+                         ['All Files', '*',undef] ];
+
+    if (exists $options{defaultdir})
+      { $args{-initialdir}= $options{defaultdir}; };
+
+    if (exists $options{title})
+      { $args{-title}= $options{title}; };
+
+    $args{-defaultextension}= ".$ext";
+
+    if ($type eq 'load')
+      { return( $widget->getOpenFile(%args)); }
+    else
+      { my $file= $widget->getSaveFile(%args);
+        return if (!defined $file);
+        if ($file!~ /\.\w+$/)
+          { $file.= ".$ext"; };
+        return($file);
+      }
+  }
+
+
+# object-dialog, select an element in a list:
+#_______________________________________________________
+
+
+sub tk_object_dialog
+# known options:
+# title
+# items -> reference to a list of items
+# text -> text at the bottom of the widget
+# callback -> callback after something was selected
+# tag -> tag-name for the dialog data that is stored in the table-handle
+  { my($r_glbl,$r_tbh,%options)= @_;
+
+    my $tag= $options{tag};
+
+    die if (!defined $tag); # assertion
+
+    my %h;
+
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    $Top->title($options{title});
+
+    my $FrTop = $Top->Frame(-borderwidth=>2,
+                           -background=>$BG
+                           )->pack(-side=>'top' ,-fill=>'both',
+                                  -expand=>'y');
+
+    my $itemno=0;
+    if ($#{$options{items}} > 20)
+      { $itemno=20; };
+
+    my $Listbox= $FrTop->Scrolled( 'Listbox',
+                                   -scrollbars=>"oe",
+                                   -selectmode => 'single',
+                                   -width=>0,
+                                   -height=>$itemno);
+
+    $Listbox->insert('end', @{$options{items}});
+    $Listbox->pack(-fill=>'both',-expand=>'y');
+
+    $Top->bind('<Return>',
+               [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]);
+
+    $Listbox->bind('<Double-1>',
+                   [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]);
+
+    $Top->bind('<Destroy>', sub {
+                             delete $r_tbh->{$tag};
+                                }
+              );
+
+    $FrTop->Label(-text => $options{text}
+                 )->pack(-side=>'left' ,-fill=>'y',
+                        );
+
+    $h{top}     = $Top;
+    $h{listbox} = $Listbox;
+    $h{callback}= $options{callback};
+
+    $r_tbh->{$tag}= \%h;
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+  }
+
+sub tk_object_dialog_finish
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_glbl,$r_tbh,$tag)= @_;
+
+    my $r_h= $r_tbh->{$tag};
+
+    my $Top     = $r_h->{top};
+    my $Listbox = $r_h->{listbox};
+
+    my @selection= $Listbox->curselection();
+
+    if (!@selection)
+      { tk_err_dialog($Top, "nothing selected");
+        return;
+      };
+
+    my $obj= $Listbox->get($selection[0]);
+    $Top->destroy;  # @@@@
+
+    my @callback= @{$r_h->{callback}};
+
+    delete $r_tbh->{$tag};
+
+    if (@callback)
+      { my $r_f= shift @callback;
+        &$r_f($r_glbl,$r_tbh,$obj,@callback);
+      }
+  }
+
+#=======================================================
+# small Tk utilies:
+#=======================================================
+
+# delete last inserted char in text widget:
+#_______________________________________________________
+
+sub tk_delete_char
+  { $_[0]->delete('insert - 1 char'); }
+
+# remove useless key-bindings in text-widget:
+#_______________________________________________________
+
+sub tk_clear_undefkey
+  {
+    my @keys= ('<Control-1>', '<Control-2>', '<Control-3>', '<Control-4>',
+               '<Control-5>', '<Control-6>', '<Control-7>', '<Control-8>',
+               '<Control-9>', '<Control-0>', '<Control-q>', '<Control-r>',
+               '<Control-u>', '<Control-g>', '<Control-s>', '<Control-l>',
+               '<Control-m>');
+
+    my ($this_widget) = @_;
+    if (defined ($this_widget))
+      {
+        foreach my $k (@keys)
+          { $this_widget->bind($k => [\&tk_delete_char]); };
+      }
+  }
+
+# scroll-wheel:
+#_______________________________________________________
+
+sub tk_bind_scroll_wheel
+  { my($widget)= @_;
+
+    $widget->bind('<4>',['yview','scroll',-5,'units']);
+    $widget->bind('<5>',['yview','scroll', 5,'units']);
+
+    $widget->bind('<Shift-4>',['yview','scroll',-1,'units']);
+    $widget->bind('<Shift-5>',['yview','scroll', 1,'units']);
+
+    $widget->bind('<Control-4>',['yview','scroll',-1,'pages']);
+    $widget->bind('<Control-5>',['yview','scroll', 1,'pages']);
+
+  }
+
+
+# sand-clock:
+#_______________________________________________________
+
+sub tk_set_busy
+  { my($r_glbl,$val)= @_;
+
+    if (!$val)
+      { if (--$r_glbl->{busy_count} <=0)
+          { $r_glbl->{busy_count}=0;
+            $r_glbl->{main_menu_widget}->Unbusy(-recurse => 1);
+          };
+        return;
+      };
+
+    if ($r_glbl->{busy_count}++ <=0)
+      { $r_glbl->{main_menu_widget}->Busy(-recurse => 1);
+
+        if ($os ne "MsWin32")
+          { $r_glbl->{main_menu_widget}->grabRelease(); }
+        else
+          { $r_glbl->{main_menu_widget}->focus(); };
+      };
+  }
+
+# progress-bar:
+#_______________________________________________________
+
+sub tk_progress
+  { my($r_glbl,$val)= @_;
+
+#my ($p,$f,$l)= caller; print "**** $p $f $l\n";
+#my $x= $r_glbl->{main_menu_widget};
+#print "main-menu-widget: $x\n";
+    my $progress_widget= $r_glbl->{MainWindow}->{progress_widget};
+    return if (!defined $progress_widget);
+
+    $progress_widget->value($val);
+
+    #$r_glbl->{progress_widget}->update();
+    $r_glbl->{main_menu_widget}->update();
+  }
+
+# tracing:
+#_______________________________________________________
+
+sub dbi_sql_trace
+# uses a global variable !!
+  { my $Text= $global_data{sql_commands_widget};
+    $Text->insert('end',$_[0] . "\n");
+    $Text->see('end');
+  }
+
+# error-handling:
+#_______________________________________________________
+
+sub dbiwarn
+# uses a global variable !!
+  {
+    tkwarn(\%global_data,@_);
+  }
+
+sub dbidie
+# uses a global variable !!
+  {
+#warn "dbidie was called";
+    tkdie(\%global_data,@_);
+  }
+
+
+sub tkdie
+  { my($r_glbl,$message)= @_;
+
+#warn "MSG:$message\n";
+
+    my $Top= $r_glbl->{main_menu_widget};
+    if (!defined $Top)
+      { $Top= $r_glbl->{login_widget}; };
+
+    #$Top->afterIdle([\&tkdie2,$Top,$message]);
+    tkdie2($Top,$message);
+  }
+
+sub tkdie2
+  { my($parent_widget,$message)= @_;
+
+    my $dialog= $parent_widget->Dialog(
+                                       -title=>'Fatal Error',
+                                       -text=> $message
+                                      );
+    $dialog->Show();
+    exit(0);
+  }
+
+sub tk_err_dialog
+  { my($parent,$message)= @_;
+
+    my $dialog= $parent->Dialog(
+                                 -title=>'Error',
+                                 -text=> $message
+                               );
+    $dialog->Show();
+  }
+
+sub tkwarn
+  { my($r_glbl,$message)= @_;
+
+    my $Top= $r_glbl->{main_menu_widget};
+    if (!defined $Top)
+      { $Top= $r_glbl->{login_widget}; };
+    my $dialog= $Top->Dialog(
+                             -title=>'warning',
+                             -text=> $message
+                            );
+    $dialog->Show();
+  }
+
+
+#=======================================================
+# routines that do not create menues or windows:
+#=======================================================
+
+# find a value in a table:
+#_______________________________________________________
+
+sub find_next_col
+# searches a value in a given column
+# returns the row-number or undef
+# known options:
+# string => $string or reference to a string
+# colname=> $colname
+# from => "current","top"
+# direction=> 'down', 'up'
+# exact => 1 or undef
+# use_colmap => 1 (0 is default)
+# NOTE: row 0 is the heading!!!
+  { my($r_tbh,%options)= @_;
+
+    my $Table= $r_tbh->{table_widget};
+
+    my $str= $options{string};
+    if (ref($str))
+      { $str= $$str; };
+
+    my $dir= ($options{direction} eq 'down') ? 1 : -1;
+
+    my $max= $r_tbh->{row_no};
+    my $colname= $options{colname};
+
+    my $use_colmap= $options{use_colmap};
+
+    my $row;
+    if ($options{from} eq 'top')
+      { $row=0;
+      }
+    else
+      { my $c;
+        ($row,$c)= split(",",$Table->index('active'));
+      };
+
+    if ($options{exact})
+      {
+        # make things faster if the column to search is
+        # a primary key column:
+        if (exists $r_tbh->{pks_h}->{$colname}) # it's a primary key
+          { if ($#{$r_tbh->{pks}}==0) # only one primary key
+              {
+                return($r_tbh->{pk_hash}->{$str});
+              };
+          };
+
+        return if (!defined $str);
+
+        for(my $i=0; $i<$max; $i++)
+          { $row+= $dir;
+            if    ($row<=0)
+              { $row= $max; }
+            elsif ($row>$max)
+              { $row=1; };
+
+            if (put_get_val_direct($r_tbh,$use_colmap,
+                                   row2pk($r_tbh,$row),$colname) eq $str)
+              { return($row); };
+          };
+      }
+    else
+      {
+        for(my $i=0; $i<$max; $i++)
+          { $row+= $dir;
+            if    ($row<=0)
+              { $row= $max; }
+            elsif ($row>$max)
+              { $row=1; };
+            if (put_get_val_direct($r_tbh,$use_colmap,
+                                   row2pk($r_tbh,$row),$colname)=~/$str/)
+              { return($row); };
+          };
+      };
+    return;
+  }
+
+# handle column-maps:
+#_______________________________________________________
+
+sub set_column_map
+  { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
+
+
+    my($r_key_to_str,$r_str_to_key)=
+            get_column_map($r_glbl,$sql_command,$column_name);
+
+    return if (!defined $r_str_to_key);
+
+    my %col_map;
+    $col_map{key_to_str} = $r_key_to_str;
+    $col_map{str_to_key} = $r_str_to_key;
+    $col_map{sql_command}= dbdrv::format_sql_command($sql_command);
+
+    $r_tbh->{col_map_flags}->{$column_name}= 'M';
+
+    $r_tbh->{col_maps}->{$column_name}= \%col_map;
+
+    return(1);
+  }
+
+sub column_has_a_map
+  { my($r_tbh,$column_name)= @_;
+
+    return( exists $r_tbh->{col_maps}->{$column_name} );
+  }
+
+sub get_column_map
+  { my($r_glbl,$sql_command,$column_name)= @_;
+
+    $sql_command= dbdrv::format_sql_command($sql_command);
+
+    my $r_map_hash= $r_glbl->{map_hash};
+    if (!defined $r_map_hash)
+      { my %h;
+        $r_glbl->{map_hash}= \%h;
+        $r_map_hash= \%h;
+      };
+
+    if (exists $r_map_hash->{$sql_command})
+      { return($r_map_hash->{$sql_command}->{key_to_str},
+               $r_map_hash->{$sql_command}->{str_to_key}
+              );
+      };
+
+    my $ntab= dbitable->new('view',$r_glbl->{dbh},
+                             'col_map_query',"",$sql_command
+                           );
+
+    $ntab->load();
+    return if (!defined $ntab);
+
+    my @columns= $ntab->column_list();
+    my $c1= $columns[0];
+    my $c2= $columns[1];
+
+    my $key;
+    my $str;
+    my %key_to_str;
+    my %str_to_key;
+    foreach my $pk ($ntab->primary_keys())
+      { $key= $ntab->value($pk,$c1);
+        $str= $ntab->value($pk,$c2);
+        $key_to_str{$key}= $str;
+        $str_to_key{$str}= $key;
+      };
+
+    $r_map_hash->{$sql_command}->{key_to_str}= \%key_to_str;
+    $r_map_hash->{$sql_command}->{str_to_key}= \%str_to_key;
+    return(\%key_to_str,\%str_to_key);
+  }
+
+sub load_column_maps
+  { my($r_glbl,$file)= @_;
+
+    local(*F);
+    my %h;
+
+    if (!-e $file)
+      { return; };
+
+    if (!open(F, $file))
+      { warn "opening of the column-map file failed";
+        return;
+      };
+    while(my $line=<F>)
+      { chomp($line);
+        my ($table,$col,$sql) = &parse_line('\s+', 0, $line);
+        if (!defined $sql)
+          { warn "column-map entry ignored:\n$line\n";
+            next;
+          };
+        $table= uc($table);
+        $col  = uc($col);
+        $h{$table}->{$col}= dbdrv::format_sql_command($sql);
+      };
+    close(F);
+    return(\%h);
+  }
+
+sub add_to_column_maps
+  { my($r_glbl,$r_tbh,$file)= @_;
+
+    local(*F);
+
+    my $r_colmaps= $r_tbh->{col_maps};
+    return if (!defined $r_colmaps);
+
+    my $r_h= load_column_maps($r_glbl,$file);
+
+    my $tablename= $r_tbh->{table_name};
+    foreach my $col (keys %$r_colmaps)
+      { $r_h->{$tablename}->{$col}= $r_colmaps->{$col}->{sql_command}; };
+    if (-e $file)
+      { if (system("mv $file $file.old"))
+          { warn "unable to make safety copy, aborted!";
+            return;
+          };
+      };
+    if (!open(F, ">$file"))
+      { warn "unable to write file!\n";
+      };
+
+    foreach my $table (sort keys %$r_h)
+      { my $r_c= $r_h->{$table};
+        foreach my $col (sort keys %$r_c)
+          { printf F "%-10s %-10s \"%s\"\n",$table,$col,$r_c->{$col};
+          };
+      };
+    if (!close(F))
+      { warn "unable to write file!\n";
+      };
+
+    $r_glbl->{column_map_definitions}= $r_h;
+  }
+
+
+# convert primary-key,column-name <--> indices:
+#_______________________________________________________
 
 sub colname2col
 # map column-name to column-index
@@ -5340,25 +5762,25 @@ sub get_pk_list
   { my($r_tbh)= @_;
 
     my @pk;
-    
+
     if ($r_tbh->{table_order})
       { @pk= $r_tbh->{dbitable}->primary_keys(order_native=>1); }
     else
       { my %col_hash;
         my $r_h= $r_tbh->{col_map_flags};
         my $r_colmaps= $r_tbh->{col_maps};
-        
+
         foreach my $c (keys %$r_h)
           { next if ($r_h->{$c} ne 'M');
             $col_hash{$c}= $r_colmaps->{$c}->{key_to_str};
           };
-      
+
         @pk= $r_tbh->{dbitable}->primary_keys(
                              order_by=> $r_tbh->{sort_columns},
                              col_maps=> \%col_hash
                                              );
       };
-      
+
 #warn "sort order:" . join ("|",@{$r_tbh->{sort_columns}});
     return(\@pk);
   }
@@ -5372,6 +5794,8 @@ sub calc_pk2index
     return(\%pkh);
   }
 
+# sorting:
+#_______________________________________________________
 
 sub initialize_sort_columns
   { my($r_tbh)= @_;
@@ -5423,9 +5847,12 @@ sub reorder_sort_columns
         splice( @$r_cols,$i+1,0,$col_name);
       }
     else
-      { die "unknown mode: $mode"; # assertion 
+      { die "unknown mode: $mode"; # assertion
       };
   }
+
+# load from database:
+#_______________________________________________________
 
 sub get_dbitable
 # global variables used: $sim_oracle_access
@@ -5436,7 +5863,7 @@ sub get_dbitable
 #   dbh          => $database_handle
 #   table_name   => $table_name
 #   table_type   => $type, $type either 'table','view', 'sql' or
-#                   'table_or_view' 
+#                   'table_or_view'
 #   table_filter => $WHERE_part
 #        $WHERE_part is added after "WHERE" to the SQL fetch command
 #        this is not allowed for the type "sql" (see above)
@@ -5500,6 +5927,41 @@ sub get_dbitable
     return($ntab);
   }
 
+# string utilities:
+#_______________________________________________________
+
+sub same_start
+# in a list of strings returns the longest
+# substring that all strings start with
+  { my($r_list)= @_;
+    my $charno;
+
+    return if ($#$r_list<0);
+
+    return( $r_list->[0]) if ($#$r_list==0);
+
+    my $len= length($r_list->[0]);
+    my $loop=1;
+
+    $charno=-1;
+    $loop=1;
+
+    while(($charno<$len) & $loop)
+      { $charno++;
+        my $c= substr($r_list->[0],$charno,1);
+        for(my $i=1; $i<= $#$r_list; $i++)
+          { if ( substr($r_list->[$i],$charno,1) ne $c)
+              { $charno--; $loop=0; last; };
+          };
+      };
+    if ($charno<0)
+      { return; };
+    return( substr($r_list->[0],0,$charno+1) );
+  }
+
+# handle connection lists:
+#_______________________________________________________
+
 sub conn_add
 # $r_table must be a string !
   { my($r_glbl,$r_table,$r_col,$f_table,$f_col)= @_;
@@ -5520,7 +5982,7 @@ sub conn_add
       };
 
     push @$r_list, $r_col;
-    
+
   }
 
 sub conn_delete_table
@@ -5601,424 +6063,52 @@ sub conn_f_find
     return($r_residents);
   }
 
-sub same_start
-# in a list of strings returns the longest
-# substring that all strings start with
-  { my($r_list)= @_;
-    my $charno;
+# recursive dump:
+#_______________________________________________________
 
-    return if ($#$r_list<0);
+sub rdump
+#internal
+  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
 
-    return( $r_list->[0]) if ($#$r_list==0);
+    $comma= '' if (!defined $comma);
 
-    my $len= length($r_list->[0]);
-    my $loop=1;
-
-    $charno=-1;
-    $loop=1;
-
-    while(($charno<$len) & $loop)
-      { $charno++;
-        my $c= substr($r_list->[0],$charno,1);
-        for(my $i=1; $i<= $#$r_list; $i++)
-          { if ( substr($r_list->[$i],$charno,1) ne $c)
-              { $charno--; $loop=0; last; };
-          };
-      };
-    if ($charno<0)
-      { return; };
-    return( substr($r_list->[0],0,$charno+1) );
-  }
-
-sub load_column_maps
-  { my($r_glbl,$file)= @_;
-    
-    local(*F);
-    my %h;
-    
-    if (!-e $file)
-      { return; };
-
-    if (!open(F, $file))
-      { warn "opening of the column-map file failed";
+    my $r= ref($val);
+    if (!$r)
+      { $val= "<undef>" if (!defined $val);
+        $$r_buf.= " " x $indent if ($is_newline);
+        $$r_buf.= "\'$val\'$comma\n";
         return;
       };
-    while(my $line=<F>)
-      { chomp($line);
-        my ($table,$col,$sql) = &parse_line('\s+', 0, $line);
-        if (!defined $sql)
-          { warn "column-map entry ignored:\n$line\n"; 
-            next;
+    if ($r eq 'ARRAY')
+      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
+        $$r_buf.= "[ \n"; $indent+=2;
+        for(my $i=0; $i<= $#$val; $i++)
+          { rdump($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
           };
-        $table= uc($table);
-        $col  = uc($col);  
-        $h{$table}->{$col}= dbdrv::format_sql_command($sql);
+        $indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
+        return;
       };
-    close(F);
-    return(\%h);
-  }    
-
-sub add_to_column_maps
-  { my($r_glbl,$r_tbh,$file)= @_;
- 
-    local(*F);
-    
-    my $r_colmaps= $r_tbh->{col_maps};
-    return if (!defined $r_colmaps);
-    
-    my $r_h= load_column_maps($r_glbl,$file);
-    
-    my $tablename= $r_tbh->{table_name};
-    foreach my $col (keys %$r_colmaps)
-      { $r_h->{$tablename}->{$col}= $r_colmaps->{$col}->{sql_command}; };
-    if (-e $file)
-      { if (system("mv $file $file.old"))
-          { warn "unable to make safety copy, aborted!";
-            return;
-          };
-      };
-    if (!open(F, ">$file"))
-      { warn "unable to write file!\n";
-      }; 
-       
-    foreach my $table (sort keys %$r_h)
-      { my $r_c= $r_h->{$table};
-        foreach my $col (sort keys %$r_c)
-          { printf F "%-10s %-10s \"%s\"\n",$table,$col,$r_c->{$col}; 
-          };
-      };
-    if (!close(F))
-      { warn "unable to write file!\n";
-      };
-       
-    $r_glbl->{column_map_definitions}= $r_h;
-  }
-        
-
-sub tk_load_collection
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { my($widget,$r_glbl,$file)= @_;
-
-    my $Top= $r_glbl->{main_menu_widget};
-
-    if ((!defined $file) or (! -r $file))
-      {
-        $file= tk_simple_file_menu(widget=> $Top,
-                                  type=> 'load',
-                                  extension=>'.col',
-                                  defaultdir=>$PrgDir,
-                                  title=>'open collection',
-                                  extension_description=>
-                                              'browsedb collections');
-
-      }
-    # warn "filename: $file ";
-    return if (!defined $file);
-
-
-#print Dumper(\%save);
-#print join(" ",keys %save),"\n";
-    do $file;
-
-#print Dumper(\%save);
-#print join(" ",keys %save),"\n";
-
-    my $r_all_tables= $save{open_tables};
-
-    foreach my $tab (keys %$r_all_tables)
-      { my $r_dat= $r_all_tables->{$tab};
-
-
-        $r_dat->{tbh}= make_table_hash_and_window(
-                            $r_glbl,
-                             table_name=>$tab,
-                             table_type=>$r_dat->{table_type},
-                             sequel=> $r_dat->{sql},
-                             geometry=> $r_dat->{geometry},
-                             displayed_cols => $r_dat->{displayed_cols},
-                             sort_columns=> $r_dat->{sort_columns},
-                             col_map_flags=> $r_dat->{col_map_flags},
-                             col_maps=> $r_dat->{colmaps}
-                                                 );
-
-      };
-
-
-    foreach my $tab (keys %{$save{foreigners}})
-      { my $r_tbh= $r_all_tables->{$tab}->{tbh};
-                
-        my $r_c= $save{foreigners}->{$tab};
-        foreach my $o_tab (keys %$r_c)
-          { my $r_columns= $r_c->{$o_tab};
-          
-            my $f_col= $r_columns->[0];
-            for(my $i=1; $i<= $#$r_columns; $i++)
-              { conn_add($r_glbl,
-                         $tab,$r_columns->[$i],
-                         $o_tab,$f_col);
-                
-                tk_mark_manual_foreign_key_col($r_tbh, $r_columns->[$i]);
-
+    if ($r eq 'HASH')
+      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
+        $$r_buf.=  "{ \n"; $indent+=2;
+        my @k= sort keys %$val;
+        for(my $i=0; $i<= $#k; $i++)
+          { my $k= $k[$i];
+            my $st= (" " x $indent) . $k . " => ";
+            my $nindent= length($st);
+            if ($nindent-$indent > 20)
+              { $nindent= $indent+20;
+                $st.= "\n" . (" " x $nindent)
               };
+
+            $$r_buf.= ($st);
+            rdump($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
           };
+        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
+        return;
       };
-
-  }
-
-sub tk_save_collection
-# note: $widget is not really needed, it's just here
-# since  this function can be called from via <bind>
-  { 
-    my($widget,$r_glbl)= @_;
-    local(*F);
-    
-    my $Top= $r_glbl->{main_menu_widget};
-
-
-    my $file= tk_simple_file_menu(widget=> $Top,
-                                  type=> 'save',
-                                  extension=>'.col',
-                                  defaultdir=>$PrgDir,
-                                  title=>'save collection',
-                                  extension_description=> 
-                                              'browsedb collections');
-
-    return if (!defined $file);
-
-    my $r_all_tables= $r_glbl->{all_tables};
-    
-    my %open_tables;
-    foreach my $table_name ( keys %$r_all_tables )
-      { my $r_tbh= $r_all_tables->{$table_name};
-        
-        my %dat= (table_type => $r_tbh->{table_type},
-                  sql        => $r_tbh->{dbitable}->{_fetch_cmd},
-                  geometry   => $r_tbh->{top_widget}->geometry(),
-                  displayed_cols => $r_tbh->{displayed_cols},
-                  sort_columns => $r_tbh->{sort_columns},
-                  col_map_flags=> $r_tbh->{col_map_flags},
-                 );
-                 
-        my %colmaps;
-        my $r_cm= $r_tbh->{col_maps};
-        if (defined $r_cm)
-          { foreach my $c (keys %$r_cm)
-              { $colmaps{$c}= $r_cm->{$c}->{sql_command}; };
-            $dat{colmaps}= \%colmaps;
-          };     
-        
-        $open_tables{$table_name}= \%dat;
-      };
-    
-    $save{open_tables}= \%open_tables;
-    $save{foreigners} = $r_glbl->{foreigners};
-    
-    #$save{residents}  = $r_glbl->{residents};
-    
-    $Data::Dumper::Indent= 1;
-    
-#    my $file= $PrgDir . join("_","/test",
-#                            $r_glbl->{db_driver},
-#                            $r_glbl->{db_source},
-#                            $r_glbl->{user});
-    
-    open(F, ">$file") or die;
-    print F Data::Dumper->Dump([\%save], [qw(*save)]);
-    close(F);
-  
-  }
-
-sub tk_simple_file_menu
-# options:
-# type: 'load' or 'save'
-# extension: extension
-# defaultdir: dir
-# title: title
-# extension_description
-# widget: parent widget
-  { my(%options)= @_;
-  
-    my $ext= $options{extension};
-    die if (!defined $ext); #assertion
-    $ext=~ s/\.//;
-    
-    my $type= $options{type};
-    die if (!defined $type); #assertion
-    die if (($type ne 'load') && ($type ne 'save'));
-    
-    my $widget= $options{widget};
-    die if (!defined $widget);
-  
-    my %args;
-    
-    $args{-filetypes}= [ [$options{extension_description},"*.$ext",undef],
-                         ['All Files', '*',undef] ];
-                     
-    if (exists $options{defaultdir})
-      { $args{-initialdir}= $options{defaultdir}; };
-
-    if (exists $options{title})
-      { $args{-title}= $options{title}; };
-    
-    $args{-defaultextension}= ".$ext";
-    
-    if ($type eq 'load')
-      { return( $widget->getOpenFile(%args)); }
-    else  
-      { my $file= $widget->getSaveFile(%args);
-        return if (!defined $file);
-        if ($file!~ /\.\w+$/)
-          { $file.= ".$ext"; };
-        return($file);
-      }
-  }
-
-sub tk_fk_select_dialog
-  { my($r_glbl,$r_tbh)= @_;
-
-    my $TableWidget= $r_tbh->{table_widget};
-    
-    my($row,$col)= split(",", $TableWidget->index('active'));
-    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
-    
-    my $r_map= $r_tbh->{col_maps}->{$colname};
-    return if (!defined $r_map);
-    
-    my @values= sort keys %{ $r_map->{str_to_key} };
-
-    tk_object_dialog($r_glbl,$r_tbh,
-                     tag=> "fk_select_dialog",
-                     title=> "select a value",
-                     items=> \@values,
-                     text => 'double-click to select',
-                     callback=> [\&tk_fk_select_dialog_finish,
-                                 $pk,$colname]
-                    );
-            
-  }
-
-sub tk_fk_select_dialog_finish
-  { my($r_glbl,$r_tbh,$str,$pk,$colname)= @_;
-  
-    my $flag= $r_tbh->{col_map_flags}->{$colname};
-    if ($flag ne 'M') # col-map is inactive
-      { my $r_h= $r_tbh->{col_maps}->{$colname}->{str_to_key};
-
-        my $n= $r_h->{$str};
-        if (!defined $n)
-          { warn "assertion!";
-            return;
-          };
-        $str= $n;  
-      };       
-    
-    # remove cell write-protection temporarily:
-    $r_tbh->{write_protected_cols}->{$colname}= 'T';
-    my($row,$col)= pkcolname2rowcol($r_tbh,$pk,$colname);
-    
-    my $Table= $r_tbh->{table_widget};
-    $Table->set("$row,$col",$str);
-  }
- 
-sub tk_sort_menu  
-  { my($r_glbl, $r_tbh)= @_;
-  
-    my %sort_popup;
-    
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $Top->title("sort $r_tbh->{table_name}");
-    
-    $r_tbh->{sort_popup}= \%sort_popup;
-    
-
-    my $MnPopup= $Top->Menu(-type=> 'normal', -tearoff=>0);
-    
-    $sort_popup{popup_widget}= $MnPopup;
-
-    $MnPopup->add('command',
-                  -label=> 'move to top',
-                  -command => [\&tk_sort_mv_top, $r_tbh, 'top']
-                 );  
-    $MnPopup->add('command',
-                  -label=> 'move up',
-                  -command => [\&tk_sort_mv_top, $r_tbh, 'up']
-                 );  
-    $MnPopup->add('command',
-                  -label=> 'move down',
-                  -command => [\&tk_sort_mv_top, $r_tbh, 'down']
-                 );  
-                                    
-    
-    my $Listbox = $Top->Scrolled(
-                                  "Listbox",
-                                  -scrollbars=>"oe",
-                                  #-width=>34,
-                                  -selectmode=>"browse",
-                                  -width=>0,
-                                  -height=>0,
-                                )->pack(-side=>'top',-fill=>'x',
-                                        expand=>'y');
-    
-
-    $Top->Label(-text => "right-button click to move\n" .
-                         "close window to activate sort order"
-               )->pack(-side=>'top' ,-fill=>'x');
-
-
-    $sort_popup{listbox}= $Listbox;
-
-    $Listbox->insert("end",@{$r_tbh->{sort_columns}}); 
-    
-    $Top->bind('<Destroy>', sub { delete $r_tbh->{sort_popup}; 
-                                  tk_resort_and_redisplay($r_tbh);
-                                }
-              );
-    
-    $Listbox->bind('<3>',  [\&cb_sort_popup_menu, $r_glbl, $r_tbh, Ev('@')]);
-
-    $Top->Popup(-popover => "cursor",
-                    -popanchor => 'nw');
-
-  }
-
-sub cb_sort_popup_menu
-  { my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
-  
-    my $r_popup= $r_tbh->{sort_popup};
-    
-    my $MnPopup= $r_popup->{popup_widget};
-    
-    $r_popup->{at}= $at;
-
-    $MnPopup->Popup(-popover => "cursor",
-                    -popanchor => 'nw');
-  }    
-    
-sub tk_sort_mv_top
-  { my($r_tbh,$mode)= @_;
-  
-    my $r_sort_popup= $r_tbh->{sort_popup};
-
-    my $Listbox= $r_sort_popup->{listbox};
-    
-    #my $col= $Listbox->get('active');
-
-    
-    my $index= ($Listbox->curselection())[0];
-    
-    if (!$index)
-      { # at is of the form "@x,y", this must be converted to
-        # a listbox-index:
-        $index= $Listbox->index($r_sort_popup->{at});
-      };
-      
-    # now we can get the value of the column
-    my $col= $Listbox->get($index);
-
-    reorder_sort_columns($r_tbh,$col,$mode);
-    $Listbox->delete(0, 'end');
-    $Listbox->insert("end",@{$r_tbh->{sort_columns}});
+    $$r_buf.=  " " x $indent if ($is_newline);
+    $$r_buf.=  "REF TO: \'$r\'$comma\n";
   }
 
 __END__
@@ -6041,7 +6131,7 @@ Zeile ändern und später löschen führt zu fatalem Fehler
 delete-line minidialog muß über dem Cursor plaziert werden (->popup())
 
 -----------------------------------------------------------
-save und "save as" bei collections. 
+save und "save as" bei collections.
 "save" fragt nicht nach dem Filenamen
 -------------------------------------
 "share" Verzeichnis fuer globale Einstellungen verwenden
@@ -6049,3 +6139,10 @@ save und "save as" bei collections.
 info-Fenster readonly machen
 ctrl-z Key Binding abschalten
 -----------------------------------
+foreign tables: die Zeilen filtern
+-----------------------------------
+mapped columns markieren
+-----------------------------------
+Toplevel Window so erzeugen, das es in Gnome/KDE Taskbar besser
+aussieht
+----------------------------------------------------------
