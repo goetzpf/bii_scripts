@@ -120,9 +120,9 @@ sub MY::postamble {
     my $postamble = <<"END";
 .PHONY: share
 share:
-        echo \"installing to \" \$(BROWSEDB_SHARE_DIR)
-        install -m 755 -d share/browsedb \$(BROWSEDB_SHARE_DIR)
-        install -m 644 share/browsedb/[^C]* \$(BROWSEDB_SHARE_DIR)
+	echo \"installing to \" \$(BROWSEDB_SHARE_DIR)
+	install -m 755 -d share/browsedb \$(BROWSEDB_SHARE_DIR)
+	install -m 644 share/browsedb/[^C]* \$(BROWSEDB_SHARE_DIR)
 END
     $postamble;
 }
