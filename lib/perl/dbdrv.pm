@@ -639,7 +639,23 @@ sub get_help
       }
     my $help_text = $sth->fetchall_arrayref;
     $sth->finish;
-    return $help_text;
+    # $help_text is a list of lists with one element
+    #  which represent a single line, but we want to
+    #  return a simple text string:
+    my @lines;
+    my $line;
+    my $initial=1;
+    foreach my $elm (@$help_text)
+      { $line= $elm->[0];
+        $line= "" if (!defined $line);
+        if ($initial)
+          { next if ($line eq ""); 
+            $initial=0;
+          };        
+        push @lines, $line;
+      }; 
+    
+    return join("\n",@lines);
   }
 
 sub get_help_topic
@@ -659,7 +675,9 @@ sub get_help_topic
       }
     my $topic_list = $sth->fetchall_arrayref;
     $sth->finish;
-    return $topic_list;
+    # $topic_list is a list of lists with one element
+    # but we want to return a simple list:
+    return(map{ $_->[0] } @$topic_list);
   }
 
 sub connect_database
@@ -978,13 +996,15 @@ Returns the sequel with the parsed alias, filled with the values.
 
   my $hash= dbitable::get_help($dbh,$topic)
 
-Returns the hash of the help query for the topic.
+Returns the help query for the topic as a single string
+that contains all lines.
 
-=item dbitable::get_help()
+=item dbitable::get_help_topic()
 
   my $hash= dbitable::get_help_topic($dbh)
 
-Returns the hash of all topics found in helptable.
+Returns a list of all topics found in helptable fetched from the 
+database.
 
 =item dbitable::connect_database()
 
