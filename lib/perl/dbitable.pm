@@ -1924,7 +1924,7 @@ sub insert
       { $pk_opt= $options{primary_key};
 
         if (defined $pk_opt)
-	  { if ($pk_opt ne 'preserve') && ($pk_opt ne 'generate'))
+          { if (($pk_opt ne 'preserve') && ($pk_opt ne 'generate'))
             { dbdrv::dberror($mod,'insert',__LINE__,
                              "unknown primary-key-mode:$pk_opt");
               return;
