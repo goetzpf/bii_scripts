@@ -137,11 +137,11 @@ the perl undef-value.
 Example of a hash that parse() returns:
   
   $r_records= { 'UE52ID5R:BaseCmdHome' => 
-                   { 'TYPE'  => 'sub',
-                     'FIELDS'=> { 'PRIO' => 'LOW',
-		     		  'DESC' => 'subroutine',
-				  'HIGH' => ''
-			        }
+                   { 'TYPE' => 'sub',
+                     'FIELDS=> { 'PRIO' => 'LOW',
+		     		 'DESC' => 'subroutine',
+				 'HIGH' => ''
+			       }
                    } 
 	      }
 
