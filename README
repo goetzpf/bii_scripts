@@ -16,3 +16,11 @@ DIRS    explanation of the directory-tree
 doc/txt/INSTALL
 	how to install the bundle 
 	(only needed if you did a CVS checkout)
+
+LICENSE
+	the text of the software license 
+
+Licensing:
+	these scripts currently are for bessy internal use only.
+	If not stated otherwise, they are copyrighted by BESSY mbh,
+	the original license text can be found in "LICENSE"
