@@ -250,11 +250,14 @@ sub init_tableviewtype
         return;
       };
 		 
-    if (!dbdrv::check_existence($dbh,$table))
-      { $last_error= "table \"$table\" doesn\'t exist"; 
-        return;
+    
+    if ($type eq 'table')
+      { if (!dbdrv::check_existence($dbh,$table))
+          { $last_error= "table \"$table\" doesn\'t exist"; 
+            return;
+          };
       };
- 
+      
     # if self->{_pks} already exists, take this if no primary-key
     # parameter is found in the argument-list    
     my $primary_key_par= shift;
@@ -341,8 +344,12 @@ sub init_tableviewtype
 
     my $sth= $dbh->prepare($self->{_fetch_cmd});
     if (!$sth)
-      { dbdrv::dberror($mod,'init_tableviewtype',__LINE__,
-                       "prepare failed, error-code: \n$DBI::errstr");
+      { 
+      
+        dbdrv::dbwarn($mod,'init_tableviewtype',__LINE__,
+                     "prepare failed, error-code: \n$DBI::errstr");
+        #dbdrv::dberror($mod,'init_tableviewtype',__LINE__,
+        #               "prepare failed, error-code: \n$DBI::errstr");
         return;
       };		 
 
