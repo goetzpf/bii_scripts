@@ -3,11 +3,54 @@
 
 my $mod_l= "dbdrv_oci";
 
+%sql_aliases = (
+    "dependants" =>     "SELECT o.object_id, o.created, o.status, o.object_type, \
+                                o.object_name, o.owner \
+                            FROM sys.all_dependencies d, sys.all_objects o \
+                            WHERE d.referenced_name = UPPER('##1##') AND\
+                                d.owner = o.owner AND \
+                                d.name = o.object_name AND \
+                                o.object_type = 'VIEW' ORDER BY o.owner, o.object_name",
+    "depends" =>        "SELECT o.object_id, o.created, o.status, o.object_name, o.owner \
+                            FROM all_dependencies d, all_objects o \
+                            WHERE d.name = UPPER('##1##') AND \
+                                d.referenced_owner = o.owner AND \
+                                d.referenced_name = o.object_name \
+                            ORDER BY o.object_name",
+    "viewtext" =>       "SELECT text \
+                            FROM all_views \
+                            WHERE view_name = UPPER('##1##')",
+    "triggertext" =>    "SELECT trigger_type, triggering_event, trigger_body \
+                            FROM dba_triggers \
+                            WHERE trigger_name = UPPER('##1##')",
+    "describe" =>       "SELECT column_name, table_name, owner, data_type, \
+                                data_length, data_precision, data_scale, nullable, \
+                                column_id, default_length, data_default, num_distinct, \
+                                low_value, high_value
+                            FROM all_tab_columns \
+                            WHERE table_name = UPPER('##1##') \
+                            ORDER BY column_id",
+    "constraints" =>    "SELECT constraint_name, table_name, owner,constraint_type, \
+                                r_owner, r_constraint_name, search_condition \
+                            FROM all_constraints \
+                            WHERE table_name = UPPER('##1##') \
+                            ORDER BY constraint_name, r_owner, r_constraint_name",
+    "triggers" =>       "SELECT DISTINCT trigger_name, owner, table_owner, table_name, \
+                                trigger_type, triggering_event, status, referencing_names \
+                            FROM dba_triggers \
+                            WHERE table_name = UPPER('##1##') \
+                            ORDER BY trigger_name, table_owner, table_name",
+    "objects" =>        "SELECT object_name, status, object_type, owner \
+                            FROM sys.all_objects \
+                            WHERE object_name LIKE UPPER('##1##') AND\
+                                NOT object_type = 'SYNONYM'",
+    );
+
 sub primary_keys
 # returns the one primary key or the list of columns
 # that form the primary key
   { my($dbh,$user_name,$table_name,$table_owner)= @_;
-  
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -15,12 +58,12 @@ sub primary_keys
 
     if ($table_name =~ /\./)
       { ($table_owner,$table_name)= split(/\./,$table_name); };
-      
+
     if (!defined $table_owner)
       { ($table_name,$table_owner)=
                     dbdrv::real_name($dbh,$user_name,$table_name);
-      }; 
-    
+      };
+
     my $SQL= "SELECT a.owner, a.table_name, b.column_name " .
              "FROM all_constraints a, all_cons_columns b " .
              "WHERE a.constraint_type='P' AND " .
@@ -30,28 +73,28 @@ sub primary_keys
     # take table owner into account
     if (defined $table_owner)
       { $SQL.= " AND a.owner=\'$table_owner\'"; };
-    
+
     sql_trace($SQL) if ($sql_trace);
-    
+
     my $res=
       $dbh->selectall_arrayref($SQL);
-                           
+
     if (!defined $res)
       { dberror($mod_l,'db_get_primary_keys',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
 
-    # returns  OWNER TABLE_NAME COLUMN_NAME  
+    # returns  OWNER TABLE_NAME COLUMN_NAME
 
     # NOTE: in some tables, only the combination of several rows is
     # the primary key, in this case, the SQL statement above returns
-    # more than a single line. 
-    
+    # more than a single line.
+
     my @pks;
     foreach my $line (@$res)
       { push @pks, $line->[2]; };
-    
+
     if (!@pks)
       { return; };
     return(@pks);
@@ -64,14 +107,14 @@ sub foreign_keys
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
-    
+
     if ($table_name =~ /\./)
       { ($table_owner,$table_name)= split(/\./,$table_name); };
-    
+
     if (!defined $table_owner)
       { ($table_name,$table_owner)=
                     dbdrv::real_name($dbh,$user_name,$table_name);
-      }; 
+      };
 
     my $SQL= "select ST.TABLE_NAME, CL.COLUMN_NAME, " .
                     "ST.CONSTRAINT_NAME, ST.R_CONSTRAINT_NAME, " .
@@ -82,11 +125,11 @@ sub foreign_keys
                     "all_cons_columns CL, all_cons_columns CL2, " .
                     "all_constraints ST, all_constraints ST2 " .
              "WHERE ";
-             
-             
+
+
     if (defined $table_owner)
       { $SQL.= "ST.OWNER=\'$table_owner\' AND "; };
-    
+
     $SQL.=          "ST.TABLE_NAME=\'$table_name\' AND " .
                     "ST.CONSTRAINT_TYPE='R' AND " .
                     "ST.CONSTRAINT_NAME=CL.CONSTRAINT_NAME AND " .
@@ -94,23 +137,23 @@ sub foreign_keys
                     "ST.R_CONSTRAINT_NAME= ST2.CONSTRAINT_NAME AND " .
                     "ST.R_OWNER=ST2.OWNER AND " .
                     "ST2.CONSTRAINT_NAME=CL2.CONSTRAINT_NAME AND " .
-                    "ST2.OWNER=CL2.OWNER";   
-    
+                    "ST2.OWNER=CL2.OWNER";
+
     sql_trace($SQL) if ($sql_trace);
     my $res=
       $dbh->selectall_arrayref($SQL);
     # gives:
-    # TABLE_NAME COLUMN_NAME CONSTRAINT_NAME R_CONSTRAINT_NAME 
+    # TABLE_NAME COLUMN_NAME CONSTRAINT_NAME R_CONSTRAINT_NAME
     #          FOREIGN_TABLE FOREIGN_COLUMN OWNER OWNER
 
     # do only take lines where both OWNERS match
     # if you adde "ST.OWNER=ST2.OWNER" to the SQL statement
     # it takes 4 minutes instead of 1 second !!!
-    # perl is a bit faster... ;-)       
-                           
+    # perl is a bit faster... ;-)
+
     if (!defined $res)
       { dberror($mod_l,'db_get_foreign_keys',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
 
@@ -121,10 +164,10 @@ sub foreign_keys
       { # owner mismatch
 #        next if ($r_line->[6] ne $r_line->[7]);
 
-# returns column-name -> FOREIGN_TABLE FOREIGN_COLUMN,FOREIGN_OWNER 
-      
+# returns column-name -> FOREIGN_TABLE FOREIGN_COLUMN,FOREIGN_OWNER
+
         $foreign_keys{ $r_line->[1] } = [ $r_line->[4],
-                                          $r_line->[5], $r_line->[7] ]; 
+                                          $r_line->[5], $r_line->[7] ];
 
 #warn "$r_line->[1] -> ( $r_line->[4],$r_line->[5] )";
       };
@@ -315,13 +358,13 @@ sub get_synonyms
     foreach my $line (@$res)
       { my $syn= $line->[1] . '.' . $line->[0];
         my $obj= $line->[3] . '.' . $line->[2];
-      
+
         $r_syn->{$syn} = ['T', $obj ];
-                    
+
         if (!exists $r_reverse_syn->{$obj})
           { $r_reverse_syn->{$obj}= [$syn]; }
         else
-          { push @{$r_reverse_syn->{$obj}}, $syn; };        
+          { push @{$r_reverse_syn->{$obj}}, $syn; };
       };
 
 
@@ -332,14 +375,14 @@ sub get_synonyms
                    "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
                    "asyn.table_name=av.view_name AND " .
                    "asyn.table_owner=av.owner" ;
-                      
+
     sql_trace($sql) if ($sql_trace);
 
     my $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
       { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
 
@@ -347,13 +390,13 @@ sub get_synonyms
     foreach my $line (@$res)
       { my $syn= $line->[1] . '.' . $line->[0];
         my $obj= $line->[3] . '.' . $line->[2];
-      
+
         $r_syn->{$syn} = ['V', $obj ];
-                    
+
         if (!exists $r_reverse_syn->{$obj})
           { $r_reverse_syn->{$obj}= [$syn]; }
         else
-          { push @{$r_reverse_syn->{$obj}}, $syn; };        
+          { push @{$r_reverse_syn->{$obj}}, $syn; };
       };
 
     #print Dumper($r_syn);
@@ -377,9 +420,9 @@ sub object_is_table
                     dbdrv::real_name($dbh,$table_owner,$table_name);
       };
 
-    return(0) if (!defined $table_owner); 
+    return(0) if (!defined $table_owner);
     # shouldn't happen !
-    
+
     my $SQL= "select OWNER,TABLE_NAME from " .
              "all_tables " .
              "where table_name=\'$table_name\' and owner=\'$table_owner\'";

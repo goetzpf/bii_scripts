@@ -950,43 +950,43 @@ sub foreign_keys
   { my $self= shift;
   
     if ($self->{_type} ne 'table')
-      { warn "foreign_keys does only work on type \"table\""; 
-        return; 
+      { warn " foreign_keys does only work on type \"table\"";
+        return;
       };
-    
+
     my $r_foreign_keys= $self->{_foreign_keys};
     return($r_foreign_keys) if (defined $r_foreign_keys);
- 
-    my $dbh= $self->{_dbh}; 
+
+    my $dbh= $self->{_dbh};
     my $user;
     $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
-        
+
     $r_foreign_keys= dbdrv::foreign_keys($dbh,$user,$self->{_table});
- 
+
     $self->{_foreign_keys}= $r_foreign_keys;
-    
+
     return($r_foreign_keys);
   }
 
 sub resident_keys
   { my $self= shift;
-  
+
     if ($self->{_type} ne 'table')
-      { warn "resident_keys does only work on type \"table\""; 
-        return; 
+      { warn " resident_keys does only work on type \"table\"";
+        return;
       };
-    
+
     my $r_resident_keys= $self->{_resident_keys};
     return($r_resident_keys) if (defined $r_resident_keys);
- 
-    my $dbh= $self->{_dbh}; 
+
+    my $dbh= $self->{_dbh};
     my $user;
     $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
 
     $r_resident_keys= dbdrv::resident_keys($dbh,$user,$self->{_table});
- 
+
     $self->{_resident_keys}= $r_resident_keys;
-    
+
     return($r_resident_keys);
   }
                

@@ -33,6 +33,7 @@ BEGIN {
 }
 use vars      @EXPORT_OK;
 use Data::Dumper;
+use SQL::Parser;
 
 # used modules
 
@@ -52,8 +53,9 @@ our $db_trace  =0;
 
 my $mod= "dbdrv";
 my $r_db_objects;
-
 my $r_db_reverse_synonyms;
+
+our %sql_aliases;
 
 my $no_dbi= $ENV{DBITABLE_NO_DBI};
 
@@ -143,11 +145,11 @@ sub set_err_func
                 'parameter is not a reference to a subroutine!');
       };
     $errorfunc= $f_ref;
-  }  
+  }
 
 sub set_warn_func
   { my($f_ref)= @_;
-  
+
     if (!defined $f_ref)
       { # reset to old warn-function
         $warnfunc= \&my_warn_func;
@@ -159,11 +161,11 @@ sub set_warn_func
                 'parameter is not a reference to a subroutine!');
       };
     $warnfunc= $f_ref;
-  }  
+  }
 
 sub set_sql_trace_func
   { my($f_ref)= @_;
-  
+
     if (!defined $f_ref)
       { # reset to old trace-function
         $sql_trace_func= \&my_sql_trace;
@@ -175,7 +177,7 @@ sub set_sql_trace_func
                 'parameter is not a reference to a subroutine!');
       };
     $sql_trace_func= $f_ref;
-  }  
+  }
 
 
 sub my_err_func
@@ -190,52 +192,52 @@ sub my_sql_trace
 sub dberror
   { my($module,$func,$line,$msg)= @_;
     my $str= "${module}::$func [$module.pm:$line]:\n" . $msg;
-    
+
     &$errorfunc($str);
   }
-  
+
 sub dbwarn
   { my($module,$func,$line,$msg)= @_;
     my $str= "${module}::$func [$module.pm:$line]:\n" . $msg;
-    
+
     &$warnfunc($str);
   }
 
 sub sql_trace
   { return if (!$sql_trace);
-  
+
     &$sql_trace_func(@_);
   }
-  
+
 sub prepare
   { my($r_format,$dbh,$cmd)= @_;
-        
+
     my $sth = $dbh->prepare($cmd);
     return if (!defined $sth);
 
     if ($sql_trace)
       { $$r_format= $cmd;
         $$r_format=~ s/\?/\%s/g; $$r_format.= "\n";
-      }; 
+      };
     return($sth);
   }
-  
+
 sub execute
   { my($format,$dbh,$sth,@args)= @_;
-  
+
     if ($sql_trace)
       { sql_trace( sprintf($format, @args) );
-      };           
+      };
 
     return( $sth->execute( @args));
-  }; 
+  };
 
 sub dump_object_dict
   { my($filename)= @_;
-  
+
     my $fh= \*STDOUT;
     local(*F);
-    
+
     if (defined $filename)
       { if (!open(F,">$filename"))
           { dberror($mod,'dump_object_dict',__LINE__,"unable to open file"); 
@@ -243,7 +245,7 @@ sub dump_object_dict
           };
         $fh= \*F;
       };
-      
+
     rdump($fh,$r_db_objects,0);
     if (defined $filename)
       { if (!close(F))
@@ -325,7 +327,7 @@ sub check_existence
 
     my $obj_name= "PUBLIC." . uc($table_name);
     
-    load_object_dict($dbh,$user_name);  
+    load_object_dict($dbh,$user_name);
     
     return( exists $r_db_objects->{$obj_name} );
   }
@@ -358,7 +360,7 @@ sub accessible_objects
           };
       };
       
-    load_object_dict($dbh,$user_name);  
+    load_object_dict($dbh,$user_name);
     my @keys= keys %$r_db_objects;
 
 #print Dumper(\%types);
@@ -489,7 +491,7 @@ sub load
 
 sub set_autocommit
   { my($dbh,$val)= @_;
-  
+
     if (!defined $dbh)
       { $dbh= $std_dbh; }
     elsif ($dbh eq "")
@@ -528,6 +530,31 @@ sub rollback
       };
   }
 
+sub check_alias
+  { my ($name) = @_;
+   return (exists ($sql_aliases{$name}));
+}
+
+sub get_alias
+  { my ($name, @values) = @_;
+   if (check_alias($name))
+     {
+        my $returnvalue = $sql_aliases{$name};
+        if ($#values >= 0)
+          {
+            for (my $index = 1; $index <= $#values + 1; $index++)
+              {
+                my $buffer = $values[$index - 1];
+                $returnvalue =~ s/##$index##/$buffer/mg;
+              }
+          }
+        return $returnvalue;
+     }
+   else
+     {
+        return undef;
+     }
+  }
 
 sub connect_database
 # if dbname=="", use DBD::AnyData
@@ -556,15 +583,15 @@ sub connect_database
     # settings for LONG values:
     $dbh->{LongReadLen}= 65536; # max. of 64k fields
     $dbh->{LongTruncOk}= 0;
-      
+
     if (!defined $std_dbh)
-      { $std_dbh= $dbh; 
+      { $std_dbh= $dbh;
         $std_username= $username;
       };
-      
+
     return($dbh);
   }
-   
+
 sub disconnect_database
   { my($dbh)= @_;
   
@@ -828,22 +855,35 @@ This performs a rollback on the database
 This sets the autocommit-feature of the given database-handle.
 Autocommit is switched on or off according to to value of C<$val>.
 
+=item dbitable::check_alias()
+
+  my $dbh= dbitable::check_alias($name)
+
+This only returns the exists result for the given alias name for
+the alias list hash.
+
+=item dbitable::get_alias()
+
+  my $dbh= dbitable::get_alias($name,@values)
+
+Returns the sequel with the parsed alias, filled with the values.
+
 =item dbitable::connect_database()
 
   my $dbh= dbitable::connect_database($dbname,$username,$password)
-    
+
 This method creates a connection to the database. The database corresponds
-to the first parameter of the C<connect> function of the DBI module. See 
+to the first parameter of the C<connect> function of the DBI module. See
 also the DBI manpage. The function returns the DBI-handle or C<undef>
 in case of an error. The DBI-handle is also stored in the internal global
-handle variable. This variable is used as default in all the other 
-functions in this module when their DBI-handle parameter is an empty 
+handle variable. This variable is used as default in all the other
+functions in this module when their DBI-handle parameter is an empty
 string ("") or C<undef>.
 
 =item dbitable::disconnect_database()
 
   dbitable::disconnect_database($dbi_handle)
-  
+
 This function is used to disconnect from the database. If the parameter
 C<$dbi_handle> is an empty string, the default DBI-handle is used (see
 also description of C<connect_database>).  

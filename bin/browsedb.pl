@@ -110,7 +110,6 @@ tk_main_window(\%global_data, $db_name, $db_username, $db_password);
 
 # --------------------- create some entry widgets
 
-
 MainLoop();
 
 sub tk_login
@@ -195,7 +194,9 @@ sub tk_login_finish
 
     if (defined($r_glbl->{handle_sql_history}))
       {
-        $r_glbl->{handle_sql_history}->close();
+        my $fh = $r_glbl->{handle_sql_history};
+        $fh->flush();
+        $fh->close();
         delete $r_glbl->{handle_sql_history};
       }
     if (defined($r_glbl->{dbh}))
@@ -214,7 +215,7 @@ sub tk_login_finish
           { tk_set_busy($r_glbl,0);
             tk_err_dialog($r_glbl->{main_menu_widget},
                           "opening of the database failed");
-            
+
             return;
           };
       };
@@ -245,6 +246,7 @@ sub tk_main_window
     $r_glbl->{password}    = $password;
 
     my $Top= MainWindow->new(-background=>$BG);
+    $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit, $r_glbl ]);
 
 #    $Top->minsize(400,400);
 #    $Top->maxsize(800,800);
@@ -293,7 +295,7 @@ sub tk_main_window
                -underline  => 0,
                -command=> [\&tk_load_collection,"",$r_glbl]
               );
-    $Top->bind($Top,'<Control-s>'=> [\&tk_save_collection,$r_glbl]); 
+    $Top->bind($Top,'<Control-s>'=> [\&tk_save_collection,$r_glbl]);
     $MnFile->add('command',
                -label=> 'save collection',
                -accelerator => 'Ctrl+s',
@@ -302,15 +304,13 @@ sub tk_main_window
               );
     $MnFile->add('separator');
     $MnFile->add('command',
-                 -label=> 'quit',
-                 -underline  => 0,
-                 -command => sub
-                   {
-                     $Top->destroy();
-                     exit(0);
-                   },
+                    -label=> 'quit',
+                    -accelerator => 'Ctrl+q',
+                    -underline  => 0,
+                    -command => [ \&tk_quit, $r_glbl ],
               );
 
+    $Top->bind('<Control-q>' => [ \&tk_quit, $r_glbl ]);
     # configure Database-menu:
     $MnDb->add('command',
                -label=> 'Login',
@@ -326,10 +326,10 @@ sub tk_main_window
     $MnDb->add('checkbutton',
                -label=> 'autocommit',
                -variable => \$autocommit_var,
-               -command=> 
-                       sub { 
+               -command=>
+                       sub {
                              my %h=(-state=> ($autocommit_var) ?
-                                       "disabled" : "active"); 
+                                       "disabled" : "active");
 
                              $MnDb->entryconfigure($c_commit_i,%h);
                              $MnDb->entryconfigure($c_rollback_i,%h);
@@ -338,23 +338,23 @@ sub tk_main_window
                                                       $autocommit_var);
                            }
               );
-              
+
     $MnDb->add('command',
                -label=> 'commit',
                -underline  => 0,
                -state=> 'disabled',
                -command=> sub { dbdrv::commit($r_glbl->{dbh}); }
               );
-    $c_commit_i= $MnDb->index('end');     
+    $c_commit_i= $MnDb->index('end');
     $MnDb->add('command',
                -label=> 'rollback',
                -underline  => 0,
                -state=> 'disabled',
-               -command=> sub { dbdrv::rollback($r_glbl->{dbh}); 
+               -command=> sub { dbdrv::rollback($r_glbl->{dbh});
                                 tk_reload_all_objects($r_glbl);
                               }
               );
-    $c_rollback_i= $MnDb->index('end');     
+    $c_rollback_i= $MnDb->index('end');
 
 
     $MnDb->add('separator');
@@ -424,7 +424,7 @@ sub tk_main_window
                 -pady=> 2,
                 -side=> "right",
                 -anchor=> "e",
-                -expand=> "0",
+                -expand=> 0,
                 );
 
      my $MnStatusProgress = $MnStatus->ProgressBar(
@@ -490,7 +490,7 @@ sub tk_main_window
                                                $r_glbl]
                                    )->pack( %dlg_def_labentry);
 
-        $r_glbl->{table_browse_widget}->bind('<Return>', 
+        $r_glbl->{table_browse_widget}->bind('<Return>',
                             sub { my $b= $r_glbl->{table_browse_button};
                                   return if ($b->cget('-state') eq "disabled");
                                   tk_open_new_object($r_glbl, 'table_or_view');
@@ -506,7 +506,21 @@ sub tk_main_window
                                                 $r_glbl, 'table_or_view' ],
                                 )->pack( %dlg_def_okbutton,);
 
-
+        if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
+            my @all_collections = glob "*.col";
+            if ($#all_collections + 1 > 0) {
+                my $DlgCollListbox = $DlgEnt->Scrolled(
+                        "Listbox",
+                        -lable=>"Load your Collection Clause :",
+                        -scrollbars=>"osoe",
+                        -width=>48,
+                        -selectmode=>"browse",
+                        -width=>0
+                )->pack( %dlg_def_listbox );
+                $DlgCollListbox->insert("end",  @all_collections );
+            }
+            closedir(BROWSEDBCONFDIR);
+        }
         # dialog tables
         my $DlgTblListbox = $DlgTbl->Scrolled(
                 "Listbox",
@@ -542,16 +556,28 @@ sub tk_main_window
                 -wrap=>"word",
                 -width=>60
         )->pack( %dlg_def_labentry, );
+        $DlgTbl->Label(
+                -text=>"Order Clause :",
+        )->pack( %dlg_def_labentry, );
+        my $DlgTblOrder = $DlgTbl->Scrolled(
+                "Text",
+                -height=>5,
+                -wrap=>"word",
+                -width=>60
+        )->pack( %dlg_def_labentry, );
+        my $order;
+        my $cond;
         my $DlgTblOk = $DlgTbl->Button(
                 -state=>"disabled",
                 -text=>"Show",
                 -underline=>0,
                 -justify=>"center",
                 -command=>
-                  sub { my $cond= $DlgTblWhere->get('1.0','end');
+                  sub { $cond= $DlgTblWhere->get('1.0','end');
+                        $order= $DlgTblOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgTblListbox->get($DlgTblListbox->curselection);
-                        tk_open_new_object($r_glbl, "table", $cond);
+                        tk_open_new_object($r_glbl, "table", $cond, $order);
                       }
         )->pack(%dlg_def_okbutton, );
 
@@ -563,18 +589,20 @@ sub tk_main_window
 
         $DlgTblListbox->
             bind('<Return>' =>
-                  sub { my $cond= $DlgTblWhere->get('1.0','end');
+                  sub { $cond= $DlgTblWhere->get('1.0','end');
+                        $order= $DlgTblOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgTblListbox->get($DlgTblListbox->curselection);
-                        tk_open_new_object($r_glbl, "table", $cond);
+                        tk_open_new_object($r_glbl, "table", $cond, $order);
                       }
                 );
         $DlgTblListbox->
             bind('<Double-1>' =>
-                  sub { my $cond= $DlgTblWhere->get('1.0','end');
+                  sub { $cond= $DlgTblWhere->get('1.0','end');
+                        $order= $DlgTblOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgTblListbox->get($DlgTblListbox->curselection);
-                        tk_open_new_object($r_glbl, "table", $cond);
+                        tk_open_new_object($r_glbl, "table", $cond, $order);
                       }
                 );
         $r_glbl->{table_listbox_widget}=$DlgTblListbox;
@@ -597,16 +625,26 @@ sub tk_main_window
                 -wrap=>"word",
                 -width=>60
         )->pack( %dlg_def_labentry, );
+        $DlgVw->Label(
+                -text=>"Order Clause :",
+        )->pack( %dlg_def_labentry, );
+        my $DlgVwOrder = $DlgVw->Scrolled(
+                "Text",
+                -height=>5,
+                -wrap=>"word",
+                -width=>60
+        )->pack( %dlg_def_labentry, );
         my $DlgVwOk = $DlgVw->Button(
                 -state=>"disabled",
                 -text=>"Show",
                 -underline=>0,
                 -justify=>"center",
                 -command=>
-                  sub { my $cond= $DlgVwWhere->get('1.0','end');
+                  sub { $cond = $DlgVwWhere->get('1.0','end');
+                        $order = $DlgVwOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgVwListbox->get($DlgVwListbox->curselection);
-                        tk_open_new_object($r_glbl, "view", $cond);
+                        tk_open_new_object($r_glbl, "view", $cond, $order);
                       }
         )->pack( %dlg_def_okbutton, );
 
@@ -618,19 +656,21 @@ sub tk_main_window
 
         $DlgVwListbox->
             bind('<Return>' =>
-                  sub { my $cond= $DlgVwWhere->get('1.0','end');
+                  sub { $cond= $DlgVwWhere->get('1.0','end');
+                        $order= $DlgVwOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgVwListbox->get($DlgVwListbox->curselection);
-                        tk_open_new_object($r_glbl, "view", $cond);
+                        tk_open_new_object($r_glbl, "view", $cond, $order);
                       }
                 );
 
         $DlgVwListbox->
             bind('<Double-1>' =>
-                  sub { my $cond= $DlgVwWhere->get('1.0','end');
+                  sub { $cond= $DlgVwWhere->get('1.0','end');
+                        $order= $DlgVwOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgVwListbox->get($DlgVwListbox->curselection);
-                        tk_open_new_object($r_glbl, "view", $cond);
+                        tk_open_new_object($r_glbl, "view", $cond, $order);
                       }
                 );
 
@@ -639,28 +679,32 @@ sub tk_main_window
         # dialog sequel
         $DlgSQL->Label( -text=> "Statement :",
                       )->pack( %dlg_def_labentry, );
-
         my $DlgSQLCommand = $DlgSQL->Scrolled(
                 "Text",
                 -height=> 10,
                 -wrap=> "word",
-                -scrollbars=> "se",
+                -scrollbars=> "osoe",
                 -width=>80,
         )->packAdjust( %dlg_def_labentry, );
-        $r_glbl->{sql_command_widget}=$DlgSQLCommand;
+        $r_glbl->{sql_command_widget} = $DlgSQLCommand;
         $DlgSQL->Label(
                 -text=>"History :",
         )->pack( %dlg_def_labentry, );
         my $DlgSQLHistory = $DlgSQL->Scrolled(
                 "ROText",
-                -scrollbars=> "se",
+                -scrollbars=> "osoe",
                 -height=> 10,
                 -width=>80,
-        )->pack( %dlg_def_labentry, );
+        )->pack( -padx=>2, -pady=>2,
+                 -ipadx=>1, -ipady=>1,
+                 -fill=>"both",
+                 -side=>"top", -anchor=>"sw",
+                 -expand=> 1,
+        );
         $r_glbl->{sql_history_widget}=$DlgSQLHistory;
         my $DlgSQLOk =
-           $DlgSQL->Button( -state=> "disabled",
-                            -text=> "Show",
+           $DlgSQL->Button( -state=> "normal",
+                            -text=> "Exec",
                             -underline=> 0,
                             -justify=> "center",
                             -command=>  [ \&tk_execute_new_query,
@@ -669,12 +713,14 @@ sub tk_main_window
                                         ]
                           )->pack(%dlg_def_okbutton);
 
-
         $DlgSQLCommand->
             bind('<Control-Return>' =>
-                 sub { tk_execute_new_query($r_glbl,
-                              $DlgSQLCommand->get('1.0', 'end')
-                                            );
+                 sub {  my $query_command = $DlgSQLCommand->get('1.0', 'end');
+                        if ($DlgSQLCommand->tagRanges('sel'))
+                          { $DlgSQLCommand->delete('insert - 1 char');
+                            $query_command = $DlgSQLCommand->getSelected();
+                          }
+                        tk_execute_new_query($r_glbl, $query_command);
                      }
                 );
         # dont remove these update, because of .toplevel
@@ -683,13 +729,12 @@ sub tk_main_window
         tk_login(\%global_data); # calls tk_main_window_finish
   }
 
-
 sub tk_set_busy
   { my($r_glbl,$val)= @_;
 
     if (!$val)
       { if (--$r_glbl->{busy_count} <=0)
-          { $r_glbl->{busy_count}=0; 
+          { $r_glbl->{busy_count}=0;
             $r_glbl->{main_menu_widget}->Unbusy(-recurse => 1);
           };
         return;
@@ -800,12 +845,7 @@ sub tk_main_window_finish
     my $hostname= $ENV{HOSTNAME};
     $hostname= hostname() if (!$hostname);
 
-    print $fh "\n-- new log $year-$mon-$mday $hour-$min-$sec from " .
-              $hostname;
-    print $fh "connect (" . $r_glbl->{db_driver} . ")" .
-               $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
     $fh->flush();
-
     if ($fast_test)
       { $r_glbl->{new_table_name}= $fast_table;
             tk_open_new_object($r_glbl, 'table_or_view');
@@ -814,7 +854,6 @@ sub tk_main_window_finish
     tk_progress($r_glbl,0);
 
   }
-
 
 sub tk_wait
  {      my($r_glbl, $topwidget, $message)= @_;
@@ -827,6 +866,41 @@ sub tk_wait
         return $DlgWait;
 
  }
+
+sub tk_quit
+  {
+    my($r_glbl)= @_;
+    my $choice = "No";
+    if (defined $r_glbl)
+      {
+        my $Top = $r_glbl->{main_widget};
+        my $DlgQuit = $Top->Dialog(
+                    -title => 'Quit',
+                    -text => 'Do you really want to quit?',
+                    -default_button => 'No',
+                    -buttons => ['No', 'Yes'],
+                    );
+        $choice = $DlgQuit->Show;
+        if (exists($r_glbl->{handle_sql_history}))
+          {
+            my $fh = $r_glbl->{handle_sql_history};
+            print $fh "\ndisconnect (" . $r_glbl->{db_driver} . ")" .
+               $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
+            $fh->flush();
+            $fh->close();
+          }
+        $Top->destroy();
+      }
+    else
+      {
+        $choice = "Yes";
+        warn "Quit without warning!";
+      }
+    if ($choice =~ /Yes/)
+      {
+        exit(0);
+      }
+  }
 
 sub tk_about
  { my($r_glbl)= @_;
@@ -929,8 +1003,8 @@ sub tk_handle_table_browse_entry
 sub tk_open_new_object
 # $condition can be the Where-Clause
 # $type can be "view", "table","sql" or "table_or_view"
-#  the latter means that the type of the object is not known 
-  { my($r_glbl, $type, $condition)= @_;
+#  the latter means that the type of the object is not known
+  { my($r_glbl, $type, $condition, $order)= @_;
     my %known_types= map { $_ =>1 } qw( table view sql table_or_view);
 
     my %params;
@@ -951,6 +1025,12 @@ sub tk_open_new_object
             $params{table_filter}= $condition; };
       };
 
+    if (defined $order)
+      { if ($order!~ /^\s*$/)
+          { chomp($order);
+            $params{table_order}= $order; };
+      };
+
     make_table_hash_and_window($r_glbl,%params);
 
     if ($fast_test)
@@ -963,30 +1043,37 @@ sub tk_open_new_object
 sub tk_execute_new_query
 # routine for executing free sequel
   { my($r_glbl, $sqlquery)= @_;
-    #print $sqlparser->structure;
-    chomp $sqlquery;
-    $sqlquery =~ s/^\s*//;
+    my $sqlinput = $sqlquery;
     $sqlquery =~ s/\s*;\s*$//;
-    $sqlquery =~ s/^\s*$//m;
-    $sqlquery =~ s/\n$//m;
+    $sqlquery =~ s/[\s\r\n]+/ /gm;
+    $sqlquery =~ s/^\s*//;
+    my ($sqlcommand, $sqlargs) = ($sqlquery =~ /^(\w+)\s+(.*)/);
+    if (! defined ($sqlcommand))
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                    "Invalid SQL commandstring");
+        return;
+      }
+    if (dbdrv::check_alias($sqlcommand))
+      { my @sqloptions = split(/\s*,\s*/, $sqlargs);
+        $sqlquery = dbdrv::get_alias($sqlcommand, @sqloptions);
+      }
+    my $fh=$r_glbl->{handle_sql_history};
     if ($sqlquery =~ /^select /i)
       {
         if (length($sqlquery) >= 6)
           {
-            my $success = make_table_hash_and_window(
+            my $StatementResult = make_table_hash_and_window(
                              $r_glbl,
                              table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
                              table_type=>"sql",
                              sequel=>$sqlquery);
-            if (defined ($success))
+            if (defined ($StatementResult))
               {
                     $r_glbl->{sql_history_widget}->insert('end', "\n");
-                    $r_glbl->{sql_history_widget}->insert('end', $sqlquery);
+                    $r_glbl->{sql_history_widget}->insert('end', $sqlinput);
                     $r_glbl->{sql_command_widget}->delete('1.0', "end");
-                    $r_glbl->{sql_command_widget}->insert('1.0', $sqlquery);
-                    my $fh=$r_glbl->{handle_sql_history};
-                    print $fh $sqlquery.";\n";
-                    $fh->flush();
+                    $r_glbl->{sql_command_widget}->insert('1.0', $sqlinput);
+                    print $fh $sqlinput.";\n";
               }
           }
       }
@@ -1007,9 +1094,7 @@ sub tk_execute_new_query
             else
               {
                     tk_progress($r_glbl, 70);
-                    my $fh=$r_glbl->{handle_sql_history};
-                    print $fh $sqlquery.";\n";
-                    $fh->flush();
+                    print $fh $sqlinput.";\n";
               }
             tk_progress($r_glbl, 100);
           }
@@ -1021,6 +1106,15 @@ sub tk_execute_new_query
           }
 
       }
+    if (defined ($r_glbl->{dbh}->err))
+      {
+        $r_glbl->{sql_history_widget}->insert('end', "\nError #".$r_glbl->{dbh}->err.": ".$r_glbl->{dbh}->errstr."\n", "red");
+      }
+    else
+      {
+          $r_glbl->{sql_history_widget}->insert('end', "\nStatement successful.\n", "green");
+      }
+    $fh->flush();
     tk_progress($r_glbl, 0);
     return $sqlquery;
 }
@@ -1028,10 +1122,10 @@ sub tk_execute_new_query
 sub tk_reload_all_objects
 # reloads all objects from the database
   { my($r_glbl)= @_;
-  
+
     my $r_all_tables= $r_glbl->{all_tables};
-    return if (!defined $r_all_tables); 
-    
+    return if (!defined $r_all_tables);
+
    tk_set_busy($r_glbl,1);
 
     foreach my $table (keys %$r_all_tables)
@@ -1048,7 +1142,7 @@ sub tk_sql_commands
   { my($r_glbl)= @_;
   
     my $r_text= tk_make_text_widget($r_glbl,"SQL command trace");
-    
+
     my $Top= $r_text->{Top};
     
   
@@ -2764,7 +2858,7 @@ sub tk_load_from_file
                                   extension=>'.dbt',
                                   #defaultdir=>$PrgDir,
                                   title=>'load table from *.dbt',
-                                  extension_description=> 
+                                  extension_description=>
                                               'browsedb table files');
 
 
@@ -2923,7 +3017,7 @@ sub tk_make_text_widget
   { my($r_glbl,$title,$r_content)= @_;
 
     my %text;
-    
+
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
@@ -2932,7 +3026,7 @@ sub tk_make_text_widget
     $Top->title("$title");
 
     my $text;
-    
+
     my $MnTop= $Top->Menu(-type=>'menubar');
     my $MnFile   = $MnTop->Menu();
     my $MnSearch = $MnTop->Menu();
@@ -2968,15 +3062,15 @@ sub tk_make_text_widget
               );
 
 
-    $Top->bind($Top,'<Control-g>'=> 
+    $Top->bind($Top,'<Control-g>'=>
                [\&tk_text_search_next,$r_glbl,'next',\%text]);
     $MnSearch->add('command',
                  -label=> 'find next',
                  -accelerator => 'Control-g',
                  -command=> [\&tk_text_search_next,"",$r_glbl,'next',\%text]
               );
-    
-    $Top->bind($Top,'<Shift-Control-G>'=> 
+
+    $Top->bind($Top,'<Shift-Control-G>'=>
               [\&tk_text_search_next,$r_glbl,'prev',\%text]);
     $MnSearch->add('command',
                  -label=> 'find prev',
@@ -2993,19 +3087,19 @@ sub tk_make_text_widget
 
     # ----------------------------------------------------
     # special handling for Control Keyboard bindings:
-    # this is needed in order avoid that strange square chars 
+    # this is needed in order avoid that strange square chars
     # appear in the text-widget whenever control characters are
     # pressed:
     my $fr_delchar= sub{$text_widget->delete('insert - 1 char')};
-    
+
     foreach my $key ('<Control-s>',
                      # '<Control-f>', not on Ctrl-F!!
                      '<Control-g>','<Shift-Control-G>')
       { $text_widget->bind($key,$fr_delchar); };
     # ----------------------------------------------------
-    
+
     $text{text_widget}= $text_widget;
-    
+
 #    $text_widget->bind('<Control-s>'=> sub{ Tk->break(); } );
 #    $text_widget->bind('<Control-f>'=> sub{ Tk->break(); });
 #    $text_widget->bind('<Control-g>'=> sub{ Tk->break(); });
@@ -3234,7 +3328,7 @@ sub tk_table_info
              };
          };
          
-         
+
      };
    
    my $dbitable= $r_tbh->{dbitable};
