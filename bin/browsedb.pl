@@ -10,13 +10,15 @@ use FindBin;
 # enable this if you want to search modules like dbitable.pm
 # relative to the location of THIS script:
 # ------------------------------------------------------------
-# use lib "$FindBin::RealBin/../lib/perl";
+#CONFIGURE: deactivate_when USE_PERL5LIB
+use lib "$FindBin::RealBin/../lib/perl";
 
 
 # You may specify where to look for perl extensions like Tk or
 # find Tk::TableMatrix here. The following line activates
 # my private installed extensions on host ocean:
 # ------------------------------------------------------------
+#CONFIGURE: activate_when USE_GP_MODULES
 # use lib "/home/unix/pfeiffer/project/perl/lib/site_perl";
 
 use Sys::Hostname;
@@ -81,10 +83,12 @@ my $home= $ENV{"HOME"};
 if (!defined $home)
   { $home=""; };
 
+#CONFIGURE: make_variable BROWSEDB_SHARE_DIR $share_dir
+#CONFIGURE: deactivate_when BROWSEDB_SHARE_DIR
+my $share_dir= path_beautify("$FindBin::RealBin/../share/browsedb");
 
-my $sharedir= path_beautify("$FindBin::RealBin/../share/browsedb");
-if ((!-d $sharedir) or (!-r $sharedir))
-  { $sharedir= undef; };
+if ((!-d $share_dir) or (!-r $share_dir))
+  { $share_dir= undef; };
 
 my $PrgDir = $home."/.browsedb";
 if (! -e $PrgDir)
@@ -688,7 +692,7 @@ sub tk_main_window
                                sub { $DlgCollListbox->delete(0, 'end');
                                      $DlgCollListbox->insert("end",
                                              file_find('\.col$',
-                                                       $sharedir,
+                                                       $share_dir,
                                                        $PrgDir
                                                       )     );
                                    },
@@ -699,7 +703,7 @@ sub tk_main_window
                             );
 
         $DlgCollListbox->insert("end",
-                                file_find('\.col$',$sharedir,$PrgDir) );
+                                file_find('\.col$',$share_dir,$PrgDir) );
 
 
         $DlgCollListbox->
@@ -713,7 +717,7 @@ sub tk_main_window
                       sub { $DlgCollListbox->delete(0, 'end');
                             $DlgCollListbox->insert("end",
                                     file_find('\.col$',
-                                              $sharedir,
+                                              $share_dir,
                                               $PrgDir
                                              )     );
                           }
@@ -975,9 +979,9 @@ sub tk_main_window
                 );
         # read column-map definitions:
         my $r_c;
-        if (defined $sharedir)
+        if (defined $share_dir)
           { $r_c= load_column_maps($r_glbl,
-                                   File::Spec->catdir($sharedir,
+                                   File::Spec->catdir($share_dir,
                                                       $column_map_file
                                                      )
                                    );
