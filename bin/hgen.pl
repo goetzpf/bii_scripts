@@ -14,7 +14,7 @@ use Getopt::Long;
 
 use vars qw($opt_help $opt_multiple $opt_header $opt_part $opt_check);
 
-my $version = "1.4p";
+my $version = "1.5p";
 
 
 # debugging:
@@ -22,6 +22,11 @@ my $dump_input =0;
 my $dump_output=0; 
 
 my %wanted_parts;
+
+if (($#ARGV==0) && ($ARGV[0] eq '-h'))
+  { print_help();
+    exit;
+  };  
 
 if (!GetOptions("help","multiple|m","header|h=s","part|p=s","check|c"))
   { die "parameter error, use \"$0 -h\" to display the online-help\n"; };
@@ -128,11 +133,18 @@ sub process_file
 
     my %found_parts;
     
+    my $old_emit_flag;
+    
     while(my $line=<$in>)
       { 
 	chomp($line);
 	if ($emit_flag>0)
-	  { $emit_flag--; };
+	  { $emit_flag--; 
+	    if (($emit_flag==0) && (defined $old_emit_flag))
+	      { $emit_flag= $old_emit_flag;
+	        $old_emit_flag= undef;
+	      };	
+	  };
 	$skip_emit=0; 
 
 	$cmt_start= -1;
@@ -194,7 +206,8 @@ sub process_file
 	            my $mpos= pos($line)-length($cmd); # save match-position,
 		    if    ($cmd eq '*/') # comment-end found
 		      { if ($uncomment)
-	        	  { $emit_flag= 1; $skip_emit=0;
+	        	  { $old_emit_flag= undef;
+			    $emit_flag= 1; $skip_emit=0;
 			    my $pos= pos($line)-2;
 			    substr($line,$pos,2)= "";
 			    $uncomment=0; 
@@ -226,21 +239,22 @@ sub process_file
 			substr($line,$cmt_start,2)= "";
 			pos($line)= $cmt_start;
 			$uncomment=1;
+			$old_emit_flag= undef;
 			$emit_flag= -1; $skip_emit=0; 
 			next;
 		      }
 		    elsif ($cmd eq '@IL')
-		      { $emit_flag= 1; }
+		      { $old_emit_flag= $emit_flag; $emit_flag= 1; }
 		    elsif ($cmd eq '@EL')
 		      { $skip_emit= 1; }
 		    elsif ($cmd eq '@IT')
-		      { $emit_flag= -1; $skip_emit=1; }
+		      { $old_emit_flag= undef; $emit_flag= -1; $skip_emit=1; }
 		    elsif ($cmd eq '@ITI')
-		      { $emit_flag= -1; $skip_emit=0; }
+		      { $old_emit_flag= undef; $emit_flag= -1; $skip_emit=0; }
 		    elsif ($cmd eq '@ET')
-		      { $emit_flag= 1; }
+		      { $old_emit_flag= undef; $emit_flag= 1; }
 		    elsif ($cmd eq '@ETI')
-		      { $emit_flag= 0; }
+		      { $old_emit_flag= undef; $emit_flag= 0; }
 		    elsif ($cmd eq '@EM')
 		      { 
 		        if (!($line=~ /\G\(\"(.*?)\"\)/gc))
@@ -265,6 +279,7 @@ sub process_file
 			  { $arg= $1; 
 			    $epos= pos($line)-1; # save match-position
 			  };
+			$old_emit_flag= $emit_flag;
 			if ($immediate)
 			  { $emit_flag= $arg; $skip_emit=0; }
 			else
