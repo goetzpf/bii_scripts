@@ -1043,13 +1043,17 @@ sub tk_main_window_finish
     $table_listbox_widget->delete(0, 'end');
     $table_listbox_widget->
              insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
-    $r_glbl->{accessible_objects_all} =
-             [ dbdrv::accessible_objects($r_glbl->{'dbh'},
-                                         $r_glbl->{user},
-                                         "TABLE,VIEW",
-                                         "PUBLIC,USER")
-             ];
+    
+    
+#    $r_glbl->{accessible_objects_all} =
+#             [ dbdrv::accessible_objects($r_glbl->{'dbh'},
+#                                         $r_glbl->{user},
+#                                         "TABLE,VIEW",
+#                                         "PUBLIC,USER")
+#             ];
 
+ 
+ 
    tk_progress($r_glbl,80);
 
     $r_glbl->{MainWindow}->{table_browse_widget}->delete(0, 'end');
@@ -1401,8 +1405,9 @@ sub tk_handle_table_browse_entry
 
     my $rewrite_value;
 
-    my $r_all_objects= $r_glbl->{accessible_objects_all};
-
+    my $r_all_views = $r_glbl->{accessible_objects_views};
+    my $r_all_tables= $r_glbl->{accessible_objects_tables};
+    
     if (uc($proposed) ne $proposed)
       { $proposed= uc($proposed);
         $rewrite_value= 1;
@@ -1411,7 +1416,9 @@ sub tk_handle_table_browse_entry
     # print join(",",$proposed, $chars_added,
     #            $value_before, $index, $action),"\n";
 
-    my @matches= grep { $_ =~ /^$proposed/ } (@$r_all_objects);
+    my @matches= grep { $_ =~ /^$proposed/ } (@$r_all_tables);
+    
+    push @matches, grep { $_ =~ /^$proposed/ } (@$r_all_views);
 
     if (!@matches)
       { # the table doesnt exist
@@ -1435,7 +1442,10 @@ sub tk_handle_table_browse_entry
           };
       };
 
-    my @exact  = grep { $_ eq $proposed } (@$r_all_objects);
+    my @exact  = grep { $_ eq $proposed } (@$r_all_tables);
+    
+    push @exact, grep { $_ eq $proposed } (@$r_all_views);
+    
     my $table_browse_button= $r_glbl->{MainWindow}->{table_browse_button};
     if ($#exact<0)
       { $table_browse_button->configure(-state=>"disabled"); }
@@ -1446,10 +1456,15 @@ sub tk_handle_table_browse_entry
       };
 
     if ($rewrite_value)
-      { my $Entry= $table_browse_widget->Subwidget('entry');
+      { 
+      
+        my $Entry= $table_browse_widget->Subwidget('entry');
         my $r_var= ($Entry->configure('-textvariable'))[4];
         $$r_var= $proposed;
         $Entry->icursor('end');
+        # re-activate the validate option, needed since return(0)
+        # de-activates it
+        $Entry->configure('-validate','key');
         return(0);
       };
 
@@ -1642,8 +1657,8 @@ sub make_table_hash_and_window
     tk_progress($r_glbl,10);
 
     $r_tbh= make_table_hash($r_glbl,%options);
-# error
-warn "make_table_hash returns $r_tbh";
+
+    #warn "make_table_hash returns $r_tbh";
 
     if (!defined $r_tbh)
       { tk_set_busy($r_glbl,0);
