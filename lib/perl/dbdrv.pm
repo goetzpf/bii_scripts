@@ -14,7 +14,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.1;
+    $VERSION     = 1.2;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -27,7 +27,7 @@ BEGIN {
     #use DBI;
     if (!$ENV{DBITABLE_NO_DBI})
       { require DBI;
-	import DBI;
+        import DBI;
       };
 
 }
@@ -53,7 +53,80 @@ our $db_trace  =0;
 my $mod= "dbdrv";
 my $r_db_objects;
 
+my $r_db_reverse_synonyms;
+
 my $no_dbi= $ENV{DBITABLE_NO_DBI};
+
+sub rdump
+  { my($fh,$val,$indent,$is_newline,$comma)= @_;
+    my $r= ref($val);
+    if (!$r)
+      { print $fh " " x $indent if ($is_newline);
+        print $fh "'",$val,"'",$comma,"\n"; 
+        return;
+      };
+    if ($r eq 'ARRAY')
+      { print $fh "\n"," " x $indent if ($is_newline);
+        print $fh "[ \n"; $indent+=2;
+        for(my $i=0; $i<= $#$val; $i++)
+          { rdump($fh,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
+          };
+        $indent-=2; print $fh " " x $indent,"]$comma\n";
+        return;
+      };
+    if ($r eq 'HASH')
+      { print $fh "\n"," " x $indent if ($is_newline);
+        print $fh "{ \n"; $indent+=2;
+        my @k= sort keys %$val;
+        for(my $i=0; $i<= $#k; $i++)
+          { my $k= $k[$i];
+            my $st= (" " x $indent) . $k . " => ";
+            my $nindent= length($st); 
+            print $fh ($st); 
+            rdump($fh,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
+          };
+        $indent-=2; print $fh " " x $indent,"}$comma\n";
+        return;
+      };
+    print $fh " " x $indent if ($is_newline);
+    print $fh "REF TO: \'$r\'$comma\n"; 
+  }
+
+sub rdump_s
+  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
+  
+    my $r= ref($val);
+    if (!$r)
+      { $$r_buf.= " " x $indent if ($is_newline);
+        $$r_buf.= "\'$val\'$comma\n"; 
+        return;
+      };
+    if ($r eq 'ARRAY')
+      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
+        $$r_buf.= "[ \n"; $indent+=2;
+        for(my $i=0; $i<= $#$val; $i++)
+          { rdump_s($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
+          };
+        $indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
+        return;
+      };
+    if ($r eq 'HASH')
+      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
+        $$r_buf.=  "{ \n"; $indent+=2;
+        my @k= sort keys %$val;
+        for(my $i=0; $i<= $#k; $i++)
+          { my $k= $k[$i];
+            my $st= (" " x $indent) . $k . " => ";
+            my $nindent= length($st); 
+            $$r_buf.= ($st); 
+            rdump_s($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
+          };
+        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
+        return;
+      };
+    $$r_buf.=  " " x $indent if ($is_newline);
+    $$r_buf.=  "REF TO: \'$r\'$comma\n"; 
+  }
 
 
 sub set_err_func
@@ -62,7 +135,7 @@ sub set_err_func
     if (!defined $f_ref)
       { # reset to old error-function
         $errorfunc= \&my_err_func;
-	return;
+        return;
       }
       
     if (ref($f_ref) ne "CODE")
@@ -78,7 +151,7 @@ sub set_warn_func
     if (!defined $f_ref)
       { # reset to old warn-function
         $warnfunc= \&my_warn_func;
-	return;
+        return;
       };
 
     if (ref($f_ref) ne "CODE")
@@ -94,7 +167,7 @@ sub set_sql_trace_func
     if (!defined $f_ref)
       { # reset to old trace-function
         $sql_trace_func= \&my_sql_trace;
-	return;
+        return;
       };
 
     if (ref($f_ref) ne "CODE")
@@ -152,10 +225,68 @@ sub execute
   
     if ($sql_trace)
       { sql_trace( sprintf($format, @args) );
-      };	   
+      };           
 
     return( $sth->execute( @args));
-  };    
+  }; 
+
+sub dump_object_dict
+  { my($filename)= @_;
+  
+    my $fh= \*STDOUT;
+    local(*F);
+    
+    if (defined $filename)
+      { if (!open(F,">$filename"))
+          { dberror($mod,'dump_object_dict',__LINE__,"unable to open file"); 
+            return;
+          };
+        $fh= \*F;
+      };
+      
+    rdump($fh,$r_db_objects,0);
+    if (defined $filename)
+      { if (!close(F))
+          { dberror($mod,'dump_object_dict',__LINE__,"unable to close file"); 
+            return;
+          };
+      };          
+  }  
+
+sub dump_r_object_dict
+  { my($filename)= @_;
+  
+    my $fh= \*STDOUT;
+    local(*F);
+    
+    if (defined $filename)
+      { if (!open(F,">$filename"))
+          { dberror($mod,'dump_object_dict',__LINE__,"unable to open file"); 
+            return;
+          };
+        $fh= \*F;
+      };
+      
+    rdump($fh,$r_db_reverse_synonyms,0);
+    if (defined $filename)
+      { if (!close(F))
+          { dberror($mod,'dump_object_dict',__LINE__,"unable to close file"); 
+            return;
+          };
+      };          
+  }  
+
+sub dump_object_dict_s
+  { my $buffer; 
+    dbdrv::rdump_s(\$buffer,$r_db_objects,0);
+    return(\$buffer);
+  }  
+
+sub dump_r_object_dict_s
+  { my $buffer; 
+    dbdrv::rdump_s(\$buffer,$r_db_reverse_synonyms,0);
+    return(\$buffer);
+  }  
 
 
 sub load_object_dict 
@@ -163,22 +294,29 @@ sub load_object_dict
     return if (defined $r_db_objects);
     my %h;
     $r_db_objects= \%h;
+    my %r;
+    $r_db_reverse_synonyms= \%r;
     if (!get_user_objects($dbh,$user,$r_db_objects))
       { dberror($mod,'load_object_dict',__LINE__,
                 'loading of user-objects failed');
-	return;
+        return;
       };
       
-    if (!get_synonyms($dbh,$r_db_objects))
+    if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
       { dberror($mod,'load_object_dict',__LINE__,
                 'loading of synonyms failed');
-	return;
+        return;
       };
   }
 
 sub check_existence
   { my($dbh,$table_name,$user_name)= @_;
   
+    # when the table has the form "owner.table", the check cannot
+    # be made, since it's no public synonym and not in the 
+    # synonym list
+    return(1) if ($table_name=~ /\./);
+    
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -205,14 +343,14 @@ sub accessible_objects
     else
       { $types= lc($types);
         my @types= split(",",$types);
-	foreach my $t (@types)
-	  { my $c= $known_types{$t};
-	    if (!defined $c)
-	      { dberror($mod,'accessible_objects',__LINE__,
+        foreach my $t (@types)
+          { my $c= $known_types{$t};
+            if (!defined $c)
+              { dberror($mod,'accessible_objects',__LINE__,
                     "unknown object type: $t"); 
-        	return;
+                return;
               };
-	    $types{$c}=1;
+            $types{$c}=1;
           };
       };
       
@@ -224,10 +362,10 @@ sub accessible_objects
     if ((!exists $types{T}) || (!exists $types{V}))
       { # there are only tables and views, so only if not BOTH
         # are wanted, we have to filter
-	if (exists $types{T})
-	  { @keys= grep { $r_db_objects->{$_}->[0] eq 'T' } @keys; }
-	else
-	  { @keys= grep { $r_db_objects->{$_}->[0] eq 'V' } @keys; };
+        if (exists $types{T})
+          { @keys= grep { $r_db_objects->{$_}->[0] eq 'T' } @keys; }
+        else
+          { @keys= grep { $r_db_objects->{$_}->[0] eq 'V' } @keys; };
       };
 
      
@@ -236,11 +374,11 @@ sub accessible_objects
     else
       { $access= lc($access);
         %access= map { $_ => 1} split(",",$access);
-	foreach my $t (keys %access)
-	  { if (!exists $known_acc{$t})
-	      { dberror($mod,'accessible_objects',__LINE__,
+        foreach my $t (keys %access)
+          { if (!exists $known_acc{$t})
+              { dberror($mod,'accessible_objects',__LINE__,
                     "unknown object access type: $t"); 
-        	return;
+                return;
               };
           };
       };
@@ -262,8 +400,49 @@ sub accessible_objects
     return(sort @result);
   } 
         
+sub real_name
+# resolves a given table-name or synonym, 
+# returns the table-owner and the table-name
+  { my($dbh,$user_name,$object_name)= @_;
+  
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+  
+    load_object_dict($dbh,$user_name);  
+    
+    my $data= $r_db_objects->{$object_name};
+    return if (!defined $data); # not in list of synonyms and
+                                # user objects
+    
+    if ($#$data>1) # more than 2 objects in hash:synonym
+      { return( $data->[2], $data->[3] ); };
+      
+    return( $object_name, $data->[1] );
+  } 
+    
+sub canonify_name
+  { my($dbh,$user_name,$object_name,$object_owner)= @_;
 
+    if ($object_name =~ /\./)
+      { ($object_owner,$object_name)= split(/\./,$object_name); };
+    
+    return($object_name) if (!defined $object_owner);
 
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    load_object_dict($dbh,$user_name);  
+    
+    my $name= $object_owner . '.' . $object_name;
+    
+    my $new_name= $r_db_reverse_synonyms->{$name};
+
+    if (defined $new_name)
+      { return($new_name); };
+      
+    return($name);
+  }
+    
 
 sub load
   { my($driver_name)= @_;
@@ -271,17 +450,15 @@ sub load
     if (!exists $drivers{$driver_name})
       { dberror($mod,'load_driver',__LINE__,
                 'unknown db driver:$driver_name');
-	return;
+        return;
       };
     if (!do($drivers{$driver_name}))
       { dberror($mod,'load_driver',__LINE__,
                 "unable to load db driver $driver_name: $@");
-	return;
+        return;
       };
     return(1); 
   }     
-
-  
 
 sub connect_database
 # if dbname=="", use DBD::AnyData
@@ -297,9 +474,9 @@ sub connect_database
                               $username,     # user-name
                               $password,     # password
                              {RaiseError=>0, # errors abort the script
-			      PrintError=>0, # not needed bec. of RaiseError 
-			      AutoCommit=>1} # automatically commit changes
-			     );
+                              PrintError=>0, # not needed bec. of RaiseError 
+                              AutoCommit=>1} # automatically commit changes
+                             );
 
     if (!defined $dbh)
       { dbwarn($mod,'connect_database',__LINE__,
@@ -532,8 +709,8 @@ module, you should use C<prepare> or C<execute> from dbdrv instead.
 
   my $format;
   my $sth= dbdrv::prepare(\$format,$dbh,
-                	 "delete from $self->{_table} " .
-        	          "where KEY = ? ");
+                         "delete from $self->{_table} " .
+                          "where KEY = ? ");
 
 The first parameter is a reference to a scalar variable. This
 is used by C<dbdrv::execute> later. C<$dbh> is the database
@@ -623,11 +800,11 @@ The foreign key hash has the following format:
   my %fk_hash= ( $column_name1 => 
                        [$foreign_table1,$foreign_column_name1],
                  $column_name2 => 
-		       [$foreign_table2,$foreign_column_name2],
+                       [$foreign_table2,$foreign_column_name2],
                         ...
                  $column_nameN => 
-		       [$foreign_tableN,$foreign_column_nameN],
-	       )
+                       [$foreign_tableN,$foreign_column_nameN],
+               )
 
 =item dbdrv::resident_keys()
 
@@ -639,25 +816,40 @@ It returns a hash of the following format
 
   my %rk_hash= ( $primary_key1 => 
                         [$resident_table11,$resident_column11],
-  			[$resident_table12,$resident_column12],
-			   ...
-  			[$resident_table1N,$resident_column1N],
-				  
+                        [$resident_table12,$resident_column12],
+                           ...
+                        [$resident_table1N,$resident_column1N],
+                                  
                  $primary_key2 => 
-		        [$resident_table21,$resident_column21],
-  			[$resident_table22,$resident_column22],
-			   ...
-  			[$resident_table2N,$resident_column2N],
+                        [$resident_table21,$resident_column21],
+                        [$resident_table22,$resident_column22],
+                           ...
+                        [$resident_table2N,$resident_column2N],
                     ...
-	        )
+                )
 
 
-=item dbdrv::accessible_public_objects
+=item dbdrv::accessible_objects
 
-  my @objects= accessible_public_objects($dbh,$type,$user_name)
+  my @objects= accessible_objects($dbh,$table_name,$user_name)
   
 This function returns all accessible public objects (tables and
-views) for a given user.
+views) for a given user (C<$user_name>).
+
+=item dbdrv::real_name
+
+  my ($name,$owner)=real_name($dbh,$user_name,$object_name)
+
+This resolves synonyms and returns the real name of the table and
+it's owner.
+
+=item dbdrv::canonify_name
+
+  my $new_name=canonify_name($dbh,$user_name,$object_name,$object_owner)
+
+This converts a given object and it's owner to a name in the form
+"owner.name" or a synonym that maps to the given object. 
+
 
 --- to be continued ---
 
