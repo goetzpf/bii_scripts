@@ -9,6 +9,7 @@ dbutil.p
 grab_xkeys.pl
 MANIFEST
 paths.pl
+paths2.pl
 pfind.pl
 Sch2db.pl
 set_ioc_tsrv.pl
