@@ -35,7 +35,7 @@ if (0)
     print $text,"\n";
   };
   
-if (1)
+if (0)
   { 
 #    my $text=dbdrv::read_checktext(undef,"CHK_INSERTION_NN","ODBADM"); 
     #my $text=dbdrv::read_checktext(undef,"PS_FAMILY","ODBADM"); 
@@ -60,5 +60,16 @@ if (0)
 #    print Dumper(\@x),"\n";
     foreach my $r_a (@lines)
       { print join(",",@$r_a),"\n"; };
+  };
+
+if (1)
+  {
+    print "table-type check\n";
+    my $res=dbdrv::object_is_table(undef,"p_name"); 
+    
+    if ($res)
+      { print "is a table\n"; }
+    else
+      { print "is not a table\n"; };
   };
 
