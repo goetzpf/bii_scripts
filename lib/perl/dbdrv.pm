@@ -33,7 +33,7 @@ BEGIN {
 }
 use vars      @EXPORT_OK;
 use Data::Dumper;
-use SQL::Parser;
+#use SQL::Parser;
 
 # used modules
 
@@ -545,14 +545,17 @@ sub get_alias
             for (my $index = 1; $index <= $#values + 1; $index++)
               {
                 my $buffer = $values[$index - 1];
-                $returnvalue =~ s/##$index##/$buffer/mg;
+                if (!($returnvalue =~ s/##$index##/$buffer/mg))
+                  { return "ERROR: too many arguments"; };
               }
-          }
+          };
+        if ($returnvalue=~ /##\d+##/)
+          { return "ERROR: too few arguments"; };  
         return $returnvalue;
      }
    else
      {
-        return undef;
+        return "ERROR: unknown alias: $name";
      }
   }
 
