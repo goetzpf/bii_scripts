@@ -20,7 +20,8 @@ use Getopt::Long;
 
 use dbitable;
 
-$dbitable::sql_trace=1;
+#$dbitable::sql_trace=1;
+$dbdrv::sql_trace=1;
 
 my $default_user= "guest";
 my $default_pass= "bessyguest";
@@ -213,10 +214,10 @@ sub file2db
     my %ftab_options= (pretty=>1);
     
     if (!defined $opt_no_auto_pk)
-      { $ftab_options{primary_key=>"generate"} }
+      { $ftab_options{primary_key}="generate"; }
     else
-      { $ftab_options{primary_key=>"preserve"} };
-    
+      { $ftab_options{primary_key}="preserve"; };
+
     my $ftab= dbitable->new('file',$options{file},$options{tag},
                            )->load(%ftab_options);
 
