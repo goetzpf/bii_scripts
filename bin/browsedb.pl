@@ -54,7 +54,7 @@ use dbdrv 1.2;
 use dbitable 2.1;
 
 use Data::Dumper;
-my $VERSION= "0.94";
+my $VERSION= "0.95";
 
 #warn "TK Version: " . $Tk::VERSION;
 
@@ -183,8 +183,7 @@ sub tk_login
         return;
       };
 
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $Top->title("$PrgTitle:Login");
+    my $Top= mk_toplevel($r_glbl,title=>"$PrgTitle:Login");
 
     $r_glbl->{login_widget}= $Top;
     my $FrTop = $Top->Frame(-background=>$BG
@@ -686,11 +685,11 @@ sub tk_main_window
                               -width=>20,
                               -command =>
                                sub { $DlgCollListbox->delete(0, 'end');
-			             $DlgCollListbox->insert("end",
-			                     file_find('\.col$',
-					               $sharedir,
-						       $PrgDir
-						      )     );
+                                     $DlgCollListbox->insert("end",
+                                             file_find('\.col$',
+                                                       $sharedir,
+                                                       $PrgDir
+                                                      )     );
                                    },
                             )->pack(
                                 -padx=>2,-pady=>2,
@@ -699,7 +698,7 @@ sub tk_main_window
                             );
 
         $DlgCollListbox->insert("end",
-				file_find('\.col$',$sharedir,$PrgDir) );
+                                file_find('\.col$',$sharedir,$PrgDir) );
 
 
         $DlgCollListbox->
@@ -710,12 +709,12 @@ sub tk_main_window
 
         $DlgCollListbox->
             bind('<Control-r>' =>
-	              sub { $DlgCollListbox->delete(0, 'end');
-			    $DlgCollListbox->insert("end",
-			            file_find('\.col$',
-					      $sharedir,
-					      $PrgDir
-					     )     );
+                      sub { $DlgCollListbox->delete(0, 'end');
+                            $DlgCollListbox->insert("end",
+                                    file_find('\.col$',
+                                              $sharedir,
+                                              $PrgDir
+                                             )     );
                           }
 
                );
@@ -1120,7 +1119,7 @@ sub tk_quit
                     -title => 'Quit',
                     -text => 'Do you really want to quit?',
                     -default_button => 'No',
-                    -buttons => ['No', 'Yes'],
+                    -buttons => ['Yes', 'No'],
                     );
         $choice = $DlgQuit->Show;
       }
@@ -1152,8 +1151,7 @@ sub tk_quit
 sub tk_about
  { my($r_glbl)= @_;
 
-   my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-   $Top->title("About $PrgTitle");
+   my $Top= mk_toplevel($r_glbl,title=>"About $PrgTitle");
 
    my @text= ("$PrgTitle $VERSION",
                "written by Goetz Pfeiffer",
@@ -1804,9 +1802,18 @@ sub make_table_window
     # create a new top-window
     # my $Top= MainWindow->new(-background=>$BG);
     #my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
-    my $Top = cf_open_window($r_glbl->{main_menu_widget}, $r_glbl,
-                             $r_tbh->{table_name},
-                             $r_tbh->{geometry});
+
+    my $Top= mk_toplevel($r_glbl,
+                         title    => $r_tbh->{table_name},
+                         geometry => $r_tbh->{geometry});
+
+    tk_update_window_menu($r_glbl);
+
+    # What's this ???
+    $Top->eventAdd('<<Paste>>' => '<Control-v>');
+    $Top->eventAdd('<<Copy>>' => '<Control-c>');
+    $Top->eventAdd('<<Save>>' => '<Control-s>');
+    $Top->eventAdd('<<Quit>>' => '<Control-q>');
 
     delete $r_tbh->{geometry}; # no longer needed
 
@@ -1931,12 +1938,12 @@ sub make_table_window
     my $MnEditLine = $MnEdit->Menu();
 
 
-    $Top->bind($Top,'<Control-f>'=> [\&tk_find_line,$r_tbh]);
+    $Top->bind($Top,'<Control-f>'=> [\&tk_find_line,$r_glbl, $r_tbh]);
     $MnEdit->add('command',
                   -label=> 'find in column',
                   -accelerator => 'Ctrl+f',
                   -underline   => 8,
-                  -command => [\&tk_find_line, "", $r_tbh],
+                  -command => [\&tk_find_line, "", $r_glbl, $r_tbh],
                 );
     $Top->bind($Top,'<Control-g>'=> [\&tk_find_line_next,
                                      $r_glbl, $r_tbh,'next']);
@@ -1976,7 +1983,7 @@ sub make_table_window
     $MnEditLine->add('command',
                       -label=> 'delete',
                        -underline   => 0,
-                      -command => [\&tk_delete_line_dialog, $r_tbh],
+                      -command => [\&tk_delete_line_dialog, $r_glbl, $r_tbh],
                     );
     $MnEditLine->add('command',
                       -label=> 'copy',
@@ -1994,7 +2001,7 @@ sub make_table_window
     $MnEditField->add('command',
                        -label=> 'enter value',
                        -underline   => 0,
-                       -command => [\&tk_field_edit, $r_tbh],
+                       -command => [\&tk_field_edit, $r_glbl, $r_tbh],
                      );
 
     $MnEditField->add('command',
@@ -2233,7 +2240,7 @@ sub make_table_window
                      -label=> 'find in column',
                      -command =>
                         sub { tk_find_line("",
-                                    $r_tbh,
+                                    $r_glbl, $r_tbh,
                                     $column_popup{current_col});
                             }
                     );
@@ -2328,7 +2335,7 @@ sub make_table_window
     $r_itemhash->{edit}= $itemcnt++;
     $MnPopup->add('command',
                    -label=> 'edit',
-                   -command => [\&tk_field_edit, $r_tbh],
+                   -command => [\&tk_field_edit, $r_glbl, $r_tbh],
                  );
 
 
@@ -2341,7 +2348,7 @@ sub make_table_window
     $r_itemhash->{'edit all in selection'}= $itemcnt++;
     $MnPopup->add('command',
                    -label=> 'edit all in selection',
-                   -command => [\&tk_field_edit, $r_tbh, 'selected'],
+                   -command => [\&tk_field_edit, $r_glbl, $r_tbh, 'selected'],
                  );
     $r_itemhash->{copy}= $itemcnt++;
     $MnPopup->add('command',
@@ -2358,7 +2365,7 @@ sub make_table_window
     $r_itemhash->{'find in column'}= $itemcnt++;
     $MnPopup->add('command',
                   -label=> 'find in column',
-                  -command => [\&tk_find_line, "", $r_tbh],
+                  -command => [\&tk_find_line, "", $r_glbl, $r_tbh],
                 );
     $r_itemhash->{'select THIS as foreign key'}= $itemcnt++;
     $MnPopup->add('command',
@@ -2421,25 +2428,6 @@ sub make_table_window
 
     $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
 
-  }
-
-sub cf_open_window
-  { my($parent_window, $r_glbl, $window_title, $geometry) = @_;
-    my $NewTop = $parent_window->Toplevel(-background=>$BG);
-
-    if (defined $geometry)
-      { $NewTop->geometry($geometry); };
-
-    $NewTop->configure(-title=>$window_title);
-
-    tk_update_window_menu($r_glbl);
-
-    $NewTop->eventAdd('<<Paste>>' => '<Control-v>');
-    $NewTop->eventAdd('<<Copy>>' => '<Control-c>');
-    $NewTop->eventAdd('<<Save>>' => '<Control-s>');
-    $NewTop->eventAdd('<<Quit>>' => '<Control-q>');
-
-    return $NewTop;
   }
 
 sub cb_close_window
@@ -2594,14 +2582,13 @@ sub tk_add_relation_dialog
                          ocol=>undef );
 
     #my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    my $Top= mk_toplevel($r_glbl,
+                         title=>"add relation in $r_tbh->{table_name}");
 
     $relation_hash{Top}= $Top;
 
     my @open_tables= grep {$_ ne  $myname}
                            (sort keys %{$r_glbl->{all_tables}});
-
-    $Top->title("add relation in $r_tbh->{table_name}");
 
     $Top->Label(-text => 'this table:'
                )->grid(-row=>0, -column=>0, -sticky=> "w");
@@ -2763,9 +2750,9 @@ sub tk_references_dialog
 
 
     #my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    my $Top= mk_toplevel($r_glbl,
+                         title=>"foreign keys in $r_tbh->{table_name}");
 
-    $Top->title("foreign keys in $r_tbh->{table_name}");
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
                            -background=>$BG
@@ -3083,7 +3070,7 @@ sub tk_find_line
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
 # if $given_colname is undefined, take it from the active cell
-  { my($widget, $r_tbh, $given_colname)= @_;
+  { my($widget, $r_glbl, $r_tbh, $given_colname)= @_;
 
     my $TableWidget= $r_tbh->{table_widget};
 
@@ -3101,10 +3088,9 @@ sub tk_find_line
     $col_search_data{colname}= $colname;
 
     # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $TableWidget->Toplevel(-background=>$BG);
-
-    my $title= "$r_tbh->{table_name}: Find $colname";
-    $Top->title($title);
+    my $Top= mk_toplevel($r_glbl,
+                         parent_widget=> $TableWidget,
+                         title=>"$r_tbh->{table_name}: Find $colname");
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
                            -background=>$BG
@@ -3185,7 +3171,7 @@ sub tk_find_line_next
 
 sub tk_field_edit
 # mode: "active" or "selected"
-  { my($r_tbh, $mode)= @_;
+  { my($r_glbl, $r_tbh, $mode)= @_;
 
     if (!defined $mode)
       { $mode= 'active'; };
@@ -3195,97 +3181,39 @@ sub tk_field_edit
 #my($wi,$h,$x,$y)= split(/[x\+\-]/,$TableWidget->geometry());
 #warn join("|",$wi,$h,$x,$y),"\n";
 
+    my $title;
     my @cells;
     if ($mode eq 'active')
-      { $cells[0]= $TableWidget->index('active'); }
+      { $cells[0]= $TableWidget->index('active');
+        $title= "edit field";
+      }
     else
-      { @cells=  $TableWidget->curselection(); };
+      { @cells=  $TableWidget->curselection();
+        $title= "edit selection";
+      };
 
     # get row-column of the active cell in the current table
     my($row,$col)= split(",",$cells[0]);
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
+    tk_simple_text_dialog($r_glbl,$r_tbh,
+                           tag=> "field_edit_dialog",
+                           title=> $r_tbh->{table_name} . ":edit",
+                           text=> $title,
+                           default=> put_get_val_direct($r_tbh,1,
+                                                        $pk,$colname),
+                           callback=> [\&tk_field_edit_finish,\@cells]
+                          );
 
-    # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $TableWidget->Toplevel(-background=>$BG);
-    #$Top->Popup(-popover    => 'cursor');
+  }
 
-    #my $title= "$r_tbh->{table_name}: Edit $colname";
-    $Top->title("$r_tbh->{table_name}");
+sub tk_field_edit_finish
+  { my($r_glbl,$r_tbh,$value,$r_cells)= @_;
 
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'x',
-                                  -expand=>'y');
-    my $FrDn  = $Top->Frame(-background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'y',
-                                  -expand=>'y'
-                                  );
+    my $TableWidget= $r_tbh->{table_widget};
 
-    if ($mode eq 'active')
-      { $FrTop->Label(-text=>"$colname: ")->pack(-side=>'left'); };
-
-    $r_tbh->{edit_cells}= \@cells;
-
-    # edit_cell is a temporary variable
-    # 1: use column-maps
-    $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,1,$pk,$colname);
-    my $w;
-
-    if (defined $r_tbh->{edit_cell})
-      { $w= length($r_tbh->{edit_cell}); };
-
-    $w=20 if ($w<20);
-
-    my $Entry= $FrTop->Entry(-textvariable => \$r_tbh->{edit_cell},
-                             -width=>$w
-                            )->pack(-side=>'left',-fill=>'x',-expand=>'y');
-
-    $FrDn->Button(-text => 'accept',
-                  %std_button_options,
-                  -command => sub { foreach my $c (@{$r_tbh->{edit_cells}})
-                                      { $TableWidget->set(
-                                                       $c,
-                                                       $r_tbh->{edit_cell});
-                                      };
-                                   delete $r_tbh->{edit_cell};
-                                   delete $r_tbh->{edit_cells};
-                                   $Top->destroy;
-                                  }
-                 )->pack(-side=>'left', -fill=>'y');
-
-
-    $FrDn->Button(-text => 'abort',
-                 %std_button_options,
-                 -command => sub { delete $r_tbh->{edit_cell};
-                                   delete $r_tbh->{edit_cells};
-                                   $Top->destroy;
-                                  }
-                 )->pack(-side=>'left', -fill=>'y');
-
-    #$Top->Popup(-popover    => 'cursor');
-
-    $Top->bind('<Destroy>',
-               sub { delete $r_tbh->{edit_cell};
-                     delete $r_tbh->{edit_cells};
-                   }
-              );
-
-
-    $Entry->bind('<Return>',
-                 sub { foreach my $c (@{$r_tbh->{edit_cells}})
-                          { $TableWidget->set(
-                                           $c,
-                                           $r_tbh->{edit_cell});
-                          };
-                       delete $r_tbh->{edit_cell};
-                       delete $r_tbh->{edit_cells};
-                       $Top->destroy;
-                     }
-                );
-
-    # let the window appear near the mouse-cursor:
-    $Top->Popup(-popover    => 'cursor');
+    foreach my $c (@$r_cells)
+      { $TableWidget->set($c, $value); };
 
   }
 
@@ -4350,7 +4278,7 @@ sub cb_insert_line_finish
 #_______________________________________________________
 
 sub tk_delete_line_dialog
-  { my($r_tbh)= @_;
+  { my($r_glbl,$r_tbh)= @_;
 
     my $Table= $r_tbh->{table_widget};
 
@@ -4359,9 +4287,9 @@ sub tk_delete_line_dialog
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
     # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $Table->Toplevel(-background=>$BG);
-
-    $Top->title($r_tbh->{table_name});
+    my $Top= mk_toplevel($r_glbl,
+                         parent_widget=> $Table,
+                         title=>"$r_tbh->{table_name}: delete");
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
                            -background=>$BG
@@ -4750,8 +4678,8 @@ sub tk_sort_menu
 
     my %sort_popup;
 
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $Top->title("sort $r_tbh->{table_name}");
+    my $Top= mk_toplevel($r_glbl,
+                         title=>"$r_tbh->{table_name}: sort");
 
     $r_tbh->{sort_popup}= \%sort_popup;
 
@@ -4992,6 +4920,7 @@ sub tk_save_collection
 #_______________________________________________________
 
 sub tk_simple_text_dialog
+# ADD a WIDTH parameter here!
 # known options:
 # title
 # callback -> callback after something was selected
@@ -5006,24 +4935,30 @@ sub tk_simple_text_dialog
     die if (!defined $tag); # assertion
 
     my %h;
+    my $width=20;
 
     if (exists $options{default})
-      { $h{string}= $options{default}; };
+      { $h{string}= $options{default};
+        my $l= length($options{default});
+        $width= $l if ($l > $width);
+        $width=80 if ($width>80);
+      };
 
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $Top->title($options{title});
+    my $Top= mk_toplevel($r_glbl,
+                         title=>$options{title});
 
     my $entry=
        $Top->Entry(-textvariable => \$h{string},
-                   -width=>20
+                   -width=>$width
                   )->pack(-side=>'top',-fill=>'x',-expand=>'y');
 
     $entry->focus();
 
-    $Top->Label(-text => $options{text}
-               )->pack(-side=>'top' ,-fill=>'y',
-                      );
-
+    if (exists $options{text})
+      { $Top->Label(-text => $options{text}
+                   )->pack(-side=>'top' ,-fill=>'y',
+                          );
+      };
 
     $Top->bind('<Return>',[ \&tk_simple_text_dialog_finish, $r_glbl,$r_tbh,$tag ]);
 
@@ -5073,11 +5008,10 @@ sub tk_make_text_widget
     my %text;
 
     # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    my $Top= mk_toplevel($r_glbl,
+                         title=>$title);
 
     $text{Top}= $Top;
-
-    $Top->title("$title");
 
     my $text;
 
@@ -5176,11 +5110,11 @@ sub tk_text_search
 
     my $text= $r_text->{text_widget};
 
-    my $Top= $r_text->{Top}->Toplevel(-background=>$BG);
+    my $Top= mk_toplevel($r_glbl,
+                         parent_widget=> $r_text->{Top},
+                         title=>"search");
 
     $r_text->{search_widget}= $Top;
-
-    $Top->title("search");
 
     my $Entry= $Top->Entry(-textvariable => \$r_text->{search},
                            -width=>20
@@ -5382,8 +5316,8 @@ sub tk_object_dialog
 
     my %h;
 
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $Top->title($options{title});
+    my $Top= mk_toplevel($r_glbl,
+                         title=>$options{title});
 
     my $FrTop = $Top->Frame(-borderwidth=>2,
                            -background=>$BG
@@ -5461,6 +5395,36 @@ sub tk_object_dialog_finish
 #=======================================================
 # small Tk utilies:
 #=======================================================
+
+# create new toplevel window:
+#_______________________________________________________
+
+sub mk_toplevel
+# options:  title: window title
+#           geometry: geometry string
+#           parent_widget
+  { my($r_glbl,%options)= @_;
+    my $MainWidget;
+
+    if (exists $options{parent_widget})
+      { $MainWidget= $options{parent_widget}; }
+    else
+      { $MainWidget= $r_glbl->{main_menu_widget}; };
+
+    my $Top= $MainWidget->Toplevel(-background=>$BG);
+
+    # add new toplevel widget to the BrowseDB group
+    # looks nice in gnome-panel and kde-panel
+    $Top->group($r_glbl->{main_menu_widget});
+
+    if (exists $options{title})
+      { $Top->title($options{title}); };
+
+    if (exists $options{geometry})
+      { $Top->geometry($options{geometry}); };
+
+    return($Top);
+  }
 
 # delete last inserted char in text widget:
 #_______________________________________________________
