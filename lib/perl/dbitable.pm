@@ -481,6 +481,8 @@ sub store
 sub export_csv
 # known options: 'order_by' => column-name
 #            or  'order_by' => [column-name1,column-name2...]
+#                'col_selection'=> [column-name1,column-name2]
+#                'pk_selection'=> [pk1,pk2, ...pkn] 
   { my $self= shift;
     my $filename= shift;
     my %options= @_;
@@ -490,6 +492,18 @@ sub export_csv
 
     $self->gen_sort_prepare(\%options);
 
+    my $r_columns    = $self->{_columns}; 
+    my $r_column_list= $options{col_selection}; 
+    if (!defined $r_column_list)
+      { $r_column_list= $self->{_column_list}; };
+
+
+    my @col_i_list;
+    for(my $i=0; $i<= $#$r_column_list; $i++)
+      { push @col_i_list, $r_columns->{ $r_column_list->[$i] }; };
+
+#warn join("|",@col_i_list);
+      
     local(*G);
 
     if (!open(G,">$filename")) 
@@ -497,18 +511,27 @@ sub export_csv
                       "unable to write $filename");
         return;
       };
-    print G join($sep,@{$self->{_column_list}}),"\n";
+    print G join($sep,@$r_column_list),"\n";
      
     my $r_l= $self->{_lines}; 
 
-    $gen_sort_href= $r_l;
-    my @keylist= sort gen_sort (keys %$r_l);
+    my $r_keylist= $options{pk_selection};
+    if (!defined $r_keylist)
+      { $gen_sort_href= $r_l;
+        my @k= sort gen_sort (keys %$r_l);
+        $r_keylist= \@k;
+      };
 
     my @cells;
     my @strtype= map { ($_ eq 'number') ? 0 : 1 } @{$self->{_types}};
-    foreach my $pk (@keylist)
-      { @cells= @{$r_l->{$pk}};
-
+    foreach my $pk (@$r_keylist)
+      { my $r_line= $r_l->{$pk};
+      
+        @cells= ();
+        
+        foreach my $i (@col_i_list)
+          { push @cells, $r_line->[$i]; };
+      
         my $c;
         for(my$i=0; $i<= $#cells; $i++)
           { $c= $cells[$i];
@@ -2940,12 +2963,29 @@ known:
 
 "order_by"
 
-  $table->store(order_by=>[$column_name1,$column_name2])
+  $table->export_csv($filename, order_by=>[$column_name1,$column_name2])
 
 This option can only be used for the type "file". It defines, wether lines
 should be sorted by certain colums. The value may be the name of a single 
 column or (as shown above) a reference to a list
 of column names.
+
+=item *
+
+"col_selection"
+
+  $table->export_csv($filename, col_selection=> \@colum_names)
+  
+This exports only the columns of a table that are listed in @colum_names
+
+=item *
+
+"pk_selection"
+
+  $table->export_csv($filename, pk_selection=> \@pk_selection)
+  
+This exports only lines of the table whose primary key are listed 
+in the given array C<@pk_selection>.
 
 =back
 
