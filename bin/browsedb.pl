@@ -38,8 +38,8 @@ use IO::File;
 use warnings;
 #use diagnostics;
 
-use dbdrv 1.1;
-use dbitable 2.0;
+use dbdrv 1.2;
+use dbitable 2.1;
 
 use Data::Dumper;
 my $VERSION= "0.91";
@@ -55,7 +55,7 @@ my $sim_oracle_access=0;
 
 my $guest_login=0; # for debuggin only, default: 0
 my $fast_test=0; # skip login dialog and open $fast_table
-my $fast_table='p_insertion_value';
+my $fast_table='p_insertion';
 
 my $db_table_name;
 if (!@ARGV)
@@ -295,6 +295,14 @@ sub tk_main_window
                  -label=> 'dump global datastructure',
                  -command => [\&tk_dump_global, $r_glbl],
                 );
+    $MnHelp->add('command',
+                 -label=> 'dump object dictionary',
+                 -command => [\&tk_object_dict_dump, $r_glbl],
+                );
+    $MnHelp->add('command',
+                 -label=> 'dump reverse object dictionary',
+                 -command => [\&tk_r_object_dict_dump, $r_glbl],
+                );
 
         # statusbar
      my $MnStatus = $Top->Frame(
@@ -348,8 +356,8 @@ sub tk_main_window
                 );
         $r_glbl->{progress_widget} = $MnStatusProgress;
 
-        $Top->update();
-        tk_login(\%global_data); # calls tk_main_window_finish
+#        $Top->update();
+
     # prepareing mainwindow with dialog
         my $DlgTop = $Top->NoteBook()->pack(
                 -fill=>'both',
@@ -482,7 +490,7 @@ sub tk_main_window
                       }
                 );
         $r_glbl->{table_listbox_widget}=$DlgTblListbox;
-        $Top->update();
+#        $Top->update();
 
         # dialog view
         my $DlgVwListbox = $DlgVw->Scrolled(
@@ -582,7 +590,9 @@ sub tk_main_window
                      }
                 );
 
-        $Top->update();
+#        $Top->update();
+
+        tk_login(\%global_data); # calls tk_main_window_finish
 
   }
 
@@ -1102,7 +1112,9 @@ sub tk_foreign_key_dialog
 
     foreach my $col (@cols)
       { push @lines,
-             sprintf("%-" . $maxcolsz . "s -> %s",$col, $fkh->{$col}->[0])
+             sprintf("%-" . $maxcolsz . "s -> %s",$col, 
+	             $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
+	            )
       };
     my $maxlnsz=0;
     foreach my $l (@lines)
@@ -1155,9 +1167,13 @@ sub tk_foreign_key_dialog_finish
 
    my $colname= $r_cols->[ $selection[0] ];
 
-   my($fk_table,$fk_col)= @{$r_tbh->{foreign_key_hash}->{$colname}};
+   my($fk_table,$fk_col,$fk_owner)= @{$r_tbh->{foreign_key_hash}->{$colname}};
 
    $Top->destroy;  # @@@@
+
+   # new: take the table-owner into account:
+   $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                   $fk_table,$fk_owner);
 
    my $r_all_tables= $r_glbl->{all_tables};
    tkdie($r_glbl,"assertion in line " . __LINE__)
@@ -2308,6 +2324,40 @@ sub tk_dbitable_dump
    $text->pack(-fill=>'both',expand=>'y');
  }
 
+sub tk_object_dict_dump
+ { my($r_glbl)= @_;
+
+   # my $Top= MainWindow->new(-background=>$BG);
+   my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
+
+   $Top->title("object dictionary dump");
+
+   my $text= $Top->Scrolled('Text');
+
+   my $r_buffer= dbdrv::dump_object_dict_s();
+
+   $text->insert('end',$$r_buffer);
+
+   $text->pack(-fill=>'both',expand=>'y');
+ }
+
+sub tk_r_object_dict_dump
+ { my($r_glbl)= @_;
+
+   # my $Top= MainWindow->new(-background=>$BG);
+   my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
+
+   $Top->title("reverse object dictionary dump");
+
+   my $text= $Top->Scrolled('Text');
+
+   my $r_buffer= dbdrv::dump_r_object_dict_s();
+
+   $text->insert('end',$$r_buffer);
+
+   $text->pack(-fill=>'both',expand=>'y');
+ }
+
 sub tk_wait_box
   { my $r_glbl= shift;
     my $action= shift;
@@ -2741,8 +2791,11 @@ sub cb_open_foreign_table
     # removed !
     # $parent_widget->tagCell('active','active');
 
-    my($fk_table,$fk_col)= @{$fk_data};
+    my($fk_table,$fk_col,$fk_owner)= @{$fk_data};
 
+    $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                   $fk_table,$fk_owner);
+    
     # print "foreign key data: $fk_table,$fk_col\n";
 
     my $r_all_tables= $r_glbl->{all_tables};
@@ -2764,6 +2817,8 @@ sub cb_open_foreign_table
                                                thash_defaults=>
                                                    {resident_there=>1}
                                              );
+        if (!defined $r_tbh_fk) # table couldn't be opened
+	  { return; };
 
          conn_add($r_glbl,$r_tbh->{table_name},$colname,
                   $fk_table,$fk_col);
