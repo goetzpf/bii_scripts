@@ -2991,7 +2991,7 @@ column us not the primary-key column.
 
 If this is set (non-zero) the function warns when more than
 one line was found that matches the given value.
-  
+
 =back
 
 =item add_line()
@@ -3104,7 +3104,7 @@ returns C<undef> in this case and C<$last_error> is set to
 
 =head1 EXAMPLES
 
-=head2 query a database (type "table") 
+=head2 query a database (type "table")
 
 This example queries the p_insertion table here at BESSY. It connects to
 the database and creates a "table" object. C<new> and C<load> are called
