@@ -59,10 +59,13 @@ if (!@ARGV)
 else
   { $db_table_name= shift; };
 
-
-my $db_name      = "DBI:Oracle:bii_par";
+my $db_driver    = "Oracle";
+my $db_source    = "bii_par";
+my $db_name      = "DBI:$db_driver:$db_source";
 my $db_username  = "guest";
 my $db_password  = "bessyguest";
+
+my $r_alias;
 
 my $BG= "gray81";
 my $BUTBG= "gray73";
@@ -105,15 +108,17 @@ sub tk_login
 
 #  { my($r_glbl,$db_name,$user,$password)= @_;
 
-#    $r_glbl->{db_name}     = $db_name;
-#    $r_glbl->{user}        = $user;
-#    $r_glbl->{password}    = $password;
+    $r_glbl->{db_driver}    = $db_driver;
+    $r_glbl->{db_source}    = $db_source;
+    $r_glbl->{db_name}      = "DBI:$db_driver:$db_source";
+    $r_glbl->{user}         = $db_username;
+    $r_glbl->{password}     = $db_password;
 
     if ($fast_test)
       { tk_login_finish($r_glbl);
         return;
       };
-        my $Main=$r_glbl->{main_widget};
+    my $Main=$r_glbl->{main_widget};
     my $Top= $Main->Toplevel(-background=>$BG);
     $Top->title("$PrgTitle:Login");
 
@@ -125,6 +130,8 @@ sub tk_login
 
     my $row=0;
 
+    $FrTop->Label(-text => 'driver:'
+                 )->grid(-row=>$row++, -column=>0, -sticky=> "w");
     $FrTop->Label(-text => 'database:'
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
     $FrTop->Label(-text => 'user:'
@@ -133,7 +140,9 @@ sub tk_login
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
 
     $row=0;
-    my $e1= $FrTop->Entry(-textvariable => \$r_glbl->{db_name}
+    my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
+                         )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+    my $e1= $FrTop->Entry(-textvariable => \$r_glbl->{db_source},
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
     my $e2= $FrTop->Entry(-textvariable => \$r_glbl->{user}
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
@@ -141,12 +150,19 @@ sub tk_login
                           -show => '*',
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
 
-    $e1->focus();
-
+    foreach my $db_driver (DBI->available_drivers)
+      {
+        $e0->insert('end', $db_driver);
+      }
+    $e0->focus();
+    $e0->bind('<Return>', sub { $e1->focus() } );
+    $e0->bind('<Tab>', sub { $e1->focus() } );
     $e1->bind('<Return>', sub { $e2->focus() } );
+    $e1->bind('<Tab>', sub { $e2->focus() } );
     $e2->bind('<Return>', sub { $e3->focus() } );
+    $e2->bind('<Tab>', sub { $e3->focus() } );
     $e3->bind('<Return>', sub { tk_login_finish($r_glbl); } );
-    # [\&tk_login_finish, $r_glbl ] doesnt work!
+    $e3->bind('<Tab>', sub { tk_login_finish($r_glbl); } );
 
     $FrDn->Button(-text => 'Login',
                   %std_button_options,
@@ -168,7 +184,7 @@ sub tk_login_finish
       { dbitable::disconnect_database($r_glbl->{dbh});
         delete $r_glbl->{dbh};
       };
-
+    $r_glbl->{db_name} = "DBI:".$r_glbl->{db_driver}.":".$r_glbl->{db_source};
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -475,7 +491,7 @@ sub tk_main_window
                 -height=> 10,
                 -wrap=> "word",
                 -scrollbars=> "se",
-        )->pack( %dlg_def_labentry, );
+        )->packAdjust( %dlg_def_labentry, );
         $r_glbl->{sql_command_widget}=$DlgSQLCommand;
         $DlgSQL->Label(
                 -text=>"History :",
@@ -618,7 +634,7 @@ sub tk_handle_table_browse_entry
     my @matches= grep { $_ =~ /^$proposed/ } (@$r_all_objects);
 
     if (!@matches)
-      { # the table doesn't exist
+      { # the table doesnt exist
         $r_glbl->{table_browse_widget}->bell();
         return(0);
       };
@@ -668,12 +684,12 @@ sub tk_open_new_object
     $params{table_name}= uc( $r_glbl->{new_table_name} );
     delete $r_glbl->{new_table_name};
 
-    
+
     # setting kind of db object
     if (lc($type) =~ /(table|view|sql)/)
       {  $params{table_type} = lc($type); }
     else
-      {  die "unsupported table type: $type"; #$params{table_type} = "sql"; 
+      {  die "unsupported table type: $type"; #$params{table_type} = "sql";
       }
 
     make_table_hash_and_window($r_glbl,%params);
@@ -693,27 +709,47 @@ sub tk_open_new_object
 
 
 sub tk_execute_new_query
-# routine for executinf free sequel
+# routine for executing free sequel
   { my($r_glbl, $sqlquery)= @_;
     #print $sqlparser->structure;
     chomp $sqlquery;
+    $sqlquery =~ s/^\s*//;
     $sqlquery =~ s/\s*;\s*$//;
     $sqlquery =~ s/^\s*$//m;
-    
-    
-    if (length($sqlquery) >= 6) {
+    if ($sqlquery =~ /^select /i)
+      {
+        if (length($sqlquery) >= 6)
+          {
+            my $success = make_table_hash_and_window(
+                                $r_glbl,
+                                table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
+                                table_type=>"sql",
+                                sequel=>$sqlquery);
+            if (defined ($success))
+              {
+                    $r_glbl->{sql_history_widget}->insert('end', "\n");
+                    $r_glbl->{sql_history_widget}->insert('end', $sqlquery);
+                    $r_glbl->{sql_command_widget}->delete('1.0', "end");
+                    $r_glbl->{sql_command_widget}->insert('1.0', $sqlquery);
+              }
+          }
+      }
+    elsif ($sqlquery =~ /^(insert|update|delete) /i)
+      {
+        tk_err_dialog($r_glbl->{main_menu_widget},
+                      "not supported yet!");
+      }
+    elsif ($sqlquery =~ /^(create|alter|drop) /i)
+      {
+        tk_err_dialog($r_glbl->{main_menu_widget},
+                      "not supported yet!");
+      }
+    else
+      {
+        tk_err_dialog($r_glbl->{main_menu_widget},
+                      "Unknown SQL commend or command not for owner use sepcified!");
+      }
 
-#@@@@@@@@@@@@@@@    
-make_table_hash_and_window($r_glbl,
-                           table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
-			   table_type=>"sql",
-			   sequel=>$sqlquery);
-
-        $r_glbl->{sql_history_widget}->insert('end', "\n");
-        $r_glbl->{sql_history_widget}->insert('end', $sqlquery);
-        $r_glbl->{sql_command_widget}->delete('1.0', "end");
-        $r_glbl->{sql_command_widget}->insert('1.0', $sqlquery);
-    }
     return $sqlquery;
 }
 
@@ -748,7 +784,7 @@ sub dbi_sql_trace
 
 sub tk_foreign_key_dialog
   { my($r_glbl,$r_tbh)= @_;
-  
+
     my $parent_widget= $r_tbh->{table_widget};
 
     my $fkh= $r_tbh->{foreign_key_hash};
@@ -765,7 +801,7 @@ sub tk_foreign_key_dialog
                       "there are no foreign keys in this table");
         return;
       };
-    
+
     #my $Top= MainWindow->new(-background=>$BG);
     my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
@@ -840,7 +876,7 @@ sub tk_foreign_key_dialog_finish
       };
     
    my $colname= $r_cols->[ $selection[0] ];
-   
+
    my($fk_table,$fk_col)= @{$r_tbh->{foreign_key_hash}->{$colname}};
 
    $Top->destroy;  # @@@@
@@ -855,10 +891,10 @@ sub tk_foreign_key_dialog_finish
        # make_table_hash_and_window since make_table_window looks for
        # this part of the table-hash and creates the "select" button if
        # that member of the hash is found
-       $r_tbh_fk= make_table_hash_and_window($r_glbl, 
-       					     table_name=> $fk_table, 
-					     table_type=> 'table', 
-       		                             resident_there=>1);
+       $r_tbh_fk= make_table_hash_and_window($r_glbl,
+                table_name=> $fk_table,
+                table_type=> 'table',
+                resident_there=>1);
 
         conn_add($r_glbl,$r_tbh->{table_name},$colname,
                  $fk_table,$fk_col);
@@ -877,32 +913,32 @@ sub tk_foreign_key_dialog_finish
    delete $r_glbl->{foreign_key_dialog_listbox};
    delete $r_glbl->{foreign_key_cols};
 
-  }   
-  
+  }
+
 sub tk_dependency_dialog
   { my($r_glbl,$r_tbh)= @_;
-  
+
     my $parent_widget= $r_tbh->{table_widget};
-  
+
     my $r_resident_keys= $r_tbh->{dbitable}->resident_keys();
-    
+
     if (!defined $r_resident_keys)
       { tk_err_dialog($parent_widget,
                       "no other table depends on this one");
         return;
       };
-    
+
     my %resident_tables;
     # res_table_name => [  [res_col1, col1],
     #                      [res_col2, col2],
     #                          ...
     #                   ]
-    
+
     foreach my $col_name (keys %$r_resident_keys)
       { my $r_list= $r_resident_keys->{$col_name};
-      
+
         foreach my $r_sublist (@$r_list)
-          { 
+          {
 
             push @{ $resident_tables{$r_sublist->[0]} },
                  [ $r_sublist->[1] , $col_name ];
@@ -912,46 +948,43 @@ sub tk_dependency_dialog
 
           };
       };
-      
+
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
     $Top->title("dependents from $r_tbh->{table_name}");
-
-
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
                            -background=>$BG
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
     my $FrDn  = $Top->Frame(-background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'y', 
+                           )->pack(-side=>'top' ,-fill=>'y',
                                   );
 
-    
     my @resident_table_list= sort keys %resident_tables;
 
     my $max_height= 10;
     my $max_width= 0;
     foreach my $r (@resident_table_list)
       { $max_width= length($r) if (length($r)>$max_width); };
-    
+
     my $listbox;
-    my %listbox_options= (-selectmode => 'single', 
+    my %listbox_options= (-selectmode => 'single',
                           -width=>$max_width,
                           -height=> $max_height);
     if ($#resident_table_list>$max_height)
       { $listbox= $FrTop->Scrolled( 'Listbox', %listbox_options ); }
     else
-      { $listbox_options{-height}= $#resident_table_list + 1; 
-        $listbox= $FrTop->Listbox(%listbox_options ); 
+      { $listbox_options{-height}= $#resident_table_list + 1;
+        $listbox= $FrTop->Listbox(%listbox_options );
       };
 
     foreach my $res_table (@resident_table_list)
       { $listbox->insert('end', $res_table); };
-      
+
     $listbox->pack(-fill=>'both',-expand=>'y');
-    
+
     $FrDn->Button(-text => 'open table',
                   %std_button_options,
                  -command => [\&tk_dependency_dialog_finish, $r_glbl, $r_tbh],
@@ -959,7 +992,7 @@ sub tk_dependency_dialog
 
     $FrDn->Button(-text => 'abort',
                   %std_button_options,
-                  -command => sub { 
+                  -command => sub {
                              $Top->destroy;
                              delete $r_tbh->{dependency_dialog_top_widget};
                              delete $r_tbh->{dependency_dialog_listbox};
@@ -979,45 +1012,45 @@ sub tk_dependency_dialog
 
 sub tk_dependency_dialog_finish
   { my($r_glbl,$r_tbh)= @_;
-  
+
     my $Top                  = $r_tbh->{dependency_dialog_top_widget};
     my $listbox              = $r_tbh->{dependency_dialog_listbox};
     my $r_resident_table_list= $r_tbh->{resident_table_list};
     my $r_resident_tables    = $r_tbh->{resident_tables};
 
-    
+
     my @selection= $listbox->curselection();
-    
+
     if (!@selection)
-      { tk_err_dialog($Top, "no table selected"); 
+      { tk_err_dialog($Top, "no table selected");
         return;
       };
-    
+
     my $res_table= $r_resident_table_list->[ $selection[0] ];
-    
+
     # warn "open new table: $res_table";
-    
+
     $Top->destroy;  # @@@@
-    
+
     my $r_all_tables= $r_glbl->{all_tables};
     tkdie($r_glbl,"assertion in line " . __LINE__)
        if (!defined $r_all_tables); # assertion, shouldn't happen
-    
+
     my $r_tbh_res= $r_all_tables->{$res_table};
     if (!defined $r_tbh_res)
       { # create a window fore the resident-table:
-        $r_tbh_res= make_table_hash_and_window($r_glbl, 
+        $r_tbh_res= make_table_hash_and_window($r_glbl,
 	                                       table_name=>$res_table,
 					       table_type=>'table');
-      
+
         # get the name of the current table:
         my $my_table= $r_tbh->{table_name};
-        
+
         # get the list of relations between the current (the foreign) table
         # and the resident table:
         my $r_col_relations= $r_resident_tables->{$res_table};
         # [res_col1, col1], [res_col2, col2], ...
-        
+
 #warn "new table: col_relations: $r_col_relations\n";
 #warn "array content: " , Dumper($r_col_relations) , "\n";
 
@@ -1025,17 +1058,17 @@ sub tk_dependency_dialog_finish
           { # save information on connection between the
             # foreign table and the resident table
             my($res_col,$fk_col)= @$r_col_relation;
-            
+
             conn_add($r_glbl,$res_table,$res_col,$my_table,$fk_col);
           };
       }
-        
+
     delete $r_tbh->{dependency_dialog_top_widget};
     delete $r_tbh->{dependency_dialog_listbox};
     delete $r_tbh->{resident_tables};
     delete $r_tbh->{resident_table_list};
   }
-    
+
 
 sub tk_find_line
   { my($r_tbh)= @_;
@@ -1045,7 +1078,7 @@ sub tk_find_line
     # get row-column of the active cell in the current table
     my($row,$col)= split(",",$TableWidget->index('active'));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
- 
+
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $TableWidget->Toplevel(-background=>$BG);
 
@@ -1060,15 +1093,15 @@ sub tk_find_line
                            )->pack(-side=>'top' ,-fill=>'y',
                                   -expand=>'y'
                                   );
-       
+
     $FrTop->Label(-text=>"string to find: ")->pack(-side=>'left');
-    
+
     $r_tbh->{find_cell}= "";
-    
+
     $FrTop->Entry(-textvariable => \$r_tbh->{find_cell},
                   -width=>20
                  )->pack(-side=>'left',-fill=>'x',-expand=>'y');
-                 
+
     $FrDn->Button(-text => 'accept',
                  %std_button_options,
                   -command => sub {
@@ -1186,7 +1219,7 @@ sub tk_field_edit
                                                       $r_tbh->{edit_cell});
                                    delete $r_tbh->{edit_cell};
                                    $Top->destroy;
-                                 } 
+                                 }
                 );
 
     # let the window appear near the mouse-cursor:
@@ -1197,12 +1230,12 @@ sub tk_field_edit
 sub make_table_hash_and_window
   { my($r_glbl,%options)= @_;
 
-    if ($options{table_type} =~ /(table|view|sql)/) 
+    if ($options{table_type} =~ /(table|view|sql)/)
       {
         if (!exists $r_glbl->{all_tables})
           { $r_glbl->{all_tables}= {}; };
-      } 
-    else 
+      }
+    else
       { tk_err_dialog($r_glbl->{main_menu_widget},
                       "unsupported table type: $options{table_type}");
         return;
