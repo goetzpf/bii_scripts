@@ -14,7 +14,7 @@ use Getopt::Long;
 
 use vars qw($opt_help $opt_multiple $opt_header $opt_part $opt_check);
 
-my $version = "1.3p";
+my $version = "1.4p";
 
 
 # debugging:
@@ -335,6 +335,8 @@ sub process_file
 sub check_part
   { my($r_wanted,$r_current)= @_;
     
+    return (1) if (!%$r_wanted);
+
     foreach my $key (keys %$r_current)
       { next if (!$r_current->{$key});
         if ($r_wanted->{$key})
@@ -370,7 +372,7 @@ sub print_help
 ************* $FindBin::Script $version *****************
 The perl-based header-generator program
 
-usage: $FindBin::Script {options} 
+usage: $FindBin::Script {options} [filename(s)]
 options:
   --help : this help
   -m --multiple: more than one input-file given
