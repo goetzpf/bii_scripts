@@ -12,14 +12,21 @@ use v5.6.0;
 
 use strict;
 
-use DBI;
+BEGIN {
+
+       #use DBI;
+       if (!$ENV{DBITABLE_NO_DBI})
+	 { require DBI;
+	   import DBI;
+	 };
+      };
 use Data::Dumper;
 use Text::Wrap;
 use Text::ParseWords;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.0';
+our $VERSION     = '1.1';
 
 our $export_version= "1.0";
 
@@ -238,7 +245,7 @@ sub init_tableviewtype
     my $primary_key= shift; $primary_key= uc($primary_key);
     if ((!defined $primary_key) || ($primary_key eq ""))
       { if (exists $self->{_pk})
-          { $primary_key= $self->{_pk}; }
+          { $primary_key= uc($self->{_pk}); }
 	else
 	  { # try to determine primary key by a tricky SQL statement:
 	    $primary_key= db_get_primary_key($dbh,$table);
@@ -249,7 +256,7 @@ sub init_tableviewtype
     die "primary key name missing" if (!defined $primary_key);
 
     $self->{_table}= $table;
-    $self->{_pk}   = $primary_key;
+    $self->{_pk}   = uc($primary_key);
     
     my $sql_statement= "select * from $table";
     if ($type eq 'view')
@@ -284,6 +291,7 @@ sub init_tableviewtype
 
 
     $self->init_columns($primary_key,@column_list);
+    # ^^^ sets also $self->{_pki}
   }   
 
 sub init_columns
@@ -304,7 +312,7 @@ sub init_columns
 	  };
       }
     else
-      { $self->{_pk}= $pk; };
+      { $self->{_pk}= uc($pk); };
        
     if (defined $exist_columns)
       { my $st1= join(",",(@$exist_columns));
@@ -321,6 +329,8 @@ sub init_columns
 	$self->{_columns}= \%h; 
       };
     $self->{_pki}= $self->{_columns}->{$self->{_pk}};
+    if (!defined $self->{_pki})
+      { die "assertion failed, $self->{_pk} not found"; };
   }            
      
 
@@ -905,9 +915,11 @@ sub update
     my $dbh= $self->{_dbh};
     my $lines= $self->{_lines};
     my $pki= $self->{_pki};
+    my $pk= $self->{_pk};
 
-    my @fields= @{$self->{_column_list}};
-    
+    # all fields except the primary key!
+    # the primary key cannot be set to a vlaue it already has !
+    my @fields= grep{$_ ne $pk} (@{$self->{_column_list}});
     my $format;
     my $sth= db_prepare(\$format,$dbh,
                         "update $self->{_table} set " . 
@@ -919,12 +931,21 @@ sub update
 
     # update :
     my $line;
+    my @reduced_line;
+    my $primary_key_val;
     foreach my $pk (keys %{$self->{_updated}})
       { $line= $lines->{$pk};
         next if (!defined $line); 
 	# can happen with changing, then deleting a line
-        db_execute($format,$dbh,$sth, 
-	           @{$line}, $line->[$pki])
+        @reduced_line= @{$line};
+	($primary_key_val)=splice(@reduced_line,$pki,1); 
+	              # remove the primary key from the list
+	              # it's complicated, slow and stupid but
+		      # what can you do when databases function like
+		      # this and you are not allowed to write a value
+		      # to the primary key it already has
+	db_execute($format,$dbh,$sth, 
+	           @reduced_line, $primary_key_val)
           or die "execute() returned an error," .
             " error-code: \n$DBI::errstr";
       }; 
@@ -980,11 +1001,14 @@ sub insert
       { if (exists $self->{_preliminary})
           { @prelim_keys= (keys %{$self->{_preliminary}}); };
       };
-      
-    if ($self->{_types}->[$pki] eq 'number')
+    
+    if (!exists $self->{_types})
+      { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
+    elsif ($self->{_types}->[$pki] eq 'number')
       { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
     else
       { @prelim_keys= sort { $a cmp $b } @prelim_keys; };      	
+    
     
     if (@prelim_keys)
       { $sth=    db_prepare(\$format,$dbh,
@@ -1102,7 +1126,7 @@ sub load_from_file
 	        if    ($t eq 'TABLE')
 	          { $self->{_table}= $tokens[$i+1]; }
 		elsif ($t eq 'PK')
-	          { $self->{_pk}   = $tokens[$i+1]; }
+	          { $self->{_pk}   = uc($tokens[$i+1]); }
 		elsif ($t eq 'TYPE')
 	          { $self->{_type} = $tokens[$i+1]; }
 		elsif ($t eq 'FETCH_CMD')
@@ -1172,7 +1196,8 @@ sub load_from_file
     for(my $i=0; $i<= $#$r_c; $i++)
       { $colindices{ $r_c->[$i] } = $i; };
     $self->{_columns}= \%colindices;
-    $self->{_pki}= $self->{_columns}->{$primary_key};
+
+    $self->{_pki}= $self->{_columns}->{uc($primary_key)};
  
     # 2nd: lines
     my $pki= $self->{_pki};
@@ -1248,9 +1273,25 @@ sub store_to_file
     print G "[Version $export_version]\n";
     if (!$slim_format)
       { print G "[Properties]\n"; 
-        print G "TABLE=",$self->{_table}," PK=",$self->{_pk},
-                " TYPE=",$self->{_type},"\n";
-        print G "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n";
+        my @defines;
+	foreach my $prop (qw(_table _pk _type))
+	  { my $val= $self->{$prop};
+	    next if (!defined $val);
+	    my $val= $self->{$prop};
+	    push @defines, (uc(substr($prop,1)) . '=' . $val);
+	  };
+	print G wrap('', '', join(" ",@defines)),"\n";
+	if (exists $self->{_fetch_cmd})
+	  { # fetch_cmd is a long quoted string and MUST NOT 
+	    # be handled by wrap() !!!
+	    print G "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n"; 
+	  };
+	print G "\n";
+	 
+       
+        #print G "TABLE=",$self->{_table}," PK=",$self->{_pk},
+        #        " TYPE=",$self->{_type},"\n";
+        #print G "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n";
         print G "[Aliases]\n";  
         my $r_a= $self->{_aliases};
 
@@ -1264,9 +1305,11 @@ sub store_to_file
 	print G wrap('', '', join(", ",@text)),"\n"; 
       };
       
-    print G "[Column-Types]\n"; 
-    print G wrap('', '', join(", ",@{$self->{_types}})),"\n"; 
-
+    if (exists $self->{_types})
+      { print G "[Column-Types]\n"; 
+        print G wrap('', '', join(", ",@{$self->{_types}})),"\n"; 
+      };
+      
     print G "[Columns]\n"; 
     print G wrap('', '', join(", ",@{$self->{_column_list}})),"\n"; 
          
@@ -1298,8 +1341,11 @@ sub store_to_file
       { close(G) or die "unable to close $tempname";
         if (1!=unlink($filename))
 	  { die "unable to delete $filename"; };
-	rename($tempname,$filename) or 
+	system("mv $tempname $filename") and 
 	  die "unable to rename $tempname to $filename";
+	
+	#rename($tempname,$filename) or 
+	#  die "unable to rename $tempname to $filename";
       }
     else
       { close(G) or die "unable to close $tempname"; };
@@ -1474,7 +1520,12 @@ sub gen_sort_prepare
     # @gen_sort_cols and $gen_sort_r_coltypes are global variables
     # used by gen_sort()
     @gen_sort_cols= ($self->{_pki});
-    $gen_sort_r_coltypes= $self->{_types};
+    if (exists $self->{_types})
+      { $gen_sort_r_coltypes= $self->{_types}; }
+    else
+      { my @coltypes= map { "number" } @{$self->{_column_list}};
+        $gen_sort_r_coltypes= \@coltypes;
+      };
 
     if (exists $r_options->{order_by}) 
       { my $r= $r_options->{order_by};
@@ -1994,7 +2045,8 @@ or file, when C<store()> is called later on.
 
 This method is used add a line to the table. C<%values> is a hash, that 
 contains "column-name" "value" -pairs for the line. Note that each
-column must be specified. Currently there are no defaults supported.
+column must be specified and column-names must be upper-case! 
+Currently there are no defaults supported.
 Note that the method returns the primary key for the new line. Note
 too, that this primary key changes with the next call of
 C<store()>, see also C<store()>, but via aliasing (see C<add_aliases>)
@@ -2241,15 +2293,15 @@ perl-documentation, DBI manpage
 internal data-structure
 The table-Object is a hash. Summary of hash-keys:
 _aliases:     ref of a hash, that contains aliases
-_column_list: ref of a list of columns
+_column_list: ref of a list of columns, all upper-case
 _columns:     ref of a hash that maps column-names to column-numbers,
-	      the first column has index 0
+	      the first column has index 0, all column-names upper case
 _dbh: 	      the DBI-handle the table object uses
 _fetch_cmd:   the last SQL command,
 _lines:       a ref to a hash, each primary key points to a reference
 	      to a list. Each list contains the values in the order of the
 	      columns (see also "_column_list")
-_pk: 	      the column-name of the primary key
+_pk: 	      the column-name of the primary key, usually lower-case
 _pki: 	      the column-index of the primary key
 _table:       the name of the table, as it's used in oracle
 _type: 	      the type of the table, "table","view" or "file"
