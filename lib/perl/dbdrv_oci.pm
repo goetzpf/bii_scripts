@@ -4,42 +4,6 @@
 
 my $mod_l= "dbdrv_oci";
 
-sub check_existence
-  { my($dbh,$table_name)= @_;
-  
-#return(1);
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-      
-    $table_name= uc($table_name);
-    
-
-    my $SQL= "SELECT * from all_objects " .
-             "WHERE object_name=\'$table_name\' " .
-	           " AND object_type IN (\'TABLE\',\'VIEW\')";
-
-    sql_trace($SQL) if ($sql_trace);
-    
-    my $res=
-      $dbh->selectall_arrayref($SQL);
-		      	   
-    if (!defined $res)
-      { dberror($mod_l,'db_check_existence',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
-        return;
-      };
-
-    # returns  OWNER TABLE_NAME COLUMN_NAME  
-
-    # NOTE: in some tables, only the combination of several rows is
-    # the primary key, in this case, the SQL statement above returns
-    # more than a single line. 
-    
-    if (!@$res)
-      { return; }; # doesn't exist
-    return(1);
-  }
-
 sub primary_keys
 # returns the one primary key or the list of columns
 # that form the primary key
