@@ -13,7 +13,7 @@ die if (!defined $dbh);
 if (0)
   { 
     print "object_dependencies from tbl_name\n";
-    my @lines=dbdrv::object_dependencies(undef,"tbl_name"); 
+    my @lines=dbdrv::object_dependencies(undef,"tbl_name","BASE"); 
 
     foreach my $r_a (@lines)
       { print join(",",@$r_a),"\n"; };
@@ -35,10 +35,11 @@ if (0)
     print $text,"\n";
   };
   
-if (0)
+if (1)
   { 
 #    my $text=dbdrv::read_checktext(undef,"CHK_INSERTION_NN","ODBADM"); 
-    my $text=dbdrv::read_checktext(undef,"PS_FAMILY","ODBADM"); 
+    #my $text=dbdrv::read_checktext(undef,"PS_FAMILY","ODBADM"); 
+    my $text=dbdrv::read_checktext(undef,"CHK_INSERTION_NN","ODBADM"); 
     print $text,"\n";
     
   };
@@ -51,7 +52,7 @@ if (0)
     print $text,"\n";
   };
 
-if (1)
+if (0)
   {
     print "object_addicts from p_ps_names\n";
     my @lines=dbdrv::object_addicts(undef,"p_ps_names"); 
