@@ -26,7 +26,7 @@ my $me= $0;
 
 my $filename= shift @ARGV;
 
-create_file($filename); # in order to make "make" happy...
+#create_file($filename); # in order to make "make" happy...
 
 my $browsedb_file= change_filepart($filename,'browsedb.pl');
 
