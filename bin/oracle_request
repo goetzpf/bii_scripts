@@ -1,0 +1,209 @@
+#!/bin/sh
+# -*-tcl-*- \
+    if [ -d /opt/oracle/product/9.2.0 ]; \
+    then ORACLE_HOME=/opt/oracle/product/9.2.0; \
+         PATH=/opt/TclTk/ActiveTcl/bin:$PATH; \
+         exec oratclsh $0 ${1+"$@"}; \
+    else exec tclsh $0 ${1+"$@"}; \
+    fi
+
+package require Tclx
+set oratcl_version [package require Oratcl]
+
+proc message {hdl code} {
+  global oratcl_version oramsg
+  if {$oratcl_version >= 4.1} {
+    return [oramsg $hdl $code]
+  } else {
+    if {$code == "sqltype"} {return 1}
+    if {$code == "error"} {set code "errortxt"}
+    return $oramsg($code)
+  }
+}
+
+proc fetchData {hdl var cmd} {
+  global oratcl_version $var
+  if {$oratcl_version >= 4.1} {
+    while {![uplevel orafetch $hdl -datavariable $var -command \{$cmd\}]} {}
+  } else {
+    while {1} {
+      set l [orafetch $hdl]
+      if {[llength $l] == 0} { break }
+      set $var $l
+      uplevel $cmd
+    }
+  }
+}
+
+proc usage {} {
+  puts ""
+  puts "USAGE:"
+  puts " as a filter:"
+  puts "  echo \"select name, salary from payroll where salary>1000\" | oracle_request"
+  puts ""
+  puts " with sql-request on the command-line"
+  puts "  oracle_request -sql \"select name, salary from payroll where salary>1000\""
+  puts ""
+  puts " with command-files:"
+  puts "  oracle_request file1 file2 ..."
+  puts ""
+  puts "   the files should contain sql-requests"
+  puts ""
+  puts " interactively:"
+  puts "  oracle_request"
+  puts ""
+  puts "   enter sql-requests interactively (w/ braindead resp. *no* line-editing)"
+  puts ""
+  puts "Output always goes to stdout"
+  puts " One line per match, fields separated by blank"
+  puts " fields containing blanks are printed in curly braces."
+  puts ""
+  puts "Example of the above request (assuming the database 'payroll' to exist):"
+  puts ""
+  puts "> echo \"select name, salary from payroll where salary>1000\" | oracle_request"
+  puts "{ze big boss} 10000000"
+  puts "{John Doe} 50000"
+  puts "downpayed 1001"
+  puts ">"
+  puts ""
+  exit
+}
+
+if {[lindex $argv 0] == "-g"} {
+  set phrase "guest/bessyguest@$env(ORACLE_SID)"
+  set argv [lreplace $argv 0 0]
+  incr argc -1
+} else {
+  set phrase "/@$env(ORACLE_SID)"
+}
+
+if {$argc != 0 || [catch {exec tty}]} {
+  set interactive 0
+} else {
+  set interactive 1
+}
+
+set infile stdin
+set outfile stdout
+
+proc promptline {} {
+  global interactive infile
+  set result ""
+  set getaline 1
+  if {$interactive} {
+    puts stdout "\#\#\# SQL-REQUEST \#\#\#"
+  }
+  while {$getaline} {
+    if [catch {set line [gets $infile]}] {
+      if {$interactive} {
+	puts stdout ""
+      }
+      set line ""
+    }
+    set getaline [regexp "^\(.*\)\[ \t\]*\\\\$" $line dummy req]
+    if {$getaline} {
+      set line " $req"
+    }
+    append result $line
+  }
+  return $result
+}
+
+proc parse_requests {} {
+  global infile cursor outfile interactive str
+  set line [promptline]
+  while {! [eof $infile]} {
+    if [regexp "^\[ 	\]*\#" $line] {
+    } elseif {! [regexp "^\[ \t\]*$" $line] } {
+      if [regexp "^\(\[^>\]+\) *>>> *\(\.+\) *$" $line dummy req ofile] {
+	if [catch {set outfile [open $ofile "a"]}] {
+	  puts stderr "cannot open file '$ofile' for output"
+	  set req ""
+	  set outfile stdout
+	}
+	set line $req
+      }
+      if [regexp "^\(\[^>\]+\) *>> *\(\.+\) *$" $line dummy req ofile] {
+	if [catch {set outfile [open $ofile "w"]}] {
+	  puts stderr "cannot open file '$ofile' for output"
+	  set req ""
+	  set outfile stdout
+	}
+	set line $req
+      }
+      if { $line != "" } {
+	if [catch {orasql $cursor "$line"}] {
+	  puts stderr "request failed!"
+	  puts stderr "ErrNo: [message $cursor rc]"
+	  eval puts stderr [message $cursor error]
+	} else {
+	  if {$interactive } {
+	    if { $outfile == "stdout" } {
+	      puts stdout "\#\#\# ANSWER \#\#\#"
+	    } else {
+	      puts stdout "\#\#\# ANSWER redirected to '$ofile' \#\#\#"
+	    }
+	    puts $outfile [oracols $cursor]
+	  }
+	  fetchData $cursor str {
+	    puts $outfile $str
+	  }
+	}
+      }
+      if { $outfile != "stdout" } {
+	close $outfile
+	set outfile stdout
+      }
+    }
+    set line [promptline]
+  }
+}
+
+if [catch {set handle [oralogon $phrase]}] {
+  puts stderr "Couldn't connect to database without password!"
+  puts stderr "KEEP IN MIND, THAT THE PASSWORD APPEARS ON THE SCREEN AND STAYS VISIBLE!!!"
+  puts -nonewline stderr "Enter <username>/<password>@<database>: "
+  flush stderr
+  gets stdin phrase
+  if [catch {set handle [oralogon $phrase]}] {
+    puts stderr "Couldn't connect to database!"
+    puts stderr "ErrNo: [message $handle rc]"
+    puts stderr "[message $handle error]"
+    exit 1
+  }
+}
+
+if [catch {set cursor [oraopen $handle]}] {
+  puts stderr "Couldn't open database"
+  exit 1
+}
+
+if { $argc > 0 } {
+  if {[lindex $argv 0] == "-sql"} {
+    set argv [lreplace $argv 0 0]
+    foreach i $argv {
+      set wh [open "/tmp/orareq.[pid]" "w"]
+      puts $wh "$i"
+      close $wh
+      set infile [open "/tmp/orareq.[pid]" "r"]
+      parse_requests
+      close $infile
+    }
+    catch {unlink "/tmp/orareq.[pid]"}
+  } else {
+    foreach i $argv {
+      if [catch {set infile [open $i "r"]}] {
+	puts stderr "cannot open '$i' for input"
+	usage
+      } else {
+	parse_requests
+	close $infile
+      }
+    }
+  }
+} else {
+  parse_requests
+}
+
+oraclose $cursor
+oralogoff $handle
