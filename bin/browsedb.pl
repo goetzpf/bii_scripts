@@ -2984,6 +2984,8 @@ sub cb_show_contentform
     $FrDn->pack(-expand=> 1, -fill=>'both', );
 #$FrDn->update;
 
+    $Pane->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
+
 
     $r_glbl->{main_menu_widget}->update();
     #BrowseDB::TkUtils::SetBusy($r_glbl,0);
@@ -3058,14 +3060,16 @@ sub cb_show_contentform_entrywidgets
     #return if (!defined $FormWidget);
     
     # read data from the table:
-warn "write to form_values: $colname";
     $r_tbh->{form_values}->{$colname} = undef; 
                #put_get_val_direct($r_tbh,0,$pkey,$colname);
 
 #warn "val ( $colname) = " . $r_tbh->{form_values}->{$colname};
 
     my $ColName = $colname;
-    if ($r_tbh->{dbitable}->get_column_property($colname, "null") ne "")
+    
+    
+    my $nullprop= $r_tbh->{dbitable}->get_column_property($colname, "null");
+    if ((defined $nullprop) && (uc($nullprop) ne 'Y'))
       {
         $ColName = "*".$colname;
       };
@@ -3114,10 +3118,16 @@ warn "write to form_values: $colname";
 #    $ColWidget->configure(-width=>-1);
 #
 
+    
+    my $colwidth= $r_tbh->{dbitable}->get_column_property($colname,"length");
+    if (!defined $colwidth)
+      { $colwidth= 0; }
+    else
+      { $colwidth+= 2; };       
+                                    
+                                    
     $ColWidget->configure(
-            -width=>$r_tbh->{dbitable}->get_column_property(
-                $colname,
-                "length") + 2,
+            -width=> $colwidth,
             -foreground=>$global_data{theme}{text}{foreground},
           );
 
