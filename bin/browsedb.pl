@@ -5656,15 +5656,17 @@ sub find_next_col
           };
       }
     else
-      {
+      { my $val;
         for(my $i=0; $i<$max; $i++)
           { $row+= $dir;
             if    ($row<=0)
               { $row= $max; }
             elsif ($row>$max)
               { $row=1; };
-            if (put_get_val_direct($r_tbh,$use_colmap,
-                                   row2pk($r_tbh,$row),$colname)=~/$str/)
+            $val= put_get_val_direct($r_tbh,$use_colmap,
+                                   row2pk($r_tbh,$row),$colname);
+            next if (!defined $val);
+            if ($val=~/$str/)
               { return($row); };
           };
       };
@@ -6220,11 +6222,11 @@ sub path_beautify
 
 sub file_find
   { my($regexp,@dirs)= @_;
-  
+
     # filter out dirs that are "undef"
     my @mydirs= grep { defined $_ } @dirs;
     return if (!@mydirs);
-    
+
     @wanted_array= ();
     $wanted_regex= $regexp;
     find( \&wanted, @mydirs);
