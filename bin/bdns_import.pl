@@ -50,13 +50,15 @@ if (exists $config->{"file"}) {
 die $usage if not @names;
 
 foreach my $devname (@names) {
-  my ($done, $member, $allindex, $index, $subindex, $family, $counter, $allsubdomain,
-    $subdomain, $subdompre, $subdompost, $domain) = BDNS::parse($devname);
+  my @parts = BDNS::parse($devname);
 
-  if (not $done) {
+  if (not defined @parts) {
     warn "Warning: $devname is not a valid device name!\n";
     next;
   };
+
+  my ($member, $allindex, $index, $subindex, $family, $counter, $allsubdomain,
+    $subdomain, $subdompre, $subdompost, $domain, $facility) = @parts;
 
   $allindex = "'$allindex'";
   $member = "'$member'";
