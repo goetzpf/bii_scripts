@@ -222,7 +222,7 @@ sub tk_main_window
                 -menu=> $MnHelp
                );
 
-    $MnTop->pack(-side=>'top', -fill=>'x', anchor=>'nw');
+    $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
 
     # configure Database-menu:
     $MnDb->add('command',
@@ -287,11 +287,11 @@ sub tk_main_window
                 { $r_glbl->{new_table_name}= ""; };
 
         $r_glbl->{table_browse_widget}=
-        
+
 
         $DlgEnt->BrowseEntry(
                        -label=>'please enter the table-name:',
-                       -labelPack=>=>[-side=>"left", anchor=>"w"],
+                       -labelPack=>=>[-side=>"left", -anchor=>"w"],
                        -width=>34,
                        -validate=> 'key',
 
@@ -306,18 +306,18 @@ sub tk_main_window
                             sub { my $b= $r_glbl->{table_browse_button};
                                   return if ($b->cget('-state') eq "disabled");
                                   tk_open_new_object($r_glbl, "table");
-                                } 
+                                }
                                              );
 
-        $r_glbl->{table_browse_button}= 
+        $r_glbl->{table_browse_button}=
                  $DlgEnt->Button( -state=>"disabled",
                                   -text=>"Show",
                                   -underline=>0,
                                   -justify=>"center",
-                                  -command => [\&tk_open_new_object, 
+                                  -command => [\&tk_open_new_object,
                                                 $r_glbl, "table" ],
                                 )->pack( %dlg_def_okbutton,);
-        
+
 
         # dialog tables
         my $DlgTblListbox = $DlgTbl->Scrolled(
@@ -330,13 +330,13 @@ sub tk_main_window
 
         my $DlgTblRowMin = $DlgTbl->LabEntry(
                 -label=>'Lowest Rownumber :',
-                -labelPack=>[-side=>"left", anchor=>"w"],
+                -labelPack=>[-side=>"left", -anchor=>"w"],
                 -textvariable=>$r_glbl->{varDBRowMin},
                 -width=> 5,
         )->pack( %dlg_def_labentry,  );
         my $DlgTblRowMax = $DlgTbl->LabEntry(
                 -label=>'Highest Rownumber :',
-                -labelPack=>[-side=>"left", anchor=>"w"],
+                -labelPack=>[-side=>"left", -anchor=>"w"],
                 -textvariable=>$r_glbl->{varDBRowMin},
                 -width=> 5,
         )->pack( %dlg_def_labentry );
@@ -360,7 +360,7 @@ sub tk_main_window
         )->pack(%dlg_def_okbutton, );
 
         $DlgTblListbox->bind('<Button-1>' => sub {
-                                        $DlgTblOk->configure(-state=>"active"); 
+                                        $DlgTblOk->configure(-state=>"active");
                                         $r_glbl->{new_table_name} = $DlgTblListbox->get($DlgTblListbox->curselection, $DlgTblListbox->curselection);
                                 }
                         );
