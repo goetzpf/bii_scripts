@@ -6,6 +6,12 @@ SetPerms
 	directory permissions in the CVS repository, in 
 	epics, vxworks or development related directories.
 
+browsedb.pl
+	a perl-script with a graphical user interface to 
+        browse the oracle database. The program can be used to view 
+	and change data in the database as well as show relations 
+	between the tables.
+
 pfind.pl
 	a perl-script for recursive file pattern search, like
 	a recursive grep, but better...
