@@ -54,9 +54,9 @@ sub query_limit_rows_str
 
 sub get_simple_column_types
 # returns for each column:
-# 'number', 'string' or undef 
+# 'number', 'string' or undef
   { my($dbh,$sth,$tablename)= @_;
-  
+
     my $type_no2string= db_types_no2string($dbh);
 
     my @x= map { $type_no2string->{$_} } @{$sth->{TYPE}};
@@ -83,29 +83,29 @@ sub db_simplify_types
 
 	      # postgres-types:
 #	      BOOL     =>  'number',
-#              TEXT     =>  'string',					     
-#              BPCHAR   =>  'string',			     
-#              VARCHAR  =>  'string',			      
-#              INT2     =>  'number',			      
-#              INT4     =>  'number',			      
-#              INT8     =>  'number',		      
-#              MONEY    =>  'number',				      
-#              FLOAT4   =>  'number',	
-#              FLOAT8   =>  'number',		      
-#              ABSTIME  =>  'string',		      
-#              RELTIME  =>  'string',		      
-#              TINTERVAL=>  'string',		      
-#              DATE     =>  'string',		      
-#              TIME     =>  'string',		      
-#              DATETIME =>  'string',		      
-#              TIMESPAN =>  'string',			      
-#              TIMESTAMP=>  'string',		 
-	      
+#              TEXT     =>  'string',
+#              BPCHAR   =>  'string',
+#              VARCHAR  =>  'string',
+#              INT2     =>  'number',
+#              INT4     =>  'number',
+#              INT8     =>  'number',
+#              MONEY    =>  'number',
+#              FLOAT4   =>  'number',
+#              FLOAT8   =>  'number',
+#              ABSTIME  =>  'string',
+#              RELTIME  =>  'string',
+#              TINTERVAL=>  'string',
+#              DATE     =>  'string',
+#              TIME     =>  'string',
+#              DATETIME =>  'string',
+#              TIMESPAN =>  'string',
+#              TIMESTAMP=>  'string',
+
              );
 
     my $tag;
     foreach my $t (@$r_types)
-      { 
+      {
 
         $tag= uc($t);
 #print "tag:$tag|\n"; # @@@@@@@
@@ -146,15 +146,15 @@ sub db_types_no2string
     # a DBI function, returns a list, 1st elm is a description-hash
     # like:    {   TYPE_NAME         => 0,
     #              DATA_TYPE         => 1,
-    #              COLUMN_SIZE       => 2,     
+    #              COLUMN_SIZE       => 2,
     #               ...
     #          }
     # following elements are lists describing each type like:
     #           [ 'VARCHAR', SQL_VARCHAR,
     #               undef, "'","'", undef,0, 1,1,0,0,0,undef,1,255, undef
     #           ],
-     
- 
+
+
 
 
     my $r_description= shift(@$info); # ref to a hash
@@ -199,7 +199,7 @@ sub primary_keys
 
     # take table owner into account
     if (defined $table_owner)
-      { $SQL.= " AND a.owner=\'$table_owner\'"; 
+      { $SQL.= " AND a.owner=\'$table_owner\'";
         $SQL.= " AND b.owner=\'$table_owner\'"; # @@@@@ NEW
       };
 
@@ -799,10 +799,10 @@ sub object_dependencies
     if (!defined $table_owner) # assertion !
       { dbwarn($mod,'object_dependencies',__LINE__,
                "no table owner found for");
-        return;       
+        return;
       };
 
-    
+
     my $SQL= "select OWNER, NAME, TYPE ".
                    " from ALL_DEPENDENCIES AD where" .
                    " AD.REFERENCED_NAME=\'$table_name\' AND " .
@@ -986,9 +986,65 @@ sub read_viewtext
     my $r_line= $res_r->[0];
     if (!ref($r_line))
       { return; }; # empty
-    
+
     my $text= $r_line->[0];
     return( $text );
+  }
+
+sub column_properties
+# INTERNAL
+# need handle, table_name, table_owner
+# read the type, length, precision, null-condition of a check constraint
+  { my($dbh, $user, $table)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $column_name= uc($column_name);
+    $table= uc($table);
+    $user= uc($user);
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$user,$table);
+      };
+
+    if (!defined $table_owner || !defined $table_name || $table_owner eq '' || $table_name eq '')
+      { dberror($mod_l,'db_column_properties',__LINE__,
+                "arguments not complete failed (table:$table_owner.$table_name)");
+        return;
+      };
+
+    my $SQL= "select AC.COLUMN_NAME, AC.DATA_TYPE, AC.DATA_LENGTH, ".
+                "AC.DATA_PRECISION, AC.NULLABLE, AC.DATA_DEFAULT" .
+                " from ALL_TAB_COLUMNS AC" .
+                " where" .
+                   " AC.OWNER=\'$table_owner\' AND " .
+                   " AC.TABLE_NAME=\'$table_name\'";
+
+#warn "get columndefs $SQL";
+
+     sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_column_properties',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+    my %ret;
+    foreach my $line ( @$res_r )
+      {
+        $ret{$line->[0]} = {
+            type=>$line->[1],
+            length=>$line->[2],
+            precision=>$line->[3],
+            null=>$line->[4],
+            default=>$line->[5],
+        };
+      }
+    return( \%ret );
   }
 
 sub read_checktext
@@ -1025,7 +1081,7 @@ sub read_checktext
     my $r_line= $res_r->[0];
     if (!ref($r_line))
       { return; }; # empty
-    
+
     my $text= $r_line->[0];
     #return( $res_r );
     return( $text );
