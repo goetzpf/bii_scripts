@@ -1,0 +1,12 @@
+This is the BESSY-scripts Module.
+
+it has the following directory-structure:
+
+bin: all binaries (executables)
+
+doc: all further documentation is found here
+
+lib: libaries (perl-modules) are found here
+
+src: module and script sources can be found here. This directory
+     is not needed if you are no developer of scripts in this module.

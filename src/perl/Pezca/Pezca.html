@@ -1,0 +1,685 @@
+    <HTML> 
+	<HEAD> 
+	    <TITLE>Pezca - a Perl extension for the easy channel access library (part of EPICS)
+
+</TITLE> 
+	</HEAD>
+
+	<BODY>
+
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#NAME">NAME</A>
+	<LI><A HREF="#SYNOPSIS">SYNOPSIS</A>
+	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
+	<UL>
+
+		<LI><A HREF="#Preface">Preface</A>
+		<LI><A HREF="#Implemented_Functions_">Implemented Functions:</A>
+	</UL>
+
+	<LI><A HREF="#AUTHOR">AUTHOR</A>
+	<LI><A HREF="#SEE_ALSO">SEE ALSO</A>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="NAME">NAME
+
+</A></H1>
+Pezca - a Perl extension for the easy channel access library (part of
+EPICS)
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="SYNOPSIS">SYNOPSIS
+
+</A></H1>
+use Pezca;
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="DESCRIPTION">DESCRIPTION
+
+</A></H1>
+<P>
+<HR>
+<H2><A NAME="Preface">Preface
+
+</A></H2>
+This module gives access to some functions of the ezca library. ezca is a
+library that simplifies the usage of channel-access, the tcp/ip-based
+protocol that is used in the Experimental Physics Industrial Control System
+(EPICS). This software is copyrighted by the terms described in the file
+LICENSE which is part of the software distribution.
+
+
+<P>
+
+<P>
+<HR>
+<H2><A NAME="Implemented_Functions_">Implemented Functions:
+ 
+
+</A></H2>
+<UL>
+<LI><STRONG></STRONG>
+<STRONG>GetDouble</STRONG>
+
+
+
+
+<P>
+
+($errcode,$val)= Pezca::GetDouble($channel_name)
+
+
+<P>
+
+gets a channel name as parameter (a string) and returns a list containing
+of the error-code and the value of the operation. This function can block
+when the channel is not immediately available. This function replaces
+Pezca::Get().
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>Get</STRONG>
+
+
+
+
+<P>
+
+($val,$errcode)= Pezca::Get($channel_name)
+
+
+<P>
+
+gets a channel name as parameter (a string) and returns a list containing
+of the value and the error-code of the operation. This function can block
+when the channel is not immediately available. Note that future
+applications should use Pezca::GetDouble() instead.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetString</STRONG>
+
+
+
+
+<P>
+
+($errcode,$val)= Pezca::GetString($channel_name)
+
+
+<P>
+
+gets a channel name as parameter (a string) and returns a list containing
+of the value and the error-code of the operation. The value is read as a
+string. This function can block when the channel is not immediately
+available. This function replaces Pezca::GetS().
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetS</STRONG>
+
+
+
+
+<P>
+
+($val,$errcode)= Pezca::GetS($channel_name)
+
+
+<P>
+
+gets a channel name as parameter (a string) and returns a list containing
+of the value and the error-code of the operation. The value is read as a
+string. This function can block when the channel is not immediately
+available. Note that future applications should use Pezca::GetString()
+instead.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetList</STRONG>
+
+
+
+
+<P>
+
+($errcode,@values)= Pezca::GetList($channel_name,$type,$no)
+
+
+<P>
+
+gets a channel name, a type and the number of elements as parameter. Known
+types are ``byte'',``short'',``long'',``float'',``double'',``string'' only
+the first two characters of the type-name are significant. If the type-name
+is omitted, it defaults to ``double''. If the number of elements is
+omitted, all elements of the channel are fetched. The function returns the
+error-code and a list of elements. This function can block when the channel
+is not immediately available.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>Put</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::PutDouble($channel_name,$value)
+
+
+<P>
+
+$errcode= Pezca::Put($channel_name,$value)
+
+
+<P>
+
+get a channel name (string) and a value (floating point) as parameter. The
+functions return the error-code of the put-operation. They can block when
+the channel is not immediately available. Both functions are identical, the
+Pezca::Put() shouldn't be used in future applications since it is not
+complient with the new naming convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>PutS</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::PutString($channel_name,$value)
+
+
+<P>
+
+$errcode= Pezca::PutS($channel_name,$value)
+
+
+<P>
+
+get a channel name (string) and a value (string) as parameter. The
+functions return the error-code of the opreration. They can block when the
+channel is not immediately available. Pezca::PutS() shouldn't be used in
+future applications since it is not complient with the new naming
+convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>PutList</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::PutList($channel_name,$type,@values)
+
+
+<P>
+
+gets a channel name, a type and the list of elements as parameter. Known
+types are ``byte'',``short'',``long'',``float'',``double'', only the first
+two characters of the type-name are significant. The function returns the
+error-code of the operation. This function can block when the channel is
+not immediately available.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetControlLimits</STRONG>
+
+
+
+
+<P>
+
+($errcode,$low,$high)= Pezca::GetControlLimits($channel)
+
+
+<P>
+
+Get the control limits of the given channel. 
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetGraphicLimits</STRONG>
+
+
+
+
+<P>
+
+($errcode,$low,$high)= Pezca::GetGraphicLimits($channel)
+
+
+<P>
+
+Get the graphic limits of the given channel. 
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetNelem</STRONG>
+
+
+
+
+<P>
+
+($errcode,$no)= Pezca::GetNelem($channel)
+
+
+<P>
+
+Get the number of elements of the given channel. See also Pezca::GetList()
+and Pezca::PutList(). 
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetPrecision</STRONG>
+
+
+
+
+<P>
+
+($errcode,$prec)= Pezca::GetPrecision($channel)
+
+
+<P>
+
+Get the precision of the given channel. 
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetUnits</STRONG>
+
+
+
+
+<P>
+
+($errcode,$units)= Pezca::GetUnits($channel)
+
+
+<P>
+
+Get the engeneering units (a string) of the given channel. 
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>SetMonitorDouble</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::SetMonitorDouble($channel_name)
+
+
+<P>
+
+$errcode= Pezca::SetMonitor($channel_name)
+
+
+<P>
+
+These functions set a channel-access monitor on the given channel. A buffer
+is set up that is notified each time the value of the given channel
+changes. All following calls of Pezca::GetDouble() access that local
+buffer. This is a way to reduce network traffic, when Pesca::GetDouble() is
+called more frequently than the underlying value actually changes. Note
+that the data-types of the monitors and the get functions must match, so
+Pezca::SetMonitorDouble() should only be used with Pezca:GetDouble().
+Pezca::SetMonitor() shouldn't be used in future applications since it is
+not complient with the new naming convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>SetMonitorString</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::SetMonitorString($channel_name)
+
+
+<P>
+
+$errcode= Pezca::SetMonitorS($channel_name)
+
+
+<P>
+
+These functions set a channel-access monitor on the given channel. A buffer
+is set up that is notified each time the value of the given channel
+changes. All following calls of Pezca::GetString() access that local
+buffer. This is a way to reduce network traffic, when Pesca::GetString() is
+called more frequently than the underlying value actually changes. Note
+that the data-types of the monitors and the get functions must match, so
+Pezca::SetMonitorString() should only be used with Pezca:GetString().
+Pezca::SetMonitorS() shouldn't be used in future applications since it is
+not complient with the new naming convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>ClearMonitorDouble</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::ClearMonitorDouble($channel_name)
+
+
+<P>
+
+$errcode= Pezca::ClearMonitor($channel_name)
+
+
+<P>
+
+These functions remove the monitor that was set up with
+Pezca::SetMonitorDouble(). Pezca::ClearMonitor() shouldn't be used in
+future applications since it is not complient with the new naming
+convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>ClearMonitorString</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::ClearMonitorString($channel_name)
+
+
+<P>
+
+$errcode= Pezca::ClearMonitorS($channel_name) These functions remove the
+monitor that was set up with Pezca::SetMonitorString().
+Pezca::ClearMonitorS() shouldn't be used in future applications since it is
+not complient with the new naming convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>NewMonitorValueDouble</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::NewMonitorValueDouble($channel_name)
+
+
+<P>
+
+$errcode= Pezca::NewMonitorValue($channel_name)
+
+
+<P>
+
+These functions return 1 if there is a new value in the monitor that was
+set up with Pezca::SetMonitorDouble(). Pezca::NewMonitorValue() shouldn't
+be used in future applications since it is not complient with the new
+naming convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>NewMonitorValueString</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::NewMonitorValueString($channel_name)
+
+
+<P>
+
+$errcode= Pezca::NewMonitorValueS($channel_name) These functions return 1
+if there is a new value in the monitor that was set up with
+Pezca::SetMonitorString(). Pezca::NewMonitorValueS() shouldn't be used in
+future applications since it is not complient with the new naming
+convention of this module.
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetTimeout</STRONG>
+
+
+
+
+<P>
+
+$tmout= Pezca::GetTimeout()
+
+
+<P>
+
+Get the actual timeout of the ezca library (see ezca documentation)
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>GetRetryCount</STRONG>
+
+
+
+
+<P>
+
+$retry_count= Pezca::GetRetryCount()
+
+
+<P>
+
+Get the actual Retry-Count of the ezca library (see ezca documentation)
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>SetTimeout</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::SetTimeout($timeout)
+
+
+<P>
+
+Set the timeout of the ezca-library (see ezca documentation)
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>SetTimeout</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::SetRetryCount($retry_count)
+
+
+<P>
+
+Set the retry-counter of the ezca-library (see ezca documentation)
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>AutoErrorMessageOn</STRONG>
+
+
+
+
+<P>
+
+Pezca::AutoErrorMessageOn()
+
+
+<P>
+
+Switch ezca error-messages to stdout on (default) =item *
+
+
+<P>
+
+<STRONG>AutoErrorMessageOff</STRONG>
+
+
+
+
+<P>
+
+Pezca::AutoErrorMessageOff()    
+
+
+<P>
+
+Switch ezca error-messages to stdout off
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>Delay</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::Delay($time)
+
+
+<P>
+
+This function has to be called when a monitor is set up and there is a
+rather long time between two consecutive calls of Pesca::Get(). The given
+parameter should be 0.01 (see also ezca documentation).  
+
+
+<P>
+
+<LI><STRONG></STRONG>
+<STRONG>Pend_Event</STRONG>
+
+
+
+
+<P>
+
+$errcode= Pezca::Pend_Event($time)
+
+
+<P>
+
+This function calls <CODE>ca_pend_event()</CODE> which gives channel access
+the chance to process incoming data. The parameter is a timeout-time (in
+seconds), after which Pend_Event returns.
+
+
+<P>
+
+</UL>
+<P>
+<HR>
+<H1><A NAME="AUTHOR">AUTHOR
+
+</A></H1>
+Goetz Pfeiffer, <A
+HREF="MAILTO:pfeiffer@mail.bessy.de">pfeiffer@mail.bessy.de</A>
+
+
+<P>
+
+<P>
+<HR>
+<H1><A NAME="SEE_ALSO">SEE ALSO
+
+</A></H1>
+<CODE>perl(1),</CODE>
+
+
+<P>
+
+EPICS-documentation (especially ezca, the easy channel access library)
+
+
+<P>
+
+</DL>
+    </BODY>
+
+    </HTML>

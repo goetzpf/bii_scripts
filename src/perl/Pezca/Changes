@@ -1,0 +1,64 @@
+Revision history for Perl extension Pezca.
+
+0.01  Thu Jul  9 12:06:42 1998
+	- original version; created by h2xs 1.18
+
+(0.02-0.04) Sorry, no change history for these versions
+
+0.05  Thu Mar  2 2000
+      The package was cleaned up for distribution. The perl module
+      platform.p now contains architecture dependent stuff.
+      
+0.06  Fri Mar  3 2000
+      Support for solaris was added (thanks to 
+      Rozelle Wright <rwright@lanl.gov>).
+      
+      An error in the test program test.pl was removed.
+
+0.07  Mon Mar  6 2000
+      Sources from EPICS R3.13.1 were integrated into Pezca.
+      The makefile-system was re-written.
+      Windows-Support has been partially added but was not tested.
+      Note that ca/windows_depen.c needed to be patched:
+        #ifdef _WIN32 
+	  [the original content of windows_depen.c]
+	#endif 
+	
+0.08  Fri Mar 17 2000
+      Monitor functions for the reading of strings have been added. The old
+      monitor functions were only usable for the reading of floating point
+      numbers. All string functions have an 'S' at the end of their name.
+
+0.09  Mon Apr 4  2000
+      * Functions for reading and writing channels with more than one item
+        (e.g.  Waveform-Record) have been added (GetList and PutList). 
+      * The new GetList-Function
+	returns a list, like the old Get function. Since GetList can
+	return an arbitrary number of elements, it makes sense to return
+	the error code as first, not as last element of that list.
+	This is different from the old Get functions, which returned the
+	error code as the 2nd element of a 2-element list.
+	In order to be consistent, replacements have been written for the 
+	existing Get-Functions which also return the error code as first 
+	list-element. For backward-compatibility, the functions with 
+	the new behaviour have got new names (e.g. GetDouble). The old Get
+	Functions can still be used, but should not be used for new
+	developments.
+      * The new naming convention now adds the internal data-type to the 
+	function name, e.g. Pezca::Put() becomes Pezca::PutDouble(). The old
+	names however can still be used.
+      * Further functions of ezca have been added, like ezcaGetPrecision. 
+	ezcaGetStatus will not be added in this version, since it's a bit more
+	complicated....
+      * Perl-Prototypes have been specified for all implemented functions.
+
+0.10  Wed May 17 2000
+	An error in Pezca::AutoErrorMessageOff() was corrected.
+	
+0.2   Mon Dec 18 2000
+	Pezca was ported to the Windows NT platform. The program was not
+	thoroughly tested but Pezca::get() works. It was compiled using
+	Microsoft Visual C++ 6.0 and perl 5.6. Perl was compiled from
+	the official source, using the same c-compiler. 
+	The EPICS-sources were taken from Release R3.13.1.
+	

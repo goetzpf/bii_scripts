@@ -1,0 +1,66 @@
+How the sources from epics were merged into this project:
+
+EPICS 3.13.5 was used
+
+==============================================================
+Makefile.PL:
+==============================================================
+MakeFile.PL files were placed in:
+   ./ca/Makefile.PL
+   ./ezca/Makefile.PL
+   ./libCom/Makefile.PL
+   ./libCom/O.hp700/Makefile.PL
+   ./libCom/O.Linux/Makefile.PL
+   ./libCom/O.solaris/Makefile.PL
+   ./libCom/os/generic/Makefile.PL
+   ./libCom/os/WIN32/Makefile.PL
+   ./Makefile.PL
+
+
+==============================================================
+These EPICS sources were copied to the Pezca-Directory: 
+==============================================================
+
+/home/controls/epics/R3.13.1/support/base/3-13-5/src/ca
+
+/home/controls/epics/R3.13.1/support/base/3-13-5/src/db
+
+/home/controls/epics/R3.13.1/support/base/3-13-5/src/libCom
+  (libCom/O.Linux was taken from :
+    /opt/csr/epics/baseR3.13.1/src/libCom/O.Linux)
+  
+/opt/csr/epics/extensions/src/ezca
+
+/home/controls/epics/R3.13.1/support/base/3-13-5/src/include
+
+cp libCom/O.Linux to libCom/O.solaris since 
+  "O.solaris" is somehow missing at our site 
+
+==============================================================
+EPICS: removed files and patches:
+==============================================================
+
+libCom:
+	REMOVED: assertVX.c errlogVX.c errIncCXX.cc errMtst.c
+	         fdManager.cc osiTimer.cc
+	
+ca:	
+	REMOVED: V5_vxWorks_patch.c vms_depen.c vxWorks_depen.c	
+	         acctst.c catime.c evtime.c caRepeater.c
+	PATCHED: windows_depen.c:
+		   #ifdef _WIN32 
+		      [the original content of windows_depen.c]
+		   #endif 
+	PATCHED: if_depen.c:
+		   #ifndef _WIN32 
+		      [the original content of if_depen.c]
+		   #endif 
+	PATCHED: posix_depen.c:
+		   #ifndef _WIN32 
+		      [the original content of posix_depen.c]
+		   #endif 
+
+all:
+	REMOVED: *.o *.a 
+	REMOVED: O.mv162
+	REMOVED:*.sl.* *.so.* *.so *.sl
