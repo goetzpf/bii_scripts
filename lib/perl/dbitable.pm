@@ -979,7 +979,12 @@ sub insert
     else
       { if (exists $self->{_preliminary})
           { @prelim_keys= (keys %{$self->{_preliminary}}); };
-      };	
+      };
+      
+    if ($self->{_types}->[$pki] eq 'number')
+      { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
+    else
+      { @prelim_keys= sort { $a cmp $b } @prelim_keys; };      	
     
     if (@prelim_keys)
       { $sth=    db_prepare(\$format,$dbh,
