@@ -167,7 +167,7 @@ sub MakeTextWidget
 
     my %text;
 
-    # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{background});
+    # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{main}->{background});
     my $Top= MakeToplevel($r_glbl,
                          title=>$r_glbl->{title});
 
@@ -483,7 +483,7 @@ sub ObjectDialog
                          title=>$options{title});
 
     my $FrTop = $Top->Frame(-borderwidth=>2,
-                           -background=>$r_glbl->{theme}->{background}
+                           -background=>$r_glbl->{theme}->{main}->{background}
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
 
@@ -576,7 +576,7 @@ sub MakeToplevel
     else
       { $MainWidget= $r_glbl->{main_menu_widget}; };
 
-    my $Top= $MainWidget->Toplevel(-background=>$r_glbl->{theme}->{background});
+    my $Top= $MainWidget->Toplevel(-background=>$r_glbl->{theme}->{main}->{background});
 
     # add new toplevel widget to the BrowseDB group
     # looks nice in gnome-panel and kde-panel
