@@ -89,6 +89,7 @@ if ((!-d $sharedir) or (!-r $sharedir))
 my $PrgDir = $home."/.browsedb";
 if (! -e $PrgDir)
   {
+    printf("creating \"/.browsedb\" in your home directory...\n");
     mkdir($PrgDir, 00755) or
       die "Can not create configuration location at ".$PrgDir;
   }
@@ -446,7 +447,7 @@ sub tk_main_window
               );
     $MnDb->add('separator');
 
-    my $autocommit_var=1;
+    my $autocommit_var=0;
 
     my $c_commit_i;
     my $c_rollback_i;
@@ -1391,7 +1392,10 @@ sub tk_execute_new_query
                 return;
             }
         }
+warn $sqlquery;
         $sqlquery = dbdrv::format_sql_command($sqlquery);
+warn $sqlquery;
+
         if ($sqlquery =~ /^select /i)
         {
             if (length($sqlquery) >= 6)
@@ -2051,7 +2055,7 @@ sub make_table_window
                     );
       };
 
-    if ($r_tbh->{table_type} eq 'table')
+    if ($r_tbh->{table_type} ne 'sql')
       { $MnRela->add('command',
                       -label=> 'add column map to file',
                       -underline   => 0,
@@ -2313,7 +2317,16 @@ sub make_table_window
                                 };
                             }
                   );
-
+    if ($r_tbh->{table_type} ne 'sql')
+      { $MnColMap->add('command',
+                       -label=> 'add column map to file',
+                       -command =>
+                            sub { add_to_local_column_maps($r_glbl,$r_tbh,
+                                                  "$PrgDir/$column_map_file");
+                                }
+                      );
+      };
+      
     $column_popup{popup_items} = $itemcnt;
     $column_popup{popup_item_h}= $r_itemhash;
 
@@ -4931,8 +4944,13 @@ sub tk_simple_text_dialog
   { my($r_glbl,$r_tbh,%options)= @_;
 
     my $tag= $options{tag};
-
+    
     die if (!defined $tag); # assertion
+
+    my $tagcnt;
+    while(exists $r_tbh->{$tag.$tagcnt})
+      { $tagcnt++; };
+    $tag.= $tagcnt;      
 
     my %h;
     my $width=20;
@@ -5263,6 +5281,7 @@ sub tk_simple_file_menu
 
     my $ext= $options{extension};
     die if (!defined $ext); #assertion
+
     $ext=~ s/\.//;
 
     my $type= $options{type};
@@ -5313,6 +5332,11 @@ sub tk_object_dialog
     my $tag= $options{tag};
 
     die if (!defined $tag); # assertion
+
+    my $tagcnt;
+    while(exists $r_tbh->{$tag.$tagcnt})
+      { $tagcnt++; };
+    $tag.= $tagcnt;      
 
     my %h;
 
@@ -6031,7 +6055,8 @@ sub get_dbitable
 
     if ($r_tbh->{table_type} ne "sql")
       { if ($r_tbh->{table_type} eq 'table_or_view')
-          { if (dbdrv::object_is_table($r_glbl->{dbh},$r_tbh->{table_name}))
+          { 
+            if (dbdrv::object_is_table($r_glbl->{dbh},$r_tbh->{table_name}))
               { $r_tbh->{table_type}= 'table'; }
             else
               { $r_tbh->{table_type}= 'view'; };
@@ -6229,7 +6254,9 @@ sub file_find
 
     @wanted_array= ();
     $wanted_regex= $regexp;
-    find( \&wanted, @mydirs);
+    
+    
+    find( { wanted => \&wanted, follow => 1 }, @mydirs);
 
     #print "found:\n",join("\n",@wanted_array);
     return(sort @wanted_array);
@@ -6317,15 +6344,23 @@ delete-line minidialog muß über dem Cursor plaziert werden (->popup())
 save und "save as" bei collections.
 "save" fragt nicht nach dem Filenamen
 -------------------------------------
-"share" Verzeichnis fuer globale Einstellungen verwenden
------------------------------------------------
 info-Fenster readonly machen
 ctrl-z Key Binding abschalten
 -----------------------------------
 foreign tables: die Zeilen filtern
 -----------------------------------
-mapped columns markieren
+drucken ??
 -----------------------------------
-Toplevel Window so erzeugen, das es in Gnome/KDE Taskbar besser
-aussieht
-----------------------------------------------------------
+column-map dialog besser machen
+-----------------------------------
+colum-map Ansicht als select-statement exportieren
+-----------------------------------
+doppel-click sollte das Feld-Edit Fenster öffnen
+-----------------------------------
+Reload im Fehlerfall lieber nicht machen (Store!)
+-----------------------------------
+Relogin funktioniert nicht, browsedb crashed !!!!!
+-----------------------------------
+evtl Store bei jeder Änderung (nur bei Autocommit off)
+-----------------------------------
+Save Preferences Dialog einbauen!
