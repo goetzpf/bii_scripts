@@ -17,6 +17,7 @@ Goetz Pfeiffer <pfeiffer@mail.bessy.de>
 	pfind.pl 
 	Sch2db.pl 
 	Pezca 
+	dbitable
 	idcp_data
 	parse_db
 	parse_subst

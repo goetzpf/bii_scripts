@@ -24,21 +24,26 @@ Pezca
 	and gives access to EPICS variables (1)
 	
 	
-idcp_data
-	a perl-module that is is used to give information about
-	undulator properties. (2)	
-	
 canlink 
 	a perl-module that can be used to encode or decode the
 	"cryptic can link" as it is used in the BESSY CAN Bus
 	device support for EPICS.
 
+dbitable
+	an object-oriented Perl module for handling single tables
+        from an SQL database
+
+idcp_data
+	a perl-module that is is used to give information about
+	undulator properties. (2)	
+	
 parse_db
 	a perl-module for parsing EPICS db-files
 	
 parse_subst
 	a perl-module for parsing EPICS substitution-files
 	
+
 -----------------------------------------------------------------------
 (1)	This is a CPAN-like module which has to be installed via
 	"make". This module needs a working C-compiler in order to
