@@ -15,6 +15,14 @@ Sch2db.pl
 	to the db file format as it is used in EPICS. This is faster
 	and more flexible that the combination of sch2edif and e2db...
 	
+dbscan.pl
+	This script is from Rolf Keitel <rolf@triumf.ca>. It scans
+	db and sch files and has lots of options, the most interesting
+        being '-d' which searches for 'dangling links'. I.e. it lists
+        all records which have links that point somewhere outside the
+        given db file (along with the target record). Unfortunately
+        does not tell which link field and which target field.
+
 ----------------------------------------------------------------------
 Libraries and Modules:
 ----------------------------------------------------------------------
