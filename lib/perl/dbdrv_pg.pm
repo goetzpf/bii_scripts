@@ -207,8 +207,6 @@ sub schemas_for_object
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    # array_to_string is needed since DBD:Pg cannot
-    # handle arrays yet. I currently get a segmentation fault... :-(
     my $SQL= "SELECT c.relname, n.nspname " .
              "FROM pg_class c, pg_namespace n " .
              "WHERE c.relname='$object_name' AND " .
@@ -556,10 +554,9 @@ sub get_simple_column_types
   }
 
 sub column_properties
-# INTERNAL
 # need handle, table_name, table_owner
 # read the type, length, precision, null-condition of a check constraint
-  { my($dbh, $table_owner, $table_name)= @_;
+  { my($dbh, $table_owner, $user_name)= @_;
 
     return;
   }
@@ -572,7 +569,7 @@ sub primary_keys
 # returns the one primary key or the list of columns
 # that form the primary key
 # column-names are in UPPER CASE
-  { my($dbh,$user_name,$table_name,$table_owner)= @_;
+  { my($dbh,$user_name,$table_name)= @_;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -640,7 +637,8 @@ sub primary_keys
 sub foreign_keys
 # EXPORTED function
 # column-names are in UPPER CASE
-  { my($dbh,$user_name,$table_name,$table_owner)= @_;
+  { my($dbh,$user_name,$table_name)= @_;
+    my($full_name,$table_owner,$table,$schema);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -648,7 +646,9 @@ sub foreign_keys
     # postgresql stores table-names in lower-case
     $table_name= lc($table_name);
 
-    my($schema,$table) = dbdrv::check_exists($dbh,$user_name,$table_name);
+    ($full_name,$table_owner,$table,$schema)=
+       real_name($dbh,$user_name,$table_name);
+    
     if (!defined $table) # assertion !
       { dbwarn($mod_l,'foreign_keys',__LINE__,
                "table $table_name not present or accessible");
@@ -708,7 +708,8 @@ sub resident_keys
 # the opposite of foreign keys,
 # find where the primary key of this table is used as foreign key
 # column-names are in UPPER CASE
-  { my($dbh,$user_name,$table_name,$table_owner)= @_;
+  { my($dbh,$user_name,$table_name)= @_;
+    my($full_name,$table_owner,$table);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -716,7 +717,9 @@ sub resident_keys
     # postgresql stores table-names in lower-case
     $table_name= lc($table_name);
 
-    my($schema,$table) = dbdrv::check_exists($dbh,$user_name,$table_name);
+    ($full_name,$table_owner,$table,$schema)=
+       real_name($dbh,$user_name,$table_name);
+
     if (!defined $table) # assertion !
       { dbwarn($mod_l,'resident_keys',__LINE__,
                "table $table_name not present or accessible");
@@ -796,14 +799,14 @@ sub resident_keys
 sub object_is_table
 # EXPORTED function
 # return 1 when it is a table
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
 
     $table_name= lc($table_name);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    load_object_dict($dbh,$table_owner);
+    load_object_dict($dbh,$user_name);
 
 #print Dumper($r_db_objects);
     $table_name= add_schema($dbh,$table_name);
@@ -1024,12 +1027,14 @@ sub accessible_objects
 sub object_dependencies
 # read the owner, name and of dependend objects
 # type is either "TABLE" or "VIEW"
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my($full_name,$table_owner,$table,$schema);
   
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    my($schema,$table) = dbdrv::check_exists($dbh,$table_owner,$table_name);
+    ($full_name,$table_owner,$table,$schema)=
+       real_name($dbh,$user_name,$table_name);
 
 #warn "schema,table: $schema,$table";
     if (!defined $table) # assertion !
@@ -1038,7 +1043,7 @@ sub object_dependencies
         return;       
       };
 
-    view_dependencies($dbh,$table_owner);
+    view_dependencies($dbh,$user_name);
     
     my @dependents;
     
@@ -1057,8 +1062,8 @@ sub object_dependencies
           };
       };
 
-    if (object_is_table($dbh,"$schema.$table",$table_owner))
-      { my $res= resident_keys($dbh,$table_owner,$table_name,$table_owner);
+    if (object_is_table($dbh,$full_name,$user_name))
+      { my $res= resident_keys($dbh,$user_name,$table_name);
         # NOTE: the results are canonified!
 
         my %tabs;
@@ -1087,12 +1092,14 @@ sub object_dependencies
 sub object_references
 # INTERNAL
 # read the owner, name  and of referenced objects
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my($full_name,$table_owner,$table,$schema);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    my($schema,$table) = dbdrv::check_exists($dbh,$table_owner,$table_name);
+    ($full_name,$table_owner,$table,$schema)=
+       real_name($dbh,$user_name,$table_name);
 
 #warn "schema,table: $schema,$table";
     if (!defined $table) # assertion !
@@ -1101,11 +1108,11 @@ sub object_references
         return;       
       };
 
-    view_dependencies($dbh,$table_owner);
+    view_dependencies($dbh,$user_name);
     
     my @referenced;
     
-    my $data= $r_db_objects->{"$schema.$table"};
+    my $data= $r_db_objects->{$full_name};
     if (defined $data)
       { my $referenced= $data->[3]; 
         if (defined $referenced)
@@ -1120,8 +1127,8 @@ sub object_references
           };
       };
 
-    if (object_is_table($dbh,"$schema.$table",$table_owner))
-      { my $fk= foreign_keys($dbh,$table_owner,$table_name,$table_owner);
+    if (object_is_table($dbh,$full_name,$table_owner))
+      { my $fk= foreign_keys($dbh,$user_name,$table_name);
 
 #print Dumper($fk);
         # NOTE: the results are canonified!
@@ -1151,7 +1158,7 @@ sub object_references
 sub object_addicts
 # INTERNAL
 # read all constraints and triggers for the given object
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
 
     return();
   }
@@ -1159,7 +1166,7 @@ sub object_addicts
 sub script_addicts
 # INTERNAL
 # read all constraints and triggers for the given object
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
 
     return();
   }
@@ -1167,14 +1174,16 @@ sub script_addicts
 sub read_viewtext
 # INTERNAL
 # read the text of a view
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my($full_name,$table_owner,$table,$schema);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= lc($table_name);
 
-    my($schema,$table) = dbdrv::check_exists($dbh,$table_owner,$table_name);
+    ($full_name,$table_owner,$table,$schema)=
+       real_name($dbh,$user_name,$table_name);
     if (!defined $table) # assertion !
       { dbwarn($mod_l,'primary_keys',__LINE__,
                "table $table_name not present or accessible");
