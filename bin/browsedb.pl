@@ -73,7 +73,7 @@ my $sim_oracle_access=0;
 
 my $guest_login=0; # for debuggin only, default: 0
 my $fast_test=0; # skip login dialog and open $fast_table
-my $fast_table='p_adidas_names';
+my $fast_table='p_insertion';
 
 my $db_table_name;
 if (!@ARGV)
@@ -1052,7 +1052,8 @@ sub tk_quit
     my($r_glbl, $widget)= @_;
     my $choice = "No";
     my $Top;
-    if (defined $r_glbl || $fast_test == 0 || undefined($fast_test))
+    
+    if ((!$fast_test) && (defined $r_glbl))
       {
         $Top = $r_glbl->{main_widget};
         my $DlgQuit = $Top->Dialog(
@@ -1648,9 +1649,11 @@ sub tk_references_dialog_finish
    my($row,$col)= split(",",$Table->index('active'));
    my($pk)= row2pk($r_tbh,$row);
    # using Table->get() would be unnecessary slow
-   my $cell_value= put_get_val_direct($r_tbh,$pk,$colname);
+   # 0: do not use column-map
+   my $cell_value= put_get_val_direct($r_tbh,0,$pk,$colname);
 
-   tk_activate_cell($r_tbh_fk,$fk_col, $cell_value);
+   # 0: do not use column-map
+   tk_activate_cell($r_tbh_fk,0, $fk_col, $cell_value);
 
    delete $r_glbl->{foreign_key_dialog_widget};
    delete $r_glbl->{foreign_key_dialog_listbox};
@@ -1843,13 +1846,80 @@ sub tk_view_dependency_dialog_finish
                                table_type=>$r_types->{$obj});
   }    
   
+sub tk_sql_dialog
+# known options:
+# title
+# callback -> callback after something was selected
+# text -> text at the bottom of the widget
+# tag -> tag-name for the dialog data that 
+#        is stored in the table-handle
+  { my($r_glbl,$r_tbh,%options)= @_;
 
+    my $tag= $options{tag};
+    
+    die if (!defined $tag); # assertion
+
+    my %h;
+
+    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
+    $Top->title($options{title});
+
+    my $entry=
+       $Top->Entry(-textvariable => \$h{string},
+                   -width=>20
+                  )->pack(-side=>'top',-fill=>'x',-expand=>'y');
+
+    $entry->focus();
+
+    $Top->Label(-text => $options{text}
+               )->pack(-side=>'top' ,-fill=>'y',
+                      );
+
+
+    $Top->bind('<Return>',[ \&tk_sql_dialog_finish, $r_glbl,$r_tbh,$tag ]);
+    
+    $Top->bind('<Destroy>',  sub { 
+                                   delete $r_tbh->{$tag};
+                                 }
+              );
+
+    $h{top}     = $Top;
+    $h{callback}= $options{callback};
+    
+    $r_tbh->{$tag}= \%h;
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+  }                                 
+
+sub tk_sql_dialog_finish
+  { my($widget,$r_glbl,$r_tbh,$tag)= @_;
+
+    my $r_h = $r_tbh->{$tag};
+    my $Top = $r_h->{top};                 
+
+    my $str=  $r_h->{string};
+    
+    $Top->destroy;  # @@@@
+    
+    my @callback= @{$r_h->{callback}};
+    
+    delete $r_tbh->{$tag};
+    
+    if (@callback)
+      { my $r_f= shift @callback;
+        &$r_f($r_glbl,$r_tbh,$str,@callback);
+      }
+  }
+  
+  
 sub tk_object_dialog
 # known options:
 # title
 # items -> reference to a list of items
 # text -> text at the bottom of the widget
 # callback -> callback after something was selected
+# tag -> tag-name for the dialog data that is stored in the table-handle
   { my($r_glbl,$r_tbh,%options)= @_;
   
     my $tag= $options{tag};
@@ -1972,6 +2042,7 @@ sub tk_find_line
             sub {  my $row= find_next_col($r_tbh,
                                           string=>\$col_search_data{string},
                                           colname=>$colname,
+                                          use_colmap=>1,
                                           from=>'current',
                                           direction=>'down');
             
@@ -2013,6 +2084,7 @@ sub tk_find_line_next
     my $row= find_next_col($r_tbh,
                            string=> $r_col_search_data->{string},
                            colname=>$colname,
+                           use_colmap=>1,
                            from=>'current',
                            direction=> ($dir eq 'next') ? 'down' : 'up');
             
@@ -2039,6 +2111,7 @@ sub find_next_col
 # from => "current","top"
 # direction=> 'down', 'up'
 # exact => 1 or undef
+# use_colmap => 1 (0 is default)
 # NOTE: row 0 is the heading!!!
   { my($r_tbh,%options)= @_;
   
@@ -2053,6 +2126,8 @@ sub find_next_col
     my $max= $r_tbh->{row_no};
     my $colname= $options{colname};
 
+    my $use_colmap= $options{use_colmap};
+    
     my $row;
     if ($options{from} eq 'top')
       { $row=0; 
@@ -2081,7 +2156,8 @@ sub find_next_col
               { $row= $max; }
             elsif ($row>$max)
               { $row=1; };
-            if (put_get_val_direct($r_tbh,
+
+            if (put_get_val_direct($r_tbh,$use_colmap,
                                    row2pk($r_tbh,$row),$colname) eq $str)
               { return($row); };
           };
@@ -2094,7 +2170,7 @@ sub find_next_col
               { $row= $max; }
             elsif ($row>$max)
               { $row=1; };
-            if (put_get_val_direct($r_tbh,
+            if (put_get_val_direct($r_tbh,$use_colmap,
                                    row2pk($r_tbh,$row),$colname)=~/$str/)
               { return($row); };
           };
@@ -2177,7 +2253,8 @@ sub tk_field_edit
     $r_tbh->{edit_cells}= \@cells;
     
     # edit_cell is a temporary variable
-    $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,$pk,$colname);
+    # 1: use column-maps
+    $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,1,$pk,$colname);
     my $w;
     
     if (defined $r_tbh->{edit_cell})
@@ -2256,6 +2333,13 @@ sub make_table_hash_and_window
 #        this parameter is optional !
 #   sort_columns  => a list of columns that defines the sort-order
 #        OPTIONAL
+#   col_map_flags => \%col_map_flag_hash
+#         this hash contains 'N' for columns where the mapping
+#         is inactive and 'M' for columns where the mapping is
+#         active. This parameter is optional
+#   col_maps => \%col_hash
+#         col_hash contains an SQL statement for certain columns
+#         this parameter is optional
 
     if ($options{table_type} =~ /(table|view|sql|table_or_view)/)
       {
@@ -2331,8 +2415,15 @@ sub make_table_hash
 #        where column-names are hash-keys, values are "1" 
 #        for displayed and "0" for hidden columns
 #        this parameter is optional !
-#  sort_columns    => a list of columns that defines the sort-order
+#   sort_columns    => a list of columns that defines the sort-order
 #        OPTIONAL
+#   col_map_flags => \%col_map_flag_hash
+#         this hash contains 'N' for columns where the mapping
+#         is inactive and 'M' for columns where the mapping is
+#         active. This parameter is optional
+#   col_maps => \%col_hash
+#        col_hash contains an SQL statement for certain columns
+#        this parameter is optional
 # -------------------------------------------------------------------
 # creates a table_hash with these contents:
 #  table_widget    => table-widget
@@ -2357,6 +2448,9 @@ sub make_table_hash
 #  write_protected_cols=> \%write_protection_col_hash
 #                     each column in this hash that maps to 'P'
 #                     is write-protected
+#  col_map_flags   => \%col_map_hash
+#                     'N' for columns that are not mapped
+#                     'M' else
 #  sort_columns    => a list of columns that defines the sort-order
 #  pk_list         => \@all_primary_key_list
 #                     a list of all primary key values for all
@@ -2444,11 +2538,36 @@ sub make_table_hash
       { $wp{$col}='P'; };
     $table_hash{write_protected_cols}= \%wp;
 
+    # get column-maps from the database:
+    my $r_col_maps= $table_hash{col_maps};
+    if (defined $r_col_maps)
+      { my %maps= %{$table_hash{col_maps}};
+        delete $table_hash{col_maps};
+        
+        foreach my $c (keys %maps)
+          { set_column_map(\%table_hash,$maps{$c},$c); };
+      };
+
+    # calculate column-map flags
+    my $r_cm= $table_hash{col_map_flags};
+    if (!defined $r_cm)
+      { my %h;
+        $r_cm= \%h;
+        $table_hash{col_map_flags}= \%h;
+      };
+    foreach my $col (@{$table_hash{column_list}})
+      { if (!exists $table_hash{col_maps}->{$col})
+          { $r_cm->{$col}= 'N'; next; };
+        if (!exists $r_cm->{$col})
+          { $r_cm->{$col}= 'N'; };
+      }; 
+    
     # the hash that is used for sorting:
     if (!exists $table_hash{sort_columns})
       { $table_hash{sort_columns}= [ @{$table_hash{column_list}} ];
         initialize_sort_columns(\%table_hash);
       };
+      
       
     # this list of primary key values,
     # maps the row-index to the primary key value
@@ -2462,7 +2581,6 @@ sub make_table_hash
     # marker for changed cells in the table:
     $table_hash{changed_cells}  = {};
     $table_hash{changed_rows}   = {};
-
 
     return(\%table_hash);
   }
@@ -2917,7 +3035,45 @@ sub make_table_window
                               cb_set_visible_columns($r_glbl, $r_tbh);
                             }
                     );
-
+    
+    my $MnColMap = $MnColPopup->Menu(-tearoff=>0);
+    $r_itemhash->{'column map'}= $itemcnt++;
+    $MnColPopup->add('cascade',
+                     -label=> 'column map',
+                     -menu => $MnColMap
+                    );
+                    
+    $MnColMap->add('command',    
+                   -label=> 'define',
+                   -command =>
+                        sub { tk_define_col_map($r_glbl, $r_tbh,
+                                                 $column_popup{current_col}
+                                                );
+                            }
+                   );
+    $MnColMap->add('command',    
+                   -label=> 'toggle map usage',
+                   -command =>
+                        sub { my $col= $column_popup{current_col};
+                              my $f= $r_tbh->{col_map_flags}->{$col};
+                              my $g= $f;
+                              if ($f eq 'M')
+                                { $g= 'N'; }
+                              else
+                                { if (exists $r_tbh->{col_maps}->{$col})
+                                    { $g= 'M'; };
+                                };
+                              if ($f ne $g)
+                                { $r_tbh->{col_map_flags}->{$col}= $g;
+                                  # the following forces a redraw
+                                  my $Table= $r_tbh->{table_widget};
+                                  $Table->configure(
+                                            -padx => ($Table->cget('-padx')) 
+                                                   );
+                                  tk_rewrite_active_cell($r_tbh);                  
+                                };
+                            }
+                  );                
 
     $column_popup{popup_items} = $itemcnt;
     $column_popup{popup_item_h}= $r_itemhash;
@@ -2942,6 +3098,14 @@ sub make_table_window
                    -label=> 'edit',
                    -command => [\&tk_field_edit, $r_tbh],
                  );
+
+
+    $r_itemhash->{'select foreign key'}= $itemcnt++;
+    $MnPopup->add('command',
+                   -label=> 'select foreign key',
+                   -command => [\&tk_fk_select_dialog, $r_glbl, $r_tbh],
+                 );
+
     $r_itemhash->{'edit selection'}= $itemcnt++;
     $MnPopup->add('command',
                    -label=> 'edit selection',
@@ -2992,7 +3156,7 @@ sub make_table_window
                   { default => ['open foreign table',
                                 'select THIS as foreign key'],
                     write_protected =>
-                                ['edit','paste']
+                                ['edit','paste','edit selection']
                   };
 
     $default_popup{popup_enable_lists} =
@@ -4085,7 +4249,8 @@ sub cb_open_foreign_table
     $colname= $given_colname if (defined $given_colname);
 
     # using Table->get() would be unnecessary slow
-    my $cell_value= put_get_val_direct($r_tbh,$pk,$colname);
+    # 0: do not use column-maps
+    my $cell_value= put_get_val_direct($r_tbh,0,$pk,$colname);
 
     my $fkh= $r_tbh->{foreign_key_hash};
     return if (!defined $fkh); # no foreign keys defined
@@ -4134,7 +4299,8 @@ sub cb_open_foreign_table
          conn_add($r_glbl,$r_tbh->{table_name},$colname,
                   $fk_table,$fk_col);
 
-         tk_activate_cell($r_tbh_fk,$fk_col, $cell_value);
+         # 0: do not use column-maps
+         tk_activate_cell($r_tbh_fk,0,$fk_col, $cell_value);
       }
   }
 
@@ -4168,8 +4334,9 @@ sub cb_handle_browse
        if ($#$r_cols==1)
          { # only one reference to the foreign table, this is the
            # simple case
-           tk_activate_cell($f_tbh,$r_cols->[0],
-                         put_get_val_direct($r_tbh,$pk,$r_cols->[1])
+           # 0: do not use column-maps
+           tk_activate_cell($f_tbh,0,$r_cols->[0],
+                         put_get_val_direct($r_tbh,0,$pk,$r_cols->[1])
                         );
          }
        else
@@ -4180,8 +4347,9 @@ sub cb_handle_browse
              { if ($r_cols->[$i] eq $colname)
                  { # current column is a resident column, now we know
                    # what to do
-                   tk_activate_cell($f_tbh,$r_cols->[0],
-                         put_get_val_direct($r_tbh,$pk,$colname)
+                   # 0: do not use column-maps
+                   tk_activate_cell($f_tbh,0,$r_cols->[0],
+                         put_get_val_direct($r_tbh,0,$pk,$colname)
                                 );
                  };
              };
@@ -4204,7 +4372,8 @@ sub cb_select
 
    # get the value of the current cell
    # using Table->get() would be unnecessary slow
-   my $value= put_get_val_direct($r_tbh,$pk,$colname);
+   # 0: do not use column-maps
+   my $value= put_get_val_direct($r_tbh,0,$pk,$colname);
 
    # now look for residents:
    my $r_residents= conn_f_find($r_glbl, $r_tbh, $colname);
@@ -4260,6 +4429,17 @@ sub cb_select
 
                # remove cell write-protection temporarily:
                $res_tbh->{write_protected_cols}->{$res_colname}= 'T';
+               
+               # take column-maps in the foreign table into account:
+               my $flag= $res_tbh->{col_map_flags}->{$res_colname};
+               if ($flag eq 'M') # map is active
+                 { my $r_h= 
+                      $res_tbh->{col_maps}->{$res_colname}->{key_to_str};
+                   
+                   my $n= $r_h->{$value};
+                   $value= $n if (defined $n);
+                 };
+                 
                $Res_Table->set("$res_row,$res_col",$value);
                $found=1;
                last;
@@ -4288,8 +4468,7 @@ sub cb_copy_paste_field
     my $colname= col2colname($r_tbh,$col);
 
     if ($mode eq 'copy')
-      {
-        $r_tbh->{paste_buffer}= cb_put_get_val($r_tbh,0,$row,$col);
+      { $r_tbh->{paste_buffer}= cb_put_get_val($r_tbh,0,$row,$col);
         return;
       };
     if ($mode eq 'paste')
@@ -4321,7 +4500,9 @@ sub cb_copy_paste_line
       { my %line;
         my $pk= row2pk($r_tbh,$row);
         foreach my $colname (keys %{$r_tbh->{column_hash}})
-          { $line{$colname}= put_get_val_direct($r_tbh,$pk,$colname); };
+          { # 1: use column-maps
+            $line{$colname}= put_get_val_direct($r_tbh,1,$pk,$colname); 
+          };
 
         $r_tbh->{paste_linebuffer}= \%line;
         return;
@@ -4355,7 +4536,9 @@ sub cb_put_get_val
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
     if ($set)
-      { if ($r_tbh->{sim_put})
+      { 
+# @@@@@@@@@@@@@@@@@@@@      
+        if ($r_tbh->{sim_put})
           { # just simulate the put, do nothing real
             delete $r_tbh->{sim_put};
             return($val);
@@ -4373,8 +4556,19 @@ sub cb_put_get_val
               { $r_tbh->{write_protected_cols}->{$colname}= 'P'; };
           };
 
+        
         chomp($val);
-        $r_tbh->{dbitable}->value($pk,$colname,$val);
+        my $putval= $val;
+        
+        $flag= $r_tbh->{col_map_flags}->{$colname};
+        if ($flag eq 'M') # column-map is active
+          { my $r_h= $r_tbh->{col_maps}->{$colname}->{str_to_key};
+            my $n= $r_h->{$val};
+            if (defined $n)
+              { $putval= $n; };
+          };
+              
+        $r_tbh->{dbitable}->value($pk,$colname,$putval);
         $r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
         $r_tbh->{table_widget}->tagCell('changed_cell',"$row,$col");
         #warn "set tag to $row,$col";
@@ -4382,14 +4576,47 @@ sub cb_put_get_val
         return($val);
       }
     else
-      { return($r_tbh->{dbitable}->value($pk,$colname));
+      { my $flag= $r_tbh->{col_map_flags}->{$colname};
+      
+        return($r_tbh->{dbitable}->value($pk,$colname)) if ($flag ne 'M');
+        
+        my $r_h= $r_tbh->{col_maps}->{$colname}->{key_to_str};
+        my $val= $r_tbh->{dbitable}->value($pk,$colname);
+        my $n= $r_h->{$val};
+        return($n) if (defined $n);
+        return($val);
       };
   }
 
 sub put_get_val_direct
-  { my($r_tbh,$pk,$column,$val)= @_;
+  { my($r_tbh,$use_colmap, $pk,$column,$val)= @_;
 
-    return($r_tbh->{dbitable}->value($pk,$column,$val));
+    if (!$use_colmap)
+      { return($r_tbh->{dbitable}->value($pk,$column,$val)); };
+      
+    my $flag= $r_tbh->{col_map_flags}->{$column};
+    if ($flag ne 'M')
+      { return($r_tbh->{dbitable}->value($pk,$column,$val)); };
+    
+    if (defined $val)
+      { # set a value
+        my $putval= $val;
+        my $r_h= $r_tbh->{col_maps}->{$column}->{str_to_key};
+        my $n= $r_h->{$val};
+        if (defined $n)
+          { $putval= $n; };
+        $r_tbh->{dbitable}->value($pk,$column,$putval);
+        return($val);
+      }
+    else
+      { # read a value 
+        my $r_h= $r_tbh->{col_maps}->{$column}->{key_to_str};
+        my $val= $r_tbh->{dbitable}->value($pk,$column);
+        my $n= $r_h->{$val};
+        return($n) if (defined $n);
+        return($val);
+      };        
+              
   }
 
 sub rdump
@@ -4599,6 +4826,69 @@ sub resize_table
     $r_tbh->{table_widget}->configure(-rows => $r_tbh->{row_no} + 1);
   }
 
+sub tk_define_col_map
+# define a map for a cell
+  { my($r_glbl,$r_tbh,$column_name)= @_;
+  
+    tk_sql_dialog($r_glbl,$r_tbh,
+                     tag=> "col_map_sql_dialog",
+                     title=> "define cell map",
+                     text=> "enter a valid SQL command",
+                     callback=> [\&tk_define_col_map_finish,
+                                 $column_name]
+                    );
+  }
+  
+sub tk_define_col_map_finish 
+  { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
+  
+    if (!set_column_map($r_tbh,$sql_command,$column_name))
+      { return; };
+
+    # the following forces a redraw
+    my $Table= $r_tbh->{table_widget};
+    $Table->configure(-padx => ($Table->cget('-padx')) );
+          
+  }  
+  
+sub set_column_map
+  { my($r_tbh,$sql_command,$column_name)= @_;
+  
+    my $ntab= dbitable->new('view',$r_tbh->{dbh},
+                             'col_map_query',"",$sql_command
+                           );
+                            
+    $ntab->load();
+    return if (!defined $ntab);
+    
+    my @columns= $ntab->column_list();
+    my $c1= $columns[0];
+    my $c2= $columns[1];
+    
+    my $key;
+    my $str;
+    my %key_to_str;
+    my %str_to_key;
+    foreach my $pk ($ntab->primary_keys())
+      { $key= $ntab->value($pk,$c1);
+        $str= $ntab->value($pk,$c2);
+        $key_to_str{$key}= $str;
+        $str_to_key{$str}= $key;
+      };
+    
+    my %col_map;
+    $col_map{key_to_str} = \%key_to_str;     
+    $col_map{str_to_key} = \%str_to_key; 
+    $col_map{sql_command}= $sql_command;
+    
+    $r_tbh->{col_map_flags}->{$column_name}= 'M';
+    
+    $r_tbh->{col_maps}->{$column_name}= \%col_map;        
+ 
+    return(1);
+  }  
+    
+
 sub tk_rewrite_active_cell
 # updates the active cell by re-writing the value
 # of the cell. Tk::TableMatrix sometimes displayes
@@ -4620,7 +4910,7 @@ sub tk_rewrite_active_cell
 
 sub tk_activate_cell
 # makes a cell active, given by column-name and value
-  { my($r_tbh,$colname,$value)= @_;
+  { my($r_tbh,$use_colmap,$colname,$value)= @_;
 
 #    my @pks= $r_tbh->{dbitable}->find($colname,$value,
 #                                     warn_not_pk=>1);
@@ -4631,6 +4921,7 @@ sub tk_activate_cell
                            colname=>$colname,
                            from=>'top',
                            direction=>'down',
+                           use_colmap=> $use_colmap,
                            exact=>1);
 #warn "search val $value, col $colname result $row";
 
@@ -4792,8 +5083,18 @@ sub get_pk_list
     if ($r_tbh->{table_order})
       { @pk= $r_tbh->{dbitable}->primary_keys(order_native=>1); }
     else
-      { @pk= $r_tbh->{dbitable}->primary_keys(
-                             order_by=> $r_tbh->{sort_columns}
+      { my %col_hash;
+        my $r_h= $r_tbh->{col_map_flags};
+        my $r_colmaps= $r_tbh->{col_maps};
+        
+        foreach my $c (keys %$r_h)
+          { next if ($r_h->{$c} ne 'M');
+            $col_hash{$c}= $r_colmaps->{$c}->{key_to_str};
+          };
+      
+        @pk= $r_tbh->{dbitable}->primary_keys(
+                             order_by=> $r_tbh->{sort_columns},
+                             col_maps=> \%col_hash
                                              );
       };
       
@@ -5111,7 +5412,9 @@ sub tk_load_collection
                              sequel=> $r_dat->{sql},
                              geometry=> $r_dat->{geometry},
                              displayed_cols => $r_dat->{displayed_cols},
-                             sort_columns=> $r_dat->{sort_columns}
+                             sort_columns=> $r_dat->{sort_columns},
+                             col_map_flags=> $r_dat->{col_map_flags},
+                             col_maps=> $r_dat->{colmaps}
                                                  );
 
       };
@@ -5169,7 +5472,16 @@ sub tk_save_collection
                   geometry   => $r_tbh->{top_widget}->geometry(),
                   displayed_cols => $r_tbh->{displayed_cols},
                   sort_columns => $r_tbh->{sort_columns},
+                  col_map_flags=> $r_tbh->{col_map_flags},
                  );
+                 
+        my %colmaps;
+        my $r_cm= $r_tbh->{col_maps};
+        if (defined $r_cm)
+          { foreach my $c (keys %$r_cm)
+              { $colmaps{$c}= $r_cm->{$c}->{sql_command}; };
+            $dat{colmaps}= \%colmaps;
+          };     
         
         $open_tables{$table_name}= \%dat;
       };
@@ -5235,6 +5547,53 @@ sub tk_simple_file_menu
           { $file.= ".$ext"; };
         return($file);
       }
+  }
+
+sub tk_fk_select_dialog
+  { my($r_glbl,$r_tbh)= @_;
+
+    my $TableWidget= $r_tbh->{table_widget};
+    
+    my($row,$col)= split(",", $TableWidget->index('active'));
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+    
+    my $r_map= $r_tbh->{col_maps}->{$colname};
+    return if (!defined $r_map);
+    
+    my @values= sort keys %{ $r_map->{str_to_key} };
+
+    tk_object_dialog($r_glbl,$r_tbh,
+                     tag=> "fk_select_dialog",
+                     title=> "select a foreign key",
+                     items=> \@values,
+                     text => 'double-click to select',
+                     callback=> [\&tk_fk_select_dialog_finish,
+                                 $pk,$colname]
+                    );
+            
+  }
+
+sub tk_fk_select_dialog_finish
+  { my($r_glbl,$r_tbh,$str,$pk,$colname)= @_;
+  
+    my $flag= $r_tbh->{col_map_flags}->{$colname};
+    if ($flag ne 'M') # col-map is inactive
+      { my $r_h= $r_tbh->{col_maps}->{$colname}->{str_to_key};
+
+        my $n= $r_h->{$str};
+        if (!defined $n)
+          { warn "assertion!";
+            return;
+          };
+        $str= $n;  
+      };       
+    
+    # remove cell write-protection temporarily:
+    $r_tbh->{write_protected_cols}->{$colname}= 'T';
+    my($row,$col)= pkcolname2rowcol($r_tbh,$pk,$colname);
+    
+    my $Table= $r_tbh->{table_widget};
+    $Table->set("$row,$col",$str);
   }
  
 sub tk_sort_menu  
