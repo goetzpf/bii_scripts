@@ -27,7 +27,6 @@ use Tk::Listbox;
 use Tk::FileSelect;
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
-use Tk::DBI::Table;
 
 #use Tk::ErrorDialog;
 
@@ -229,6 +228,7 @@ sub tk_main_window
                  -label=> 'dump global datastructure',
 		 -command => [\&tk_dump_global, $r_glbl],
 	        );
+	#showing waitbox for preparation 
     # prepareing mainwindow with dialog
 	my $DlgTop = $Top->NoteBook()->pack(
 		-fill=>'both',
@@ -261,8 +261,8 @@ sub tk_main_window
 		{ $r_glbl->{new_table_name}= $fast_table;
 	}
 	else
-	{ $r_glbl->{new_table_name}= ""; };
-	
+		{ $r_glbl->{new_table_name}= ""; };
+
 	my @ao= dbdrv::accessible_objects($r_glbl->{'dbh'},
 			    		  $r_glbl->{user}, 
 		                          "TABLE,VIEW", 
@@ -313,7 +313,7 @@ sub tk_main_window
 		"Listbox",
 		-scrollbars=>"oe",
 		-width=>34,
-		-selectmode=>"single",
+		-selectmode=>"browse",
 	)->pack( %dlg_def_listbox );
 	
 	
@@ -339,7 +339,6 @@ sub tk_main_window
 	my $DlgTblWhere = $DlgTbl->Text(
 		-height=>5,
 		-wrap=>"word",
-#		-exportSelection=>"true",
 	)->pack( %dlg_def_labentry, );
 	my $DlgTblOk = $DlgTbl->Button(
 		-state=>"disabled",
@@ -348,30 +347,35 @@ sub tk_main_window
 		-justify=>"center",
 		-command=> [\&tk_open_new_object, $r_glbl, "table" ]
 	)->pack(%dlg_def_okbutton, );
+
 	$r_glbl->{accessible_objects_tables} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
 			    				$r_glbl->{user}, 
-		                                        "TABLE", 
-					                "PUBLIC,USER")
+		                        "TABLE", 
+					            "PUBLIC,USER")
 					    ];
 	$DlgTblListbox->insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
-	$DlgTblListbox->bind('<ButtonPress>' => sub {
+	$DlgTblListbox->bind('<Button-1>' => sub {
 					$DlgTblOk->configure(-state=>"active"); 
 					$r_glbl->{new_table_name} = $DlgTblListbox->get($DlgTblListbox->curselection, $DlgTblListbox->curselection);
 				}
 			);
 
+    $DlgTblListbox->bind('<Return>' => sub { tk_open_new_object($r_glbl, "table"); } );
+    $DlgTblListbox->bind('<Double-1>' => sub { tk_open_new_object($r_glbl, "table"); } );
+						
 	# dialog view
 	my $DlgVwListbox = $DlgVw->Scrolled(
 		"Listbox",
 		-scrollbars=>"oe",
 		-width=>34,
-		-selectmode=>"single",
+		-selectmode=>"browse",
 	)->pack( %dlg_def_listbox, );
 	$DlgVw->Label(
 		-text=>"Where Clause :",
 	)->pack( %dlg_def_labentry, );
 	my $DlgVwWhere = $DlgVw->Text(
 		-height=>5,
+		-wrap=>"word",
 	)->pack( %dlg_def_labentry, );
 	my $DlgVwOk = $DlgVw->Button(
 		-state=>"disabled",
@@ -380,17 +384,25 @@ sub tk_main_window
 		-justify=>"center",
 		-command=> [ \&tk_open_new_object, $r_glbl, "view" ],
 	)->pack( %dlg_def_okbutton, );
+
 	$r_glbl->{accessible_objects_views} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
 			      				$r_glbl->{user}, 
-		                                	"VIEW", 
+		                        "VIEW", 
 					        	"PUBLIC,USER")
 					    ];
 	$DlgVwListbox->insert("end", @{ $r_glbl->{accessible_objects_views} } );
-	$DlgVwListbox->bind('<ButtonPress>' => sub {
+	$DlgVwListbox->bind('<Button-1>' => sub {
 					$DlgVwOk->configure(-state=>"active");
-					$r_glbl->{new_table_name} = $DlgVwListbox->get($DlgVwListbox->curselection);
+					$r_glbl->{new_table_name} = $DlgVwListbox->get($DlgVwListbox->curselection, $DlgVwListbox->curselection);
 				}
 			);
+        $DlgVwListbox->bind(
+	                    '<Return>' => sub { tk_open_new_object($r_glbl, "view"); } 
+			                );
+        $DlgVwListbox->bind(
+	                    '<Double-1>' => sub { tk_open_new_object($r_glbl, "view"); }
+			    		); 
+	
 	# dialog sequel
 	$DlgSQL->Label(
 		-text=>"Statement :",
@@ -426,6 +438,18 @@ sub tk_main_window
     #  { tk_open_new_table($r_glbl); };
   }
 
+sub tk_wait
+ { 	my($r_glbl, $topwidget, $message)= @_;
+   	my $DlgWait = $topwidget->WaitBox(
+   		-txt1=>'We are busy for a while.',
+   		-txt2=>$message,
+		-title=>$topwidget->{title},
+	);
+	$DlgWait->show();
+	return $DlgWait;
+	
+ }
+ 
 sub tk_about
  { my($r_glbl)= @_;
 
@@ -526,11 +550,14 @@ sub tk_open_new_object
     # $type can be "view", "table" or "sql"
     my %known_types= map { $_ =>1 } qw( table view sql );
     
-    if (lc($type) =~ /(view|sql)/) 
-      {  make_view_hash_and_window($r_glbl,uc($r_glbl->{new_table_name})); }
-    else
-      {  make_table_hash_and_window($r_glbl,uc($r_glbl->{new_table_name})); }
-
+	# setting kind of db object
+    if (lc($type) =~ /(view|table)/) 
+      {  $r_glbl->{new_table_type} = lc($type); }
+	else 
+	  {  $r_glbl->{new_table_type} = "sql"; }
+	  
+	make_table_hash_and_window($r_glbl,uc($r_glbl->{new_table_name}));
+	
     if ($fast_test)
       { $fast_test=0;
         return;
@@ -989,14 +1016,20 @@ sub tk_field_edit
 sub make_table_hash_and_window
   { my($r_glbl,$table_name,%hash_defaults)= @_;
   
-    if (!exists $r_glbl->{all_tables})
-      { $r_glbl->{all_tables}= {}; };
-    
-    my $r_all_tables= $r_glbl->{all_tables};
+    if ($r_glbl->{new_table_type} =~ /(table|view)/) {
+    	if (!exists $r_glbl->{all_tables})
+      		{ $r_glbl->{all_tables}= {}; };
+	} else {
+		    tk_err_dialog($r_glbl->{main_menu_widget}, 
+                      "sequels are not supported for now!");
+		return;
+	}
+
+   	my $r_all_tables= $r_glbl->{all_tables};
 
     my $r_tbh= 
-            make_table_hash($r_glbl,$table_name,%hash_defaults);
-
+            	make_table_hash($r_glbl,$table_name,%hash_defaults);
+	
     if (!defined $r_tbh)
       { tk_err_dialog($r_glbl->{main_menu_widget}, 
                       "opening of the table failed!");
@@ -1006,30 +1039,6 @@ sub make_table_hash_and_window
     $r_all_tables->{$table_name}= $r_tbh;
 
     make_table_window($r_glbl,$r_tbh);
-    
-    return($r_tbh);
-  }  
-
-sub make_view_hash_and_window
-  { my($r_glbl,$table_name,%hash_defaults)= @_;
-  
-    if (!exists $r_glbl->{all_views})
-      { $r_glbl->{all_views}= {}; };
-    
-    my $r_all_views= $r_glbl->{all_views};
-
-    my $r_tbh= 
-            make_table_hash($r_glbl,$table_name,%hash_defaults);
-
-    if (!defined $r_tbh)
-      { tk_err_dialog($r_glbl->{main_menu_widget}, 
-                      "opening of the table failed!");
-	return;
-      };	      
-    
-    $r_all_views->{$table_name}= $r_tbh;
-
-    make_view_window($r_glbl,$r_tbh);
     
     return($r_tbh);
   }  
@@ -1461,138 +1470,6 @@ sub make_table_window
 
     $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
       
-  }
-
-sub make_view_window
-  { my($r_glbl,$r_tbh)= @_;
-  # type is "sql" or "view"
-    # create a new top-window
-    # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    $r_tbh->{top_widget}= $Top;
-
-    # set the title
-    $Top->title($r_tbh->{table_name});
-
-
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$BG
-                	   )->pack(-side=>'top' ,-fill=>'both');
-    my $FrDn  = $Top->Frame(-background=>$BG
-                	   )->pack(-side=>'top' ,-fill=>'both', 
-			          -expand=>'y');
-  
-    my $MnTop= $FrTop->Menu(-type=>'menubar');
-
-    my $MnFile  = $MnTop->Menu();
-    my $MnDbase = $MnTop->Menu();
-    my $MnView  = $MnTop->Menu();
-    
-    $MnTop->add('cascade',
-		-label=> 'File',
-	        -accelerator => 'Meta+F',
-                -underline   => 0,
-		-menu=> $MnFile
-		);
-    $MnTop->add('cascade',
-		-label=> 'Database',
-	        -accelerator => 'Meta+D',
-                -underline   => 0,
-		-menu=> $MnDbase
-		);
-
-    # configure file-menu:
-    $MnFile->add('command',
-		 -label=> 'Save',
-	         -accelerator => 'Meta+S',
-                 -underline   => 0,
-		 -command=> [\&tk_save_to_file, $r_tbh]
-		); 
-    $MnFile->add('command',
-		 -label=> 'Load',
-	         -accelerator => 'Meta+L',
-                 -underline   => 0,
-		 -command=> [\&tk_load_from_file, $r_tbh]
-		); 
-
-    # configure database-menu:
-    $MnDbase->add('command',
-		  -label=> 'Store',
-	          -accelerator => 'Meta+S',
-                  -underline   => 0,
-		  -command => [\&cb_store_db, $r_tbh],
-		); 
-    $MnDbase->add('command',
-		  -label=> 'Reload',
-	          -accelerator => 'Meta+R',
-                  -underline   => 0,
-		  -command => [\&cb_reload_db, $r_tbh],
-		); 
-    $MnTop->pack(-side=>'top', -fill=>'x', anchor=>'nw');
-
-    # configure view-menu:
-    # create the sub-menue:
-    my $MnViewSort = $MnView->Menu();
-    $MnView->add('cascade',
-		  -label=> 'Sort rows',
-		  -accelerator => 'Meta+S',
-                  -underline   => 0,
-		  -menu => $MnViewSort
-		); 
-    $MnView->add('command',
-		  -label=> 'Object-Dump',
-		  -command => [\&tk_table_dump, $r_tbh],
-		); 
-    $MnView->add('command',
-		  -label=> 'dbitable-Dump',
-		  -command => [\&tk_dbitable_dump, $r_tbh],
-		); 
-
-
-
-    foreach my $col (@{$r_tbh->{column_list}})
-      { $MnViewSort->add('radiobutton',
-                	 -value=> $col, 
-			 -variable => \$r_tbh->{curr_sort_col},
-			 -label=> $col,
-			 -command=> [\&tk_resort_and_redisplay, 
-		        	     $r_tbh,
-				     $col],
-		    );
-      };
-      
-    #-- dbi::table
-    my $sql_statement = "SELECT * FROM " . $r_glbl->{new_table_name};
-    if (exists($r_glbl->{new_where_clause) && length($r_glbl->{new_where_clause}) > 3) 
-  	{ $sql_statement .= " WHERE " . $r_glbl->{new_where_clause}; }
-  
-    my $DBITable = $Top->DBITable(
-  				-sql=>$sql_statement,
-				-dbh=>$r_glbl->{dbh},
-    )->pack(
-    		-expand=>1,
-		-fill=>"both",
-		-anchor=>"nw",
-		-side=>"top",
-           );
-				
-    # statusbar
-	my $MnStatus = $Top->Frame(
-		-relief=>"groove",
-		-height=>20
-	)->pack(
-		-side=>"bottom",
-		-fill=>"x",
-		-anchor=>"sw"
-		);
-	$MnStatus->Label(
-		-text=>$r_glbl->{user}."@".$r_glbl->{db_name},
-	)->pack(
-		-side=>"left",
-		-expand=>1,
-		-anchor=>"w"
-		);
-
   }
 
 sub tk_save_to_file
