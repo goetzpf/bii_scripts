@@ -35,7 +35,7 @@ our $opt_tag;
 our $opt_filter;
 our $opt_order_by;
 
-my $version="1.0";
+my $version="1.1";
 
 my %known_actions= (file2file=> 1,
                     db2file=>1, 
@@ -199,7 +199,6 @@ sub file2db
     my $ftab= dbitable->new('file',$options{file},$options{tag},
                            )->load(pretty=>1,primary_key=>"generate");
 
-
     my $tab = $ftab->new('table',"",'','');
  
     my %ld_options;
@@ -276,8 +275,6 @@ options:
   -a [action]: mandatory, action is one of:
      file2file, db2file, file2db, file2screen, db2screen
 
-fertig: db2screen db2file file2db file2screen
-
   -t [table-name,primary_key]: this is mandatory for all actions db2...
      The primary_key may be omitted, in this case it is determined
      by a special SQL query
@@ -292,8 +289,11 @@ fertig: db2screen db2file file2db file2screen
      For actions ...2file, the default is the table-name if it is
      not defined
 
-  -F [column-name,column-value]: define a filter for the 
-     database-access
+  -F [filter-name,filter-parameters...]: define a filter for the 
+     currently known:
+     equal,<col-name>,<col-value>
+     SQL,"WHERE-Part of an sql query statement"
+
   --order_by [column-name1,column-name2...] : 
      this is only relevant for "...2file and ...2screen"
      
