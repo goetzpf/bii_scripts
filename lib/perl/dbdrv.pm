@@ -33,7 +33,7 @@ BEGIN {
 }
 use vars      @EXPORT_OK;
 use Data::Dumper;
-#use SQL::Parser;
+use Text::ParseWords;
 
 # used modules
 
@@ -54,17 +54,69 @@ our $db_trace  =0;
 my $mod= "dbdrv";
 my $r_db_objects;
 my $r_db_reverse_synonyms;
+my %sql_commands = (
+    "and" => "SQL", "or" => "SQL", "in" => "SQL",
+    "join" => "SQL", "outer" => "SQL", "inner" => "SQL",
+    "not" => "SQL", "null" => "SQL", "between" => "SQL",
+    "select" => "SQL", "from" => "SQL",
+    "update" => "SQL", "set" => "SQL",
+    "delete" => "SQL",
+    "where" => "SQL",
+    "order" => "SQL", "group" => "SQL", "by" => "SQL",
+    "as" => "SQL",
+    "connect" => "SQL", "disconnect" => "SQL", "exit" => "SQL",
+    "create" => "DDL", "drop" => "DDL", "truncate" => "DDL", "alter" => "DDL", "analyze" => "DDL",
+    "table" => "DML", "view" => "DML", "trigger" => "DML", "constraint" => "DML", "procedure" => "DML", "function" => "DML", "grant" => "DML",
+    "sequence" => "DML", "materialized" => "DML", "snapshot" => "DML", "object" => "DML", "shema" => "DML", "user" => "DML", "role" => "DML",
+    "add" => "DML", "modify" => "DML",
+    );
+
 
 our %sql_aliases;
 
 my $no_dbi= $ENV{DBITABLE_NO_DBI};
+
+sub format_sql_command
+  { my($sql)= @_;
+
+    $sql=~ s/[\r\n]+/ /g;
+    $sql=~ s/\s+/ /g;
+    $sql=~ s/\s+$//;
+    $sql=~ s/^\s+//;
+
+    my @parts= &parse_line('\s+', 1, $sql);
+    foreach my $p (@parts)
+      { next if ($p=~ /[\"\']/);
+#        if ($p=~ /(select|from|where|order|by)/i)
+         if (exists $sql_commands{lc($p)})
+          { $p= uc($p);
+            next;
+          };
+        $p= lc($p);
+      };
+    return( join(" ",@parts) );
+  }
+
+sub split_sql_command
+  { my($sql)= @_;
+    my @parts= &parse_line(';', 1, $sql);
+    my @statements;
+    foreach my $p (@parts)
+      { next if ($p=~ /[\"\']/);
+        next if ($p=~ /^[\s\n\r]*$/);
+        $p =~ s/^[\s\n\r]//;
+        $p =~ s/[\s\n\r]$//;
+        push @statements, $p;
+      };
+    return @statements;
+  }
 
 sub rdump
   { my($fh,$val,$indent,$is_newline,$comma)= @_;
     my $r= ref($val);
     if (!$r)
       { print $fh " " x $indent if ($is_newline);
-        print $fh "'",$val,"'",$comma,"\n"; 
+        print $fh "'",$val,"'",$comma,"\n";
         return;
       };
     if ($r eq 'ARRAY')

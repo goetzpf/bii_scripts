@@ -215,7 +215,7 @@ sub tk_login
                          $e4->configure(-state => $state);
                          $e5->configure(-state => $state);
                        }
-                                  )->grid(-row=>$row++, -column=>1, 
+                                  )->grid(-row=>$row++, -column=>1,
                                           -sticky=> "w");
 
     $e4= $FrTop->Entry(-textvariable => \$r_glbl->{proxy},
@@ -659,7 +659,7 @@ sub tk_main_window
                               -command => 
                                sub { $DlgCollListbox->delete(0, 'end');
                                      if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
-                                         while (my $collection = 
+                                         while (my $collection =
                                                  readdir(BROWSEDBCONFDIR))
                                          {
                                            if ($collection =~ /\.col$/)
@@ -907,16 +907,16 @@ sub tk_main_window
                             -text=> "Exec",
                             -underline=> 1,
                             -justify=> "center",
-                            -command=> 
+                            -command=>
                               sub {
-                                    my $query_command = 
+                                    my $query_command =
                                          $DlgSQLCommand->getSelected();
                                     if (length ($query_command) <= 2)
                                       {
-                                        $query_command = 
+                                        $query_command =
                                            $DlgSQLCommand->get('1.0', 'end');
                                       }
-                                    tk_execute_new_query($r_glbl, 
+                                    tk_execute_new_query($r_glbl,
                                                          $query_command);
                                   }
            )->pack(%dlg_def_okbutton,
@@ -955,7 +955,7 @@ sub tk_main_window
                         my $failure_selection = $DlgSQLCommand->getSelected();
                         if (length($failure_selection) > 0)
                         {
-                            $DlgSQLCommand->insert("insert", 
+                            $DlgSQLCommand->insert("insert",
                                                    $failure_selection);
                         }
                         $DlgSQLCommand->delete('insert - 1 char');
@@ -967,7 +967,7 @@ sub tk_main_window
         my $r_c= load_column_maps($r_glbl,"$PrgDir/$column_map_file");
         if (defined $r_c)
           { $r_glbl->{column_map_definitions}= $r_c; };
-        
+
         # dont remove these update, because of .toplevel
         # problems for destroy operations
         $Top->update();
@@ -1051,10 +1051,10 @@ sub tk_main_window_finish
     
     my $infotext= $r_glbl->{user} . "@" . $r_glbl->{db_driver} . ':' .
                   $r_glbl->{db_source};
-    
+
     if ($r_glbl->{use_proxy})
       { $infotext.= " (proxy $r_glbl->{proxy}:$r_glbl->{proxy_port})"; };                 
-    
+
     $r_glbl->{MainWindow}->
              {login_info}->configure(-text =>$infotext);
 
@@ -1347,100 +1347,84 @@ sub tk_open_new_object
 
 sub tk_execute_new_query
 # routine for executing free sequel
-  { my($r_glbl, $sqlquery)= @_;
-    my $sqlinput = $sqlquery;
-    $sqlquery =~ s/[\s\r\n]+/ /gm;
-    $sqlquery =~ s/\s*;?\s*$//;
-    $sqlquery =~ s/^\s*//;
-    tk_progress($r_glbl, 10);
-    my ($sqlcommand, $sqlargs) = ($sqlquery =~ /^(\w+)\b(.*)/);
-    if (! defined ($sqlcommand))
-      { tk_err_dialog($r_glbl->{main_menu_widget},
-                    "Invalid SQLh commandstring");
-        return;
-      }
-    if (dbdrv::check_alias($sqlcommand))
-      { $sqlargs=~ s/^\s+//; 
-        my @sqloptions = &parse_line('(\s+|\s*,\s*)', 0, $sqlargs); 
-        #my @sqloptions split(/\s*,\s*/, $sqlargs);
-
-#warn join("|", @sqloptions);
-#warn "|" . $sqloptions[0] . "|";
-
-        $sqlquery = dbdrv::get_alias($sqlcommand, @sqloptions);
-        if ($sqlquery=~ /^ERROR/i)
-          { tk_err_dialog($r_glbl->{main_menu_widget},
-                        $sqlquery);
-            return;
-          }
-      }
-    tk_progress($r_glbl, 20);
-    my $fh=$r_glbl->{handle_sql_history};
-    if ($sqlquery =~ /^select /i)
-      {
-        if (length($sqlquery) >= 6)
-          {
-            my $StatementResult = make_table_hash_and_window(
-                             $r_glbl,
-                             table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
-                             table_type=>"sql",
-                             sequel=>$sqlquery);
-            if (defined ($StatementResult))
-              {
-                    print $fh $sqlinput;
-              }
-          }
-      }
-    else
-      {
-        my $TraceFormat;
-        my $StatementResult = dbdrv::prepare(\$TraceFormat,
-                                             $r_glbl->{dbh}, $sqlquery);
-        if ($StatementResult)
-          {
-            if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},
-                                $StatementResult))
-              { tk_err_dialog($r_glbl->{main_menu_widget},
-                    #"Wrong SQL command syntax or data error:\n$DBI::errstr");
-                              $DBI::errstr
-                             );
-              }
-            else
-              {
-                    print $fh $sqlinput;
-              }
-          }
-        else
-          {
-                tk_err_dialog($r_glbl->{main_menu_widget},
-                        #"Unknown SQL commend or command not for " .
-                        #"owner use specified!:\n$DBI::errstr"
-                             $DBI::errstr
-                             );
-          }
-
-      }
-    tk_progress($r_glbl, 100);
+  { my($r_glbl, $sqlinput)= @_;
+    my $fh = $r_glbl->{handle_sql_history};
     my $sql_history_widget= $r_glbl->{MainWindow}->{sql_history_widget};
-            
-    $sql_history_widget->insert('end', "\n");
-    $sql_history_widget->insert('end', $sqlinput);
-    if (defined ($r_glbl->{dbh}->err))
-      {
-        $sql_history_widget->insert('end', 
-                  "\nError #" . $r_glbl->{dbh}->err .
-                  ": " . $r_glbl->{dbh}->errstr . "\n", "red"
-                                   );
-      }
-    else
-      {
-        $sql_history_widget->insert('end', "\nStatement successful.\n", 
-                                    "green");
-      }
+    my @sqlcommands = dbdrv::split_sql_command($sqlinput);
+
+    tk_progress($r_glbl, 0);
+    my $size = $#sqlcommands;
+    my $counter = 0;
+    for (my $counter = 0; $counter < $size + 1; $counter++)
+    {
+        my $sqlquery = $sqlcommands[$counter];
+        my ($sqlcommand, $sqlargs) = ($sqlquery =~ /^\s*(\w+)\b(.*)/);
+        if (! defined ($sqlcommand))
+        { tk_err_dialog($r_glbl->{main_menu_widget},
+                        "Invalid SQL commandstring");
+            return;
+        }
+        if (dbdrv::check_alias($sqlcommand))
+        { $sqlargs=~ s/^\s+//;
+            my @sqloptions = &parse_line('(\s+|\s*,\s*)', 0, $sqlargs);
+            $sqlquery = dbdrv::get_alias($sqlcommand, @sqloptions);
+            if ($sqlquery=~ /^ERROR/i)
+            { tk_err_dialog($r_glbl->{main_menu_widget},
+                            $sqlquery);
+                return;
+            }
+        }
+        $sqlquery = dbdrv::format_sql_command($sqlquery);
+        if ($sqlquery =~ /^select /i)
+        {
+            if (length($sqlquery) >= 6)
+            {
+                my $StatementResult = make_table_hash_and_window(
+                                $r_glbl,
+                                table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
+                                table_type=>"sql",
+                                sequel=>$sqlquery);
+            }
+        }
+        else
+        {
+            my $TraceFormat;
+            my $StatementResult = dbdrv::prepare(\$TraceFormat,
+                                                $r_glbl->{dbh}, $sqlquery);
+
+            if ($StatementResult)
+            {
+                if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},
+                                    $StatementResult))
+                { tk_err_dialog($r_glbl->{main_menu_widget},
+                                $DBI::errstr
+                                );
+                }
+            }
+            else
+            {
+                    tk_err_dialog($r_glbl->{main_menu_widget},
+                                $DBI::errstr
+                                );
+            }
+
+        }
+        tk_progress($r_glbl, ($counter/$size)*100);
+        if (! defined ($r_glbl->{dbh}->err))
+        {
+            $sql_history_widget->insert('end', "\n");
+            $sql_history_widget->insert('end', "$sqlquery;", "green");
+            $sql_history_widget->insert('end', "\n");
+            print $fh "\n".$sqlquery.";\n";
+
+        }
+
+    }
+    tk_progress($r_glbl, 100);
     $sql_history_widget->see("end");
     $fh->flush();
     tk_progress($r_glbl, 0);
-    return $sqlquery;
+    return $size;
 }
 
 sub tk_reload_all_objects
@@ -1460,7 +1444,7 @@ sub tk_reload_all_objects
    tk_set_busy($r_glbl,0);
 
   }
-  
+
 
 sub tk_sql_commands
   { my($r_glbl)= @_;
@@ -2572,7 +2556,7 @@ sub make_table_hash
 #  vis_column_no   => equal to column_no
 #  vis_column_width=> equal to column_width
 #  foreign_key_hash=> \%foreign_key_hash 
-#                     this hash maps column-names to a list containing 
+#                     this hash maps column-names to a list containing
 #                     two elements, the name of the foreign table and
 #                     the column-name in the foreign table.
 #  write_protected_cols=> \%write_protection_col_hash
@@ -2684,7 +2668,7 @@ sub make_table_hash
       { $r_col_maps= $r_col_maps->{$table_hash{table_name}};
         if (defined $r_col_maps)
           { foreach my $c ( keys %$r_col_maps )
-              { next if (column_has_a_map(\%table_hash,$c)); 
+              { next if (column_has_a_map(\%table_hash,$c));
                 set_column_map($r_glbl,\%table_hash,
                                $r_col_maps->{$c},$c); 
               };
@@ -4611,7 +4595,7 @@ sub cb_select
 
                # remove cell write-protection temporarily:
                $res_tbh->{write_protected_cols}->{$res_colname}= 'T';
-               
+
                # take column-maps in the foreign table into account:
                my $flag= $res_tbh->{col_map_flags}->{$res_colname};
                if ($flag eq 'M') # map is active
@@ -5100,7 +5084,7 @@ sub set_column_map
     my %col_map;
     $col_map{key_to_str} = $r_key_to_str;     
     $col_map{str_to_key} = $r_str_to_key; 
-    $col_map{sql_command}= format_sql_command($sql_command);
+    $col_map{sql_command}= dbdrv::format_sql_command($sql_command);
     
     $r_tbh->{col_map_flags}->{$column_name}= 'M';
     
@@ -5113,47 +5097,26 @@ sub column_has_a_map
   { my($r_tbh,$column_name)= @_;
   
     return( exists $r_tbh->{col_maps}->{$column_name} );
-  }    
- 
-sub format_sql_command
-  { my($sql)= @_;
-  
-    $sql=~ s/[\r\n]+/ /g;
-    $sql=~ s/\s+/ /g;
-    $sql=~ s/\s+$//;
-    $sql=~ s/^\s+//;
-    
-    my @parts= &parse_line('\s+', 1, $sql); 
-    foreach my $p (@parts)
-      { next if ($p=~ /[\"\']/);
-        if ($p=~ /(select|from|where|order|by)/i)
-          { $p= uc($p);
-            next;
-          };
-        $p= lc($p);
-      };
-    return( join(" ",@parts) );
   }
-    
 
-sub get_column_map    
+sub get_column_map
   { my($r_glbl,$sql_command,$column_name)= @_;
-    
-    $sql_command= format_sql_command($sql_command);
-    
+
+    $sql_command= dbdrv::format_sql_command($sql_command);
+
     my $r_map_hash= $r_glbl->{map_hash};
     if (!defined $r_map_hash)
       { my %h;
         $r_glbl->{map_hash}= \%h;
         $r_map_hash= \%h;
       };
-  
+
     if (exists $r_map_hash->{$sql_command})
       { return($r_map_hash->{$sql_command}->{key_to_str},
                $r_map_hash->{$sql_command}->{str_to_key}
               );
       };
-      
+
     my $ntab= dbitable->new('view',$r_glbl->{dbh},
                              'col_map_query',"",$sql_command
                            );
@@ -5683,7 +5646,7 @@ sub load_column_maps
           };
         $table= uc($table);
         $col  = uc($col);  
-        $h{$table}->{$col}= format_sql_command($sql);
+        $h{$table}->{$col}= dbdrv::format_sql_command($sql);
       };
     close(F);
     return(\%h);
