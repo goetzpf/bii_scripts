@@ -610,11 +610,14 @@ sub check_existence
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    my $obj_name= "PUBLIC." . uc($table_name);
-
     load_object_dict($dbh,$user_name);
 
-    return( exists $r_db_objects->{$obj_name} );
+    if (exists $r_db_objects->{uc($user_name) . '.' . uc($table_name)})
+      { return(1); };
+    if (exists $r_db_objects->{"PUBLIC." . uc($table_name)})
+      { return(1); };
+    
+    return;
   }
 
 sub accessible_objects
@@ -681,8 +684,9 @@ sub accessible_objects
       };
 
     if (exists $access{user})
-      { push @result,
-             grep { /^$user_name\./ } @keys;
+      { 
+        push @result,
+             grep { /^$user_name\./i } @keys;
       };
 
     #warn join("|",@result) . "\n";
