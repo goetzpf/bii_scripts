@@ -13,13 +13,14 @@ use lib "$FindBin::RealBin/../lib/perl";
 #You may specify where to find Tk::TableMatrix, when
 #it is not installed globally like this:
 #use lib "$ENV{HOME}/project/perl/lib/site_perl";
+#use lib "/home/unix/pfeiffer/project/perl/lib/site_perl";
 
 # the following is only for my testing perl-environment:
 #use lib "$ENV{HOME}/pmodules";
 #use perl_site;
 use Sys::Hostname;
 
-use Tk;
+use Tk 800.025;
 use Tk::Menu;
 use Tk::Dialog;
 use Tk::NoteBook;
@@ -65,7 +66,9 @@ if (! -e $PrgDir)
   {
     mkdir($PrgDir, 00700) or
       die "Can not create configuration location at ".$PrgDir;
-  }
+  };
+  
+my $column_map_file= 'column_maps.txt';
 
 my $PrgTitle= 'BrowseDB';
 
@@ -865,6 +868,11 @@ sub tk_main_window
                         tk_execute_new_query($r_glbl, $query_command);
                      }
                 );
+        # read column-map definitions:
+        my $r_c= load_column_maps($r_glbl,"$PrgDir/$column_map_file");
+        if (defined $r_c)
+          { $r_glbl->{column_map_definitions}= $r_c; };
+        
         # dont remove these update, because of .toplevel
         # problems for destroy operations
         $Top->update();
@@ -2545,7 +2553,20 @@ sub make_table_hash
         delete $table_hash{col_maps};
         
         foreach my $c (keys %maps)
-          { set_column_map($r_glbl,\%table_hash,$maps{$c},$c); };
+          { set_column_map($r_glbl,\%table_hash,$maps{$c},$c); 
+          };
+      };
+      
+    $r_col_maps= $r_glbl->{column_map_definitions};
+    if (defined $r_col_maps)
+      { $r_col_maps= $r_col_maps->{$table_hash{table_name}};
+        if (defined $r_col_maps)
+          { foreach my $c ( keys %$r_col_maps )
+              { next if (column_has_a_map(\%table_hash,$c)); 
+                set_column_map($r_glbl,\%table_hash,
+                               $r_col_maps->{$c},$c); 
+              };
+          };
       };
 
     # calculate column-map flags
@@ -2848,7 +2869,17 @@ sub make_table_window
                     );
       };
 
- 
+    if ($r_tbh->{table_type} eq 'table')
+      { $MnRela->add('command',
+                      -label=> 'add column map to file',
+                      -underline   => 0,
+                      -command => 
+                        sub { add_to_column_maps($r_glbl,$r_tbh,
+                                                 "$PrgDir/$column_map_file");
+                            }
+                    );
+      };
+
     $MnRela->add('command',
                   -label=> 'add scroll-relation',
                   -underline   => 0,
@@ -4901,6 +4932,11 @@ sub set_column_map
     return(1);
   }  
  
+sub column_has_a_map
+  { my($r_tbh,$column_name)= @_;
+  
+    return( exists $r_tbh->{col_maps}->{$column_name} );
+  }    
  
 sub get_column_map    
   { my($r_glbl,$sql_command,$column_name)= @_;
@@ -5430,11 +5466,75 @@ sub same_start
     return( substr($r_list->[0],0,$charno+1) );
   }
 
+sub load_column_maps
+  { my($r_glbl,$file)= @_;
+    
+    local(*F);
+    my %h;
+    
+    if (!-e $file)
+      { return; };
+
+    if (!open(F, $file))
+      { warn "opening of the column-map file failed";
+        return;
+      };
+    while(my $line=<F>)
+      { chomp($line);
+        my ($table,$col,$sql) = &parse_line('\s+', 0, $line);
+        if (!defined $sql)
+          { warn "column-map entry ignored:\n$line\n"; 
+            next;
+          };
+        $table= uc($table);
+        $col  = uc($col);  
+        $h{$table}->{$col}= $sql;
+      };
+    close(F);
+    return(\%h);
+  }    
+
+sub add_to_column_maps
+  { my($r_glbl,$r_tbh,$file)= @_;
+ 
+    local(*F);
+    
+    my $r_colmaps= $r_tbh->{col_maps};
+    return if (!defined $r_colmaps);
+    
+    my $r_h= load_column_maps($r_glbl,$file);
+    
+    my $tablename= $r_tbh->{table_name};
+    foreach my $col (keys %$r_colmaps)
+      { $r_h->{$tablename}->{$col}= $r_colmaps->{$col}->{sql_command}; };
+    if (-e $file)
+      { if (system("mv $file $file.old"))
+          { warn "unable to make safety copy, aborted!";
+            return;
+          };
+      };
+    if (!open(F, ">$file"))
+      { warn "unable to write file!\n";
+      }; 
+       
+    foreach my $table (sort keys %$r_h)
+      { my $r_c= $r_h->{$table};
+        foreach my $col (sort keys %$r_c)
+          { printf F "%-10s %-10s \"%s\"\n",$table,$col,$r_c->{$col}; 
+          };
+      };
+    if (!close(F))
+      { warn "unable to write file!\n";
+      };
+       
+    $r_glbl->{column_map_definitions}= $r_h;
+  }
+        
+
 sub tk_load_collection
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
   { my($widget,$r_glbl,$file)= @_;
-    local(*F);
 
     my $Top= $r_glbl->{main_menu_widget};
 
@@ -5767,6 +5867,12 @@ Verbesserungsvorschläge:
 
 * cb_activate_window is activating and deiconfied opened parent_window
 
+* bei "SEQUEL": order-by beachten
+
 BUGS:
 
+Zeile ändern und später löschen führt zu fatalem Fehler
+(programm beendet sich nicht aber funktioniert dann nicht mehr richtig)
+
+delete-line minidialog muß über dem Cursor plaziert werden (->popup())
 
