@@ -1,3 +1,19 @@
+----------------------------------------------------------------------
+Scripts:
+----------------------------------------------------------------------
+pfind.pl
+	a perl-script for recursive file pattern search, like
+	a recursive grep, but better...
+
+Sch2db.pl
+	a perl sch to db converter. Converts capfast(*.sch) files
+	to the db file format as it is used in EPICS. This is faster
+	and more flexible that the combination of sch2edif and e2db...
+	
+----------------------------------------------------------------------
+Libraries and Modules:
+----------------------------------------------------------------------
+
 Pezca	
 	a perl-module that implements the channel-access protocol
 	and gives access to EPICS variables (1)
