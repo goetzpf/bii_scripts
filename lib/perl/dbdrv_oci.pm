@@ -2,6 +2,8 @@
 # it is loaded via "do" into dbdrv.pm !!
 
 use strict;
+#use Data::Dumper;
+
 our $sql_trace;
 our $r_db_objects;
 our $r_db_reverse_synonyms;
@@ -1040,7 +1042,12 @@ sub column_properties
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
+    
+    return if (!@$res_r);
+    # no column-properties found
+    
     my %ret;
+    # caution: the hash may be empty !
     foreach my $line ( @$res_r )
       {
         $ret{$line->[0]} = {
@@ -1050,7 +1057,9 @@ sub column_properties
             null=>$line->[4],
             default=>$line->[5],
         };
-      }
+      };
+#print Dumper(\%ret);      
+      
     return( \%ret );
   }
 
