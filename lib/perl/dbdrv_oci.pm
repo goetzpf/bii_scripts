@@ -23,9 +23,9 @@
 # SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #
 # Copyright (c) 2004-2005
-#			Berliner Elektronenspeicherring-Gesellschaft
-#			      fuer Synchrotronstrahlung m.b.H.,
-#				     Berlin, Germany
+#                       Berliner Elektronenspeicherring-Gesellschaft
+#                             fuer Synchrotronstrahlung m.b.H.,
+#                                    Berlin, Germany
 #
 ##############################################################################  
 
@@ -135,7 +135,10 @@ sub real_name
 # that has logged in
   { my($dbh,$user_name,$obj)= @_;
 
-    #warn "realname called with:$user_name.$obj";
+    #my ($package, $filename, $line) = caller;
+    #warn "$package, $filename, $line";
+
+    #warn "realname called with:$user_name,$obj";
 
     my $object_name;
 
@@ -147,12 +150,15 @@ sub real_name
     load_object_dict($dbh,$user_name);
 
     if ($obj !~ /\./) # not in the form user.tablename
-      { $object_name= "PUBLIC." . $obj; };
-
+      { $object_name= "PUBLIC." . $obj; }
+    else
+      { $object_name= $obj; };
 
     my $data= $r_db_objects->{$object_name};
-    if (!defined $data)
+
+    if ((!defined $data) && ($obj !~ /\./))
       { # try a 2nd lookup with the user-name as prefix:
+        
         $object_name= "$user_name.$obj";
         $data= $r_db_objects->{$object_name};
       };
@@ -186,6 +192,8 @@ sub canonify_name
 # returns a "nice" name
   { my($dbh,$user_name,$object_name,$object_owner)= @_;
 
+    $user_name= uc($user_name);
+
     if ($object_name =~ /\./)
       { ($object_owner,$object_name)= split(/\./,$object_name); };
 
@@ -206,8 +214,10 @@ sub canonify_name
       { my($owner,$obj)= split(/\./,$n);
         if ($owner eq 'PUBLIC')
           { return($obj); };
+        if ($owner eq $user_name)
+          { return($obj); };
+        return($n);  
       };
-
     return($name);
   }
 
@@ -720,6 +730,11 @@ sub primary_keys
 # that form the primary key
   { my($dbh,$user_name,$table_name)= @_;
     my $table_owner;
+
+    #my ($package, $filename, $line) = caller;
+    #warn "$package, $filename, $line";
+
+    #warn "primary_keys called with:$user_name,$table_name";
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
