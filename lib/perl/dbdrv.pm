@@ -975,7 +975,7 @@ The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".
 
 =item dbdrv::object_addicts
 
-  my @list= dbdrv::object_references($dbh,$table_name,$table_owner)
+  my @list= dbdrv::object_addicts($dbh,$table_name,$table_owner)
 
 This function returns a list of all triggers and constraints for
 a given table. For each trigger or constraint, the owner is
