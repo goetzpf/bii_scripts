@@ -40,7 +40,8 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
                 Options.pm cfgfile.pm  dbdrv.pm parse_db.pm 
-                );
+                BrowseDB/TkUtils.pm
+		);
                 
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm);
