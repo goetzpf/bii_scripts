@@ -390,7 +390,7 @@ sub object_dependencies
       $dbh->selectall_arrayref($SQL);
 
     if (!defined $res_r)
-      { dberror($mod_l,'db_read_dependencies',__LINE__,
+      { dberror($mod_l,'db_object_dependencies',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -429,7 +429,51 @@ sub object_references
       $dbh->selectall_arrayref($SQL);
 
     if (!defined $res_r)
-      { dberror($mod_l,'db_read_references',__LINE__,
+      { dberror($mod_l,'db_object_references',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( @$res_r );
+  }
+
+sub object_addicts
+# INTERNAL
+# read all constraints and triggers for the given object
+  { my($dbh,$table_name,$table_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    if ($table_name =~ /\./)
+      { ($table_owner,$table_name)= split(/\./,$table_name); };
+
+    if (!defined $table_owner)
+      { ($table_name,$table_owner)=
+                    dbdrv::real_name($dbh,$table_owner,$table_name);
+      };
+
+    die if (!defined $table_owner); # assertion !
+
+    my $SQL= "select CONSTRAINT_NAME NAME" .
+                " from ALL_CONSTRAINTS" .
+                " where OWNER = \'$table_owner\' and " .
+                " CONSTRAINT_TYPE = 'C' AND " .
+                " TABLE_NAME = \'$table_name\'" .
+             " union " .
+             "select TRIGGER_NAME NAME" .
+                " from ALL_TRIGGERS" .
+                " where OWNER = \'$table_owner\' and " .
+                " table_name = \'$table_name\'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_object_addicts',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
