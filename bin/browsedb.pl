@@ -2032,7 +2032,7 @@ sub make_table_window
     my $MnDbase = $MnTop->Menu();
     my $MnPref  = $MnTop->Menu();
     my $MnEdit  = $MnTop->Menu();
-    my $MnRela  = $MnTop->Menu();
+#    my $MnRela  = $MnTop->Menu();
     my $MnView  = $MnTop->Menu();
 
     $MnTop->add('cascade',
@@ -2057,11 +2057,11 @@ sub make_table_window
                 -underline   => 0,
                 -menu=> $MnEdit
                 );
-    $MnTop->add('cascade',
-                -label=> 'Relations',
-                -underline   => 0,
-                -menu=> $MnRela
-                );
+#    $MnTop->add('cascade',
+#                -label=> 'Relations',
+#                -underline   => 0,
+#                -menu=> $MnRela
+#                );
     $MnTop->add('cascade',
                 -label=> 'View',
                 -underline   => 0,
@@ -2117,6 +2117,9 @@ sub make_table_window
                     );
 
     # configure database-menu:
+
+    my $MnDbaseRela = $MnDbase->Menu();
+
     if ($r_tbh->{table_type} eq 'table')
       {
         $MnDbase->add('command',
@@ -2132,12 +2135,50 @@ sub make_table_window
                   -command => [\&cb_reload_db, $r_glbl, $r_tbh],
                 );
 
+    $MnDbase->add('cascade',
+                -label=> 'Relation',
+                -underline   => 0,
+                -menu=> $MnDbaseRela
+               );
+
+        if ($r_tbh->{table_type} eq 'table')
+        { $MnDbaseRela->add('command',
+                        -label=> 'Dependend tables',
+                        -underline   => 10,
+                        -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
+                        );
+        };
+
+        if ($r_tbh->{table_type} ne 'sql')
+        {
+            $MnDbaseRela->add('command',
+                        -label=> 'Dependend views',
+                        -underline   => 10,
+                        -command => [\&tk_dependend_views_dialog, $r_glbl, $r_tbh],
+                        );
+        };
+
+        if ($r_tbh->{table_type} eq 'table')
+        { $MnDbaseRela->add('command',
+                        -label=> 'Referenced tables',
+                        -underline   => 0,
+                        -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
+                        );
+        };
+        if ($r_tbh->{table_type} eq 'view')
+        { $MnDbaseRela->add('command',
+                        -label=> 'Referenced objects',
+                        -underline   => 11,
+                        -command => [\&tk_view_dependency_dialog, $r_glbl, $r_tbh],
+                        );
+        };
+
     # configure preferences-menu:
     $MnPref->add(
                   'checkbutton',
                    -label=> 'auto-generate primary keys',
                    -variable => \$r_tbh->{pk_generate},
-                   -state => ($r_tbh->{pk_generate}==-1) ? 
+                   -state => ($r_tbh->{pk_generate}==-1) ?
                                'disabled' : 'normal'
                 );
 
@@ -2226,74 +2267,6 @@ sub make_table_window
                      );
 
 
-    # configure relations-menu:
-    if ($r_tbh->{table_type} eq 'table')
-      { $MnRela->add('command',
-                      -label=> 'Dependend tables',
-                      -underline   => 10,
-                      -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
-                    );
-      };
-
-    if ($r_tbh->{table_type} ne 'sql')
-      {
-        $MnRela->add('command',
-                      -label=> 'Dependend views',
-                      -underline   => 10,
-                      -command => [\&tk_dependend_views_dialog, $r_glbl, $r_tbh],
-                    );
-      };
-
-    if ($r_tbh->{table_type} eq 'table')
-      { $MnRela->add('command',
-                      -label=> 'Referenced tables',
-                      -underline   => 0,
-                      -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
-                    );
-      };
-    if ($r_tbh->{table_type} eq 'view')
-      { $MnRela->add('command',
-                      -label=> 'Referenced objects',
-                      -underline   => 11,
-                      -command => [\&tk_view_dependency_dialog, $r_glbl, $r_tbh],
-                    );
-      };
-
-    if ($r_tbh->{table_type} ne 'sql')
-      { $MnRela->add('command',
-                      -label=> 'Add column map to file',
-                      -underline   => 0,
-                      -command =>
-                        sub { add_to_local_column_maps($r_glbl,$r_tbh,
-                                                 "$r_glbl->{dir}/$column_map_file");
-                            }
-                    );
-      };
-
-    $MnRela->add('command',
-                  -label=> 'Add scroll-relation',
-                  -underline   => 0,
-                  -command => [\&tk_add_relation_dialog, $r_glbl, $r_tbh],
-                );
-
-    $MnRela->add('command',
-                  -label=> 'Show scroll-relations',
-                  -underline   => 0,
-                  -command => [\&tk_show_scroll_relations, $r_glbl, $r_tbh],
-                );
-
-    if ($r_tbh->{resident_there})
-      { $MnRela->add('command',
-                     -label=> 'Select value',
-                     -underline   => 0,
-                     -command => [\&cb_select, $r_glbl, $r_tbh],
-                    );
-      }
-    else
-      {
-        # warn "NO resident_key in table $r_tbh->{table_name} !!!";
-      };
-
 
     # configure view-menu:
     # create the sub-menue:
@@ -2309,27 +2282,81 @@ sub make_table_window
                   -underline   => 0,
                   -menu => $MnViewHCol
                 );
+
+    my $MnViewRela = $MnView->Menu();
+
+    $MnView->add('cascade',
+                -label=> 'Relation',
+                -underline   => 0,
+                -menu=> $MnViewRela
+               );
+
+        if ($r_tbh->{table_type} ne 'sql')
+        { $MnViewRela->add('command',
+                        -label=> 'Add column map to file',
+                        -underline   => 0,
+                        -command =>
+                            sub { add_to_local_column_maps($r_glbl,$r_tbh,
+                                                    "$r_glbl->{dir}/$column_map_file");
+                                }
+                        );
+        };
+
+        $MnViewRela->add('command',
+                    -label=> 'Add scroll-relation',
+                    -underline   => 0,
+                    -command => [\&tk_add_relation_dialog, $r_glbl, $r_tbh],
+                    );
+
+        $MnViewRela->add('command',
+                    -label=> 'Show scroll-relations',
+                    -underline   => 0,
+                    -command => [\&tk_show_scroll_relations, $r_glbl, $r_tbh],
+                    );
+
+        if ($r_tbh->{resident_there})
+        { $MnViewRela->add('command',
+                        -label=> 'Select value',
+                        -underline   => 0,
+                        -command => [\&cb_select, $r_glbl, $r_tbh],
+                        );
+        }
+        else
+        {
+            # warn "NO resident_key in table $r_tbh->{table_name} !!!";
+        };
+
+
     $MnView->add('checkbutton',
                   -label=> 'Hide/Unhide fastbar',
                   -underline   => 11,
                   -command => [ \&cb_build_fastbar, $r_glbl, $r_tbh ],
                   -variable => \$r_tbh->{fastbar}->{show},
                 );
-    $MnView->add('command',
-                  -label=> 'Info',
-                  -underline   => 0,
-                  -command => [\&tk_table_info, $r_glbl, $r_tbh],
-                );
-    $MnView->add('command',
-                  -label=> 'Dump Object',
-                  -underline   => 0,
-                  -command => [\&tk_table_dump, $r_glbl, $r_tbh],
-                );
-    $MnView->add('command',
-                  -label=> 'Dump dbitable',
-                  -underline   => 1,
-                  -command => [\&tk_dbitable_dump, $r_glbl, $r_tbh],
-                );
+
+    my $MnViewInfo = $MnView->Menu();
+
+    $MnView->add('cascade',
+                -label=> 'Information',
+                -underline   => 0,
+                -menu=> $MnViewInfo
+               );
+
+        $MnViewInfo->add('command',
+                    -label=> 'Generig',
+                    -underline   => 0,
+                    -command => [\&tk_table_info, $r_glbl, $r_tbh],
+                    );
+        $MnViewInfo->add('command',
+                    -label=> 'Dump Object',
+                    -underline   => 0,
+                    -command => [\&tk_table_dump, $r_glbl, $r_tbh],
+                    );
+        $MnViewInfo->add('command',
+                    -label=> 'Dump dbitable',
+                    -underline   => 1,
+                    -command => [\&tk_dbitable_dump, $r_glbl, $r_tbh],
+                    );
 
     foreach my $col (@{$r_tbh->{column_list}})
       { $MnViewHCol->add('checkbutton',
