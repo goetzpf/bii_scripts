@@ -24,8 +24,9 @@ our $VERSION     = '1.0';
 our $export_version= "1.0";
 
 our $sql_trace= 0;
-our $db_trace=0;
+our $db_trace  =0;
 our $prelim_key=0;
+our $sim_delete=1; # deletions in the DB are only simulated
 
 my $slim_format=0; # do not save all elements of "table" element
 
@@ -39,6 +40,9 @@ my $std_dbh; # internal standard database-handle
 my $gen_sort_href;
 my @gen_sort_cols;
 my $gen_sort_r_coltypes;
+
+sub std_database_handle
+  { return($std_dbh); }
 
 sub connect_database
 # if dbname=="", use DBD::AnyData
@@ -721,7 +725,8 @@ sub load_from_db
     my $mode= $options{mode};
     if    (!defined $mode)
       { $mode= 'set'; }
-    elsif (($mode ne 'add') && ($mode ne 'set') && ($mode ne 'overwrite'))
+    elsif (($mode ne 'add') && ($mode ne 'set') &&
+          ($mode ne 'subtract') && ($mode ne 'overwrite'))
       { die "unknown load-mode:$mode"; }; 
 
  
@@ -779,6 +784,7 @@ sub load_from_db
     my $pk;
     
     
+    my %deleted;
     my %updated;
     my %inserted;
     
@@ -787,12 +793,12 @@ sub load_from_db
         %inserted = map { $_ => 1 } (keys %$r_lines); 
       };
     
-    foreach my $rl (@$r)
-      { $pk= $rl->[$pki];
+    foreach my $rl (@$r) # for all lines than came from the DB
+      { $pk= $rl->[$pki]; # primary key
         if ($mode ne 'set')
 	  {
             $inserted{$pk}=0; 
-	    if (exists $r_lines->{$pk})
+	    if (exists $r_lines->{$pk}) # if line is already in table
 	      { if ($mode ne 'overwrite')
 		  { 
 	            if (!lists_equal($r_lines->{$pk},$rl))
@@ -801,11 +807,20 @@ sub load_from_db
 		      };
 		    next;  
 		  };
-              };
+              }
+	    else
+	      { #line is not already in table
+	        if ($mode eq 'subtract')
+		  { # line is in db, but not in table. Mark that line
+		    # deleted
+		    $deleted{$pk}= 1; 
+		  };
+	      };  
 	  };  
-      
-        $r_lines->  { $rl->[$pki] } = $rl; 
-        $r_aliases->{ $rl->[$pki] }= $rl->[$pki];
+        if ($mode ne 'subtract')
+	  { $r_lines->  { $rl->[$pki] } = $rl; 
+            $r_aliases->{ $rl->[$pki] }= $rl->[$pki];
+	  };  
       };
       
     if ($mode eq 'set')
@@ -825,6 +840,8 @@ sub load_from_db
 	else
 	  { delete $self->{_inserted}; };
       
+        if (%deleted)
+          { $self->{_deleted}= \%deleted; };
       };  
       
     return($self); 
@@ -846,13 +863,24 @@ sub store_to_db
 
 sub delete_
 # internal
- { my $self= shift;
+  { my $self= shift;
     my $dbh= $self->{_dbh};
     my $lines= $self->{_lines};
-  
+
+    return if (!$self->{_deleted});
+    
+    if ($sim_delete)
+      { print STDERR "In table $self->{_table} the following\n";
+        print STDERR "primary keys from lines would be deleted:\n";
+        print STDERR join(",",(keys %{$self->{_deleted}})),"\n";
+	print STDERR "set \$dbitable::sim_delete to 0 if you want\n" .
+	            "deletions to be carried out\n";
+        return;
+      };
+
     my $format;
     my $sth= db_prepare(\$format,$dbh,
-                        "delete from $self->{_table} " .
+                	"delete from $self->{_table} " .
         		"where $self->{_pk} = ? ")
         	or die "prepare failed," .
         	       " error-code: \n$DBI::errstr";
@@ -865,7 +893,7 @@ sub delete_
             " error-code: \n$DBI::errstr";
       }; 
     delete $self->{_deleted}; # all updates are finished 
-  }  
+   }  
 
 
 sub update
@@ -1741,18 +1769,31 @@ new line he adds, which would be a rather dull task... ;)
 
 This option can only be used for the type 'table'. It defines what
 to do, if the table already contains data before C<load()> is executed.
-Three modes are known, "set", "add" and "overwrite". "set" is 
-the default. With "set", all
-lines from the table are removed, before new lines are loaded from
-the database. With "add", the lines from the database are added to the
+Three modes are known:
+
+=over 4
+
+=item "set"
+
+This is the default. With "set", all lines from the table are removed, 
+before new lines are loaded from the database. 
+
+=item "add"
+
+ With "add", the lines from the database are added to the
 lines already in the table. Lines that were not loaded from the
 database are marked "inserted". Lines that found in the table already but
 are different from that in the database are marked "updated". 
+
+=item "overwrite"
+
 "overwrite" is similar to "add', but in this case lines that are 
 found already in the table but also in the database are overwritten
 with the values from the database. The internal marking of lines
 as "inserted" or "updated" has a meaning when a C<store()> is executed
 for that table-object later.
+
+=back
 
 =item *
 
@@ -1897,6 +1938,18 @@ are just mapped to columns of the destination that have the same name.
 =head2 miscelanious functions:
 
 =over 4
+
+=item std_database_handle
+
+  my $dbh= dbitable::std_database_handle();
+  
+This returns the internal standard database-handle. This 
+database-handle is used, when the C<undef> or an empty string
+is used where otherwise a database-handle is expected. The standard
+database-handle is simply the last database-handle that was returned
+by the function C<dbitable::connect_database>. If 
+C<dbitable::connect_database> was never called, C<std_database_handle>
+returns C<undef>.
 
 =item primary_keys()
 
