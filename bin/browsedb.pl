@@ -1774,6 +1774,9 @@ sub make_table_hash
 #  column_list     => \@column_names_list
 #  column_hash     => \%column_hash
 #                     a hash that maps column-names to indices
+#  column_properties
+#                  => \%column_properties
+#                     a hash containing definition of the given column
 #  column_no       => number of columns
 #  vis_column_list => equal to column_list
 #  vis_column_hash => equal to column_hash
@@ -1796,8 +1799,8 @@ sub make_table_hash
 #  pk_hash         => \%primary_key_to_row_hash
 #                     this hash maps primary key to row-indices
 #  pk_generate     => 1,0 or -1 defines wether primary keys are generated
-#                     (when pk_generate>0) 
-#                     -1 means that generation is switched off and 
+#                     (when pk_generate>0)
+#                     -1 means that generation is switched off and
 #                     cannot be changed
 #  row_no          => the number of rows of the table
 #  changed_cells   => \%changed_cells_hash
@@ -1848,9 +1851,9 @@ sub make_table_hash
         # primary key hash, this is currently needed in the popup-menu
         $table_hash{pks_h}= { map { $_ => 1 } @pks };
       };
-      
+
     if (!$table_hash{dbitable}->primary_key_auto_generate_possible())
-      { $table_hash{pk_generate}= -1; # autogen of, not-changable 
+      { $table_hash{pk_generate}= -1; # autogen of, not-changable
       }
     else
       { $table_hash{pk_generate}= $r_glbl->{primary_key_auto_generate}; };
@@ -2873,34 +2876,60 @@ sub cb_show_objectinfo
         
         $content = $str;
 
-        #@@@@@@@@@@@@@@@@@@@@@@@
         my($object_name, $object_owner);
         if ($r_tbh->{table_type} ne 'sql')
-        { 
+        {
           ($object_name, $object_owner)=
                 dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
           foreach my $colname ( @ { $r_tbh->{'column_list'} } )
             {
-              $content .= "\n\t$colname";
-              if ($r_tbh->{'col_map_flags'}->{$colname} eq 'Y')
-              {
-              $content .= " mapped";
-              };
-              if (exists($r_tbh->{'pks_h'}->{$colname}))
-              {
-              $content .= "\n\t\tprimary key";
-              };
-              if (exists($r_tbh->{'foreign_key_hash'}->{$colname}))
-              {
-                my ($ref_table, $ref_owner) = 
-                        dbdrv::real_name($dbh, 
-                                $r_tbh->{'foreign_key_hash'}->{$colname}->[2],
-                                $r_tbh->{'foreign_key_hash'}->{$colname}->[0]
+              if ($r_tbh->{col_map_flags}->{$colname} eq 'Y')
+                {
+                    $content .= "\n\t*$colname";
+                }
+              else
+                {
+                    $content .= "\n\t$colname";
+                }
+              if (exists($r_tbh->{column_properties}->{$colname}))
+                {
+                    $content .= " ".$r_tbh->{column_properties}->{$colname}->{type};
+                    if (defined($r_tbh->{column_properties}->{$colname}->{length}) &&
+                            $r_tbh->{column_properties}->{$colname}->{length} > 0)
+                      {
+                        $content .= " (".$r_tbh->{column_properties}->{$colname}->{length};
+                        if (defined($r_tbh->{column_properties}->{$colname}->{precision}))
+                        {
+                            $content .= " ,".$r_tbh->{column_properties}->{$colname}->{precision};
+                        }
+                        $content .= ")";
+                      }
+                    if ($r_tbh->{column_properties}->{$colname}->{null} eq 'Y')
+                      {
+                        $content .= "\n\t\tnot null";
+                      };
+                    if (defined ($r_tbh->{column_properties}->{$colname}->{default}))
+                      {
+                        $content .= "\n\t\tdefault (" .
+                            $r_tbh->{column_properties}->{$colname}->{default} .
+                            ")";
+                      };
+                }
+              if (exists($r_tbh->{pks_h}->{$colname}))
+                {
+                    $content .= "\n\t\tprimary key";
+                };
+              if (exists($r_tbh->{foreign_key_hash}->{$colname}))
+                {
+                    my ($ref_table, $ref_owner) =
+                        dbdrv::real_name($dbh,
+                                $r_tbh->{foreign_key_hash}->{$colname}->[2],
+                                $r_tbh->{foreign_key_hash}->{$colname}->[0]
                         );
-                $content .= "\n\t\tforeign key ( " .
-                     $ref_table.".".$r_tbh->{'foreign_key_hash'}->{$colname}->[1] .
-                      " )";
-              };
+                    $content .= "\n\t\tforeign key ( " .
+                        $ref_table.".".$r_tbh->{foreign_key_hash}->{$colname}->[1] .
+                        " )";
+                };
             };
 
           my @dependents=
@@ -3020,6 +3049,7 @@ sub table_hash_init_columns
 
    $r_tbh->{column_list} = [ $r_tbh->{dbitable}->column_list() ];
    $r_tbh->{column_hash} = { $r_tbh->{dbitable}->column_hash() };
+   $r_tbh->{column_properties} = { $r_tbh->{dbitable}->column_properties() };
    $r_tbh->{column_no}   = $#{$r_tbh->{column_list}} + 1;
 
    $r_tbh->{column_width}= [ $r_tbh->{dbitable}->max_column_widths(5,25) ];
