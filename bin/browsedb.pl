@@ -445,26 +445,35 @@ sub tk_main_window
                 -text=>"Show",
                 -underline=>0,
                 -justify=>"center",
-                -command=> [\&tk_open_new_object, $r_glbl, "table" ]
+                -command=> 
+		  sub { my $cond= $DlgTblWhere->get('1.0','end');
+		        $r_glbl->{new_table_name} = 
+                            $DlgTblListbox->get($DlgTblListbox->curselection); 
+			tk_open_new_object($r_glbl, "table", $cond);
+		      }
         )->pack(%dlg_def_okbutton, );
 
         $DlgTblListbox->
             bind('<Button-1>' => 
                  sub { $DlgTblOk->configure(-state=>"active");
-                       $r_glbl->{new_table_name} = 
-                            $DlgTblListbox->get($DlgTblListbox->curselection, 
-                                                $DlgTblListbox->curselection
-                                               );
                      }
                 );
 
         $DlgTblListbox->
             bind('<Return>' => 
-                 sub { tk_open_new_object($r_glbl, "table"); } 
+		  sub { my $cond= $DlgTblWhere->get('1.0','end');
+		        $r_glbl->{new_table_name} = 
+                            $DlgTblListbox->get($DlgTblListbox->curselection); 
+			tk_open_new_object($r_glbl, "table", $cond);
+		      }
                 );
         $DlgTblListbox->
             bind('<Double-1>' => 
-                 sub { tk_open_new_object($r_glbl, "table"); } 
+		  sub { my $cond= $DlgTblWhere->get('1.0','end');
+		        $r_glbl->{new_table_name} = 
+                            $DlgTblListbox->get($DlgTblListbox->curselection); 
+			tk_open_new_object($r_glbl, "table", $cond);
+		      }
                 );
         $r_glbl->{table_listbox_widget}=$DlgTblListbox;
 #        $Top->update();
@@ -491,26 +500,36 @@ sub tk_main_window
                 -text=>"Show",
                 -underline=>0,
                 -justify=>"center",
-                -command=> [ \&tk_open_new_object, $r_glbl, "view" ],
+                -command=> 
+		  sub { my $cond= $DlgVwWhere->get('1.0','end');
+		        $r_glbl->{new_table_name} = 
+                            $DlgVwListbox->get($DlgVwListbox->curselection); 
+			tk_open_new_object($r_glbl, "view", $cond);
+		      }
         )->pack( %dlg_def_okbutton, );
 
         $DlgVwListbox->
             bind('<Button-1>' => 
                  sub { $DlgVwOk->configure(-state=>"active");
-                       $r_glbl->{new_table_name} = 
-                            $DlgVwListbox->get($DlgVwListbox->curselection, 
-                                               $DlgVwListbox->curselection);
                      }
                 );
                 
         $DlgVwListbox->
             bind('<Return>' => 
-                 sub { tk_open_new_object($r_glbl, "view"); }
+		  sub { my $cond= $DlgVwWhere->get('1.0','end');
+		        $r_glbl->{new_table_name} = 
+                            $DlgVwListbox->get($DlgVwListbox->curselection); 
+			tk_open_new_object($r_glbl, "view", $cond);
+		      }
                 );
                 
         $DlgVwListbox->
             bind('<Double-1>' => 
-                 sub { tk_open_new_object($r_glbl, "view"); }
+		  sub { my $cond= $DlgVwWhere->get('1.0','end');
+		        $r_glbl->{new_table_name} = 
+                            $DlgVwListbox->get($DlgVwListbox->curselection); 
+			tk_open_new_object($r_glbl, "view", $cond);
+		      }
                 );
 
         $r_glbl->{view_listbox_widget}=$DlgVwListbox;
@@ -750,7 +769,8 @@ sub tk_handle_table_browse_entry
   }
 
 sub tk_open_new_object
-  { my($r_glbl, $type)= @_;
+# $condition can be the Where-Clause
+  { my($r_glbl, $type, $condition)= @_;
     # $type can be "view", "table" or "sql"
     my %known_types= map { $_ =>1 } qw( table view sql );
 
@@ -766,6 +786,12 @@ sub tk_open_new_object
       {  die "unsupported table type: $type"; #$params{table_type} = "sql";
       }
 
+    if (defined $condition)
+      { if ($condition!~ /^\s*$/)
+          { chomp($condition);
+	    $params{table_filter}= $condition; };
+      };
+    
     make_table_hash_and_window($r_glbl,%params);
 
     if ($fast_test)
@@ -1539,7 +1565,6 @@ sub make_table_hash
         return;
 
       }; # was unable to open table
-
 
     # $table_hash{dbitable}->dump(); die;
 
@@ -3378,6 +3403,9 @@ sub put_new_sort_column_first
 sub get_dbitable
 # global variables used: $sim_oracle_access
 # sets $r_tbh->{dbitable}
+# reads: $r_tbh->{table_name}
+#        $r_tbh->{table_type}
+#        $r_tbh->{table_filter}
   { my($r_glbl,$r_tbh)= @_;
   
     if ($sim_oracle_access)
@@ -3397,11 +3425,14 @@ sub get_dbitable
 # warn "get from oracle: $r_tbh->{table_name} ";
   
     my $ntab;
-    
+    my %load_options;
+
     if ($r_tbh->{table_type} ne "sql")
       { $ntab= dbitable->new('table',$r_tbh->{dbh},
                              $r_tbh->{table_name},
                             );
+	if ($r_tbh->{table_filter})
+	  { $load_options{filter}= ['SQL',$r_tbh->{table_filter}]; };		    
       }
     else                   
       { $ntab= dbitable->new('view',$r_tbh->{dbh},
@@ -3418,7 +3449,7 @@ sub get_dbitable
         return;
       };              
       
-    $ntab->load();
+    $ntab->load(%load_options);
                            
     return($ntab); 
   }
@@ -3572,3 +3603,9 @@ Verbesserungsvorschläge:
 * entry-felder: return soll was aktivieren
 
 * cb_activate_window is activating and deiconfied opened parent_window
+
+BUGS:
+
+derzeit kann dieselbe Tabelle mehrfach geöffnet werden (oder nur derselbe
+View?) -> dann stimmt aber der globale Eintrag "all_tables" in
+$r_glbl nicht mehr...
