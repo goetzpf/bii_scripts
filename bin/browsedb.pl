@@ -1113,38 +1113,55 @@ sub tk_quit
 # $r_glbl all the globals, if defined top_widget and $r_tbh so it is finally only a closing
 # table_hash_window, otherwise it is a closing application call
 # $noclose can be set to 1, then it is only a reload
+# returns: <undef> if the window was closed
+#           1 if the window was not closed (on request by the user)
+
+#warn "TK_QUIT args:" . join("|",@_);
 
     my($r_glbl, $r_tbh, $noclose)= @_;
-    my $message = '\\nMaybe you want to save your changes before?';
+    my $message = "\nor do you want to save your changes before?";
     my $choice = "No";
-    if (! defined ($noclose))
-      {
-        $noclose = 0;
-      }
-    my $flag = 0;
+    my $flag = 0; # close application
     my $Top;
-warn "tk_quit ($r_glbl, $r_tbh, $noclose): ".$r_glbl->{top_widget};
-    if (! defined($r_glbl->{top_widget}) || ! defined ($r_tbh))
+
+#warn "tk_quit ($r_glbl, $r_tbh, $noclose): ".$r_glbl->{top_widget};
+
+    if (!defined ($r_tbh))
       {
         $Top = $r_glbl->{main_menu_widget};
-        $message = 'Do you really want to quit? '.$message;
+        $message = 'Do you really want to quit '.$message;
       }
     else
       {
-        $Top = $r_glbl->{top_widget};
-        if ($noclose == 1)
+        $Top = $r_tbh->{top_widget};
+        if ($noclose)
           {
-            $flag = -1;
-            $message = 'Do you really want to reload and lost the content? '.$message;
+            $flag = -1; # reload table window
+            $message = "Do you really want to reload and " .
+                       "loose the content of\n" .
+                       $r_tbh->{table_type} . " " .
+                       $r_tbh->{table_name} . $message;
           }
         else
           {
-            $flag = 1;
-            $message = 'Do you really want to close the window? '.$message;
+            $flag = 1;  # close window
+            $message = "Do you really want to close the window for ".
+                       $r_tbh->{table_type} . " " .
+                       $r_tbh->{table_name} . $message;
           }
       }
-    if ((!$fast_test) && (defined $r_glbl))
-      {
+      
+    if ($fast_test)
+      { $choice = "Yes";
+        warn "Quit without warning!";
+      };
+      
+    if (($flag != 0) && (!table_changed($r_tbh)))
+      { $choice = "Yes"; };  
+
+    while($choice ne 'Yes')
+      { 
+          
         my $DlgQuit = $Top->Dialog(
                     -title => 'Quit',
                     -text => $message,
@@ -1152,50 +1169,55 @@ warn "tk_quit ($r_glbl, $r_tbh, $noclose): ".$r_glbl->{top_widget};
                     -buttons => [ 'Yes', 'Save', 'No'],
                     );
         $choice = $DlgQuit->Show;
-      }
-    else
-      {
-        $choice = "Yes";
-        warn "Quit without warning!";
-      }
-    if ($choice =~ /Save/)
-      {
-        if ($flag == 0)
+
+        if ($choice eq 'No')
+          { return 1; };
+
+        if ($choice eq 'Save')
           {
-            tk_save_collection ($Top, $r_glbl);
-          }
-        else
-          {
-            tk_save_to_file ($r_tbh);
-          }
+            if ($flag == 0)
+              {
 # no return values, thats why automatically will be quit
-        $choice = "Yes";
-      }
-    if ($choice =~ /Yes/)
+                if (tk_save_collection ($Top, $r_glbl))
+                  { $choice = "Yes";
+                    last;
+                  };  
+              }
+            else
+              {
+                if (tk_save_to_file ("",$r_tbh))
+                  { $choice = "Yes";
+                    last; 
+                  };
+              }
+          }
+          
+      }; # while()
+
+    if ($flag == 0 && exists($r_glbl->{handle_sql_history}))
       {
-        if ($flag == 0 && exists($r_glbl->{handle_sql_history}))
-          {
-            my $fh = $r_glbl->{handle_sql_history};
-            $fh->flush();
-            $fh->close();
-          }
-        if ($flag > 0)
-          {
-            $Top->destroy();
-            return 0;
-          }
-        elsif ($flag == 0)
-          {
-            exit(0);
-          }
-        else
-          {
-            return 0;
-          }
+        my $fh = $r_glbl->{handle_sql_history};
+        $fh->flush();
+        $fh->close();
+      }
+    if ($flag > 0)      # close window
+      {
+        $Top->destroy();
+        return;
+      }
+    elsif ($flag == 0)  # close application
+      { my $r_tab= $r_glbl->{all_tables};
+      
+        foreach my $tab (keys %$r_tab)
+          { if (tk_quit($r_glbl, $r_tab->{$tab}))
+              { return(1); };
+          };
+        
+        exit(0);
       }
     else
       {
-        return -1;
+        return;         # reload table window
       }
   }
 
@@ -1868,6 +1890,8 @@ sub make_table_window
     $Top->eventAdd('<<Copy>>' => '<Control-c>');
     $Top->eventAdd('<<Save>>' => '<Control-s>');
     $Top->eventAdd('<<Quit>>' => '<Control-q>');
+
+##
     $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit, $r_glbl, $r_tbh ]);
 
 
@@ -3158,65 +3182,60 @@ sub tk_find_line
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= mk_toplevel($r_glbl,
                          parent_widget=> $TableWidget,
-                         title=>"$r_tbh->{table_name}: Find $colname");
+                         title=>"$r_tbh->{table_name}"
+                        );
+
+
+
+    $Top->Label(-text => "find in column $colname:"
+        )->pack(-side=>'top' ,
+                -fill=>'x',
+                -expand=>'y');
 
     my $FrTop = $Top->Frame( -borderwidth=>2,
                                 -background=>$BG
         )->pack(-side=>'top' ,
                 -fill=>'x',
                 -expand=>'y');
-    my $FrTopFrom = $FrTop->Frame(-borderwidth=>2,
-                            -background=>$BG
-        )->pack(-side=>'left' ,
-                -fill => 'x',
-                -expand => 'y');
-    my $rbfrom1 = $FrTopFrom->Radiobutton(-variable => \$fromOpt,
+
+    my $rbfrom1 = $FrTop->Radiobutton(-variable => \$fromOpt,
                                      -value => 'current',
                                      -text => 'from here',
-        )->pack(-side=>'top', anchor => 'w', fill => 'x');
-    my $rbfrom2 = $FrTopFrom->Radiobutton(-variable => \$fromOpt,
+        )->grid(-row=>0, -column=>0,  -sticky=> "w");
+    my $rbfrom2 = $FrTop->Radiobutton(-variable => \$fromOpt,
                   -value => 'top',
                   -text => 'from top'
-        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+        )->grid(-row=>1, -column=>0,  -sticky=> "w");
 
-    my $FrTopDirection = $FrTop->Frame(-borderwidth=>2,
-                                -background=>$BG
-        )->pack(-side=>'left' ,
-                -fill => 'x',
-                -expand => 'y');
-    my $rbdirection1 = $FrTopDirection->Radiobutton(
+
+
+
+    my $rbdirection1 = $FrTop->Radiobutton(
                             -variable => \$directionOpt,
                             -value => 'down',
                             -text => 'downwards',
-        )->pack(-side=>'top', anchor => 'w', fill => 'x');
-    my $rbdirection2 = $FrTopDirection->Radiobutton(-variable =>\$directionOpt,
+        )->grid(-row=>0, -column=>1,  -sticky=> "w");
+    my $rbdirection2 = $FrTop->Radiobutton(-variable =>\$directionOpt,
                             -value => 'up',
                             -text => 'upwards',
-        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+        )->grid(-row=>1, -column=>1,  -sticky=> "w");
 
-    my $FrTopExact = $FrTop->Frame(-borderwidth=>2,
-                            -background=>$BG
-        )->pack(-side=>'left' ,
-                -fill => 'x',
-                -expand => 'y');
-    my $rbexact1 = $FrTopExact->Radiobutton(-variable => \$exactOpt,
+
+
+    my $rbexact1 = $FrTop->Radiobutton(-variable => \$exactOpt,
                                      -value => 1,
                                      -text => 'exact match',
-        )->pack(-side=>'top', anchor => 'w', fill => 'x');
-    my $rbexact2 = $FrTopExact->Radiobutton(-variable => \$exactOpt,
+        )->grid(-row=>0, -column=>2,  -sticky=> "w");
+    my $rbexact2 = $FrTop->Radiobutton(-variable => \$exactOpt,
                                      -value => 0,
-                                     -text => 'expression match',
-        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+                                     -text => 'regular expression match',
+        )->grid(-row=>1, -column=>2,  -sticky=> "w");
 
     $rbfrom1->select;
     $rbdirection1->select;
     $rbexact1->select;
     my $FrBottom = $Top->Frame( -borderwidth=>2,
                                 -background=>$BG
-        )->pack(-side=>'top' ,
-                -fill=>'x',
-                -expand=>'y');
-    $FrBottom->Label(-text => 'Searchstring for the upper options:'
         )->pack(-side=>'top' ,
                 -fill=>'x',
                 -expand=>'y');
@@ -3347,6 +3366,8 @@ sub tk_field_edit_finish
 sub tk_save_to_file
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
+# returns: <undef> if nothing was saved,
+#          filename if something was saved
   { my($widget,$r_tbh)= @_;
 
     # warn "save to file";
@@ -3374,6 +3395,7 @@ sub tk_save_to_file
                                        );
 
     # warn "$file was updated/created";
+    return($file);
   }
 
 sub tk_load_from_file
@@ -4492,32 +4514,32 @@ sub cb_store_db
 
 sub cb_reload_db
 # global variables used: NONE
- { my($r_glbl, $r_tbh)= @_;
+  { my($r_glbl, $r_tbh)= @_;
 
-   if (tk_quit($r_glbl, $r_tbh, 1) >= 0)
-     {
-        my $Table= $r_tbh->{table_widget};
+    if (tk_quit($r_glbl, $r_tbh, 1))
+      { return; };
 
-        tk_set_busy($r_glbl,1);
+    my $Table= $r_tbh->{table_widget};
 
-        tk_remove_changed_cell_tag($r_tbh);
+    tk_set_busy($r_glbl,1);
 
-        $r_tbh->{dbitable}->load();
+    tk_remove_changed_cell_tag($r_tbh);
 
-        # re-calc the number of rows, update the table- widget:
-        # (there may be new lines inserted in the table)
-        resize_table($r_tbh);
-        # ^^^ resize_table does also a re-draw of the table-widget
+    $r_tbh->{dbitable}->load();
 
-        # update the displayed content in the active cell:
-        tk_rewrite_active_cell($r_tbh);
+    # re-calc the number of rows, update the table- widget:
+    # (there may be new lines inserted in the table)
+    resize_table($r_tbh);
+    # ^^^ resize_table does also a re-draw of the table-widget
 
-        tk_set_busy($r_glbl,0);
+    # update the displayed content in the active cell:
+    tk_rewrite_active_cell($r_tbh);
 
-        # the following would also force a redraw
-        # $Table->configure(-padx => ($Table->cget('-padx')) );
-     }
- }
+    tk_set_busy($r_glbl,0);
+
+    # the following would also force a redraw
+    # $Table->configure(-padx => ($Table->cget('-padx')) );
+  }
 
 # $Table->tag
 # $Table->tagCell(tagName, ?)
@@ -4978,6 +5000,8 @@ sub tk_load_collection
 sub tk_save_collection
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
+# returns: <undef> if nothing was saved,
+#          filename if something was saved
   {
     my($widget,$r_glbl)= @_;
     local(*F);
@@ -5035,7 +5059,7 @@ sub tk_save_collection
     open(F, ">$file") or die;
     print F Data::Dumper->Dump([\%save], [qw(*save)]);
     close(F);
-
+    return($file);
   }
 
 
@@ -5981,6 +6005,18 @@ sub add_to_local_column_maps
     # $r_glbl->{column_map_definitions_local}= $r_h;
   }
 
+# show whether the table was changed:
+#_______________________________________________________
+sub table_changed
+  { my($r_tbh)= @_;
+  
+    my $r_h= $r_tbh->{changed_cells};
+    return if (!defined $r_h);
+    
+    if (%$r_h)
+      { return(1); };
+    return;
+  }
 
 # convert primary-key,column-name <--> indices:
 #_______________________________________________________
