@@ -27,18 +27,20 @@ use Carp;
 sub parse
   { my($db)= @_;
   
-    my $level= 0;
+    my $level= 'top';
 
     my %templates;
 
     my $r_this_template_instance;
     my $r_this_instance_no;
     my $r_this_instance_fields;
+    
+    my @column_names;
 
     for(;;)
       { 
     #print $i++, " ";  
-	if ($level==0)
+	if ($level eq 'top')
 	  { 
 #print "[",__LINE__,"]\n";
             if ($db=~/\G[\s\r\n]*$/gsc)
@@ -51,30 +53,75 @@ sub parse
 		$r_this_instance_no= 0;
 		
         	$templates{$name}= $r_this_template_instance; 
-		$level=1;
+		$level='file';
 		next;
 	      };
-	    croak "parse error at byte ",pos($db)," of input stream";   
+	    croak "parse error 1 at byte ",pos($db)," of input stream";   
 	  };
-	if ($level==1)
+	if ($level eq 'file')
 	  { 
             if ($db=~ /\G[\s\r\n]*\}/gsc)
-              { $level=0;
+              { 
+	        $level='top';
 		next;
 	      };
+	      
+	    if ($db=~ /\G[\s\r\n]*pattern[\s\r\n]*\{/gsc)
+	      { @column_names= ();
+	        while ($db=~ /\G[,\s\r\n]*(\w+)/gsc)
+	          { push @column_names,$1; };
+		if ($db!~/\G[\s\r\n]*\}/gsc)
+		  { croak "parse error 2 at byte ",pos($db),
+		          " of input stream";   
+                  };
+	        $level='pattern_instance';
+		next;
+              };
+	      
             if ($db=~ /\G[\s\r\n]*\{/gsc)
-              { $level=2;
+              { $level='file_instance';
 	        $r_this_instance_fields= {};
 		$r_this_template_instance->{$r_this_instance_no++}=
 		     $r_this_instance_fields;
 		next;
 	      };
+	    croak "parse error 1a at byte ",pos($db)," of input stream";   
 	  }; 
 	  
-	if ($level==2)
+	if ($level eq 'pattern_instance')
 	  { 
             if ($db=~ /\G[\s\r\n]*\}/gsc)
-              { $level=1;
+              { 
+	        $level='top';
+		next;
+	      };
+	    if ($db=~ /\G[\s\r\n]*\{/gsc)
+	      { $r_this_instance_fields= {};
+	        $r_this_template_instance->{$r_this_instance_no++}=
+		     $r_this_instance_fields;
+	        my $cnt=0;
+		while ($db=~ /\G[,\s\r\n]*\"([^\"]*)\"/gsc)
+	          { my $value= $1;
+		    $value= "" if (!defined $value);
+		    my $field= $column_names[$cnt++];
+		    if (!defined $field)
+		      { croak "parse 3 error at byte ",pos($db),
+		              " of input stream";   
+                      };
+		    $r_this_instance_fields->{$field}= $value;
+                  }; 
+                if ($db!~ /\G[\s\r\n]*\}/gsc)
+		  { croak "parse 4 error at byte ",pos($db),
+		          " of input stream";   
+                  };
+                next;
+               };       
+          };
+	  
+	if ($level eq 'file_instance')
+	  { 
+            if ($db=~ /\G[\s\r\n]*\}/gsc)
+              { $level='file';
 		next;
 	      };
 
@@ -84,7 +131,8 @@ sub parse
 		$r_this_instance_fields->{$field}= $value;
 		next;
 	      };
-	    croak "parse error at byte ",pos($db)," of input stream";   
+	    carp "ERROR: string: \"" . substr($db,pos($db)) . "\"\n";
+	    croak "parse 5 error at byte ",pos($db)," of input stream";   
 	  };
       };
     return(\%templates);    
