@@ -21,14 +21,14 @@ $VERSION     = 1.0;
 # your exported package globals go here,
 # as well as any optionally exported functions
 
-@EXPORT_OK   = qw( &interview &explain &pretty_print 
+@EXPORT_OK   = qw( &interview &explain &pretty_print
                    &encode &decode &complete &calc_cob
-		   &calc_cidnidsob 
-		   &cob2cidnid &cidnid2cob &cob2sobnid &sobnid2cob
+                   &calc_cidnidsob
+                   &cob2cidnid &cidnid2cob &cob2sobnid &sobnid2cob
                  );
-    
-    
-use vars qw (%char_list %type_list 
+
+
+use vars qw (%char_list %type_list
              %inv_char_list %inv_type_list %explantions);
 
 # ----------------------------------------------------------------
@@ -46,116 +46,116 @@ use vars qw (%char_list %type_list
               'j' => { server=>1, multi=>1,  access=>'r'  },
               'k' => { server=>1, multi=>1,  access=>'w'  },
               'l' => { server=>1, multi=>1,  access=>'rw' },
-	    );
+            );
 
 
 %type_list= ( 'a' => { type => 'string', raw=> 0, signed=> 0, array=> 0 },
               'b' => { type => 'string', raw=> 1, signed=> 0, array=> 0 },
 
-	      's' => { type => 'short',  raw=> 0, signed=> 1, array=> 0 },
-	      'S' => { type => 'short',  raw=> 0, signed=> 0, array=> 0 },
-	      't' => { type => 'short',  raw=> 0, signed=> 1, array=> 1 },
-	      'T' => { type => 'short',  raw=> 0, signed=> 0, array=> 1 },
-	      'u' => { type => 'short',  raw=> 1, signed=> 1, array=> 0 },
-	      'U' => { type => 'short',  raw=> 1, signed=> 0, array=> 0 },
-	      'v' => { type => 'short',  raw=> 1, signed=> 1, array=> 1 },
-	      'V' => { type => 'short',  raw=> 1, signed=> 0, array=> 1 },
+              's' => { type => 'short',  raw=> 0, signed=> 1, array=> 0 },
+              'S' => { type => 'short',  raw=> 0, signed=> 0, array=> 0 },
+              't' => { type => 'short',  raw=> 0, signed=> 1, array=> 1 },
+              'T' => { type => 'short',  raw=> 0, signed=> 0, array=> 1 },
+              'u' => { type => 'short',  raw=> 1, signed=> 1, array=> 0 },
+              'U' => { type => 'short',  raw=> 1, signed=> 0, array=> 0 },
+              'v' => { type => 'short',  raw=> 1, signed=> 1, array=> 1 },
+              'V' => { type => 'short',  raw=> 1, signed=> 0, array=> 1 },
 
-	      'l' => { type => 'long',   raw=> 0, signed=> 1, array=> 0 },
-	      'L' => { type => 'long',   raw=> 0, signed=> 0, array=> 0 },
-	      'm' => { type => 'long',   raw=> 0, signed=> 1, array=> 1 },
-	      'M' => { type => 'long',   raw=> 0, signed=> 0, array=> 1 },
-	      'n' => { type => 'long',   raw=> 1, signed=> 1, array=> 0 },
-	      'N' => { type => 'long',   raw=> 1, signed=> 0, array=> 0 },
-	      'o' => { type => 'long',   raw=> 1, signed=> 1, array=> 1 },
-	      'O' => { type => 'long',   raw=> 1, signed=> 0, array=> 1 },
-	      'c' => { type => 'char',   raw=> 0, signed=> 1, array=> 0 },
-	      'C' => { type => 'char',   raw=> 0, signed=> 0, array=> 0 },
-	      'd' => { type => 'char',   raw=> 0, signed=> 1, array=> 1 },
-	      'D' => { type => 'char',   raw=> 0, signed=> 0, array=> 1 },
+              'l' => { type => 'long',   raw=> 0, signed=> 1, array=> 0 },
+              'L' => { type => 'long',   raw=> 0, signed=> 0, array=> 0 },
+              'm' => { type => 'long',   raw=> 0, signed=> 1, array=> 1 },
+              'M' => { type => 'long',   raw=> 0, signed=> 0, array=> 1 },
+              'n' => { type => 'long',   raw=> 1, signed=> 1, array=> 0 },
+              'N' => { type => 'long',   raw=> 1, signed=> 0, array=> 0 },
+              'o' => { type => 'long',   raw=> 1, signed=> 1, array=> 1 },
+              'O' => { type => 'long',   raw=> 1, signed=> 0, array=> 1 },
+              'c' => { type => 'char',   raw=> 0, signed=> 1, array=> 0 },
+              'C' => { type => 'char',   raw=> 0, signed=> 0, array=> 0 },
+              'd' => { type => 'char',   raw=> 0, signed=> 1, array=> 1 },
+              'D' => { type => 'char',   raw=> 0, signed=> 0, array=> 1 },
 
-	      'e' => { type => 'mid' ,   raw=> 0, signed=> 1, array=> 0 },
-	      'E' => { type => 'mid' ,   raw=> 0, signed=> 0, array=> 0 },
-	      'f' => { type => 'mid' ,   raw=> 0, signed=> 1, array=> 1 },
-	      'F' => { type => 'mid' ,   raw=> 0, signed=> 0, array=> 1 },
+              'e' => { type => 'mid' ,   raw=> 0, signed=> 1, array=> 0 },
+              'E' => { type => 'mid' ,   raw=> 0, signed=> 0, array=> 0 },
+              'f' => { type => 'mid' ,   raw=> 0, signed=> 1, array=> 1 },
+              'F' => { type => 'mid' ,   raw=> 0, signed=> 0, array=> 1 },
 
-	      'g' => { type => 'mid' ,   raw=> 1, signed=> 1, array=> 0 },
-	      'G' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 0 },
-	      'h' => { type => 'mid' ,   raw=> 1, signed=> 1, array=> 1 },
-	      'H' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 1 },
+              'g' => { type => 'mid' ,   raw=> 1, signed=> 1, array=> 0 },
+              'G' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 0 },
+              'h' => { type => 'mid' ,   raw=> 1, signed=> 1, array=> 1 },
+              'H' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 1 },
 
-	    );
+            );
 
 
-%explantions= 
+%explantions=
   ( server =>
             "This field specifies wether the host is a CAN server\n" .
-	    "(server==1) or not (server==0)\n",
+            "(server==1) or not (server==0)\n",
     multi =>
             "This field specifies wether the CAN variable is of the \n" .
-	    "multiplex type (multi==1) or not (multi==0)\n",
+            "multiplex type (multi==1) or not (multi==0)\n",
     access =>
             "This field specifies the access type of the CAN variable\n" .
-	    "known access types are:\n" .
-	    "read-only   (access==\'r\')\n" .       
-	    "write-only  (access==\'w\')\n" .       
-	    "read-write  (access==\'rw\')\n",
-	          
-  
+            "known access types are:\n" .
+            "read-only   (access==\'r\')\n" .
+            "write-only  (access==\'w\')\n" .
+            "read-write  (access==\'rw\')\n",
+
+
     type => "the basic data type of the CAL variable. Known types are:\n" .
             "string, char, short, mid, long. Note that \"mid\" is a \n" .
-	    "24-bit integer\n",
+            "24-bit integer\n",
 
     raw  => "This field defines wether the data is processed before\n" .
             "it is sent to the CAN bus. For numbers (all non-strings)\n" .
-	    "it defines wether the numbers are converted to the \n" .
-	    "little-endian byte order (raw==0) or wether they are left\n" .
-	    "alone (raw==1)\n",
+            "it defines wether the numbers are converted to the \n" .
+            "little-endian byte order (raw==0) or wether they are left\n" .
+            "alone (raw==1)\n",
     signed =>
             "This field has only a meaning for non-string types. It \n" .
-	    "defines wether the number is signed (signed==1) or \n" .
-	    "unsigned (singed==0)\n",
+            "defines wether the number is signed (signed==1) or \n" .
+            "unsigned (singed==0)\n",
     array =>
             "This field defines wether more than one varable of the\n" .
-	    "basic data type (type) is packed into one CAN bus frame\n" .
-	    "(array==1) or not (array==0)\n",
-	    	    
+            "basic data type (type) is packed into one CAN bus frame\n" .
+            "(array==1) or not (array==0)\n",
+
     maxlength =>
             "This is the actual length of the CAN object in bytes. \n" .
-	    "For non-array non-multiplex variables it equals the size\n" .
-	    "of the basic data-type (type).\n",
+            "For non-array non-multiplex variables it equals the size\n" .
+            "of the basic data-type (type).\n",
     port => "This is the port-number for which the CAN objects are defined\n",
-    
+
     out_cob =>
             "This is the COB (can-object ID) for the outgoing (write-)\n" .
-	    "can-object.\n",     	   
+            "can-object.\n",
     in_cob =>
             "This is the COB (can-object ID) for the incoming (read-)\n" .
-      	    "can-object.\n",     	   
+            "can-object.\n",
     multiplexor =>
             "This is the multiplexor-number. It has only a meaning for\n" .
-	    "CAN multiplex variables (multi==1)\n",
+            "CAN multiplex variables (multi==1)\n",
     inhibit =>
             "This is the inhibit time given in milliseconds. Note that \n" .
-	    "This parameter is a floating point number.\n",
+            "This parameter is a floating point number.\n",
     timeout =>
             "This is the timeout-time for the CAN objects, given in\n" .
-	    "milliseconds. Note that this parameter is an integer\n",
+            "milliseconds. Note that this parameter is an integer\n",
     arraysize =>
             "For arrays (array==1) this gives the number of elements of\n" .
-	    "the array.\n",
+            "the array.\n",
     nid =>  "This is the node-id of the server. Note that this parameter\n" .
-            "is optional\n",    	    
+            "is optional\n",
     cid =>  "This is the connection-id of the CAN variable. Note that\n" .
-            " this parameter is optional\n",    	    
-    in_sob =>  
+            " this parameter is optional\n",
+    in_sob =>
             "This is the sub-object id of the incoming CAN object. Note\n" .
-	    "that this parameter is optional\n",    	    
-    out_sob =>  
+            "that this parameter is optional\n",
+    out_sob =>
             "This is the sub-object id of the outgoing CAN object. Note\n" .
-	    "that this parameter is optional\n"   	    
+            "that this parameter is optional\n"
   );
- 
+
 %inv_char_list= invert_hash(\%char_list);
 %inv_type_list= invert_hash(\%type_list);
 
@@ -167,40 +167,40 @@ sub key_from_hash_val
 # needed for package initialization:
   { my($r_p)= @_;
     my $st;
-    
+
     foreach my $key (sort keys %$r_p)
       { $st.= ":" if (defined $st);
         $st.= $r_p->{$key};
       };
     return($st);
   };
-  
+
 sub key_from_hash_val_list
 # needed for package initialization:
   { my($r_p,@list)= @_;
     my $st;
-    
+
     foreach my $key (sort @list)
       { $st.= ":" if (defined $st);
         $st.= $r_p->{$key};
       };
     return($st);
   };
-  
+
 
 sub invert_hash
 # needed for package initialization:
   { my($r_p)= @_;
     my %new;
-    
+
     foreach my $key (%$r_p)
-      { 
-        $new{ key_from_hash_val( $r_p->{$key} ) }= $key; 
+      {
+        $new{ key_from_hash_val( $r_p->{$key} ) }= $key;
       };
     return(%new);
   };
 
-    
+
 }; # of BEGIN
 
 
@@ -213,14 +213,14 @@ use vars      @EXPORT_OK;
 sub interview
   { my %p;
     my $sel;
-  
+
     if (1==question( 'client', 'server' ))
       { $p{server}=1; };
-      
+
     $sel= question( 'read-only', 'write-only', 'read-write' );
     if    ($sel==0)
       { $p{access}= 'r'; }
-    elsif ($sel==1) 
+    elsif ($sel==1)
       { $p{access}= 'w'; }
     else
       { $p{access}= 'rw'; };
@@ -228,30 +228,30 @@ sub interview
     if (1==question( ('basic variable', 'multiplex variable') ))
       { $p{multi}=1; };
 
-      
+
     $sel= question( qw(string char short mid long) );
     if    ($sel==0)
       { $p{type}= 'string'; }
-    elsif ($sel==1) 
+    elsif ($sel==1)
       { $p{type}= 'char'; }
-    elsif ($sel==2) 
+    elsif ($sel==2)
       { $p{type}= 'short'; }
-    elsif ($sel==3) 
+    elsif ($sel==3)
       { $p{type}= 'mid'; }
-    else 
+    else
       { $p{type}= 'long'; };
-      
+
     if ( $p{type} ne 'string')
       { if (0==question( 'signed', 'unsigned' ))
           { $p{signed}= 1; };
-	
+
         if (1==question( 'simple', 'array' ))
-          { $p{array}= 1; 
-	    $p{arraysize}= num_question(1,8,1,
-	                               "please enter the array-size:");
-    
-	  };
-	
+          { $p{array}= 1;
+            $p{arraysize}= num_question(1,8,1,
+                                       "please enter the array-size:");
+
+          };
+
       };
 
     if ($p{type} eq 'char')
@@ -260,141 +260,141 @@ sub interview
       }
     else
       { if (1==question( 'not raw', 'raw' ))
-	  { $p{raw}= 1; }
-      };        
-    
+          { $p{raw}= 1; }
+      };
+
     $p{port}   = num_question(0,255,1,"please enter the port number:");
 
     $sel==question( 'specify in-cob,out-cob',
                     'specify sob, nid',
-		    'specify cid, nid');
-		    
+                    'specify cid, nid');
+
     my($r_needed,$w_needed)= (1,1);
-    
+
     if (!$p{multi})
       { if    ($p{access} eq 'r')
           { $w_needed=0; } # outgoing cob is not needed
-	elsif ($p{access} eq 'w')
+        elsif ($p{access} eq 'w')
           { $r_needed=0; } # incoming cob is not needed
       }
     else
-      { if    ($p{access} eq 'w') 	
+      { if    ($p{access} eq 'w')
           { $r_needed=0; } # incoming cob is not needed
       };
-      		
+
     if   ($sel==0)
       { if (!$w_needed)
           { $p{out_cob}= 0; }
-	else
-	  { $p{out_cob}= num_question(0,2047,1,
-                        	      "please enter the cob of the " .
-				      "outgoing can object:");
-	  };
-	  
-	if (!$r_needed)
+        else
+          { $p{out_cob}= num_question(0,2047,1,
+                                      "please enter the cob of the " .
+                                      "outgoing can object:");
+          };
+
+        if (!$r_needed)
           { $p{in_cob}= 0; }
-	else
-	  { $p{in_cob} = num_question(0,2047,1,
-                        	      "please enter the cob of the " .
-      			              "incoming can object:");
+        else
+          { $p{in_cob} = num_question(0,2047,1,
+                                      "please enter the cob of the " .
+                                      "incoming can object:");
           };
       }
     elsif ($sel==1)
       { $p{nid}     = num_question(1,63,1,
-                        	  "please enter the server node-id:");
-	if (!$r_needed)
+                                  "please enter the server node-id:");
+        if (!$r_needed)
           { $p{in_sob}= 0; }
-	else
-	  { $p{in_sob}  = num_question(0,26,1,
-                        	      "please enter the in-sob:");
+        else
+          { $p{in_sob}  = num_question(0,26,1,
+                                      "please enter the in-sob:");
           };
-	if (!$w_needed)
+        if (!$w_needed)
           { $p{out_sob}= 0; }
-	else
-	  { $p{out_sob} = num_question(0,26,1,
-                        	      "please enter the out-sob:");
+        else
+          { $p{out_sob} = num_question(0,26,1,
+                                      "please enter the out-sob:");
           }
       }
     else
       { $p{nid}     = num_question(1,63,1,
-                        	  "please enter the server node-id:");
+                                  "please enter the server node-id:");
         $p{cid}     = num_question(0,12,1,
-                        	  "please enter the channel-id:");
+                                  "please enter the channel-id:");
       };
-    
-    
+
+
     if ($p{multi})
       { $p{multiplexor} = num_question(0,127,1,
                                       "please enter the multiplexor:"); };
-    
+
     $p{inhibit} = num_question(0,20000,0,
                                "please enter the inhibit-time in [ms]:");
     $p{timeout} = num_question(1,32767,1,
                                "please enter the timeout-time in [ms]:");
-   
+
 
     return(complete(%p));
   }
-    
-    
-    
+
+
+
 sub question
 # internal
   { my(@options)= @_;
     my $r;
     my $max= $#options +1;
-  
+
     print "please select one:\n";
     for(my $i=1; $i<= $max; $i++)
       { printf("%2d) %s\n", $i,$options[$i-1]); };
     for(;;)
       { $r= <STDIN>; chomp($r);
         if ($r!~ /^\s*\d+\s*$/)
-	  { print "please enter an integer!\n"; next; };
-	if (($r<1) || ($r>$max))
-	  { print "please enter an integer between 1 and $max!\n"; next; };
+          { print "please enter an integer!\n"; next; };
+        if (($r<1) || ($r>$max))
+          { print "please enter an integer between 1 and $max!\n"; next; };
         last;
       };
     return($r-1);
-  }  
+  }
 
 sub num_question
 # internal
   { my($min,$max,$is_int,$question)= @_;
     my($r);
-    
+
     print $question;
     for(;;)
       { $r= <STDIN>; chomp($r);
         if ($is_int)
-	  { if ($r!~ /^\s*\d+\s*$/)
-	      { print "please enter an integer!\n"; next; };
-	  }
-	else
-	  { if ($r!~ /^\s*[+-]?\d+\.?\d*\s*/)
-	      { print "please enter an integer or a floating point number!\n"; 
-	        next; 
-	      };
-	  };
-	if (($r<$min) || ($r>$max))
-	  { print "please enter number between $min and $max\n"; next; };
+          { if ($r!~ /^\s*\d+\s*$/)
+              { print "please enter an integer!\n"; next; };
+          }
+        else
+          { if ($r!~ /^\s*[+-]?\d+\.?\d*\s*/)
+              { print "please enter an integer or a floating point number!\n";
+                next;
+              };
+          };
+        if (($r<$min) || ($r>$max))
+          { print "please enter number between $min and $max\n"; next; };
         last;
       };
     return($r);
-  }    
-      
+  }
+
 
 sub explain
   { my(%p)= @_;
     my @keys;
-    
+
     my $st;
-    
+
     if (!%p)
       { @keys= sort keys %explantions; }
     else
       { @keys= sort keys %p; };
-      
+
     foreach my $key (@keys)
       { $st.= "$key:\n" . $explantions{$key} ."\n" };
     return($st);
@@ -404,50 +404,50 @@ sub pretty_print
   { my(%p)= @_;
     my $st;
     my $val;
-    
+
     $st= "variable-type: ";
-    
+
     if ($p{server})
       { $st.= "server "; }
     else
       { $st.= "client "; };
-    
+
     if ($p{multi})
       { $st.= "multiplex "; }
     else
       { $st.= "basic "; };
-    
+
     if    ($p{access} eq 'r')
       { $st.= "read-only "; }
     elsif ($p{access} eq 'w')
       { $st.= "write-only "; }
-    else  
+    else
       { $st.= "read-write "; }
-      
-    $st.= "\ndata-type    : "; 
-      
+
+    $st.= "\ndata-type    : ";
+
     if ($p{array})
-      { $st.= "array of "; };  
+      { $st.= "array of "; };
 
     if ($p{raw})
-      { $st.= "raw "; };  
-      
+      { $st.= "raw "; };
+
     if ($p{type} eq 'string')
       { $st.= "string "; }
     else
       { if ($p{signed})
           { $st.= "signed "; }
-	else
+        else
           { $st.= "unsigned "; };
-	$st.= "$p{type} ";
+        $st.= "$p{type} ";
       };
     $st=~ s/\s+$//;
-    
-    $st.= sprintf("\nlength       : %4d bytes", $p{maxlength} ); 
-    $st.= sprintf("\nport         : %4d", $p{port} ); 
-    $st.= sprintf("\nout-cob      : %4d", $p{out_cob} ); 
-    $st.= sprintf("\nin-cob       : %4d", $p{in_cob} ); 
-    
+
+    $st.= sprintf("\nlength       : %4d bytes", $p{maxlength} );
+    $st.= sprintf("\nport         : %4d", $p{port} );
+    $st.= sprintf("\nout-cob      : %4d", $p{out_cob} );
+    $st.= sprintf("\nin-cob       : %4d", $p{in_cob} );
+
     if (exists $p{nid})
       { $st.= sprintf("\nnode-id      : %4d", $p{nid} ); };
     if (exists $p{cid})
@@ -456,44 +456,44 @@ sub pretty_print
       { $st.= sprintf("\nin-sob       : %4d", $p{in_sob} ); };
     if (exists $p{out_sob})
       { $st.= sprintf("\nout-sob      : %4d", $p{out_sob} ); };
-       
-   
+
+
     if ($p{multi})
-      { $st.= sprintf("\nmultiplexor  : %4d", $p{multiplexor} ); 
+      { $st.= sprintf("\nmultiplexor  : %4d", $p{multiplexor} );
       };
-    $st.= sprintf("\ninhibit      : %6.1f [ms]", $p{inhibit} ); 
-    $st.= sprintf("\ntimeout      : %4d   [ms]", $p{timeout} ); 
+    $st.= sprintf("\ninhibit      : %6.1f [ms]", $p{inhibit} );
+    $st.= sprintf("\ntimeout      : %4d   [ms]", $p{timeout} );
     if ($p{array})
-      { 
-        $st.= sprintf("\narraysize    : %4d elements", $p{arraysize} ); 
+      {
+        $st.= sprintf("\narraysize    : %4d elements", $p{arraysize} );
       };
     $st.= "\n";
     return($st);
   }
-    
+
 sub encode
   { my(%p)= @_;
-  
+
     my @cl= qw(server multi access);
     my @tl= qw(type raw signed array);
-    
+
     my $st;
     my $ch;
 
     %p= complete(%p);
 
     $st= '@';
-    
+
     $ch= $inv_char_list{ key_from_hash_val_list(\%p,@cl) };
     die "encode(): internal error |$ch|!\n" if (!defined $ch);
-    
+
     $st.= "$ch ";
 
     $ch= $inv_type_list{ key_from_hash_val_list(\%p,@tl) };
     die "encode(): internal error |$ch|!\n" if (!defined $ch);
 
     $st.= $ch;
-    
+
     $st.= sprintf(" %x", $p{maxlength});
     $st.= sprintf(" %x", $p{port});
     $st.= sprintf(" %x", $p{out_cob});
@@ -504,43 +504,43 @@ sub encode
     $st.= sprintf(" %x", $p{arraysize});
     return($st);
   }
-      
-       
-sub decode 
+
+
+sub decode
   { my($str)= @_;
     my %result;
-  
+
     $str=~ s/^\s+//; $str=~ s/\s+$//;
-    
+
     my(@f)= split(/\s+/,$str);
-    
+
     if ($#f!=9)
       { warn "decode(): unknown can link format!\n"; return; };
-      
+
     if ($f[0] !~ /^\@\w$/)
       { warn "decode(): unknown can link format!\n"; return; };
-      
-    my $ch= substr($f[0],1,1); 
-    
+
+    my $ch= substr($f[0],1,1);
+
     if (!exists $char_list{$ch})
       { warn "decode(): unknown variable-type char: $ch \n"; return; };
-      
+
     my %result = %{$char_list{$ch}};
 
     if (!exists $type_list{$f[1]})
       { warn "decode(): unknown data-type char: $f[1] \n"; return; };
-      
+
     my $r_datatype= $type_list{$f[1]};
-    
+
     %result= (%{$char_list{$ch}}, %{$type_list{$f[1]}});
-    
+
     for(my $i=2; $i<= 9; $i++)
       { if ($f[$i] !~ /^[0-9a-fA-F]+/)
-          { warn "decode(): error in field no $i, not a hex-number !\n"; 
-	    return; 
-	  };
+          { warn "decode(): error in field no $i, not a hex-number !\n";
+            return;
+          };
       };
-      
+
     $result{maxlength}   = hex($f[2]);
     $result{port}        = hex($f[3]);
     $result{out_cob}     = hex($f[4]);
@@ -549,18 +549,18 @@ sub decode
     $result{inhibit}     = hex($f[7]) * 0.1; # unit: [ms]
     $result{timeout}     = hex($f[8]);       # unit: [ms]
     $result{arraysize}   = hex($f[9]);
-    
+
     calc_cidnidsob(\%result);
-    
-    return(%result);       
-  }    
- 
- 
+
+    return(%result);
+  }
+
+
 sub complete
 # complete the properties-hash if some properties are missing
 # returns undef in case of an error
-  { my (%p)= @_;  
-   
+  { my (%p)= @_;
+
     check_set(\%p,'server',0);
     check_set(\%p,'multi',0);
 
@@ -569,24 +569,24 @@ sub complete
       { warn "complete(): unknown access type!\n";
         return;
       };
-      
+
     return if (!check_exists(\%p,'type','data type','complete()'));
 
     if ($p{type} !~ /^(string|short|long|char|mid)$/)
       { warn "complete(): unknown data type!\n";
         return;
       };
-      
+
     check_set(\%p,'raw',0);
-    
+
     if (($p{type} eq 'char') && ($p{raw}))
       { warn "complete(): error \"char\" and \"raw\" now allowed\n";
         return;
       };
-    
+
     check_set(\%p,'signed',0);
     check_set(\%p,'array',0);
-      
+
     return if (!check_exists(\%p,'port'   ,'port','complete()'));
 
     calc_cob(\%p);
@@ -598,33 +598,33 @@ sub complete
       { return if (!check_exists(\%p,'in_cob' ,'in-cob','complete()')); };
     if ($needs_w)
       { return if (!check_exists(\%p,'out_cob','out-cob','complete()')); };
-    
-    
+
+
     if ($p{multi})
       { return if (!check_exists(\%p,'multiplexor','multiplexor','complete()')); }
     else
       { check_set(\%p,'multiplexor',0); };
-    
-    
+
+
     my $l= maxlen(\%p);
-    
+
     if (exists $p{maxlength})
       { if ($p{maxlength}<$l)
           { warn "complete(): maxlength is too small\n";
-	    return;
-	  };
+            return;
+          };
       }
     else
       { $p{maxlength}= $l;
       };
-    return(%p); 
+    return(%p);
   }
-    
+
 
 sub calc_cob
 # calculates in_cob and out_cob from nid and cid or nid and in_sob and out_sob
-  { my ($r_p)= @_; 
-  
+  { my ($r_p)= @_;
+
     my($needs_r,$needs_w)= calc_rw_needs($r_p);
     my $calc_r;
     my $calc_w;
@@ -637,56 +637,56 @@ sub calc_cob
       { if (!exists $r_p->{out_cob})
           { $calc_w=1; };
       };
-    
-    return unless ($calc_r || $calc_w);  
-      
+
+    return unless ($calc_r || $calc_w);
+
     return if (!check_exists($r_p,'nid' ,'nid','calc_cob()'));
-    
+
     if (exists $r_p->{cid})
       { my $c1= cidnid2cob( $r_p->{cid}, 0, $r_p->{nid} ); # writeobj on srvr
         my $c2= cidnid2cob( $r_p->{cid}, 1, $r_p->{nid} ); # readobj on srvr
-        
-	if ($r_p->{server})
-	  { $r_p->{in_cob}  = $c2 if ($calc_r);
+
+        if ($r_p->{server})
+          { $r_p->{in_cob}  = $c2 if ($calc_r);
             $r_p->{out_cob} = $c1 if ($calc_w);
-	  }
-	else
-	  { $r_p->{in_cob}  = $c1 if ($calc_r);
+          }
+        else
+          { $r_p->{in_cob}  = $c1 if ($calc_r);
             $r_p->{out_cob} = $c2 if ($calc_w);
-	  };
+          };
       }
     else
       { if ($calc_r)
           { return if (!check_exists($r_p,'in_sob' ,'in_sob','calc_cob()'));
             $r_p->{in_cob} = sobnid2cob( $r_p->{in_sob} , $r_p->{nid} );
-	  };    
+          };
 
         if ($calc_w)
           { return if (!check_exists($r_p,'out_sob' ,'out_sob','calc_cob()'));
             $r_p->{out_cob}= sobnid2cob( $r_p->{out_sob}, $r_p->{nid} );
-	  };
-	
-#	if (!$r_p->{multi}) # special treatment for basic-variables
-#	  { if    ($r_p->{access} eq 'r')
-#	      { # outgoing cob is not needed
-#		if (!exists $r_p->{out_cob})
-#		  { $r_p->{out_cob}=0; };
-#	      }
-#	    elsif ($r_p->{access} eq 'w')
-#	      { # incoming cob is not needed
-#		if (!exists $r_p->{in_cob})
-#		  { $r_p->{in_cob}=0; };
-#	      };
-#	  };
-	
+          };
+
+#       if (!$r_p->{multi}) # special treatment for basic-variables
+#         { if    ($r_p->{access} eq 'r')
+#             { # outgoing cob is not needed
+#               if (!exists $r_p->{out_cob})
+#                 { $r_p->{out_cob}=0; };
+#             }
+#           elsif ($r_p->{access} eq 'w')
+#             { # incoming cob is not needed
+#               if (!exists $r_p->{in_cob})
+#                 { $r_p->{in_cob}=0; };
+#             };
+#         };
+
       };
-  }	  
-	  
+  }
+
 sub calc_cidnidsob
 # tries to calculate cid,nid or cid,in_sob,out_sob from in_cob and out_cob
-  { my ($r_p)= @_; 
+  { my ($r_p)= @_;
     my $me= 'calc_cidnidsob()';
-  
+
     my($needs_r,$needs_w)= calc_rw_needs($r_p);
 
     if ($needs_r)
@@ -698,10 +698,10 @@ sub calc_cidnidsob
 
     if (exists $r_p->{nid})
       { if (($needs_r && exists $r_p->{in_sob}) &&
-            ($needs_w && exists $r_p->{out_sob})) 
+            ($needs_w && exists $r_p->{out_sob}))
           { return; };
-      };  
-    
+      };
+
     my($cid1,$d1,$nid1);
     my($cid2,$d2,$nid2);
 
@@ -711,37 +711,37 @@ sub calc_cidnidsob
     my $set_cid;
     my $set_nid;
     my $is_server= $r_p->{server};
-    
+
     if ($needs_r && $needs_w)
       { if (($cid1==$cid2) && ($nid1==$nid2))
           { $set_cid=$cid1; $set_nid=$nid1; };
       };
-    
+
     if ($needs_r) # so $d1 is defined, $is_server==$d1 demanded
       { if ($is_server == $d1)
-	  { $set_cid=$cid1; $set_nid=$nid1; };
-      }; 
+          { $set_cid=$cid1; $set_nid=$nid1; };
+      };
     if ($needs_w) # so $d2 is defined, $is_server!=$d2 demanded
       { if ($is_server != $d2)
-	  { $set_cid=$cid2; $set_nid=$nid2; };
-      };        
-      
+          { $set_cid=$cid2; $set_nid=$nid2; };
+      };
+
     if (defined $set_cid)
       { $r_p->{cid}= $set_cid; };
-    if (defined $set_nid) 
+    if (defined $set_nid)
       { $r_p->{nid}= $set_nid; };
-      
+
     my($sob_in ,$nid_in);
     my($sob_out,$nid_out);
 
     ($sob_in ,$nid_in) = cob2sobnid( $r_p->{in_cob} )  if ($needs_r);
     ($sob_out,$nid_out)= cob2sobnid( $r_p->{out_cob} ) if ($needs_w);
-	      
+
     if ($needs_r && $needs_w && ($nid_in!=$nid_out))
-      { # warn "$me: contradicting NID's were calculated\n"; 
-        return; 
-      }; # nid_in!=nid_out is an error! 
-    
+      { # warn "$me: contradicting NID's were calculated\n";
+        return;
+      }; # nid_in!=nid_out is an error!
+
     $r_p->{nid}    = $nid_in;
     if ($needs_r)
       { $r_p->{in_sob} = $sob_in;
@@ -753,89 +753,89 @@ sub calc_cidnidsob
       };
   }
 
-	  
+
 sub cob2cidnid
   { my($cob)= @_;
-# bit 0-5: nid 
-# 6: direction : 1 for read-objects on server  
-# 7-10 cid  
-  
+# bit 0-5: nid
+# 6: direction : 1 for read-objects on server
+# 7-10 cid
+
     if (($cob<0) || ($cob>2047))
       { warn "cob2cidnid(): cob is invalid: $cob\n"; return; };
-  
+
     my $nid= $cob & 0x3F;
     my $d  = ($cob & 0x40) ? 1 : 0;
     my $cid= $cob >> 7;
-    
+
     return($cid,$d,$nid);
   }
-  
+
 sub cidnid2cob
   { my($cid,$d,$nid)= @_;
-  
+
     if (($cid<0) || ($cid>12))
       { warn "cidnid2cob(): cid out of range: $cid\n"; return; };
     if (($d!=0) && ($d!=1))
       { warn "cidnid2cob(): dd out of range: $d\n"; return; };
     if (($nid<1) || ($nid>63))
       { warn "cidnid2cob(): nid out of range: $nid\n"; return; };
-      
+
     return( ($cid << 7) | ($d << 6) | $nid );
   }
-       
+
 sub cob2sobnid
   { my($cob)= @_;
-# bit 0-5: nid 
-# 6-10 sob  
-  
+# bit 0-5: nid
+# 6-10 sob
+
     if (($cob<0) || ($cob>2047))
       { warn "cob2sobnid(): cob is invalid: $cob\n"; return; };
-  
+
     my $nid= $cob & 0x3F;
     my $sob= $cob >> 6;
-    
+
     return($sob,$nid);
   }
 
 sub sobnid2cob
   { my($sob,$nid)= @_;
-  
+
     if (($sob<0) || ($sob>26))
       { warn "sobnid2cob(): sob out of range: $sob\n"; return; };
     if (($nid<1) || ($nid>63))
       { warn "cidnid2cob(): nid out of range: $nid\n"; return; };
     return( ($sob << 6) | $nid );
-  }     
-    
+  }
+
 sub maxlen
 #internal
   { my($r_properties)= @_;
     my $l;
-    
+
     my $type= $r_properties->{type};
-    
+
     if    ($type eq 'char')
       { $l=1; }
-    elsif  ($type eq 'short')    
+    elsif  ($type eq 'short')
       { $l=2; }
-    elsif  ($type eq 'mid')    
+    elsif  ($type eq 'mid')
       { $l=3; }
-    elsif  ($type eq 'long')  
+    elsif  ($type eq 'long')
       { $l=4; }
     else
       { return; };
-      
+
     if ($r_properties->{array})
       { $l*= $r_properties->{arraysize}; };
-      
+
     if ($r_properties->{multi})
       { $l++ };
-  
+
     return($l);
   }
-    
+
 sub calc_rw_needs
-  { my ($r_p)= @_; 
+  { my ($r_p)= @_;
     my $access= $r_p->{access};
     my $needs_r=0;
     my $needs_w=0;
@@ -843,26 +843,26 @@ sub calc_rw_needs
     if ($r_p->{multi})
       { if ($access eq 'w')
           { if ($r_p->{server})
-	      { $needs_r=1; }
-	    else
-	      { $needs_w=1; };
-	  }
-	else
-	  { $needs_r=1; $needs_w=1; };
+              { $needs_r=1; }
+            else
+              { $needs_w=1; };
+          }
+        else
+          { $needs_r=1; $needs_w=1; };
       }
     elsif ($access eq 'rw')
       { $needs_r=1; $needs_w=1; }
     elsif ($access eq 'w')
       { if ($r_p->{server})
-	  { $needs_r=1; }
-	else
-	  { $needs_w=1; };
+          { $needs_r=1; }
+        else
+          { $needs_w=1; };
       }
-    elsif ($access eq 'r') 
+    elsif ($access eq 'r')
       { if ($r_p->{server})
-	  { $needs_w=1; }
-	else
-	  { $needs_r=1; };
+          { $needs_w=1; }
+        else
+          { $needs_r=1; };
       };
     return($needs_r,$needs_w);
   }
@@ -870,22 +870,22 @@ sub calc_rw_needs
 sub check_set
 # internal
   { my($r_p,$key,$val)= @_;
-  
+
     if (!exists $r_p->{$key})
       { $r_p->{$key}= $val; };
   }
-    
+
 sub check_exists
 # internal
   { my($r_p,$key,$name,$func)= @_;
-    
+
     if (!exists $r_p->{$key})
-      { warn "$func: $name is not specified!\n"; 
-        return; 
+      { warn "$func: $name is not specified!\n";
+        return;
       };
     return 1;
-  }       
-	      
+  }
+
 
 1;
 
@@ -894,7 +894,7 @@ __END__
 
 =head1 NAME
 
-canlink - a Perl module for the encoding and decoding of the 
+canlink - a Perl module for the encoding and decoding of the
 MultiCAN Cryptic CAN Link definition
 
 =head1 SYNOPSIS
@@ -913,7 +913,7 @@ Note that BESSY has the copyright on this software. It may not be used
 or copied without permission from BESSY.
 
 =head2 Implemented Functions:
- 
+
 
 =over 4
 
@@ -924,7 +924,7 @@ B<interview>
 %link_definition= canlink::interview()
 
 This functions creates a CAN link definition by asking the user
-several questions. Note that this function is interactive and 
+several questions. Note that this function is interactive and
 uses simple terminal I/O.
 
 =item *
@@ -933,7 +933,7 @@ B<explain>
 
 print canlink::explain(%link_definition)
 
-This function returns a string that contains a short explanation on 
+This function returns a string that contains a short explanation on
 each hash key that is used in %link_definition. When called with no
 parameter, is returns an explanation on each hash-key known in this
 module.
@@ -975,7 +975,7 @@ B<complete>
 This function completes the link-definition by adding default-values
 for some missing hash-keys. E.g. if the "signed" field is missing, the
 default, signed==0 which means "unsigned" is added. It also calculates
-node-id and connection-id (nid,cid) or node-id and sub-object-ids (SOBs) 
+node-id and connection-id (nid,cid) or node-id and sub-object-ids (SOBs)
 from the given can-object-ids (COBs).
 
 =item *
@@ -984,8 +984,8 @@ B<calc_cob>
 
 %completed_link_definition= canlink::calc_cob(%link_definition)
 
-This function completes the link-definition by calculating the 
-can-object-ids (COBs) from the given node-id and connection-id 
+This function completes the link-definition by calculating the
+can-object-ids (COBs) from the given node-id and connection-id
 (nid,cid) or node-id and sub-object-ids (SOBs).
 
 =item *
@@ -994,8 +994,8 @@ B<calc_cidnidsob>
 
 %completed_link_definition= canlink::calc_cidnidsob(%link_definition)
 
-This function completes the link-definition by calculating the 
-node-id and connection-id (nid,cid) or node-id and sub-object-ids (SOBs) 
+This function completes the link-definition by calculating the
+node-id and connection-id (nid,cid) or node-id and sub-object-ids (SOBs)
 from the given can-object-ids (COBs)
 
 =item *
@@ -1004,7 +1004,7 @@ B<cob2cidnid>
 
 ($cid,$d,$nid)= canlink::cob2cidnid($cob)
 
-This function calculates the connection-id, direction-flag and node-id,  
+This function calculates the connection-id, direction-flag and node-id,
 (cid,d,cid) from the given can-object-id (COB)
 
 =item *
@@ -1022,7 +1022,7 @@ B<cob2sobnid>
 
 ($sob,$nid)= canlink::cob2sobnid($cob)
 
-This function calculates the sub-object-id and node-id 
+This function calculates the sub-object-id and node-id
 (sob,nid) from the given can-object-id (COB)
 
 =item *
@@ -1061,19 +1061,19 @@ to "rw" for a read-write variable.
 =item B<type>
 
 This specifies the basic data-type of the CAL variable. Known types
-are "string", "char", "short", "mid" and "long". "mid" is a 
+are "string", "char", "short", "mid" and "long". "mid" is a
 special, 24-bit integer.
 
 =item B<raw>
 
 This field specifies, whether the CAL byte-order is used (little-endian
-format) or wether the byte-order is left as it is. Set "0" to enforce CAL 
+format) or wether the byte-order is left as it is. Set "0" to enforce CAL
 byte-order, and "1" for current byte order.
 
 =item B<signed>
 
-This field is only used, when the C<type> is not "string". Set it to 
-"1" if the basic type (see C<type>) is signed, or "0" if it is 
+This field is only used, when the C<type> is not "string". Set it to
+"1" if the basic type (see C<type>) is signed, or "0" if it is
 unsigned.
 
 =item B<array>
@@ -1085,7 +1085,7 @@ length of 8 bytes. Set to "1" for array-variables or "0" else.
 
 =item B<maxlength>
 
-This is the actual length of the CAN frame in bytes. 
+This is the actual length of the CAN frame in bytes.
 
 =item B<port>
 
@@ -1143,6 +1143,7 @@ In order to define a CAL variable by using the property hash,
 the following fields are always mandatory:
 
 =over 4
+
 =item B<access>
 
 =item B<type>
@@ -1154,7 +1155,7 @@ the following fields are always mandatory:
 =item B<timeout>
 
 =back
- 
+
 Here is a list of fields that can be used, but have a default, when
 they are not specified:
 
@@ -1191,7 +1192,7 @@ mandatory when C<type> is neither "string" nor "char"
 
 =back
 
-Specifying the COB's that are actually used, is a bit complicated. There 
+Specifying the COB's that are actually used, is a bit complicated. There
 are 3 ways:
 
 =over 4
@@ -1221,7 +1222,7 @@ Specify NID and CID, in this case, define C<nid> and C<cid>
 =head2 format a user-defined can-link:
 
     use canlink;
-    
+
     print "please specify a can link:";
     my %link= canlink::interview();
     print canlink::encode(%link),"\n";
@@ -1229,9 +1230,9 @@ Specify NID and CID, in this case, define C<nid> and C<cid>
 =head2 decode and pretty-print a given MultiCAN link-string
 
     use canlink;
-    
+
     print "please enter a can link string:";
-    my $str= <STDIN>; 
+    my $str= <STDIN>;
     my %link= canlink::decode($str);
     die if (!%link);
     print canlink::pretty_print(%link),"\n";
@@ -1239,7 +1240,7 @@ Specify NID and CID, in this case, define C<nid> and C<cid>
 =head2 explain all known hash-fields
 
     use canlink;
-    
+
     print canlink::explain();
 
 =head1 AUTHOR
