@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# Check and/or create the mutex file lock
+#
+# Own lock ID has to be set in the environment var GURU_LOCK
+#
+# Returns 0 if lock is owned, 1 otherwise
+
+if [ "${DEBUG:+1}" = "1" ]; then
+    echo lockGuru script: DEBUG MODE
+    echo My own lock ID is $GURU_LOCK
+fi
+
+
+while [ 1 = 1 ]; do
+
+# If there is a lock
+
+    if [ -h ~/.guruLock ]; then
+
+# Get the lock info
+	lock_line=$(ls -al | grep "\.guruLock")
+	lock_target=${lock_line##* }
+	lock_id=${lock_target%%-*}
+	lock_owner=${lock_target##*-}
+	lock_12=${lock_line%% .guruLock*}
+	lock_1=${lock_12%% [A-Z]*}
+	lock_time=${lock_12#$lock_1 }
+
+	if [ "${DEBUG:+1}" = "1" ]; then
+	    echo Found a lock by $lock_owner \(ID $lock_id\) created $lock_time
+	fi
+
+# Check if it is mine
+
+	if [ "$lock_id" = "$GURU_LOCK" ]; then
+
+	    if [ "${DEBUG:+1}" = "1" ]; then
+		echo The lock is mine - OK
+	    fi
+	    exit 0
+
+	else
+
+# Foreign lock: check if owner is alive
+
+	    owner_alive=$(ps -e | grep "^ *$lock_id" | awk '{ print $1}')
+
+	    if [ "$owner_alive" = "$lock_id" ]; then
+		echo Locked by $lock_owner \(ID $lock_id\) since $lock_time
+		exit 1
+	    else
+		echo Removing stale lock by $lock_owner \(ID $lock_id\) of $lock_time
+		rm -f ~/.guruLock
+		continue
+	    fi
+	fi
+
+    else
+
+# No lock there: try to set it
+
+	if [ "${DEBUG:+1}" = "1" ]; then
+	    echo No lock present - setting it
+	fi
+	ln -s $GURU_LOCK-$ORIG_USER@$ORIG_HOST ~/.guruLock
+	continue
+    fi
+done
+

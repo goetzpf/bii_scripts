@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# Remove the mutex file lock
+#
+# Own lock ID has to be set in the environment var GURU_LOCK
+
+if [ "${DEBUG:+1}" = "1" ]; then
+    echo unlockGuru script: DEBUG MODE
+    echo My own lock ID is $GURU_LOCK
+fi
+
+# If there is a lock
+
+if [ -h ~/.guruLock ]; then
+
+# Get the lock info
+    lock_line=$(/bin/ls -al | grep "\.guruLock")
+    lock_target=${lock_line##* }
+    lock_id=${lock_target%%-*}
+    lock_owner=${lock_target##*-}
+    lock_12=${lock_line%% .guruLock*}
+    lock_1=${lock_12%% [A-Z]*}
+    lock_time=${lock_12#$lock_1 }
+
+    if [ "${DEBUG:+1}" = "1" ]; then
+	echo Found a lock by $lock_owner \(ID $lock_id\) created $lock_time
+    fi
+
+# Check if it is mine
+
+    if [ "$lock_id" = "$GURU_LOCK" ]; then
+
+	if [ "${DEBUG:+1}" = "1" ]; then
+	    echo This lock is mine - deleting it
+	fi
+	rm -f ~/.guruLock
+    else
+	if [ "${DEBUG:+1}" = "1" ]; then
+	    echo This is a foreign lock - not touching it
+	fi
+    fi
+
+else
+
+# No lock there
+
+    if [ "${DEBUG:+1}" = "1" ]; then
+	echo No lock present
+    fi
+
+fi
