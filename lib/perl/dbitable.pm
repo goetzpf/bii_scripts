@@ -361,7 +361,8 @@ sub init_tableviewtype
       { $sth= $dbh->prepare($self->{_fetch_cmd}); }
     else
       { my $cmd= $self->{_fetch_cmd};
-        $cmd=~ s/\bwhere.*//i;
+        $cmd=~ s/\bwhere.*//i;    # remove "where" part
+        $cmd=~ s/\border\s+by//i; # remove "where" part
         $cmd.= " where rownum<2"; 
         $sth= $dbh->prepare($cmd);
       };        
