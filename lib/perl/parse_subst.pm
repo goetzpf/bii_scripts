@@ -7,7 +7,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.0;
+    $VERSION     = 1.1;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -24,6 +24,8 @@ use vars      @EXPORT_OK;
 use Data::Dumper;
 use Carp;
 
+our $old_parser=0;
+
 sub parse
   { my($db)= @_;
   
@@ -32,7 +34,7 @@ sub parse
     my %templates;
 
     my $r_this_template_instance;
-    my $r_this_instance_no;
+    my $r_this_instance_no; # old mechanism
     my $r_this_instance_fields;
     
     my @column_names;
@@ -42,17 +44,24 @@ sub parse
     #print $i++, " ";  
 	if ($level eq 'top')
 	  { 
-#print "[",__LINE__,"]\n";
-            if ($db=~/\G[\s\r\n]*$/gsc)
+            if ($db=~/\G[\s\r\n]*$/gsc) # end of file
               { 
 		last; 
 	      };
             if ($db=~ /\G\s*file\s+([\w\.]+)[\s\r\n]*\{/gsc)
               { my($name)= ($1);
-		$r_this_template_instance= {};
-		$r_this_instance_no= 0;
 		
-        	$templates{$name}= $r_this_template_instance; 
+		$r_this_template_instance= $templates{$name};
+		if (!defined $r_this_template_instance)
+		  { if ($old_parser)
+		      { $r_this_template_instance= {};
+			$r_this_instance_no= 0; # old mechanism
+		      }
+		    else
+		      { $r_this_template_instance= []; }; 
+		    $templates{$name}= $r_this_template_instance; 
+		  };
+		
 		$level='file';
 		next;
 	      };
@@ -68,7 +77,7 @@ sub parse
 	      
 	    if ($db=~ /\G[\s\r\n]*pattern[\s\r\n]*\{/gsc)
 	      { @column_names= ();
-	        while ($db=~ /\G[,\s\r\n]*(\w+)/gsc)
+	        while ($db=~ /\G[,\s\r\n]*\"?([^\s\r\n\=\",\{\}]+)\"?/gsc)
 	          { push @column_names,$1; };
 		if ($db!~/\G[\s\r\n]*\}/gsc)
 		  { croak "parse error 2 at byte ",pos($db),
@@ -81,8 +90,16 @@ sub parse
             if ($db=~ /\G[\s\r\n]*\{/gsc)
               { $level='file_instance';
 	        $r_this_instance_fields= {};
-		$r_this_template_instance->{$r_this_instance_no++}=
-		     $r_this_instance_fields;
+		
+		# old mechanism
+		if ($old_parser)
+		  { $r_this_template_instance->{$r_this_instance_no++}=
+		       $r_this_instance_fields;
+		  }
+		else
+		  { push @$r_this_template_instance,
+		            $r_this_instance_fields
+		  };	    
 		next;
 	      };
 	    croak "parse error 1a at byte ",pos($db)," of input stream";   
@@ -97,8 +114,17 @@ sub parse
 	      };
 	    if ($db=~ /\G[\s\r\n]*\{/gsc)
 	      { $r_this_instance_fields= {};
-	        $r_this_template_instance->{$r_this_instance_no++}=
-		     $r_this_instance_fields;
+	      
+	        # old mechanism
+		if ($old_parser)
+		  { $r_this_template_instance->{$r_this_instance_no++}=
+		       $r_this_instance_fields;
+		  }
+		else
+		  { push @$r_this_template_instance,
+		            $r_this_instance_fields
+		  };	    
+		     
 	        my $cnt=0;
 		while ($db=~ /\G[,\s\r\n]*\"([^\"]*)\"/gsc)
 	          { my $value= $1;
@@ -125,7 +151,7 @@ sub parse
 		next;
 	      };
 
-            if ($db=~ /\G[\s\r\n]*(\w+)\s*=\s*\"([^\"]*)\"\s*,?/gsc)
+            if ($db=~ /\G[\s\r\n]*(\"?[^\s\r\n\=\",\{\}]+)\"?\s*=\s*\"([^\"]*)\"\s*,?/gsc)
               { my($field,$value)= ($1,$2);
 		$value= "" if (!defined $value);
 		$r_this_instance_fields->{$field}= $value;
@@ -190,10 +216,10 @@ the parsed datais stored.
 =head2 hash-structure
 
 Each template-name is a key in the template-hash. It is a reference to 
-a sub-hash that contains the data for that template. 
+an array that contains the data for that template. 
 
-The sub-hash contains numerical keys for each instantiation of that
-template, starting with "0".
+The array contains a reference to a hash for each instantiation of that
+template.
 
 Each instantiation hash contains a key for each field name that 
 gives the value of that field. Note that undefined fields-values are 
@@ -202,20 +228,29 @@ empty strings (""), not the perl undef-value.
 Example of a hash that parse() returns:
   
   $r_templates= { 'acsm.template' => 
-                          { '0' => {
-                                     'MCHAN' => 'A',
-                                     'MNAME' => 'PVBU49ID8R:',
-                                     'MNUM' => '0',
-                                     'BASE' => 'U49ID8R:'
-                                   },
-                            '1' => {
-                                     'MCHAN' => 'B',
-                                     'MNAME' => 'PHBU49ID8R:',
-                                     'MNUM' => '1',
-                                     'BASE' => 'U49ID8R:'
-                                   },
-		          }
+                          [  {
+                               'MCHAN' => 'A',
+                               'MNAME' => 'PVBU49ID8R:',
+                               'MNUM' => '0',
+                               'BASE' => 'U49ID8R:'
+                             },
+                             {
+                               'MCHAN' => 'B',
+                               'MNAME' => 'PHBU49ID8R:',
+                               'MNUM' => '1',
+                               'BASE' => 'U49ID8R:'
+                             },
+		          ]
 			  
+=head2 backwards compability:
+
+Version 1.0 of the parser used a hash instead of the array as explained
+above, with keys from "0" to .. "n". If you want a template-hash 
+structure that is still compatible to this, set C<$old_parser> to 1 like
+this:
+	
+  $parse_subst::old_parser=1;
+	
 
 =head1 AUTHOR
 
