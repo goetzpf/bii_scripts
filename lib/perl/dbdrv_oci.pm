@@ -302,7 +302,7 @@ sub get_user_objects
 
     sql_trace($sql) if ($sql_trace);
 
-    my $res= $dbh->selectall_arrayref($sql);
+    $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
       { dberror($mod_l,'sql_request_to_hash',__LINE__,
@@ -378,7 +378,7 @@ sub get_synonyms
 
     sql_trace($sql) if ($sql_trace);
 
-    my $res= $dbh->selectall_arrayref($sql);
+    $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
       { dberror($mod_l,'sql_request_to_hash',__LINE__,
