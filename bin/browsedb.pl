@@ -64,6 +64,7 @@ use Data::Dumper;
 
 my %global_data;
 
+
 $global_data{title} = "BrowseDB";
 $global_data{version} = "0.95";
 
@@ -246,7 +247,7 @@ sub tk_login
     $row=0;
 
     my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
-                                -state=> 'readonly',
+                                #-state=> 'readonly',
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
     my $e1= $FrTop->Entry(-textvariable => \$r_glbl->{db_source},
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
@@ -337,8 +338,16 @@ sub tk_login_finish
     BrowseDB::TkUtils::Progress($r_glbl,10);
 
     if (!$r_glbl->{use_proxy})
-      { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} . ":" .
-                             $r_glbl->{db_source};
+      { if ($r_glbl->{db_driver} eq "Pg")
+          { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} . 
+                                  ":dbname=" . $r_glbl->{db_source};
+            $dbitable::default_dbdrv="Postgresql";                        
+          }
+        else
+          { # Oracle:                     
+            $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} . ":" .
+                                 $r_glbl->{db_source};
+          }
       }
     else
       { my $host= $r_glbl->{proxy}; $host=~ s/^\s+//; $host=~ s/\s+$//;
@@ -560,15 +569,15 @@ sub tk_main_window
                  -label=> 'About',
                  -underline  => 0,
                  -command=> [\&BrowseDB::TkUtils::About, $r_glbl, 
-		 	      $r_glbl->{about}
-		            ]
+                              $r_glbl->{about}
+                            ]
                 );
     $MnHelp->add('command',
                  -label=> 'License',
                  -underline  => 0,
                  -command=> [\&BrowseDB::TkUtils::About, $r_glbl, 
-		              $r_glbl->{license}
-			    ]
+                              $r_glbl->{license}
+                            ]
                 );
 
     # statusbar
@@ -1548,7 +1557,7 @@ sub tk_quit_table
               };
           }
         elsif ($choice eq 'Save to database')
-          { if (!cb_store_db($r_tbh))
+          { if (!cb_store_db($r_glbl,$r_tbh))
               { $choice=undef;
                 next;
               };
@@ -1752,6 +1761,10 @@ sub make_table_hash
 #                     lines of the table
 #  pk_hash         => \%primary_key_to_row_hash
 #                     this hash maps primary key to row-indices
+#  pk_generate     => 1,0 or -1 defines wether primary keys are generated
+#                     (when pk_generate>0) 
+#                     -1 means that generation is switched off and 
+#                     cannot be changed
 #  row_no          => the number of rows of the table
 #  changed_cells   => \%changed_cells_hash
 #                     initially empty, later this is a hash mapping
@@ -1801,6 +1814,12 @@ sub make_table_hash
         # primary key hash, this is currently needed in the popup-menu
         $table_hash{pks_h}= { map { $_ => 1 } @pks };
       };
+      
+    if (!$table_hash{dbitable}->primary_key_auto_generate_possible())
+      { $table_hash{pk_generate}= -1; # autogen of, not-changable 
+      }
+    else
+      { $table_hash{pk_generate}= $r_glbl->{primary_key_auto_generate}; };
 
     table_hash_init_columns(\%table_hash);
 
@@ -2011,6 +2030,7 @@ sub make_table_window
 
     my $MnFile  = $MnTop->Menu();
     my $MnDbase = $MnTop->Menu();
+    my $MnPref  = $MnTop->Menu();
     my $MnEdit  = $MnTop->Menu();
     my $MnRela  = $MnTop->Menu();
     my $MnView  = $MnTop->Menu();
@@ -2027,6 +2047,11 @@ sub make_table_window
                -menu=> $MnDbase
                );
 
+    $MnTop->add('cascade',
+                -label=> 'Preferences',
+                -underline   => 0,
+                -menu=> $MnPref
+                );
     $MnTop->add('cascade',
                 -label=> 'Edit',
                 -underline   => 0,
@@ -2097,7 +2122,7 @@ sub make_table_window
         $MnDbase->add('command',
                       -label=> 'Store',
                       -underline   => 0,
-                      -command => [\&cb_store_db, $r_tbh],
+                      -command => [\&cb_store_db, $r_glbl,$r_tbh],
                     );
       };
 
@@ -2107,6 +2132,14 @@ sub make_table_window
                   -command => [\&cb_reload_db, $r_glbl, $r_tbh],
                 );
 
+    # configure preferences-menu:
+    $MnPref->add(
+                  'checkbutton',
+                   -label=> 'auto-generate primary keys',
+                   -variable => \$r_tbh->{pk_generate},
+                   -state => ($r_tbh->{pk_generate}==-1) ? 
+                               'disabled' : 'normal'
+                );
 
     # configure edit-menu:
     my $MnEditField= $MnEdit->Menu();
@@ -4472,6 +4505,12 @@ sub cb_put_get_val
               { $putval= $n; };
           };
 
+        if (!defined($r_tbh->{dbitable}->value($pk,$colname,$putval)))
+          { # writing was not allowed for some reason 
+            # return the old value
+            return($r_tbh->{dbitable}->value($pk,$colname));
+          };    
+        
         $r_tbh->{dbitable}->value($pk,$colname,$putval);
         $r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
         tk_add_changed_cell_tag($r_tbh,cell=>"$row,$col");
@@ -4510,7 +4549,15 @@ sub put_get_val_direct
         my $n= $r_h->{$val};
         if (defined $n)
           { $putval= $n; };
-        $r_tbh->{dbitable}->value($pk,$column,$putval);
+        if (!defined ($r_tbh->{dbitable}->value($pk,$column,$putval)))
+          { # writing was not allowed for some reason 
+            # return the old value:
+            my $val= $r_tbh->{dbitable}->value($pk,$column);
+            my $r_h= $r_tbh->{col_maps}->{$column}->{key_to_str};
+            my $n= $r_h->{$val};
+            return($n) if (defined $n);
+            return($val);
+          };    
         return($val);
       }
     else
@@ -4532,75 +4579,92 @@ sub cb_insert_line
 
    my @pk_cols;
    if (!$r_tbh->{no_pk_cols}) # if there are primary key columns at all
-     { @pk_cols= @{$r_tbh->{pks}}; };
+     { 
+       if ($r_tbh->{pk_generate}<=0)
+         { # enter the primary key manually:
+           $r_tbh->{insert_line_values}= {};
+           my @x= @{$r_tbh->{pks}};
+           $r_tbh->{insert_line_pk_cols}= \@x;
 
-   if ($#pk_cols>0)
-     { BrowseDB::TkUtils::err_dialog($r_tbh->{table_widget},
-                     "this table has more than one " .
-                     "primary key column. Direct inserting " .
-                     "of an empty line is not possible here!"
-                     );
-       return;
+#warn "insert_line_pk_cols: " . join("|",@x);
+
+           cb_insert_line_pk_enter($r_glbl,$r_tbh,undef);
+
+
+           return;
+         };
      };
-
-   if (!$r_glbl->{primary_key_auto_generate})
-     { BrowseDB::TkUtils::SimpleTextDialog($r_glbl,$r_tbh,
-                             tag=> "primary_key_dialog",
-                             title=> "enter a primary key",
-                             text=> "enter a new primary key",
-                             callback=> [\&cb_insert_line_check]
-                            );
-       return;
-     };
-
-   cb_insert_line_finish($r_glbl,$r_tbh,undef);
+   cb_insert_line_finish($r_glbl,$r_tbh);
 
   }
 
-sub cb_insert_line_check
-  { my($r_glbl,$r_tbh,$pk)= @_;
+sub cb_insert_line_pk_enter
+  { my($r_glbl,$r_tbh,$value)= @_;
 
-    if (exists $r_tbh->{pk_hash}->{$pk})
-      {
-        BrowseDB::TkUtils::err_dialog($r_tbh->{table_widget},
-                     "error: primary key \"$pk\" is already taken");
+#warn "cb_insert_line_pk_enter value: $value";
+    if (defined $value)
+      { my $col= shift @{$r_tbh->{insert_line_pk_cols}};
+        $r_tbh->{insert_line_values}->{$col}= $value;
+#warn "storing $value to $col";
+      };
+      
+    my $col= $r_tbh->{insert_line_pk_cols}->[0];
+    
+    if (!defined $col) # all pk-columns were processed
+      { delete $r_tbh->{insert_line_pk_cols};
+#warn "calling cb_insert_line_finish, values: ";
+#print Dumper($r_tbh->{insert_line_values});
+        cb_insert_line_finish($r_glbl,$r_tbh); 
         return;
       };
-    cb_insert_line_finish($r_glbl,$r_tbh,$pk);
+      
+#warn "calling new dialog with col $col";
+    BrowseDB::TkUtils::SimpleTextDialog($r_glbl,$r_tbh,
+                      tag=> "primary_key_dialog",
+                      title=> "enter a primary key",
+                      text=> "enter a new primary key for column $col",
+                      callback=> [\&cb_insert_line_pk_enter]
+                     );
   }
 
 sub cb_insert_line_finish
- { my($r_glbl,$r_tbh,$pk)= @_;
+ { my($r_glbl,$r_tbh)= @_;
+   my $no_pk_cols= $r_tbh->{no_pk_cols};
    my @pk_cols;
-
-   if (!$r_tbh->{no_pk_cols}) # if there are primary key columns at all
-     { @pk_cols= @{$r_tbh->{pks}}; };
-
-   if ($#pk_cols>0)
-     { BrowseDB::TkUtils::err_dialog($r_tbh->{table_widget},
-                     "this table has more than one " .
-                     "primary key column. Direct inserting " .
-                     "of an empty line is not possible here!"
-                     );
-       return;
+   my $r_pk_h;
+   
+   if (!$no_pk_cols)
+     { @pk_cols= @{$r_tbh->{pks}}; 
+       $r_pk_h= $r_tbh->{pks_h};
      };
-
 
    my $dbitable= $r_tbh->{dbitable};
 
    my $r_col_hash= $r_tbh->{column_hash};
-   my %h;
+   
+   my $r_values= $r_tbh->{insert_line_values};
+   if (!defined $r_values)
+     { $r_values= {}; };
+
    foreach my $col (keys %$r_col_hash)
-     { next if ($col eq $pk_cols[0]);
-       $h{$col}="";
+     { next if (exists $r_pk_h->{$col}); # primary key
+       next if (defined $r_values->{$col});
+       $r_values->{$col}= ""; 
      };
 
-   if (defined $pk)
-     { $h{ $r_tbh->{pks}->[0] } = $pk; };
-
-   # if the primary key is specified in add_line, it
+   # when the primary key is specified in add_line, it
    # will use that primary key and not a generated one
-   my $new_pk= $dbitable->add_line(%h);
+
+   # print "ADD LINE WITH ",join("|",%h),"\n";
+   my $new_pk= $dbitable->add_line(%$r_values);
+   
+   if (exists $r_tbh->{insert_line_values})
+     { delete $r_tbh->{insert_line_values}; };
+   
+   if (!defined $new_pk)
+     { # error during insert of line
+       return; 
+     };
 
    my $Table= $r_tbh->{table_widget};
 
@@ -4611,7 +4675,7 @@ sub cb_insert_line_finish
    my($row,$col)= pkcolname2rowcol($r_tbh,$new_pk,$pk_cols[0]);
    $Table->activate("$row,$col");
    $Table->see("$row,$col");
-
+   tk_rewrite_active_cell($r_tbh);
  }
 
 # delete-line dialog:
@@ -4678,11 +4742,13 @@ sub tk_delete_line_dialog
 
 sub cb_store_db
 # global variables used: NONE
- { my($r_tbh)= @_;
+ { my($r_glbl,$r_tbh)= @_;
 
+   my $pk_mode=  ($r_tbh->{pk_generate} > 0) ? 
+                 'generate' : 'preserve';
 
    # do not reload if storing fails!
-   if (!$r_tbh->{dbitable}->store())
+   if (!$r_tbh->{dbitable}->store(primary_key=> $pk_mode))
      { return; };
 
    tk_remove_changed_cell_tag($r_tbh);
@@ -5304,7 +5370,7 @@ sub tkdie
     if (!defined $Top)
       { $Top= $r_glbl->{login_widget}; };
 
-    fatal_err_dialog($Top,$message);
+    BrowseDB::TkUtils::fatal_err_dialog($Top,$message);
   }
 
 sub tkwarn
@@ -6135,3 +6201,7 @@ Relogin funktioniert nicht, browsedb crashed !!!!!
 evtl Store bei jeder Änderung (nur bei Autocommit off)
 -----------------------------------
 Save Preferences Dialog einbauen!
+
+
+====================
+COMMIT ineffective with autocommit.... (in dbdrv.pm)
