@@ -224,9 +224,9 @@ sub init_filetype
 		 
       
     $self->{_tag}= $tag;
-    return if (!@_); # optional, primary key + column-list
+    return(1) if (!@_); # optional, primary key + column-list
 
-    $self->init_columns(@_);
+    return( $self->init_columns(@_) );
   }   
 
 sub init_tableviewtype    
