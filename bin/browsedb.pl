@@ -63,7 +63,7 @@ if ($forkable_os{$os})
     # (doesn't work on windows)
     if (0 != fork) 
       { # parent here
-	exit(0);
+        exit(0);
       };
   };
 
@@ -202,21 +202,21 @@ sub tk_login
     my($e4,$e5);
     $Button = $FrTop->Checkbutton(
                 #-text=>"use DBI Proxy",
-		-variable => \$r_glbl->{use_proxy},
+                -variable => \$r_glbl->{use_proxy},
                 -command => 
-		   sub { my $state= 'disabled';
-		         if ($r_glbl->{use_proxy})
-			   { $state= 'normal'; 
-			     if (!$r_glbl->{proxy})
-			       { $r_glbl->{proxy}      = $db_proxy;
+                   sub { my $state= 'disabled';
+                         if ($r_glbl->{use_proxy})
+                           { $state= 'normal'; 
+                             if (!$r_glbl->{proxy})
+                               { $r_glbl->{proxy}      = $db_proxy;
                                  $r_glbl->{proxy_port} = $db_proxy_port;
                                };
-			   };
-		         $e4->configure(-state => $state);
-		         $e5->configure(-state => $state);
-		       }
+                           };
+                         $e4->configure(-state => $state);
+                         $e5->configure(-state => $state);
+                       }
                                   )->grid(-row=>$row++, -column=>1, 
-				          -sticky=> "w");
+                                          -sticky=> "w");
 
     $e4= $FrTop->Entry(-textvariable => \$r_glbl->{proxy},
                        -state => 'disabled'
@@ -285,12 +285,12 @@ sub tk_login_finish
       { my $host= $r_glbl->{proxy}; $host=~ s/^\s+//; $host=~ s/\s+$//; 
         $r_glbl->{proxy}= $host;
         my $port= $r_glbl->{proxy_port};
-	$port=~ s/^\s+//; $port=~ s/\s+$//; 
-	$r_glbl->{proxy_port}= $port;
+        $port=~ s/^\s+//; $port=~ s/\s+$//; 
+        $r_glbl->{proxy_port}= $port;
       
         $r_glbl->{db_name} = "DBI:Proxy:hostname=$host;port=$port;dsn=DBI:" .
-	                     $r_glbl->{db_driver} . ':' . 
-			     $r_glbl->{db_source};
+                             $r_glbl->{db_driver} . ':' . 
+                             $r_glbl->{db_source};
       };
     
     if (!$sim_oracle_access)
@@ -304,8 +304,8 @@ sub tk_login_finish
 
             tk_set_busy($r_glbl,0);
             tk_progress($r_glbl,0);
-	    $r_glbl->{login_widget}->raise();
-	    return;
+            $r_glbl->{login_widget}->raise();
+            return;
           };
       };
     $r_glbl->{password}=~ s/./\*/g;
@@ -1022,9 +1022,9 @@ sub tk_set_busy
       { $r_glbl->{main_menu_widget}->Busy(-recurse => 1); 
         
         if ($os ne "MsWin32")
-	  { $r_glbl->{main_menu_widget}->grabRelease(); }
-	else
-	  { $r_glbl->{main_menu_widget}->focus(); };
+          { $r_glbl->{main_menu_widget}->grabRelease(); }
+        else
+          { $r_glbl->{main_menu_widget}->focus(); };
       };
   }
 
@@ -1032,7 +1032,7 @@ sub tk_set_busy
 sub tk_progress
   { my($r_glbl,$val)= @_;
 
-my ($p,$f,$l)= caller; print "**** $p $f $l\n";
+#my ($p,$f,$l)= caller; print "**** $p $f $l\n";
 #my $x= $r_glbl->{main_menu_widget};
 #print "main-menu-widget: $x\n";
     my $progress_widget= $r_glbl->{MainWindow}->{progress_widget};
@@ -1053,7 +1053,7 @@ sub tk_main_window_finish
                   $r_glbl->{db_source};
     
     if ($r_glbl->{use_proxy})
-      { $infotext.= " (proxy $r_glbl->{proxy}:$r_glbl->{proxy_port})"; };		  
+      { $infotext.= " (proxy $r_glbl->{proxy}:$r_glbl->{proxy_port})"; };                 
     
     $r_glbl->{MainWindow}->
              {login_info}->configure(-text =>$infotext);
