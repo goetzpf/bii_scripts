@@ -414,7 +414,9 @@ sub import_table
 	my $operation;
 	if (!defined $r_self_line)
 	  { if ($options{primary_key} eq 'generate')
-	      { $self_pk= $self->new_prelim_key(); };
+	      { $self_pk= $self->new_prelim_key(); 
+	        $self->{_preliminary}->{$self_pk}= 1;
+	      };
 	    my @l; 
 	    $r_self_line= \@l;
 	    $r_self_lines->{$self_pk}= \@l; 
@@ -525,6 +527,7 @@ sub add_line
     if (!defined $new_key)
       { # if the primary key is not given, create one
         $new_key= $self->new_prelim_key();
+	$self->{_preliminary}->{$new_key}= 1;
       };
     
     my $r_lines  = $self->get_hash("_lines");
@@ -969,7 +972,16 @@ sub insert
             " error-code: \n$DBI::errstr";
       };
       
+    my $r_prelim_keys= $self->{_preliminary};
+    my @prelim_keys;
     if ($options{primary_key} eq 'generate')
+      { @prelim_keys= (keys %{$self->{_inserted}}); }
+    else
+      { if (exists $self->{_preliminary})
+          { @prelim_keys= (keys %{$self->{_preliminary}}); };
+      };	
+    
+    if (@prelim_keys)
       { $sth=    db_prepare(\$format,$dbh,
                             "update $self->{_table} set $pk= ? " .
 			    "where $pk= ?")
@@ -978,7 +990,7 @@ sub insert
 
 	my $max= $self->max_key('capped');
 
-	foreach my $pk (keys %{$self->{_inserted}})
+	foreach my $pk (@prelim_keys)
 	  { $line= $lines->{$pk};
 
 	    for(;;)
@@ -1009,7 +1021,8 @@ sub insert
 	    delete $lines->{$pk};    
 	  }; 
       };
-    delete $self->{_inserted}; # all updates are finished 
+    delete $self->{_inserted};    # all updates are finished 
+    delete $self->{_preliminary}; # all updates are finished 
   }  
 
 # ------------------ file load and store
@@ -1166,6 +1179,7 @@ sub load_from_file
       { $pk= $rl->[$pki];
         if (($gen_pk) && ($pk==0))
 	  { $pk= $self->new_prelim_key(); 
+	    $self->{_preliminary}->{$pk}= 1;
 	    $rl->[$pki]= $pk;
 	  }
 	      
