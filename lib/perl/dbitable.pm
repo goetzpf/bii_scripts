@@ -1518,14 +1518,14 @@ sub delete_
                              "delete from $self->{_table} " .
                              "where $r_pks->[0] = ? ");
         if (!$sth)
-          { dbdrv::dberror($mod,'store_to_db',__LINE__,
+          { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                            "prepare failed, error-code: \n$DBI::errstr");
             return;
           };
         # update :
         foreach my $pk (keys %{$self->{_deleted}})
           { if (!dbdrv::execute($format,$dbh,$sth, $pk))
-              { dbdrv::dberror($mod,'store_to_db',__LINE__,
+              { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 return;
@@ -1541,7 +1541,7 @@ sub delete_
                              "delete from $self->{_table} " .
                              "where $condition ");
         if (!$sth)
-          { dbdrv::dberror($mod,'store_to_db',__LINE__,
+          { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                            "prepare failed," .
                            " error-code: \n$DBI::errstr");
             return;
@@ -1551,7 +1551,7 @@ sub delete_
         foreach my $pk (keys %{$self->{_deleted}})
           { if (!dbdrv::execute($format,$dbh,$sth, 
                            decompose_primary_key_str($pk)))
-              { dbdrv::dberror($mod,'store_to_db',__LINE__,
+              { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 return; 
@@ -1590,7 +1590,7 @@ sub update
                        join(" = ?, ",@{$self->{_column_list}}) . " = ? " .
                       "where $condition ");
     if (!$sth)
-      { dbdrv::dberror($mod,'update',__LINE__,
+      { dbdrv::dbwarn($mod,'update',__LINE__,
                        "prepare failed," .
                        " error-code: \n$DBI::errstr");
         return;
@@ -1608,7 +1608,7 @@ sub update
             # can happen with changing, then deleting a line
             if (!dbdrv::execute($format,$dbh,$sth,
                        @$line, $line->[ $r_pkis->[0] ] ))
-              { dbdrv::dberror($mod,'update',__LINE__,
+              { dbdrv::dbwarn($mod,'update',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 return;
@@ -1622,7 +1622,7 @@ sub update
             # can happen with changing, then deleting a line
             if (!dbdrv::execute($format,$dbh,$sth,
                        @$line, map { $line->[$_] } (@$r_pkis) ))
-              { dbdrv::dberror($mod,'update',__LINE__,
+              { dbdrv::dbwarn($mod,'update',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 return;
@@ -1665,7 +1665,7 @@ sub insert
       { $v= 'preserve' if (!defined $v); };
       
     if (($is_multi_pk) && ($v ne 'preserve'))
-      { dbdrv::dberror($mod,'insert',__LINE__,
+      { dbdrv::dbwarn($mod,'insert',__LINE__,
                        "primary key mode must be \"preserve\" for a \n" .
                        "table with more than one primary key column");
         return;
@@ -1683,7 +1683,7 @@ sub insert
                             "values( " .
                             ("?, " x $#fields) . " ? )" );
     if (!$sth)
-      { dbdrv::dberror($mod,'insert',__LINE__,
+      { dbdrv::dbwarn($mod,'insert',__LINE__,
                        "prepare failed, error-code: \n$DBI::errstr");
         return;
       };
@@ -1697,7 +1697,7 @@ sub insert
       { $line= $lines->{$pk};
 
         if (!dbdrv::execute($format,$dbh,$sth, @{$line}))
-          { dbdrv::dberror($mod,'insert',__LINE__,
+          { dbdrv::dbwarn($mod,'insert',__LINE__,
                            "execute() returned an error," .
                            " error-code: \n$DBI::errstr");
             return;
@@ -1717,7 +1717,7 @@ sub insert
     if (@prelim_keys)
       { if ($is_multi_pk)
           { dbdrv::dberror($mod,'insert',__LINE__,
-                           "_prelimuinary set with " .
+                           "_preliminary set with " .
                            "multi-pk table (assertion)"); 
             return;
           };
@@ -1735,7 +1735,7 @@ sub insert
                                 "update $self->{_table} set $pk= ? " .
                                 "where $pk= ?");
         if (!$sth)
-          { dbdrv::dberror($mod,'insert',__LINE__,
+          { dbdrv::dbwarn($mod,'insert',__LINE__,
                            "prepare failed," .
                            " error-code: \n$DBI::errstr");
             return;
@@ -1755,14 +1755,14 @@ sub insert
                         # give it another try
                         if ($failcount++ < 5)
                           { next; };
-                        dbdrv::dberror($mod,'insert',__LINE__,
-                          "fatal: changing of primary key $pk failed\n" .
+                        dbdrv::dbwarn($mod,'insert',__LINE__,
+                          "error: changing of primary key $pk failed\n" .
                           "again and again, giving up, last DBI error\n" .
                           "message was: $DBI::errstr");
                         return;  
                       }
                     else
-                      { dbdrv::dberror($mod,'insert',__LINE__,
+                      { dbdrv::dbwarn($mod,'insert',__LINE__,
                                  "execute() failed, errstring:\n" .
                                  $DBI::errstr); 
                         return;  
