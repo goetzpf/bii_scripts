@@ -43,6 +43,9 @@ use dbitable 2.1;
 
 use Data::Dumper;
 my $VERSION= "0.91";
+
+our %save; # global configuration variable
+
 my $PrgDir = $ENV{"HOME"}."/.browsedb";
 if (! -e $PrgDir)
   {
@@ -194,6 +197,7 @@ sub tk_login_finish
       { dbitable::disconnect_database($r_glbl->{dbh});
         delete $r_glbl->{dbh};
       };
+    tk_set_busy($r_glbl,1);
 
     tk_progress($r_glbl,10);
     $r_glbl->{db_name} = "DBI:".$r_glbl->{db_driver}.":".$r_glbl->{db_source};
@@ -202,8 +206,10 @@ sub tk_login_finish
                                                $r_glbl->{user},
                                                $r_glbl->{password});
         if (!defined $db_handle)
-          { tk_err_dialog($r_glbl->{main_menu_widget},
+          { tk_set_busy($r_glbl,0);
+            tk_err_dialog($r_glbl->{main_menu_widget},
                           "opening of the database failed");
+            
             return;
           };
       };
@@ -217,7 +223,7 @@ sub tk_login_finish
       {
         $r_glbl->{login_widget}->destroy();
         $r_glbl->{main_widget}->update();
-	# important to really execute the destroy
+        # important to really execute the destroy
         delete $r_glbl->{login_widget};
       };
 
@@ -270,6 +276,15 @@ sub tk_main_window
     $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
 
     # configure Database-menu:
+    $MnDb->add('command',
+               -label=> 'save collection',
+               -command=> [\&tk_save_collection, $r_glbl]
+              );
+    $MnDb->add('command',
+               -label=> 'load collection',
+               -command=> [\&tk_load_collection, $r_glbl]
+              );
+
     $MnDb->add('command',
                -label=> 'Login',
                -command=> [\&tk_login, $r_glbl]
@@ -591,7 +606,7 @@ sub tk_main_window
                      }
                 );
         # dont remove these update, because of .toplevel
-	# problems for destroy operations
+        # problems for destroy operations
         $Top->update();
         tk_login(\%global_data); # calls tk_main_window_finish
   }
@@ -665,21 +680,21 @@ sub tk_main_window_finish
 
         # opens or create a new history file
         $r_glbl->{filename_sql_history} =
-	               $PrgDir . join("_","/history",
-		                      $r_glbl->{db_driver},
-				      $r_glbl->{db_source},
-				      $r_glbl->{user});
+                       $PrgDir . join("_","/history",
+                                      $r_glbl->{db_driver},
+                                      $r_glbl->{db_source},
+                                      $r_glbl->{user});
 
 
         if (-r $r_glbl->{filename_sql_history})
           {
                 $r_glbl->{handle_sql_history} =
-		         new IO::File "< ".$r_glbl->{filename_sql_history};
+                         new IO::File "< ".$r_glbl->{filename_sql_history};
                 if (! defined ($r_glbl->{handle_sql_history}))
                   {
                     tkdie($r_glbl,
-		          "History file " . $r_glbl->{filename_sql_history} .
-			  " can not be opened. Error in line " . __LINE__)
+                          "History file " . $r_glbl->{filename_sql_history} .
+                          " can not be opened. Error in line " . __LINE__)
                   }
                 my $fh=$r_glbl->{handle_sql_history};
                 while (my $line = <$fh>)
@@ -690,22 +705,24 @@ sub tk_main_window_finish
           }
 
         $r_glbl->{handle_sql_history} =
-	         new IO::File ">> ".$r_glbl->{filename_sql_history};
+                 new IO::File ">> ".$r_glbl->{filename_sql_history};
         if (! defined ($r_glbl->{handle_sql_history}))
           {
                 tkdie($r_glbl,
-		      "History file " .
-		      $r_glbl->{filename_sql_history} .
-		      " can not be opened. Error in line " . __LINE__)
+                      "History file " .
+                      $r_glbl->{filename_sql_history} .
+                      " can not be opened. Error in line " . __LINE__)
           }
         my $fh=$r_glbl->{handle_sql_history};
         my ($sec,$min,$hour,$mday,$mon,$year) = localtime();
         $year += 1900;
         tk_progress($r_glbl,100);
+        tk_set_busy($r_glbl,0);
+
         print $fh "\n-- new log $year-$mon-$mday $hour-$min-$sec from " .
-	          $ENV{"HOSTNAME"};
+                  $ENV{"HOSTNAME"};
         print $fh "connect (" . $r_glbl->{db_driver} . ")" .
-	           $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
+                   $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
         $fh->flush();
 
         if ($fast_test)
@@ -894,12 +911,12 @@ sub tk_execute_new_query
         tk_progress($r_glbl, 10);
         my $TraceFormat;
         my $StatementResult = dbdrv::prepare(\$TraceFormat,
-	                                     $r_glbl->{dbh}, $sqlquery);
+                                             $r_glbl->{dbh}, $sqlquery);
         tk_progress($r_glbl, 25);
         if ($StatementResult)
           {
             if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},
-		        	$StatementResult))
+                                $StatementResult))
               { tk_err_dialog($r_glbl->{main_menu_widget},
                     "Wrong SQL command syntax or data error");
               }
@@ -1129,8 +1146,8 @@ sub tk_foreign_key_dialog
     foreach my $col (@cols)
       { push @lines,
              sprintf("%-" . $maxcolsz . "s -> %s",$col,
-	             $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
-	            )
+                     $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
+                    )
       };
     my $maxlnsz=0;
     foreach my $l (@lines)
@@ -2844,7 +2861,7 @@ sub cb_open_foreign_table
                                                    {resident_there=>1}
                                              );
         if (!defined $r_tbh_fk) # table couldn't be opened
-	  { return; };
+          { return; };
 
          conn_add($r_glbl,$r_tbh->{table_name},$colname,
                   $fk_table,$fk_col);
@@ -3717,6 +3734,111 @@ sub same_start
     if ($charno<0)
       { return; };
     return( substr($r_list->[0],0,$charno+1) );
+  }
+
+sub tk_load_collection
+  { my($r_glbl)= @_;
+    local(*F);
+    
+    my $Top= $r_glbl->{main_menu_widget};
+    
+    my $Fs= $Top->FileSelect( -directory => $PrgDir, 
+                              -defaultextension=> ".col");
+
+    #$Fs->Popup(-popover=> $Top ); doesn't work !
+
+    my $file= $Fs->Show();
+
+
+    # warn "filename: $file ";
+    return if (!defined $file);
+
+#    my $filename= $PrgDir . join("_","/test",
+#                                     $r_glbl->{db_driver},
+#                                     $r_glbl->{db_source},
+#                                     $r_glbl->{user});
+    
+    print Dumper(\%save);
+print join(" ",keys %save),"\n";
+    do $file;
+    
+    print Dumper(\%save);
+print join(" ",keys %save),"\n";
+
+    my $r_all_tables= $save{open_tables};
+    
+    foreach my $tab (keys %$r_all_tables)
+      { my $r_dat= $r_all_tables->{$tab};
+      
+        
+        
+        make_table_hash_and_window($r_glbl,
+                                   table_name=>$tab,
+                                   table_type=>$r_dat->{table_type},
+                                   sequel=> $r_dat->{sql}
+                                  );
+      };                                   
+
+    
+    foreach my $tab (keys %{$save{foreigners}})
+      { my $r_c= $save{foreigners}->{$tab};
+        foreach my $o_tab (keys %$r_c)
+          { my $r_columns= $r_c->{$o_tab};
+          
+            my $f_col= $r_columns->[0];
+            for(my $i=1; $i<= $#$r_columns; $i++)
+              { conn_add($r_glbl,
+                         $tab,$r_columns->[$i],
+                         $o_tab,$f_col);
+              };
+          };
+      };
+
+  }
+
+sub tk_save_collection
+  { my($r_glbl)= @_;
+    local(*F);
+    
+    my $Top= $r_glbl->{main_menu_widget};
+
+    my $Fs= $Top->FileSelect( -directory => $PrgDir,
+                              -defaultextension=> ".col");
+
+    #$Fs->Popup(-popover=> $Top ); doesn't work !
+
+    my $file= $Fs->Show();
+
+#warn "filename: $file ";
+    return if (!defined $file);
+
+    my $r_all_tables= $r_glbl->{all_tables};
+    
+    my %open_tables;
+    foreach my $table_name ( keys %$r_all_tables )
+      { my $r_tbl= $r_all_tables->{$table_name};
+        
+        my %dat= (table_type => $r_tbl->{table_type},
+                  sql => $r_tbl->{dbitable}->{_fetch_cmd});
+        
+        $open_tables{$table_name}= \%dat;
+      };
+    
+    $save{open_tables}= \%open_tables;
+    $save{foreigners} = $r_glbl->{foreigners};
+    $save{residents}  = $r_glbl->{residents};
+    
+    $Data::Dumper::Indent= 1;
+    
+#    my $file= $PrgDir . join("_","/test",
+#                            $r_glbl->{db_driver},
+#                            $r_glbl->{db_source},
+#                            $r_glbl->{user});
+    
+    open(F, ">$file") or die;
+    print F Data::Dumper->Dump([\%save], [qw(*save)]);
+    close(F);
+  
   }
 
 __END__
