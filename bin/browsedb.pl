@@ -231,9 +231,9 @@ $global_data{theme}->{button}= { '-background'      => "gray81",
                                  '-activebackground'=>"gray81",
                                };
 
-$global_data{theme}->{text}= { #'-background' => "white",
-                               '-foreground' => "black",
-                               #'-font'       => "{helvetica} 10"
+$global_data{theme}->{text}= { '-background' => "gray81",
+                               #'-foreground' => "black",
+                               '-font'       => "{helvetica} 10"
                              };
                              
 $global_data{theme}->{shell}= { '-background' => "black",
@@ -3384,6 +3384,7 @@ sub object_info
     my($r_glbl, $r_tbh)= @_;
 
     my $dbh= $r_glbl->{dbh};
+    my $user= $r_glbl->{user};
     my $table_type= $r_tbh->{table_type};
     my $table_name= $r_tbh->{table_name};
 
@@ -3442,7 +3443,7 @@ sub object_info
                 # table-name,column,table-owner
 
                   $keytype = "foreign, " .
-                      dbdrv::full_name($fkh->[0],$fkh->[2]);
+                      (dbdrv::real_name($dbh,$user,$fkh->[0]))[0];
               };
               
             $text.= sprintf("%-20s %-15s %6s %9s %8s %s\n",
@@ -3506,6 +3507,7 @@ sub cb_show_objectinfo
 
     my $name= $r_tbh->{table_name};
     my $dbh= $r_glbl->{dbh};
+    my $user= $r_glbl->{user};
 
 
     my $content = $r_tbh->{'cache'}->{'info'};
@@ -3580,7 +3582,7 @@ sub cb_show_objectinfo
                   # table-name,column,table-owner
 
                     $content .= "\n\t\tforeign key ( " .
-                        dbdrv::full_name($fkh->[0],$fkh->[2]) .
+                             (dbdrv::real_name($dbh,$user,$fkh->[0]))[0] .
                         " )";
                 };
             };
