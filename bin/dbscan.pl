@@ -1253,7 +1253,7 @@ sub report
 
 sub report_dangling_links
 {
-	my ($count, $key1);
+	my ($count, $key1) = (0,"");
 	print STDERR "\nHit <return> to start report\n";
 	$key1 = <STDIN>;
 	print "\n\nDangling Links Report\n$timestamp\nFiles: @topfile\n";
