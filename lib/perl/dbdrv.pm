@@ -488,7 +488,7 @@ sub get_help
 
 sub connect_database
 # if dbname=="", use DBD::AnyData
-  { my($dbname,$username,$password)= @_;
+  { my($dbname,$username,$password,$autocommit)= @_;
 
     warn "connecting to database...\n" if ($db_trace);
 
@@ -501,7 +501,8 @@ sub connect_database
                               $password,     # password
                              {RaiseError=>0, # errors abort the script
                               PrintError=>0, # not needed bec. of RaiseError
-                              AutoCommit=>1} # automatically commit changes
+                              AutoCommit=>$autocommit ? 1 : 0
+                             }     # ^^^automatically commit changes ??
                              );
 
     if (!defined $dbh)
@@ -820,7 +821,8 @@ database.
 
 =item dbitable::connect_database()
 
-  my $dbh= dbitable::connect_database($dbname,$username,$password)
+  my $dbh= dbitable::connect_database($dbname,
+                                      $username,$password,$autocommit)
 
 This method creates a connection to the database. The database corresponds
 to the first parameter of the C<connect> function of the DBI module. See
@@ -828,7 +830,9 @@ also the DBI manpage. The function returns the DBI-handle or C<undef>
 in case of an error. The DBI-handle is also stored in the internal global
 handle variable. This variable is used as default in all the other
 functions in this module when their DBI-handle parameter is an empty
-string ("") or C<undef>.
+string ("") or C<undef>. The C<$autocommit> parameter determines wether
+the database is opened with automatic commiting or not. See also
+C<set_autocommit()>, C<commit()> and C<rollback()>.
 
 =item dbitable::disconnect_database()
 
