@@ -8,7 +8,10 @@ use Options;
 use ODB;
 
 Options::register(
-  ["file", "f", "=s", "Read (additional) names from a file"]
+  ["dbase",  "d", "=s", "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
+  ["user",   "u", "=s", "User name",                        "user",     $ENV{'USER'}],
+  ["passwd", "p", "=s", "Password",                         "password", "", 1],
+  ["file",   "f", "=s", "Read (additional) names from a file"]
 );
 
 my $usage = "import a list of names into the bessy device name service
