@@ -1,7 +1,6 @@
 # this is not a real perl-package
 # it is loaded via "do" into dbdrv.pm !!
 
-
 my $mod_l= "dbdrv_oci";
 
 sub primary_keys
@@ -352,7 +351,7 @@ sub get_synonyms
   }
 
 sub object_dependencies
-# INTENRAL
+# INTERNAL
 # read the owner, name and of dependend objects
   { my($dbh,$table_name,$table_owner)= @_;
 
@@ -366,11 +365,13 @@ sub object_dependencies
 
     if (!defined $table_owner)
       { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
+                    dbdrv::real_name($dbh,$table_owner,$table_name);
       };
 
+    die if (!defined $table_owner); # assertion !
+    
     my $SQL= "select OWNER, NAME, TYPE ".
-                   " from ALL_DEPENDENCIES AD" .
+                   " from ALL_DEPENDENCIES AD where" .
                    " AD.REFERENCED_NAME=\'$table_name\' AND " .
                    " AD.REFERENCED_OWNER=\'$table_owner\'";
 
@@ -384,12 +385,12 @@ sub object_dependencies
         return;
       };
 
-    return( $res_r );
+    return( @$res_r );
   }
 
 sub object_references
-# INTENRAL
-# read the owner, name  and of referencing objects
+# INTERNAL
+# read the owner, name  and of referenced objects
   { my($dbh,$table_name,$table_owner)= @_;
 
     $dbh= check_dbi_handle($dbh);
@@ -402,13 +403,16 @@ sub object_references
 
     if (!defined $table_owner)
       { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
+                    dbdrv::real_name($dbh,$table_owner,$table_name);
       };
 
+    die if (!defined $table_owner); # assertion !
+
     my $SQL= "select REFERENCED_OWNER OWNER, REFERENCED_NAME NAME, REFERENCED_TYPE TYPE".
-                   " from ALL_DEPENDENCIES AD" .
+                   " from ALL_DEPENDENCIES AD where" .
                    " AD.NAME=\'$table_name\' AND " .
                    " AD.OWNER=\'$table_owner\'";
+
 
     sql_trace($SQL) if ($sql_trace);
     my $res_r=
@@ -420,7 +424,7 @@ sub object_references
         return;
       };
 
-    return( $res_r );
+    return( @$res_r );
   }
 
 sub read_viewtext
@@ -438,10 +442,12 @@ sub read_viewtext
 
     if (!defined $table_owner)
       { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
+                    dbdrv::real_name($dbh,$table_owner,$table_name);
       };
 
-    my $SQL= "select TEXT from ALL_VIEWS AV" .
+    die if (!defined $table_owner); # assertion !
+
+    my $SQL= "select TEXT from ALL_VIEWS AV where" .
                    " AV.VIEW_NAME=\'$table_name\' AND " .
                    " AV.OWNER=\'$table_owner\'";
 
@@ -455,7 +461,12 @@ sub read_viewtext
         return;
       };
 
-    return( $res_r );
+    my $r_line= $res_r->[0];
+    if (!ref($r_line))
+      { return; }; # empty
+    
+    my $text= $r_line->[0];
+    return( $text );
   }
 
 sub read_checktext
@@ -466,22 +477,20 @@ sub read_checktext
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    $table_name= uc($table_name);
+    $constraint_name= uc($constraint_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
+    if ($constraint_name =~ /\./)
+      { ($table_owner,$constraint_name)= split(/\./,$constraint_name); };
 
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
-      };
+    die if (!defined $table_owner); # assertion !
 
-    my $SQL= "select SEARCH_CONDITION CONDITION from ALL_CONSTRAINTS AC" .
-                   " AC.CONSTRAINT_NAME=\'$table_name\' AND " .
+    my $SQL= "select SEARCH_CONDITION CONDITION from ALL_CONSTRAINTS AC " .
+               "where " .
+                   " AC.CONSTRAINT_NAME=\'$constraint_name\' AND " .
                    " AC.OWNER=\'$table_owner\' AND " .
                    " AC.CONSTRAINT_TYPE = 'C'";
 
-    sql_trace($SQL) if ($sql_trace);
+     sql_trace($SQL) if ($sql_trace);
     my $res_r=
       $dbh->selectall_arrayref($SQL);
 
@@ -491,7 +500,14 @@ sub read_checktext
         return;
       };
 
-    return( $res_r );
+    my $r_line= $res_r->[0];
+    if (!ref($r_line))
+      { return; }; # empty
+    
+    my $text= $r_line->[0];
+    #return( $res_r );
+    return( $text );
+
   }
 
 sub read_triggertext
@@ -503,21 +519,18 @@ sub read_triggertext
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    $table_name= uc($table_name);
+    $trigger_name= uc($trigger_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
+    if ($trigger_name =~ /\./)
+      { ($table_owner,$trigger_name)= split(/\./,$trigger_name); };
 
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
-      };
+    die if (!defined $table_owner); # assertion !
 
     my $SQL= "select TRIGGER_NAME NAME, TRIGGER_TYPE TYPE, TRIGGERING_EVENT EVENT, " .
-                   " REFERENCING_NAME REFERER, WHEN_CLAUSE CLAUSE, STATUS, " .
+                   " REFERENCING_NAMES REFERER, WHEN_CLAUSE CLAUSE, STATUS, " .
                    " TRIGGER_BODY BODY, DESCRIPTION " .
-                   " from ALL_TRIGGERS AT" .
-                   " AT.TABLE_NAME=\'$table_name\' AND " .
+                   " from ALL_TRIGGERS AT where" .
+                   " AT.TRIGGER_NAME=\'$trigger_name\' AND " .
                    " AT.TABLE_OWNER=\'$table_owner\'";
 
     sql_trace($SQL) if ($sql_trace);
@@ -530,7 +543,7 @@ sub read_triggertext
         return;
       };
 
-    return( $res_r );
+    return( @$res_r );
   }
 
 
