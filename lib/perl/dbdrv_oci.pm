@@ -419,7 +419,12 @@ sub object_dependencies
                     dbdrv::real_name($dbh,$table_owner,$table_name);
       };
 
-    die if (!defined $table_owner); # assertion !
+    if (!defined $table_owner) # assertion !
+      { dbwarn($mod,'object_dependencies',__LINE__,
+               "no table owner found for");
+	return;       
+      };
+
     
     my $SQL= "select OWNER, NAME, TYPE ".
                    " from ALL_DEPENDENCIES AD where" .
