@@ -1,6 +1,12 @@
 # this is not a real perl-package
 # it is loaded via "do" into dbdrv.pm !!
 
+use strict;
+our %sql_aliases;
+our $sql_trace;
+our $r_db_objects;
+our $r_db_reverse_synonyms;
+
 my $mod_l= "dbdrv_oci";
 
 %sql_aliases = (
@@ -81,8 +87,8 @@ sub db_simplify_types
               DOUBLE     => 'number',        # floating point
               'DOUBLE PRECISION' => 'number',# floating point
 
-	      # postgres-types:
-#	      BOOL     =>  'number',
+              # postgres-types:
+#             BOOL     =>  'number',
 #              TEXT     =>  'string',
 #              BPCHAR   =>  'string',
 #              VARCHAR  =>  'string',
@@ -176,19 +182,23 @@ sub db_types_no2string
 sub primary_keys
 # returns the one primary key or the list of columns
 # that form the primary key
-  { my($dbh,$user_name,$table_name,$table_owner)= @_;
+  { my($dbh,$user_name,$table_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+ 
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'primary_keys',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
       };
 
     my $SQL= "SELECT a.owner, a.table_name, b.column_name " .
@@ -230,19 +240,22 @@ sub primary_keys
   }
 
 sub foreign_keys
-  { my($dbh,$user_name,$table_name,$table_owner)= @_;
+  { my($dbh,$user_name,$table_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
+    ($table_owner,$table_name)=
+                  (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'foreign_keys',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
       };
 
     my $SQL= "select ST.TABLE_NAME, CL.COLUMN_NAME, " .
@@ -308,19 +321,22 @@ sub foreign_keys
 sub resident_keys
 # the opposite of foreign keys,
 # find where the primary key of this table is used as foreign key
-  { my($dbh,$user_name,$table_name,$table_owner)= @_;
+  { my($dbh,$user_name,$table_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user_name,$table_name);
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'resident_keys',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
       };
 
     my $SQL= "select ST.TABLE_NAME, ST.OWNER, CL.COLUMN_NAME, " .
@@ -403,7 +419,7 @@ sub get_help_topic
 
     if (!dbdrv::execute($fh ,$dbh,$sth))
       {
-        dbdrv::dbwarn($mod,'get_help_topic',__LINE__,
+        dbdrv::dbwarn($mod_l,'get_help_topic',__LINE__,
                  "execute() returned an error," .
                  " error-code: \n$DBI::errstr");
       }
@@ -427,6 +443,8 @@ sub get_user_objects
 
     return if (!defined $user);
     return if ($user eq "");
+
+    $user= uc($user);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -463,7 +481,7 @@ sub get_user_objects
 
     # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_tab{ $user . '.' . $line->[0] } = ['V'];
+      { $r_tab->{ $user . '.' . $line->[0] } = ['V'];
       };
 
     #print Dumper($r_tab);
@@ -559,6 +577,7 @@ sub load_object_dict
 # WRITES TO GLOBAL VARIABLES:
 # $r_db_objects and $r_db_reverse_synonyms
   { my($dbh,$user)= @_;
+
     return if (defined $r_db_objects);
     my %h;
     $r_db_objects= \%h;
@@ -567,14 +586,14 @@ sub load_object_dict
     if ((defined $user) && ($user ne ""))
       {
         if (!get_user_objects($dbh,$user,$r_db_objects))
-          { dberror($mod,'load_object_dict',__LINE__,
+          { dberror($mod_l,'load_object_dict',__LINE__,
                     'loading of user-objects failed');
             return;
           };
       };
 
     if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
-      { dberror($mod,'load_object_dict',__LINE__,
+      { dberror($mod_l,'load_object_dict',__LINE__,
                 'loading of synonyms failed');
         return;
       };
@@ -617,7 +636,7 @@ sub accessible_objects
         foreach my $t (@types)
           { my $c= $known_types{$t};
             if (!defined $c)
-              { dberror($mod,'accessible_objects',__LINE__,
+              { dberror($mod_l,'accessible_objects',__LINE__,
                     "unknown object type: $t");
                 return;
               };
@@ -647,7 +666,7 @@ sub accessible_objects
         %access= map { $_ => 1} split(",",$access);
         foreach my $t (keys %access)
           { if (!exists $known_acc{$t})
-              { dberror($mod,'accessible_objects',__LINE__,
+              { dberror($mod_l,'accessible_objects',__LINE__,
                     "unknown object access type: $t");
                 return;
               };
@@ -675,12 +694,22 @@ sub accessible_objects
     return(sort @result);
   }
 
+sub full_name
+  { my($short_name,$owner,$schema)= @_;
+  
+    return("$owner.$short_name");
+  }
+
 sub real_name
 # resolves a given table-name or synonym,
-# returns the table-owner and the table-name
+# returns: full-qualified-name,owner,unqualified-name,schema
 # NOTE: user-name is not the owner of the table but the user
 # that has logged in
-  { my($dbh,$user_name,$object_name)= @_;
+  { my($dbh,$user_name,$obj)= @_;
+
+    #warn "realname called with:$user_name.$obj";
+
+    my $object_name;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -689,24 +718,39 @@ sub real_name
 
     load_object_dict($dbh,$user_name);
 
-    if ($object_name !~ /\./) # not in the form user.tablename
-      { $object_name= "PUBLIC." . $object_name; };
+    if ($obj !~ /\./) # not in the form user.tablename
+      { $object_name= "PUBLIC." . $obj; };
 
 
     my $data= $r_db_objects->{$object_name};
-
-    return if (!defined $data); # not in list of synonyms and
-                                # user objects
-
-    # user objects have only a type-field (why?)
-
-    if ($#$data>0) # more than 2 objects in hash:synonym
-      { my($owner,$name)= split(/\./, $data->[1]);
-
-        return($name,$owner);
+    if (!defined $data)
+      { # try a 2nd lookup with the user-name as prefix:
+        $object_name= "$user_name.$obj";
+        $data= $r_db_objects->{$object_name};
       };
 
-    return( $object_name, $user_name );
+    if (!defined $data)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'real_name',__LINE__,
+               "warning:no data found for object $obj");
+        return;
+      };
+        
+    # user objects have only a type-field !
+
+    if ($#$data>0) # more than 2 objects in hash: it's a synonym
+      { my($owner,$name)= split(/\./, $data->[1]);
+
+        #warn "realname returns: $data->[1],$owner,$name";
+        return($data->[1],$owner,$name);
+      };
+
+    # no synonym, the table is probably owner by the current user:
+    my($owner,$short_name)= split(/\./,$object_name);
+    
+    #warn "realname returns: $object_name,$owner,$short_name";
+    return($object_name,$owner,$short_name);
   }
 
 sub canonify_name
@@ -739,23 +783,24 @@ sub canonify_name
 
 sub object_is_table
 # return 1 when it is a table
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
 
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$table_owner,$table_name);
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'object_is_table',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
       };
-
-    return(0) if (!defined $table_owner);
-    # shouldn't happen !
 
     my $SQL= "select OWNER,TABLE_NAME from " .
              "all_tables " .
@@ -766,7 +811,7 @@ sub object_is_table
       $dbh->selectall_arrayref($SQL);
 
     if (!defined $res_r)
-      { dberror($mod_l,'db_object_addicts',__LINE__,
+      { dberror($mod_l,'object_is_table',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -781,24 +826,21 @@ sub object_is_table
 sub object_dependencies
 # read the owner, name and of type dependend objects,
 # type is either "TABLE" or "VIEW"
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$table_owner,$table_name);
-      };
-
-    if (!defined $table_owner) # assertion !
-      { dbwarn($mod,'object_dependencies',__LINE__,
-               "no table owner found for");
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'object_dependencies',__LINE__,
+               "warning:no data found for object $table_name");
         return;
       };
 
@@ -823,22 +865,23 @@ sub object_dependencies
 
 sub object_references
 # read the owner, name  and of referenced objects
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$table_owner,$table_name);
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dberror($mod_l,'resident_keys',__LINE__,
+                "error:no data found for object $table_name");
+        return;
       };
-
-    die if (!defined $table_owner); # assertion !
 
     my $SQL= "select REFERENCED_OWNER OWNER, REFERENCED_NAME NAME, REFERENCED_TYPE TYPE".
                    " from ALL_DEPENDENCIES AD where" .
@@ -862,22 +905,24 @@ sub object_references
 sub object_addicts
 # INTERNAL
 # read all constraints and triggers for the given object
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$table_owner,$table_name);
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+ 
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dberror($mod_l,'object_addicts',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
       };
-
-    die if (!defined $table_owner); # assertion !
 
     my $SQL= "select CONSTRAINT_NAME NAME, \'$table_owner\' OWNER, 'C' TYPE" .
                 " from ALL_CONSTRAINTS" .
@@ -920,11 +965,6 @@ sub script_addicts
     if ($script_name =~ /\./)
       { ($script_owner,$script_name)= split(/\./,$script_name); };
 
-    if (!defined $script_owner)
-      { ($script_name,$script_owner)=
-                    dbdrv::real_name($dbh,$script_owner,$script_name);
-      };
-
     die if (!defined $script_owner); # assertion !
 
     my $SQL= "select NAME, OWNER, TYPE" .
@@ -941,7 +981,7 @@ sub script_addicts
 #print Dumper($res_r),"\n";
 
     if (!defined $res_r)
-      { dberror($mod_l,'db_object_addicts',__LINE__,
+      { dberror($mod_l,'script_addicts',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -952,22 +992,24 @@ sub script_addicts
 sub read_viewtext
 # INTERNAL
 # read the text of a view
-  { my($dbh,$table_name,$table_owner)= @_;
+  { my($dbh,$table_name,$user_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
-    if ($table_name =~ /\./)
-      { ($table_owner,$table_name)= split(/\./,$table_name); };
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$table_owner,$table_name);
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+ 
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dberror($mod_l,'read_viewtext',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
       };
-
-    die if (!defined $table_owner); # assertion !
 
     my $SQL= "select TEXT from ALL_VIEWS AV where" .
                    " AV.VIEW_NAME=\'$table_name\' AND " .
@@ -995,23 +1037,29 @@ sub column_properties
 # INTERNAL
 # need handle, table_name, table_owner
 # read the type, length, precision, null-condition of a check constraint
-  { my($dbh, $user, $table)= @_;
+  { my($dbh, $user_name, $table_name)= @_;
+    my $table_owner;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    $column_name= uc($column_name);
-    $table= uc($table);
-    $user= uc($user);
-
-    if (!defined $table_owner)
-      { ($table_name,$table_owner)=
-                    dbdrv::real_name($dbh,$user,$table);
+    $table_name= uc($table_name);
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+ 
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'primary_keys',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
       };
 
-    if (!defined $table_owner || !defined $table_name || $table_owner eq '' || $table_name eq '')
-      { dberror($mod_l,'db_column_properties',__LINE__,
-                "arguments not complete failed (table:$table_owner.$table_name)");
+    if (!defined $table_owner || !defined $table_name || 
+        $table_owner eq '' || $table_name eq '')
+      { dberror($mod_l,'column_properties',__LINE__,
+                "arguments not complete (assertion) \n" .
+                "args:\"$table_owner.$table_name\"");
         return;
       };
 
@@ -1127,7 +1175,7 @@ sub read_triggertext
 sub read_scripttext
 # INTERNAL
 # reads the name, type, text 
-  { my($dbh,$script_name,$table_owner)= @_;
+  { my($dbh,$script_name,$script_owner)= @_;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -1143,7 +1191,7 @@ sub read_scripttext
                    " from ALL_SOURCE AS where" .
                    " AS.NAME=\'$script_name\' AND " .
                    " AT.OWNER=\'$script_owner\'" .
-									 " ORDER BY LINE ASC";
+                   " ORDER BY LINE ASC";
 
     sql_trace($SQL) if ($sql_trace);
     my $res_r=
@@ -1157,7 +1205,7 @@ sub read_scripttext
 
     return( @$res_r );
   }
-	
+        
 sub sql_request_to_hash
 # internal
   { my($dbh,$sql,$r_h)= @_;
@@ -1197,14 +1245,14 @@ WHERE asyn.owner NOT IN ('SYSTEM', 'SYS') AND
 
  perl -e 'use lib "."; use dbdrv; dbdrv::load("Oracle"); \
           dbdrv::connect_database("DBI:Oracle:bii_par","pfeiffer","xxx");\
-	  dbdrv::load_object_dict("","pfeiffer"); \
-	  dbdrv::dump_object_dict(); \
-	  dbdrv::disconnect_database(); print join("|",@a),"\n"; '
+          dbdrv::load_object_dict("","pfeiffer"); \
+          dbdrv::dump_object_dict(); \
+          dbdrv::disconnect_database(); print join("|",@a),"\n"; '
 
  perl -e 'use lib "."; use dbdrv; dbdrv::load("Oracle"); \
           dbdrv::connect_database("DBI:Oracle:bii_par","pfeiffer","xxx");\
-	  dbdrv::load_object_dict("","pfeiffer"); \
-	  print Data::Dumper($dbdrv::r_db_objects);\
-	  dbdrv::disconnect_database(); '
+          dbdrv::load_object_dict("","pfeiffer"); \
+          print Data::Dumper($dbdrv::r_db_objects);\
+          dbdrv::disconnect_database(); '
 
 
