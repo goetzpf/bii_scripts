@@ -296,7 +296,7 @@ sub load_object_dict
     $r_db_objects= \%h;
     my %r;
     $r_db_reverse_synonyms= \%r;
-    if (defined $user)
+    if ((defined $user) && ($user ne ""))
       {
 	if (!get_user_objects($dbh,$user,$r_db_objects))
 	  { dberror($mod,'load_object_dict',__LINE__,
@@ -883,7 +883,7 @@ This converts a given object and it's owner to a name in the form
 
 =item dbdrv::object_dependencies
 
-  my @rk_hash= dbdrv::object_dependencies($dbh,$table_name,$table_owner)
+  my @list= dbdrv::object_dependencies($dbh,$table_name,$table_owner)
 
 This function returns a list of all dependend objects. These are
 views and tables that depend on the given table C<$table_name>.
@@ -911,6 +911,24 @@ It returns a hash of the following format
             )
 	    
 The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".	    
+
+=item dbdrv::object_addicts
+
+  my @list= dbdrv::object_references($dbh,$table_name,$table_owner)
+
+This function returns a list of all triggers and constraints for
+a given table. For each trigger or constraint, the owner is
+also returned.
+
+It returns an array of the following format
+
+  my @list= ( [$name1, $owner1, $type1],
+              [$name2, $owner1, $type2],
+                           ...
+            )
+
+The field C<$type> is either "C", for constraints or "T" for
+triggers.	    
 
 =item dbdrv::read_viewtext()
 
