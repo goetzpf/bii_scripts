@@ -1,6 +1,9 @@
 eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
   if 0;
 
+use FindBin;
+use lib "$FindBin::RealBin/../lib/perl";
+
 use strict;
 use DBI;
 use BDNS;
@@ -84,10 +87,25 @@ sub get_subdomains {
 }
 
 sub get_families {
-  my $handle = shift;
-  my $result = $handle->selectall_hashref("select family_key as key, part_family as value from p_family");
+  my $dbh = shift;
+  
+  
+  
+# in newer versions of DBI selectall_hashref has different semantics
+# so we emulate it here
+#  my $result = $dbh->selectall_hashref("select family_key as key, part_family as value from p_family");
+  
+  my @rows;
+  my $sth = $dbh->prepare("select family_key as key, part_family as value from p_family");
+  $sth->execute();
+
+  while (my $hash_ref = $sth->fetchrow_hashref) {
+    push @rows, $hash_ref;
+  }
+  
+  
   my $keys;
-  foreach my $row (@$result) {
+  foreach my $row (@rows) {
     $keys->{$row->{VALUE}} = $row->{KEY};
   }
   #print "families: " . join(",", map("$_=\"$family_keys->{$_}\"", keys %$family_keys)) . "\n";
