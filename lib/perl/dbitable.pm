@@ -20,7 +20,7 @@ BEGIN {
 	   import DBI;
 	 };
       };
-use dbdrv 1.1;      
+use dbdrv 1.2;      
       
 use Data::Dumper;
 use Text::Wrap;
@@ -30,7 +30,7 @@ use Cwd;
 
 # use DBD::AnyData;
 
-our $VERSION     = '2.0';
+our $VERSION     = '2.1';
 
 our $export_version= "1.0";
 
@@ -256,6 +256,7 @@ sub init_tableviewtype
         $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
         if (!dbdrv::check_existence($dbh,$table,$user))
           { $last_error= "table \"$table\" doesn\'t exist"; 
+
             return;
           };
       };
@@ -289,7 +290,11 @@ sub init_tableviewtype
 	  { 
 	    if    ($type eq 'table')
 	      { # try to determine primary key by a tricky SQL statement:
-	        @primary_keys= dbdrv::primary_keys($dbh,$table);
+	        
+		my $user;
+                $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
+        
+		@primary_keys= dbdrv::primary_keys($dbh,$user,$table);
 		if (!@primary_keys)
 		  { $last_error= "error: primary key(s) not found via SQL";
 
@@ -775,7 +780,11 @@ sub foreign_keys
     my $r_foreign_keys= $self->{_foreign_keys};
     return($r_foreign_keys) if (defined $r_foreign_keys);
  
-    $r_foreign_keys= dbdrv::foreign_keys($self->{_dbh},$self->{_table});
+    my $dbh= $self->{_dbh}; 
+    my $user;
+    $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
+        
+    $r_foreign_keys= dbdrv::foreign_keys($dbh,$user,$self->{_table});
  
     $self->{_foreign_keys}= $r_foreign_keys;
     
@@ -793,7 +802,11 @@ sub resident_keys
     my $r_resident_keys= $self->{_resident_keys};
     return($r_resident_keys) if (defined $r_resident_keys);
  
-    $r_resident_keys= dbdrv::resident_keys($self->{_dbh},$self->{_table});
+    my $dbh= $self->{_dbh}; 
+    my $user;
+    $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
+
+    $r_resident_keys= dbdrv::resident_keys($dbh,$user,$self->{_table});
  
     $self->{_resident_keys}= $r_resident_keys;
     
@@ -1057,7 +1070,7 @@ sub dump
       
     my %h= %$self; 
   
-    rdump($fh,\%h,0);
+    dbdrv::rdump($fh,\%h,0);
     if (defined $filename)
       { if (!close(F))
           { dbdrv::dberror($mod,'dump',__LINE__,"unable to close file"); 
@@ -1072,82 +1085,10 @@ sub dump_s
     
     my %h= %$self; 
   
-    rdump_s(\$buffer,\%h,0);
+    dbdrv::rdump_s(\$buffer,\%h,0);
     return(\$buffer);
   }  
 
-sub rdump
-#internal
-  { my($fh,$val,$indent,$is_newline,$comma)= @_;
-    my $r= ref($val);
-    if (!$r)
-      { print $fh " " x $indent if ($is_newline);
-	print $fh "'",$val,"'",$comma,"\n"; 
-        return;
-      };
-    if ($r eq 'ARRAY')
-      { print $fh "\n"," " x $indent if ($is_newline);
-        print $fh "[ \n"; $indent+=2;
-        for(my $i=0; $i<= $#$val; $i++)
-	  { rdump($fh,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
-	  };
-	$indent-=2; print $fh " " x $indent,"]$comma\n";
-	return;
-      };
-    if ($r eq 'HASH')
-      { print $fh "\n"," " x $indent if ($is_newline);
-        print $fh "{ \n"; $indent+=2;
-        my @k= sort keys %$val;
-	for(my $i=0; $i<= $#k; $i++)
-          { my $k= $k[$i];
-	    my $st= (" " x $indent) . $k . " => ";
-	    my $nindent= length($st); 
-	    print $fh ($st); 
-            rdump($fh,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
-	  };
-        $indent-=2; print $fh " " x $indent,"}$comma\n";
-        return;
-      };
-    print $fh " " x $indent if ($is_newline);
-    print $fh "REF TO: \'$r\'$comma\n"; 
-  }
-
-sub rdump_s
-#internal
-  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
-  
-    my $r= ref($val);
-    if (!$r)
-      { $$r_buf.= " " x $indent if ($is_newline);
-	$$r_buf.= "\'$val\'$comma\n"; 
-        return;
-      };
-    if ($r eq 'ARRAY')
-      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
-        $$r_buf.= "[ \n"; $indent+=2;
-        for(my $i=0; $i<= $#$val; $i++)
-	  { rdump_s($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
-	  };
-	$indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
-	return;
-      };
-    if ($r eq 'HASH')
-      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
-        $$r_buf.=  "{ \n"; $indent+=2;
-        my @k= sort keys %$val;
-	for(my $i=0; $i<= $#k; $i++)
-          { my $k= $k[$i];
-	    my $st= (" " x $indent) . $k . " => ";
-	    my $nindent= length($st); 
-	    $$r_buf.= ($st); 
-            rdump_s($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
-	  };
-        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
-        return;
-      };
-    $$r_buf.=  " " x $indent if ($is_newline);
-    $$r_buf.=  "REF TO: \'$r\'$comma\n"; 
-  }
       
 sub pretty_print
   { my $self= shift;
