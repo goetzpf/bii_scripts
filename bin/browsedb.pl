@@ -2814,138 +2814,147 @@ sub cb_show_contenttable
 
 sub cb_show_contentform
   {
-    my($r_glbl, $r_tbh, $r_key)= @_;
-    #$r_key the actual key
+    my($r_glbl, $r_tbh, $key)= @_;
+    #$key the actual key
     # --------------------- entry widget
 
     # repacking FrDown is important in order to get a
     # sensible window-size
     my $FrDn = $r_tbh->{'frame_down'};
     $FrDn->gridForget($FrDn->gridSlaves());
-    my $back = 1;
-    my $next = 1;
-    my $new = 0;
-    my $selection = 0;
-    if (! defined($r_key)) {$r_key = 1;}
-    if ($r_key < 0)
-      {
-        $next = 0;
-        $back = 0;
-        $new = 1;
-      }
-
-    if ($r_key == 1) {$back = 0};
-    if ($r_key > $r_tbh->{row_no} - 1) {$next = 0};
     my $rowcol = 0;
+    if (! defined $key) {$key = 1;}
+    $key  = cb_show_contentform_get ($r_glbl, $r_tbh, $key);
     my $FastNav = $FrDn->Frame(
                     -height=>14,
                     -relief=>"raised",
-        )->grid(-row=>0, -column=>0);
-    if ($back == 1)
-      {
-        my $ButFirst = $FastNav->Button
-          (
-            -text=>"First", -width=>12, -cursor=>"hand1",
-            -command=>sub {
-                if ($r_key > 1)
-                  {
-                    cb_show_contentform ($r_glbl, $r_tbh, 1);
-                  };
-              }
-          )->grid(-row=>$rowcol, -column=>0, -padx=>1, -pady=>1 );
-        $rowcol++;
-        my $ButBack = $FastNav->Button
-          (
-            -text=>"Back", -width=>12, -cursor=>"hand1",
-            -command=>sub {
-                if ($r_key > 1)
-                  {
-                    cb_show_contentform ($r_glbl, $r_tbh, $r_key - 1);
-                  };
-              }
-          )->grid(-row=>$rowcol, -column=>0, -padx=>1, -padx=>1);
-          $rowcol++;
-      }
-    if ($next == 1)
-      {
-        my $ButLast = $FastNav->Button
-          (
-            -text=>"Last", -width=>12, -cursor=>"hand1",
-            -command=>sub {
-                if ($r_key > 1)
-                  {
-                    cb_show_contentform ($r_glbl, $r_tbh, $r_tbh->{row_no});
-                  }
-              }
-          )->grid(-row=>$rowcol, -column=>0, -pady=>4, -padx=>1);
-        $rowcol++;
-        my $ButNext = $FastNav->Button
-          (
-            -text=>"Next", -width=>12, -cursor=>"hand1",
-            -command=>sub {
-                if ($r_key > 1)
-                  {
-                    cb_show_contentform ($r_glbl, $r_tbh, $r_key + 1);
-                  }
-              }
-          )->grid(-row=>$rowcol, -column=>0, -pady=>1, -padx=>1);
-          $rowcol++;
-      }
-    $FastNav->Label()->grid(-row=>$rowcol, -column=>0);
-    $FastNav->gridColumnconfigure(0, -minsize=> 18);
-    $FastNav->gridRowconfigure($rowcol, -weight=>1);
+        )->grid(-row=>0, -column=>0, -sticky=>'nsw');
+    my $ButFirst = $FastNav->Button
+      (
+        -text=>"First", -width=>12, -cursor=>"hand1",
+        -command=>sub {
+                $key = cb_show_contentform_get ($r_glbl, $r_tbh, 1);
+          },
+      )->grid(-row=>$rowcol, -column=>0, -padx=>1, -pady=>1 );
+    $rowcol++;
+    my $ButBack = $FastNav->Button
+      (
+        -text=>"Back", -width=>12, -cursor=>"hand1",
+        -command=>sub {
+                $key = cb_show_contentform_get ($r_glbl, $r_tbh, $key - 1);
+            },
+      )->grid(-row=>$rowcol, -column=>0, -padx=>1, -padx=>1);
+    $rowcol++;
+    my $ButNext = $FastNav->Button
+      (
+          -text=>"Next", -width=>12, -cursor=>"hand1",
+          -command=>sub {
+                  $key = cb_show_contentform_get ($r_glbl, $r_tbh, $key + 1);
+          },
+      )->grid(-row=>$rowcol, -column=>0, -pady=>1, -padx=>1);
+    $rowcol++;
+    my $ButLast = $FastNav->Button
+      (
+        -text=>"Last", -width=>12, -cursor=>"hand1",
+        -command=>sub {
+                $key = cb_show_contentform_get ($r_glbl, $r_tbh, $r_tbh->{row_no});
+          },
+      )->grid(-row=>$rowcol, -column=>0, -pady=>4, -padx=>1);
+    $rowcol++;
 
     my $MainText= $FrDn->Scrolled('Text',
                 -wrap=>'none',
                 -scrollbars=>"osoe",
-        )->grid(-column=>1, -row=>0);
-    $r_tbh->{form_widget} = $MainText;
+        )->grid(-column=>1, -row=>0, -sticky=>'nsew',);
 
+    $r_tbh->{form_widget} = $MainText;
+    $r_tbh->{form_widget}->{fastnav}->{back} = $ButBack;
+    $r_tbh->{form_widget}->{fastnav}->{next} = $ButNext;
+    $r_tbh->{form_widget}->{fastnav}->{first} = $ButFirst;
+    $r_tbh->{form_widget}->{fastnav}->{last} = $ButLast;
+
+    $FrDn->gridColumnconfigure(1, -weight => 2, -minsize => 640);
+    $FrDn->gridColumnconfigure(0, -weight => 0, -minsize => 128);
+    $FrDn->gridRowconfigure(0, -weight => 2, -minsize => 480);
     if (!defined($r_tbh->{form}->{label_length}) )
       { $r_tbh->{form}->{label_length} = 32; }
     if (!defined($r_tbh->{form}->{label_anchor}) )
       { $r_tbh->{form}->{label_anchor} = "e"; }
 
-    $FrDn->gridColumnconfigure(0, -weight=> 1);
-    $FrDn->gridRowconfigure(0, -weight=> 1);
-    $FrDn->gridColumnconfigure(0, -minsize=>128);
-    #$FrDn->gridColumnconfigure(1, -minsize=>240);
-    #$FrDn->gridRowconfigure(0, -minsize=>240);
     BrowseDB::TkUtils::SetBusy($r_glbl,1);
     # getting value
 
     my @collist = $r_tbh->{dbitable}->column_list();
     foreach my $colname ( @collist )
       {
-        cb_show_content_form_retrieve($r_glbl, $r_tbh, row2pk($r_tbh, $r_key), $colname);
+        cb_show_contentform_retrieve($r_glbl, $r_tbh, row2pk($r_tbh, $key), $colname);
       };
+    $key  = cb_show_contentform_get ($r_glbl, $r_tbh, $key);
     $MainText->configure(-state=>"disable");
 
     BrowseDB::TkUtils::SetBusy($r_glbl,0);
 
 }
 
-sub cb_show_content_form_retrieve
+sub cb_show_contentform_get
+  {
+    my ($r_glbl, $r_tbh, $key) = @_;
+    my $back = 'disabled';
+    my $next = 'disabled';
+    my $new = 'normal';
+    my $selection = 'disabled';
+    if (! defined($key))
+      {
+        $key = 1;
+      }
+    if ($key > 1)
+      {
+        $back = 'normal';
+      };
+    if ($key < $r_tbh->{row_no})
+      {
+        $next = 'normal';
+      };
+    if (exists $r_tbh->{form_widget}->{fastnav} && exists $r_tbh->{form_widget})
+      {
+        $r_tbh->{form_widget}->{fastnav}->{back}->
+            configure(-state=>$back);
+        $r_tbh->{form_widget}->{fastnav}->{first}->
+            configure(-state=>$back);
+        $r_tbh->{form_widget}->{fastnav}->{next}->
+            configure(-state=>$next);
+        $r_tbh->{form_widget}->{fastnav}->{last}->
+            configure(-state=>$next);
+        my @collist = $r_tbh->{dbitable}->column_list();
+        foreach my $colname ( @collist )
+        {
+            $r_tbh->{form_values}->{$colname} = $r_tbh->{dbitable}->value(row2pk($r_tbh, $key), $colname);
+        };
+      }
+    return $key;
+  }
+
+sub cb_show_contentform_retrieve
   {
     # build form for given
     # $r_glbl    : globalhash for config
     # $r_tbh     : tablehash
-    # $r_pkey    : primary key of the row
-    # $r_colname : columnname
-    my ($r_glbl, $r_tbh, $r_pkey, $r_colname) = @_;
+    # $pkey    : primary key of the row
+    # $colname : columnname
+    my ($r_glbl, $r_tbh, $pkey, $colname) = @_;
     my $ret;
-    if (defined($r_tbh->{form_widget}))
+    if (exists($r_tbh->{form_widget}))
      {
         my $ColWidget;
         my $ColName;
-        my $ColValue = $r_tbh->{dbitable}->value($r_pkey, $r_colname);
-        if ($r_tbh->{dbitable}->get_column_property($r_colname, "null") ne "")
+        $r_tbh->{form_values}->{$colname} = $r_tbh->{dbitable}->value($pkey, $colname);
+        if ($r_tbh->{dbitable}->get_column_property($colname, "null") ne "")
           {
-            $ColName = "*".$r_colname;
+            $ColName = "*".$colname;
           }
         else
           {
-            $ColName = $r_colname;
+            $ColName = $colname;
           }
         my $ColLabel = $r_tbh->{form_widget}->Label(
                 -text=>"$ColName : ",
@@ -2958,10 +2967,10 @@ sub cb_show_content_form_retrieve
           {
             my $ColWidget;
             # setting default for new
-            my $coltype = $r_tbh->{dbitable}->get_column_type($r_colname);
+            my $coltype = $r_tbh->{dbitable}->get_column_type($colname);
             if ($coltype eq "number")
               { $ColWidget = $r_tbh->{form_widget}->NumEntry(
-                        -value=>$ColValue,
+                        -textvariable=>\$r_tbh->{form_values}->{$colname},
                         -cursor=>"hand1",
                   );
               }
@@ -2971,18 +2980,17 @@ sub cb_show_content_form_retrieve
                   (
                     -daynames=>$global_data{date_format}{weekdays},
                     -weekstart=>$global_data{date_format}{firstday},
-                    -value=>$ColValue,
-                    -variable=>$ColValue,
+                    -variable=>\$r_tbh->{form_values}->{$colname},
                   );
               }
             else
               { $ColWidget = $r_tbh->{form_widget}->Entry(
-                    -textvariable=>$ColValue,
+                    -textvariable=>\$r_tbh->{form_values}->{$colname},
                   );
               }
             $ColWidget->configure(
                     -width=>$r_tbh->{dbitable}->get_column_property(
-                        $r_colname,
+                        $colname,
                         "length") + 2,
                     -foreground=>$global_data{theme}{text}{foreground},
                   );
@@ -2990,16 +2998,17 @@ sub cb_show_content_form_retrieve
           }
         else
           {
-            $ColWidget = $r_tbh->{form_widget}->Label(-text=>$ColValue,
+            $ColWidget = $r_tbh->{form_widget}->Label(
+                    -textvariable=>$r_tbh->{form_values}->{$colname},
                     -relief=>"sunken",
                     -width=>$r_tbh->{dbitable}->get_column_property(
-                        $r_colname,
+                        $colname,
                         "length") + 2,
               );
             $r_tbh->{form_widget}->windowCreate('end', -window=> $ColWidget);
           };
         $r_tbh->{form_widget}->insert('end', "\n");
-        $r_tbh->{form_widget}->{$r_colname}=$ColWidget;
+        $r_tbh->{form_widget}->{$colname}=$ColWidget;
         $ret = 1;
      }
     return $ret;
@@ -5938,13 +5947,13 @@ sub set_column_map
   { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
 
 
-    my($r_key_to_str,$r_str_to_key)=
+    my($key_to_str,$r_str_to_key)=
             get_column_map($r_glbl,$sql_command,$column_name);
 
     return if (!defined $r_str_to_key);
 
     my %col_map;
-    $col_map{key_to_str} = $r_key_to_str;
+    $col_map{key_to_str} = $key_to_str;
     $col_map{str_to_key} = $r_str_to_key;
     $col_map{sql_command}= dbdrv::format_sql_command($sql_command);
 
