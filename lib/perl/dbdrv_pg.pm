@@ -1,3 +1,35 @@
+##############################################################################  
+# This software is copyrighted by the BERLINER SPEICHERRING
+# GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
+# The following terms apply to all files associated with the software.
+#
+# BESSY hereby grants permission to use, copy, and modify this software
+# and its documentation for non-commercial educational or research
+# purposes, provided that existing copyright notices are retained in
+# all copies.
+#
+# The receiver of the software provides BESSY with all enhancements,
+# including complete translations, made by the receiver.
+#
+# IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+# SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+# OF THIS SOFTWARE, ITS DOCUMENTATION, OR ANY DERIVATIVES THEREOF, EVEN
+# IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# BESSY SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+# PARTICULAR PURPOSE, AND NON-INFRINGEMENT.  THIS SOFTWARE IS PROVIDED
+# ON AN "AS IS" BASIS, AND BESSY HAS NO OBLIGATION TO PROVIDE MAINTENANCE,
+# SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+#
+# Copyright (c) 2004-2005
+#			Berliner Elektronenspeicherring-Gesellschaft
+#			      fuer Synchrotronstrahlung m.b.H.,
+#				     Berlin, Germany
+#
+##############################################################################  
+
+
 # this is not a real perl-package
 # it is loaded via "do" into dbdrv.pm !!
 
@@ -15,48 +47,12 @@ my %possible_objects; # names without schema-name
 my %object2schemaobject;
 my $view_dependencies_examined=0;
 
-%sql_aliases = (
-    "dependants" =>     "SELECT o.object_id, o.created, o.status, o.object_type, \
-                                o.object_name, o.owner \
-                            FROM sys.all_dependencies d, sys.all_objects o \
-                            WHERE d.referenced_name = UPPER('##1##') AND\
-                                d.owner = o.owner AND \
-                                d.name = o.object_name AND \
-                                o.object_type = 'VIEW' ORDER BY o.owner, o.object_name",
-    "depends" =>        "SELECT o.object_id, o.created, o.status, o.object_name, o.owner \
-                            FROM all_dependencies d, all_objects o \
-                            WHERE d.name = UPPER('##1##') AND \
-                                d.referenced_owner = o.owner AND \
-                                d.referenced_name = o.object_name \
-                            ORDER BY o.object_name",
-    "viewtext" =>       "SELECT text \
-                            FROM all_views \
-                            WHERE view_name = UPPER('##1##')",
-    "triggertext" =>    "SELECT trigger_type, triggering_event, trigger_body \
-                            FROM dba_triggers \
-                            WHERE trigger_name = UPPER('##1##')",
-    "describe" =>       "SELECT column_name, table_name, owner, data_type, \
-                                data_length, data_precision, data_scale, nullable, \
-                                column_id, default_length, data_default, num_distinct, \
-                                low_value, high_value
-                            FROM all_tab_columns \
-                            WHERE table_name = UPPER('##1##') \
-                            ORDER BY column_id",
-    "constraints" =>    "SELECT constraint_name, table_name, owner,constraint_type, \
-                                r_owner, r_constraint_name, search_condition \
-                            FROM all_constraints \
-                            WHERE table_name = UPPER('##1##') \
-                            ORDER BY constraint_name, r_owner, r_constraint_name",
-    "triggers" =>       "SELECT DISTINCT trigger_name, owner, table_owner, table_name, \
-                                trigger_type, triggering_event, status, referencing_names \
-                            FROM dba_triggers \
-                            WHERE table_name = UPPER('##1##') \
-                            ORDER BY trigger_name, table_owner, table_name",
-    "objects" =>        "SELECT object_name, status, object_type, owner \
-                            FROM sys.all_objects \
-                            WHERE object_name LIKE UPPER('##1##') AND\
-                                NOT object_type = 'SYNONYM'",
-    );
+my %db_object_types = (TABLE=>'T', VIEW=>'V', PROCEDURE=>'P',
+                       FUNCTION=>'P', 
+		       SEQUENCE=>undef
+		       # undef: SEQCENCE type is known, but there
+		       # are no sequences
+		      );
 
 my %typemap= (
     
@@ -153,14 +149,145 @@ my %typemap= (
           );
 
 
+our $sql_capabilities;
+
+$sql_capabilities->{"generic"}=
+  {
+    "alias"=>
+      {
+        "objects"=>      "SELECT object_name, status, object_type, owner \
+                                    FROM sys.all_objects \
+                                    WHERE object_name LIKE UPPER('##1##') AND\
+                                    NOT object_type = 'SYNONYM'",
+        "describe"=>     "SELECT column_name, table_name, owner, data_type, \
+                                        data_length, data_precision, data_scale, nullable, \
+                                        column_id, default_length, data_default, num_distinct, \
+                                        low_value, high_value
+                                    FROM all_tab_columns \
+                                    WHERE table_name = UPPER('##1##') \
+                                    ORDER BY column_id",
+        "lookup"=>        "SELECT object_name, object_owner, object_type \
+                                    FROM all_objects
+                                    WHERE object_name like '##1##''",
+      },
+  };
+$sql_capabilities->{"table"}=
+  {
+    "alias"=>
+      {
+        "depends" =>    "SELECT o.object_id, o.created, o.status, o.object_name, o.owner \
+                                        FROM all_dependencies d, all_objects o \
+                                        WHERE d.name = UPPER('##1##') AND \
+                                            d.referenced_owner = o.owner AND \
+                                            d.referenced_name = o.object_name \
+                                        ORDER BY o.object_name",
+        "triggertext" =>       "SELECT trigger_type, triggering_event, trigger_body \
+                                            FROM dba_triggers \
+                                            WHERE trigger_name = UPPER('##1##')",
+        "constraints" =>    "SELECT constraint_name, table_name, owner,constraint_type, \
+                                                r_owner, r_constraint_name, search_condition \
+                                            FROM all_constraints \
+                                            WHERE table_name = UPPER('##1##') \
+                                            ORDER BY constraint_name, r_owner, r_constraint_name",
+        "triggers" =>           "SELECT DISTINCT trigger_name, owner, table_owner, table_name, \
+                                                trigger_type, triggering_event, status, referencing_names \
+                                            FROM dba_triggers \
+                                            WHERE table_name = UPPER('##1##') \
+                                            ORDER BY trigger_name, table_owner, table_name",
+      },
+  };
+$sql_capabilities->{"view"}=
+  {
+    "alias"=>
+      {
+        "dependants" =>     "SELECT o.object_id, o.created, o.status, o.object_type, \
+                                                o.object_name, o.owner \
+                                            FROM sys.all_dependencies d, sys.all_objects o \
+                                            WHERE d.referenced_name = UPPER('##1##') AND\
+                                                d.owner = o.owner AND \
+                                                d.name = o.object_name AND \
+                                                o.object_type = 'VIEW' ORDER BY o.owner, o.object_name",
+        "viewtext" =>           "SELECT text \
+                                                FROM all_views \
+                                                WHERE view_name = UPPER('##1##')",
+      },
+  };
+
+
+our %sql_aliases;
+
+foreach my $cap_aliases (keys %$sql_capabilities)
+  {
+    my $cap_entry =$sql_capabilities->{$cap_aliases}->{alias};
+    if (defined($cap_entry))
+      {
+        foreach my $aliasname ( keys %$cap_entry )
+          { $sql_aliases{$aliasname} = $cap_entry->{$aliasname}; }
+      }
+  }
+
 # select * from pg_tables; shows all tables, including the
 # system tables
 
 # select schemaname, viewname, viewowner from pg_views;
 # shows interesting views
 
-# Schemas 
-#-------------------------------------------------------------
+#=============================================================
+# name conversions, name spaces, schemas 
+#=============================================================
+
+sub real_name
+# EXPORTED 
+# resolves a given table-name
+# returns: full-qualified-name,owner,unqualified-name,schema
+# returns the table-name and the table-owner
+# NOTE: user-name is not the owner of the table but the user
+# that has logged in
+# the user_name is not evaluated, just returned
+  { my($dbh,$user_name,$object_name)= @_;
+
+    $user_name  = lc($user_name);
+    $object_name= lc($object_name);
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    load_object_dict($dbh,$user_name);
+    
+    my $full_object_name= add_schema($dbh,$object_name);
+        
+    my $data= $r_db_objects->{$full_object_name};
+      
+    return if (!defined $data); # not in list of objects
+
+    my($schema,$short_object_name)= split(/\./,$full_object_name);
+    die "assertion!" if (!defined $short_object_name);
+
+    # $data->[1] is the object-owner
+    return( $full_object_name, $data->[1],$short_object_name,$schema );
+  }
+
+sub canonify_name
+# EXPORTED 
+# returns a "nice" name, here:
+# removes the schema-name if its one of the current schemas
+  { my($dbh,$user_name,$object_name,$object_owner)= @_;
+
+    $object_name= lc($object_name);
+
+    if ($object_name !~ /\./)
+      { return($object_name); };
+      
+    my %curr_schemas= current_schemas($dbh);
+      
+    my ($schema,$obj)= split(/\./,$object_name); 
+    if (!exists($curr_schemas{$schema}))
+      { return($object_name); };
+      
+    return($obj);
+  }
+
+# INTERNAL-------------------
 
 sub current_schemas
 # INTERNAL to dbdrv_pg!!!
@@ -182,7 +309,7 @@ sub current_schemas
     my $res= $dbh->selectall_arrayref($SQL);
 
     if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+      { dberror($mod_l,'current_schemas',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -221,7 +348,7 @@ sub schemas_for_object
     my $res= $dbh->selectall_arrayref($SQL);
 
     if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+      { dberror($mod_l,'schemas_for_object',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -233,7 +360,6 @@ sub schemas_for_object
       
     return(@schemas);
   }
-
 
 sub add_schema  
 # INTERNAL to dbdrv_pg!!!
@@ -269,16 +395,21 @@ sub add_schema
     return($obj);
   };
 
+
+#=============================================================
+# object catalogs
+#=============================================================
+
+#-------------------------------------------------------------
+# Object dictionary (INTERNAL)
 #-------------------------------------------------------------
 
-# Object dictionary 
-#-------------------------------------------------------------
 sub load_object_dict
 # INTERNAL to dbdrv_pg!!!
 # WRITES TO GLOBAL VARIABLES:
 #  $r_db_objects and %possible_objects
 # returns a hash-reference: object-name -> [Type,owner,readable-flag]
-#  type is either "T" or "V"
+#  type is either "T" or "V" or "P"
   { my($dbh)= @_;
 
     return if (defined $r_db_objects);
@@ -304,7 +435,7 @@ sub load_object_dict
     my $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+      { dberror($mod_l,'load_object_dict',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -325,7 +456,7 @@ sub load_object_dict
     my $res= $dbh->selectall_arrayref($sql);
 
     if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+      { dberror($mod_l,'load_object_dict',__LINE__,
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
@@ -335,9 +466,131 @@ sub load_object_dict
         $pg_objs{$n}= ['V', $line->[2], $line->[3] ];
         $possible_objects{$line->[1]}=1;
       };
-     
+
+    $sql= "SELECT n.nspname, p.proname, u.usename, " . 
+                  "has_function_privilege(p.oid, \'EXECUTE\') AS priv " .
+          "FROM pg_proc p, pg_namespace n, pg_user u " .
+          "WHERE p.pronamespace=n.oid AND p.proowner=u.usesysid";
+
+    sql_trace($sql) if ($sql_trace);
+
+    my $res= $dbh->selectall_arrayref($sql);
+
+    if (!defined $res)
+      { dberror($mod_l,'load_object_dict',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    foreach my $line (@$res)
+      { $n= $line->[0] . '.' . $line->[1];
+        # [type, owner, executable]
+        $pg_objs{$n}= ['P', $line->[2], $line->[3] ];
+        $possible_objects{$line->[1]}=1;
+      };
+
     return(\%pg_objs);
   }
+
+#-------------------------------------------------------------
+# get catalog of accessible objects
+#-------------------------------------------------------------
+
+sub accessible_objects
+# EXPORTED 
+  { my($dbh,$user_name,$types,$access)= @_;
+#    my %known_types= (table => 'T', view => 'V');
+    my %known_acc  = map { $_ =>1 } qw( user public );
+    my %types;
+    my %access;
+
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    if (!defined $types)
+      { %types= (T=>1); }
+    else
+      { $types= uc($types);
+        my @types= split(",",$types);
+        my $c;
+	foreach my $t (@types)
+          { 
+	    if (!exists $db_object_types{$t})
+              { dberror($mod_l,'accessible_objects',__LINE__,
+                    "unknown object type: $t");
+                return;
+              };
+            $c= type_to_typechar($t);
+	    $types{$c}= 1 if (defined $c); 
+          };
+      };
+
+    load_object_dict($dbh,$user_name);
+    my @keys= grep { exists $types{$r_db_objects->{$_}->[0]} } 
+                     keys %$r_db_objects;
+
+
+#print Dumper(\%types);
+
+    if (!defined $access)
+      { %access= ("public" => 1); }
+    else
+      { $access= lc($access);
+        %access= map { $_ => 1} split(",",$access);
+        foreach my $t (keys %access)
+          { if (!exists $known_acc{$t})
+              { dberror($mod_l,'accessible_objects',__LINE__,
+                    "unknown object access type: $t");
+                return;
+              };
+          };
+      };
+
+    my @result;
+
+    if (exists $access{public})
+      { # filter all objects that are readable
+        push @result,
+             grep { ($r_db_objects->{$_}->[2]) &&
+                    ($r_db_objects->{$_}->[1] ne $user_name) 
+                  } @keys;
+      };
+
+    if (exists $access{user})
+      { push @result,
+             grep { $r_db_objects->{$_}->[1] eq $user_name } @keys;
+      };
+
+    #warn join("|",@result) . "\n";
+
+#@@@@@@@@@@@@@@@canonify
+    @result= 
+         map { canonify_name($dbh,$user_name,$_,$r_db_objects->{$_}->[1]) 
+             } @result; 
+    # remove "schemaname" if possible
+
+#print Dumper(\@result);
+
+    return(sort @result);
+  }
+
+#=============================================================
+# object type and existence
+#=============================================================
+
+#-------------------------------------------------------------
+# check existence
+#-------------------------------------------------------------
+
+sub check_existence
+  { my($dbh,$table_name,$user_name)= @_;
+
+    my($schema,$obj)= check_exists($dbh,$user_name,$table_name);
+    return(defined $schema);
+  }
+
+# INTERNAL-------------------
 
 sub check_exists  
 # INTERNAL to dbdrv_pg!!!
@@ -358,139 +611,44 @@ sub check_exists
     return( split(/\./,$table_name) );
   }
 
-
+#-------------------------------------------------------------
+# object-type 
 #-------------------------------------------------------------
 
-# table-name conversions, obj <--> schema.obj
-#-------------------------------------------------------------
-
-sub real_name
+sub object_is_table
 # EXPORTED function
-# resolves a given table-name
-# returns: full-qualified-name,owner,unqualified-name,schema
-# returns the table-name and the table-owner
-# NOTE: user-name is not the owner of the table but the user
-# that has logged in
-# the user_name is not evaluated, just returned
-  { my($dbh,$user_name,$object_name)= @_;
+# return 1 when it is a table
+  { my($dbh,$table_name,$user_name)= @_;
 
-    $user_name  = lc($user_name);
-    $object_name= lc($object_name);
+    $table_name= lc($table_name);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     load_object_dict($dbh,$user_name);
-    
-    my $full_object_name= add_schema($dbh,$object_name);
-        
-    my $data= $r_db_objects->{$full_object_name};
-      
-    return if (!defined $data); # not in list of objects
 
-    my($schema,$short_object_name)= split(/\./,$full_object_name);
-    die "assertion!" if (!defined $short_object_name);
+#print Dumper($r_db_objects);
+    $table_name= add_schema($dbh,$table_name);
 
-    # $data->[1] is the object-owner
-    return( $full_object_name, $data->[1],$short_object_name,$schema );
-  }
-
-sub canonify_name
-# EXPORTED function
-# returns a "nice" name, here:
-# removes the schema-name if its one of the current schemas
-  { my($dbh,$user_name,$object_name,$object_owner)= @_;
-
-    $object_name= lc($object_name);
-
-    if ($object_name !~ /\./)
-      { return($object_name); };
-      
-    my %curr_schemas= current_schemas($dbh);
-      
-    my ($schema,$obj)= split(/\./,$object_name); 
-    if (!exists($curr_schemas{$schema}))
-      { return($object_name); };
-      
-    return($obj);
-  }
-  
-#-------------------------------------------------------------
-
-# view-dependencies
-#-------------------------------------------------------------
-sub view_dependencies
-# INTERNAL to dbdrv_pg!!!
-  { my($dbh,$username)= @_;
-
-    return if ($view_dependencies_examined);
-    
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    my $SQL= "SELECT * from pg_views WHERE " .
-             "has_table_privilege(schemaname || '.' || viewname,'select')";
-             
-    # returns schemaname, viewname, viewowner, description
-
-    my $res= $dbh->selectall_arrayref($SQL);
-
-    if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
+    my $data= $r_db_objects->{$table_name};
+    if (!defined $data)
+      { dbwarn($mod_l,'object_is_table',__LINE__,
+               "object $table_name is unknown");
+        return;       
       };
 
-    return if ($#$res<0);
+    return($data->[0] eq 'T');
+  }
 
-    # first we need a list of all tables and views
-    # (and also schemaname.objectname)
-    load_object_dict($dbh,$username);
+#=============================================================
+# columns
+#=============================================================
 
-#print Dumper($r_all);
-#die;
-
-    #my %viewrefs;
-    my $n;
-    foreach my $line (@$res)
-      { my @parse_tree;
-        my %referenced;
-        sql_parse($line->[3],\@parse_tree);
-        scan_FROM($dbh,\@parse_tree,\%referenced,$r_db_objects);
-
-        next if (!%referenced);
-        
-        $n= $line->[0] . "." . $line->[1];
-        
-        # store information in data-dictionary
-        $r_db_objects->{$n}->[3]= [sort keys %referenced];
-          
-        foreach my $obj (keys %referenced)
-          { push @{ $r_db_objects->{$obj}->[4] }, $n; };  
-
-        # in $r_db_objects: [3]: referenced objects
-        #                   [4]: referencing objects
-        #  --> but only with respect to views, no information
-        #      about foreign-key relations!!
-                
-        #$viewrefs{$line->[0] . "." . $line->[1]}= \%referenced;
-        #print Dumper(\@parse_tree);
-        #print "-" x 20,"\n";
-        #print Dumper(\%referenced);
-        #die;
-      };
-    #print Dumper(\%viewrefs);  
-
-    #print Dumper($r_db_objects);
-
-    $view_dependencies_examined=1;
-
-  };
-
-
+#-------------------------------------------------------------
 # column-types 
 #-------------------------------------------------------------
 sub get_simple_column_types
+# EXPORTED
 # returns for each column:
 # 'number', 'string' or undef 
   { my($dbh,$sth,$table_name)= @_;
@@ -556,6 +714,7 @@ sub get_simple_column_types
   }
 
 sub column_properties
+# EXPORTED
 # need handle, table_name, table_owner
 # read the type, length, precision, null-condition of a check constraint
   { my($dbh, $user_name, $table_name)= @_;
@@ -573,7 +732,7 @@ sub column_properties
 
     my $SQL= "SELECT column_name,ordinal_position,data_type, " .
                      "character_maximum_length, numeric_precision, " .
-		     "is_nullable, column_default " .
+                     "is_nullable, column_default " .
              "FROM information_schema.columns " .
              "WHERE table_name='$table' AND " .
                    "table_schema='$schema'" .
@@ -605,18 +764,23 @@ sub column_properties
     my %ret;
     foreach my $line ( @$res )
       {
-        $ret{uc($line->[0])} = { type=>$line->[2],	    
-        			 length=>$line->[3],    
-        			 precision=>$line->[4], 
-        			 null=>$line->[5],	    
-        			 default=>$line->[6],   
+        $ret{uc($line->[0])} = { type=>$line->[2],          
+                                 length=>$line->[3],    
+                                 precision=>$line->[4], 
+                                 null=>$line->[5],          
+                                 default=>$line->[6],   
                                };
       };
     return( \%ret );
   }
 
+#=============================================================
+# relations: primary, foreign, resident keys
+#=============================================================
+  
 #-------------------------------------------------------------
-
+# primary key
+#-------------------------------------------------------------
 
 sub primary_keys
 # EXPORTED function
@@ -688,6 +852,10 @@ sub primary_keys
     
   }
   
+#-------------------------------------------------------------
+# foreign-key 
+#-------------------------------------------------------------
+
 sub foreign_keys
 # EXPORTED function
 # column-names are in UPPER CASE
@@ -756,6 +924,10 @@ sub foreign_keys
 
     return( \%foreign_keys);
   }
+
+#-------------------------------------------------------------
+# resident-key
+#-------------------------------------------------------------
 
 sub resident_keys
 # EXPORTED function
@@ -850,235 +1022,16 @@ sub resident_keys
     return( \%resident_keys);
   }
 
-sub object_is_table
-# EXPORTED function
-# return 1 when it is a table
-  { my($dbh,$table_name,$user_name)= @_;
+#=============================================================
+# relations: dependent and referenced objects 
+#=============================================================
 
-    $table_name= lc($table_name);
+#-------------------------------------------------------------
+# object-dependencies
+#-------------------------------------------------------------
 
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    load_object_dict($dbh,$user_name);
-
-#print Dumper($r_db_objects);
-    $table_name= add_schema($dbh,$table_name);
-
-    my $data= $r_db_objects->{$table_name};
-    if (!defined $data)
-      { dbwarn($mod_l,'object_is_table',__LINE__,
-               "object $table_name is unknown");
-        return;       
-      };
-
-    return($data->[0] eq 'T');
-  }
-
-
-  
-  
-sub sql_parse
-# INTERNAL to dbdrv_pg!!!
-# builds kind of a parse-tree, a list 
-# with embedded lists
-# recognizes numbers and strings starting with "'"
-  { my($str,$r_list)= @_;
- 
-
-    #print "SQLPARSE:$str\n";
-    my $ch;
-    while($str=~/\G([+-]?\d+(?:\.\d+(?:[eE][+-]?\d+|)|)| # number
-                    \w+\.\"[^\"]*?\"| # for: pr."type" 
-                    [\w\.]+|       # token
-                    \s+|           # spaces
-                    \(|            # opening bracket
-                    \)|            # closing bracket
-                    \'[^\']*?\'|   # string
-                    \"[^\"]*?\"|   # Postgres-string ?
-                    ::|            # 
-                    .)/gx)         # arbitrary single character
-      { $ch= substr($1,0,1);
-        if ($ch eq "\'")
-          { 
-            push @$r_list,$1;
-            next;
-          };
-        if ($ch=~ /\s/)
-          { next; };
-        if ($ch eq '(')
-          { my $curpos= pos($str);
-            my @n;
-            push @$r_list,\@n;
-            $curpos+= sql_parse(substr($str,$curpos),\@n);
-            pos($str)= $curpos;
-            next;
-          };
-        if ($ch eq ')')
-          { 
-            return(pos($str)); 
-          };
-        push @$r_list,$1;
-      };        
-  }        
-
-sub scan_FROM
-  { my($dbh,$r_list,$r_objs,$r_known_objs)= @_;
-    my $from_found;
-    my $obj_found;
-  
-
-    #print "SCAN FROM *************************************\n";
-    foreach my $elm (@$r_list)
-      { if (ref($elm))
-          { scan_FROM($dbh,$elm,$r_objs,$r_known_objs); 
-            next;
-          };
-        if (!$from_found)
-          { next if (uc($elm) ne 'FROM');
-            $from_found=1;
-            #print "FROM found, list: ",join("|",@$r_list),"\n"; 
-            next;
-          };
-        if ($elm=~ /\b(WHERE|ORDER|ON|UNION|SELECT|AS|pr)\b/i)
-          { $from_found=0;
-            $obj_found=0;
-            next;
-          };
-        if ($elm=~ /\bpr\b/i)
-        # pr() seems to be a special function that sometimes
-        # appears in the FROM part
-          { next;
-          };
-        if (!$obj_found)
-          { 
-            #print "test $elm...\n";      
-            $elm= add_schema($dbh,$elm);
-            if (!exists $r_known_objs->{$elm})
-              { next; };
-
-            $r_objs->{$elm}=1;
-            #print "PUSHED: $elm\n";
-            $obj_found=1;
-            # ^^^ needed in order to
-            # ignore table aliases
-            next;
-          }
-        else
-          { if ($elm eq ',')
-              { $obj_found=0; 
-                #print "COMMA FOUND\n";
-                next;
-              };
-            next;
-          };
-      };
-  }  
-
-sub query_limit_rows_str
-# limit number of returned rows in a query
-  { my($no)= @_;
-    return("LIMIT $no","add_before_where");
-  }
-
-sub get_help_topic
-  { my($dbh)= @_;
-    return;
-  }
-  
-sub check_existence
-  { my($dbh,$table_name,$user_name)= @_;
-
-    my($schema,$obj)= check_exists($dbh,$user_name,$table_name);
-    return(defined $schema);
-  }
-
-sub accessible_objects
-  { my($dbh,$user_name,$types,$access)= @_;
-    my %known_types= (table => 'T', view => 'V');
-    my %known_acc  = map { $_ =>1 } qw( user public );
-    my %types;
-    my %access;
-
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    if (!defined $types)
-      { %types= (T=>1); }
-    else
-      { $types= lc($types);
-        my @types= split(",",$types);
-        foreach my $t (@types)
-          { my $c= $known_types{$t};
-            if (!defined $c)
-              { dberror($mod_l,'accessible_objects',__LINE__,
-                    "unknown object type: $t");
-                return;
-              };
-            $types{$c}=1;
-          };
-      };
-
-    load_object_dict($dbh,$user_name);
-    my @keys= keys %$r_db_objects;
-
-#print Dumper(\%types);
-
-    if ((!exists $types{T}) || (!exists $types{V}))
-      { # there are only tables and views, so only if not BOTH
-        # are wanted, we have to filter
-        if (exists $types{T})
-          { @keys= grep { $r_db_objects->{$_}->[0] eq 'T' } @keys; }
-        else
-          { @keys= grep { $r_db_objects->{$_}->[0] eq 'V' } @keys; };
-      };
-
-
-    if (!defined $access)
-      { %access= ("public" => 1); }
-    else
-      { $access= lc($access);
-        %access= map { $_ => 1} split(",",$access);
-        foreach my $t (keys %access)
-          { if (!exists $known_acc{$t})
-              { dberror($mod_l,'accessible_objects',__LINE__,
-                    "unknown object access type: $t");
-                return;
-              };
-          };
-      };
-
-    my @result;
-
-    if (exists $access{public})
-      { # filter all objects that are readable
-        push @result,
-             grep { ($r_db_objects->{$_}->[2]) &&
-                    ($r_db_objects->{$_}->[1] ne $user_name) 
-                  } @keys;
-      };
-
-    if (exists $access{user})
-      { push @result,
-             grep { $r_db_objects->{$_}->[1] eq $user_name } @keys;
-      };
-
-    #warn join("|",@result) . "\n";
-
-#@@@@@@@@@@@@@@@canonify
-    @result= 
-         map { canonify_name($dbh,$user_name,$_,$r_db_objects->{$_}->[1]) 
-             } @result; 
-    # remove "schemaname" if possible
-
-#print Dumper(\@result);
-
-    return(sort @result);
-  }
-
-      
 sub object_dependencies
+# EXPORTED
 # read the owner, name and of dependend objects
 # type is either "TABLE" or "VIEW"
   { my($dbh,$table_name,$user_name)= @_;
@@ -1143,8 +1096,180 @@ sub object_dependencies
     return(@dependents);
   }  
 
+# INTERNAL-------------------
+
+sub sql_parse
+# INTERNAL to dbdrv_pg!!!
+# builds kind of a parse-tree, a list 
+# with embedded lists
+# recognizes numbers and strings starting with "'"
+  { my($str,$r_list)= @_;
+ 
+
+    #print "SQLPARSE:$str\n";
+    my $ch;
+    while($str=~/\G([+-]?\d+(?:\.\d+(?:[eE][+-]?\d+|)|)| # number
+                    \w+\.\"[^\"]*?\"| # for: pr."type" 
+                    [\w\.]+|       # token
+                    \s+|           # spaces
+                    \(|            # opening bracket
+                    \)|            # closing bracket
+                    \'[^\']*?\'|   # string
+                    \"[^\"]*?\"|   # Postgres-string ?
+                    ::|            # 
+                    .)/gx)         # arbitrary single character
+      { $ch= substr($1,0,1);
+        if ($ch eq "\'")
+          { 
+            push @$r_list,$1;
+            next;
+          };
+        if ($ch=~ /\s/)
+          { next; };
+        if ($ch eq '(')
+          { my $curpos= pos($str);
+            my @n;
+            push @$r_list,\@n;
+            $curpos+= sql_parse(substr($str,$curpos),\@n);
+            pos($str)= $curpos;
+            next;
+          };
+        if ($ch eq ')')
+          { 
+            return(pos($str)); 
+          };
+        push @$r_list,$1;
+      };        
+  }        
+
+sub scan_FROM
+# INTERNAL to dbdrv_pg!!!
+  { my($dbh,$r_list,$r_objs,$r_known_objs)= @_;
+    my $from_found;
+    my $obj_found;
+  
+
+    #print "SCAN FROM *************************************\n";
+    foreach my $elm (@$r_list)
+      { if (ref($elm))
+          { scan_FROM($dbh,$elm,$r_objs,$r_known_objs); 
+            next;
+          };
+        if (!$from_found)
+          { next if (uc($elm) ne 'FROM');
+            $from_found=1;
+            #print "FROM found, list: ",join("|",@$r_list),"\n"; 
+            next;
+          };
+        if ($elm=~ /\b(WHERE|ORDER|ON|UNION|SELECT|AS|pr)\b/i)
+          { $from_found=0;
+            $obj_found=0;
+            next;
+          };
+        if ($elm=~ /\bpr\b/i)
+        # pr() seems to be a special function that sometimes
+        # appears in the FROM part
+          { next;
+          };
+        if (!$obj_found)
+          { 
+            #print "test $elm...\n";      
+            $elm= add_schema($dbh,$elm);
+            if (!exists $r_known_objs->{$elm})
+              { next; };
+
+            $r_objs->{$elm}=1;
+            #print "PUSHED: $elm\n";
+            $obj_found=1;
+            # ^^^ needed in order to
+            # ignore table aliases
+            next;
+          }
+        else
+          { if ($elm eq ',')
+              { $obj_found=0; 
+                #print "COMMA FOUND\n";
+                next;
+              };
+            next;
+          };
+      };
+  }  
+
+sub view_dependencies
+# INTERNAL to dbdrv_pg!!!
+  { my($dbh,$username)= @_;
+
+    return if ($view_dependencies_examined);
+    
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    my $SQL= "SELECT * from pg_views WHERE " .
+             "has_table_privilege(schemaname || '.' || viewname,'select')";
+             
+    # returns schemaname, viewname, viewowner, description
+
+    my $res= $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res)
+      { dberror($mod_l,'view_dependencies',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return if ($#$res<0);
+
+    # first we need a list of all tables and views
+    # (and also schemaname.objectname)
+    load_object_dict($dbh,$username);
+
+#print Dumper($r_all);
+#die;
+
+    #my %viewrefs;
+    my $n;
+    foreach my $line (@$res)
+      { my @parse_tree;
+        my %referenced;
+        sql_parse($line->[3],\@parse_tree);
+        scan_FROM($dbh,\@parse_tree,\%referenced,$r_db_objects);
+
+        next if (!%referenced);
+        
+        $n= $line->[0] . "." . $line->[1];
+        
+        # store information in data-dictionary
+        $r_db_objects->{$n}->[3]= [sort keys %referenced];
+          
+        foreach my $obj (keys %referenced)
+          { push @{ $r_db_objects->{$obj}->[4] }, $n; };  
+
+        # in $r_db_objects: [3]: referenced objects
+        #                   [4]: referencing objects
+        #  --> but only with respect to views, no information
+        #      about foreign-key relations!!
+                
+        #$viewrefs{$line->[0] . "." . $line->[1]}= \%referenced;
+        #print Dumper(\@parse_tree);
+        #print "-" x 20,"\n";
+        #print Dumper(\%referenced);
+        #die;
+      };
+    #print Dumper(\%viewrefs);  
+
+    #print Dumper($r_db_objects);
+
+    $view_dependencies_examined=1;
+
+  };
+
+#-------------------------------------------------------------
+# object-references
+#-------------------------------------------------------------
+
 sub object_references
-# INTERNAL
+# EXPORTED
 # read the owner, name  and of referenced objects
   { my($dbh,$table_name,$user_name)= @_;
     my($full_name,$table_owner,$table,$schema);
@@ -1209,24 +1334,28 @@ sub object_references
     return(@referenced);
   }
 
+#-------------------------------------------------------------
+# object-addicts
+#-------------------------------------------------------------
+
 sub object_addicts
-# INTERNAL
+# EXPORTED
 # read all constraints and triggers for the given object
   { my($dbh,$table_name,$user_name)= @_;
 
     return();
   }
 
-sub script_addicts
-# INTERNAL
-# read all constraints and triggers for the given object
-  { my($dbh,$table_name,$user_name)= @_;
+#=============================================================
+# definitions of views, triggers and scripts
+#=============================================================
 
-    return();
-  }
+#-------------------------------------------------------------
+# read viewtext
+#-------------------------------------------------------------
 
 sub read_viewtext
-# INTERNAL
+# EXPORTED
 # read the text of a view
   { my($dbh,$table_name,$user_name)= @_;
     my($full_name,$table_owner,$table,$schema);
@@ -1266,17 +1395,24 @@ sub read_viewtext
     return( $text );
   }
 
+#-------------------------------------------------------------
+# read checktext
+#-------------------------------------------------------------
 
 sub read_checktext
-# INTERNAL
+# EXPORTED
 # read the name, condition of a check constraint
   { my($dbh,$constraint_name,$table_owner)= @_;
 
     return;
   }
 
+#-------------------------------------------------------------
+# read triggertext
+#-------------------------------------------------------------
+  
 sub read_triggertext
-# INTERNAL
+# EXPORTED
 # reads the name, type, event, referer, clause, status
 # body and description of a trigger
   { my($dbh,$trigger_name,$table_owner)= @_;
@@ -1284,32 +1420,52 @@ sub read_triggertext
     return;
   }
 
+#-------------------------------------------------------------
+# read scripttext
+#-------------------------------------------------------------
+
 sub read_scripttext
-# INTERNAL
+# EXPORTED
 # read the name, type, text of a script
   { my($dbh,$constraint_name,$table_owner)= @_;
 
     return;
   }
 
-sub sql_request_to_hash
+#=============================================================
+# misc
+#=============================================================
+
+#-------------------------------------------------------------
+# online-help
+#-------------------------------------------------------------
+
+sub get_help_topic
+# EXPORTED
+  { my($dbh)= @_;
+    return;
+  }
+
+#-------------------------------------------------------------
+# string for row limitation
+#-------------------------------------------------------------
+
+sub query_limit_rows_str
+# EXPORTED
+# limit number of returned rows in a query
+  { my($no)= @_;
+    return("LIMIT $no","add_before_where");
+  }
+
+#-------------------------------------------------------------
+# misc internal functions
+#-------------------------------------------------------------
+
+sub type_to_typechar
 # internal
-  { my($dbh,$sql,$r_h)= @_;
-
-    sql_trace($sql) if ($sql_trace);
-
-    my $res=
-      $dbh->selectall_arrayref($sql);
-
-    if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
-    foreach my $line (@$res)
-      { $r_h->{$line->[0]}= 1;
-      };
-  };
+  { my($type)= @_;
+    return( $db_object_types{uc($type)});
+  }
 
 
 
