@@ -905,6 +905,40 @@ sub tk_main_window
         $DlgVwListbox->bind('<Double-1>' => $listbox_action);
         $r_glbl->{MainWindow}->{view_listbox_widget}=$DlgVwListbox;
 
+        # dialog view
+#        my $DlgScrListbox = $DlgScr->Scrolled(
+#                "Listbox",
+#                -scrollbars=>"oe",
+#                -width=>34,
+#                -selectmode=>"browse",
+#                -width=>0
+#        )->pack( %dlg_def_listbox, );
+#        $DlgScr->Label(
+#                -text=>"Script :",
+#        )->pack( %dlg_def_labentry, );
+#        my $DlgScrText = $DlgScr->Scrolled(
+#                "Text",
+#                -height=>5,
+#                -wrap=>"word",
+#                -width=>60
+#        )->pack( %dlg_def_labentry, );
+#
+#        $DlgScrListbox->
+#            bind('<Button-1>' =>
+#                 sub { $DlgScrOk->configure(-state=>"active");
+#                     }
+#                );
+#        $listbox_action = sub { 
+#												$script_name$DlgScrListbox->get($DlgScrListbox->curselection);
+#                        $DlgScrText->replace("1.0", "end", join("\n", read_scripttext($dbh, 
+#                            
+#                        tk_open_new_object($r_glbl, "view", $cond, $order);
+#                      };
+#
+#        $DlgScrListbox->bind('<Return>' => $listbox_action);
+#        $DlgScrListbox->bind('<Double-1>' => $listbox_action);
+#        $r_glbl->{MainWindow}->{view_listbox_widget}=$DlgScrListbox;
+
         # dialog sequel
         $DlgSQL->Label(
                 -text=>"History :",
@@ -1959,8 +1993,8 @@ sub make_table_window
     $Top->eventAdd('<<Quit>>' => '<Control-q>');
 
 ##
-    $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit_table, 
-                                         $r_glbl,$r_tbh,'close' 
+    $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit_table,
+                                         $r_glbl,$r_tbh,'close'
                                        ]
                   );
 
@@ -2032,8 +2066,8 @@ sub make_table_window
     my $MnDbase = $MnTop->Menu();
     my $MnPref  = $MnTop->Menu();
     my $MnEdit  = $MnTop->Menu();
-#    my $MnRela  = $MnTop->Menu();
     my $MnView  = $MnTop->Menu();
+    my $MnHelp  = $MnTop->Menu();
 
     $MnTop->add('cascade',
                 -label=> 'File',
@@ -2057,15 +2091,15 @@ sub make_table_window
                 -underline   => 0,
                 -menu=> $MnEdit
                 );
-#    $MnTop->add('cascade',
-#                -label=> 'Relations',
-#                -underline   => 0,
-#                -menu=> $MnRela
-#                );
     $MnTop->add('cascade',
                 -label=> 'View',
                 -underline   => 0,
                 -menu=> $MnView
+                );
+    $MnTop->add('cascade',
+                -label=> 'Help',
+                -underline   => 0,
+                -menu=> $MnHelp
                 );
 
     # configure file-menu:
@@ -2271,6 +2305,30 @@ sub make_table_window
     # configure view-menu:
     # create the sub-menue:
 
+    # switching between different contents
+    $r_tbh->{fastswitch}->{show} = 0;
+    $MnView->add('command',
+                -label=> 'Contenttable',
+                -underline=> 8,
+                -command=> [ \&cb_show_contenttable, $r_glbl, $r_tbh ],
+                );
+    $MnView->add('command',
+                -label=> 'Contentform',
+                -underline=> 8,
+                -command=> [ \&cb_show_contentform, $r_glbl, $r_tbh ],
+                );
+    $MnView->add('command',
+                -label=> 'Information',
+                -underline=> 1,
+                -command=> [ \&cb_show_objectinfo, $r_glbl, $r_tbh ],
+                );
+    $MnView->add('command',
+                -label=> 'Dependencies',
+                -underline=> 0,
+                -command=> [ \&cb_show_dependencies, $r_glbl, $r_tbh ],
+                );
+
+    $MnView->add('separator');
     $MnView->add('command',
                   -label=> 'sort rows',
                   -underline   => 0,
@@ -2292,7 +2350,7 @@ sub make_table_window
                );
 
         if ($r_tbh->{table_type} ne 'sql')
-        { $MnViewRela->add('command',
+                { $MnViewRela->add('command',
                         -label=> 'Add column map to file',
                         -underline   => 0,
                         -command =>
@@ -2300,7 +2358,7 @@ sub make_table_window
                                                     "$r_glbl->{dir}/$column_map_file");
                                 }
                         );
-        };
+                };
 
         $MnViewRela->add('command',
                     -label=> 'Add scroll-relation',
@@ -2334,29 +2392,16 @@ sub make_table_window
                   -variable => \$r_tbh->{fastbar}->{show},
                 );
 
-    my $MnViewInfo = $MnView->Menu();
-
-    $MnView->add('cascade',
-                -label=> 'Information',
-                -underline   => 0,
-                -menu=> $MnViewInfo
-               );
-
-        $MnViewInfo->add('command',
-                    -label=> 'Generig',
-                    -underline   => 0,
-                    -command => [\&tk_table_info, $r_glbl, $r_tbh],
-                    );
-        $MnViewInfo->add('command',
-                    -label=> 'Dump Object',
-                    -underline   => 0,
-                    -command => [\&tk_table_dump, $r_glbl, $r_tbh],
-                    );
-        $MnViewInfo->add('command',
-                    -label=> 'Dump dbitable',
-                    -underline   => 1,
-                    -command => [\&tk_dbitable_dump, $r_glbl, $r_tbh],
-                    );
+    $MnHelp->add('command',
+                  -label=> 'Dump Object',
+                  -underline   => 0,
+                  -command => [\&tk_table_dump, $r_glbl, $r_tbh],
+                );
+    $MnHelp->add('command',
+                  -label=> 'Dump dbitable',
+                  -underline   => 1,
+                  -command => [\&tk_dbitable_dump, $r_glbl, $r_tbh],
+                );
 
     foreach my $col (@{$r_tbh->{column_list}})
       { $MnViewHCol->add('checkbutton',
@@ -2370,7 +2415,6 @@ sub make_table_window
     if ($r_tbh->{fastbar}->{show})
       { &cb_build_fastbar ($r_glbl, $r_tbh); }
 
-
    # --------------------- fastpath widget
 
     $Top->bind('<Control-Enter>', sub { &cb_reload_db ($r_glbl, $r_tbh) } );
@@ -2379,43 +2423,90 @@ sub make_table_window
 
     $r_tbh->{fastbar}->{order}->bind('<Return>', sub { &cb_reload_db ($r_glbl, $r_tbh); } );
 
-   # --------------------- table widget
+    if ($r_tbh->{fastswitch}->{show} eq 1)
+      {
+        cb_show_contentform ($r_glbl, $r_tbh);
+      }
+    elsif ($r_tbh->{fastswitch}->{show} eq 2)
+      {
+        cb_show_objectinfo ($r_glbl, $r_tbh);
+      }
+    elsif ($r_tbh->{fastswitch}->{show} eq 3)
+      {
+        cb_show_dependencies ($r_glbl, $r_tbh);
+      }
+    else
+      {
+        cb_show_contenttable($r_glbl, $r_tbh);
+      }
 
+  }
+
+sub cb_build_fastbar
+  {
+    my($r_glbl, $r_tbh)= @_;
+    if ($r_tbh->{fastbar}->{show})
+      {
+        $r_tbh->{frame_top}->pack(-side=> "top",
+                    -fill=> "x",
+                    -anchor=> "nw",
+                    -before=>$r_tbh->{frame_down},
+                    -expand=> 0,);
+
+      }
+    else
+      {
+        $r_tbh->{frame_down}->packForget();
+        $r_tbh->{frame_top}->packForget();
+        $r_tbh->{frame_down}->pack(-side=>'top' ,
+                -fill=>'both',
+                -anchor=>'sw',
+                -expand=>'y');
+      }
+  }
+
+sub cb_show_contenttable
+  {
+    my($r_glbl, $r_tbh)= @_;
+    # --------------------- table widget
+
+    my $FrDn = $r_tbh->{'frame_down'};
+    $FrDn->packForget();
     $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
     $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
 
     my $Table= $FrDn->TableMatrix
     #my $Table= $FrDn->Spreadsheet
                                 (-command =>
-                                         [\&cb_put_get_val,
-                                          $r_tbh
-                                         ],
+                                        [\&cb_put_get_val,
+                                        $r_tbh
+                                        ],
                                 -usecommand=> 1,
                                 -browsecommand=>
                                         [\&cb_handle_browse,$r_glbl,$r_tbh],
-                                  #-coltagcommand =>\&coltag,
+                                #-coltagcommand =>\&coltag,
                                 -selecttitle=> 0,
                                 -titlerows => 1,
                                 -height =>5,
                                 -width  =>0,
                                 -cols => $r_tbh->{vis_column_no},
                                 -rows => $r_tbh->{row_no} + 1,
-                                                     # 1 more f.the heading
+                                                    # 1 more f.the heading
                                 -justify => "left",
                                 -colstretchmode => "all",
 #-colstretchmode => "none",
-                                  -rowstretchmode => "none", #"unset",
+                                -rowstretchmode => "none", #"unset",
 #-rowstretchmode => "unset",
                                 -selectmode=> 'extended',
-                                  #-flashmode=> 1,
-                                  #-width => $dbi_column_no,
-                                 );
+                                #-flashmode=> 1,
+                                #-width => $dbi_column_no,
+                                );
 
     $r_tbh->{table_widget}= $Table;
 
     $Table->activate("1,0"); # one cell must be activated initially,
-                             # otherwise index('active') produces a
-                             # Tk Error, when it is used
+                            # otherwise index('active') produces a
+                            # Tk Error, when it is used
 
     table_window_set_column_width($r_tbh);
 
@@ -2424,14 +2515,14 @@ sub make_table_window
     $Table->grid(-row=>0, -column=>0, -sticky=> "nsew");
 
     my $xscroll = $FrDn->Scrollbar(-command => ['xview', $Table],
-                                   -orient => 'horizontal',
-                                  )->grid(-row=>1, -column=>0, -sticky=> "ew");
+                                -orient => 'horizontal',
+                                )->grid(-row=>1, -column=>0, -sticky=> "ew");
 
     $Table->configure(-xscrollcommand => ['set', $xscroll]);
 
     my $yscroll = $FrDn->Scrollbar(-command => ['yview', $Table],
-                                   -orient => 'vertical',
-                                  )->grid(-row=>0, -column=>1, -sticky=> "ns");
+                                -orient => 'vertical',
+                                )->grid(-row=>0, -column=>1, -sticky=> "ns");
 
     BrowseDB::TkUtils::bind_scroll_wheel($Table);
 
@@ -2446,7 +2537,7 @@ sub make_table_window
 
     # create a tag for the primary key column
     $Table->tagConfigure('pk_cell', -foreground => 'blue');
-                         #-state => 'disabled');
+                        #-state => 'disabled');
 
     # create a tag for the foreign key column
     $Table->tagConfigure('fk_cell', -foreground => 'LimeGreen');
@@ -2481,29 +2572,29 @@ sub make_table_window
     my %column_popup;
 
     my $MnColPopup= $Table->Menu(-type=> 'normal', -tearoff=>0);
-    
+
     my $itemlabel= 'Sort by column';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnColPopup->add('command',
-                     -label=> $itemlabel,
-                     -command =>
+                    -label=> $itemlabel,
+                    -command =>
                         sub { tk_resort_and_redisplay(
                                     $r_tbh,
                                     $column_popup{current_col});
                             }
                     );
-    
+
     $itemlabel= 'Find in column';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnColPopup->add('command',
-                     -label=> $itemlabel,
-                     -command =>
+                    -label=> $itemlabel,
+                    -command =>
                         sub { tk_find_line("",
                                     $r_glbl, $r_tbh,
                                     $column_popup{current_col});
                             }
                     );
-    
+
     $itemlabel= 'Open/Raise foreign table';
     # this is by default disabled:
     push @{$colpopup_disable_lists{default}}    ,$itemlabel;
@@ -2511,33 +2602,33 @@ sub make_table_window
     push @{$colpopup_enable_lists{foreign_key}} ,$itemlabel;
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnColPopup->add('command',
-                     -label=> $itemlabel,
-                     -command =>
+                    -label=> $itemlabel,
+                    -command =>
                         sub { cb_open_foreign_table(
-                                     $r_glbl, $r_tbh,
-                                     $column_popup{current_col});
+                                    $r_glbl, $r_tbh,
+                                    $column_popup{current_col});
                             }
                     );
-    
+
     $itemlabel= 'Unhide all columns';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnColPopup->add('command',
-                     -label=> $itemlabel,
-                     -command =>
+                    -label=> $itemlabel,
+                    -command =>
                         sub { foreach my $c (@{$r_tbh->{column_list}})
                                 { $r_tbh->{displayed_cols}->{$c}=1; };
-                              cb_set_visible_columns($r_glbl, $r_tbh);
+                            cb_set_visible_columns($r_glbl, $r_tbh);
                             }
                     );
-    
+
     $itemlabel= 'Hide column';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnColPopup->add('command',
-                     -label=> $itemlabel,
-                     -command =>
+                    -label=> $itemlabel,
+                    -command =>
                         sub { my $c= $column_popup{current_col};
-                              $r_tbh->{displayed_cols}->{$c}=0;
-                              cb_set_visible_columns($r_glbl, $r_tbh);
+                            $r_tbh->{displayed_cols}->{$c}=0;
+                            cb_set_visible_columns($r_glbl, $r_tbh);
                             }
                     );
 
@@ -2545,54 +2636,54 @@ sub make_table_window
     $itemlabel= 'Column map';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnColPopup->add('cascade',
-                     -label=> $itemlabel,
-                     -menu => $MnColMap
+                    -label=> $itemlabel,
+                    -menu => $MnColMap
                     );
 
     # define the column-map sub-menu:
     $MnColMap->add('command',
-                   -label=> 'Define',
-                   -command =>
+                -label=> 'Define',
+                -command =>
                         sub { tk_define_col_map($r_glbl, $r_tbh,
-                                                 $column_popup{current_col}
+                                                $column_popup{current_col}
                                                 );
 
                             }
-                   );
+                );
     $MnColMap->add('command',
-                   -label=> 'Toggle map usage',
-                   -command =>
+                -label=> 'Toggle map usage',
+                -command =>
                         sub { my $col= $column_popup{current_col};
-                              my $f= $r_tbh->{col_map_flags}->{$col};
-                              my $g= $f;
-                              if ($f eq 'M')
+                            my $f= $r_tbh->{col_map_flags}->{$col};
+                            my $g= $f;
+                            if ($f eq 'M')
                                 { $g= 'N'; }
-                              else
+                            else
                                 { if (exists $r_tbh->{col_maps}->{$col})
                                     { $g= 'M'; };
                                 };
-                              if ($f ne $g)
+                            if ($f ne $g)
                                 { $r_tbh->{col_map_flags}->{$col}= $g;
-                                  # the following forces a redraw
-                                  my $Table= $r_tbh->{table_widget};
-                                  $Table->configure(
+                                # the following forces a redraw
+                                my $Table= $r_tbh->{table_widget};
+                                $Table->configure(
                                             -padx => ($Table->cget('-padx'))
-                                                   );
-                                  tk_rewrite_active_cell($r_tbh);
-                                  table_window_title_tags($r_tbh,
-                                                 $column_popup{current_col});
+                                                );
+                                tk_rewrite_active_cell($r_tbh);
+                                table_window_title_tags($r_tbh,
+                                                $column_popup{current_col});
                                 };
                             }
-                  );
+                );
     if ($r_tbh->{table_type} ne 'sql')
-      { $MnColMap->add('command',
-                       -label=> 'Add column map to file',
-                       -command =>
+    { $MnColMap->add('command',
+                    -label=> 'Add column map to file',
+                    -command =>
                             sub { add_to_local_column_maps($r_glbl,$r_tbh,
-                                                  "$r_glbl->{dir}/$column_map_file");
+                                                "$r_glbl->{dir}/$column_map_file");
                                 }
-                      );
-      };
+                    );
+    };
 
     $column_popup{popup_items} = $itemcnt;
     $column_popup{popup_item_h}= $r_itemhash;
@@ -2609,11 +2700,11 @@ sub make_table_window
     $itemcnt=0;
     $r_itemhash={};
     my %defpopup_disable_lists= ( default         => [] ,
-                                  write_protected => [],
+                                write_protected => [],
                                 );
     my %defpopup_enable_lists = ( foreign_key => [],
-                                  primary_key => [],
-                                  column_map  => [],
+                                primary_key => [],
+                                column_map  => [],
                                 );
 
     my $MnPopup= $Table->Menu(-type=> 'normal', -tearoff=>0);
@@ -2621,9 +2712,9 @@ sub make_table_window
     push @{$defpopup_disable_lists{write_protected}}, $itemlabel;
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                   -label=> $itemlabel,
-                   -command => [\&tk_field_edit, $r_glbl, $r_tbh],
-                 );
+                -label=> $itemlabel,
+                -command => [\&tk_field_edit, $r_glbl, $r_tbh],
+                );
 
 
     $itemlabel= 'New value from list';
@@ -2633,42 +2724,42 @@ sub make_table_window
     push @{$defpopup_enable_lists{column_map}} , $itemlabel;
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                   -label=> $itemlabel,
-                   -command => [\&tk_fk_select_dialog, $r_glbl, $r_tbh],
-                 );
+                -label=> $itemlabel,
+                -command => [\&tk_fk_select_dialog, $r_glbl, $r_tbh],
+                );
 
     $itemlabel= 'Edit all in selection';
     # this is disabled is the column is write-protected:
     push @{$defpopup_disable_lists{write_protected}}, $itemlabel;
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                   -label=> $itemlabel,
-                   -command => [\&tk_field_edit, $r_glbl, $r_tbh, 'selected'],
-                 );
+                -label=> $itemlabel,
+                -command => [\&tk_field_edit, $r_glbl, $r_tbh, 'selected'],
+                );
 
     $itemlabel= 'Copy';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                  -label=> $itemlabel,
-                  -command => [\&cb_copy_paste_field,
-                               $r_glbl, $r_tbh, 'copy'],
-                 );
+                -label=> $itemlabel,
+                -command => [\&cb_copy_paste_field,
+                            $r_glbl, $r_tbh, 'copy'],
+                );
 
     $itemlabel= 'Paste';
     # this is disabled is the column is write-protected:
     push @{$defpopup_disable_lists{write_protected}}, $itemlabel;
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                   -label=> $itemlabel,
-                   -command => [\&cb_copy_paste_field,
+                -label=> $itemlabel,
+                -command => [\&cb_copy_paste_field,
                                 $r_glbl, $r_tbh, 'paste'],
-                 );
+                );
 
     $itemlabel= 'Find in column';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                  -label=> $itemlabel,
-                  -command => [\&tk_find_line, "", $r_glbl, $r_tbh],
+                -label=> $itemlabel,
+                -command => [\&tk_find_line, "", $r_glbl, $r_tbh],
                 );
 
     $itemlabel= 'Select THIS as foreign key';
@@ -2678,9 +2769,9 @@ sub make_table_window
     push @{$defpopup_enable_lists{primary_key}} , $itemlabel;
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                   -label=> $itemlabel,
-                   -command => [\&cb_select, $r_glbl, $r_tbh],
-                 );
+                -label=> $itemlabel,
+                -command => [\&cb_select, $r_glbl, $r_tbh],
+                );
 
     $itemlabel= 'Open foreign table';
     # this is disabled by default:
@@ -2689,15 +2780,15 @@ sub make_table_window
     push @{$defpopup_enable_lists{foreign_key}} , $itemlabel;
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                  -label=> $itemlabel,
-                  -command => [\&cb_open_foreign_table, $r_glbl, $r_tbh],
+                -label=> $itemlabel,
+                -command => [\&cb_open_foreign_table, $r_glbl, $r_tbh],
                 );
 
     $itemlabel= 'Export selection';
     $r_itemhash->{$itemlabel}= $itemcnt++;
     $MnPopup->add('command',
-                  -label=> $itemlabel,
-                  -command => [\&cb_export_selection, $r_glbl, $r_tbh],
+                -label=> $itemlabel,
+                -command => [\&cb_export_selection, $r_glbl, $r_tbh],
                 );
 
     my %default_popup;
@@ -2712,9 +2803,9 @@ sub make_table_window
     $default_popup{popup_enable_lists} = \%defpopup_enable_lists;
 
     if ($r_tbh->{resident_there})
-      { $default_popup{popup_enable_lists}->{primary_key}=
-                             ['Select THIS as foreign key'];
-      };
+    { $default_popup{popup_enable_lists}->{primary_key}=
+                            ['Select THIS as foreign key'];
+    };
 
     $Table->bind('<3>',  [\&cb_popup_menu, $r_glbl, $r_tbh, Ev('@')]);
 
@@ -2727,36 +2818,163 @@ sub make_table_window
     #                      $r_glbl, $r_tbh, Ev('@')] );
 
     $Table->bind('<Control-plus>',  [\&cb_resize_col,
-                                  $r_glbl, $r_tbh, 'inc']);
+                                $r_glbl, $r_tbh, 'inc']);
     $Table->bind('<Control-minus>',  [\&cb_resize_col,
-                                  $r_glbl, $r_tbh, 'dec']);
+                                $r_glbl, $r_tbh, 'dec']);
 
 
     $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
 
+    $FrDn->pack(-expand=> 1, -fill=>'both', );
   }
 
-sub cb_build_fastbar
+sub cb_show_contentform
   {
     my($r_glbl, $r_tbh)= @_;
-    if ($r_tbh->{fastbar}->{show})
-      {
-        $r_tbh->{frame_top}->pack(-side=> "top",
-                    -fill=> "x",
-                    -anchor=> "nw",
-                    -before=>$r_tbh->{frame_down},
-                    -expand=> 0,);
+    # --------------------- table widget
 
-      }
-    else
-      {
-        $r_tbh->{frame_down}->packForget();
-        $r_tbh->{frame_top}->packForget();
-        $r_tbh->{frame_down}->pack(-side=>'top' ,
-                -fill=>'both',
-                -anchor=>'sw',
-                -expand=>'y');
-      }
+    $r_tbh->{frame_down}->packForget();
+
+    my $FrDn = $r_tbh->{'frame_down'};
+    $FrDn->packForget();
+    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
+    $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
+    $FrDn->pack(-expand=> 1, -fill=>'both', );
+}
+
+sub cb_show_objectinfo
+  {
+    my($r_glbl, $r_tbh)= @_;
+    # --------------------- object widget
+
+    my $FrDn = $r_tbh->{'frame_down'};
+    $FrDn->packForget();
+    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
+    $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
+
+    my $name= $r_tbh->{table_name};
+    my $dbh= $r_glbl->{dbh};
+
+    my $Text= $FrDn->Scrolled('Text',
+                -wrap=>'word',
+								-scrollbars=>"osoe",
+        )->pack(-expand=>1, -fill=>'both');
+		my $content = $r_tbh->{'cache'}->{'info'}; 
+		if (! defined($content))
+			{
+  		my $buffer;
+
+  		my $str;
+  		if    ($r_tbh->{table_type} eq 'table')
+    		{ $str= "object-type: table\n"; }
+  		elsif ($r_tbh->{table_type} eq 'view')
+    		{ $str= "object-type: view\n"; }
+  		elsif ($r_tbh->{table_type} eq 'sql')
+    		{ $str= "object-type: arbitrary SQL statement\n"; }
+  		else
+    		{ $str= "object-type: unknown : $r_tbh->{table_type}\n"; }
+  		$content = $str;
+
+		#@@@@@@@@@@@@@@@@@@@@@@@
+		 my($object_name, $object_owner);
+		 if ($r_tbh->{table_type} ne 'sql')
+  		 { ($object_name, $object_owner)=
+        		dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
+      		foreach my $colname ( @ { $r_tbh->{'column_list'} } )
+        		{
+          		$content .= "\n\t$colname";
+				  		if ($r_tbh->{'col_map_flags'}->{$colname} eq 'Y')
+	    					{
+	      					$content .= " mapped";
+	    					};
+          		if (exists($r_tbh->{'pks_h'}->{$colname}))
+            		{
+              		$content .= "\n\t\tprimary key";
+            		};
+          		if (exists($r_tbh->{'foreign_key_hash'}->{$colname}))
+            		{
+									my ($ref_table, $ref_owner) = 
+										dbdrv::real_name($dbh, 
+											$r_tbh->{'foreign_key_hash'}->{$colname}->[2],
+											$r_tbh->{'foreign_key_hash'}->{$colname}->[0]
+										);
+              		$content .= "\n\t\tforeign key ( " .
+										$ref_table.".".$r_tbh->{'foreign_key_hash'}->{$colname}->[1] .
+										" )";
+								};
+        		};
+
+      		my @dependents=
+            		dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+      		if (@dependents)
+        		{ $content .= "\n\ndependents:";
+          		foreach my $r_s (@dependents)
+            		{ 
+									$content .= "\n\t".sprintf("%s.%s (%s)\n",@$r_s);
+            		};
+        		};
+
+      		my @referenced=
+          		 dbdrv::object_references($dbh,$object_name,$object_owner);
+      		if (@referenced)
+        		{ $content .= "\n\nreferenced objects:\n\t";
+          		foreach my $r_s (@referenced)
+            		{ my $st= sprintf("%s.%s (%s)\n\t",@$r_s);
+              		$content .= $st;
+            		};
+							$content .= "\n";
+        		};
+    		};
+
+  		if ($r_tbh->{table_type} eq 'view')
+    		{
+      		my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
+      		$str= "\nSQL command of the view:\n" . $sql. "\n";
+      		$content .= $str;
+    		}
+  		elsif ($r_tbh->{table_type} eq 'table')
+    		{
+      		my @constraints_triggers=
+          		 dbdrv::object_addicts($dbh,$object_name,$object_owner);
+      		if (@constraints_triggers)
+        		{ $content .= "\nconstraints/triggers:\n";
+          		foreach my $r_s (@constraints_triggers)
+            		{ # caution: name,owner,type here!
+              		$content .= "\n\t".sprintf("%s.%s (%s)",$r_s->[1],$r_s->[0],$r_s->[2]);
+              		if ($r_s->[2] eq 'C')
+                		{ $content .= "\n\t\t{\n\t\t\t";
+                  		$content .= dbdrv::read_checktext($dbh,
+                          		$r_s->[0], $r_s->[1]);
+                  		$content .= "\n\t\t}\n";
+                		}
+            		};
+        		};
+
+    		};
+
+  		my $dbitable= $r_tbh->{dbitable};
+  		$str= "\n\nSQL command: " . $r_tbh->{dbitable}->{_fetch_cmd};
+
+  		$content .=  $str;
+
+				$r_tbh->{'cache'}->{'info'} = $content;
+			};
+		$Text->delete('1.0', 'end');
+		$Text->insert('end', $content);
+    $FrDn->pack(-side=>'top', -expand=>1, -fill=>'both');
+  }
+
+sub cb_show_dependencies
+  {
+    my($r_glbl, $r_tbh)= @_;
+    # --------------------- object widget
+
+    my $FrDn = $r_tbh->{'frame_down'};
+    $FrDn->packForget();
+    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
+    $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
+    $FrDn->pack(-expand=> 1, -fill=>'both', );
+
   }
 
 sub cb_close_window

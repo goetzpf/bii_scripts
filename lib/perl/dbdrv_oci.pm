@@ -907,6 +907,48 @@ sub object_addicts
     return( @$res_r );
   }
 
+sub script_addicts
+# INTERNAL
+# read all scripts for the given object
+  { my($dbh,$script_name,$script_owner)= @_;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $script_name= uc($script_name);
+
+    if ($script_name =~ /\./)
+      { ($script_owner,$script_name)= split(/\./,$script_name); };
+
+    if (!defined $script_owner)
+      { ($script_name,$script_owner)=
+                    dbdrv::real_name($dbh,$script_owner,$script_name);
+      };
+
+    die if (!defined $script_owner); # assertion !
+
+    my $SQL= "select NAME, OWNER, TYPE" .
+                " from ALL_SOURCE" .
+                " where OWNER = \'$script_owner\'" .
+                " GROUP BY owner, type, name";
+
+#warn "$SQL\n";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+#print Dumper($res_r),"\n";
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_object_addicts',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( @$res_r );
+  }
+
 sub read_viewtext
 # INTERNAL
 # read the text of a view
@@ -1026,7 +1068,40 @@ sub read_triggertext
     return( @$res_r );
   }
 
+sub read_scripttext
+# INTERNAL
+# reads the name, type, text 
+  { my($dbh,$script_name,$table_owner)= @_;
 
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $script_name= uc($script_name);
+
+    if ($script_name =~ /\./)
+      { ($script_owner,$script_name)= split(/\./,$script_name); };
+
+    die if (!defined $script_owner); # assertion !
+
+    my $SQL= "select OWNER, NAME, TYPE, TEXT" .
+                   " from ALL_SOURCE AS where" .
+                   " AS.NAME=\'$script_name\' AND " .
+                   " AT.OWNER=\'$script_owner\'" .
+									 " ORDER BY LINE ASC";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_read_scripttext',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    return( @$res_r );
+  }
+	
 sub sql_request_to_hash
 # internal
   { my($dbh,$sql,$r_h)= @_;

@@ -1145,6 +1145,14 @@ sub object_addicts
     return();
   }
 
+sub script_addicts
+# INTERNAL
+# read all constraints and triggers for the given object
+  { my($dbh,$table_name,$table_owner)= @_;
+
+    return();
+  }
+
 sub read_viewtext
 # INTERNAL
 # read the text of a view
@@ -1184,6 +1192,7 @@ sub read_viewtext
     return( $text );
   }
 
+
 sub read_checktext
 # INTERNAL
 # read the name, condition of a check constraint
@@ -1201,6 +1210,13 @@ sub read_triggertext
     return;
   }
 
+sub read_scripttext
+# INTERNAL
+# read the name, type, text of a script
+  { my($dbh,$constraint_name,$table_owner)= @_;
+
+    return;
+  }
 
 sub sql_request_to_hash
 # internal
