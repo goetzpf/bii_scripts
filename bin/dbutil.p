@@ -74,8 +74,8 @@ if (!defined $opt_user)
       { ($opt_user,$opt_password)= split(":",$env); };
   };
 
-warn $opt_user;  
-warn $opt_password;  
+#warn $opt_user;  
+#warn $opt_password;  
 
 $parameters{user}    = $opt_user; 
 $parameters{password}= $opt_password; 
