@@ -163,8 +163,8 @@ sub new
                       )
                   { if (!$self->init_tableviewtype($newtype,@_))
                       { 
-		        return; 
-		      };
+                        return; 
+                      };
                   }
                 else
                   { dbdrv::dberror($mod,'new',
@@ -360,9 +360,9 @@ sub init_tableviewtype
     else
       { my $cmd= $self->{_fetch_cmd};
         $cmd=~ s/\bwhere.*//i;
-	$cmd.= " where rownum<2"; 
-	$sth= $dbh->prepare($cmd);
-      };	
+        $cmd.= " where rownum<2"; 
+        $sth= $dbh->prepare($cmd);
+      };        
       
     if (!$sth)
       { 
@@ -375,14 +375,14 @@ sub init_tableviewtype
       
     if ($proxy_patch)
       { if (!$sth->execute())
-	  {
+          {
             dbdrv::dbwarn($mod,'init_tableviewtype',__LINE__,
-                	 "execute failed, error-code: \n$DBI::errstr");
+                         "execute failed, error-code: \n$DBI::errstr");
             #dbdrv::dberror($mod,'init_tableviewtype',__LINE__,
             #               "prepare failed, error-code: \n$DBI::errstr");
             $sth->finish();
-	    return;
-	  };   
+            return;
+          };   
       };              
 
     my $colcount=0;
@@ -888,6 +888,14 @@ sub primary_keys
     
     if (!%options)
       { return(keys %{$self->{_lines}} ); };
+      
+    if ($options{order_native})
+      { my $pk_list= $self->{_native_pk_list};
+        if ((!defined $pk_list) || (!@$pk_list))
+          { return(keys %{$self->{_lines}} ); }
+        else
+          { return(@$pk_list); }
+      };
      
     $self->gen_sort_prepare(\%options);
 
@@ -1361,6 +1369,16 @@ sub load_from_db
       }; 
 
  
+    if (exists $options{order_by})
+      { $options{save_native_order}=1; };
+
+    my $save_native_order= $options{save_native_order};
+    my $r_native_pk_list;
+    if ($save_native_order)
+      { $r_native_pk_list= $self->get_array("_native_pk_list");
+      };
+    
+    
     if (exists $options{filter})
       { if ($self->{_type} ne 'table')
           { dbdrv::dberror($mod,'load_from_db',__LINE__,
@@ -1403,7 +1421,18 @@ sub load_from_db
                            "unsupported filter-type: $filter_type"); 
             return;          
           };
-      };          
+      }; 
+    if (exists $options{order_by})
+      { if ($self->{_type} ne 'table')
+          { dbdrv::dberror($mod,'load_from_db',__LINE__,
+                           "sorry, order-by is only " .
+                           "allowed for type \'table\'");
+            return;
+          };
+        $select_trailer.=" " if ($select_trailer);
+        $select_trailer.="ORDER BY " . $options{order_by};
+      }; 
+               
            
     if ($self->{_type} eq 'table')
       { $self->{_fetch_cmd}= "select * from $self->{_table} " .
@@ -1429,8 +1458,7 @@ sub load_from_db
       } 
     
     $r_lines= $self->get_hash("_lines");
-
-
+    
     my $r_aliases= $self->get_hash("_aliases");
     my $pk;
     
@@ -1444,12 +1472,17 @@ sub load_from_db
         %inserted = map { $_ => 1 } (keys %$r_lines); 
       };
     
+
+
     foreach my $rl (@$r) # for all lines than came from the DB
       { 
         if ($counter_pk)
           { $pk= $self->new_counter_key(); }
         else
           { $pk= compose_primary_key_str($r_pkis,$rl); };
+        
+        if ($save_native_order)
+          { push @$r_native_pk_list, $pk; };
         
         if ($mode ne 'set')
           {
@@ -1500,6 +1533,25 @@ sub load_from_db
           { $self->{_deleted}= \%deleted; };
       };  
       
+    if ($save_native_order)
+      { my @reversed_list= reverse @$r_native_pk_list;
+        my %h;
+        
+        my @new_list;
+        foreach my $k (@reversed_list)
+          { next if (exists $h{$k});
+            $h{$k}=1;
+            unshift @new_list,$k;
+          };
+          
+        foreach my $k (keys %$r_lines)
+          { next if (exists $h{$k});
+            unshift @new_list,$k;
+          };
+          
+        $self->{_native_pk_list}= \@new_list;  
+      };
+      
     return($self); 
   }     
 
@@ -1544,8 +1596,8 @@ sub delete_
 
     if (!$self->{_multi_pk}) # only one primary key column
       { my $sth= dbdrv::prepare(\$format,$dbh,
-                        	"delete from $self->{_table} " .
-                        	"where $r_pks->[0] = ? ");
+                                "delete from $self->{_table} " .
+                                "where $r_pks->[0] = ? ");
         if (!$sth)
           { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                            "prepare failed, error-code: \n$DBI::errstr");
@@ -1558,10 +1610,10 @@ sub delete_
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 $sth->finish;
-		return;
+                return;
               };         
           };
-	$sth->finish;   
+        $sth->finish;   
       }
     else
       {
@@ -1569,8 +1621,8 @@ sub delete_
         my @conditions= map { "$_ = ?" } (@$r_pks); 
         my $condition= join(" AND ",@conditions);
         my $sth= dbdrv::prepare(\$format,$dbh,
-                        	"delete from $self->{_table} " .
-                        	"where $condition ");
+                                "delete from $self->{_table} " .
+                                "where $condition ");
         if (!$sth)
           { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                            "prepare failed," .
@@ -1586,10 +1638,10 @@ sub delete_
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 $sth->finish;
-		return; 
+                return; 
               };         
           }; 
-	$sth->finish;   
+        $sth->finish;   
       };
 
     delete $self->{_deleted}; # all updates are finished
@@ -1645,7 +1697,7 @@ sub update
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 $sth->finish;  
-		return;
+                return;
               };
           }
       }
@@ -1660,7 +1712,7 @@ sub update
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 $sth->finish;  
-		return;
+                return;
               };
           }
       }
@@ -1737,7 +1789,7 @@ sub insert
                            "execute() returned an error," .
                            " error-code: \n$DBI::errstr");
             $sth->finish;  
-	    return;
+            return;
           };
       };
 
@@ -1799,14 +1851,14 @@ sub insert
                           "again and again, giving up, last DBI error\n" .
                           "message was: $DBI::errstr");
                         $sth->finish;  
-			return;  
+                        return;  
                       }
                     else
                       { dbdrv::dbwarn($mod,'insert',__LINE__,
                                  "execute() failed, errstring:\n" .
                                  $DBI::errstr); 
                         $sth->finish;  
-			return;  
+                        return;  
                       };
                   }
                 else
@@ -1816,8 +1868,8 @@ sub insert
               };
 
             $sth->finish;  
-	    
-	    # now change the primary key, retain the old one as an alias    
+            
+            # now change the primary key, retain the old one as an alias    
             $r_aliases->{$pk} = $max;    
             $r_aliases->{$max}= $max;    
             $lines->{$max}= $lines->{$pk};
@@ -2880,6 +2932,28 @@ of several columns forms the primary key.
 
 =item *
 
+"save_native_order"
+
+  $table->load(save_native_order=>1)
+
+This option can only be used for the type "table" or "view".
+In this case the order of the table-lines as they come from the
+database request is stored. This order of primary keys can later be
+requested by calling C<primary_keys()> with the option "order_native".
+
+=item *
+
+"order_by"
+
+  $table->load(order_by=> $sql_command)
+
+This is used to specify the "ORDER BY" part of the SQL "SELECT" 
+statement directly. Note that C<$sql_statement> must not contain 
+the words "ORDER BY" itself, dbitable adds this automatically.
+This option implies the option "save_native_order" (see above).
+
+=item *
+
 "mode"
 
   $table->load(mode=>'overwrite')
@@ -2899,8 +2973,9 @@ before new lines are loaded from the database.
 
  With "add", the lines from the database are added to the
 lines already in the table. Lines that were not loaded from the
-database are marked "inserted". Lines that found in the table already but
-are different from that in the database are marked "updated". 
+database are marked "inserted". Lines that found in the table 
+already but are different from that in the database are marked 
+"updated". 
 
 =item "overwrite"
 
@@ -3002,11 +3077,14 @@ This method exports to a table to a file using the csv format,
 which means comma separated value. The following options are
 known: 
 
+=over 4
+
 =item *
 
 "order_by"
 
-  $table->export_csv($filename, order_by=>[$column_name1,$column_name2])
+  $table->export_csv($filename, 
+                     order_by=>[$column_name1,$column_name2])
 
 This option can only be used for the type "file". It defines, wether lines
 should be sorted by certain colums. The value may be the name of a single 
@@ -3104,7 +3182,7 @@ are just mapped to columns of the destination that have the same name.
 
 =over 4
 
-=item std_database_handle
+=item std_database_handle()
 
   my $dbh= dbitable::std_database_handle();
   
@@ -3128,6 +3206,15 @@ The following options are known:
 
 =over 4
 
+=item native_order
+  
+  my @keys= $table->primary_keys(order_native=>1)
+  
+returns the primary keys just in the order they were returned
+from the database. Note that this only works when each C<load>
+command on the dbitable object had the option "save_native_order" 
+set.  
+
 =item order_by
 
   my @keys= $table->primary_keys(order_by=>[@column_names_list])
@@ -3148,7 +3235,7 @@ as "updated" or marked as "inserted".
 
 =back
 
-=item primary_key_columns ()
+=item primary_key_columns()
 
   my @pk_cols= $table->primary_key_columns()
  
@@ -3158,7 +3245,7 @@ a table may also have no primary key columns at all (see comments on
 primary keys at the start of this document). The function returns
 C<undef> in this case.
 
-=item primary_key_column_indices ()
+=item primary_key_column_indices()
 
   my @pk_col_indices= $table->primary_key_column_indices()
  
@@ -3168,9 +3255,9 @@ Note that a table may also have no primary key columns at all
 (see comments on primary keys at the start of this document). 
 The function returns C<undef> in this case.
 
-=item column_list ()
+=item column_list()
 
-  my @columns= $table->column_list ()
+  my @columns= $table->column_list()
  
 This method returns a list consisting of all column names
 in upper case. The columns have the same sort order as in
@@ -3183,7 +3270,7 @@ the oracle database.
 This method returns a hash that maps each column-name it's column-index.
 Columns are numbered starting with 0. 
 
-=item max_column_widths ()
+=item max_column_widths()
 
   my %columns= $table->max_column_widths($minwidth,$maxwidth)
  
@@ -3191,7 +3278,7 @@ This method returns a list that contains the maxmimum width for
 each column. It is guaranteed that the returned values are
 larger than C<$minwidth> and smaller than C<$maxwidth>.
 
-=item foreign_keys ()
+=item foreign_keys()
 
   my $r_foreign_keys= $table->foreign_keys()
  
@@ -3200,7 +3287,7 @@ containing two elements, the name of the foreign table and the
 column-name in the foreign table. Note that this function works only 
 for the type 'table'.
 
-=item resident_keys ()
+=item resident_keys()
 
   my $r_resident_keys= $table->resident_keys()
  
@@ -3450,7 +3537,8 @@ this little application.
 
   dbitable::connect_database($dbname,$user,$pass) or die;
   
-  my $tab= dbitable->new('table',"",'p_insertion','insertion_key')->load();
+  my $tab= dbitable->new('table',"",'p_insertion',
+                         'insertion_key')->load();
 
   my $ntab= $tab->new('file',"TEST.TXT","TEST-TAG")->store();
 
@@ -3479,7 +3567,8 @@ SQL commands to the screen, before they are executed.
 
   dbitable::connect_database($dbname,$user,$pass) or die;
   
-  my $tab= dbitable->new('table',"",'p_insertion','insertion_key')->load();
+  my $tab= dbitable->new('table',"",'p_insertion',
+                         'insertion_key')->load();
 
   $tab->add_line(NAME_KEY=> 1,
                  INTERNAL_NAME=> "XX",
