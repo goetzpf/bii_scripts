@@ -180,7 +180,7 @@ can then be used for further evaluation.
 B<parse()>
 
   my $r_templates= parse_subst::parse($st);
-  
+
 This function parses a given scalar variable that must contain a 
 complete substitution-file. It returns a reference to a hash, where 
 the parsed datais stored. 

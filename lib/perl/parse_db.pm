@@ -111,7 +111,7 @@ can then be used for further evaluation.
 =over 4
 
 =item *
- 
+
 B<parse()>
 
   my $r_records= parse_db::parse($st);
@@ -137,14 +137,14 @@ the perl undef-value.
 Example of a hash that parse() returns:
   
   $r_records= { 'UE52ID5R:BaseCmdHome' => 
-                   { 'TYPE' => 'sub',
-                     'FIELDS=> { 'PRIO' => 'LOW',
-		     		 'DESC' => 'subroutine',
-				 'HIGH' => ''
-			       }
+                   { 'TYPE'  => 'sub',
+                     'FIELDS'=> { 'PRIO' => 'LOW',
+		     		  'DESC' => 'subroutine',
+				  'HIGH' => ''
+			        }
                    } 
 	      }
- 
+
 =head1 AUTHOR
 
 Goetz Pfeiffer,  goetzp@gmx.net
