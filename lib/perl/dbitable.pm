@@ -20,7 +20,7 @@ BEGIN {
 	   import DBI;
 	 };
       };
-use dbdrv;      
+use dbdrv 1.1;      
       
 use Data::Dumper;
 use Text::Wrap;
@@ -30,7 +30,7 @@ use Cwd;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.9';
+our $VERSION     = '2.0';
 
 our $export_version= "1.0";
 
@@ -252,7 +252,9 @@ sub init_tableviewtype
 		 
     
     if ($type eq 'table')
-      { if (!dbdrv::check_existence($dbh,$table))
+      { my $user;
+        $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
+        if (!dbdrv::check_existence($dbh,$table,$user))
           { $last_error= "table \"$table\" doesn\'t exist"; 
             return;
           };
