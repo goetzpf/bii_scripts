@@ -27,6 +27,7 @@ use Tk::ROText;
 use Tk::BrowseEntry;
 use Tk::Listbox;
 use Tk::FileSelect;
+#use Tk::Balloon;
 
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
@@ -43,7 +44,7 @@ use dbdrv 1.2;
 use dbitable 2.1;
 
 use Data::Dumper;
-my $VERSION= "0.91";
+my $VERSION= "0.92";
 
 our %save; # global configuration variable
 
@@ -251,9 +252,9 @@ sub tk_main_window
     my $MnTop= $Top->Menu(-type=>'menubar');
 
     my $MnFile   = $MnTop->Menu();
-    my $MnDb   = $MnTop->Menu();
+    my $MnDb     = $MnTop->Menu();
     my $MnWindow = $MnTop->Menu();
-    my $MnHelp = $MnTop->Menu();
+    my $MnHelp   = $MnTop->Menu();
 
     $r_glbl->{menu_windows_widget} = $MnWindow;
     $MnTop->add('cascade',
@@ -338,7 +339,9 @@ sub tk_main_window
     $MnDb->add('command',
                -label=> 'rollback',
                -state=> 'disabled',
-               -command=> sub { dbdrv::rollback($r_glbl->{dbh}); }
+               -command=> sub { dbdrv::rollback($r_glbl->{dbh}); 
+                                tk_reload_all_objects($r_glbl);
+                              }
               );
     $c_rollback_i= $MnDb->index('end');     
 
@@ -346,7 +349,7 @@ sub tk_main_window
     $MnDb->add('separator');
     $MnDb->add('command',
                -label=> 'Reload objects',
-               -command=> [\&tk_main_window_finish, $r_glbl]
+               -command=> [\&tk_reload_all_objects, $r_glbl]
               );
     $MnDb->add('command',
                -label=> 'show SQL commands',
@@ -459,19 +462,19 @@ sub tk_main_window
 
         $r_glbl->{table_browse_widget}=
              $DlgEnt->BrowseEntry(
-                            -label=>'please enter the table-name:',
-                            -labelPack=>=>[-side=>"left", -anchor=>"w"],
-                            -width=>34,
-                            -validate=> 'key',
+                          -label=>'please enter the table-name:',
+                          -labelPack=>=>[-side=>"left", -anchor=>"w"],
+                          -width=>34,
+                          -validate=> 'key',
 
-                            #-textvariable=>$r_glbl->{browse_val},
+                          #-textvariable=>$r_glbl->{browse_val},
 
-                            -validatecommand=> [ \&tk_handle_table_browse_entry,
-                                                 $r_glbl]
-                                     )->pack( %dlg_def_labentry);
+                          -validatecommand=> [ \&tk_handle_table_browse_entry,
+                                               $r_glbl]
+                                   )->pack( %dlg_def_labentry);
 
-        $r_glbl->{table_browse_widget}->bind('<Return>', sub
-                                { my $b= $r_glbl->{table_browse_button};
+        $r_glbl->{table_browse_widget}->bind('<Return>', 
+                            sub { my $b= $r_glbl->{table_browse_button};
                                   return if ($b->cget('-state') eq "disabled");
                                   tk_open_new_object($r_glbl, "table");
                                 }
@@ -652,7 +655,7 @@ sub tk_main_window
 
         $DlgSQLCommand->
             bind('<Control-Return>' =>
-                 sub { &tk_execute_new_query($r_glbl,
+                 sub { tk_execute_new_query($r_glbl,
                               $DlgSQLCommand->get('1.0', 'end')
                                             );
                      }
@@ -667,12 +670,17 @@ sub tk_main_window
 sub tk_set_busy
   { my($r_glbl,$val)= @_;
 
+    
     if (!$val)
-      { $r_glbl->{main_menu_widget}->Unbusy(-recurse => 1);
+      { if (--$r_glbl->{busy_count} <=0)
+          { $r_glbl->{busy_count}=0; 
+            $r_glbl->{main_menu_widget}->Unbusy(-recurse => 1);
+          };
         return;
       };
 
-    $r_glbl->{main_menu_widget}->Busy(-recurse => 1);
+    if ($r_glbl->{busy_count}++ <=0)
+      { $r_glbl->{main_menu_widget}->Busy(-recurse => 1); };
   }
 
 
@@ -807,9 +815,11 @@ sub tk_about
 
    my @text= ("$PrgTitle $VERSION",
                "written by Goetz Pfeiffer",
-               "for BESSY GmbH, Berlin, Adlershof",
+               "updated and improved by Patrick Laux",
+               "BESSY GmbH, Berlin, Adlershof",
                "Comments/Suggestions, please mail to:",
-               "pfeiffer\@mail.bessy.de"
+               "pfeiffer\@mail.bessy.de",
+               "laux\@mail.bessy.de",
              );
 
    my $h= $#text+1;
@@ -993,25 +1003,42 @@ sub tk_execute_new_query
     return $sqlquery;
 }
 
+sub tk_reload_all_objects
+# reloads all objects from the database
+  { my($r_glbl)= @_;
+  
+    my $r_all_tables= $r_glbl->{all_tables};
+    return if (!defined $r_all_tables); 
+    
+   tk_set_busy($r_glbl,1);
+
+    foreach my $table (keys %$r_all_tables)
+      { my $r_tbh= $r_all_tables->{$table};
+        cb_reload_db($r_glbl,$r_tbh);
+      };
+
+   tk_set_busy($r_glbl,0);
+
+  }
+  
+
 sub tk_sql_commands
   { my($r_glbl)= @_;
-   my $Main=$r_glbl->{main_widget};
-   my $Top= $Main->Toplevel(-background=>$BG);
-   #my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+  
+    my $r_text= tk_make_text_widget($r_glbl,"SQL command trace");
+    
+    my $Top= $r_text->{Top};
+    
+  
+    $r_glbl->{sql_commands_widget}= $r_text->{text_widget};
 
-   $Top->title("SQL command trace");
+    dbdrv::set_sql_trace_func(\&dbi_sql_trace);
+    $dbdrv::sql_trace=1;
 
-   my $text= $Top->Scrolled('Text');
-   $r_glbl->{sql_commands_widget}= $text;
-   $text->pack(-fill=>'both',expand=>'y');
-
-   dbdrv::set_sql_trace_func(\&dbi_sql_trace);
-   $dbdrv::sql_trace=1;
-
-   $Top->bind('<Destroy>', sub { $dbdrv::sql_trace=0;
-                                 dbdrv::set_sql_trace_func();
-                                delete $r_glbl->{sql_commands_widget};
-                              });
+    $Top->bind('<Destroy>', sub { $dbdrv::sql_trace=0;
+                                  dbdrv::set_sql_trace_func();
+                                  delete $r_glbl->{sql_commands_widget};
+                                });
   }
 
 sub dbi_sql_trace
@@ -2087,7 +2114,7 @@ sub make_table_window
                   -label=> 'Reload',
                   -accelerator => 'Meta+R',
                   -underline   => 0,
-                  -command => [\&cb_reload_db, $r_tbh],
+                  -command => [\&cb_reload_db, $r_glbl, $r_tbh],
                 );
 
 
@@ -2225,11 +2252,11 @@ sub make_table_window
                 );
     $MnView->add('command',
                   -label=> 'Dump Object',
-                  -command => [\&tk_table_dump, $r_tbh],
+                  -command => [\&tk_table_dump, $r_glbl, $r_tbh],
                 );
     $MnView->add('command',
                   -label=> 'Dump dbitable',
-                  -command => [\&tk_dbitable_dump, $r_tbh],
+                  -command => [\&tk_dbitable_dump, $r_glbl, $r_tbh],
                 );
 
     foreach my $col (@{$r_tbh->{column_list}})
@@ -2633,45 +2660,277 @@ sub tk_import_csv
 
 
 sub tk_dump_global
- { my($r_glbl)= @_;
+  { my($r_glbl)= @_;
 # ommit dumping the tables-structures completely
 
-   # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
+    my %glbl_copy;
+    foreach my $k (keys %$r_glbl)
+      { if ($k eq 'all_tables')
+          { my $r_t= $r_glbl->{$k};
+            foreach my $tab_name (keys %$r_t)
+              { $glbl_copy{all_tables}->{$tab_name}= "REF TO TABLE-HASH"; }
+            next;
+          };
+        $glbl_copy{$k}= $r_glbl->{$k};
+      };
 
-   $Top->title("Global Datastructure-Dump");
+    my $buffer;
 
-   my %glbl_copy;
-   foreach my $k (keys %$r_glbl)
-     { if ($k eq 'all_tables')
-         { my $r_t= $r_glbl->{$k};
-           foreach my $tab_name (keys %$r_t)
-             { $glbl_copy{all_tables}->{$tab_name}= "REF TO TABLE-HASH"; }
-           next;
-         };
-       $glbl_copy{$k}= $r_glbl->{$k};
-     };
+    rdump(\$buffer,\%glbl_copy,0);
 
-   my $text= $Top->Scrolled('Text');
-   my $buffer;
+    tk_make_text_widget($r_glbl,"global datastructure dump",\$buffer);
+    
+  }
 
-   rdump(\$buffer,\%glbl_copy,0);
+sub tk_make_text_widget
+  { my($r_glbl,$title,$r_content)= @_;
 
-   $text->insert('end',$buffer);
+    my %text;
+    
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
-   $text->pack(-fill=>'both',expand=>'y');
- }
+    $text{Top}= $Top;
+
+    $Top->title("$title");
+
+    my $text;
+    
+    my $MnTop= $Top->Menu(-type=>'menubar');
+    my $MnFile   = $MnTop->Menu();
+    my $MnSearch = $MnTop->Menu();
+    $MnTop->add('cascade',
+                -label=> 'File',
+                -accelerator => 'Meta+F',
+                -underline   => 0,
+                -menu=> $MnFile
+               );
+    $MnTop->add('cascade',
+                -label=> 'Search',
+                -accelerator => 'Meta+S',
+                -underline   => 0,
+                -menu=> $MnSearch
+               );
+
+    # configure File-menu:
+    my $fr_text_save= sub { tk_text_save($r_glbl,\%text); };
+    $Top->bind($Top,'<Control-s>'=> $fr_text_save);
+    $MnFile->add('command',
+               -label=> 'save',
+               -accelerator => 'Control-s',
+               -command=> $fr_text_save
+              );
+
+    # configure search-menu:
+    my $fr_text_search= sub { tk_text_search($r_glbl,\%text); };
+    $Top->bind($Top,'<Control-f>'=> $fr_text_search);
+    $MnSearch->add('command',
+                 -label=> 'find',
+                 -accelerator => 'Control-f',
+                 -command=> $fr_text_search
+              );
+
+
+    my $fr_text_search_next= 
+                     sub { tk_text_search_next($r_glbl,'next',\%text); };
+    $Top->bind($Top,'<Control-g>'=> $fr_text_search_next);
+    $MnSearch->add('command',
+                 -label=> 'find next',
+                 -accelerator => 'Control-g',
+                 -command=> $fr_text_search_next
+              );
+    
+    my $fr_text_search_prev=
+                    sub { tk_text_search_next($r_glbl,'prev',\%text); };
+    $Top->bind($Top,'<Shift-Control-G>'=> $fr_text_search_prev);
+    $MnSearch->add('command',
+                 -label=> 'find prev',
+                 -accelerator => 'Shift-Control-G',
+                 -command=> $fr_text_search_prev
+              );
+
+
+    $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
+
+    my $text_widget=  $Top->Scrolled('Text');
+
+    # ----------------------------------------------------
+    # special handling for Control Keyboard bindings:
+    # this is needed in order avoid that strange square chars 
+    # appear in the text-widget whenever control characters are
+    # pressed:
+    my $fr_delchar= sub{$text_widget->delete('insert - 1 char')};
+    
+    foreach my $key ('<Control-s>',
+                     # '<Control-f>', not on Ctrl-F!!
+                     '<Control-g>','<Shift-Control-G>')
+      { $text_widget->bind($key,$fr_delchar); };
+    # ----------------------------------------------------
+    
+    $text{text_widget}= $text_widget;
+    
+#    $text_widget->bind('<Control-s>'=> sub{ Tk->break(); } );
+#    $text_widget->bind('<Control-f>'=> sub{ Tk->break(); });
+#    $text_widget->bind('<Control-g>'=> sub{ Tk->break(); });
+#    $text_widget->bind('<Shift-Control-G>'=> sub{ Tk->break(); });
+    
+    $text_widget->insert('end',$$r_content) if (defined $r_content);
+
+    $text_widget->pack(-fill=>'both',expand=>'y');
+    
+    return(\%text);
+  }
+
+  
+sub tk_text_search
+  { my($r_glbl,$r_text)= @_;
+  
+    my $text= $r_text->{text_widget};
+    
+    my $Top= $r_text->{Top}->Toplevel(-background=>$BG);
+    
+    $r_text->{search_widget}= $Top;
+    
+    $Top->title("search");
+    
+    my $Entry= $Top->Entry(-textvariable => \$r_text->{search},
+                           -width=>20
+                          )->pack(-side=>'left',-fill=>'x',-expand=>'y');
+
+
+    $Entry->bind('<Return>', 
+                 sub {
+                       my $r= $text->search(-count=> \$r_text->{search_cnt},
+                                            $r_text->{search},'1.0' 
+                                           );
+                       if (!$r)
+                         { 
+                           $r_text->{search_widget}->destroy;
+                           delete $r_text->{search_widget};
+                           delete $r_text->{search};
+                           delete $r_text->{last_search};
+                           tk_err_dialog($r_glbl->{main_menu_widget},
+                                         "not found");
+                         }
+                       else
+                         { 
+                           $r_text->{last_found}= $r;
+                           $r_text->{last_search}= $r_text->{search};
+                           $text->see($r);
+                           $text->tagRemove('FOUNDTAG','1.0','end');
+                           $text->tagAdd('FOUNDTAG',
+                                         $r,
+                                         $r . '+ ' . $r_text->{search_cnt} .
+                                         ' chars');
+
+                           $text->tagConfigure('FOUNDTAG',-foreground=>'red');
+                           $r_text->{search_widget}->destroy;
+                           delete $r_text->{search_widget};
+                         };
+                     }
+                );
+                
+    $Top->bind('<Destroy>', 
+                 sub {
+                       delete $r_text->{search_widget};
+                       delete $r_text->{search};
+                     }
+                );
+
+    $Entry->focus();
+    
+    $Top->Popup(-popover    => 'cursor');
+
+  }
+
+sub tk_text_search_next
+  { my($r_glbl,$dir,$r_text)= @_;
+  
+    my $text= $r_text->{text_widget};
+    
+    if (!defined $r_text->{last_search})
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "no search string specified");
+        return;
+      }
+   
+   
+    my @args= (-count, \$r_text->{search_cnt});
+    my $from;
+    if ($dir eq 'next')
+      { $from= $r_text->{last_found} . '+ ' . 
+               $r_text->{search_cnt} . ' chars';
+      }
+    else
+      { push @args, '-backwards'; 
+        $from= $r_text->{last_found} . '- 1 chars';
+      };
+      
+    my $r= $text->search(@args,
+                         $r_text->{last_search},
+                         $from
+                        );
+    if (!$r)
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "not found");
+      };
+        
+        
+    $r_text->{last_found}= $r;
+    $text->see($r);
+    $text->tagRemove('FOUNDTAG','1.0','end');
+    $text->tagAdd('FOUNDTAG',
+                  $r,
+                  $r . '+ ' . $r_text->{search_cnt} .
+                  ' chars'
+                 );
+
+    $text->tagConfigure('FOUNDTAG',-foreground=>'red');         
+                                           
+  }
+ 
+    
+
+sub tk_text_save
+  { my($r_glbl,$r_text)= @_;
+  
+    my $Fs= $r_text->{Top}->FileSelect(
+                                        -defaultextension=> ".txt"
+                                      );
+
+    my $file= $Fs->Show();
+
+    # warn "filename: $file ";
+    return if (!defined $file);
+    
+    my $text= $r_text->{text_widget}->get('1.0','end');
+    local(*F);
+    if (!open(F, ">$file"))
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "unable to open $file for writing");
+        return; 
+      };
+    print F $text;
+    if (!close(F))    
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "error while closing $file");
+        return; 
+      };
+  }
+
 
 sub tk_table_info
  { my($r_glbl,$r_tbh)= @_;
    my $name= $r_tbh->{table_name};
 
-   # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_tbh->{table_widget}->Toplevel(-background=>$BG);
+   my $dbh= $r_glbl->{dbh};
 
-   $Top->title("$name:Object-Info");
+   tk_set_busy($r_glbl,1);
 
-   my $text= $Top->Scrolled('Text');
+   my $r_text= tk_make_text_widget($r_glbl,"$name:Object-Info");
+
+   my $text= $r_text->{text_widget};
+   
    my $buffer;
 
    my $str;
@@ -2685,98 +2944,111 @@ sub tk_table_info
      { $str= "object-type: unknown : $r_tbh->{table_type}\n"; }
    $text->insert('end',$str);
 
+#@@@@@@@@@@@@@@@@@@@@@@@
+
+   my($object_name, $object_owner);
+   if ($r_tbh->{table_type} ne 'sql')
+     { ($object_name, $object_owner)=
+          dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name}); 
+       
+       my @dependents= 
+              dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+       if (@dependents)
+         { $text->insert('end',"\ndependents:\n");
+           foreach my $r_s (@dependents)
+             { my $st= sprintf("%s.%s (%s)\n",@$r_s);         
+               $text->insert('end',$st);
+             };
+         };
+         
+       my @referenced=  
+             dbdrv::object_references($dbh,$object_name,$object_owner);
+       if (@referenced)
+         { $text->insert('end',"\nreferenced objects:\n");
+           foreach my $r_s (@referenced)
+             { my $st= sprintf("%s.%s (%s)\n",@$r_s);         
+               $text->insert('end',$st);
+             };
+         };
+         
+       my @constraints_triggers=        
+             dbdrv::object_addicts($dbh,$object_name,$object_owner);
+       if (@constraints_triggers)
+         { $text->insert('end',"\nconstraints/triggers:\n");
+           foreach my $r_s (@constraints_triggers)
+             { # caution: name,owner,type here!
+               my $st= sprintf("%s.%s (%s)\n",$r_s->[1],$r_s->[0],$r_s->[2]);
+               $text->insert('end',$st);
+               if ($r_s->[2] eq 'C')
+                 { $text->insert('end',"constraint-text:\n");
+                   my $st= dbdrv::read_checktext($dbh,
+                            $r_s->[0], $r_s->[1]);
+                   $text->insert('end',"$st\n");            
+                 }
+             };
+         };
+         
+         
+     };
+   
    my $dbitable= $r_tbh->{dbitable};
-   $str= "SQL command:\n" . $r_tbh->{dbitable}->{_fetch_cmd} . "\n";
+   $str= "\nSQL command:\n" . $r_tbh->{dbitable}->{_fetch_cmd} . "\n";
 
    $text->insert('end',$str);
    
    if ($r_tbh->{table_type} eq 'view')
-     { my $dbh= $r_glbl->{dbh};
-       my($object_name, $object_owner)=
-          dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
-
+     { 
 #warn "$object_name, $object_owner";
        my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
      
 #warn $sql;
 
-       $str= "SQL command of the view:\n" . $sql. "\n";
+       $str= "\nSQL command of the view:\n" . $sql. "\n";
        $text->insert('end',$str);
      };
 
    $text->pack(-fill=>'both',expand=>'y');
+
+   tk_set_busy($r_glbl,0);
+
  }
 
 sub tk_table_dump
- { my($r_tbh)= @_;
+ { my($r_glbl, $r_tbh)= @_;
    my $name= $r_tbh->{table_name};
 
-   # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_tbh->{table_widget}->Toplevel(-background=>$BG);
-
-   $Top->title("$name:Object-Dump");
-
-   my $text= $Top->Scrolled('Text');
    my $buffer;
-
    rdump(\$buffer,$r_tbh,0);
+   tk_make_text_widget($r_glbl,"$name:Object-Dump",\$buffer);
 
-   $text->insert('end',$buffer);
-
-   $text->pack(-fill=>'both',expand=>'y');
  }
 
 sub tk_dbitable_dump
- { my($r_tbh)= @_;
+ { my($r_glbl, $r_tbh)= @_;
    my $name= $r_tbh->{table_name};
    my $dbitable= $r_tbh->{dbitable};
 
-   # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_tbh->{table_widget}->Toplevel(-background=>$BG);
-
-   $Top->title("$name:DBITable-Dump");
-
-   my $text= $Top->Scrolled('Text');
-
    my $r_buffer= $dbitable->dump_s();
 
-   $text->insert('end',$$r_buffer);
+   tk_make_text_widget($r_glbl,"$name:DBITable-Dump",$r_buffer);
 
-   $text->pack(-fill=>'both',expand=>'y');
  }
 
 sub tk_object_dict_dump
  { my($r_glbl)= @_;
-
-   # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
-
-   $Top->title("object dictionary dump");
-
-   my $text= $Top->Scrolled('Text');
-
+ 
    my $r_buffer= dbdrv::dump_object_dict_s();
 
-   $text->insert('end',$$r_buffer);
+   tk_make_text_widget($r_glbl,"object dictionary dump",$r_buffer);
 
-   $text->pack(-fill=>'both',expand=>'y');
  }
 
 sub tk_r_object_dict_dump
  { my($r_glbl)= @_;
 
-   # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
-
-   $Top->title("reverse object dictionary dump");
-
-   my $text= $Top->Scrolled('Text');
-
    my $r_buffer= dbdrv::dump_r_object_dict_s();
 
-   $text->insert('end',$$r_buffer);
-
-   $text->pack(-fill=>'both',expand=>'y');
+   tk_make_text_widget($r_glbl,"reverse object dictionary dump",$r_buffer);
  }
 
 sub tk_wait_box
@@ -3743,10 +4015,12 @@ sub cb_store_db
 
 sub cb_reload_db
 # global variables used: NONE
- { my($r_tbh)= @_;
+ { my($r_glbl, $r_tbh)= @_;
 
    my $Table= $r_tbh->{table_widget};
 
+   tk_set_busy($r_glbl,1);
+   
    tk_remove_changed_cell_tag($r_tbh);
 
    $r_tbh->{dbitable}->load();
@@ -3758,6 +4032,8 @@ sub cb_reload_db
 
    # update the displayed content in the active cell:
    tk_rewrite_active_cell($r_tbh);
+
+   tk_set_busy($r_glbl,0);
 
    # the following would also force a redraw
    # $Table->configure(-padx => ($Table->cget('-padx')) );
@@ -4319,14 +4595,7 @@ __END__
 
 Verbesserungsvorschläge:
 
-* Multiple Selection (Tk::TableMatrix, -selectmode=>"extended"
-  dann: mehrere Felder gemeinsam auf einen Wert setzen
-
-* Kontextmenüs benutzen (Aktivieren mit rechter Maustaste)
-
 * (default für rechte Maustaste (bei Doppelclick rechts))
-
-* SQL-Trace: in File speichern
 
 * shortcut-anzeige (Meta-...) stimmt nicht
   (vielleicht nur auf HP-UX...)
@@ -4338,4 +4607,3 @@ Verbesserungsvorschläge:
 BUGS:
 
 
-window ".toplevel" was deleted before its visibility changed at /usr/local/lib/perl5/site_perl/5.8.1/i686-linux-thread-multi/Tk/Widget.pm line 917.
