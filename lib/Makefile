@@ -1,4 +1,4 @@
 .DEFAULT:
 
-all:
+install all:
 	$(MAKE) -C perl install

@@ -1,5 +1,5 @@
 .DEFAULT:
 
-default all build dirs install depends clean::
+all install clean::
 	$(MAKE) -C lib/perl $@
 	$(MAKE) -C src/perl $@
