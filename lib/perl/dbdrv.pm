@@ -918,13 +918,6 @@ It returns a hash of the following format
 This function returns all accessible public objects (tables and
 views) for a given user (C<$user_name>).
 
-=item dbdrv::full_name
-
-  my ($fullname)=full_name($short_name,$owner,$schema)
-
-This combines the given arguments and returns a full object-name
-with a "." inbetween the name-parts.
-
 =item dbdrv::real_name
 
   my ($name,$owner)=real_name($dbh,$user_name,$object_name)
