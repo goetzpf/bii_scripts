@@ -491,7 +491,7 @@ sub tk_main_window
         my $DlgTblListbox = $DlgTbl->Scrolled(
                 "Listbox",
                 -scrollbars=>"oe",
-                -width=>34,
+                #-width=>34,
                 -selectmode=>"browse",
                 -width=>0
         )->pack( %dlg_def_listbox );
@@ -1150,9 +1150,32 @@ sub tk_add_relation_dialog2
     conn_add($r_glbl,
              $r_tbh->{table_name},$my_col,
              $o_tab,$o_col);
-
+    
+    tk_mark_manual_foreign_key_col($r_tbh, $my_col);
+    #table_window_tag_columns($r_tbh);
+    
 # @@@@@@@@@@@@@@@@@@@@
   }
+
+sub tk_mark_manual_foreign_key_col
+  { my($r_tbh,$col_name)= @_;
+    
+   my $Table_Widget= $r_tbh->{table_widget};
+
+   # get column-indices of "green" columns
+   my @tagged_cols= $Table_Widget->tagCol('fk_cell');
+   
+   my $col= colname2col($r_tbh,$col_name);
+   
+   foreach my $i (@tagged_cols)
+     { if ($i==$col)
+         { # col is already tagged
+           return;
+         };
+     };
+   $Table_Widget->tagCol('m_fk_cell', $col );
+  }
+
 
 sub tk_references_dialog
   { my($r_glbl,$r_tbh)= @_;
@@ -1193,24 +1216,27 @@ sub tk_references_dialog
     my @lines;
 
     foreach my $col (@cols)
-      { push @lines,
-             sprintf("%-" . $maxcolsz . "s -> %s",$col,
-                     $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
-                    )
+      { my $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
+                                           $fkh->{$col}->[0],
+                                           $fkh->{$col}->[2]);
+        push @lines, 
+             sprintf("%-" . $maxcolsz . "s -> %s",$col,$fk_table);
+      
+#        push @lines,
+#             sprintf("%-" . $maxcolsz . "s -> %s",$col,
+#                     $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
+#                    )
       };
-    my $maxlnsz=0;
-    foreach my $l (@lines)
-      { $maxlnsz= length($l) if (length($l)>$maxlnsz); };
 
     my $listbox= $FrTop->Listbox(-selectmode => 'single',
-                                 -width=>$maxlnsz,
+                                 -width=>0,
                                  -height=> $#lines+1);
     foreach my $l (@lines)
       { $listbox->insert('end', $l); };
 
     $listbox->pack(-fill=>'both',-expand=>'y');
 
-    $listbox->bind('<Return>', 
+    $Top->bind('<Return>', 
                    sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
     $listbox->bind('<Double-1>', 
                    sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
@@ -1221,7 +1247,7 @@ sub tk_references_dialog
                                 delete $r_glbl->{foreign_key_cols} 
                                 });
 
-    $FrTop->Label(-text => 'double-click to open'
+    $FrTop->Label(-text => 'double-click to open table'
                  )->pack(-side=>'left' ,-fill=>'y');
  
     $r_glbl->{foreign_key_dialog_widget} = $Top;
@@ -1334,26 +1360,26 @@ sub tk_dependency_dialog
     my @resident_table_list= sort keys %resident_tables;
 
     my $max_height= 10;
-    my $max_width= 0;
-    foreach my $r (@resident_table_list)
-      { $max_width= length($r) if (length($r)>$max_width); };
-
-
+    
 #----------------------------------------------
 #    my %listbox_options= (-selectmode => 'single',
-#                          -width=>$max_width,
-#                          -height=> $max_height);
-#
-#    if ($#resident_table_list < $max_height)
+#                          -width=>0,
+#                          -height=> $max_height,
+#                         );
+
+#    if ($#resident_table_list > $max_height)
 #      {
 #        $listbox_options{-height}= $#resident_table_list + 1;
 #     };
 #
-#    my $listbox= $FrTop->Scrolled( 'Listbox1', %listbox_options );
+#    my $listbox= $FrTop->Scrolled( 'Listbox',
+#                                   -scrollbars=> 'e',
+#                                   %listbox_options );
+                                   
 #-------------------------------------------------
     my $listbox;
     my %listbox_options= (-selectmode => 'single',
-                          -width=>$max_width,
+                          -width=>0,
                           -height=> $max_height);
     if ($#resident_table_list>$max_height)
       { $listbox= $FrTop->Scrolled( 'Listbox', %listbox_options ); }
@@ -1361,6 +1387,7 @@ sub tk_dependency_dialog
       { $listbox_options{-height}= $#resident_table_list + 1;
         $listbox= $FrTop->Listbox(%listbox_options );
       };
+    $Top->resizable(1,0); # disable vertical resize
 
 #-------------------------------------------------
 
@@ -1369,8 +1396,9 @@ sub tk_dependency_dialog
 
     $listbox->pack(-fill=>'both',-expand=>'y');
 
-    $listbox->bind('<Return>', 
+    $Top->bind('<Return>', 
                    sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
+
     $listbox->bind('<Double-1>', 
                    sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
 
@@ -1390,7 +1418,9 @@ sub tk_dependency_dialog
 
 
     $FrTop->Label(-text => 'double-click to open'
-                 )->pack(-side=>'left' ,-fill=>'y');
+                 )->pack(-side=>'left' ,-fill=>'y',
+                 
+                         );
 
     $r_tbh->{dependency_dialog_top_widget}= $Top;
     $r_tbh->{dependency_dialog_listbox}   = $listbox;
@@ -2174,6 +2204,8 @@ sub make_table_window
     # configure view-menu:
     # create the sub-menue:
     my $MnViewSort = $MnView->Menu();
+
+
     $MnView->add('cascade',
                   -label=> 'Sort rows',
                   -accelerator => 'Meta+S',
@@ -2186,6 +2218,10 @@ sub make_table_window
                   -accelerator => 'Meta+H',
                   -underline   => 0,
                   -menu => $MnViewHCol
+                );
+    $MnView->add('command',
+                  -label=> 'info',
+                  -command => [\&tk_table_info, $r_glbl, $r_tbh],
                 );
     $MnView->add('command',
                   -label=> 'Dump Object',
@@ -2279,6 +2315,10 @@ sub make_table_window
 
     # create a tag for the foreign key column
     $Table->tagConfigure('fk_cell', -foreground => 'LimeGreen');
+                        # -state => 'disabled');
+
+    # create a tag for the manually added foreign key column
+    $Table->tagConfigure('m_fk_cell', -foreground => 'ForestGreen');
                         # -state => 'disabled');
 
 
@@ -2618,6 +2658,51 @@ sub tk_dump_global
    rdump(\$buffer,\%glbl_copy,0);
 
    $text->insert('end',$buffer);
+
+   $text->pack(-fill=>'both',expand=>'y');
+ }
+
+sub tk_table_info
+ { my($r_glbl,$r_tbh)= @_;
+   my $name= $r_tbh->{table_name};
+
+   # my $Top= MainWindow->new(-background=>$BG);
+   my $Top= $r_tbh->{table_widget}->Toplevel(-background=>$BG);
+
+   $Top->title("$name:Object-Info");
+
+   my $text= $Top->Scrolled('Text');
+   my $buffer;
+
+   my $str;
+   if    ($r_tbh->{table_type} eq 'table')
+     { $str= "object-type: table\n"; }
+   elsif ($r_tbh->{table_type} eq 'view')
+     { $str= "object-type: view\n"; }
+   elsif ($r_tbh->{table_type} eq 'sql')
+     { $str= "object-type: arbitrary SQL statement\n"; }
+   else
+     { $str= "object-type: unknown : $r_tbh->{table_type}\n"; }
+   $text->insert('end',$str);
+
+   my $dbitable= $r_tbh->{dbitable};
+   $str= "SQL command:\n" . $r_tbh->{dbitable}->{_fetch_cmd} . "\n";
+
+   $text->insert('end',$str);
+   
+   if ($r_tbh->{table_type} eq 'view')
+     { my $dbh= $r_glbl->{dbh};
+       my($object_name, $object_owner)=
+          dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
+
+#warn "$object_name, $object_owner";
+       my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
+     
+#warn $sql;
+
+       $str= "SQL command of the view:\n" . $sql. "\n";
+       $text->insert('end',$str);
+     };
 
    $text->pack(-fill=>'both',expand=>'y');
  }
@@ -3722,7 +3807,7 @@ sub tk_activate_cell
     if (!@pks)
       { tk_err_dialog($r_tbh->{table_widget},
                      "tk_activate_cell: table $r_tbh->{table_name}\n" .
-                     "col $colname, val $value not found");
+                     "col $colname, val \"$value\" not found");
         return;
       };
     if (scalar @pks !=1 )
@@ -4003,7 +4088,7 @@ sub conn_add
       };
 
     push @$r_list, $r_col;
-
+    
   }
 
 sub conn_delete_table
@@ -4148,20 +4233,22 @@ print join(" ",keys %save),"\n";
       { my $r_dat= $r_all_tables->{$tab};
       
         
-        my $r_tbh= make_table_hash_and_window(
+        $r_dat->{tbh}= make_table_hash_and_window(
                             $r_glbl,
                              table_name=>$tab,
                              table_type=>$r_dat->{table_type},
                              sequel=> $r_dat->{sql},
                              geometry=> $r_dat->{geometry},
                              displayed_cols => $r_dat->{displayed_cols}
-                                             );
+                                                 );
 
       };                                   
 
     
     foreach my $tab (keys %{$save{foreigners}})
-      { my $r_c= $save{foreigners}->{$tab};
+      { my $r_tbh= $r_all_tables->{$tab}->{tbh};
+                
+        my $r_c= $save{foreigners}->{$tab};
         foreach my $o_tab (keys %$r_c)
           { my $r_columns= $r_c->{$o_tab};
           
@@ -4170,6 +4257,9 @@ print join(" ",keys %save),"\n";
               { conn_add($r_glbl,
                          $tab,$r_columns->[$i],
                          $o_tab,$f_col);
+                
+                tk_mark_manual_foreign_key_col($r_tbh, $r_columns->[$i]);
+
               };
           };
       };
