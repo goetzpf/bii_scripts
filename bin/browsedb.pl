@@ -5,6 +5,8 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 
 use strict;
 
+use FindBin;
+
 # search dbitable.pm ralative to the location of THIS script:
 use lib "$FindBin::RealBin/../lib/perl";
 
@@ -17,7 +19,6 @@ use lib "$FindBin::RealBin/../lib/perl";
 #use lib "$ENV{HOME}/pmodules";
 #use perl_site;
 
-use FindBin;
 use Tk;
 use Tk::Menu;
 use Tk::Dialog;
@@ -163,9 +164,11 @@ sub tk_login_finish
   { my($r_glbl)= @_;
 
     my $db_handle;
-        if (defined($r_glbl->{dbh})) {
-                dbitable::disconnect_database($r_glbl->{dbh});
-        }
+    if (defined($r_glbl->{dbh})) 
+      { dbitable::disconnect_database($r_glbl->{dbh}); 
+        delete $r_glbl->{dbh};
+      };
+      
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -174,13 +177,13 @@ sub tk_login_finish
           { tk_err_dialog($r_glbl->{login_widget},
                           "opening of the database failed");
             return;
-              };
+          };
       };
     $r_glbl->{password}=~ s/./\*/g;
 
     $r_glbl->{dbh}= $db_handle;
 
-        tk_main_window_finish($r_glbl);
+    tk_main_window_finish($r_glbl);
 
   }
 
