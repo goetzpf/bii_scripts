@@ -45,7 +45,7 @@ my $PrgTitle= 'BrowseDB';
 
 my $sim_oracle_access=0;
 
-my $fast_test=0; # skip login dialog and open $fast_table
+my $fast_test=1; # skip login dialog and open $fast_table
 my $fast_table='p_insertion_value';
 
 my $db_table_name;
@@ -254,28 +254,42 @@ sub tk_main_window
 	}
 	else
 	{ $r_glbl->{new_table_name}= ""; };
-	my $DlgEntName = $DlgEnt->BrowseEntry(
-		-label=>'please enter the table-name:',
-		-labelPack=>=>[-side=>"left", anchor=>"w"],
-		-width=>34,
-		-text=>$r_glbl->{table_name},
-		-variable=>$r_glbl->{new_table_name},
-	)->pack( %dlg_def_labentry);
-	my $DlgEntOk = $DlgEnt->Button(
-		-state=>"disabled",
-		-text=>"Show",
-		-underline=>0,
-		-justify=>"center",
-		-command => [\&tk_open_new_table_finish, $r_glbl ],
-	)->pack( %dlg_def_okbutton,);
-	#$r_glbl->{table_dialog_widget}= $Top;
+	
+	my @ao= dbdrv::accessible_objects($r_glbl->{'dbh'},
+			    		  $r_glbl->{user}, 
+		                          "TABLE,VIEW", 
+					  "PUBLIC,USER");
+	
+	$r_glbl->{accessible_objects}= \@ao; # all tables and views as list
+	
+	$r_glbl->{table_browse_objs}= \@ao;     # for BrowseEntry widget
+	
+	$r_glbl->{table_browse_widget}= 
+	
+                        $DlgEnt->BrowseEntry(
+					       -label=>'please enter the table-name:',
+					       -labelPack=>=>[-side=>"left", anchor=>"w"],
+					       -width=>34,
+					       -validate=> 'key',
+					       
+					       #-textvariable=>$r_glbl->{browse_val},
+					       
+					       -validatecommand=> [ \&tk_handle_table_browse_entry,
+					       			    $r_glbl]
+					       
+					      )->pack( %dlg_def_labentry);
 
-	$DlgEntName->insert('end',
-		            dbdrv::accessible_objects($r_glbl->{'dbh'},
-			    			      $r_glbl->{user}, 
-		                                      "TABLE,VIEW", 
-					              "PUBLIC,USER"),
-	                   );
+	$r_glbl->{table_browse_widget}->insert('end', @{$r_glbl->{table_browse_objs}});
+
+	$r_glbl->{table_browse_button}= $DlgEnt->Button( -state=>"disabled",
+							 -text=>"Show",
+							 -underline=>0,
+							 -justify=>"center",
+							 -command => [\&tk_open_new_table_finish, 
+							               $r_glbl ],
+	)->pack( %dlg_def_okbutton,);
+	
+
 	# dialog tables
 	my $DlgTblListbox = $DlgTbl->Scrolled(
 		"Listbox",
@@ -283,6 +297,8 @@ sub tk_main_window
 		-width=>34,
 		-selectmode=>"single",
 	)->pack( %dlg_def_listbox );
+	
+	
 	my $DlgTblRowMin = $DlgTbl->LabEntry(
 		-label=>'Lowest Rownumber :',
 		-labelPack=>[-side=>"left", anchor=>"w"],
@@ -416,6 +432,59 @@ sub tk_about
    $Text->pack(-fill=>'both',expand=>'y');
  }
 
+sub tk_handle_table_browse_entry
+# action:1 insert 0: delete, -1: forced validation   
+  { my($r_glbl, $proposed, $chars_added, 
+       $value_before, $index, $action)= @_;
+    
+    my $returnval= 1;   
+    my $r_all_objects= $r_glbl->{accessible_objects};  
+    
+    # print join(",",$proposed, $chars_added,$value_before, $index, $action),"\n";
+
+    my @matches= grep { $_ =~ /^$proposed/ } (@$r_all_objects);
+
+    if (!@matches)
+      { # the table doesn't exist
+        return(0); 
+      };
+    
+    if ($#matches != $#{$r_glbl->{table_browse_objs}})
+      { #  $r_glbl->{table_browse_widget}->configure(-choices=>\@matches);
+	$r_glbl->{table_browse_widget}->delete(0,'end');
+	$r_glbl->{table_browse_widget}->insert('end', @matches);
+	$r_glbl->{table_browse_objs}= \@matches;
+      };	
+	
+    my $completion= same_start(\@matches);
+    if ((defined $completion) && ($action==1)) # action=1: insert
+      {
+	if (length($completion)>length($proposed))
+	  { 
+	    my $Entry= $r_glbl->{table_browse_widget}->Subwidget('entry');
+	    my $r_var= ($Entry->configure('-textvariable'))[4];
+	    $$r_var= $completion;
+	    $Entry->icursor('end');
+	    $returnval=0; # must return 0 since the value changed
+	    $proposed= $completion; 
+	  };
+      };
+
+    my @exact  = grep { $_ eq $proposed } (@$r_all_objects);
+    if ($#exact<0)
+      { $r_glbl->{table_browse_button}->configure(-state=>"disabled"); }
+    else  
+      { $r_glbl->{table_browse_button}->configure(-state=>"active"); 
+        
+my $x= $proposed; $x=~ s/^\w+\.//; 
+	
+	#$r_glbl->{new_table_name}= $proposed;
+	
+	$r_glbl->{new_table_name}= $x;
+      };
+    return($returnval);
+  }
+
 sub tk_open_new_table
   { my($r_glbl)= @_;
 
@@ -459,8 +528,10 @@ sub tk_open_new_table_finish
       
     delete $r_glbl->{new_table_name};
     
-    $r_glbl->{table_dialog_widget}->destroy();
-    delete $r_glbl->{table_dialog_widget};
+    if (exists $r_glbl->{table_dialog_widget})
+      { $r_glbl->{table_dialog_widget}->destroy();
+        delete $r_glbl->{table_dialog_widget};
+      };
   }	
 
 sub tk_sql_commands
@@ -2426,6 +2497,35 @@ sub conn_f_find
     # return a hash-ref: res-table-name => [res_col1,res_col2...]
     return($r_residents);   
   }  
+
+sub same_start
+# in a list of strings returns the longest 
+# substring that all strings start with 
+  { my($r_list)= @_;
+    my $charno;
+    
+    return if ($#$r_list<0);
+    
+    return( $r_list->[0]) if ($#$r_list==0);
+
+    my $len= length($r_list->[0]);
+    my $loop=1;
+    
+    $charno=-1;
+    $loop=1;
+    
+    while(($charno<$len) & $loop)
+      { $charno++;
+        my $c= substr($r_list->[0],$charno,1);
+	for(my $i=1; $i<= $#$r_list; $i++)
+	  { if ( substr($r_list->[$i],$charno,1) ne $c) 
+	      { $charno--; $loop=0; last; };
+	  };
+      };
+    if ($charno<0)
+      { return; };
+    return( substr($r_list->[0],0,$charno+1) );
+  }    
 
 __END__
 
