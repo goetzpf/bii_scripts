@@ -42,7 +42,8 @@ use Text::ParseWords;
 # initialize package globals
 
 our %drivers= ( Oracle => 'dbdrv_oci.pm',
-                Postgresql => 'dbdrv_pg.pm' );
+                Postgresql => 'dbdrv_pg.pm' 
+              );
 our $std_dbh;      # internal standard database-handle
 our $std_username; # internal standard username
 
@@ -54,8 +55,8 @@ our $db_trace  =0;
 
 my $mod= "dbdrv";
 
-my $r_db_objects;
-my $r_db_reverse_synonyms;
+our $r_db_objects;
+our $r_db_reverse_synonyms;
 
 my %sql_commands = (
     "and" => "SQL", "or" => "SQL", "in" => "SQL",
@@ -324,7 +325,7 @@ sub dump_r_object_dict
     
     if (defined $filename)
       { if (!open(F,">$filename"))
-          { dberror($mod,'dump_object_dict',__LINE__,"unable to open file"); 
+          { dberror($mod,'dump_r_object_dict',__LINE__,"unable to open file"); 
             return;
           };
         $fh= \*F;
@@ -333,7 +334,7 @@ sub dump_r_object_dict
     rdump($fh,$r_db_reverse_synonyms,0);
     if (defined $filename)
       { if (!close(F))
-          { dberror($mod,'dump_object_dict',__LINE__,"unable to close file"); 
+          { dberror($mod,'dump_r_object_dict',__LINE__,"unable to close file"); 
             return;
           };
       };          
@@ -341,6 +342,7 @@ sub dump_r_object_dict
 
 sub dump_object_dict_s
   { my $buffer; 
+
     dbdrv::rdump_s(\$buffer,$r_db_objects,0);
     return(\$buffer);
   }  
@@ -350,9 +352,6 @@ sub dump_r_object_dict_s
     dbdrv::rdump_s(\$buffer,$r_db_reverse_synonyms,0);
     return(\$buffer);
   }  
-
-
-
 
 sub load
   { my($driver_name)= @_;
@@ -907,6 +906,13 @@ It returns a hash of the following format
 This function returns all accessible public objects (tables and
 views) for a given user (C<$user_name>).
 
+=item dbdrv::full_name
+
+  my ($fullname)=full_name($short_name,$owner,$schema)
+
+This combines the given arguments and returns a full object-name
+with a "." inbetween the name-parts.
+
 =item dbdrv::real_name
 
   my ($name,$owner)=real_name($dbh,$user_name,$object_name)
@@ -923,7 +929,7 @@ This converts a given object and it's owner to a name in the form
 
 =item dbdrv::object_is_table
 
-  my @list= dbdrv::object_is_table($dbh,$table_name,$table_owner)
+  my @list= dbdrv::object_is_table($dbh,$table_name,$user_name)
 
 Checks wether a given object is a table (returns "1" in that case).
 Note that C<$table_owner> is not needed if it's a public synonym
@@ -931,7 +937,7 @@ or of the table name contains the owner in the form "owner.object_name".
 
 =item dbdrv::object_dependencies
 
-  my @list= dbdrv::object_dependencies($dbh,$table_name,$table_owner)
+  my @list= dbdrv::object_dependencies($dbh,$table_name,$user_name)
 
 This function returns a list of all dependend objects. These are
 views and tables that depend on the given table C<$table_name>.
@@ -946,7 +952,7 @@ The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".
 
 =item dbdrv::object_references
 
-  my %rk_hash= dbdrv::object_references($dbh,$table_name,$table_owner)
+  my %rk_hash= dbdrv::object_references($dbh,$table_name,$user_name)
 
 This function returns a list of all referenced objects. These
 are tables and views the current object (C<$table_name>) depends
@@ -962,7 +968,7 @@ The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".
 
 =item dbdrv::object_addicts
 
-  my @list= dbdrv::object_addicts($dbh,$table_name,$table_owner)
+  my @list= dbdrv::object_addicts($dbh,$table_name,$user_name)
 
 This function returns a list of all triggers and constraints for
 a given table. For each trigger or constraint, the owner is
@@ -980,7 +986,7 @@ triggers.
 
 =item dbdrv::read_viewtext()
 
-  my $text= dbdrv::read_viewtext($dbh,$view_name, $view_owner)
+  my $text= dbdrv::read_viewtext($dbh,$view_name, $user_name)
 
 This function returns the text of a view definition
 
