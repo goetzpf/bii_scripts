@@ -21,12 +21,13 @@ use FindBin;
 use Tk;
 use Tk::Menu;
 use Tk::Dialog;
-#use Tk::Listbox;
+use Tk::NoteBook;
+use Tk::Listbox;
 use Tk::FileSelect;
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
 
-use Tk::ErrorDialog;
+#use Tk::ErrorDialog;
 
 use warnings;
 #use diagnostics;
@@ -43,7 +44,7 @@ my $PrgTitle= 'BrowseDB';
 my $sim_oracle_access=0;
 
 my $fast_test=0; # skip login dialog and open $fast_table
-my $fast_table='p_insertion_value'; 
+my $fast_table='p_insertion_value';
 
 my $db_table_name;
 if (!@ARGV)
@@ -67,7 +68,7 @@ $dbitable::sim_delete = 0;
 my %std_button_options= (-font=> ['helvetica',10,'normal'],
         	         -background=>$BUTBG, -activebackground=>$ACTBG);
 
-my %std_menue_button_options= 
+my %std_menue_button_options=
                         (-font=> ['helvetica',10,'normal'],
         	         -background=>$BUTBG, -activebackground=>$ACTBG,
 			 -relief=> 'raised'
@@ -92,16 +93,16 @@ MainLoop();
 sub tk_login
 # r_glbl: hash with global entries
   { my($r_glbl,$db_name,$user,$password)= @_;
-    
+
     $r_glbl->{db_name}     = $db_name;
     $r_glbl->{user}        = $user;
     $r_glbl->{password}    = $password;
-    
+
     if ($fast_test)
-      { tk_login_finish($r_glbl); 
+      { tk_login_finish($r_glbl);
         return;
       };
-    
+
     my $Top= MainWindow->new(-background=>$BG);
     $Top->title("$PrgTitle:Login");
 
@@ -113,14 +114,14 @@ sub tk_login
                            )->pack(-side=>'top' );
 
     my $row=0;
-    
+
     $FrTop->Label(-text => 'database:'
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
     $FrTop->Label(-text => 'user:'
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
     $FrTop->Label(-text => 'password:'
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
-    $row=0;		 
+    $row=0;
     $FrTop->Entry(-textvariable => \$r_glbl->{db_name}
                  )->grid(-row=>$row++, -column=>1, -sticky=> "w");
     $FrTop->Entry(-textvariable => \$r_glbl->{user}
@@ -128,7 +129,7 @@ sub tk_login
     $FrTop->Entry(-textvariable => \$r_glbl->{password},
                   -show => '*',
                  )->grid(-row=>$row++, -column=>1, -sticky=> "w");
-    
+
     $FrDn->Button(-text => 'Login',
                   %std_button_options,
 		  -command => [\&tk_login_finish, $r_glbl ],
@@ -139,11 +140,11 @@ sub tk_login
 		  -command => sub { $Top->destroy(); exit(0); }
         	   )->pack(-side=>'left', -anchor=>'nw');
   }
-  
+
 sub tk_login_finish
   { my($r_glbl)= @_;
-  
-    
+
+
     my $db_handle;
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
@@ -153,20 +154,20 @@ sub tk_login_finish
           { tk_err_dialog($r_glbl->{login_widget},
 	                  "opening of the database failed");
 	    return;
-	  };  
+	  };
       };
-    $r_glbl->{password}=~ s/./\*/g;  
-    
+    $r_glbl->{password}=~ s/./\*/g;
+
     $r_glbl->{dbh}= $db_handle;
-   
+
     if (!$fast_test)
       { $r_glbl->{login_widget}->destroy;
         delete $r_glbl->{login_widget};
       };
-      
+
     tk_main_window($r_glbl);
   }
-    	       
+
 sub tk_main_window
   { my($r_glbl)= @_;
 
@@ -174,56 +175,276 @@ sub tk_main_window
     $Top->title("$PrgTitle");
 
     $r_glbl->{main_menu_widget}= $Top;
-    
+
     my $MnTop= $Top->Menu(-type=>'menubar');
 
     my $MnDb   = $MnTop->Menu();
     my $MnHelp = $MnTop->Menu();
-    
-
 
     $MnTop->add('cascade',
 	        -label=> 'Database',
-	        #-accelerator => 'Meta+F',
-                #-underline   => 0,
+	        -accelerator => 'Meta+D',
+                -underline   => 0,
 	        -menu=> $MnDb
 	       );
     $MnTop->add('cascade',
 	        -label=> 'Help',
-	        #-accelerator => 'Meta+F',
-                #-underline   => 0,
+	        -accelerator => 'Meta+H',
+                -underline  => 0,
 	        -menu=> $MnHelp
 	       );
 
-    $MnTop->pack(-side=>'left', -fill=>'x', -expand=>'y');
-    
-    
+    $MnTop->pack(-side=>'top', -fill=>'x', anchor=>'nw');
+
     # configure Database-menu:
     $MnDb->add('command',
                -label=> 'Open Table',
 	       -command=> [\&tk_open_new_table, $r_glbl]
-	      ); 
+	      );
     $MnDb->add('command',
                -label=> 'show SQL commands',
 	       -command=> [\&tk_sql_commands, $r_glbl]
-	      ); 
+	      );
     $MnDb->add('command',
                -label=> 'quit',
 		 -command => sub { $Top->destroy(); exit(0); },
-	      ); 
+	      );
 
     # configure Help-menu:
     $MnHelp->add('command',
                  -label=> 'About',
 	         -command=> [\&tk_about, $r_glbl]
-	        ); 
+	        );
     $MnHelp->add('command',
                  -label=> 'dump global datastructure',
 		 -command => [\&tk_dump_global, $r_glbl],
-	        ); 
+	        );
+	# prepareing mainwindow with dialogs
+	my $DlgTop = $Top->NoteBook()->pack(
+		-fill=>'both',
+		-side=>'top',
+		-expand=>1,
+		-anchor=>'nw'
+		);
+	my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables");
+	my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views");
+	my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Sequel");
+	$DlgTbl->Listbox(
+		-selectmode=>"single",
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>3,
+		-ipady=>3,
+		-side=>"left",
+		-fill=>"both",
+		-expand=>1,
+		-anchor=>"nw"
+		);
+	$DlgTbl->LabEntry(
+		-label=>'Lowest Rownumber :',
+		-labelPack=>[-side=>"left", anchor=>"w"],
+		-textvariable=>$r_glbl->{varDBRowMin},
+		-width=> 5,
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgTbl->LabEntry(
+		-label=>'Highest Rownumber :',
+		-labelPack=>[-side=>"left", anchor=>"w"],
+		-textvariable=>$r_glbl->{varDBRowMin},
+		-width=> 5,
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgTbl->Checkbutton(
+		-text=>"Show RowId",
+		-textvariable=>$r_glbl->{varDBRowId},
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgTbl->Label(
+		-text=>"Where Clause :",
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgTbl->Text(
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgTbl->Button(
+		-state=>"disabled",
+		-text=>"Show",
+		-underline=>0,
+		-justify=>"center",
+		-command=> qw (&tk_open_new_table)
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-side=>"right",
+		-anchor=>"se",
+	);
+	# dialog view
+	$DlgVw->Listbox(
+		-selectmode=>"single",
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>3,
+		-ipady=>3,
+		-side=>"left",
+		-fill=>"both",
+		-expand=>1,
+		-anchor=>"nw"
+		);
+	$DlgVw->LabEntry(
+		-label=>'Lowest Rownumber :',
+		-labelPack=>[-side=>"left", anchor=>"w"],
+		-textvariable=>$r_glbl->{varDBRowMin},
+		-width=> 5,
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgVw->LabEntry(
+		-label=>'Highest Rownumber :',
+		-labelPack=>[-side=>"left", anchor=>"w"],
+		-textvariable=>$r_glbl->{varDBRowMin},
+		-width=> 5,
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgVw->Label(
+		-text=>"Where Clause :",
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgVw->Text(
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgVw->Button(
+		-state=>"disabled",
+		-text=>"Show",
+		-underline=>0,
+		-justify=>"center",
+		-command=> qw (&tk_open_new_view)
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-side=>"right",
+		-anchor=>"se",
+	);
+	# dialog sequel
+	$DlgSQL->Label(
+		-text=>"Statement :",
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgSQL->Text(
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-fill=>"x",
+		-side=>"top",
+		-anchor=>"nw",
+		);
+	$DlgSQL->Button(
+		-state=>"disabled",
+		-text=>"Show",
+		-underline=>0,
+		-justify=>"center",
+		-command=> qw (&tk_open_new_query)
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-ipadx=>1,
+		-ipady=>1,
+		-side=>"right",
+		-anchor=>"se",
+	);
+
+	# statusbar
+	my $MnStatus = $Top->Frame(
+		-relief=>"groove",
+		-height=>20
+	)->pack(
+		-side=>"bottom",
+		-fill=>"x",
+		-anchor=>"sw"
+		);
+	$MnStatus->Label(
+		-text=>$r_glbl->{user}."@".$r_glbl->{db_name},
+	)->pack(
+		-side=>"left",
+		-expand=>1,
+		-anchor=>"w"
+		);
 
     if ($fast_test)
-      { tk_open_new_table($r_glbl); };	 
+      { tk_open_new_table($r_glbl); };
   }
 
 sub tk_about
@@ -238,43 +459,43 @@ sub tk_about
 	       "Comments/Suggestions, please mail to:",
 	       "pfeiffer\@mail.bessy.de"
 	     );
-  
+
    my $h= $#text+1;
    my $w=0;
-   foreach my $l (@text) 
+   foreach my $l (@text)
      { $w=length($l) if ($w<length($l)); };
 
-   foreach my $l (@text) 
+   foreach my $l (@text)
      { my $len= length($l);
        next if ($len>=$w);
        my $d= $w-$len;
        my $dl= int($d / 2);
        $l= (' ' x $dl) . $l . (' ' x ($d-$dl));
-     };  
-     
-   
+     };
+
+
    my $Text= $Top->Text(-width=> $w, -height=>$h);
 
-   foreach my $l (@text) 
+   foreach my $l (@text)
      { $Text->insert('end',$l . "\n"); };
-     
+
    $Text->pack(-fill=>'both',expand=>'y');
  }
 
-sub tk_open_new_table  
+sub tk_open_new_table
   { my($r_glbl)= @_;
-  
+
     if ($fast_test)
-      { $r_glbl->{new_table_name}= $fast_table; 
+      { $r_glbl->{new_table_name}= $fast_table;
         tk_open_new_table_finish($r_glbl);
-	return; 
+	return;
       }
     else
       { $r_glbl->{new_table_name}= ""; };
-  
+
     #my $Top= MainWindow->new(-background=>$BG);
     my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
-    
+
     $Top->Label(-text => 'please enter the table-name:'
                  )->pack(-side=>'left', -fill=>'y');
     $Top->Entry(-textvariable => \$r_glbl->{new_table_name}
@@ -383,7 +604,7 @@ sub tk_foreign_key_dialog
     foreach my $l (@lines)
       { $maxlnsz= length($l) if (length($l)>$maxlnsz); };
     
-    my $listbox= $FrTop->Listbox(-selectmode => 'single', 
+    my $listbox= $FrTop->Listbox(-selectmode => 'single',
                                  -width=>$maxlnsz,
 			         -height=> $#lines+1);
     foreach my $l (@lines)
