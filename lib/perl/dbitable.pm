@@ -1005,15 +1005,19 @@ sub get_column_property
   { my $self= shift;
     my ($colname, $colproperty) = @_;
 
-    if (! exists($self->{_column_properties}->{$colname}->{$colproperty}))
-      {
-        return if (!exists $self->{_column_properties});
+    return if (!exists $self->{_column_properties});
+    
+    if (!defined $colname)
+      { # return everything if no specific column was requested
         return( %{$self->{_column_properties}} );
-      }
-    else
-      {
-        return( $self->{_column_properties}->{$colname}->{$colproperty} );
-      }
+      }; 
+    
+    
+    my $col_prop= $self->{_column_properties}->{$colname};
+    
+    return if (!defined $col_prop);
+    
+    return( $col_prop->{$colproperty} );
   }
 
 sub get_column_type
