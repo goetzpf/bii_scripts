@@ -176,7 +176,7 @@ can then be used for further evaluation.
 =over 4
 
 =item *
- 
+
 B<parse()>
 
   my $r_templates= parse_subst::parse($st);
@@ -216,7 +216,7 @@ Example of a hash that parse() returns:
                                    },
 		          }
 			  
- 
+
 =head1 AUTHOR
 
 Goetz Pfeiffer,  goetzp@gmx.net
