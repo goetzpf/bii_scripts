@@ -3094,18 +3094,23 @@ as "updated" or marked as "inserted".
 
 =item primary_key_columns ()
 
-  my $pk_cols= $table->primary_key_columns()
+  my @pk_cols= $table->primary_key_columns()
  
 This method returns the names of the primary-key columns in upper case.
-In most cases there is exactly one primary key column.
+In most cases there is exactly one primary key column. Note that
+a table may also have no primary key columns at all (see comments on
+primary keys at the start of this document). The function returns
+C<undef> in this case.
 
 =item primary_key_column_indices ()
 
-  my $pk_col_indices= $table->primary_key_column_indices()
+  my @pk_col_indices= $table->primary_key_column_indices()
  
 This method returns the indices of the primary-keys in the list
 of all columns. The index numbering of all columns starts with C<0>.
-
+Note that a table may also have no primary key columns at all 
+(see comments on primary keys at the start of this document). 
+The function returns C<undef> in this case.
 
 =item column_list ()
 
