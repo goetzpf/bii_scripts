@@ -155,7 +155,8 @@ $global_data{database}{db_server}     = "ocean.acc.bessy.de";
 $global_data{database}{db_source}     = "bii_par";
 $global_data{database}{user}          = "guest";
 $global_data{database}{password}      = "bessyguest";
-$global_data{database}{autocommit}    = 0;
+
+$global_data{autocommit}    = 0;
 
 my $db_driver    = $global_data{database}{db_driver};
 my $db_source    = $global_data{database}{db_source};
@@ -505,7 +506,9 @@ sub tk_login_finish
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
-                                               $r_glbl->{password});
+                                               $r_glbl->{password},
+                                               $r_glbl->{autocommit}
+                                               );
         if (!defined $db_handle)
           { BrowseDB::TkUtils::SetBusy($r_glbl,0);
             BrowseDB::TkUtils::err_dialog($r_glbl->{main_menu_widget},
@@ -639,14 +642,16 @@ sub tk_main_window
     $MnDb->add('command',
                -label=> 'Commit',
                -underline  => 0,
-               -state=> ($r_glbl->{autocommit} ? 'disabled' : 'active'),
+               -state=> ($r_glbl->{autocommit} ? 
+                          'disabled' : 'active'),
                -command=> sub { dbdrv::commit($r_glbl->{dbh}); }
               );
     $c_commit_i= $MnDb->index('end');
     $MnDb->add('command',
                -label=> 'Rollback',
                -underline  => 0,
-               -state=> ($r_glbl->{autocommit} ? 'disabled' : 'active'),
+               -state=> ($r_glbl->{autocommit} ? 
+                           'disabled' : 'active'),
                -command=> sub { dbdrv::rollback($r_glbl->{dbh});
                                 tk_reload_all_objects($r_glbl);
                               }
@@ -675,14 +680,15 @@ sub tk_main_window
                -variable => \$r_glbl->{autocommit},
                -command=>
                        sub {
-                             my %h=(-state=> ($r_glbl->{autocommit}) ?
-                                       "disabled" : "active");
+                             my %h=(-state=> 
+                                        ($r_glbl->{autocommit}) ?
+                                        "disabled" : "active");
 
                              $MnDb->entryconfigure($c_commit_i,%h);
                              $MnDb->entryconfigure($c_rollback_i,%h);
 
                              dbdrv::set_autocommit($r_glbl->{dbh},
-                                                      $r_glbl->{autocommit});
+                                          $r_glbl->{autocommit});
                            }
               );
     $MnPref->add(
@@ -7191,7 +7197,4 @@ Hide Columns mit Selektion über mehrere Columns mit einem Schritt
 4768 uninitialized Value in hash
 4770 uninitialized value in string "ne"
 
-Nachsehen ob Autocommit wirklich abschaltbar ist!!!
-
 ====================
-COMMIT ineffective with autocommit.... (in dbdrv.pm)
