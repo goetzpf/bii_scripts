@@ -32,11 +32,12 @@ use Tk::TableMatrix;
 use warnings;
 #use diagnostics;
 
-use dbitable 1.7;
+use dbdrv;
+use dbitable 1.9;
 
 use Data::Dumper;
 
-my $VERSION= "0.87";
+my $VERSION= "0.9";
 
 
 my $PrgTitle= 'BrowseDB';
@@ -62,7 +63,7 @@ my $BUTBG= "gray73";
 my $ACTBG= "gray73";
 
 # re-define the dbitable error-handler:
-$dbitable::errorfunc  = \&dbidie;
+dbdrv::set_err_func(\&dbidie);
 $dbitable::sim_delete = 0;
 
 my %std_button_options= (-font=> ['helvetica',10,'normal'],
@@ -219,28 +220,28 @@ sub tk_main_window
                  -label=> 'dump global datastructure',
 		 -command => [\&tk_dump_global, $r_glbl],
 	        );
-	# prepareing mainwindow with dialogs
-	my $DlgTop = $Top->NoteBook()->pack(
-		-fill=>'both',
-		-side=>'top',
-		-expand=>1,
-		-anchor=>'nw'
-		);
-	my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables");
-	my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views");
-	my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Sequel");
-	$DlgTbl->Listbox(
-		-selectmode=>"single",
-	)->pack(
-		-padx=>2,
-		-pady=>2,
-		-ipadx=>3,
-		-ipady=>3,
-		-side=>"left",
-		-fill=>"both",
-		-expand=>1,
-		-anchor=>"nw"
-		);
+    # prepareing mainwindow with dialogs
+    my $DlgTop = $Top->NoteBook()->pack(
+	    -fill=>'both',
+	    -side=>'top',
+	    -expand=>1,
+	    -anchor=>'nw'
+	    );
+    my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables");
+    my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views");
+    my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Sequel");
+    $DlgTbl->Listbox(
+	    -selectmode=>"single",
+    )->pack(
+	    -padx=>2,
+	    -pady=>2,
+	    -ipadx=>3,
+	    -ipady=>3,
+	    -side=>"left",
+	    -fill=>"both",
+	    -expand=>1,
+	    -anchor=>"nw"
+	    );
 	$DlgTbl->LabEntry(
 		-label=>'Lowest Rownumber :',
 		-labelPack=>[-side=>"left", anchor=>"w"],
@@ -306,7 +307,7 @@ sub tk_main_window
 		-text=>"Show",
 		-underline=>0,
 		-justify=>"center",
-		-command=> qw (&tk_open_new_table)
+		-command=> [\&tk_open_new_table, $r_glbl]
 	)->pack(
 		-padx=>2,
 		-pady=>2,
@@ -541,9 +542,11 @@ sub tk_sql_commands
    $r_glbl->{sql_commands_widget}= $text;
    $text->pack(-fill=>'both',expand=>'y');
    
-   $dbitable::sql_trace= \&dbi_sql_trace;
+   dbdrv::set_sql_trace_func(\&dbi_sql_trace);
+   $dbdrv::sql_trace=1;
    
-   $Top->bind('<Destroy>', sub { $dbitable::sql_trace= undef;
+   $Top->bind('<Destroy>', sub { $dbdrv::sql_trace=0;
+				 dbdrv::set_sql_trace_func();
                                 delete $r_glbl->{sql_commands_widget};
 			      });
   }   
