@@ -27,12 +27,18 @@ use Carp;
 our $old_parser=0;
 
 sub parse
-  { my($db)= @_;
+  { my($db, $mode)= @_;
+  
+    $mode= "templateHash" if (!defined $mode);
   
     my $level= 'top';
 
+# mode: default 
     my %templates;
-
+# mode: templateList
+    my @templateList;
+    my $templateIdx;
+    
     my $r_this_template_instance;
     my $r_this_instance_no; # old mechanism
     my $r_this_instance_fields;
@@ -57,17 +63,29 @@ sub parse
 	      };
             if ($db=~ /\G\s*file\s+([\w\.]+)[\s\r\n]*\{/gsc)
               { my($name)= ($1);
-		
-		$r_this_template_instance= $templates{$name};
-		if (!defined $r_this_template_instance)
-		  { if ($old_parser)
-		      { $r_this_template_instance= {};
-			$r_this_instance_no= 0; # old mechanism
-		      }
-		    else
-		      { $r_this_template_instance= []; }; 
-		    $templates{$name}= $r_this_template_instance; 
-		  };
+
+		if( $mode eq "templateHash" )
+		{
+		  $r_this_template_instance = $templates{$name};
+		  if (!defined $r_this_template_instance)
+		    { if ($old_parser)
+			{ $r_this_template_instance= {};
+			  $r_this_instance_no= 0; # old mechanism
+			}
+		      else
+			{ $r_this_template_instance= []; }; 
+		      $templates{$name}= $r_this_template_instance;
+		    };
+		}
+		elsif( $mode eq 'templateList' )
+		{ 
+		  $r_this_template_instance= [$name]; 
+	          $templateList[$templateIdx] = $r_this_template_instance;
+                  $templateIdx++;
+		}
+		else
+		  { die "unknown mode $mode (assertion)"; };
+
 		
 		$level='file';
 		next;
@@ -168,12 +186,19 @@ sub parse
 	    croak "parse error 5 at byte ",pos($db)," of input stream";   
 	  };
       };
-    return(\%templates);    
+
+#warn "am  ende der liste ist ein leerer Eintrag, häßlich, warum ???\n";
+    if( $mode eq "templateHash" )
+      { return(\%templates); };
+    if( $mode eq 'templateList' )
+      { return(\@templateList); };
+    die "unknown mode $mode (assertion)";        
+
   }
 
 sub dump
   { my($r_templates)= @_;
-  
+ 
     print Data::Dumper->Dump([$r_templates], [qw(templates)]);
   }
 
