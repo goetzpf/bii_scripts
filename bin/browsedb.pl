@@ -586,10 +586,12 @@ sub tk_main_window
             -expand=>1,
             -anchor=>'nw'
             );
-    my $DlgEnt = $DlgTop->add("DlgEnt", -label=>"Short Exec");
-    my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables");
-    my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views");
-    my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Sequel");
+    $r_glbl->{MainWindow}->{notebook} = $DlgTop;
+    my $DlgEnt = $DlgTop->add("DlgEnt", -label=>"Short Exec", -underline=>0);
+    my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables", -underline=>0, state=>"disabled");
+    my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views", -underline=>0, state=>"disabled");
+    my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Command", -underline=>0);
+    my $DlgHlp = $DlgTop->add("DlgHlp", -label=>"Help", -underline=>0);
     my %dlg_def_labentry = (
             -padx=>2, -pady=>2,
             -ipadx=>1, -ipady=>1,
@@ -905,9 +907,6 @@ sub tk_main_window
                  -side=>"top",
                  -expand=> 1,
         );
-        $DlgSQLHistory->tagConfigure("blue", -foreground => "blue");
-        $DlgSQLHistory->tagConfigure("red", -foreground => "red");
-        $DlgSQLHistory->tagConfigure("blue", -foreground => "green");
         tk_clear_undefkey($DlgSQLHistory);
         $r_glbl->{MainWindow}->{sql_history_widget}=$DlgSQLHistory;
         $DlgSQL->Label( -text=> "Statement :",
@@ -945,6 +944,7 @@ sub tk_main_window
                  -side=>"bottom",
                  -expand=> 0, );
 
+        $r_glbl->{MainWindow}->{sql_command_widget} = $DlgSQLCommand;
         tk_clear_undefkey($DlgSQLCommand);
         $DlgSQLCommand->
             bind('<Control-X>' =>
@@ -974,7 +974,44 @@ sub tk_main_window
                         tk_execute_new_query($r_glbl, $query_command);
                      }
                 );
-        # read column-map definitions:
+        $DlgSQLCommand->tagConfigure("string", -foreground => "green");
+        $DlgSQLHistory->tagConfigure("command", -foreground => "red");
+        $DlgSQLHistory->tagConfigure("hyper", -underline => "red", -foreground => "blue");
+        # help dialog of database
+        my $DlgHelpListbox = $DlgHlp->Scrolled(
+                "Listbox",
+                -scrollbars=>"oe",
+                -width=>34,
+                -selectmode=>"browse",
+                -width=>0
+        )->pack( %dlg_def_listbox, );
+        $r_glbl->{MainWindow}->{help_listbox_widget} = $DlgHelpListbox;
+        my $DlgHelpContent = $DlgHlp->Scrolled(
+                "ROText",
+                -scrollbars=> "osoe",
+                -width=>80,
+        )->pack( -padx=>2, -pady=>2,
+                 -ipadx=>1, -ipady=>1,
+                 -fill=>"both",
+                 -side=>"top",
+                 -expand=> 1,
+        );
+        $r_glbl->{MainWindow}->{help_text_widget} = $DlgHelpContent;
+        tk_clear_undefkey($DlgHelpContent);
+        my $DlgHelpAction =
+                 sub {  my $entry =
+                            $DlgHelpListbox->get($DlgHelpListbox->curselection);
+                        $DlgHelpContent->delete('1.0', 'end');
+                        my $text_hash = dbdrv::get_help($r_glbl->{dbh}, $entry->[0]);
+                        $DlgHelpContent->insert('1.0',
+                                     join ("\n", (map { $_->[0] } @$text_hash) )
+                            );
+                     };
+        $DlgHelpListbox->bind('<Return>' => $DlgHelpAction);
+        $DlgHelpListbox->bind('<Button-1>' =>$DlgHelpAction);
+        $DlgHelpListbox->bind('<Double-1>' =>$DlgHelpAction);
+
+       # read column-map definitions:
         my $r_c;
         if (defined $share_dir)
           { $r_c= load_column_maps($r_glbl,
@@ -1029,6 +1066,7 @@ sub tk_main_window_finish
     $view_listbox_widget->delete(0, 'end');
     $view_listbox_widget->
              insert("end", @{ $r_glbl->{accessible_objects_views} } );
+    $r_glbl->{MainWindow}->{notebook}->pageconfigure("DlgVw", state=>"normal");
 
     $r_glbl->{accessible_objects_tables} =
              [ dbdrv::accessible_objects($r_glbl->{'dbh'},
@@ -1043,8 +1081,8 @@ sub tk_main_window_finish
     $table_listbox_widget->delete(0, 'end');
     $table_listbox_widget->
              insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
-    
-    
+    $r_glbl->{MainWindow}->{notebook}->pageconfigure("DlgTbl", state=>"normal");
+
 #    $r_glbl->{accessible_objects_all} =
 #             [ dbdrv::accessible_objects($r_glbl->{'dbh'},
 #                                         $r_glbl->{user},
@@ -1052,9 +1090,11 @@ sub tk_main_window_finish
 #                                         "PUBLIC,USER")
 #             ];
 
- 
- 
-   tk_progress($r_glbl,80);
+    tk_progress($r_glbl,80);
+
+    my $help_listbox_widget = $r_glbl->{MainWindow}->{help_listbox_widget};
+    $help_listbox_widget->
+             insert("end",  @{ dbdrv::get_help_topic($r_glbl->{dbh}) } );
 
     $r_glbl->{MainWindow}->{table_browse_widget}->delete(0, 'end');
     $r_glbl->{MainWindow}->{table_browse_widget}->
@@ -1223,7 +1263,7 @@ sub tk_quit
         $fh->close();
       }
     
-    
+
     if    ($mode eq 'table-reload')
       { return; }
     elsif ($mode eq 'table-close')   
@@ -1502,9 +1542,8 @@ sub tk_execute_new_query
                 return;
             }
         }
-warn $sqlquery;
+
         $sqlquery = dbdrv::format_sql_command($sqlquery);
-warn $sqlquery;
 
         if ($sqlquery =~ /^select /i)
         {
@@ -1770,7 +1809,7 @@ sub make_table_hash
 
     # the dbitable object:
     $table_hash{dbitable}  = get_dbitable($r_glbl,\%table_hash);
-warn "get_dbitable($r_glbl,\%table_hash) = $table_hash{dbitable} ";
+# warn "get_dbitable($r_glbl,\%table_hash) = $table_hash{dbitable} ";
     tk_progress($r_glbl,50);
 
     if (! defined $table_hash{dbitable})
@@ -3369,7 +3408,7 @@ sub tk_find_line
     #$rbfrom1->select;
     #$rbdirection1->select;
     #$rbexact1->select;
-    
+
     my $FrBottom = $Top->Frame( -borderwidth=>2,
                                 -background=>$BG
         )->pack(-side=>'top' ,
@@ -3383,13 +3422,13 @@ sub tk_find_line
 
     $Top->bind('<Return>',
             sub {  my $row= find_next_col($r_tbh,
-                                          
-                                          use_colmap=>1,                                          
+
+                                          use_colmap=>1,
                                           from=>'current',
                                           %col_search_data
                                           );
                    # used elements in col_search_data:
-                   # colname string direction extact case_insensitive       
+                   # colname string direction extact case_insensitive
 
                    if (!defined $row)
                      { tk_err_dialog($Top,
@@ -3429,10 +3468,10 @@ sub tk_find_line_next
     my $row= find_next_col($r_tbh,
                            use_colmap=>1,
                            from=>'current',
-                           
+
                            %$r_col_search_data,
                    # used elements in col_search_data:
-                   # colname string direction extact case_insensitive       
+                   # colname string direction extact case_insensitive
                    # note: the following line effectively overwrites
                    # a direction that in stored in col_search_data:
                            direction=> ($dir eq 'next') ? 'down' : 'up');

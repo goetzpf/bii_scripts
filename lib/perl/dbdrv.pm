@@ -298,7 +298,7 @@ sub dump_object_dict
 
     if (defined $filename)
       { if (!open(F,">$filename"))
-          { dberror($mod,'dump_object_dict',__LINE__,"unable to open file"); 
+          { dberror($mod,'dump_object_dict',__LINE__,"unable to open file");
             return;
           };
         $fh= \*F;
@@ -349,7 +349,7 @@ sub dump_r_object_dict_s
   }  
 
 
-sub load_object_dict 
+sub load_object_dict
   { my($dbh,$user)= @_;
     return if (defined $r_db_objects);
     my %h;
@@ -379,14 +379,14 @@ sub check_existence
     # be made, since it's no public synonym and not in the
     # synonym list
     return(1) if ($table_name=~ /\./);
-    
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     my $obj_name= "PUBLIC." . uc($table_name);
-    
+
     load_object_dict($dbh,$user_name);
-    
+
     return( exists $r_db_objects->{$obj_name} );
   }
 
@@ -398,7 +398,7 @@ sub accessible_objects
     my %types;
     my %access;
 
-    
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -411,13 +411,13 @@ sub accessible_objects
           { my $c= $known_types{$t};
             if (!defined $c)
               { dberror($mod,'accessible_objects',__LINE__,
-                    "unknown object type: $t"); 
+                    "unknown object type: $t");
                 return;
               };
             $types{$c}=1;
           };
       };
-      
+
     load_object_dict($dbh,$user_name);
     my @keys= keys %$r_db_objects;
 
@@ -461,7 +461,7 @@ sub accessible_objects
 
     #warn join("|",@result) . "\n";
 
-    map { $_=~ s/^[^\.]+\.// } @result; # remove "owner"  
+    map { $_=~ s/^[^\.]+\.// } @result; # remove "owner"
 
 #print Dumper(\@result);
 
@@ -479,23 +479,23 @@ sub real_name
     return if (!defined $dbh);
 
     $user_name= uc($user_name);
-    
+
     load_object_dict($dbh,$user_name);
 
     if ($object_name !~ /\./) # not in the form user.tablename
       { $object_name= "PUBLIC." . $object_name; };
-    
-   
+
+
     my $data= $r_db_objects->{$object_name};
-    
+
     return if (!defined $data); # not in list of synonyms and
                                 # user objects
 
     # user objects have only a type-field (why?)
-    
+
     if ($#$data>0) # more than 2 objects in hash:synonym
       { my($owner,$name)= split(/\./, $data->[1]);
-      
+
         return($name,$owner);
       };
 
@@ -520,13 +520,13 @@ sub canonify_name
     my $r_list= $r_db_reverse_synonyms->{$name};
     if (!defined $r_list)
       { return($name); };
-      
+
     foreach my $n (@$r_list)
       { my($owner,$obj)= split(/\./,$n);
         if ($owner eq 'PUBLIC')
           { return($obj); };
       };
-      
+
     return($name);
   }
 
@@ -556,7 +556,7 @@ sub set_autocommit
       { $dbh= $std_dbh; };
 
     $dbh->{AutoCommit}= ($val) ? 1 : 0;
-    
+
 #    warn "set to: " . $dbh->{AutoCommit};
   }
 
@@ -567,7 +567,7 @@ sub commit
       { $dbh= $std_dbh; }
     elsif ($dbh eq "")
       { $dbh= $std_dbh; };
-  
+
     if (!$dbh->commit)
       { dbwarn($mod,'commit',__LINE__,
                "commit returned an error, error-code: \n$DBI::errstr");
@@ -576,12 +576,12 @@ sub commit
 
 sub rollback
   { my($dbh)= @_;
-  
+
     if (!defined $dbh)
       { $dbh= $std_dbh; }
     elsif ($dbh eq "")
       { $dbh= $std_dbh; };
-    
+
     if (!$dbh->rollback)
       { dbwarn($mod,'rollback',__LINE__,
                "rollback returned an error, error-code: \n$DBI::errstr");
@@ -608,13 +608,58 @@ sub get_alias
               }
           };
         if ($returnvalue=~ /##\d+##/)
-          { return "ERROR: too few arguments"; };  
+          { return "ERROR: too few arguments"; };
         return $returnvalue;
      }
    else
      {
         return "ERROR: unknown alias: $name";
      }
+  }
+
+sub get_help
+  {
+    my($dbh, $topic)= @_;
+    if (! defined($dbh) || ! defined($topic))
+      {
+        return;
+      }
+    $topic = "SELECT" if ($topic eq "");
+    my $fh;
+    my $sth = dbdrv::prepare(\$fh, $dbh,
+                         "SELECT info FROM system.help " .
+                          "WHERE topic LIKE '$topic' " .
+                          " ORDER BY seq");
+
+    if (!dbdrv::execute($fh, $dbh, $sth))
+      {
+        dbdrv::dbwarn($mod,'get_help',__LINE__,
+                 "execute() returned an error," .
+                 " error-code: \n$DBI::errstr");
+      }
+    my $help_text = $sth->fetchall_arrayref;
+    $sth->finish;
+    return $help_text;
+  }
+
+sub get_help_topic
+  {
+    my($dbh)= @_;
+    return if (! defined($dbh));
+    my $fh;
+    my $sth= dbdrv::prepare($fh, $dbh,
+                         "SELECT DISTINCT topic FROM system.help " .
+                          " ORDER BY topic");
+
+    if (!dbdrv::execute($fh ,$dbh,$sth))
+      {
+        dbdrv::dbwarn($mod,'get_help_topic',__LINE__,
+                 "execute() returned an error," .
+                 " error-code: \n$DBI::errstr");
+      }
+    my $topic_list = $sth->fetchall_arrayref;
+    $sth->finish;
+    return $topic_list;
   }
 
 sub connect_database
@@ -655,17 +700,17 @@ sub connect_database
 
 sub disconnect_database
   { my($dbh)= @_;
-  
+
     if (!defined $dbh)
       { $dbh= $std_dbh; }
     elsif ($dbh eq "")
       { $dbh= $std_dbh; };
-  
-    if (!$dbh->disconnect()) 
+
+    if (!$dbh->disconnect())
       { dbwarn($mod,'connect_database',__LINE__,
                "disconnect returned an error, error-code: \n$DBI::errstr");
       };
-    
+
     $std_dbh= undef;
   }
 
@@ -823,7 +868,7 @@ terminates the program with C<die>. In some cases however, your function
 may not terminate the program and simply return. It is, however, your
 responsibility to check when this makes sense.
 
-=back  
+=back
 
 =head2 tracing
 
@@ -838,12 +883,12 @@ carriage return. This function may be overridden like this:
 
   dbdrv::set_sql_trace_func(\&my_error_func)
 
-C<dbdrv::set_sql_trace_func> has only one parameter wich should be a 
+C<dbdrv::set_sql_trace_func> has only one parameter wich should be a
 reference to a function or C<undef>. In the first case, the function you
 supplied is used to print the SQL statement. It should expect
 one single string as argument and show, in what way ever, this string
 to the user. If the parameter of C<set_sql_trace_func> is C<undef>
-or missing, the original tracing function (a simple call to C<print>) 
+or missing, the original tracing function (a simple call to C<print>)
 is re-instated.
 
 Tracing is switched on or of by writing 0 of one to the
@@ -851,7 +896,7 @@ variable C<$sql_trace>. This for example, switches SQL tracing on:
 
   $dbdrv::sql_trace=1;
 
-Note that if your application executes SQL statements, too, it 
+Note that if your application executes SQL statements, too, it
 has to call the sql trace function in order to show all SQL statments
 to the user:
 
@@ -860,7 +905,7 @@ to the user:
     # ^^ this shows the SQL statement to the user
   my @array = $dbh->selectrow_array($cmd);
     # ^^ this executes the SQL statement
-   
+
 If your application uses C<prepare> or C<execute> from the DBI
 module, you should use C<prepare> or C<execute> from dbdrv instead.
 
@@ -876,7 +921,7 @@ module, you should use C<prepare> or C<execute> from dbdrv instead.
 The first parameter is a reference to a scalar variable. This
 is used by C<dbdrv::execute> later. C<$dbh> is the database
 handle and the 3rd parameter is the SQL statement with placeholders
-("?") as described in the DBI manpage. The function returns a 
+("?") as described in the DBI manpage. The function returns a
 statement handle, just like it is described at C<prepare>
 in the DBI module.
 
@@ -884,9 +929,9 @@ in the DBI module.
 
   if (!dbdrv::execute($format,$dbh,$sth,@params))
     { error ... }
-    
+
 The first parameter is the format scalar variable that was initialized
-by C<dbdrv::prepare>. C<$dbh> is the database handle and 
+by C<dbdrv::prepare>. C<$dbh> is the database handle and
 C<$sth> is the statement handle that was returned with C<dbdrv::prepare>.
 All following parameters (C<@params>) are used to fill the placeholders
 that were given to C<dbdrv::prepare> in the SQL statement string.
@@ -900,19 +945,19 @@ that were given to C<dbdrv::prepare> in the SQL statement string.
 =item dbitable::commit()
 
   dbitable::commit($dbh)
-  
-This performs a commit on the database  
+
+This performs a commit on the database
 
 =item dbitable::rollback()
 
   dbitable::rollback($dbh)
-  
-This performs a rollback on the database  
+
+This performs a rollback on the database
 
 =item dbitable::set_autocommit()
 
   dbitable::set_autocommit($dbh,$val)
-  
+
 This sets the autocommit-feature of the given database-handle.
 Autocommit is switched on or off according to to value of C<$val>.
 
@@ -928,6 +973,18 @@ the alias list hash.
   my $dbh= dbitable::get_alias($name,@values)
 
 Returns the sequel with the parsed alias, filled with the values.
+
+=item dbitable::get_help()
+
+  my $hash= dbitable::get_help($dbh,$topic)
+
+Returns the hash of the help query for the topic.
+
+=item dbitable::get_help()
+
+  my $hash= dbitable::get_help_topic($dbh)
+
+Returns the hash of all topics found in helptable.
 
 =item dbitable::connect_database()
 
@@ -947,16 +1004,16 @@ string ("") or C<undef>.
 
 This function is used to disconnect from the database. If the parameter
 C<$dbi_handle> is an empty string, the default DBI-handle is used (see
-also description of C<connect_database>).  
+also description of C<connect_database>).
 
 =item dbitable::check_dbi_handle()
 
   $dbh= dbitable::check_dbi_handle($dbh);
-  
+
 This function does the checking of the dbi-handle in all functions of
 this module. When C<$dbh> is empty ("") or C<undef>, it returns the
-internal standard dbi-handle (C<dbdrv::std_dbh>), otherwise it 
-returns the parameter C<$dbh>. When the given parameter 
+internal standard dbi-handle (C<dbdrv::std_dbh>), otherwise it
+returns the parameter C<$dbh>. When the given parameter
 is not a valid DBI handle, it returns C<undef>.
 
 =item dbdrv::check_existence()
@@ -965,11 +1022,11 @@ is not a valid DBI handle, it returns C<undef>.
     { print "table exists and can be accessed\n"; }
   else
     { print "table does not exist or is not accessible\n"; }
-  
-This function performs a simple check wether a table exists. 
+
+This function performs a simple check wether a table exists.
 C<$dbh> is the database handle, C<$table_name> the name of the table.
 C<$user_name> is the username and optional. The username is
-storedin the variable C<dbdrv::std_username> when C<connect_database()> 
+storedin the variable C<dbdrv::std_username> when C<connect_database()>
 is called. The function returns C<1> when the table is accessible and
 C<undef> when not.
 
