@@ -55,7 +55,8 @@ sub slashes
   }
   
 sub guess_script_path
-  { my $scrpath  = $FindBin::Bin;
+  { #my $scrpath  = $FindBin::Bin;
+    my $scrpath  = $FindBin::RealBin;
     my $envpath = $ENV{PWD}; 
 
     # try to calc an alternative path
