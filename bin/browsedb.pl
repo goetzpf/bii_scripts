@@ -2126,7 +2126,13 @@ sub make_table_hash
     # this is just the pure information from the database which
     # columns are foreign keys. This has nothing to do with the
     # fact wether that foreign key table is displayed or not
-    $table_hash{foreign_key_hash}= $table_hash{dbitable}->foreign_keys();
+
+    # requesting the foreign keys makes only sense
+    # on tables, not on views or SQL statements:
+    if ($table_hash{table_type} eq 'table')
+      { $table_hash{foreign_key_hash}= 
+                  $table_hash{dbitable}->foreign_keys();
+      };                  
 
     tk_progress($r_glbl,80);
 
