@@ -468,7 +468,7 @@ sub import_table
 	if (defined $r_aliases)
 	  { foreach my $key (keys %$r_aliases)
               { if (!exists $found_lines{$r_aliases->{$key}})
-	          { $r_aliases->{$key}; };
+	          { delete $r_aliases->{$key}; }; # delete was missing
               };
 	  };
       };	  	
@@ -1277,7 +1277,6 @@ sub store_to_file
 	foreach my $prop (qw(_table _pk _type))
 	  { my $val= $self->{$prop};
 	    next if (!defined $val);
-	    my $val= $self->{$prop};
 	    push @defines, (uc(substr($prop,1)) . '=' . $val);
 	  };
 	print G wrap('', '', join(" ",@defines)),"\n";
