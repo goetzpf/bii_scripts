@@ -1,12 +1,12 @@
 #########################################################################
-#   dbitk - a package for building tk-based dialogs
+#   BrowseDB::TkUltils - a package for building tk-based dialogs
 #
 #   To learn more: enter "perldoc dbitk.pm" at the command prompt,
 #   or search in this file for =head1 and read the text below it
 #
 #########################################################################
 
-package dbitk;
+package BrowseDB::TkUtils;
 
 use strict;
 
@@ -31,142 +31,10 @@ use Tk::Listbox;
 use Tk::FileSelect;
 #use Tk::Balloon;
 
-our $VERSION     = '1.2';
+our $VERSION     = '1.0';
 
-sub tk_quit
-  {
-# $r_glbl all the globals, if defined top_widget and $r_tbh so it is finally only a closing
-# table_hash_window, otherwise it is a closing application call
-# $noclose can be set to 1, then it is only a reload
-# returns: <undef> if the window was closed
-#           1 if the window was not closed (on request by the user)
-
-    my($r_glbl, $r_tbh, $noclose)= @_;
-    my $message = "\nor do you want to save your changes before?";
-    my $choice;
-    my $mode;
-    my $Top;
-    my @options;
-
-    if (!defined ($r_tbh))
-      { $Top = $r_glbl->{main_menu_widget};
-        $mode= 'app-close';
-        my $r_tab= $r_glbl->{all_tables};
-        if ((!defined $r_tab) or (!%$r_tab)) # no open tables
-          { $choice="close"; }
-        else
-          { $message = "Save your open tables as a collection before " .
-                       "quitting?";
-            @options= ('Save', 'Quit without save', 'Cancel');
-          };
-      }
-    else
-      {
-        $Top = $r_tbh->{top_widget};
-        if ($noclose)
-          {
-            $mode= 'table-reload';
-            $message = "save changes in " .
-                       $r_tbh->{table_type} . " " .
-                       $r_tbh->{table_name} .
-                       " before re-loading from the database ?";
-            @options= ('Save to file', 'Reload without save', 'Cancel');
-          }
-        else
-          {
-            $mode= 'table-close';
-            $message = "save changes in ".
-                       $r_tbh->{table_type} . " " .
-                       $r_tbh->{table_name} . "?";
-            @options= ('Save to file', 'Save to database',
-                       'Close without save', 'Cancel');
-          }
-      }
-
-    if ($r_glbl->{fast_test})
-      { $choice = "close";
-      };
-
-    if (($mode ne 'app-close') && (!table_changed($r_tbh)))
-      { $choice = "close"; };
-
-    while(!defined $choice)
-      {
-
-
-        my $DlgQuit = $Top->Dialog(
-                    -title => 'Quit',
-                    -text => $message,
-                    -default_button => 'No',
-                    -buttons => \@options,
-                    );
-        $choice = $DlgQuit->Show;
-
-        if    ($choice eq 'cancel')
-          { return 1; }
-        elsif ($choice eq 'save')
-          {
-            if ($mode eq 'app-close')
-              {
-                if (!tk_save_collection ($Top, $r_glbl))
-                  { $choice=undef;
-                    next;
-                  };
-              }
-            else
-              { die "assertion: mode is \"$mode\""; };
-          }
-        elsif ($choice eq 'save to file')
-          { if (!tk_save_to_file ("",$r_tbh))
-              {
-                $choice=undef;
-                next;
-              };
-          }
-        elsif ($choice eq 'save to database')
-          { if (!cb_store_db($r_tbh))
-              { $choice=undef;
-                next;
-              };
-          }
-        else
-          { last; };
-      }; # while()
-
-    if (($mode eq 'app-close') && exists($r_glbl->{handle_sql_history}))
-      {
-        my $fh = $r_glbl->{handle_sql_history};
-        $fh->flush();
-        $fh->close();
-      }
-
-
-    if    ($mode eq 'table-reload')
-      { return; }
-    elsif ($mode eq 'table-close')
-      { $Top->destroy();
-        return;
-      }
-    elsif ($mode eq 'app-close')  # close application
-      { my $r_tab= $r_glbl->{all_tables};
-
-        if (defined $r_tab)
-          { # now close every single table window
-            foreach my $tab (keys %$r_tab)
-              { if (tk_quit($r_glbl, $r_tab->{$tab}))
-                  { return(1); };
-              };
-          };
-        exit(0);
-      }
-    else
-      {
-        die "assertion: mode is \"$mode\"";
-      }
-  }
-
-sub tk_about
-  { my($r_glbl, $textvar)= @_;
+sub About
+  { my($r_glbl, $r_textvar)= @_;
 
     my $version = $r_glbl->{version};
     if (! defined($r_glbl->{version}))
@@ -174,19 +42,15 @@ sub tk_about
         $version = "0";
       }
     my $title = $r_glbl->{title};
-    if (! defined($r_glbl->{title}) || $r_glbl->{title} == "")
-      {
-        $title = "this";
-      }
-    my $Top= mk_toplevel($r_glbl, "$textvar $title");
-    my @text = $r_glbl->{$textvar};
-
-    my $h= $#text+1;
+    my $Top= MakeToplevel($r_glbl,
+                         title=>"about $title $version",
+                         popover=>1);
+    my $h= $#$r_textvar+1;
     my $w=0;
-    foreach my $l (@text)
+    foreach my $l (@$r_textvar)
       { $w=length($l) if ($w<length($l)); };
 
-    foreach my $l (@text)
+    foreach my $l (@$r_textvar)
       { my $len= length($l);
         next if ($len>=$w);
         my $d= $w-$len;
@@ -196,7 +60,7 @@ sub tk_about
 
     my $Text= $Top->Text(-width=> $w, -height=>$h);
 
-    foreach my $l (@text)
+    foreach my $l (@$r_textvar)
       { $Text->insert('end',$l . "\n"); };
 
     $Text->pack(-fill=>'both',-expand=>'y');
@@ -209,7 +73,7 @@ sub tk_about
 # get text input from a simple entry field:
 #_______________________________________________________
 
-sub tk_simple_text_dialog
+sub SimpleTextDialog
 # ADD a WIDTH parameter here!
 # known options:
 # title
@@ -239,7 +103,7 @@ sub tk_simple_text_dialog
         $width=80 if ($width>80);
       };
 
-    my $Top= mk_toplevel($r_glbl,
+    my $Top= MakeToplevel($r_glbl,
                          title=>$options{title});
 
     my $entry=
@@ -255,7 +119,7 @@ sub tk_simple_text_dialog
                           );
       };
 
-    $Top->bind('<Return>',[ \&tk_simple_text_dialog_finish, $r_glbl,$r_tbh,$tag ]);
+    $Top->bind('<Return>',[ \&simple_text_dialog_finish, $r_glbl,$r_tbh,$tag ]);
 
     $Top->bind('<Destroy>',  sub {
                                    delete $r_tbh->{$tag};
@@ -271,7 +135,8 @@ sub tk_simple_text_dialog
     $Top->Popup(-popover    => 'cursor');
   }
 
-sub tk_simple_text_dialog_finish
+sub simple_text_dialog_finish
+# INTERNAL FUNCTION
   { my($widget,$r_glbl,$r_tbh,$tag)= @_;
 
     my $r_h = $r_tbh->{$tag};
@@ -297,13 +162,13 @@ sub tk_simple_text_dialog_finish
 #_______________________________________________________
 
 
-sub tk_make_text_widget
+sub MakeTextWidget
   { my($r_glbl,$title,$r_content)= @_;
 
     my %text;
 
     # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{background});
-    my $Top= mk_toplevel($r_glbl,
+    my $Top= MakeToplevel($r_glbl,
                          title=>$r_glbl->{title});
 
     $text{Top}= $Top;
@@ -331,38 +196,38 @@ sub tk_make_text_widget
                );
 
     # configure File-menu:
-    $Top->bind($Top,'<Control-s>'=> [\&tk_text_save,$r_glbl,\%text]);
+    $Top->bind($Top,'<Control-s>'=> [\&text_save,$r_glbl,\%text]);
     $MnFile->add('command',
                -label=> 'Save',
                -accelerator => 'Control-s',
                -underline   => 0,
-               -command=>  [\&tk_text_save,"",$r_glbl,\%text]
+               -command=>  [\&text_save,"",$r_glbl,\%text]
               );
 
     # configure search-menu:
-    $Top->bind($Top,'<Control-f>'=> [\&tk_text_search,$r_glbl,\%text]);
+    $Top->bind($Top,'<Control-f>'=> [\&text_search,$r_glbl,\%text]);
     $MnSearch->add('command',
                  -label=> 'Find',
                  -accelerator => 'Control-f',
                  -underline   => 0,
-                 -command=> [\&tk_text_search,"",$r_glbl,\%text]
+                 -command=> [\&text_search,"",$r_glbl,\%text]
               );
 
 
     $Top->bind($Top,'<Control-g>'=>
-               [\&tk_text_search_next,$r_glbl,'next',\%text]);
+               [\&text_search_next,$r_glbl,'next',\%text]);
     $MnSearch->add('command',
                  -label=> 'Find next',
                  -accelerator => 'Control-g',
-                 -command=> [\&tk_text_search_next,"",$r_glbl,'next',\%text]
+                 -command=> [\&text_search_next,"",$r_glbl,'next',\%text]
               );
 
     $Top->bind($Top,'<Shift-Control-G>'=>
-              [\&tk_text_search_next,$r_glbl,'prev',\%text]);
+              [\&text_search_next,$r_glbl,'prev',\%text]);
     $MnSearch->add('command',
                  -label=> 'Find prev',
                  -accelerator => 'Shift-Control-G',
-                 -command=> [\&tk_text_search_next,"",$r_glbl,'prev',\%text]
+                 -command=> [\&text_search_next,"",$r_glbl,'prev',\%text]
               );
 
 
@@ -393,14 +258,15 @@ sub tk_make_text_widget
   }
 
 
-sub tk_text_search
+sub text_search
+# INTERNAL FUNCTION
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
   { my($widget, $r_glbl,$r_text)= @_;
 
     my $text= $r_text->{text_widget};
 
-    my $Top= mk_toplevel($r_glbl,
+    my $Top= MakeToplevel($r_glbl,
                          parent_widget=> $r_text->{Top},
                          title=>"search");
 
@@ -422,7 +288,7 @@ sub tk_text_search
                            delete $r_text->{search_widget};
                            delete $r_text->{search};
                            delete $r_text->{last_search};
-                           tk_err_dialog($r_glbl->{main_menu_widget},
+                           err_dialog($r_glbl->{main_menu_widget},
                                          "\"$s\" not found");
                          }
                        else
@@ -456,7 +322,8 @@ sub tk_text_search
 
   }
 
-sub tk_text_search_next
+sub text_search_next
+# INTERNAL FUNCTION
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
   { my($widget, $r_glbl,$dir,$r_text)= @_;
@@ -464,7 +331,7 @@ sub tk_text_search_next
     my $text= $r_text->{text_widget};
 
     if (!defined $r_text->{last_search})
-      { tk_err_dialog($r_glbl->{main_menu_widget},
+      { err_dialog($r_glbl->{main_menu_widget},
                       "no search string specified");
         return;
       }
@@ -486,7 +353,7 @@ sub tk_text_search_next
                          $from
                         );
     if (!$r)
-      { tk_err_dialog($r_glbl->{main_menu_widget},
+      { err_dialog($r_glbl->{main_menu_widget},
                       "not found");
       };
 
@@ -504,13 +371,14 @@ sub tk_text_search_next
 
   }
 
-sub tk_text_save
+sub text_save
+# INTERNAL FUNCTION
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
   { my($widget,$r_glbl,$r_text)= @_;
 
 
-    my $file= tk_simple_file_menu(widget=> $r_text->{Top},
+    my $file= simple_file_menu(widget=> $r_text->{Top},
                                   type=> 'Save',
                                   extension=>'.txt',
                                   defaultdir=>$r_glbl->{dir},
@@ -524,13 +392,13 @@ sub tk_text_save
     my $text= $r_text->{text_widget}->get('1.0','end');
     local(*F);
     if (!open(F, ">$file"))
-      { tk_err_dialog($r_glbl->{main_menu_widget},
+      { err_dialog($r_glbl->{main_menu_widget},
                       "unable to open $file for writing");
         return;
       };
     print F $text;
     if (!close(F))
-      { tk_err_dialog($r_glbl->{main_menu_widget},
+      { err_dialog($r_glbl->{main_menu_widget},
                       "error while closing $file");
         return;
       };
@@ -539,7 +407,7 @@ sub tk_text_save
 # a simple file menu for loading or storing of a file:
 #_______________________________________________________
 
-sub tk_simple_file_menu
+sub simple_file_menu
 # options:
 # type: 'load' or 'save'
 # extension: extension
@@ -590,7 +458,7 @@ sub tk_simple_file_menu
 #_______________________________________________________
 
 
-sub tk_object_dialog
+sub ObjectDialog
 # known options:
 # title
 # items -> reference to a list of items
@@ -610,7 +478,7 @@ sub tk_object_dialog
 
     my %h;
 
-    my $Top= mk_toplevel($r_glbl,
+    my $Top= MakeToplevel($r_glbl,
                          title=>$options{title});
 
     my $FrTop = $Top->Frame(-borderwidth=>2,
@@ -632,10 +500,10 @@ sub tk_object_dialog
     $Listbox->pack(-fill=>'both',-expand=>'y');
 
     $Top->bind('<Return>',
-               [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]);
+               [\&object_dialog_finish, $r_glbl, $r_tbh, $tag]);
 
     $Listbox->bind('<Double-1>',
-                   [\&tk_object_dialog_finish, $r_glbl, $r_tbh, $tag]);
+                   [\&object_dialog_finish, $r_glbl, $r_tbh, $tag]);
 
     $Top->bind('<Destroy>', sub {
                              delete $r_tbh->{$tag};
@@ -656,7 +524,8 @@ sub tk_object_dialog
     $Top->Popup(-popover    => 'cursor');
   }
 
-sub tk_object_dialog_finish
+sub object_dialog_finish
+# INTERNAL FUNCTION
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
   { my($widget,$r_glbl,$r_tbh,$tag)= @_;
@@ -669,7 +538,7 @@ sub tk_object_dialog_finish
     my @selection= $Listbox->curselection();
 
     if (!@selection)
-      { tk_err_dialog($Top, "nothing selected");
+      { err_dialog($Top, "nothing selected");
         return;
       };
 
@@ -693,10 +562,11 @@ sub tk_object_dialog_finish
 # create new toplevel window:
 #_______________________________________________________
 
-sub mk_toplevel
+sub MakeToplevel
 # options:  title: window title
 #           geometry: geometry string
-#           parent_widget
+#           parent_widget: parent-widget
+#           popover: 1: if 1 open window just above parent widget
   { my($r_glbl,%options)= @_;
     my $MainWidget;
 
@@ -717,19 +587,23 @@ sub mk_toplevel
     if (exists $options{geometry})
       { $Top->geometry($options{geometry}); };
 
+    if ($options{popover})
+      { $Top->Popup(-popover=> $MainWidget ); };
+
     return($Top);
   }
 
 # delete last inserted char in text widget:
 #_______________________________________________________
 
-sub tk_delete_char
+sub delete_char
+# INTERNAL FUNCTION
   { $_[0]->delete('insert - 1 char'); }
 
 # remove useless key-bindings in text-widget:
 #_______________________________________________________
 
-sub tk_clear_undefkey
+sub clear_undef_keys
   {
     my @keys= ('<Control-1>', '<Control-2>', '<Control-3>', '<Control-4>',
                '<Control-5>', '<Control-6>', '<Control-7>', '<Control-8>',
@@ -741,14 +615,14 @@ sub tk_clear_undefkey
     if (defined ($this_widget))
       {
         foreach my $k (@keys)
-          { $this_widget->bind($k => [\&tk_delete_char]); };
+          { $this_widget->bind($k => [\&delete_char]); };
       }
   }
 
 # scroll-wheel:
 #_______________________________________________________
 
-sub tk_bind_scroll_wheel
+sub bind_scroll_wheel
   { my($widget)= @_;
 
     $widget->bind('<Button-4>',['yview','scroll',-5,'units']);
@@ -766,7 +640,7 @@ sub tk_bind_scroll_wheel
 # sand-clock:
 #_______________________________________________________
 
-sub tk_set_busy
+sub SetBusy
   { my($r_glbl,$val)= @_;
 
     if (!$val)
@@ -790,7 +664,7 @@ sub tk_set_busy
 # progress-bar:
 #_______________________________________________________
 
-sub tk_progress
+sub Progress
   { my($r_glbl,$val)= @_;
 
 #my ($p,$f,$l)= caller; print "**** $p $f $l\n";
@@ -805,6 +679,31 @@ sub tk_progress
     $r_glbl->{main_menu_widget}->update();
   }
 
+# simple error-dialog:
+#_______________________________________________________
+
+sub err_dialog
+  { my($parent,$message)= @_;
+
+    my $dialog= $parent->Dialog(
+                                 -title=>'Error',
+                                 -text=> $message
+                               );
+    $dialog->Show();
+  }
+
+sub fatal_err_dialog
+  { my($parent_widget,$message)= @_;
+
+    my $dialog= $parent_widget->Dialog(
+                                       -title=>'Fatal Error',
+                                       -text=> $message
+                                      );
+    $dialog->Show();
+    exit(0);
+  }
+
+
 1;
 
 __END__
@@ -813,159 +712,345 @@ __END__
 
 =head1 NAME
 
-dbitk - an Perl module for building tk-GUI.
+BrowseDB::TkUtils - Perl-Tk utilities for browsedb
 
 =head1 SYNOPSIS
 
-  use dbitable;
+  use BrowseDB::TkUtils;
 
 =head1 DESCRIPTION
 
 =head2 Preface
 
-This module contains main event/callback and dialog routines which is used
-in browsedb. They using the tk enhancement to build GUI-elements.
+This module contains utilites and dialogs for the browsedb applicataion.
+Most of these can only be used by that application, others however,
+are more generic.
 
-At the moment you will found subs. May be converting in future to objects.
+=head2 simple dialogs
 
-Most of the subs need to sets the global hash for instance $r_glbl to bind
-the window to the parent window or getting the content of global context.
+=over 4
 
-=head2 Dialogs
+=item About()
 
-=item tk_quit()
-
-    $return = tk_quit ($r_glbl, $r_tbh, $noclose);
-
-Need $r_glbl and $r_tbh for checking the status of childs and parent windows.
-
-As options u need $r_glbl all the globals, if defined top_widget and $r_tbh
-so it is finally only a closing table_hash_window, otherwise it is a
-closing application call $noclose can be set to 1, then it is only a reload
-The routine returns <undef> if the window was closed and 1 if the window
-was not closed (on request by the user)
-
-need:
-=item tk_about()
-
-    $r_glbl->{title} = "abc";
-    $r_glbl->{version} = "0123";
-    $r_glbl->{textvar} = ("abc", "def", "ghi ...);
-    tk_about($r_glbl, "textvar");
+    About( { title  => $window_title,
+             version=> $program version },
+           [ "this is the XXX application",
+             "you can use it to do many interesting things..."
+           ]
+         )
 
 This simple Dialog will show the title and version on top and print the output
-of hash content list wich is saved in textvar. So you can output different
-text as normal ok-window.
+of the given list, one elent per line.
 
-=item tk_simple_text_dialog()
+=item SimpleTextDialog()
 
-    tk_simple_text_dialog($title, $callback, $text, $tag, $dialog);
-    tk_simple_text_dialog_finish ($widget, $r_glbl, $r_tbh, $tag);
+    simple_text_dialog($r_glbl,$r_tbh,%options)
 
-ADD a WIDTH parameter here!
-known options:
-    title
-    callback -> callback after something was selected
-    text -> text at the bottom of the widget
-    tag -> tag-name for the dialog data that
-        is stored in the table-handle
-    default -> default-value of variable
+This function opens a dialog window where the user can enter some
+text. After the user has pressed <Return>, a callback function is
+called with that text as a parameter.
 
-    sub tk_simple_text_dialog_finish is the routine for resuming operations.
+C<$r_glbl> is the global hash that is needed by C<MakeToplevel()>
+and a possible callback function. C<$r_tbh> is the table-hash as it
+is used in browsedb.
 
-=item make_text_widget()
+These are known options:
 
-    make_text_widget($r_glbl,$title,$r_content);
+=over 4
 
-Well needs global hash $r_glbl the title $title and the content $content
-Additional the menu will be enhance for the handling of text like cut 'n paste.
-Also the short cuts will be bind.
+=item *
 
-    tk_text_search($widget, $r_glbl,$r_text);
-    tk_text_search_next($widget, $r_glbl, $dir, $r_text)= @_;
+"title"
 
-tk_text_search build a search dialog for find or search in widgets like text
-widget given in $widget ($widget is not really needed, it's just here
-since  this function can be called from via <bind>) and the text in $r_text.
+The title of the window.
 
-    tk_text_save($widget, $r_glbl, $r_text);
+=item *
 
-Save text $r_text at parent widget $widget and infos from $r_glbl (global hash).
-If you want to edit the text widget and want to save selected text in a
-textwidget, use this sub.
+"text"
 
-=item tk_simple_file_menu()
+The text that is displayed at the bottom of the widget, like
+"enter a new value" or something.
 
-    tk_simple_file_menu(%options};
+=item *
 
-This is a dialog for filehandling dialog. It is enhanced for real using
-Here are the options:
-    type: 'load' or 'save'
-    extension: extension
-    defaultdir: dir
-    title: title
-    extension_description
-    widget: parent widget
+"tag"
 
-=item  tk_object_dialog()
+The tag-name under which the internal data of the widget is stored
+in the table-hash (C<$r_tbh>). Note that this entry in the hash
+is removed, when the window is closed.
 
-    tk_object_dialog($r_glbl,$r_tbh,%options);
-    tk_object_dialog_finish($widget, $r_glbl, $r_tbh, $tag);
+=item *
 
-tk_object_dialog builds the dialogwhich is  more for debugging than useable
-dialog. It will show content of objects. Here are the options
+"default"
 
-    title
-    items -> reference to a list of items
-    text -> text at the bottom of the widget
-    callback -> callback after something was selected
-    tag -> tag-name for the dialog data that is stored in the table-handle
+The default value of the text-variable.
 
-tk_object_dialog_finish made the callback actions for object dialog.
-(note: $widget is not really needed, it's just here
- since  this function can be called from via <bind>)
+=item *
+
+"callback"
+
+This specifies the callback function that is called when the user
+has entered some text. It has to be a reference to list. The first
+element must be the reference to the function, the following elements
+are optional and are arbitrary parameters for the function. Note that
+the function is also gets C<$r_glbl>, C<$r_tbh> and the entered
+text as a parameter. For example
+
+  callback=> [\&tk_field_edit_finish,$abc,$def]
+
+causes that the given function is called that way:
+
+  tk_field_edit_finish($r_glbl,$r_tbh,$value,$abc,$def)
+
+where C<$value> is the value that was entered.
+
+
+=back
+
+
+=item MakeTextWidget()
+
+  MakeTextWidget($r_glbl,$title,$r_content);
+
+This function displays a text in a separate window. The window has scroll
+bars and a simple menu which allows to save the contents to a file and
+to search strings within the text. It also defines some control-keys
+as shortcuts for saving and searching.
+
+C<$r_glbl> is the global hash that is needed by by C<MakeToplevel()>,
+which is called by this function. C<$title> is the window-title and
+C<$r_content> is a reference to a scalar variable which contains the text
+to be displayed. The text may containt new-line characters and span
+several lines.
+
+=item simple_file_menu()
+
+    simple_file_menu(%options};
+
+This is a simple filedialog. The following options are known:
+
+=over 4
+
+=item *
+
+"widget"
+
+The parent widget. This option is mandatory
+
+=item *
+
+"type"
+
+This option can be either "load" or "save". This option specifies wether
+the dialog is opened for loading or for saving a file.
+
+=item *
+
+"extension"
+
+This is the default-extension of the file(s). This option is mandatory.
+Note that it must contain the dot, e.g.
+
+  simple_file_menu(... ,extension => ".txt", ...)
+
+=item *
+
+"defaultdir"
+
+This is the default directory for which files are displayed. This option
+is optional.
+
+=item *
+
+"title"
+
+This is just the title of the window (optional).
+
+=item *
+
+"extension_description"
+
+This should be a short decription what the files with the
+given extension are (optional).
+
+=back
+
+=item  ObjectDialog()
+
+    ObjectDialog($r_glbl,$r_tbh,%options);
+
+This dialog displays a vertical list of items from which the user
+can choose one by simply double-clicking onto it.
+
+C<$r_glbl> is the global hash that is needed by C<MakeToplevel()>
+and a possible callback function. C<$r_tbh> is the table-hash as it
+is used in browsedb.
+
+The following options are known:
+
+=over 4
+
+=item *
+
+"title"
+
+This is just the window title (optional)
+
+=item *
+
+"text"
+
+This is a text that is displayed at the bottom of the widget,
+for example "double click to select".
+
+=item *
+
+"tag"
+
+The tag-name under which the internal data of the widget is stored
+in the table-hash (C<$r_tbh>). Note that this entry in the hash
+is removed, when the window is closed.
+
+=item *
+
+"callback"
+
+This specifies the callback function that is called when the user
+has entered some text. It has to be a reference to list. The first
+element must be the reference to the function, the following elements
+are optional and are arbitrary parameters for the function. Note that
+the function is also gets C<$r_glbl>, C<$r_tbh> and the entered
+text as a parameter. For example
+
+  callback=> [\&tk_field_edit_finish,$abc,$def]
+
+causes that the given function is called that way:
+
+  tk_field_edit_finish($r_glbl,$r_tbh,$value,$abc,$def)=
+
+where C<$value> is the value that was selected.
+
+=back
+
+=back
 
 =head2 Utilities
 
-=item mk_toplevel
+=over 4
 
-    mk_toplevel
+=item MakeToplevel
 
-Create a top_level window and make as positioning.
-Options are
-    title: window title
-    geometry: geometry string
-    parent_widget
+  MakeToplevel($r_glbl,%options)
 
-=item sub tk_delete_char
-  { $_[0]->delete('insert - 1 char'); }
+This function creates a new toplevel window. The window is
+a Tk-MainWidget and is an heir of $r_glbl->{main_menu_widget}.
+The new window is grouped with the Tk "group" command in one
+group together with all other windows that were created with
+this function.
 
-# remove useless key-bindings in text-widget:
-#_______________________________________________________
+The following options are known:
 
-=item tk_clear_undefkey()
+=over 4
 
-    tk_clear_undefkey();
+=item *
 
-Undefine key bindings, that not will be used in text widgets.
+"title"
 
-List:   Control-<0-9|q|r|u|g|s|l|m>
+This is just the window title.
 
-=item tk_bind_scroll_wheel
+=item *
 
-    tk_bind_scroll_wheel($widget);
+"geometry"
 
-Bind all scroll variation of normal, shiftet and controled to the widget $widget.
+This is a X11 geometry string, this parameter is optional.
 
-=item tk_set_busy
+=item *
 
-    tk_set_busy($r_glbl, $val);
+"parent_widget"
 
-Yepp, here the classical Neumann prpblem hold on all till the programm
-pointer is free.
+This is the parent widget that the new widget is derived from.
+If this parameter is missing, the parent widget is
+C<$r_glbl->{main_menu_widget}>.
 
-=item tk_progress()
+=item *
 
-    tk_progress ($r_glbl, $val);
+"popover"
 
-Build a nice Progress and updates with teh percentage in $val.
+If this option is "true" (defined and unequal to zero) the new widget
+is placed over it's parent with the "Popup" method from Tk. Otherwise
+it is placed somewhere else on the screen.
+
+=back
+
+
+=item clear_undefkey()
+
+    clear_undefkey();
+
+This fixes a bug with Tk text widgets. Certain control characters
+let little squares appear at the cursor positions, which is not what
+we want. This function fixes this effect for several control characters
+(crtl-0 .. ctrl-9, crtl-q,r,u,g,s,l and ctrl-m)
+
+=item bind_scroll_wheel
+
+    bind_scroll_wheel($widget);
+
+This function binds the mouse scroll wheel to the "yview" methos of
+the given widget (it just makes the scroll wheel work on
+widgets where it doesn't work as a default).
+
+=item SetBusy
+
+    SetBusy($r_glbl, $val);
+
+Changes the mouse-cursor to a sand-clock and back again.
+Used when an action may take a longer time. If C<$val> is true
+the sandclock is shown, if it is false, the sandclock is removed.
+Note that several calls of this function can be nested e.g.
+
+  SetBusy($r_glbl,1);
+    ...
+    SetBusy($r_glbl,1);
+    ...
+    SetBusy($r_glbl,0);
+    ...
+  SetBusy($r_glbl,0);
+
+in this case, only the outmost ones have an effect.
+
+=item Progress()
+
+    Progress($r_glbl, $val);
+
+This is used to set the program's progress bar to a certain
+value (C<$val>).
+
+=item err_dialog()
+
+    err_dialog($parent,$message);
+
+This just displays a dialog box which is derived from the parent
+widget.
+
+=item fatal_err_dialog()
+
+    fatal_err_dialog($parent,$message);
+
+This just displays a dialog box which is derived from the parent
+widget, but it does an "exit" when the box is closed.
+
+=back
+
+=head1 AUTHOR
+
+S<Goetz Pfeiffer E<lt>pfeiffer@mail.bessy.deE<gt>>, 
+S<Patrick Laux E<lt>laux@mail.bessy.deE<gt>>
+
+=head1 SEE ALSO
+
+perl-documentation, browsedb.pl (use the source... ;-)
+
+=cut
+
+
