@@ -369,9 +369,6 @@ sub tk_main_window
     my $Top= MainWindow->new(-background=>$BG);
     $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit, $r_glbl ]);
 
-#    $Top->bind('<Destroy>', sub { &tk_quit, $r_glbl ]);
-
-
 #    $Top->minsize(400,400);
 #    $Top->maxsize(800,800);
 
@@ -422,21 +419,21 @@ sub tk_main_window
     # configure File-menu:
     $Top->bind($Top,'<Control-o>'=> [\&tk_load_collection,$r_glbl]);
     $MnFile->add('command',
-               -label=> 'open collection',
+               -label=> 'Open collection',
                -accelerator => 'Ctrl+o',
                -underline  => 0,
                -command=> [\&tk_load_collection,"",$r_glbl]
               );
     $Top->bind($Top,'<Control-s>'=> [\&tk_save_collection,$r_glbl]);
     $MnFile->add('command',
-               -label=> 'save collection',
+               -label=> 'Save collection',
                -accelerator => 'Ctrl+s',
                -underline  => 0,
                -command=> [\&tk_save_collection,"",$r_glbl]
               );
     $MnFile->add('separator');
     $MnFile->add('command',
-                    -label=> 'quit',
+                    -label=> 'Quit',
                     -accelerator => 'Ctrl+q',
                     -underline  => 0,
                     -command => [ \&tk_quit, $r_glbl ],
@@ -458,7 +455,7 @@ sub tk_main_window
 
     $MnPref->add(
               'checkbutton',
-               -label=> 'autocommit',
+               -label=> 'Autocommit',
                -variable => \$autocommit_var,
                -command=>
                        sub {
@@ -474,14 +471,14 @@ sub tk_main_window
               );
 
     $MnDb->add('command',
-               -label=> 'commit',
+               -label=> 'Commit',
                -underline  => 0,
                -state=> ($autocommit_var ? 'disabled' : 'active'),
                -command=> sub { dbdrv::commit($r_glbl->{dbh}); }
               );
     $c_commit_i= $MnDb->index('end');
     $MnDb->add('command',
-               -label=> 'rollback',
+               -label=> 'Rollback',
                -underline  => 0,
                -state=> ($autocommit_var ? 'disabled' : 'active'),
                -command=> sub { dbdrv::rollback($r_glbl->{dbh});
@@ -498,7 +495,7 @@ sub tk_main_window
                -command=> [\&tk_reload_all_objects, $r_glbl]
               );
     $MnDb->add('command',
-               -label=> 'show SQL commands',
+               -label=> 'Show SQL commands',
                -underline  => 5,
                -command=> [\&tk_sql_commands, $r_glbl]
               );
@@ -1113,18 +1110,46 @@ sub tk_main_window_finish
 
 sub tk_quit
   {
-    my($r_glbl, $widget)= @_;
-    my $choice = "No";
-    my $Top;
+# $r_glbl all the globals, if defined top_widget and $r_tbh so it is finally only a closing
+# table_hash_window, otherwise it is a closing application call
+# $noclose can be set to 1, then it is only a reload
 
-    if ((!$fast_test) && (defined $r_glbl))
+    my($r_glbl, $r_tbh, $noclose)= @_;
+    my $message = '\\nMaybe you want to save your changes before?';
+    my $choice = "No";
+    if (! defined ($noclose))
+      {
+        $noclose = 0;
+      }
+    my $flag = 0;
+    my $Top;
+warn "tk_quit ($r_glbl, $r_tbh, $noclose): ".$r_glbl->{top_widget};
+    if (! defined($r_glbl->{top_widget}) || ! defined ($r_tbh))
       {
         $Top = $r_glbl->{main_menu_widget};
+        $message = 'Do you really want to quit? '.$message;
+      }
+    else
+      {
+        $Top = $r_glbl->{top_widget};
+        if ($noclose == 1)
+          {
+            $flag = -1;
+            $message = 'Do you really want to reload and lost the content? '.$message;
+          }
+        else
+          {
+            $flag = 1;
+            $message = 'Do you really want to close the window? '.$message;
+          }
+      }
+    if ((!$fast_test) && (defined $r_glbl))
+      {
         my $DlgQuit = $Top->Dialog(
                     -title => 'Quit',
-                    -text => 'Do you really want to quit?',
+                    -text => $message,
                     -default_button => 'No',
-                    -buttons => ['Yes', 'No'],
+                    -buttons => [ 'Yes', 'Save', 'No'],
                     );
         $choice = $DlgQuit->Show;
       }
@@ -1133,19 +1158,40 @@ sub tk_quit
         $choice = "Yes";
         warn "Quit without warning!";
       }
+    if ($choice =~ /Save/)
+      {
+        if ($flag == 0)
+          {
+            tk_save_collection ($Top, $r_glbl);
+          }
+        else
+          {
+            tk_save_to_file ($r_tbh);
+          }
+# no return values, thats why automatically will be quit
+        $choice = "Yes";
+      }
     if ($choice =~ /Yes/)
       {
-        if (exists($r_glbl->{handle_sql_history}))
+        if ($flag == 0 && exists($r_glbl->{handle_sql_history}))
           {
             my $fh = $r_glbl->{handle_sql_history};
             $fh->flush();
             $fh->close();
           }
-        if (defined $Top)
+        if ($flag > 0)
           {
             $Top->destroy();
+            return 0;
           }
-        exit(0);
+        elsif ($flag == 0)
+          {
+            exit(0);
+          }
+        else
+          {
+            return 0;
+          }
       }
     else
       {
@@ -1817,11 +1863,13 @@ sub make_table_window
 
     tk_update_window_menu($r_glbl);
 
-    # What's this ???
+    # Whats this ???
     $Top->eventAdd('<<Paste>>' => '<Control-v>');
     $Top->eventAdd('<<Copy>>' => '<Control-c>');
     $Top->eventAdd('<<Save>>' => '<Control-s>');
     $Top->eventAdd('<<Quit>>' => '<Control-q>');
+    $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit, $r_glbl, $r_tbh ]);
+
 
     delete $r_tbh->{geometry}; # no longer needed
 
@@ -1948,7 +1996,7 @@ sub make_table_window
 
     $Top->bind($Top,'<Control-f>'=> [\&tk_find_line,$r_glbl, $r_tbh]);
     $MnEdit->add('command',
-                  -label=> 'find in column',
+                  -label=> 'Find in column',
                   -accelerator => 'Ctrl+f',
                   -underline   => 8,
                   -command => [\&tk_find_line, "", $r_glbl, $r_tbh],
@@ -1956,7 +2004,7 @@ sub make_table_window
     $Top->bind($Top,'<Control-g>'=> [\&tk_find_line_next,
                                      $r_glbl, $r_tbh,'next']);
     $MnEdit->add('command',
-                  -label=> 'find next column',
+                  -label=> 'Find next column',
                   -accelerator => 'Ctrl+g',
                   -underline   => 5,
                   -command => [\&tk_find_line_next, "",
@@ -1965,61 +2013,61 @@ sub make_table_window
     $Top->bind($Top,'<Shift-Control-G>'=> [\&tk_find_line_next,
                                            $r_glbl, $r_tbh,'prev']);
     $MnEdit->add('command',
-                  -label=> 'find prev column',
+                  -label=> 'Find prev column',
                   -accelerator => 'Shift+Ctrl+g',
                   -underline   => 5,
                   -command => [\&tk_find_line_next, "",
                                $r_glbl, $r_tbh,'next'],
                 );
     $MnEdit->add('cascade',
-                  -label=> 'field',
+                  -label=> 'Field',
                   -underline   => 0,
                   -menu => $MnEditField,
                 );
     $MnEdit->add('cascade',
-                  -label=> 'line',
+                  -label=> 'Line',
                   -underline   => 0,
                   -menu => $MnEditLine,
                 );
 
 
     $MnEditLine->add('command',
-                      -label=> 'insert',
+                      -label=> 'Insert',
                       -underline   => 0,
                       -command => [\&cb_insert_line, $r_glbl, $r_tbh],
                     );
     $MnEditLine->add('command',
-                      -label=> 'delete',
+                      -label=> 'Delete',
                        -underline   => 0,
                       -command => [\&tk_delete_line_dialog, $r_glbl, $r_tbh],
                     );
     $MnEditLine->add('command',
-                      -label=> 'copy',
+                      -label=> 'Copy',
                       -underline   => 0,
                       -command => [\&cb_copy_paste_line,
                                    $r_glbl, $r_tbh, 'copy'],
                     );
     $MnEditLine->add('command',
-                      -label=> 'paste',
+                      -label=> 'Paste',
                       -underline   => 0,
                       -command => [\&cb_copy_paste_line,
                                    $r_glbl, $r_tbh, 'paste'],
                     );
 
     $MnEditField->add('command',
-                       -label=> 'enter value',
+                       -label=> 'Enter value',
                        -underline   => 0,
                        -command => [\&tk_field_edit, $r_glbl, $r_tbh],
                      );
 
     $MnEditField->add('command',
-                      -label=> 'copy',
+                      -label=> 'Copy',
                       -underline   => 0,
                       -command => [\&cb_copy_paste_field,
                                    $r_glbl, $r_tbh, 'copy'],
                      );
     $MnEditField->add('command',
-                       -label=> 'paste',
+                       -label=> 'Paste',
                        -underline   => 0,
                        -command => [\&cb_copy_paste_field,
                                     $r_glbl, $r_tbh, 'paste'],
@@ -2029,7 +2077,7 @@ sub make_table_window
     # configure relations-menu:
     if ($r_tbh->{table_type} eq 'table')
       { $MnRela->add('command',
-                      -label=> 'dependend tables',
+                      -label=> 'Dependend tables',
                       -underline   => 10,
                       -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
                     );
@@ -2038,7 +2086,7 @@ sub make_table_window
     if ($r_tbh->{table_type} ne 'sql')
       {
         $MnRela->add('command',
-                      -label=> 'dependend views',
+                      -label=> 'Dependend views',
                       -underline   => 10,
                       -command => [\&tk_dependend_views_dialog, $r_glbl, $r_tbh],
                     );
@@ -2046,14 +2094,14 @@ sub make_table_window
 
     if ($r_tbh->{table_type} eq 'table')
       { $MnRela->add('command',
-                      -label=> 'referenced tables',
+                      -label=> 'Referenced tables',
                       -underline   => 0,
                       -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
                     );
       };
     if ($r_tbh->{table_type} eq 'view')
       { $MnRela->add('command',
-                      -label=> 'referenced objects',
+                      -label=> 'Referenced objects',
                       -underline   => 11,
                       -command => [\&tk_view_dependency_dialog, $r_glbl, $r_tbh],
                     );
@@ -2061,7 +2109,7 @@ sub make_table_window
 
     if ($r_tbh->{table_type} ne 'sql')
       { $MnRela->add('command',
-                      -label=> 'add column map to file',
+                      -label=> 'Add column map to file',
                       -underline   => 0,
                       -command =>
                         sub { add_to_local_column_maps($r_glbl,$r_tbh,
@@ -2071,7 +2119,7 @@ sub make_table_window
       };
 
     $MnRela->add('command',
-                  -label=> 'add scroll-relation',
+                  -label=> 'Add scroll-relation',
                   -underline   => 0,
                   -command => [\&tk_add_relation_dialog, $r_glbl, $r_tbh],
                 );
@@ -3103,19 +3151,77 @@ sub tk_find_line
       { $colname= $given_colname; };
 
     $col_search_data{colname}= $colname;
+    my $fromOpt = 'current';
+    my $directionOpt = 'down';
+    my $exactOpt = 1;
 
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= mk_toplevel($r_glbl,
                          parent_widget=> $TableWidget,
                          title=>"$r_tbh->{table_name}: Find $colname");
 
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'x',
-                                  -expand=>'y');
+    my $FrTop = $Top->Frame( -borderwidth=>2,
+                                -background=>$BG
+        )->pack(-side=>'top' ,
+                -fill=>'x',
+                -expand=>'y');
+    my $FrTopFrom = $FrTop->Frame(-borderwidth=>2,
+                            -background=>$BG
+        )->pack(-side=>'left' ,
+                -fill => 'x',
+                -expand => 'y');
+    my $rbfrom1 = $FrTopFrom->Radiobutton(-variable => \$fromOpt,
+                                     -value => 'current',
+                                     -text => 'from here',
+        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+    my $rbfrom2 = $FrTopFrom->Radiobutton(-variable => \$fromOpt,
+                  -value => 'top',
+                  -text => 'from top'
+        )->pack(-side=>'top', anchor => 'w', fill => 'x');
 
+    my $FrTopDirection = $FrTop->Frame(-borderwidth=>2,
+                                -background=>$BG
+        )->pack(-side=>'left' ,
+                -fill => 'x',
+                -expand => 'y');
+    my $rbdirection1 = $FrTopDirection->Radiobutton(
+                            -variable => \$directionOpt,
+                            -value => 'down',
+                            -text => 'downwards',
+        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+    my $rbdirection2 = $FrTopDirection->Radiobutton(-variable =>\$directionOpt,
+                            -value => 'up',
+                            -text => 'upwards',
+        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+
+    my $FrTopExact = $FrTop->Frame(-borderwidth=>2,
+                            -background=>$BG
+        )->pack(-side=>'left' ,
+                -fill => 'x',
+                -expand => 'y');
+    my $rbexact1 = $FrTopExact->Radiobutton(-variable => \$exactOpt,
+                                     -value => 1,
+                                     -text => 'exact match',
+        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+    my $rbexact2 = $FrTopExact->Radiobutton(-variable => \$exactOpt,
+                                     -value => 0,
+                                     -text => 'expression match',
+        )->pack(-side=>'top', anchor => 'w', fill => 'x');
+
+    $rbfrom1->select;
+    $rbdirection1->select;
+    $rbexact1->select;
+    my $FrBottom = $Top->Frame( -borderwidth=>2,
+                                -background=>$BG
+        )->pack(-side=>'top' ,
+                -fill=>'x',
+                -expand=>'y');
+    $FrBottom->Label(-text => 'Searchstring for the upper options:'
+        )->pack(-side=>'top' ,
+                -fill=>'x',
+                -expand=>'y');
     my $entry=
-       $FrTop->Entry(-textvariable => \$col_search_data{string},
+       $FrBottom->Entry(-textvariable => \$col_search_data{string},
                      -width=>20
                     )->pack(-side=>'left',-fill=>'x',-expand=>'y');
     $entry->focus();
@@ -3125,8 +3231,9 @@ sub tk_find_line
                                           string=>\$col_search_data{string},
                                           colname=>$colname,
                                           use_colmap=>1,
-                                          from=>'current',
-                                          direction=>'down');
+                                          from=>$fromOpt,
+                                          direction=>$directionOpt,
+                                          exact=>$exactOpt);
 
                    if (!defined $row)
                      { tk_err_dialog($Top,
@@ -4130,7 +4237,7 @@ sub cb_put_get_val
         if (defined $flag)
           { if ($flag eq 'P')
               { $r_tbh->{table_widget}->bell();
-                # warn "no writing allowed on this column
+                # warn "no writing allowed on this column"
                 return($r_tbh->{dbitable}->value($pk,$colname));
               };
             if ($flag eq 'T')
@@ -4360,7 +4467,7 @@ sub cb_store_db
 
    $r_tbh->{dbitable}->store();
 
-   # reload the table, it's safer to do this in case
+   # reload the table, its safer to do this in case
    # that another person has also changed the table in the meantime
    $r_tbh->{dbitable}->load();
 
@@ -4387,26 +4494,29 @@ sub cb_reload_db
 # global variables used: NONE
  { my($r_glbl, $r_tbh)= @_;
 
-   my $Table= $r_tbh->{table_widget};
+   if (tk_quit($r_glbl, $r_tbh, 1) >= 0)
+     {
+        my $Table= $r_tbh->{table_widget};
 
-   tk_set_busy($r_glbl,1);
+        tk_set_busy($r_glbl,1);
 
-   tk_remove_changed_cell_tag($r_tbh);
+        tk_remove_changed_cell_tag($r_tbh);
 
-   $r_tbh->{dbitable}->load();
+        $r_tbh->{dbitable}->load();
 
-   # re-calc the number of rows, update the table- widget:
-   # (there may be new lines inserted in the table)
-   resize_table($r_tbh);
-   # ^^^ resize_table does also a re-draw of the table-widget
+        # re-calc the number of rows, update the table- widget:
+        # (there may be new lines inserted in the table)
+        resize_table($r_tbh);
+        # ^^^ resize_table does also a re-draw of the table-widget
 
-   # update the displayed content in the active cell:
-   tk_rewrite_active_cell($r_tbh);
+        # update the displayed content in the active cell:
+        tk_rewrite_active_cell($r_tbh);
 
-   tk_set_busy($r_glbl,0);
+        tk_set_busy($r_glbl,0);
 
-   # the following would also force a redraw
-   # $Table->configure(-padx => ($Table->cget('-padx')) );
+        # the following would also force a redraw
+        # $Table->configure(-padx => ($Table->cget('-padx')) );
+     }
  }
 
 # $Table->tag
