@@ -1,11 +1,10 @@
 # this is not a real perl-package
 # it is loaded via "do" into dbdrv.pm !!
 
-#activate the following 4 lines for strict-checking:
-#use strict;
-#our %sql_aliases;
-#our $sql_trace;
-#our $r_db_objects;
+use strict;
+our %sql_aliases;
+our $sql_trace;
+our $r_db_objects;
 
 
 my $mod_l= "dbdrv_pg";
@@ -62,44 +61,44 @@ my $view_dependencies_examined=0;
 my %typemap= (
     
       # numeric types:
-	      smallint           => 'number',	# documented, found
-	      integer            => 'number',	# documented, found
-	      bigint             => 'number',	# documented, found
-	      decimal            => 'number',	# documented
-	      numeric            => 'number',	# documented, found
-	      real               => 'number',	# documented, found
-	      'double precision' => 'number',	# documented
-	      serial             => 'number',	# documented
-	      bigserial          => 'number',	# documented
+              smallint           => 'number',   # documented, found
+              integer            => 'number',   # documented, found
+              bigint             => 'number',   # documented, found
+              decimal            => 'number',   # documented
+              numeric            => 'number',   # documented, found
+              real               => 'number',   # documented, found
+              'double precision' => 'number',   # documented
+              serial             => 'number',   # documented
+              bigserial          => 'number',   # documented
 
       # monetary types
-	      money              => 'number',	# documented 
+              money              => 'number',   # documented 
 
       # character types
-	      'character varying'=> 'string',	# documented, found
-	      character          => 'string',	# documented
-	      '"char"'           => 'string',	# documented, found
-	      text               => 'string',	# documented, found
+              'character varying'=> 'string',   # documented, found
+              character          => 'string',   # documented
+              '"char"'           => 'string',   # documented, found
+              text               => 'string',   # documented, found
                  
       # binary data types
-	      bytea              => 'number',	# documented, found
+              bytea              => 'number',   # documented, found
 
       # date/time types
-	      'timestamp'        => 'string',	# documented
-	      'timestamp without time zone'
-	                         => 'string',	# documented
-	      'timestamp with time zone'
-	                         => 'string',	# documented
-	      interval           => 'string',   # documented
-	      date               => 'string',   # documented, found
-	      'time'             => 'string',	# documented
-	      'time without time zone'
-	                         => 'string',	# documented
-	      'time with time zone'
-	                         => 'string',	# documented
+              'timestamp'        => 'string',   # documented
+              'timestamp without time zone'
+                                 => 'string',   # documented
+              'timestamp with time zone'
+                                 => 'string',   # documented
+              interval           => 'string',   # documented
+              date               => 'string',   # documented, found
+              'time'             => 'string',   # documented
+              'time without time zone'
+                                 => 'string',   # documented
+              'time with time zone'
+                                 => 'string',   # documented
 
       # boolean type
-	      boolean            => 'number',	# documented, found
+              boolean            => 'number',   # documented, found
 
       # geometric types
               point              => undef,      # documented
@@ -117,40 +116,40 @@ my %typemap= (
 
       # bit string types
               bit                => undef,      # documented
-	      'bit varying'      => undef,      # documented
+              'bit varying'      => undef,      # documented
 
       # arrays
-	      ARRAY              => undef,      # documented, found
+              ARRAY              => undef,      # documented, found
 
       # object identifier types
-	      oid                => 'number',   # documented, found
-	      regproc            => 'number',   # documented, found
-	      regprocedure       => undef,      # documented
-	      regoper            => undef,      # documented
-	      regoperator        => undef,      # documented
-	      regclass           => undef,      # documented
-	      regtype            => undef,      # documented
+              oid                => 'number',   # documented, found
+              regproc            => 'number',   # documented, found
+              regprocedure       => undef,      # documented
+              regoper            => undef,      # documented
+              regoperator        => undef,      # documented
+              regclass           => undef,      # documented
+              regtype            => undef,      # documented
       
       # pdeudo types
 
-	      any                => undef,      # documented     
-	      anyarray           => undef,      # documented , found      
-	      anyelement         => undef,      # documented     
-	      cstring            => undef,      # documented     
-	      internal           => undef,      # documented     
-	      language_handler   => undef,      # documented     
-	      record             => undef,      # documented     
-	      trigger            => undef,      # documented     
-	      void               => undef,      # documented     
-	      opaque             => undef,      # documented     
+              any                => undef,      # documented     
+              anyarray           => undef,      # documented , found      
+              anyelement         => undef,      # documented     
+              cstring            => undef,      # documented     
+              internal           => undef,      # documented     
+              language_handler   => undef,      # documented     
+              record             => undef,      # documented     
+              trigger            => undef,      # documented     
+              void               => undef,      # documented     
+              opaque             => undef,      # documented     
 
       # types that were found but not documented (??)
       
               abstime            => undef,      # found
-	      int2vector         => undef,      # found
-	      name               => undef,      # found
-	      oidvector          => undef,      # found
-	      xid                => undef,      # found
+              int2vector         => undef,      # found
+              name               => undef,      # found
+              oidvector          => undef,      # found
+              xid                => undef,      # found
           );
 
 
@@ -211,13 +210,13 @@ sub schemas_for_object
     # array_to_string is needed since DBD:Pg cannot
     # handle arrays yet. I currently get a segmentation fault... :-(
     my $SQL= "SELECT c.relname, n.nspname " .
-	     "FROM pg_class c, pg_namespace n " .
-	     "WHERE c.relname='$object_name' AND " .
-		   "c.relnamespace=n.oid";
+             "FROM pg_class c, pg_namespace n " .
+             "WHERE c.relname='$object_name' AND " .
+                   "c.relnamespace=n.oid";
 
     
     #returns:
-    #	   relname       |      nspname
+    #      relname       |      nspname
     # -------------------+--------------------
     #  table_constraints | information_schema    
     
@@ -294,9 +293,9 @@ sub load_object_dict
     my $sql;
 
     $sql= "SELECT schemaname,tablename,tableowner, " .
-	    "has_table_privilege(schemaname || '.' || tablename,'select') " . 
-		 "AS readable " .
-	  "FROM pg_tables";
+            "has_table_privilege(schemaname || '.' || tablename,'select') " . 
+                 "AS readable " .
+          "FROM pg_tables";
 #returns:    
 #     schemaname     |        tablename        | tableowner | readable
 #--------------------+-------------------------+------------+----------
@@ -315,14 +314,14 @@ sub load_object_dict
     foreach my $line (@$res)
       { $n= $line->[0] . '.' . $line->[1];
         # [type, owner, readable]
-	$pg_objs{$n}= ['T', $line->[2], $line->[3] ];
-	$possible_objects{$line->[1]}=1;
+        $pg_objs{$n}= ['T', $line->[2], $line->[3] ];
+        $possible_objects{$line->[1]}=1;
       };
 
     $sql= "SELECT schemaname,viewname,viewowner, " .
-	    "has_table_privilege(schemaname || '.' || viewname,'select') " . 
-		 "AS readable " .
-	  "FROM pg_views";
+            "has_table_privilege(schemaname || '.' || viewname,'select') " . 
+                 "AS readable " .
+          "FROM pg_views";
     sql_trace($sql) if ($sql_trace);
 
     my $res= $dbh->selectall_arrayref($sql);
@@ -335,8 +334,8 @@ sub load_object_dict
     foreach my $line (@$res)
       { $n= $line->[0] . '.' . $line->[1];
         # [type, owner, readable]
-	$pg_objs{$n}= ['V', $line->[2], $line->[3] ];
-	$possible_objects{$line->[1]}=1;
+        $pg_objs{$n}= ['V', $line->[2], $line->[3] ];
+        $possible_objects{$line->[1]}=1;
       };
      
     return(\%pg_objs);
@@ -370,6 +369,7 @@ sub check_exists
 sub real_name
 # EXPORTED function
 # resolves a given table-name
+# returns: full-qualified-name,owner,unqualified-name,schema
 # returns the table-name and the table-owner
 # NOTE: user-name is not the owner of the table but the user
 # that has logged in
@@ -384,14 +384,17 @@ sub real_name
 
     load_object_dict($dbh,$user_name);
     
-    $object_name= add_schema($dbh,$object_name);
+    my $full_object_name= add_schema($dbh,$object_name);
         
-    my $data= $r_db_objects->{$object_name};
+    my $data= $r_db_objects->{$full_object_name};
       
     return if (!defined $data); # not in list of objects
 
+    my($schema,$short_object_name)= split(/\./,$full_object_name);
+    die "assertion!" if (!defined $short_object_name);
+
     # $data->[1] is the object-owner
-    return( $object_name, $data->[1] );
+    return( $full_object_name, $data->[1],$short_object_name,$schema );
   }
 
 sub canonify_name
@@ -429,7 +432,7 @@ sub view_dependencies
 
     my $SQL= "SELECT * from pg_views WHERE " .
              "has_table_privilege(schemaname || '.' || viewname,'select')";
-	     
+             
     # returns schemaname, viewname, viewowner, description
 
     my $res= $dbh->selectall_arrayref($SQL);
@@ -458,25 +461,25 @@ sub view_dependencies
         scan_FROM($dbh,\@parse_tree,\%referenced,$r_db_objects);
 
         next if (!%referenced);
-	
-	$n= $line->[0] . "." . $line->[1];
-	
+        
+        $n= $line->[0] . "." . $line->[1];
+        
         # store information in data-dictionary
-	$r_db_objects->{$n}->[3]= [sort keys %referenced];
-	  
-	foreach my $obj (keys %referenced)
-	  { push @{ $r_db_objects->{$obj}->[4] }, $n; };  
+        $r_db_objects->{$n}->[3]= [sort keys %referenced];
+          
+        foreach my $obj (keys %referenced)
+          { push @{ $r_db_objects->{$obj}->[4] }, $n; };  
 
         # in $r_db_objects: [3]: referenced objects
-	#                   [4]: referencing objects
-	#  --> but only with respect to views, no information
-	#      about foreign-key relations!!
-		
-	#$viewrefs{$line->[0] . "." . $line->[1]}= \%referenced;
-	#print Dumper(\@parse_tree);
-	#print "-" x 20,"\n";
-	#print Dumper(\%referenced);
-	#die;
+        #                   [4]: referencing objects
+        #  --> but only with respect to views, no information
+        #      about foreign-key relations!!
+                
+        #$viewrefs{$line->[0] . "." . $line->[1]}= \%referenced;
+        #print Dumper(\@parse_tree);
+        #print "-" x 20,"\n";
+        #print Dumper(\%referenced);
+        #die;
       };
     #print Dumper(\%viewrefs);  
 
@@ -500,7 +503,7 @@ sub get_simple_column_types
 
     # see also the definition of "%typemap" at the top of this file
   
-	  
+          
     my($schema,$table) = dbdrv::check_exists($dbh,"",$table_name);
 
     if (!defined $table)
@@ -511,9 +514,9 @@ sub get_simple_column_types
 
     my $SQL= "SELECT column_name,ordinal_position,data_type " .
              "FROM information_schema.columns " .
-	     "WHERE table_name='$table' AND " .
-	           "table_schema='$schema'" .
-	     "ORDER BY ordinal_position";
+             "WHERE table_name='$table' AND " .
+                   "table_schema='$schema'" .
+             "ORDER BY ordinal_position";
 
     # returns something like:
     # column_name | ordinal_position |     data_type
@@ -544,14 +547,22 @@ sub get_simple_column_types
     foreach my $r_line (@$res)
       { $t= $typemap{$r_line->[2]};
         if (!defined $t)
-	  { warn "internal error (assertion): col-type $t is unknown";
-	  };
-	push @x, $t;
+          { warn "internal error (assertion): col-type $t is unknown";
+          };
+        push @x, $t;
       };    
 
     return(@x);
   }
 
+sub column_properties
+# INTERNAL
+# need handle, table_name, table_owner
+# read the type, length, precision, null-condition of a check constraint
+  { my($dbh, $table_owner, $table_name)= @_;
+
+    return;
+  }
 
 #-------------------------------------------------------------
 
@@ -577,14 +588,14 @@ sub primary_keys
     # schema:
     my $table_oid= "(SELECT c.oid FROM pg_class c, pg_namespace n " .
                     "WHERE c.relname='$table' AND " .
-		          "n.nspname='$schema' AND c.relnamespace=n.oid)";
+                          "n.nspname='$schema' AND c.relnamespace=n.oid)";
 
     # table-owner is not taken into account here...
     my $SQL= 
 
-	     "SELECT pg_get_constraintdef(oid) " .
-	     "FROM pg_constraint " . 
-	     "WHERE contype = 'p' AND " .
+             "SELECT pg_get_constraintdef(oid) " .
+             "FROM pg_constraint " . 
+             "WHERE contype = 'p' AND " .
                     "conrelid=$table_oid";
 
     # returns something like:
@@ -648,12 +659,12 @@ sub foreign_keys
     # schema:
     my $table_oid= "(SELECT c.oid from pg_class c, pg_namespace n " .
                     "WHERE c.relname='$table' AND " .
-		          "n.nspname='$schema' AND c.relnamespace=n.oid)";
+                          "n.nspname='$schema' AND c.relnamespace=n.oid)";
 
     my $SQL= 
-	     "SELECT pg_get_constraintdef(oid) " .
-	     "FROM pg_constraint " . 
-	     "WHERE contype = 'f' AND " .
+             "SELECT pg_get_constraintdef(oid) " .
+             "FROM pg_constraint " . 
+             "WHERE contype = 'f' AND " .
                     "conrelid=$table_oid";
 
   
@@ -678,14 +689,14 @@ sub foreign_keys
     # col_name => [foreign_table,foreign_column,foreign_table_owner]
     foreach my $r_line (@$res)
       { 
-	if ($r_line->[0]!~ /^\s*FOREIGN KEY\s*\((\w+)\)\s*REFERENCES\s*(\w+)\s*\((\w+)\)/)
-	  { dberror($mod_l,'foreign_keys',__LINE__,
+        if ($r_line->[0]!~ /^\s*FOREIGN KEY\s*\((\w+)\)\s*REFERENCES\s*(\w+)\s*\((\w+)\)/)
+          { dberror($mod_l,'foreign_keys',__LINE__,
                     "line not understood:\n$$r_line");
             return;
-	  };
+          };
         $foreign_keys{uc($1)}= [ $2, uc($3), $table_owner];
-	# a bit of a fake here, the table-owner 
-	# is added without further check
+        # a bit of a fake here, the table-owner 
+        # is added without further check
    
       };
 
@@ -716,15 +727,15 @@ sub resident_keys
     # schema:
     my $table_oid= "(SELECT c.oid from pg_class c, pg_namespace n " .
                     "WHERE c.relname='$table' AND " .
-		          "n.nspname='$schema' AND c.relnamespace=n.oid)";
+                          "n.nspname='$schema' AND c.relnamespace=n.oid)";
 
     my $SQL= 
-	      "SELECT c.relname, n.nspname, pg_get_constraintdef(r.oid) " .
-	      "FROM pg_constraint r, pg_class c, pg_namespace n " .
-	      "WHERE r.contype='f' AND " .
-		    "c.oid=conrelid AND " .
-		    "n.oid=c.relnamespace AND " .
-		    "r.confrelid=$table_oid";
+              "SELECT c.relname, n.nspname, pg_get_constraintdef(r.oid) " .
+              "FROM pg_constraint r, pg_class c, pg_namespace n " .
+              "WHERE r.contype='f' AND " .
+                    "c.oid=conrelid AND " .
+                    "n.oid=c.relnamespace AND " .
+                    "r.confrelid=$table_oid";
 
     sql_trace($SQL) if ($sql_trace);
     my $res=
@@ -759,24 +770,24 @@ sub resident_keys
     foreach my $r_line (@$res)
       { if ($r_line->[2]!~ 
                /^\s*FOREIGN KEY\s*\(([\w\s,]+)\)\s*REFERENCES\s*(\w+)\s*\(([\w\s,]+)\)/)
-	  { dberror($mod_l,'foreign_keys',__LINE__,
+          { dberror($mod_l,'foreign_keys',__LINE__,
                     "line not understood:\n$r_line->[2]");
             return;
-	  };
-	my($resident_col,$foreign_tab,$foreign_col)=(uc($1),$2,uc($3));
-	
-	if (($foreign_col=~ /,/) or ($resident_col=~ /,/))
-	  { dbwarn($mod_l,'foreign_keys',__LINE__,
+          };
+        my($resident_col,$foreign_tab,$foreign_col)=(uc($1),$2,uc($3));
+        
+        if (($foreign_col=~ /,/) or ($resident_col=~ /,/))
+          { dbwarn($mod_l,'foreign_keys',__LINE__,
                     "column-combinations are not supported, found relation was:\n" .
-		    $r_line->[2]);
+                    $r_line->[2]);
             next;
-	  };
+          };
 
-	push @{ $resident_keys{$foreign_col} },
-	        [ canonify_name($dbh,$user_name,
-		                $r_line->[1] . "." .$r_line->[0]),
-		  $resident_col 
-		]; 
+        push @{ $resident_keys{$foreign_col} },
+                [ canonify_name($dbh,$user_name,
+                                $r_line->[1] . "." .$r_line->[0]),
+                  $resident_col 
+                ]; 
       };
 
     return( \%resident_keys);
@@ -824,34 +835,34 @@ sub sql_parse
                     \w+\.\"[^\"]*?\"| # for: pr."type" 
                     [\w\.]+|       # token
                     \s+|           # spaces
-		    \(|            # opening bracket
-		    \)|            # closing bracket
-		    \'[^\']*?\'|   # string
-		    \"[^\"]*?\"|   # Postgres-string ?
-		    ::|            # 
-		    .)/gx)         # arbitrary single character
+                    \(|            # opening bracket
+                    \)|            # closing bracket
+                    \'[^\']*?\'|   # string
+                    \"[^\"]*?\"|   # Postgres-string ?
+                    ::|            # 
+                    .)/gx)         # arbitrary single character
       { $ch= substr($1,0,1);
         if ($ch eq "\'")
           { 
             push @$r_list,$1;
-	    next;
-	  };
-	if ($ch=~ /\s/)
-	  { next; };
+            next;
+          };
+        if ($ch=~ /\s/)
+          { next; };
         if ($ch eq '(')
           { my $curpos= pos($str);
-	    my @n;
-	    push @$r_list,\@n;
-	    $curpos+= sql_parse(substr($str,$curpos),\@n);
-	    pos($str)= $curpos;
-	    next;
-	  };
-	if ($ch eq ')')
-	  { 
-	    return(pos($str)); 
-	  };
+            my @n;
+            push @$r_list,\@n;
+            $curpos+= sql_parse(substr($str,$curpos),\@n);
+            pos($str)= $curpos;
+            next;
+          };
+        if ($ch eq ')')
+          { 
+            return(pos($str)); 
+          };
         push @$r_list,$1;
-      };	
+      };        
   }        
 
 sub scan_FROM
@@ -863,47 +874,47 @@ sub scan_FROM
     #print "SCAN FROM *************************************\n";
     foreach my $elm (@$r_list)
       { if (ref($elm))
-	  { scan_FROM($dbh,$elm,$r_objs,$r_known_objs); 
-	    next;
-	  };
+          { scan_FROM($dbh,$elm,$r_objs,$r_known_objs); 
+            next;
+          };
         if (!$from_found)
           { next if (uc($elm) ne 'FROM');
-	    $from_found=1;
+            $from_found=1;
             #print "FROM found, list: ",join("|",@$r_list),"\n"; 
-	    next;
-	  };
-	if ($elm=~ /\b(WHERE|ORDER|ON|UNION|SELECT|AS|pr)\b/i)
-	  { $from_found=0;
-	    $obj_found=0;
-	    next;
-	  };
-	if ($elm=~ /\bpr\b/i)
+            next;
+          };
+        if ($elm=~ /\b(WHERE|ORDER|ON|UNION|SELECT|AS|pr)\b/i)
+          { $from_found=0;
+            $obj_found=0;
+            next;
+          };
+        if ($elm=~ /\bpr\b/i)
         # pr() seems to be a special function that sometimes
-	# appears in the FROM part
-	  { next;
-	  };
-	if (!$obj_found)
-	  { 
-	    #print "test $elm...\n";	  
-	    $elm= add_schema($dbh,$elm);
-	    if (!exists $r_known_objs->{$elm})
+        # appears in the FROM part
+          { next;
+          };
+        if (!$obj_found)
+          { 
+            #print "test $elm...\n";      
+            $elm= add_schema($dbh,$elm);
+            if (!exists $r_known_objs->{$elm})
               { next; };
 
-	    $r_objs->{$elm}=1;
+            $r_objs->{$elm}=1;
             #print "PUSHED: $elm\n";
-	    $obj_found=1;
+            $obj_found=1;
             # ^^^ needed in order to
-	    # ignore table aliases
-	    next;
-	  }
-	else
-	  { if ($elm eq ',')
-	      { $obj_found=0; 
+            # ignore table aliases
+            next;
+          }
+        else
+          { if ($elm eq ',')
+              { $obj_found=0; 
                 #print "COMMA FOUND\n";
-	        next;
-	      };
-	    next;
-	  };
+                next;
+              };
+            next;
+          };
       };
   }  
 
@@ -987,8 +998,8 @@ sub accessible_objects
       { # filter all objects that are readable
         push @result,
              grep { ($r_db_objects->{$_}->[2]) &&
-	            ($r_db_objects->{$_}->[1] ne $user_name) 
-		  } @keys;
+                    ($r_db_objects->{$_}->[1] ne $user_name) 
+                  } @keys;
       };
 
     if (exists $access{user})
@@ -1001,7 +1012,7 @@ sub accessible_objects
 #@@@@@@@@@@@@@@@canonify
     @result= 
          map { canonify_name($dbh,$user_name,$_,$r_db_objects->{$_}->[1]) 
-	     } @result; 
+             } @result; 
     # remove "schemaname" if possible
 
 #print Dumper(\@result);
@@ -1035,15 +1046,15 @@ sub object_dependencies
     if (defined $data)
       { my $referencing= $data->[4]; 
         if (defined $referencing)
-	  { foreach my $obj (@$referencing)
-	      { my $d= $r_db_objects->{$obj};
-	        die "assertion!" if (!defined $d);
-		
-		push @dependents, [$d->[1],$obj,
-		                   $d->[0] eq 'T' ? 'TABLE':'VIEW',
-	                          ];
-	      };
-	  };
+          { foreach my $obj (@$referencing)
+              { my $d= $r_db_objects->{$obj};
+                die "assertion!" if (!defined $d);
+                
+                push @dependents, [$d->[1],$obj,
+                                   $d->[0] eq 'T' ? 'TABLE':'VIEW',
+                                  ];
+              };
+          };
       };
 
     if (object_is_table($dbh,"$schema.$table",$table_owner))
@@ -1052,24 +1063,24 @@ sub object_dependencies
 
         my %tabs;
         foreach my $col (keys %$res)
-	  { my $r_line= $res->{$col};
-	    foreach my $r_p (@$r_line)
-	      { # store name as "schema.name":
-	        $tabs{add_schema($dbh,$r_p->[0])}= 1; 
-	      };
-	  };
-	foreach my $obj (keys %tabs)
-	  { 
-#warn "obj:$obj";	  
-	    my $d= $r_db_objects->{$obj};
-	    die "assertion!" if (!defined $d);
+          { my $r_line= $res->{$col};
+            foreach my $r_p (@$r_line)
+              { # store name as "schema.name":
+                $tabs{add_schema($dbh,$r_p->[0])}= 1; 
+              };
+          };
+        foreach my $obj (keys %tabs)
+          { 
+#warn "obj:$obj";         
+            my $d= $r_db_objects->{$obj};
+            die "assertion!" if (!defined $d);
 
-	    push @dependents, [$d->[1],
-	                       canonify_name($dbh,"",$obj,""),
-		               $d->[0] eq 'T' ? 'TABLE':'VIEW',
-	                      ];
-	  };
-      };	  
+            push @dependents, [$d->[1],
+                               canonify_name($dbh,"",$obj,""),
+                               $d->[0] eq 'T' ? 'TABLE':'VIEW',
+                              ];
+          };
+      };          
     return(@dependents);
   }  
 
@@ -1098,15 +1109,15 @@ sub object_references
     if (defined $data)
       { my $referenced= $data->[3]; 
         if (defined $referenced)
-	  { foreach my $obj (@$referenced)
-	      { my $d= $r_db_objects->{$obj};
-	        die "assertion!" if (!defined $d);
-		
-		push @referenced, [$d->[1],$obj,
-		                   $d->[0] eq 'T' ? 'TABLE':'VIEW',
-	                          ];
-	      };
-	  };
+          { foreach my $obj (@$referenced)
+              { my $d= $r_db_objects->{$obj};
+                die "assertion!" if (!defined $d);
+                
+                push @referenced, [$d->[1],$obj,
+                                   $d->[0] eq 'T' ? 'TABLE':'VIEW',
+                                  ];
+              };
+          };
       };
 
     if (object_is_table($dbh,"$schema.$table",$table_owner))
@@ -1117,23 +1128,23 @@ sub object_references
 
         my %tabs;
         foreach my $col (keys %$fk)
-	  { my $r_line= $fk->{$col};
-	    
-	    $tabs{add_schema($dbh,$r_line->[0])}= 1;
-	  };
+          { my $r_line= $fk->{$col};
+            
+            $tabs{add_schema($dbh,$r_line->[0])}= 1;
+          };
 #print Dumper(\%tabs);
-	foreach my $obj (keys %tabs)
-	  { 
-#warn "obj:$obj";	  
-	    my $d= $r_db_objects->{$obj};
-	    die "assertion!" if (!defined $d);
+        foreach my $obj (keys %tabs)
+          { 
+#warn "obj:$obj";         
+            my $d= $r_db_objects->{$obj};
+            die "assertion!" if (!defined $d);
 
-	    push @referenced, [$d->[1],
-	                        canonify_name($dbh,"",$obj,""),
-		                $d->[0] eq 'T' ? 'TABLE':'VIEW',
-	                       ];
-	  };
-      };	  
+            push @referenced, [$d->[1],
+                                canonify_name($dbh,"",$obj,""),
+                                $d->[0] eq 'T' ? 'TABLE':'VIEW',
+                               ];
+          };
+      };          
     return(@referenced);
   }
 
@@ -1251,13 +1262,13 @@ perl -e 'use lib "."; use dbdrv; $dbdrv::sql_trace=1;
 
 perl -e 'use lib "."; use Data::Dumper; use dbdrv; dbdrv::load("Postgresql");
          dbdrv::connect_database("DBI:Pg:dbname=gpdb","pfeiffer",""); 
-	 my $r= dbdrv::foreign_keys("","pfeiffer","weather2",""); 
-	 dbdrv::disconnect_database(); print Dumper($r); '
+         my $r= dbdrv::foreign_keys("","pfeiffer","weather2",""); 
+         dbdrv::disconnect_database(); print Dumper($r); '
 
 perl -e 'use lib "."; use Data::Dumper; use dbdrv; dbdrv::load("Postgresql");
          dbdrv::connect_database("DBI:Pg:dbname=gpdb","pfeiffer",""); 
-	 my $r= dbdrv::view_dependencies("","pfeiffer"); 
-	 dbdrv::disconnect_database(); '
+         my $r= dbdrv::view_dependencies("","pfeiffer"); 
+         dbdrv::disconnect_database(); '
 
 
 perl -e 'use lib "."; use Data::Dumper; use dbdrv; dbdrv::load("Postgresql");
