@@ -21,7 +21,8 @@ use lib "$FindBin::RealBin/../lib/perl";
 use Sys::Hostname;
 use Config;
 
-use Tk 800.024;
+#use Tk 800.024; <-- problems on ocean
+use Tk
 use Tk::Menu;
 use Tk::Dialog;
 use Tk::NoteBook;
@@ -1471,7 +1472,6 @@ sub dbi_sql_trace
     $Text->insert('end',$_[0] . "\n");
     $Text->see('end');
   }
-
 
 sub tk_add_relation_dialog
   { my($r_glbl,$r_tbh)= @_;
@@ -2989,6 +2989,12 @@ sub make_table_window
                   -label=> 'add scroll-relation',
                   -underline   => 0,
                   -command => [\&tk_add_relation_dialog, $r_glbl, $r_tbh],
+                );
+
+    $MnRela->add('command',
+                  -label=> 'tk_show_scroll_relations',
+                  -underline   => 0,
+                  -command => [\&tk_show_scroll_relations, $r_glbl, $r_tbh],
                 );
 
     if ($r_tbh->{resident_there})
@@ -6034,3 +6040,12 @@ Zeile ändern und später löschen führt zu fatalem Fehler
 
 delete-line minidialog muß über dem Cursor plaziert werden (->popup())
 
+-----------------------------------------------------------
+save und "save as" bei collections. 
+"save" fragt nicht nach dem Filenamen
+-------------------------------------
+"share" Verzeichnis fuer globale Einstellungen verwenden
+-----------------------------------------------
+info-Fenster readonly machen
+ctrl-z Key Binding abschalten
+-----------------------------------
