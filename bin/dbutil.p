@@ -19,11 +19,13 @@ use dbitable;
 
 $dbitable::sql_trace=1;
 
+my $default_user= "guest";
+my $default_pass= "bessyguest";
 
 our $opt_help;
 our $opt_database = "DBI:Oracle:bii_par";
-our $opt_user     = "guest";
-our $opt_password = "bessyguest";
+our $opt_user;
+our $opt_password;
 our $opt_table;
 our $opt_file;
 our $opt_outfile;
@@ -63,6 +65,18 @@ if (!exists $known_actions{$opt_action})
   { die "unknown action: $opt_action\n"; };
 
 $parameters{database}= $opt_database; 
+
+if (!defined $opt_user)
+  { ($opt_user,$opt_password)= ($default_user, $default_pass);
+
+     my $env= $ENV{DBUTIL};
+     if (defined $env)
+      { ($opt_user,$opt_password)= split(":",$env); };
+  };
+
+warn $opt_user;  
+warn $opt_password;  
+
 $parameters{user}    = $opt_user; 
 $parameters{password}= $opt_password; 
 
@@ -254,7 +268,9 @@ useage: $FindBin::Script {options}
 options:
   -h : this help
   -d : database-name, default: $opt_database
-  -u [user] , database-user, default: 
+  -u [user] , database-user, default: $default_user
+     when the environment variable DBUTIL is set to (user:password)
+     this user-password combination is taken instead
   -p [password], default: "bessyguest"
 
   -a [action]: mandatory, action is one of:
@@ -279,7 +295,7 @@ fertig: db2screen db2file file2db file2screen
   -F [column-name,column-value]: define a filter for the 
      database-access
   --order_by [column-name1,column-name2...] : 
-     this is only relevant for "--to_file"
+     this is only relevant for "...2file and ...2screen"
      
   -D deletion mode (only for file2db). In this case, lines
      that are not found in the file but only the database are
