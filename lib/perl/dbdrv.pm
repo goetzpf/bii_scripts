@@ -100,10 +100,16 @@ sub format_sql_command
 sub split_sql_command
   { my($sql)= @_;
     my @parts= &parse_line(';', 1, $sql);
+    
     my @statements;
     foreach my $p (@parts)
-      { next if ($p=~ /[\"\']/);
-        next if ($p=~ /^[\s\n\r]*$/);
+      { next if ($p=~ /^[\s\n\r]*$/);
+	
+	if ($p=~ /[\"\']/)
+	  { push @statements, $p;
+	    next;
+	  };
+        
         $p =~ s/^[\s\n\r]//;
         $p =~ s/[\s\n\r]$//;
         push @statements, $p;
