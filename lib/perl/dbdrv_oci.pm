@@ -156,7 +156,7 @@ sub resident_keys
                    "ST.CONSTRAINT_NAME, " .
                    " ST2.TABLE_NAME AS R_TABLE, " .
                    " CL2.COLUMN_NAME AS R_COLUMN, " .
-                   " ST2.CONSTRAINT_NAME AS R_CONSTRAINT_NAME " .
+                   " ST2.CONSTRAINT_NAME AS R_CONSTRAINT_NAME, " .
                    " ST2.OWNER AS R_OWNER " .
              "from  " .
              "all_constraints ST, all_constraints ST2,  " .
