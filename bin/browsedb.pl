@@ -2876,11 +2876,8 @@ sub cb_show_objectinfo
         
         $content = $str;
 
-        my($object_name, $object_owner);
         if ($r_tbh->{table_type} ne 'sql')
         {
-          ($object_name, $object_owner)=
-                dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
           foreach my $colname ( @ { $r_tbh->{'column_list'} } )
             {
               if ($r_tbh->{col_map_flags}->{$colname} eq 'Y')
@@ -2919,21 +2916,24 @@ sub cb_show_objectinfo
                 {
                     $content .= "\n\t\tprimary key";
                 };
-              if (exists($r_tbh->{foreign_key_hash}->{$colname}))
-                {
-                    my ($ref_table, $ref_owner) =
-                        dbdrv::real_name($dbh,
-                                $r_tbh->{foreign_key_hash}->{$colname}->[2],
-                                $r_tbh->{foreign_key_hash}->{$colname}->[0]
-                        );
+              my $fkh= $r_tbh->{foreign_key_hash}->{$colname};
+              if (defined $fkh)
+                { # note: the table-name in the foreign_key_hash is 
+                  # no public synonym but the name of the real table
+                  # we cannot call dbdrv::real_name here since
+                  # is only knows all synonyms and all user tables, but
+                  # not all tables that exist
+                  # the foreign_key_hash contains:
+                  # table-name,column,table-owner
+
                     $content .= "\n\t\tforeign key ( " .
-                        $ref_table.".".$r_tbh->{foreign_key_hash}->{$colname}->[1] .
+                        dbdrv::full_name($fkh->[0],$fkh->[2]) .
                         " )";
                 };
             };
 
           my @dependents=
-                  dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+                  dbdrv::object_dependencies($dbh,$name,$r_glbl->{user});
           if (@dependents)
             { $content .= "\n\ndependents:";
               foreach my $r_s (@dependents)
@@ -2943,7 +2943,7 @@ sub cb_show_objectinfo
             };
 
           my @referenced=
-                   dbdrv::object_references($dbh,$object_name,$object_owner);
+                   dbdrv::object_references($dbh,$name,$r_glbl->{user});
           if (@referenced)
             { $content .= "\n\nreferenced objects:\n\t";
               foreach my $r_s (@referenced)
@@ -2957,14 +2957,14 @@ sub cb_show_objectinfo
 
         if ($r_tbh->{table_type} eq 'view')
         {
-          my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
+          my $sql= dbdrv::read_viewtext($dbh,$name,$r_glbl->{user});
           $str= "\nSQL command of the view:\n" . $sql. "\n";
           $content .= $str;
         }
         elsif ($r_tbh->{table_type} eq 'table')
         {
           my @constraints_triggers=
-                   dbdrv::object_addicts($dbh,$object_name,$object_owner);
+                   dbdrv::object_addicts($dbh,$name,$r_glbl->{user});
           if (@constraints_triggers)
             { $content .= "\nconstraints/triggers:\n";
               foreach my $r_s (@constraints_triggers)
@@ -3555,11 +3555,8 @@ sub tk_dependend_views_dialog
     BrowseDB::TkUtils::SetBusy($r_glbl,1);
     my $dbh= $r_glbl->{dbh};
 
-    my ($object_name, $object_owner)=
-          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
-
     my @dependents=
-          dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+          dbdrv::object_dependencies($dbh,$r_tbh->{table_name},$r_glbl->{user});
 
     BrowseDB::TkUtils::SetBusy($r_glbl,0);
 
@@ -3608,11 +3605,8 @@ sub tk_view_dependency_dialog
     BrowseDB::TkUtils::SetBusy($r_glbl,1);
     my $dbh= $r_glbl->{dbh};
 
-    my ($object_name, $object_owner)=
-          dbdrv::real_name($dbh, $r_glbl->{user},$r_tbh->{table_name});
-
     my @referenced=
-          dbdrv::object_references($dbh,$object_name,$object_owner);
+          dbdrv::object_references($dbh,$r_tbh->{table_name},$r_glbl->{user});
 
     BrowseDB::TkUtils::SetBusy($r_glbl,0);
 
@@ -4087,11 +4081,9 @@ sub tk_table_info
 
    my($object_name, $object_owner);
    if ($r_tbh->{table_type} ne 'sql')
-     { ($object_name, $object_owner)=
-          dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
-
+     { 
        my @dependents=
-              dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+              dbdrv::object_dependencies($dbh,$r_tbh->{table_name},$r_glbl->{user});
        if (@dependents)
          { $text->insert('end',"\ndependents:\n");
            foreach my $r_s (@dependents)
@@ -4101,7 +4093,7 @@ sub tk_table_info
          };
 
        my @referenced=
-             dbdrv::object_references($dbh,$object_name,$object_owner);
+             dbdrv::object_references($dbh,$r_tbh->{table_name},$r_glbl->{user});
        if (@referenced)
          { $text->insert('end',"\nreferenced objects:\n");
            foreach my $r_s (@referenced)
@@ -4111,7 +4103,7 @@ sub tk_table_info
          };
 
        my @constraints_triggers=
-             dbdrv::object_addicts($dbh,$object_name,$object_owner);
+             dbdrv::object_addicts($dbh,$r_tbh->{table_name},$r_glbl->{user});
        if (@constraints_triggers)
          { $text->insert('end',"\nconstraints/triggers:\n");
            foreach my $r_s (@constraints_triggers)
@@ -4138,7 +4130,7 @@ sub tk_table_info
    if ($r_tbh->{table_type} eq 'view')
      {
 #warn "$object_name, $object_owner";
-       my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
+       my $sql= dbdrv::read_viewtext($dbh,$object_name, $r_glbl->{user});
 
 #warn $sql;
 
@@ -6152,7 +6144,9 @@ sub get_dbitable
     if ($r_tbh->{table_type} ne "sql")
       { if ($r_tbh->{table_type} eq 'table_or_view')
           {
-            if (dbdrv::object_is_table($r_glbl->{dbh},$r_tbh->{table_name}))
+            if (dbdrv::object_is_table($r_glbl->{dbh},
+                                       $r_tbh->{table_name},
+                                       $r_glbl->{user}))
               { $r_tbh->{table_type}= 'table'; }
             else
               { $r_tbh->{table_type}= 'view'; };
