@@ -251,7 +251,6 @@ sub tk_main_window
 #    $Top->minsize(400,400);
 #    $Top->maxsize(800,800);
 
-
     $r_glbl->{main_widget} = $Top;
     $Top->title("$PrgTitle");
     $r_glbl->{main_menu_widget}= $Top;
@@ -702,24 +701,33 @@ sub tk_main_window
                  -expand=> 1,
         );
         $r_glbl->{sql_history_widget}=$DlgSQLHistory;
+        my $DlgSelectedSQLOk =
+           $DlgSQL->Button( -state=> "normal",
+                            -text=> "Exec Selection",
+                            -underline=> 6,
+                            -justify=> "center",
+                            -command=> sub {
+                                        my $query_command = $DlgSQLCommand->getSelected();
+                                        tk_execute_new_query($r_glbl, $query_command);
+                                    }
+           )->pack(%dlg_def_okbutton);
         my $DlgSQLOk =
            $DlgSQL->Button( -state=> "normal",
                             -text=> "Exec",
                             -underline=> 0,
                             -justify=> "center",
-                            -command=>  [ \&tk_execute_new_query,
-                                          $r_glbl,
-                                          $DlgSQLCommand->get('1.0', 'end')
-                                        ]
-                          )->pack(%dlg_def_okbutton);
+                            -command=> sub {  my $query_command;
+                                        $DlgSQLCommand->delete('insert - 1 char');
+                                        $query_command = $DlgSQLCommand->get('1.0', 'end');
+                                        tk_execute_new_query($r_glbl, $query_command);
+                                    }
+           )->pack(%dlg_def_okbutton);
 
         $DlgSQLCommand->
             bind('<Control-Return>' =>
-                 sub {  my $query_command = $DlgSQLCommand->get('1.0', 'end');
-                        if ($DlgSQLCommand->tagRanges('sel'))
-                          { $DlgSQLCommand->delete('insert - 1 char');
-                            $query_command = $DlgSQLCommand->getSelected();
-                          }
+                 sub {  my $query_command;
+                        $DlgSQLCommand->delete('insert - 1 char');
+                        $query_command = $DlgSQLCommand->get('1.0', 'end');
                         tk_execute_new_query($r_glbl, $query_command);
                      }
                 );
@@ -837,13 +845,8 @@ sub tk_main_window_finish
                   " can not be opened. Error in line " . __LINE__)
       }
     my $fh=$r_glbl->{handle_sql_history};
-    my ($sec,$min,$hour,$mday,$mon,$year) = localtime();
-    $year += 1900;
     tk_progress($r_glbl,100);
     tk_set_busy($r_glbl,0);
-
-    my $hostname= $ENV{HOSTNAME};
-    $hostname= hostname() if (!$hostname);
 
     $fh->flush();
     if ($fast_test)
@@ -870,10 +873,11 @@ sub tk_wait
 sub tk_quit
   {
     my($r_glbl)= @_;
+    my $Top;
     my $choice = "No";
     if (defined $r_glbl)
       {
-        my $Top = $r_glbl->{main_widget};
+        $Top = $r_glbl->{main_widget};
         my $DlgQuit = $Top->Dialog(
                     -title => 'Quit',
                     -text => 'Do you really want to quit?',
@@ -881,15 +885,6 @@ sub tk_quit
                     -buttons => ['No', 'Yes'],
                     );
         $choice = $DlgQuit->Show;
-        if (exists($r_glbl->{handle_sql_history}))
-          {
-            my $fh = $r_glbl->{handle_sql_history};
-            print $fh "\ndisconnect (" . $r_glbl->{db_driver} . ")" .
-               $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
-            $fh->flush();
-            $fh->close();
-          }
-        $Top->destroy();
       }
     else
       {
@@ -898,7 +893,21 @@ sub tk_quit
       }
     if ($choice =~ /Yes/)
       {
+        if (exists($r_glbl->{handle_sql_history}))
+          {
+            my $fh = $r_glbl->{handle_sql_history};
+            $fh->flush();
+            $fh->close();
+          }
+        if (defined $Top)
+          {
+            $Top->destroy();
+          }
         exit(0);
+      }
+    else
+      {
+        return -1;
       }
   }
 
@@ -1069,11 +1078,11 @@ sub tk_execute_new_query
                              sequel=>$sqlquery);
             if (defined ($StatementResult))
               {
-                    $r_glbl->{sql_history_widget}->insert('end', "\n");
+#                    $r_glbl->{sql_history_widget}->insert('end', "\n");
                     $r_glbl->{sql_history_widget}->insert('end', $sqlinput);
                     $r_glbl->{sql_command_widget}->delete('1.0', "end");
                     $r_glbl->{sql_command_widget}->insert('1.0', $sqlinput);
-                    print $fh $sqlinput.";\n";
+                    print $fh $sqlinput;
               }
           }
       }
@@ -1094,7 +1103,7 @@ sub tk_execute_new_query
             else
               {
                     tk_progress($r_glbl, 70);
-                    print $fh $sqlinput.";\n";
+                    print $fh $sqlinput;
               }
             tk_progress($r_glbl, 100);
           }
@@ -1140,7 +1149,7 @@ sub tk_reload_all_objects
 
 sub tk_sql_commands
   { my($r_glbl)= @_;
-  
+
     my $r_text= tk_make_text_widget($r_glbl,"SQL command trace");
 
     my $Top= $r_text->{Top};
@@ -1293,23 +1302,23 @@ sub tk_add_relation_dialog2
     conn_add($r_glbl,
              $r_tbh->{table_name},$my_col,
              $o_tab,$o_col);
-    
+
     tk_mark_manual_foreign_key_col($r_tbh, $my_col);
     #table_window_tag_columns($r_tbh);
-    
+
 # @@@@@@@@@@@@@@@@@@@@
   }
 
 sub tk_mark_manual_foreign_key_col
   { my($r_tbh,$col_name)= @_;
-    
+
    my $Table_Widget= $r_tbh->{table_widget};
 
    # get column-indices of "green" columns
    my @tagged_cols= $Table_Widget->tagCol('fk_cell');
-   
+
    my $col= colname2col($r_tbh,$col_name);
-   
+
    foreach my $i (@tagged_cols)
      { if ($i==$col)
          { # col is already tagged
@@ -1362,9 +1371,9 @@ sub tk_references_dialog
       { my $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
                                            $fkh->{$col}->[0],
                                            $fkh->{$col}->[2]);
-        push @lines, 
+        push @lines,
              sprintf("%-" . $maxcolsz . "s -> %s",$col,$fk_table);
-      
+
 #        push @lines,
 #             sprintf("%-" . $maxcolsz . "s -> %s",$col,
 #                     $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
@@ -1379,9 +1388,9 @@ sub tk_references_dialog
 
     $listbox->pack(-fill=>'both',-expand=>'y');
 
-    $Top->bind('<Return>', 
+    $Top->bind('<Return>',
                    sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
-    $listbox->bind('<Double-1>', 
+    $listbox->bind('<Double-1>',
                    sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
 
     $Top->bind('<Destroy>', sub { 
@@ -1489,7 +1498,7 @@ sub tk_dependency_dialog
 
           };
       };
-      
+
     my @resident_table_list= sort keys %resident_tables;
 
     tk_object_dialog($r_glbl,$r_tbh,
