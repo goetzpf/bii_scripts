@@ -40,18 +40,26 @@ sub slashes
   }
   
 sub guess_script_path
-  { my $path1= $FindBin::Bin;
-    my $curr= cwd;
+  { my $scrpath  = $FindBin::Bin;
+    my $envpath = $ENV{PWD}; 
+
+    # try to calc an alternative path
+    if (!defined $envpath)
+      { return($srcpath); };
+      
+    my $currpath= cwd;
+    my $altpath= $scrpath;
+    $altpath=~ s#^$currpath#$envpath#;
     
-    if (!chdir($path1))
-      { return($path1); };
+    # test wether chdir is possible 
+    if (!chdir($altpath))
+      { return($scrpath); };
       
-    my $path2= $ENV{PWD};
-    chdir($curr) or die "fatal: chdir back to original directory failed";
+    chdir($currpath) or die "fatal: chdir back to original directory failed";
       
-    if (slashes($path2)<=slashes($path1))
-      { return($path2); };
-    return($path1);
+    if (slashes($altpath)<=slashes($scrpath))
+      { return($altpath); };
+    return($scrpath);
   }  
   
 sub parent_dir
