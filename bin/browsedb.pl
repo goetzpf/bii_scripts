@@ -250,11 +250,18 @@ sub tk_main_window
 
     my $MnTop= $Top->Menu(-type=>'menubar');
 
+    my $MnFile   = $MnTop->Menu();
     my $MnDb   = $MnTop->Menu();
     my $MnWindow = $MnTop->Menu();
     my $MnHelp = $MnTop->Menu();
 
     $r_glbl->{menu_windows_widget} = $MnWindow;
+    $MnTop->add('cascade',
+                -label=> 'File',
+                -accelerator => 'Meta+F',
+                -underline   => 0,
+                -menu=> $MnFile
+               );
     $MnTop->add('cascade',
                 -label=> 'Database',
                 -accelerator => 'Meta+D',
@@ -276,20 +283,31 @@ sub tk_main_window
 
     $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
 
-    # configure Database-menu:
-    $MnDb->add('command',
+    # configure File-menu:
+    $MnFile->add('command',
+               -label=> 'open collection',
+               -command=> [\&tk_load_collection, $r_glbl]
+              );
+    $MnFile->add('command',
                -label=> 'save collection',
                -command=> [\&tk_save_collection, $r_glbl]
               );
-    $MnDb->add('command',
-               -label=> 'load collection',
-               -command=> [\&tk_load_collection, $r_glbl]
+    $MnFile->add('separator');
+    $MnFile->add('command',
+               -label=> 'quit',
+                 -command => sub
+                   {
+                     $Top->destroy();
+                     exit(0);
+                   },
               );
 
+    # configure Database-menu:
     $MnDb->add('command',
                -label=> 'Login',
                -command=> [\&tk_login, $r_glbl]
               );
+    $MnDb->add('separator');
     $MnDb->add('command',
                -label=> 'Reload objects',
                -command=> [\&tk_main_window_finish, $r_glbl]
@@ -298,16 +316,8 @@ sub tk_main_window
                -label=> 'show SQL commands',
                -command=> [\&tk_sql_commands, $r_glbl]
               );
-    $MnDb->add('command',
-               -label=> 'quit',
-                 -command => sub { $Top->destroy(); exit(0); },
-              );
 
     # configure Help-menu:
-    $MnHelp->add('command',
-                 -label=> 'About',
-                 -command=> [\&tk_about, $r_glbl]
-                );
     $MnHelp->add('command',
                  -label=> 'dump global datastructure',
                  -command => [\&tk_dump_global, $r_glbl],
@@ -320,8 +330,13 @@ sub tk_main_window
                  -label=> 'dump reverse object dictionary',
                  -command => [\&tk_r_object_dict_dump, $r_glbl],
                 );
+    $MnHelp->add('separator');
+    $MnHelp->add('command',
+                 -label=> 'About',
+                 -command=> [\&tk_about, $r_glbl]
+                );
 
-        # statusbar
+     # statusbar
      my $MnStatus = $Top->Frame(
                 -relief=>"groove",
                 -height=>14
@@ -1103,7 +1118,7 @@ sub tk_add_relation_dialog2
 # @@@@@@@@@@@@@@@@@@@@
   }
 
-sub tk_foreign_key_dialog
+sub tk_references_dialog
   { my($r_glbl,$r_tbh)= @_;
 
     my $parent_widget= $r_tbh->{table_widget};
@@ -1164,7 +1179,7 @@ sub tk_foreign_key_dialog
 
     $FrDn->Button(-text => 'open table',
                   %std_button_options,
-                 -command => [\&tk_foreign_key_dialog_finish, $r_glbl, $r_tbh],
+                 -command => [\&tk_references_dialog_finish, $r_glbl, $r_tbh],
                  )->pack(-side=>'left' ,-fill=>'y');
 
     $FrDn->Button(-text => 'abort',
@@ -1185,7 +1200,7 @@ sub tk_foreign_key_dialog
     $Top->Popup(-popover    => 'cursor');
   }
 
-sub tk_foreign_key_dialog_finish
+sub tk_references_dialog_finish
   { my($r_glbl,$r_tbh)= @_;
 
     my $Top    = $r_glbl->{foreign_key_dialog_widget};
@@ -1249,7 +1264,6 @@ sub tk_dependency_dialog
     my $parent_widget= $r_tbh->{table_widget};
 
     my $r_resident_keys= $r_tbh->{dbitable}->resident_keys();
-
     if (!defined $r_resident_keys)
       { tk_err_dialog($parent_widget,
                       "no other table depends on this one");
@@ -1271,18 +1285,14 @@ sub tk_dependency_dialog
             push @{ $resident_tables{$r_sublist->[0]} },
                  [ $r_sublist->[1] , $col_name ];
 
-
-            # print "$col_name:$r_sublist->[0]:$r_sublist->[1]\n";
-
           };
       };
 
-    # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
     $Top->title("dependents from $r_tbh->{table_name}");
 
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
+    my $FrTop = $Top->Frame(-borderwidth=>2,
                            -background=>$BG
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
@@ -1297,26 +1307,30 @@ sub tk_dependency_dialog
     foreach my $r (@resident_table_list)
       { $max_width= length($r) if (length($r)>$max_width); };
 
-    my $listbox;
     my %listbox_options= (-selectmode => 'single',
                           -width=>$max_width,
                           -height=> $max_height);
-    if ($#resident_table_list>$max_height)
-      { $listbox= $FrTop->Scrolled( 'Listbox', %listbox_options ); }
-    else
-      { $listbox_options{-height}= $#resident_table_list + 1;
-        $listbox= $FrTop->Listbox(%listbox_options );
+
+    if ($#resident_table_list < $max_height)
+      {
+        $listbox_options{-height}= $#resident_table_list + 1;
       };
+
+    my $listbox= $FrTop->Scrolled( 'Listbox1', %listbox_options );
 
     foreach my $res_table (@resident_table_list)
       { $listbox->insert('end', $res_table); };
 
     $listbox->pack(-fill=>'both',-expand=>'y');
 
-    $FrDn->Button(-text => 'open table',
-                  %std_button_options,
-                 -command => [\&tk_dependency_dialog_finish, $r_glbl, $r_tbh],
-                 )->pack(-side=>'left' ,-fill=>'y');
+    $listbox->bind('<Return>', sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
+    $listbox->bind('<Double-1>', sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
+
+    # not need anymore, because the action is bind to mouse and enter key
+    #$FrDn->Button(-text => 'open table',
+    #              %std_button_options,
+    #             -command => [\&tk_dependency_dialog_finish, $r_glbl, $r_tbh],
+    #             )->pack(-side=>'left' ,-fill=>'y');
 
     $FrDn->Button(-text => 'abort',
                   %std_button_options,
@@ -1846,7 +1860,7 @@ sub make_table_window
                              $r_tbh->{geometry});
 
     delete $r_tbh->{geometry}; # no longer needed
-    
+
     $r_tbh->{top_widget}= $Top;
 
     # set the title
@@ -1903,31 +1917,45 @@ sub make_table_window
 
 
     # configure file-menu:
-    $MnFile->add('command',
-                 -label=> 'Save',
-                 -accelerator => 'Meta+S',
-                 -underline   => 0,
-                 -command=> [\&tk_save_to_file, $r_tbh]
-                );
-    $MnFile->add('command',
-                 -label=> 'Open',
-                 -accelerator => 'Meta+O',
-                 -underline   => 0,
-                 -command=> [\&tk_load_from_file, $r_tbh]
+    my $MnFileOpen= $MnFile->Menu();
+    my $MnFileSave= $MnFile->Menu();
+    $MnFile->add('cascade',
+                -label=> 'Open',
+                -underline   => 0,
+                -menu=> $MnFileOpen
                 );
 
-    $MnFile->add('command',
-                 -label=> 'Export',
-                 -accelerator => 'Meta+E',
-                 -underline   => 0,
-                 -command=> [\&tk_export_csv, $r_tbh]
+        $MnFileOpen->add('command',
+                    -label=> 'Standard',
+                    -accelerator => 'Meta+O',
+                    -underline   => 0,
+                    -command=> [\&tk_load_from_file, $r_tbh]
+                    );
+
+        $MnFileOpen->add('command',
+                    -label=> 'CSV',
+                    -underline   => 0,
+                    -command=> [\&tk_import_csv, $r_tbh]
+                    );
+
+    $MnFile->add('cascade',
+                -label=> 'Save',
+                -underline   => 0,
+                -menu=> $MnFileSave
                 );
-    $MnFile->add('command',
-                 -label=> 'Import',
-                 -accelerator => 'Meta+I',
-                 -underline   => 0,
-                 -command=> [\&tk_import_csv, $r_tbh]
-                );
+
+        $MnFileSave->add('command',
+                    -label=> 'Standard',
+                    -accelerator => 'Meta+S',
+                    -underline   => 0,
+                    -command=> [\&tk_save_to_file, $r_tbh]
+                    );
+
+        $MnFileSave->add('command',
+                    -label=> 'CSV',
+                    -underline   => 0,
+                    -command=> [\&tk_export_csv, $r_tbh]
+                    );
 
     # configure database-menu:
     $MnDbase->add('command',
@@ -2027,15 +2055,15 @@ sub make_table_window
                   -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
                 );
     $MnRela->add('command',
-                  -label=> 'Foreign Keys',
-                  -accelerator => 'Meta+F',
+                  -label=> 'References',
+                  -accelerator => 'Meta+R',
                   -underline   => 0,
-                  -command => [\&tk_foreign_key_dialog, $r_glbl, $r_tbh],
+                  -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
                 );
 
     $MnRela->add('command',
                   -label=> 'add scroll-relation',
-                  -accelerator => 'Meta+R',
+                  -accelerator => 'Meta+A',
                   -underline   => 0,
                   -command => [\&tk_add_relation_dialog, $r_glbl, $r_tbh],
                 );
@@ -2071,11 +2099,11 @@ sub make_table_window
                   -menu => $MnViewHCol
                 );
     $MnView->add('command',
-                  -label=> 'Object-Dump',
+                  -label=> 'Dump Object',
                   -command => [\&tk_table_dump, $r_tbh],
                 );
     $MnView->add('command',
-                  -label=> 'dbitable-Dump',
+                  -label=> 'Dump dbitable',
                   -command => [\&tk_dbitable_dump, $r_tbh],
                 );
 
@@ -2096,25 +2124,10 @@ sub make_table_window
                         );
       };
 
-
-
-    # there is no Close Button, the function that
-    # cleans up is bound to the window <Destroy> event
-    #  (see further below, '<Destroy>'
-
-    #$FrTop->Button(-text => 'Close',
-    #               %std_button_options,
-    #              -command => [\&cb_close_window, $r_glbl, $r_tbh]
-    #              )->pack(-side=>'left', -anchor=>'nw');
-
-
-
-    # --------------------- table widget
+   # --------------------- table widget
 
     $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
     $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
-
-
 
     my $Table= $FrDn->TableMatrix
     #my $Table= $FrDn->Spreadsheet
@@ -2721,10 +2734,10 @@ sub tk_update_window_menu
 sub cf_open_window
   { my($parent_window, $r_glbl, $window_title, $geometry) = @_;
     my $NewTop = $parent_window->Toplevel(-background=>$BG);
-    
-    if (defined $geometry) 
+
+    if (defined $geometry)
       { $NewTop->geometry($geometry); };
-         
+
     $NewTop->configure(-title=>$window_title);
 
     tk_update_window_menu($r_glbl);
