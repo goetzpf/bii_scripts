@@ -1359,8 +1359,8 @@ sub make_table_window
 				  -cols => $r_tbh->{column_no},
 				  -rows => $r_tbh->{row_no} + 1, # 1 more f.the heading 
 				  -justify => "left",
-				  -colstretchmode => "none",
-				  -rowstretchmode => "unset",
+				  -colstretchmode => "all",
+				  -rowstretchmode => "none", #"unset",
 				  #-flashmode=> 1, 
 				  #-width => $dbi_column_no, 
                         	 );
