@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# CVS wrapper script - for ctlguru only!
+#
+# If cvs is called with update or checkout command,
+# the guru lock has to be set first.
+#
+# Otherwise or after obtaining the lock the original cvs is called.
+#
+
+#
+# Configuration
+#
+restricted_users='ctlguru'
+CVS=/opt/cvs/bin/cvs
+
+# Setting some useful values
+
+
+if [ "${DEBUG:+1}" = "1" ]; then
+    echo cvs script: DEBUG MODE
+fi
+
+# Ignore "-n" calls
+if [ "X$1" != "X-n" ]; then
+
+# Check for update or checkout calls
+    echo '' $* '' | grep -q " up\(date\)\{0,1\} "
+    r1=$?
+    echo '' $* '' | grep -q " co "
+    r2=$?
+    echo '' $* '' | grep -q " checkout "
+    r3=$?
+
+    if [ $r1 = 0 -o $r2 = 0 -o $r3 = 0 ]; then
+
+	lockGuru
+	if [ $? = 0 ]; then
+	    echo guru LOCK set
+	    exec $CVS $@
+	else
+	    exit 1
+	fi
+    fi
+fi
+
+exec $CVS $@
