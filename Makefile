@@ -8,3 +8,4 @@ all install clean::
 	if [ ! -e man ]; then ln -s doc/man .; fi
 	$(MAKE) -C lib/perl $@
 	$(MAKE) -C src/perl $@
+
