@@ -910,12 +910,24 @@ sub tk_field_edit
   
     my $TableWidget= $r_tbh->{table_widget};
 
+#my($wi,$h,$x,$y)= split(/[x\+\-]/,$TableWidget->geometry());
+#warn join("|",$wi,$h,$x,$y),"\n";
+
+    my $xroot=$TableWidget->rootx(); 
+    my $yroot=$TableWidget->rooty(); 
+
     # get row-column of the active cell in the current table
     my($row,$col)= split(",",$TableWidget->index('active'));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
  
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $TableWidget->Toplevel(-background=>$BG);
+
+    # place the new window on the upper-left corner of
+    # the Tablematrix-Window
+    $xroot= '+' . $xroot if ($xroot>=0);
+    $yroot= '+' . $yroot if ($yroot>=0);
+    $Top->geometry($x . $y);
 
     #my $title= "$r_tbh->{table_name}: Edit $colname";
     $Top->title("$r_tbh->{table_name}");
@@ -2494,3 +2506,6 @@ Verbesserungsvorschläge:
 * (default für rechte Maustaste (bei Doppelclick rechts))
 
 * SQL-Trace: in File speichern
+
+* shortcut-anzeige (Meta-...) stimmt nicht
+  (vielleicht nur auf HP-UX...)

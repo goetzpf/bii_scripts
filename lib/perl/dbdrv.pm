@@ -254,7 +254,7 @@ an SQL database.
 
   use dbdrv;
 
-  dbdrv::load("oracle"); # load oracle driver
+  dbdrv::load("Oracle"); # load oracle driver
   
   my @all_tables= dbdrv::all_tables();
   
