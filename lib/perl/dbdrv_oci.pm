@@ -10,17 +10,10 @@ our $r_db_reverse_synonyms;
 
 my $mod_l= "dbdrv_oci";
 
-our $database_object_types =
-  {
-    'T' => 'TABLE', 'V' => 'VIEW', 'P' => 'PROCEDURE',
-    'F' => 'FUNCTION', 'Q' => 'SEQUENCE'
-  };
-our $database_synonym_types =
-  {
-    'TABLE' => 'T', 'VIEW' => 'V', 'PROCEDURE' => 'P',
-    'FUNCTION' => 'F', 'SEQUENCE' => 'Q'
-  };
+# object types known to oracle with their oracle abbreviation
+our @db_object_types= qw(TABLE VIEW PROCEDURE FUNCTION SEQUENCE);
 
+my %db_object_types = map{ $_ => 1 } @db_object_types;
 
 our $sql_capabilities;
 
@@ -494,10 +487,11 @@ sub get_user_objects
 
     my $sql;
     # per database_object_type registration of all known objects
-    foreach my $dbobj_type (keys %$database_object_types)
+    foreach my $dbobj_type (keys %db_object_types)
       {
-        my $dbobj_string = $database_object_types->{$dbobj_type};
-        $sql= "SELECT object_name from user_objects where object_type = '".$dbobj_string."'";
+        $sql= "SELECT object_name " .
+              "FROM user_objects " .
+              "WHERE object_type = '".$dbobj_type."'";
 
         #print "\n$dbobj_string: $sql";
         sql_trace($sql) if ($sql_trace);
@@ -505,14 +499,16 @@ sub get_user_objects
         my $res= $dbh->selectall_arrayref($sql);
 
         if (!defined $res)
-        { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                    "selectall_arrayref failed for $dbobj_string request, errcode:\n$DBI::errstr");
+          { dberror($mod_l,'sql_request_to_hash',__LINE__,
+                    "selectall_arrayref failed for $dbobj_type " .
+                    "request, errcode:\n$DBI::errstr");
             return;
-        };
+          };
 
         foreach my $line (@$res)
           {
-            $r_tab->{ $user . '.' . $line->[0] } = [$dbobj_type, ];
+            $r_tab->{ $user . '.' . $line->[0] } = 
+                                  [type_to_typechar($dbobj_type) ];
             };
       }
 
@@ -523,7 +519,8 @@ sub get_user_objects
 sub get_synonyms
 # INTERNAL to dbdrv_oci!!!
 # returns a ref to a hash : syn_name => [$type, "$t_own.$t_name"]
-# type is 'T' (table) or 'V' (view)
+# type is 'T' (table) or 'V' (view) or
+#  'P' (procedure), 'F':function, 'S': sequence
 # $t_name: table or view referred to
 # $t_own: owner of referred table or view
 # $r_reverse_syn : a hash: owner.table => synonym
@@ -559,7 +556,7 @@ sub get_synonyms
     {
         my $syn= $line->[1] . '.' . $line->[0];
         my $obj= $line->[3] . '.' . $line->[2];
-        $r_syn->{$syn} = [$database_synonym_types->{$line->[4]}, $obj ];
+        $r_syn->{$syn} = [ type_to_typechar($line->[4]), $obj ];
 
         if (!exists $r_reverse_syn->{$obj})
         { $r_reverse_syn->{$obj}= [$syn]; }
@@ -621,11 +618,15 @@ sub check_existence
 
 sub accessible_objects
   { my($dbh,$user_name,$types,$access)= @_;
-#    my %known_types= { table => 'T', view => 'V', scripts => 'S', sequence => 'Q');
+#    my %known_types= { table => 'T', view => 'V', 
+#                       procedure => 'P', FUNCTION => 'F',
+#                       sequence=> 'S');
     my %known_acc  = map { $_ =>1 } qw( user public );
     my %types;
     my %access;
 
+
+#warn "requested types: $types";
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -635,17 +636,18 @@ sub accessible_objects
       { $types= uc($types);
         my @types= split(",",$types);
         foreach my $t (@types)
-          { my $c= $database_synonym_types->{$t};
-            if (!defined $c)
+          { if (!exists $db_object_types{$t})
               { dberror($mod_l,'accessible_objects',__LINE__,
                     "unknown object type: $t");
                 return;
               };
-            $types{$c}=1;
+            $types{type_to_typechar($t)}= 1; 
           };
       };
 
     load_object_dict($dbh,$user_name);
+    # loads also functions and procedures
+    
     my @keys= keys %$r_db_objects;
 
 #print Dumper(\%types);
@@ -1193,6 +1195,12 @@ sub read_scripttext
         }
 #print Dumper(@ret);
     return( @ret );
+  }
+
+sub type_to_typechar
+# internal
+  { my($type)= @_;
+    return( uc(substr($type,0,1)) );
   }
 
 sub sql_request_to_hash
