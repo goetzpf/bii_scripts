@@ -3,29 +3,34 @@ package BDNS;
 require Exporter;
 
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(parse);
+our @EXPORT_OK = qw(parse %pfam %psdom %pdom);
 our $VERSION = 1.00;
 
-$pmem = "[A-Z]{1,6}";
-$pind = "([0-9]{1,3})(-([0-9]{1,2}))?";
+use strict;
 
+my $pmem = "[A-Z]{1,6}";
+my $pind = "([0-9]{1,3})(-([0-9]{1,2}))?";
+
+our %pfam;
 $pfam{B} = "BCFGHIKLMNOPQRVWYZ";
 $pfam{F} = "BCFGHIKLMNOPQRSTVWYZ";
 $pfam{P} = "BCFGHIKLMNOPQRVWYZ";
 
-$pcnt = "[0-9]{0,2}";
+my $pcnt = "[0-9]{0,2}";
 
+our %psdom;
 $psdom{B} = "DSTX";
 $psdom{F} = "LCEGMSUX";
 $psdom{P} = "KLSX";
 
-$psdnum = "[0-9]{0,3}";
+my $psdnum = "[0-9]{0,3}";
 
+our %pdom;
 $pdom{B} = "BIMRTCGLV";
 $pdom{F} = "ACDEFGLSV";
 $pdom{P} = "BIMRTCGLV";
 
-$re = "\\A($pmem)"
+my $re = "\\A($pmem)"
     . "($pind)?"
     . "((([$pfam{B}])($pcnt)([$psdom{B}]$psdnum)?([$pdom{B}]))|"
     .  "(([$pfam{F}])($pcnt)([$psdom{F}]$psdnum)([$pdom{F}])F?)|"
@@ -33,7 +38,7 @@ $re = "\\A($pmem)"
 
 sub parse {
   my $devname = shift;
-  my $facility;
+  my ($facility,$family,$counter,$subdomain,$domain);
   $devname =~ tr/a-z/A-Z/;
   my (
     $member,
@@ -41,7 +46,7 @@ sub parse {
       $index,
       $dashsubindex,
         $subindex,
-    $fcsd
+    $fcsd,
       $ring,
         $rfamily,
         $rcounter,
