@@ -296,10 +296,13 @@ sub load_object_dict
     $r_db_objects= \%h;
     my %r;
     $r_db_reverse_synonyms= \%r;
-    if (!get_user_objects($dbh,$user,$r_db_objects))
-      { dberror($mod,'load_object_dict',__LINE__,
-                'loading of user-objects failed');
-        return;
+    if (defined $user)
+      {
+	if (!get_user_objects($dbh,$user,$r_db_objects))
+	  { dberror($mod,'load_object_dict',__LINE__,
+                    'loading of user-objects failed');
+            return;
+	  };
       };
 
     if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
@@ -483,6 +486,10 @@ sub connect_database
                "unable to connect to database, error-code: \n$DBI::errstr");
         return;
       };
+
+    # settings for LONG values:
+    $dbh->{LongReadLen}= 65536; # max. of 64k fields
+    $dbh->{LongTruncOk}= 0;
       
     if (!defined $std_dbh)
       { $std_dbh= $dbh; 
@@ -852,41 +859,65 @@ This converts a given object and it's owner to a name in the form
 
 =item dbdrv::object_dependencies
 
-  my %rk_hash= dbdrv::object_dependencies($dbh,$table_name,$table_owner)
+  my @rk_hash= dbdrv::object_dependencies($dbh,$table_name,$table_owner)
 
-This function returns information of all dependend objects, they
-will need the given object as a list of owner, name and type
-It returns a hash of the following format
+This function returns a list of all dependend objects. These are
+views and tables that depend on the given table C<$table_name>.
+It returns an array of the following format
+
+  my @list= ( [$owner1, $name1, $type1],
+              [$owner2, $name2, $type2],
+                           ...
+            )
+	    
+The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".	    
 
 =item dbdrv::object_references
 
   my %rk_hash= dbdrv::object_references($dbh,$table_name,$table_owner)
 
-This function returns the information about all referenced objects, they
-will need by this object as a list of owner, name and type
+This function returns a list of all referenced objects. These
+are tables and views the current object (C<$table_name>) depends
+from.
 It returns a hash of the following format
+
+  my @list= ( [$owner1, $name1, $type1],
+              [$owner2, $name2, $type2],
+                           ...
+            )
+	    
+The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".	    
 
 =item dbdrv::read_viewtext()
 
-  my %rk_hash= dbdrv::read_viewtext($dbh,$view_name, $view_owner)
+  my $text= dbdrv::read_viewtext($dbh,$view_name, $view_owner)
 
 This function returns the text of a view definition
-It returns a hash of the following format
 
 =item dbdrv::read_checktext()
 
-  my %rk_hash= dbdrv::read_checktext($dbh,$constraint_name, $constraint_owner)
+  my $text= dbdrv::read_checktext($dbh,$constraint_name, $constraint_owner)
 
-This function returns the condition of a check constraint definition
-It returns a hash of the following format
+This function returns the text of a check constraint definition
 
 =item dbdrv::read_triggertext()
 
   my %rk_hash= dbdrv::read_triggertext($dbh,$trigger_name, $trigger_owner)
 
 This function returns name, type, event, referer, clause, status
-body and description of a trigger definition
-It returns a hash of the following format
+body and description of a trigger definition.
+It returns a hash of the following format:
+
+  my @list= ( [$name1, $type1, $event1, $referer1, 
+               $clause1, $status1, $body1, $description1],
+ 
+              [$name2, $type2, $event2, $referer2, 
+               $clause2, $status2, $body2, $description2],
+                           ...
+            )
+
+Note that currently this function only returns results when you're 
+logged in as database administrator (Oracle 8.0.5)
 
 --- to be continued ---
 
