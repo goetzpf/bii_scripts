@@ -1944,7 +1944,7 @@ sub make_table_window
         )->pack(-expand=>0, -side=>"left");
 
 #    my $WhereField = $FastBar->Entry(-foreground=>"orange",
-    $r_tbh->{fastpath}->{filter} = $FastBar->BrowseEntry(-foreground=>"orange",
+    $r_tbh->{fastbar}->{filter} = $FastBar->BrowseEntry(-foreground=>"orange",
                     -justify=>"left",
                     -relief=>"sunken",
                     -exportselection=>1,
@@ -1957,7 +1957,7 @@ sub make_table_window
                     -anchor=>"w",
         )->pack(-expand=>0, -side=>"left");
 
-    $r_tbh->{fastpath}->{order} = $FastBar->BrowseEntry(-foreground=>"orange",
+    $r_tbh->{fastbar}->{order} = $FastBar->BrowseEntry(-foreground=>"orange",
                     -justify=>"left",
                     -relief=>"sunken",
                     -exportselection=>1,
@@ -2291,9 +2291,9 @@ sub make_table_window
 
     $Top->bind('<Control-Enter>', sub { &cb_reload_db ($r_glbl, $r_tbh) } );
 
-    $r_tbh->{fastpath}->{filter}->bind('<Return>', sub { &cb_reload_db ($r_glbl, $r_tbh) } );
+    $r_tbh->{fastbar}->{filter}->bind('<Return>', sub { &cb_reload_db ($r_glbl, $r_tbh) } );
 
-    $r_tbh->{fastpath}->{order}->bind('<Return>', sub { &cb_reload_db ($r_glbl, $r_tbh); } );
+    $r_tbh->{fastbar}->{order}->bind('<Return>', sub { &cb_reload_db ($r_glbl, $r_tbh); } );
 
    # --------------------- table widget
 
@@ -4660,12 +4660,12 @@ sub cb_reload_db
       {
         if (length($r_tbh->{table_filter}) > 0)
           {
-            $r_tbh->{fastpath}->{filter}->insert(0, $r_tbh->{table_filter});
+            $r_tbh->{fastbar}->{filter}->insert(0, $r_tbh->{table_filter});
             push( @ {$r_tbh->{history}->{table_filter}}, $r_tbh->{table_filter});
           }
         if (length($r_tbh->{table_filter}) > 0)
           {
-            $r_tbh->{fastpath}->{order}->insert(0, $r_tbh->{table_order});
+            $r_tbh->{fastbar}->{order}->insert(0, $r_tbh->{table_order});
             push( @ {$r_tbh->{history}->{table_order}}, $r_tbh->{table_order});
           }
       }
