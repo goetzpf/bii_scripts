@@ -30,7 +30,7 @@ use Tk::FileSelect;
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
 use Tk::ProgressBar;
-use Tk::Date;
+#use Tk::Date;
 use Tk::NumEntry;
 use IO::File;
 #use Tk::ErrorDialog;
