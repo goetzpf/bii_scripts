@@ -84,7 +84,7 @@ sub connect_database
   }
       
 sub disconnect_database
-  { return(dbdrv::connect_database(@_)); }
+  { return(dbdrv::disconnect_database(@_)); }
   
 sub new
   { # perl-Kochbuch, S. 486 "Klassen,Objekte und Ties
