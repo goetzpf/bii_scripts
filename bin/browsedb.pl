@@ -32,7 +32,7 @@ use Tk::TableMatrix;
 use Tk::ProgressBar;
 use Tk::Date;
 use Tk::NumEntry;
-
+use IO::File;
 #use Tk::ErrorDialog;
 
 use warnings;
@@ -42,9 +42,12 @@ use dbdrv 1.1;
 use dbitable 2.0;
 
 use Data::Dumper;
-
 my $VERSION= "0.91";
-
+my $PrgDir = $ENV{"HOME"}."/.browsedb";
+if (! -e $PrgDir)
+  {
+    mkdir($PrgDir, 00700) or die "Can not create configuration location at ".$PrgDir;
+  }
 
 my $PrgTitle= 'BrowseDB';
 
@@ -96,8 +99,6 @@ my %global_data;
 
 #tk_login(\%global_data, $db_name, $db_username, $db_password);
 tk_main_window(\%global_data, $db_name, $db_username, $db_password);
-
-tk_login(\%global_data); # calls tk_main_window_finish
 
 # --------------------- create some entry widgets
 
@@ -185,6 +186,11 @@ sub tk_login_finish
   { my($r_glbl)= @_;
 
     my $db_handle;
+    if (defined($r_glbl->{handle_sql_history}))
+      {
+        $r_glbl->{handle_sql_history}->close();
+        delete $r_glbl->{handle_sql_history};
+      }
     if (defined($r_glbl->{dbh}))
       { dbitable::disconnect_database($r_glbl->{dbh});
         delete $r_glbl->{dbh};
@@ -342,8 +348,8 @@ sub tk_main_window
                 );
         $r_glbl->{progress_widget} = $MnStatusProgress;
 
-#        $Top->update();
-
+        $Top->update();
+        tk_login(\%global_data); # calls tk_main_window_finish
     # prepareing mainwindow with dialog
         my $DlgTop = $Top->NoteBook()->pack(
                 -fill=>'both',
@@ -476,7 +482,7 @@ sub tk_main_window
                       }
                 );
         $r_glbl->{table_listbox_widget}=$DlgTblListbox;
-#        $Top->update();
+        $Top->update();
 
         # dialog view
         my $DlgVwListbox = $DlgVw->Scrolled(
@@ -571,8 +577,7 @@ sub tk_main_window
         $DlgSQLCommand->
             bind('<Control-Return>' =>
                  sub { &tk_execute_new_query($r_glbl,
-                                             $DlgSQLCommand->
-                                                  get('1.0', 'end')
+                              $DlgSQLCommand->get('1.0', 'end')
                                             );
                      }
                 );
@@ -603,8 +608,8 @@ sub tk_progress
 
     $r_glbl->{progress}=$val;
 
-    $r_glbl->{progress_widget}->update();
-
+    #$r_glbl->{progress_widget}->update();
+    $r_glbl->{main_widget}->update();
   }
 
 sub tk_main_window_finish
@@ -635,7 +640,6 @@ sub tk_main_window_finish
         $r_glbl->{table_listbox_widget}->delete(0, 'end');
         $r_glbl->{table_listbox_widget}->
                  insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
-
         $r_glbl->{accessible_objects_all} =
                  [ dbdrv::accessible_objects($r_glbl->{'dbh'},
                                              $r_glbl->{user},
@@ -649,13 +653,44 @@ sub tk_main_window_finish
         $r_glbl->{table_browse_widget}->
                  insert("end",  @{  $r_glbl->{accessible_objects_all} } );
 
+        # opens or create a new history file
+        $r_glbl->{filename_sql_history} = $PrgDir."/history_".$r_glbl->{db_driver}."_".$r_glbl->{db_source}."_".$r_glbl->{user};
 
+
+        if (-r $r_glbl->{filename_sql_history})
+          {
+                $r_glbl->{handle_sql_history} = new IO::File "< ".$r_glbl->{filename_sql_history};
+                if (! defined ($r_glbl->{handle_sql_history}))
+                  {
+                        tkdie($r_glbl,"History file ".$r_glbl->{filename_sql_history}." can not be opened. Error in line " . __LINE__)
+                  }
+                my $fh=$r_glbl->{handle_sql_history};
+                while (my $line = <$fh>)
+                  {
+                    $r_glbl->{sql_history_widget}->insert("end", $line);
+                  }
+                $r_glbl->{handle_sql_history}->close;
+          }
+
+        $r_glbl->{handle_sql_history} = new IO::File ">> ".$r_glbl->{filename_sql_history};
+        if (! defined ($r_glbl->{handle_sql_history}))
+          {
+                tkdie($r_glbl,"History file ".$r_glbl->{filename_sql_history}." can not be opened. Error in line " . __LINE__)
+          }
+        my $fh=$r_glbl->{handle_sql_history};
+        (my $sec, my $min, my $hour, my $mday, my $mon, my $year) = localtime();
+        $year += 1900;
         tk_progress($r_glbl,100);
+        print $fh "\n-- new log $year-$mon-$mday $hour-$min-$sec from ".$ENV{"HOSTNAME"};
+        print $fh "connect (".$r_glbl->{db_driver}.")".$r_glbl->{user}."@".$r_glbl->{db_source}."\n";
+        $fh->flush();
 
-    if ($fast_test)
-      { $r_glbl->{new_table_name}= $fast_table;
-        tk_open_new_object($r_glbl, "table");
-      };
+        if ($fast_test)
+          { $r_glbl->{new_table_name}= $fast_table;
+                tk_open_new_object($r_glbl, "table");
+          };
+
+        tk_progress($r_glbl,0);
 
   }
 
@@ -809,6 +844,7 @@ sub tk_execute_new_query
     $sqlquery =~ s/^\s*//;
     $sqlquery =~ s/\s*;\s*$//;
     $sqlquery =~ s/^\s*$//m;
+    $sqlquery =~ s/\n$//m;
     if ($sqlquery =~ /^select /i)
       {
         if (length($sqlquery) >= 6)
@@ -824,26 +860,42 @@ sub tk_execute_new_query
                     $r_glbl->{sql_history_widget}->insert('end', $sqlquery);
                     $r_glbl->{sql_command_widget}->delete('1.0', "end");
                     $r_glbl->{sql_command_widget}->insert('1.0', $sqlquery);
+                    my $fh=$r_glbl->{handle_sql_history};
+                    print $fh $sqlquery.";\n";
+                    $fh->flush();
               }
           }
       }
-    elsif ($sqlquery =~ /^(insert|update|delete) /i)
-      {
-        tk_err_dialog($r_glbl->{main_menu_widget},
-                      "not supported yet!");
-      }
-    elsif ($sqlquery =~ /^(create|alter|drop) /i)
-      {
-        tk_err_dialog($r_glbl->{main_menu_widget},
-                      "not supported yet!");
-      }
     else
       {
-        tk_err_dialog($r_glbl->{main_menu_widget},
-                      "Unknown SQL commend or command not for " .
-                      "owner use sepcified!");
-      }
+        tk_progress($r_glbl, 10);
+        my $TraceFormat;
+        my $StatementResult = dbdrv::prepare(\$TraceFormat, $r_glbl->{dbh}, $sqlquery);
+        tk_progress($r_glbl, 25);
+        if ($StatementResult)
+          {
+                if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},$StatementResult, my @StatementParams))
+                  { tk_err_dialog($r_glbl->{main_menu_widget},
+                        "Wrong SQL command syntax or data error");
+                  }
+                else
+                  {
+                        tk_progress($r_glbl, 70);
+                        my $fh=$r_glbl->{handle_sql_history};
+                        print $fh $sqlquery.";\n";
+                        $fh->flush();
+                  }
+                tk_progress($r_glbl, 100);
+          }
+        else
+          {
+                tk_err_dialog($r_glbl->{main_menu_widget},
+                        "Unknown SQL commend or command not for " .
+                        "owner use sepcified!");
+          }
 
+      }
+    tk_progress($r_glbl, 0);
     return $sqlquery;
 }
 
@@ -1538,6 +1590,8 @@ sub make_table_hash_and_window
     tk_set_busy($r_glbl,0);
 
     tk_progress($r_glbl,100);
+
+    tk_progress($r_glbl,0);
 
     return($r_tbh);
   }
@@ -3602,16 +3656,10 @@ Verbesserungsvorschläge:
 
 * entry-felder: return soll was aktivieren
 
+* cb_activate_window is activating and deiconfied opened parent_window
+
 BUGS:
 
 derzeit kann dieselbe Tabelle mehrfach geöffnet werden (oder nur derselbe
 View?) -> dann stimmt aber der globale Eintrag "all_tables" in
 $r_glbl nicht mehr...
------------------------
-Spalten: Hide all
------------------------
-Zeilen: eine Flag-Spalte
-     in der FK Table: rückwärts in der urspr. Tabelle selektieren
-     
-Zeilen: Hide, und INVERT Hiding
-      und Show All     
