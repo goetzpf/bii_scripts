@@ -501,6 +501,8 @@ sub get_simple_column_types
 
     # see also the definition of "%typemap" at the top of this file
   
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
           
     my($schema,$table) = dbdrv::check_exists($dbh,"",$table_name);
 
@@ -556,9 +558,61 @@ sub get_simple_column_types
 sub column_properties
 # need handle, table_name, table_owner
 # read the type, length, precision, null-condition of a check constraint
-  { my($dbh, $table_owner, $user_name)= @_;
+  { my($dbh, $user_name, $table_name)= @_;
 
-    return;
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    my($schema,$table) = dbdrv::check_exists($dbh,"",$table_name);
+
+    if (!defined $table)
+      { dberror($mod_l,'get_simple_column_types',__LINE__,
+                "table $table does not exist");
+        return;
+      };
+
+    my $SQL= "SELECT column_name,ordinal_position,data_type, " .
+                     "character_maximum_length, numeric_precision, " .
+		     "is_nullable, column_default " .
+             "FROM information_schema.columns " .
+             "WHERE table_name='$table' AND " .
+                   "table_schema='$schema'" .
+             "ORDER BY ordinal_position";
+
+  # returns something like:
+
+# column_name | ordinal_position |     data_type     | character_maximum_length | numeric_precision | is_nullable | column_default
+#-------------+------------------+-------------------+--------------------------+-------------------+-------------+----------------
+# city        |                1 | character varying |                       80 |                   | YES         |
+# temp_lo     |                2 | integer           |                          |                32 | YES         |
+# temp_hi     |                3 | integer           |                          |                32 | YES         |
+# prcp        |                4 | real              |                          |                24 | YES         |
+# date        |                5 | date              |                          |                   | YES         |
+
+    sql_trace($SQL) if ($sql_trace);
+
+    my $res=
+      $dbh->selectall_arrayref($SQL);
+
+#print Dumper($res);
+
+    if (!defined $res)
+      { dberror($mod_l,'column_properties',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+ 
+    my %ret;
+    foreach my $line ( @$res )
+      {
+        $ret{$line->[0]} = { type=>$line->[2],	    
+        		     length=>$line->[3],    
+        		     precision=>$line->[4], 
+        		     null=>$line->[5],	    
+        		     default=>$line->[6],   
+                           };
+      };
+    return( \%ret );
   }
 
 #-------------------------------------------------------------
@@ -709,7 +763,7 @@ sub resident_keys
 # find where the primary key of this table is used as foreign key
 # column-names are in UPPER CASE
   { my($dbh,$user_name,$table_name)= @_;
-    my($full_name,$table_owner,$table);
+    my($full_name,$table_owner,$table,$schema);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
