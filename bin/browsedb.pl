@@ -21,7 +21,9 @@ use FindBin;
 
 use Sys::Hostname;
 use Config;
+use Cwd;
 use File::Spec;
+use File::Find;
 
 #use Tk 800.024; <-- problems on ocean
 use Tk;
@@ -72,21 +74,29 @@ if ($forkable_os{$os})
 
 our %save; # global configuration variable
 
+my @wanted_array;
+my $wanted_regex;
+
 my $home= $ENV{"HOME"};
 if (!defined $home)
   { $home=""; };
 
 
-my $sharedir= "$FindBin::RealBin/../share";
+my $sharedir= path_beautify("$FindBin::RealBin/../share/browsedb");
 if ((!-d $sharedir) or (!-r $sharedir))
   { $sharedir= undef; };
 
 my $PrgDir = $home."/.browsedb";
 if (! -e $PrgDir)
   {
-    mkdir($PrgDir, 00700) or
+    mkdir($PrgDir, 00755) or
       die "Can not create configuration location at ".$PrgDir;
-  };
+  }
+else
+  { chmod 0755,$PrgDir; };
+
+#file_find('\.col$',$PrgDir);
+#die;
 
 my $column_map_file= 'column_maps.txt';
 
@@ -676,18 +686,11 @@ sub tk_main_window
                               -width=>20,
                               -command =>
                                sub { $DlgCollListbox->delete(0, 'end');
-                                     if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
-                                         while (my $collection =
-                                                 readdir(BROWSEDBCONFDIR))
-                                         {
-                                           if ($collection =~ /\.col$/)
-                                           {
-                                             $DlgCollListbox->insert("end",
-                                                 $PrgDir."/".$collection );
-                                           }
-                                         }
-                                         closedir(BROWSEDBCONFDIR);
-                                     }
+			             $DlgCollListbox->insert("end",
+			                     file_find('\.col$',
+					               $sharedir,
+						       $PrgDir
+						      )     );
                                    },
                             )->pack(
                                 -padx=>2,-pady=>2,
@@ -695,16 +698,10 @@ sub tk_main_window
                                 -anchor=>"se",
                             );
 
-        if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
-            while (my $collection = readdir(BROWSEDBCONFDIR))
-              {
-                if ($collection =~ /\.col$/)
-                  {
-                    $DlgCollListbox->insert("end",  $PrgDir."/".$collection );
-                  }
-              }
-            closedir(BROWSEDBCONFDIR);
-        }
+        $DlgCollListbox->insert("end",
+				file_find('\.col$',$sharedir,$PrgDir) );
+
+
         $DlgCollListbox->
             bind('<Button-1>' =>
                  sub { $DlgCollOk->configure(-state=>"active");
@@ -712,20 +709,15 @@ sub tk_main_window
                 );
 
         $DlgCollListbox->
-            bind('<Control-r>' => sub
-                 {  $DlgCollListbox->delete(0, 'end');
-                    if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
-                        while (my $collection = readdir(BROWSEDBCONFDIR))
-                        {
-                            if ($collection =~ /\.col$/)
-                            {
-                                $DlgCollListbox->insert("end",
-                                                 $PrgDir."/".$collection );
-                            }
-                        }
-                        closedir(BROWSEDBCONFDIR);
-                    }
-                 }
+            bind('<Control-r>' =>
+	              sub { $DlgCollListbox->delete(0, 'end');
+			    $DlgCollListbox->insert("end",
+			            file_find('\.col$',
+					      $sharedir,
+					      $PrgDir
+					     )     );
+                          }
+
                );
         $DlgCollListbox->
             bind('<Return>' =>
@@ -6241,6 +6233,47 @@ sub conn_f_find
 
     # return a hash-ref: res-table-name => [res_col1,res_col2...]
     return($r_residents);
+  }
+
+# beatify a file-path
+#_______________________________________________________
+
+sub path_beautify
+  { my($path)= @_;
+    my $old= cwd;
+
+    if (!chdir($path))
+      { chdir($old) or die "unable to chdir to $old!";
+        return($path);
+      };
+    $path= cwd;
+    chdir($old) or die "unable to chdir to $old!";
+    return($path);
+  }
+
+# recursively find files
+#_______________________________________________________
+
+sub file_find
+  { my($regexp,@dirs)= @_;
+
+    @wanted_array= ();
+    $wanted_regex= $regexp;
+    find(\&wanted, @dirs);
+
+    #print "found:\n",join("\n",@wanted_array);
+    return(sort @wanted_array);
+  }
+
+sub wanted
+  { my $file= $_;
+
+    return unless (-f $file);
+    return if (-z $file);
+    return if (!-r $file);
+
+    return if ($file!~ /$wanted_regex/);
+    push @wanted_array,$File::Find::name;
   }
 
 # recursive dump:
