@@ -605,12 +605,12 @@ sub column_properties
     my %ret;
     foreach my $line ( @$res )
       {
-        $ret{$line->[0]} = { type=>$line->[2],	    
-        		     length=>$line->[3],    
-        		     precision=>$line->[4], 
-        		     null=>$line->[5],	    
-        		     default=>$line->[6],   
-                           };
+        $ret{uc($line->[0])} = { type=>$line->[2],	    
+        			 length=>$line->[3],    
+        			 precision=>$line->[4], 
+        			 null=>$line->[5],	    
+        			 default=>$line->[6],   
+                               };
       };
     return( \%ret );
   }
