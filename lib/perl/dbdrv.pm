@@ -323,10 +323,11 @@ sub check_existence
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
-    $table_name= uc($table_name);
+    my $obj_name= "PUBLIC." . uc($table_name);
+    
     load_object_dict($dbh,$user_name);  
     
-    return( exists $r_db_objects->{$table_name} );
+    return( exists $r_db_objects->{$obj_name} );
   }
 
 
@@ -390,13 +391,17 @@ sub accessible_objects
 
     if (exists $access{public})
       { push @result,
-             grep { $r_db_objects->{$_}->[1] eq 'PUBLIC' } @keys;
+             grep { /^PUBLIC\./ } @keys;
       };
 
     if (exists $access{user})
       { push @result,
-             grep { $r_db_objects->{$_}->[1] eq $user_name } @keys;
+             grep { /^$user_name\./ } @keys;
       };
+
+    #warn join("|",@result) . "\n";
+
+    map { $_=~ s/^[^\.]+\.// } @result; # remove "owner"  
 
 #print Dumper(\@result);
 
@@ -406,21 +411,35 @@ sub accessible_objects
 sub real_name
 # resolves a given table-name or synonym,
 # returns the table-owner and the table-name
+# NOTE: user-name is not the owner of the table but the user
+# that has logged in
   { my($dbh,$user_name,$object_name)= @_;
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
+    $user_name= uc($user_name);
+    
     load_object_dict($dbh,$user_name);
 
+    if ($object_name !~ /\./) # not in the form user.tablename
+      { $object_name= "PUBLIC." . $object_name; };
+    
+   
     my $data= $r_db_objects->{$object_name};
+    
     return if (!defined $data); # not in list of synonyms and
                                 # user objects
 
-    if ($#$data>1) # more than 2 objects in hash:synonym
-      { return( $data->[2], $data->[3] ); };
+    # user objects have only a type-field (why?)
+    
+    if ($#$data>0) # more than 2 objects in hash:synonym
+      { my($owner,$name)= split(/\./, $data->[1]);
+      
+        return($name,$owner);
+      };
 
-    return( $object_name, $data->[1] );
+    return( $object_name, $user_name );
   }
 
 sub canonify_name
@@ -438,11 +457,16 @@ sub canonify_name
 
     my $name= $object_owner . '.' . $object_name;
 
-    my $new_name= $r_db_reverse_synonyms->{$name};
-
-    if (defined $new_name)
-      { return($new_name); };
-
+    my $r_list= $r_db_reverse_synonyms->{$name};
+    if (!defined $r_list)
+      { return($name); };
+      
+    foreach my $n (@$r_list)
+      { my($owner,$obj)= split(/\./,$n);
+        if ($owner eq 'PUBLIC')
+	  { return($obj); };
+      };
+      
     return($name);
   }
 
@@ -855,7 +879,7 @@ it's owner.
   my $new_name=canonify_name($dbh,$user_name,$object_name,$object_owner)
 
 This converts a given object and it's owner to a name in the form
-"owner.name" or a synonym that maps to the given object.
+"owner.name" or a public synonym that maps to the given object.
 
 =item dbdrv::object_dependencies
 

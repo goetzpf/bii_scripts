@@ -222,7 +222,7 @@ sub resident_keys
 
 sub get_user_objects
 # INTERNAL
-# returns a ref to a hash : obj_name => [$type, $own]
+# returns a ref to a hash : own.obj_name => [$type]
 # type is 'T' (table) or 'V' (view)
 # $t_name: table or view referred to
 # $t_own: owner of referred table or view (equal to the $user-parameter)
@@ -253,7 +253,7 @@ sub get_user_objects
 
     # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_tab->{ $line->[0] } = ['T',$user ]; };
+      { $r_tab->{ $user . '.' . $line->[0] } = ['T']; };
 
     $sql= "SELECT view_name from user_views";
 
@@ -269,7 +269,7 @@ sub get_user_objects
 
     # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_tab{ $line->[0] } = ['V',$user ];
+      { $r_tab{ $user . '.' . $line->[0] } = ['V'];
       };
 
     #print Dumper($r_tab);
@@ -313,10 +313,15 @@ sub get_synonyms
 
     # hash: [type('T'or'V'),owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_syn->{ $line->[0] } =
-                    ['T',$line->[1], $line->[2], $line->[3] ];
-
-        $r_reverse_syn->{$line->[3] . '.' . $line->[2]}= $line->[0];
+      { my $syn= $line->[1] . '.' . $line->[0];
+        my $obj= $line->[3] . '.' . $line->[2];
+      
+        $r_syn->{$syn} = ['T', $obj ];
+		    
+	if (!exists $r_reverse_syn->{$obj})
+	  { $r_reverse_syn->{$obj}= [$syn]; }
+	else
+	  { push @{$r_reverse_syn->{$obj}}, $syn; };	    
       };
 
 
@@ -340,10 +345,15 @@ sub get_synonyms
 
     # hash: [type('T'or'V'),synonym-owner,table-name,table-owner
     foreach my $line (@$res)
-      { $r_syn->{ $line->[0] }
-                 = ['V',$line->[1], $line->[2], $line->[3] ];
-
-        $r_reverse_syn->{$line->[3] . '.' . $line->[2]}= $line->[0];
+      { my $syn= $line->[1] . '.' . $line->[0];
+        my $obj= $line->[3] . '.' . $line->[2];
+      
+        $r_syn->{$syn} = ['V', $obj ];
+		    
+	if (!exists $r_reverse_syn->{$obj})
+	  { $r_reverse_syn->{$obj}= [$syn]; }
+	else
+	  { push @{$r_reverse_syn->{$obj}}, $syn; };	    
       };
 
     #print Dumper($r_syn);
