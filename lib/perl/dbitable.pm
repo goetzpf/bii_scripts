@@ -363,7 +363,13 @@ sub init_tableviewtype
       { my $cmd= $self->{_fetch_cmd};
         $cmd=~ s/\bwhere.*//i;    # remove "where" part
         $cmd=~ s/\border\s+by//i; # remove "where" part
-        $cmd.= " where rownum<2";
+
+        my($st,$at)= dbdrv::query_limit_rows_str(1);
+        if ($at eq 'add_after_where')
+          { $cmd.= " where $st"; }
+        else
+          { $cmd.= " $st"; };
+
         $sth= $dbh->prepare($cmd);
       };
 
@@ -391,14 +397,11 @@ sub init_tableviewtype
     my $colcount=0;
     my @column_list= @{$sth->{NAME_uc}};
 
-    my $type_no2string= db_types_no2string($dbh);
-
-    my @x= map { $type_no2string->{$_} } @{$sth->{TYPE}};
+    my @x= dbdrv::get_simple_column_types($dbh,$sth,$table);
 
     if ($proxy_patch)
       { $sth->finish(); };
 
-    db_simplify_types(\@x);
     $self->{_types}= \@x;
 
 #warn join("|",@x);
@@ -469,6 +472,11 @@ sub init_columns
     my $i;
     my $r_col_hash= $self->{_columns};
 
+    # ref to the list of column-types:
+    my $r_types= $self->{_types};
+
+    my $pk_is_numeric=1;
+
     if ($self->{_counter_pk})
       { @pki= (undef); }
     else
@@ -480,9 +488,11 @@ sub init_columns
                                "column $pk not found");
                 return;
               };
+            $pk_is_numeric=0 if ($r_types->[$i] ne 'number');
             push @pki, $i;
           };
       };
+    $self->{_pk_is_numeric}= $pk_is_numeric;
     $self->{_pkis}= \@pki;
     return(1); # OK
   }
@@ -705,6 +715,7 @@ sub import_table
 
     my $is_multi_pk  = $self->{_multi_pk};
     my $counter_pk   = $self->{_counter_pk};
+    my $pk_is_numeric= $self->{_pk_is_numeric};
     my $single_pki;
 
     $v= $options{mode};
@@ -717,30 +728,32 @@ sub import_table
       };
 
     $v= $options{primary_key};
-    if    (!defined $v)
-      { $options{primary_key}= 'generate'; }
-    elsif (($v ne 'preserve') && ($v ne 'generate'))
+    if    (defined $v)
+      { if (($v ne 'preserve') && ($v ne 'generate'))
+          { dbdrv::dberror($mod,'import_table',__LINE__,
+                           "unknown primary-key-mode:$v");
+            return;
+          };
+      }
+    else
+      { if (!$is_multi_pk && $pk_is_numeric)
+          { $options{primary_key}= 'generate'; }
+        else
+          { $options{primary_key}= 'preserve'; }
+      };
+
+    if (($is_multi_pk) && ($v eq 'generate'))
       { dbdrv::dberror($mod,'import_table',__LINE__,
-                       "unknown primary-key-mode:$v");
+                       "primary_key=generate not allowed for tables\n" .
+                       "with more than one primary key column!!");
         return;
       };
 
-    if ($is_multi_pk)
-      { if ($v eq 'generate')
-          { dbdrv::dberror($mod,'import_table',__LINE__,
-                           "primary_key=generate not allowed for tables\n" .
-                           "with more than one primary key column!!");
-            return;
-          };
-      };
-
-    if ($counter_pk)
-      { if ($v ne 'generate')
-          { dbdrv::dberror($mod,'import_table',__LINE__,
-                           "primary_key=preserve not allowed for tables\n" .
-                           "with counter-primary key");
-            return;
-          };
+    if (($counter_pk) && ($v ne 'generate'))
+      { dbdrv::dberror($mod,'import_table',__LINE__,
+                       "primary_key=preserve not allowed for tables\n" .
+                       "with counter-primary key");
+        return;
       };
 
     my $r_column_aliases= $options{column_aliases};
@@ -809,7 +822,8 @@ sub import_table
         $r_self_line= $r_self_lines->{$self_pk};
         my $operation;
         if (!defined $r_self_line)
-          { if (!$counter_pk)
+          { # a new line has to be inserted
+            if (!$counter_pk)
               { if ($options{primary_key} eq 'generate')
                   { $self_pk= $self->new_prelim_key();
                     $self->{_preliminary}->{$self_pk}= 1;
@@ -952,6 +966,22 @@ sub primary_key_column_indices
     return( @{$self->{_pkis}} );
   }
 
+sub primary_keys_are_numeric
+  { my $self= shift;
+
+    return(1) if ($self->{_counter_pk});
+    return( $self->{_pk_is_numeric} );
+  }
+
+sub primary_key_auto_generate_possible
+  { my $self= shift;
+
+    return(0) if ($self->{_counter_pk});
+    return(0) if ($self->{_multi_pk});
+    return(0) if (!$self->{_pk_is_numeric});
+    return(1);
+  }
+
 sub column_list
   { my $self= shift;
 
@@ -1061,17 +1091,52 @@ sub value
                            "error: unknown column: $column");
             return;
           };
-        if ((!$self->{_multi_pk}) && (!$self->{_counter_pk}))
-          { # in the simple case the primary key must not be changed
-            if ($i== $self->{_pkis}->[0])
-              { dbdrv::dberror($mod,'value',__LINE__,
-                               "error: primary key (col-index $i) " .
-                               "must not be changed!");
-                return;
+
+        if (!$self->{_counter_pk})
+          { # check weather the primary key is to be changed:
+            my $pk_change=0;
+            if (!$self->{_multi_pk})
+              { if ($self->{_pkis}->[0] == $i)
+                  { $pk_change=1; };
+              }
+            else
+              { # a search, maybe it's a bit slow ?
+                foreach my $pki ( @{$self->{_pkis}} )
+                  { if ($pki==$i)
+                      { $pk_change=1;
+                        last;
+                      };
+                  };
+              };
+            if ($pk_change)
+              { my @localline= @$line;
+                $localline[$i] =$newval;
+                my $new_pk= build_primary_key_str_l($self->{_pkis},
+                                                    \@localline);
+                if (exists $self->{_lines}->{$new_pk})
+                  { dbdrv::dbwarn($mod,'value',__LINE__,
+                                  "error: primary key(s) already exist!");
+                    return;
+                  };
+                $self->{_lines}->{$new_pk}= $self->{_lines}->{$pk};
+                delete $self->{_lines}->{$pk};
+                my $r_aliases= $self->{_aliases};
+                foreach my $key (keys %$r_aliases)
+                  { $r_aliases->{$key}= $new_pk
+                      if ($r_aliases->{$key} eq $pk);
+                  };
+                $self->{_deleted}->{$pk}=1;
+                $self->{_inserted}->{$new_pk}=1;
+                $pk= $new_pk;
               };
           };
+
         $line->[ $i ] =$newval;
-        $self->{_updated}->{$pk}=1;
+        # lines that are marked inserted, do not need to be
+        # marked as updated, too
+        if (!exists $self->{_inserted}->{$pk})
+          { $self->{_updated}->{$pk}=1; };
+        return($newval);
       };
   }
 
@@ -1143,6 +1208,7 @@ sub add_line
     my $r_pkis= $self->{_pkis};
     my $is_multi_pk= $self->{_multi_pk};
     my $counter_pk   = $self->{_counter_pk};
+    my $pk_is_numeric= $self->{_pk_is_numeric};
 
     my $new_key;
     if ($counter_pk)
@@ -1152,10 +1218,17 @@ sub add_line
 
     if (!defined $new_key)
       { if ($is_multi_pk)
-          { dbdrv::dberror($mod,'add_line',__LINE__,
+          { dbdrv::dbwarn($mod,'add_line',__LINE__,
                            "error:the primary key columns MUST " .
                            "be set for a \n" .
                            "table with more than one primary key");
+            return;
+          };
+        if (!$pk_is_numeric)
+          { dbdrv::dbwarn($mod,'add_line',__LINE__,
+                           "error:the primary key column(s) MUST " .
+                           "be set when at least one primary key\n" .
+                           "column is not numeric");
             return;
           };
         # if the primary key is not given, create one
@@ -1167,8 +1240,8 @@ sub add_line
     my $r_aliases= $self->get_hash("_aliases");
 
     if (exists $r_lines->{$new_key})
-      { dbdrv::dberror($mod,'add_line',__LINE__,
-                       "internal error, assertion failed\n");
+      { dbdrv::dbwarn($mod,'add_line',__LINE__,
+                      "error, primary key already exists\n");
         return;
       };
 
@@ -1244,6 +1317,13 @@ sub max_key
       { dbdrv::dberror($mod,'max_key',__LINE__,
                        "max_key only works for tables with a " .
                        "single primary key!");
+        return;
+      };
+
+    if (!$self->{_pk_is_numeric})
+      { dbdrv::dberror($mod,'max_key',__LINE__,
+                       "max_key only works for tables with a " .
+                       "numeric single primary key!");
         return;
       };
 
@@ -1452,7 +1532,7 @@ sub load_from_db
 
 
     my $last_fetch_cmd= $self->{_fetch_cmd};
-    
+
     if ($self->{_type} eq 'table')
       { $self->{_fetch_cmd}= "select * from $self->{_table} " .
                              "$select_trailer";
@@ -1589,8 +1669,8 @@ sub store_to_db
       };
 
     return if (!$self->delete_(@_));
-    return if (!$self->update(@_));
     return if (!$self->insert(@_));
+    return if (!$self->update(@_));
     return($self);
  }
 
@@ -1615,7 +1695,33 @@ sub delete_
 
     my $r_pks= $self->{_pks};
 
-    if (!$self->{_multi_pk}) # only one primary key column
+    if ($self->{_counter_pk})
+      { # no primary key defined
+        # build a complete "where" clause:
+        my @conditions= map { "$_ = ?" } (@{$self->{_column_list}});
+        my $condition= join(" AND ",@conditions);
+        my $sth= dbdrv::prepare(\$format,$dbh,
+                                "delete from $self->{_table} " .
+                                "where $condition ");
+        if (!$sth)
+          { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
+                           "prepare failed," .
+                           " error-code: \n$DBI::errstr");
+            return;
+          };
+        foreach my $pk (keys %{$self->{_deleted}})
+          { if (!dbdrv::execute($format,$dbh,$sth,
+                           $self->{_lines}->{$pk}))
+              { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
+                               "execute() returned an error," .
+                               " error-code: \n$DBI::errstr");
+                $sth->finish;
+                return;
+              };
+          };
+        $sth->finish;
+      }
+    elsif (!$self->{_multi_pk}) # only one primary key column
       { my $sth= dbdrv::prepare(\$format,$dbh,
                                 "delete from $self->{_table} " .
                                 "where $r_pks->[0] = ? ");
@@ -1684,6 +1790,14 @@ sub update
     my $r_pkis= $self->{_pkis};
     my $is_multi_pk= $self->{_multi_pk};
 
+    if ($self->{_counter_pk})
+      { dbdrv::dbwarn($mod,'update',__LINE__,
+                           "update() impossible when there's no " .
+                           "primary key");
+        return;
+      };
+
+
     my $condition;
     if (!$is_multi_pk) # only one primary key column
       { $condition= "$r_pks->[0] = ?"; }
@@ -1715,7 +1829,9 @@ sub update
             # can happen with changing, then deleting a line
             if (!dbdrv::execute($format,$dbh,$sth,
                        @$line, $line->[ $r_pkis->[0] ] ))
-              { dbdrv::dbwarn($mod,'update',__LINE__,
+              {
+#print "caller:",join(" ",caller),"\n";
+                dbdrv::dbwarn($mod,'update',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
                 $sth->finish;
@@ -1755,37 +1871,60 @@ sub insert
     my $dbh= $self->{_dbh};
     my $lines= $self->{_lines};
     my $is_multi_pk= $self->{_multi_pk};
+    my $pk_is_numeric= $self->{_pk_is_numeric};
 
     my @fields= @{$self->{_column_list}};
 
     my $format;
+    my $pk_opt;
+
+#warn "insert options: ",join("|",%options);
+
     return(1) if (!$self->{_inserted});
 
+    for(;;) #not a real loop...
+      { $pk_opt= $options{primary_key};
 
-    if ($self->{_counter_pk})
-      { dbdrv::dberror($mod,'insert',__LINE__,
-                       "insert() called with table or view of type \n" .
-                       "counter-pk! (assertion)");
-        return;
-      };
+        if (($pk_opt ne 'preserve') && ($pk_opt ne 'generate'))
+          { dbdrv::dberror($mod,'insert',__LINE__,
+                           "unknown primary-key-mode:$pk_opt");
+            return;
+          };
 
-    my $v= $options{primary_key};
-    if (!$is_multi_pk)
-      { $v= 'generate' if (!defined $v); }
-    else
-      { $v= 'preserve' if (!defined $v); };
+        if ($self->{_counter_pk})
+          { if ($self->{_foreign_keys})
+              { # a table just with foreign key(s), no
+                # primary key, this is OK
+                $pk_opt='none';
+                last;
+              }
+            else
+              { dbdrv::dberror($mod,'insert',__LINE__,
+                               "insert() called with table or view of type \n" .
+                               "counter-pk! (assertion)");
+                return;
+              };
+          };
 
-    if (($is_multi_pk) && ($v ne 'preserve'))
-      { dbdrv::dbwarn($mod,'insert',__LINE__,
-                       "primary key mode must be \"preserve\" for a \n" .
-                       "table with more than one primary key column");
-        return;
-      };
+        if ($is_multi_pk)
+          { # more than one primary key,
+            # force 'preserve' mode
+            # NOTE: the given primary key mode is overridden here !
+            $pk_opt= 'preserve';
+            last;
+          };
 
-    if (($v ne 'preserve') && ($v ne 'generate'))
-      { dbdrv::dberror($mod,'insert',__LINE__,
-                       "unknown primary-key-mode:$v");
-        return;
+        if (!$pk_is_numeric)
+          { # at least one pk is not numeric,
+            # force 'preserve' mode
+            # NOTE: the given primary key mode is overridden here !
+            $pk_opt= 'preserve';
+            last;
+          };
+
+        # default primary key mode is this:
+        $pk_opt= 'generate' if (!defined $pk_opt);
+        last;
       };
 
     my $sth= dbdrv::prepare(\$format,$dbh,
@@ -1818,20 +1957,33 @@ sub insert
 
     $sth->finish;
 
-    my @prelim_keys;
-
-    if ($options{primary_key} eq 'generate')
-      { @prelim_keys= (keys %{$self->{_inserted}}); }
-    else
-      { if (exists $self->{_preliminary})
-          { @prelim_keys= (keys %{$self->{_preliminary}});
+#warn "pkopt: $pk_opt";
+    if ($pk_opt eq 'generate')
+      { my $r_p= $self->{_preliminary};
+        if (!defined $r_p)
+          { my %h;
+            $self->{_preliminary}= \%h;
+            $r_p= \%h;
           };
+        foreach my $k (keys %{$self->{_inserted}})
+          { $r_p->{$k}= 1; };
       };
 
+    my @prelim_keys= (keys %{$self->{_preliminary}});
+
+#warn "preliminary keys: " . join("|",@prelim_keys);
+
     if (@prelim_keys)
-      { if ($is_multi_pk)
+      {
+       if (!$pk_is_numeric)
           { dbdrv::dberror($mod,'insert',__LINE__,
-                           "_preliminary set with " .
+                           "preliminary keys found with" .
+                           "non-numeric pk column (assertion)");
+            return;
+          };
+       if ($is_multi_pk)
+          { dbdrv::dberror($mod,'insert',__LINE__,
+                           "preliminary keys found with " .
                            "multi-pk table (assertion)");
             return;
           };
@@ -1854,7 +2006,6 @@ sub insert
                            " error-code: \n$DBI::errstr");
             return;
           };
-
 
         my $max= $self->max_key('capped');
 
@@ -2437,16 +2588,11 @@ sub new_prelim_key
         return;
       };
 
+# @@@@@@@@@@@@@@@ add here:
+# preliminary key generation for String-Columns
+
     if (!$prelim_key)
-      { my $max;
-        if ($self->{_type} eq 'table')
-          { $max= $self->max_key(); }
-        else
-          { # just guess
-            $max= $key_fact;
-          };
-        $prelim_key= int($key_fact*rand())+$key_fact + $max;
-      }
+      { $prelim_key= int($key_fact*rand())+$key_fact; }
     else
       { $prelim_key++; };
     return($prelim_key);
@@ -2508,81 +2654,36 @@ sub build_primary_key_str
     return($str);
   }
 
+sub build_primary_key_str_l
+# internal
+# especially for tables where more than one column fo the
+# primary key
+# build primary key from a given list of column-values
+# returns undef when (at least one) of the needed columns is
+# missing
+  { my($r_pkis, $r_values)= @_;
+
+    if ($#$r_pkis==0) # only one primary key
+      { return( $r_values->[0] ); };
+
+    my $str;
+    my $val;
+    foreach my $pki (@$r_pkis)
+      { $val= $r_values->[$pki];
+        return if (!defined $val);
+        if (!$str)
+          { $str= $val; }
+        else
+          { $str.= '||' . $val; };
+      };
+    return($str);
+  }
+
 sub decompose_primary_key_str
 # internal
 # especially for tables where more than one column fo the
 # primary key
   { return( split(/\|\|/, $_[0]) ); }
-
-sub db_simplify_types
-# internal
-  { my($r_types)= @_;
-    my %map= (RAW        => undef,           # raw data ??
-              CLOB       => undef,           # big alphanumeric object
-              BFILE      => undef,           # pointer to file (??)
-              'LONG RAW' => undef,           # big alphanumeric object (??)
-              LONG       => undef,           # big alphanumeric object (??)
-              CHAR       => 'string',        # CHAR
-              NUMBER     => 'number',        # cardinal number
-              DECIMAL    => 'number',        # cardinal number
-              DATE       => 'string',        # date
-              VARCHAR2   => 'string',        # string
-              DOUBLE     => 'number',        # floating point
-              'DOUBLE PRECISION' => 'number',# floating point
-             );
-
-    my $tag;
-    foreach my $t (@$r_types)
-      { $tag= uc($t);
-        $t= $map{uc($tag)};
-        next if (defined $t);
-        next if (exists $map{uc($tag)});
-        warn "internal error (assertion): col-type $tag is unknown";
-      };
-  }
-
-sub db_types_no2string
-# internal
-# creates a hash, mapping number to string,
-# this is needed for $sth->{TYPE} !
-# known datatypes in DBD::oracle:
-# on host ocean:
-#          '-3' => 'RAW',
-#          '-4' => 'LONG RAW',
-#          '1' => 'CHAR',
-#          '3' => 'NUMBER',
-#          '11' => 'DATE',
-#          '12' => 'VARCHAR2',
-#          '8' => 'DOUBLE',
-#          '-1' => 'LONG'
-# on the linux client:
-#          '8' => 'DOUBLE PRECISION',
-#          '1' => 'CHAR',
-#          '93' => 'DATE',
-#          '3' => 'DECIMAL',
-#          '-4' => 'BFILE',
-#          '12' => 'VARCHAR2',
-#          '-1' => 'CLOB',
-#          '-3' => 'RAW'
-  { my($dbh)= @_;
-    my %map;
-
-    my $info= $dbh->type_info_all(); # ref. to an array
-
-    my $r_description= shift(@$info); # ref to a hash
-
-    # TYPE_NAME is the string
-    # DATA_TYPE is the number
-
-    my $TYPE_NAME_index= $r_description->{TYPE_NAME};
-    my $DATA_TYPE_index= $r_description->{DATA_TYPE};
-
-    foreach my $r_t (@$info)
-      { $map{ $r_t->[$DATA_TYPE_index] } = $r_t->[$TYPE_NAME_index]; };
-
-#print Dumper(\%map);
-    return(\%map);
-  }
 
 
 sub gen_sort_prepare
@@ -2933,7 +3034,7 @@ parameters to the function. The function returns the object itself,
 so it can be cascaded with C<new> in a single call, as you can see in
 the third example.
 
-In case of an error, the function calls C<dbdrv::dberror> or C<dbdrv::dbwarn> 
+In case of an error, the function calls C<dbdrv::dberror> or C<dbdrv::dbwarn>
 and returns C<undef>. If the dbitable-object already contains data and
 the SQL command issued fails, the data will be left intact.
 
@@ -3356,6 +3457,24 @@ Note that a table may also have no primary key columns at all
 (see comments on primary keys at the start of this document).
 The function returns C<undef> in this case.
 
+=item primary_keys_are_numeric()
+
+  if ($table->primary_keys_are_numeric())
+    { ... }
+
+This function returns 1 when all primary key columns are numbers.
+When there is only one primary key column and it is numeric, the
+primary key generation feature (primary key mode: "generate") can
+be used.
+
+=item primary_key_auto_generate_possible()
+
+  if ($table->primary_key_auto_generate_possible())
+    { ... }
+
+This function returns 1 when it is with the current table possible
+to use auto-generated primary keys (see above).
+
 =item column_list()
 
   my @columns= $table->column_list()
@@ -3413,6 +3532,10 @@ This method is used to get or set a value, that means a single field of
 a single line. In the first form, the value is returned, in the 2nd form,
 the value is set. Note that changes do only take effect in the database
 or file, when C<store()> is called later on.
+Note too, that in the 2nd form, the function returns C<$value> when
+everything was ok, and C<undef> if setting the value was impossible
+due to constraints dbitable.pm knows of (e.g. primary keys must be
+always unique in the table).
 
 =item find()
 
@@ -3751,6 +3874,7 @@ _lines:       a ref to a hash, each primary key points to a reference
               columns (see also "_column_list")
 _pks:         the column-name(s) of the primary key, usually lower-case
 _pkis:        the column-index/indices of the primary key(s)
+_pk_is_numeric 1 if (all) primary key(s) are numeric
 _multi_pk     1 if there's more than one primary key
 _counter_pk   1 if the primary key is just a line-counter
 _table:       the name of the table, as it's used in oracle
