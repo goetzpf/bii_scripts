@@ -5837,14 +5837,14 @@ sub tk_clear_undefkey
 sub tk_bind_scroll_wheel
   { my($widget)= @_;
 
-    $widget->bind('<4>',['yview','scroll',-5,'units']);
-    $widget->bind('<5>',['yview','scroll', 5,'units']);
+    $widget->bind('<Button-4>',['yview','scroll',-5,'units']);
+    $widget->bind('<Button-5>',['yview','scroll', 5,'units']);
 
-    $widget->bind('<Shift-4>',['yview','scroll',-1,'units']);
-    $widget->bind('<Shift-5>',['yview','scroll', 1,'units']);
+    $widget->bind('<Shift-Button-4>',['yview','scroll',-1,'units']);
+    $widget->bind('<Shift-Button-5>',['yview','scroll', 1,'units']);
 
-    $widget->bind('<Control-4>',['yview','scroll',-1,'pages']);
-    $widget->bind('<Control-5>',['yview','scroll', 1,'pages']);
+    $widget->bind('<Control-Button-4>',['yview','scroll',-1,'pages']);
+    $widget->bind('<Control-Button-5>',['yview','scroll', 1,'pages']);
 
   }
 
