@@ -1,4 +1,4 @@
-Pezca 0.09, the Perl-ezca module.
+Pezca 0.3, the Perl-ezca module.
 
 license:
 --------
@@ -41,6 +41,12 @@ Bugs and Problems:
 ------------------
 For the Windows NT version, only Pezca::GetDouble() is tested. For 
 all other platforms, all functions have been tested. 
+
+Windows 2000:
+produces "unexpected UDP failure ..." but then the access to
+the EPICS variable works. This is a Problem of Pezca-0.2 and Pezca-0.3,
+maybe a generic problem with windows 2000.
+
 
 Further developments:
 ---------------------

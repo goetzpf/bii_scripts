@@ -43,6 +43,9 @@ EPICS: removed files and patches:
 libCom:
 	REMOVED: assertVX.c errlogVX.c errIncCXX.cc errMtst.c
 	         fdManager.cc osiTimer.cc
+
+        ADDED:   sub-dir "O.WIN32",
+	         added there: epicsVersion.h from "O.Linux"
 	
 ca:	
 	REMOVED: V5_vxWorks_patch.c vms_depen.c vxWorks_depen.c	

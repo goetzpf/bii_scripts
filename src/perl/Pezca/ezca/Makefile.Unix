@@ -1,13 +1,10 @@
 #
-# $Id: Makefile.Unix,v 1.1 2002-11-01 12:39:19 pfeiffer Exp $
+# $Id: Makefile.Unix,v 1.2 2002-11-01 13:02:26 pfeiffer Exp $
 #
 #
 # $Log: Makefile.Unix,v $
-# Revision 1.1  2002-11-01 12:39:19  pfeiffer
-# Initial revision
-#
-# Revision 1.1.1.1  2002/11/01 12:25:49  pfeiffer
-# A proposal for the bessy - script bundle
+# Revision 1.2  2002-11-01 13:02:26  pfeiffer
+# *** empty log message ***
 #
 # Revision 1.8  1996/05/14 15:01:08  jba
 # Added flags for hp700 and Linux.

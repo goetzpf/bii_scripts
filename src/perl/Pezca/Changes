@@ -62,3 +62,7 @@ Revision history for Perl extension Pezca.
 	the official source, using the same c-compiler. 
 	The EPICS-sources were taken from Release R3.13.1.
 	
+0.3   Thu Jan 31 2002
+	Sources from epics 3.13.5 were incorporated, replacing the 
+	old epics sources. 
+	

@@ -1,7 +1,6 @@
 use Config; # access information about the platform we're running
 
-# defines for the 2 supported platforms:
-# Linux: -D_NTSDK is a quick hack to get things compiled
+# defines for the supported platforms:
 
 %defines= ( 
                 'hpux'      => '-DUNIX -D_HPUX_SOURCE -DHP_UX -D__hpux',
@@ -26,7 +25,7 @@ use Config; # access information about the platform we're running
             'win32-msc' => ['libCom/O.Linux/envData.o',
                             'libCom/O.Linux/errSymTbl.o',
 			    'ca/windows_depen.o' 
-		   ],
+                           ],
 			 
           );
 
