@@ -760,6 +760,9 @@ sub tk_foreign_key_dialog
     $r_glbl->{foreign_key_dialog_widget} = $Top;
     $r_glbl->{foreign_key_dialog_listbox}= $listbox;
     $r_glbl->{foreign_key_cols} = \@cols;
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
   } 
   
 sub tk_foreign_key_dialog_finish
@@ -910,6 +913,9 @@ sub tk_dependency_dialog
     $r_tbh->{dependency_dialog_listbox}   = $listbox;
     $r_tbh->{resident_tables}             = \%resident_tables;
     $r_tbh->{resident_table_list}         = \@resident_table_list;
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
   }
 
 sub tk_dependency_dialog_finish
@@ -1030,6 +1036,9 @@ sub tk_find_line
                                    $Top->destroy;
                                   }
                  )->pack(-side=>'left', -fill=>'y');
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
   }
 
 sub tk_window_positioning
@@ -1070,16 +1079,9 @@ sub tk_field_edit
     my($row,$col)= split(",",$TableWidget->index('active'));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
+
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $TableWidget->Toplevel(-background=>$BG);
-
-    # place the new window on the upper-left corner of
-    # the Tablematrix-Window
-    my $xroot=$TableWidget->rootx();
-    my $yroot=$TableWidget->rooty();
-    $xroot= '+' . $xroot if ($xroot>=0);
-    $yroot= '+' . $yroot if ($yroot>=0);
-    $Top->geometry($xroot . $yroot);
 
     #my $title= "$r_tbh->{table_name}: Edit $colname";
     $Top->title("$r_tbh->{table_name}");
@@ -1100,9 +1102,9 @@ sub tk_field_edit
 
     $w=20 if ($w<20);
 
-    $FrTop->Entry(-textvariable => \$r_tbh->{edit_cell},
-                  -width=>$w
-                 )->pack(-side=>'left',-fill=>'x',-expand=>'y');
+    my $Entry= $FrTop->Entry(-textvariable => \$r_tbh->{edit_cell},
+                             -width=>$w
+                            )->pack(-side=>'left',-fill=>'x',-expand=>'y');
 
     $FrDn->Button(-text => 'accept',
                  %std_button_options,
@@ -1118,8 +1120,18 @@ sub tk_field_edit
                                    $Top->destroy;
                                   }
                  )->pack(-side=>'left', -fill=>'y');
-  }
 
+    $Entry->bind('<Return>', sub { $TableWidget->set("$row,$col",
+                                                      $r_tbh->{edit_cell});
+                                   delete $r_tbh->{edit_cell};
+                                   $Top->destroy;
+                                 } 
+                );
+
+    # let the window appear near the mouse-cursor:
+    $Top->Popup(-popover    => 'cursor');
+
+  }
 
 sub make_table_hash_and_window
   { my($r_glbl,$table_name,%hash_defaults)= @_;
@@ -1205,8 +1217,10 @@ sub make_table_hash
         # the primary key column index
         $table_hash{pkis}       =
                       [ $table_hash{dbitable}->primary_key_column_indices() ];
+        # primary key hash, this is currently needed in the popup-menu
+        $table_hash{pks_h}= { map { $_ => 1 } @pks };  
       };
-
+      
     # the foreign-key hash
     # this is just the pure information from the database which
     # columns are foreign keys. This has nothing to do with the
@@ -1573,11 +1587,72 @@ sub make_table_window
 
     $r_tbh->{table_widget}= $Table;
 
+    
+    # popup-menu for the tablematrix widget:
+    my $itemcnt=0;
+    my %itemhash;
+    my $MnPopup= $Table->Menu(-type=> 'normal', -tearoff=>0);
+    $itemhash{edit}= $itemcnt++;
+    $MnPopup->add('command',
+                   -label=> 'edit',
+                   -command => [\&tk_field_edit, $r_tbh],
+                 );
+    $itemhash{copy}= $itemcnt++;
+    $MnPopup->add('command',
+                  -label=> 'copy',
+                  -command => [\&cb_copy_paste_field,
+                               $r_glbl, $r_tbh, 'copy'],
+                 );
+    $itemhash{paste}= $itemcnt++;
+    $MnPopup->add('command',
+                   -label=> 'paste',
+                   -command => [\&cb_copy_paste_field,
+                                $r_glbl, $r_tbh, 'paste'],
+                 );
+    $itemhash{'find in column'}= $itemcnt++;
+    $MnPopup->add('command',
+                  -label=> 'find in column',
+                  -command => [\&tk_find_line, $r_tbh],
+                );
+    $itemhash{'select THIS as foreign key'}= $itemcnt++;
+    $MnPopup->add('command',
+                   -label=> 'select THIS as foreign key',
+                   -command => [\&cb_select, $r_glbl, $r_tbh],
+                 );
+    $itemhash{'open foreign table'}= $itemcnt++;
+    $MnPopup->add('command',
+                  -label=> 'open foreign table',
+                  -command => [\&cb_open_foreign_table, $r_glbl, $r_tbh],
+                );
+
+# @@@@@@@@@@@@@@@@
+    $r_tbh->{popup_widget}= $MnPopup;
+    $r_tbh->{popup_items} = $itemcnt;
+    $r_tbh->{popup_item_h}= \%itemhash;
+
+    $r_tbh->{popup_disable_lists}= { default => 
+					 ['open foreign table',
+					  'select THIS as foreign key'],
+                                     write_protected => 
+				         ['edit','paste']
+				   };
+    $r_tbh->{popup_enable_lists} = { foreign_key => 
+                                         ['open foreign table']
+				   };
+    
+    if ($r_tbh->{resident_there})
+      { $r_tbh->{popup_enable_lists}->{primary_key}= 
+                             ['select THIS as foreign key'];
+      };		     
+    
+    $Table->bind('<3>',  [\&cb_popup_menu, $r_glbl, $r_tbh, Ev('@')]);
+  
+    
     # bind the right mouse button to a function,
     # give it the current mouse position in the
     # form '@x,y'
 
-    $Table->bind('<3>', [\&cb_handle_right_button, $r_glbl, $r_tbh, Ev('@')] );
+    # $Table->bind('<3>', [\&cb_handle_right_button, $r_glbl, $r_tbh, Ev('@')] );
 
     $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
 
@@ -1864,14 +1939,81 @@ sub cb_close_window
 # warn "Table $table_name successfully deleted !\n";
  }
 
-sub cb_handle_right_button
- {  my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
-
-    # $at has the form '@x,y'
-
+sub cb_popup_menu
+  { my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
+    my $MnPopup= $r_tbh->{popup_widget};
+   
     # determine row and column of the cell that was clicked:
     my($row,$col)= split(",",$parent_widget->index($at));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+    
+#@@@@@@@@@@@@@@@@@@
+    # now activate the cell:
+    $parent_widget->activate($at);
+    
+    my @cell_attributes= ('default');
+    
+    if (exists $r_tbh->{foreign_key_hash}->{$colname})
+      { push @cell_attributes, 'foreign_key'; };
+    if (!$r_tbh->{no_pk_cols})
+      { if (exists $r_tbh->{pks_h}->{$colname})
+          { push @cell_attributes, 'primary_key'; };
+      };	  
+    
+    my $r_wp_flags= $r_tbh->{write_protected_cols};
+    if (defined $r_wp_flags->[$col])
+      { if ($r_wp_flags->[$col] eq 'P')
+          { push @cell_attributes, 'write_protected'; };
+      };
+    
+    my $r_items= $r_tbh->{popup_item_h};
+    my @entrystates;
+    for(my $i=0; $i<$r_tbh->{popup_items}; $i++)
+      { $entrystates[$i]=1; };
+    
+    my $r_disable_list= $r_tbh->{popup_disable_lists};
+    foreach my $attr (@cell_attributes)
+      { my $r_l= $r_disable_list->{$attr};
+        if (defined $r_l)
+	  { foreach my $item (@$r_l)
+	      { $entrystates[$r_items->{$item}]=0; 
+	      };
+	  };
+      };
+
+    my $r_enable_list= $r_tbh->{popup_enable_lists};
+    foreach my $attr (@cell_attributes)
+      { my $r_l= $r_enable_list->{$attr};
+        if (defined $r_l)
+	  { foreach my $item (@$r_l)
+	      { $entrystates[$r_items->{$item}]=1; 
+	      };
+	  };
+      };
+    
+    for(my $i=0; $i<= $#entrystates; $i++)
+      { if ($entrystates[$i])
+          { $MnPopup->entryconfigure($i, -state => 'normal'); }
+	else  
+          { $MnPopup->entryconfigure($i, -state => 'disabled'); }
+      };
+
+    $MnPopup->Popup(-popover => "cursor",
+                    -popanchor => 'nw');
+  }		     
+
+sub cb_open_foreign_table
+ {  my($r_glbl, $r_tbh)= @_;
+
+    my $Table_Widget= $r_tbh->{table_widget};
+
+    
+    # $at has the form '@x,y'
+
+    # get row, column of the active cell:
+    my($row,$col)= split(",",$Table_Widget->index('active'));
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+
 
     # using Table->get() would be unnecessary slow
     my $cell_value= put_get_val_direct($r_tbh,$pk,$colname);
@@ -1883,7 +2025,7 @@ sub cb_handle_right_button
     return if (!defined $fk_data); # no foreign key column!
 
     # now activate the cell:
-    $parent_widget->activate($at);
+    # $parent_widget->activate($at);
 
 
     # the following should not be done in this callback:
