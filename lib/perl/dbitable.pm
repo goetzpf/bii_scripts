@@ -59,6 +59,8 @@ my $max_colwidth= 40; # used for pretty-format (store to file)
 my $gen_sort_href;
 my @gen_sort_cols;
 my $gen_sort_r_coltypes;
+my @gen_sort_colmaps; # hashes that map a column-value to another
+                      # always strings
 
 sub std_database_handle
   { return($dbdrv::std_dbh); }
@@ -509,10 +511,16 @@ sub store
   }
 
 sub export_csv
-# known options: 'order_by' => column-name
-#            or  'order_by' => [column-name1,column-name2...]
+# known options: 'order_by' => column-name   OR
+#                   'order_by' => [column-name1,column-name2...]
 #                'col_selection'=> [column-name1,column-name2]
 #                'pk_selection'=> [pk1,pk2, ...pkn] 
+#                'col_maps => { colname1 => \%col_map1,
+#                               colname2 => \%col_map2
+#                                   ...
+#                               colnamen => \%col_mapn
+#                             }
+#                        not all column-maps must be defined  
   { my $self= shift;
     my $filename= shift;
     my %options= @_;
@@ -883,6 +891,8 @@ sub mark_inserted
   } 
 
 sub primary_keys
+#                'col_maps => [\%col_map1,\%col_map2 ... \%col_mapn]
+#                              col-map references may be "undef"      
   { my $self= shift;
     my %options= @_;
     
@@ -2556,6 +2566,17 @@ sub gen_sort_prepare
         $gen_sort_r_coltypes= \@coltypes;
       };
 
+    @gen_sort_colmaps= ();
+    if (exists $r_options->{col_maps})
+      { my $r_cm= $r_options->{col_maps};
+        my $r_colhash= $self->{_columns};
+        
+        foreach my $colname (keys %$r_cm)
+          { $gen_sort_colmaps[ $r_colhash->{$colname} ] =
+              $r_cm->{$colname};
+          };
+      }   
+    
     if (exists $r_options->{order_by}) 
       { my $cnt= $#gen_sort_cols;
         my %sort_h= map { $_ => $cnt-- } @gen_sort_cols;
@@ -2602,11 +2623,20 @@ sub gen_sort_prepare
 sub gen_sort
   { my($r,$col,$t);
     
+    my $r_map;
+    
     for(my $i=0; $i<= $#gen_sort_cols; $i++)
       { $col= $gen_sort_cols[$i];
         $t  = $gen_sort_r_coltypes->[$col];
-    
-        if ($t eq 'number')
+        
+        $r_map= $gen_sort_colmaps[$col];
+        
+        if (defined $r_map)
+          { $r= $r_map->{$gen_sort_href->{$a}->[$col]} cmp
+                $r_map->{$gen_sort_href->{$b}->[$col]};
+            return($r) if ($r!=0);
+          }
+        elsif ($t eq 'number')
           { $r= $gen_sort_href->{$a}->[$col] <=> $gen_sort_href->{$b}->[$col];
             return($r) if ($r!=0);
           }
@@ -3067,6 +3097,17 @@ should be sorted by certain colums. The value may be the name of a single
 column or (as shown above) a reference to a list
 of column names.
 
+=item *
+
+"col_maps"
+
+  $table->store(col_maps=>{ $column1 => \%col_map1,
+                            $column2 => \%col_map2, ... } )
+                                 
+By this option, column-maps can be specified. These map
+the values of a column to another value. Currently these are
+only used for sorting (see above).
+
 =back
 
 =head2 export/import to files:
@@ -3090,6 +3131,18 @@ This option can only be used for the type "file". It defines, wether lines
 should be sorted by certain colums. The value may be the name of a single 
 column or (as shown above) a reference to a list
 of column names.
+
+=item *
+
+"col_maps"
+
+  $table->export_csv($filename, 
+                     col_maps=>{ $column1 => \%col_map1,
+                                 $column2 => \%col_map2, ... } )
+                                 
+By this option, column-maps can be specified. These map
+the values of a column to another value. Currently these are
+only used for sorting (see above).
 
 =item *
 
@@ -3223,6 +3276,15 @@ the primary keys are sorted according to the contents of the
 columns given in the list. The first column has the highest precedence.
 When the 1st column is equal in two lines, then the second column is
 used for further sorting and so on. 
+
+=item col_maps
+
+  my @keys= $table->primary_keys(col_maps=>{ $column1 => \%col_map1,
+                                 $column2 => \%col_map2, ... } )
+                                 
+By this option, column-maps can be specified. These map
+the values of a column to another value. Currently these are
+only used for sorting (see above).
 
 =item filter
 
@@ -3426,6 +3488,17 @@ Known options are:
 This option defines, wether lines should be sorted by certain colums. The 
 value may be the name of a single column or (as shown above) a reference 
 to a list of column names.
+
+=item *
+
+"col_maps"
+
+  $table->pretty_print(col_maps=>{ $column1 => \%col_map1,
+                                   $column2 => \%col_map2, ... } )
+                                 
+By this option, column-maps can be specified. These map
+the values of a column to another value. Currently these are
+only used for sorting (see above).
 
 =back
 
