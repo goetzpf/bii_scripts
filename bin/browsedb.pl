@@ -172,7 +172,6 @@ sub tk_login
                   %std_button_options,
                   -command => [\&tk_login_finish, $r_glbl ],
                    )->pack(-side=>'left', -anchor=>'nw');
-
     $FrDn->Button(-text => 'Quit',
                   %std_button_options,
                   -command => sub { $Top->destroy(); exit(0); }
@@ -184,7 +183,6 @@ sub tk_login
 
 sub tk_login_finish
   { my($r_glbl)= @_;
-
     my $db_handle;
     if (defined($r_glbl->{handle_sql_history}))
       {
@@ -197,7 +195,6 @@ sub tk_login_finish
       };
 
     tk_progress($r_glbl,10);
-
     $r_glbl->{db_name} = "DBI:".$r_glbl->{db_driver}.":".$r_glbl->{db_source};
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
@@ -216,7 +213,8 @@ sub tk_login_finish
     tk_progress($r_glbl,20);
 
     if (defined($r_glbl->{login_widget}))
-      { $r_glbl->{login_widget}->destroy;
+      {
+        $r_glbl->{login_widget}->destroy();
         $r_glbl->{main_widget}->update(); # important to really execute the destroy
          delete $r_glbl->{login_widget};
       };
@@ -590,11 +588,9 @@ sub tk_main_window
                                             );
                      }
                 );
-
-#        $Top->update();
-
+        # dont remove these update, because of .toplevel problems for destroy operations
+        $Top->update();
         tk_login(\%global_data); # calls tk_main_window_finish
-
   }
 
 
