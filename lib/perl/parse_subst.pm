@@ -42,6 +42,13 @@ sub parse
     for(;;)
       { 
     #print $i++, " ";  
+
+	# comments
+	if ($db=~/\G\s*#[^\r\n]*/gsc) # end of file
+          { 
+	    next; 
+	  };
+
 	if ($level eq 'top')
 	  { 
             if ($db=~/\G[\s\r\n]*$/gsc) # end of file
