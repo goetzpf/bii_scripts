@@ -28,11 +28,11 @@ use Tk::TableMatrix;
 
 use Tk::ErrorDialog;
 
-use dbitable 1.5;
+use dbitable 1.6;
 
 use Data::Dumper;
 
-my $VERSION= "0.86";
+my $VERSION= "0.87";
 
 
 my $PrgTitle= 'BrowseDB';
@@ -58,8 +58,8 @@ my $BUTBG= "gray73";
 my $ACTBG= "gray73";
 
 # re-define the dbitable error-handler:
-$dbitable::errorfunc= \&dbidie;
-
+$dbitable::errorfunc  = \&dbidie;
+$dbitable::sim_delete = 0;
 
 my %std_button_options= (-font=> ['helvetica',10,'normal'],
         	         -background=>$BUTBG, -activebackground=>$ACTBG);
@@ -170,33 +170,47 @@ sub tk_main_window
 
     $r_glbl->{main_menu_widget}= $Top;
     
-    my $BtDb   = $Top->Menubutton(-text => 'Database',
-        		          %std_menue_button_options, 
-        		         )->pack(-side=>'left', -anchor=>'nw');
-    my $BtHelp = $Top->Menubutton(-text => 'Help',
-        		          %std_menue_button_options, 
-        		         )->pack(-side=>'left', -anchor=>'nw');
+    my $MnTop= $Top->Menu(-type=>'menubar');
+
+    my $MnDb   = $MnTop->Menu();
+    my $MnHelp = $MnTop->Menu();
     
 
+
+    $MnTop->add('cascade',
+	        -label=> 'Database',
+	        #-accelerator => 'Meta+F',
+                #-underline   => 0,
+	        -menu=> $MnDb
+	       );
+    $MnTop->add('cascade',
+	        -label=> 'Help',
+	        #-accelerator => 'Meta+F',
+                #-underline   => 0,
+	        -menu=> $MnHelp
+	       );
+
+    $MnTop->pack(-side=>'left', -fill=>'x', -expand=>'y');
+    
+    
     # configure Database-menu:
-    my $MnDb = $BtDb->Menu();
-    $BtDb->configure(-menu=>$MnDb);
     $MnDb->add('command',
                -label=> 'Open Table',
 	       -command=> [\&tk_open_new_table, $r_glbl]
+	      ); 
+    $MnDb->add('command',
+               -label=> 'show SQL commands',
+	       -command=> [\&tk_sql_commands, $r_glbl]
 	      ); 
     $MnDb->add('command',
                -label=> 'quit',
 		 -command => sub { $Top->destroy(); exit(0); },
 	      ); 
 
-
     # configure Help-menu:
-    my $MnHelp = $BtHelp->Menu();
-    $BtHelp->configure(-menu=>$MnHelp);
     $MnHelp->add('command',
                  -label=> 'About',
-	         -command=> [\&tk_about]
+	         -command=> [\&tk_about, $r_glbl]
 	        ); 
     $MnHelp->add('command',
                  -label=> 'dump global datastructure',
@@ -208,8 +222,9 @@ sub tk_main_window
   }
 
 sub tk_about
- { 
-   my $Top= MainWindow->new(-background=>$BG);
+ { my($r_glbl)= @_;
+
+   my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
    $Top->title("About $PrgTitle");
 
    my @text= ("$PrgTitle $VERSION",
@@ -252,7 +267,9 @@ sub tk_open_new_table
     else
       { $r_glbl->{new_table_name}= ""; };
   
-    my $Top= MainWindow->new(-background=>$BG);
+    #my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    
     $Top->Label(-text => 'please enter the table-name:'
                  )->pack(-side=>'left', -fill=>'y');
     $Top->Entry(-textvariable => \$r_glbl->{new_table_name}
@@ -283,7 +300,35 @@ sub tk_open_new_table_finish
     delete $r_glbl->{new_table_name};
     
     $r_glbl->{table_dialog_widget}->destroy();
+    delete $r_glbl->{table_dialog_widget};
   }	
+
+sub tk_sql_commands
+  { my($r_glbl)= @_;
+  
+   # my $Top= MainWindow->new(-background=>$BG);
+   my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+
+   $Top->title("SQL command trace");
+
+   my $text= $Top->Scrolled('Text');
+   $r_glbl->{sql_commands_widget}= $text;
+   $text->pack(-fill=>'both',expand=>'y');
+   
+   $dbitable::sql_trace= \&dbi_sql_trace;
+   
+   $Top->bind('<Destroy>', sub { $dbitable::sql_trace= undef;
+                                delete $r_glbl->{sql_commands_widget};
+			      });
+  }   
+    
+sub dbi_sql_trace
+# uses a global variable !!
+  { my $Text= $global_data{sql_commands_widget};
+    $Text->insert('end',$_[0] . "\n");
+    $Text->see('end');
+  }
+  
 
 sub tk_foreign_key_dialog
   { my($r_glbl,$r_tbh)= @_;
@@ -299,7 +344,9 @@ sub tk_foreign_key_dialog
      	return;
       };
     
-    my $Top= MainWindow->new(-background=>$BG);
+    #my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+
     $Top->title("foreign keys in $r_tbh->{table_name}");
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
@@ -437,12 +484,14 @@ sub tk_dependency_dialog
 	         [ $r_sublist->[1] , $col_name ];
 		 
 		 
-	    print "$col_name:$r_sublist->[0]:$r_sublist->[1]\n";
+	    # print "$col_name:$r_sublist->[0]:$r_sublist->[1]\n";
 	  
 	  };
       };
       
-    my $Top= MainWindow->new(-background=>$BG);
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+
     $Top->title("dependents from $r_tbh->{table_name}");
 
 
@@ -519,7 +568,7 @@ sub tk_dependency_dialog_finish
     
     my $res_table= $r_resident_table_list->[ $selection[0] ];
     
-    warn "open new table: $res_table";
+    # warn "open new table: $res_table";
     
     $Top->destroy;  # @@@@
     
@@ -558,6 +607,69 @@ sub tk_dependency_dialog_finish
     delete $r_tbh->{resident_table_list};
   }  
     
+
+sub tk_find_line
+  { my($r_tbh)= @_;
+
+    my $TableWidget= $r_tbh->{table_widget};
+
+    # get row-column of the active cell in the current table
+    my($row,$col)= split(",",$TableWidget->index('active'));
+    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
+ 
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $TableWidget->Toplevel(-background=>$BG);
+
+    my $title= "$r_tbh->{table_name}: Find $colname";
+    $Top->title($title);
+
+    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
+                           -background=>$BG
+                	   )->pack(-side=>'top' ,-fill=>'x',
+			          -expand=>'y');
+    my $FrDn  = $Top->Frame(-background=>$BG
+                	   )->pack(-side=>'top' ,-fill=>'y',
+			          -expand=>'y'
+			          );
+       
+    $FrTop->Label(-text=>"string to find: ")->pack(-side=>'left');
+    
+    $r_tbh->{find_cell}= "";
+    
+    $FrTop->Entry(-textvariable => \$r_tbh->{find_cell},
+                  -width=>20
+                 )->pack(-side=>'left',-fill=>'x',-expand=>'y');
+		 
+    $FrDn->Button(-text => 'accept',
+                 %std_button_options,
+		  -command => sub { 
+		                   my @pks=
+				             $r_tbh->{dbitable}->find(
+				                        $colname,
+				                        $r_tbh->{find_cell}
+							             );
+        			   if (!@pks)
+        			     { tk_err_dialog($Top,
+	                                   "error: $r_tbh->{find_cell} " .
+				           "not found in table");
+				     }
+				   else
+				     { my $row= pk2row($r_tbh,$pks[0]);
+				       $TableWidget->activate("$row,$col");
+                                       $TableWidget->yview($row-1);
+				     };
+				   delete $r_tbh->{find_cell};
+				   $Top->destroy;
+				  }		      
+        	 )->pack(-side=>'left', -fill=>'y');
+    $FrDn->Button(-text => 'abort',
+                 %std_button_options,
+		 -command => sub { delete $r_tbh->{find_cell};
+				   $Top->destroy; 
+				  }
+        	 )->pack(-side=>'left', -fill=>'y');
+  }		 
+
 sub tk_field_edit
   { my($r_tbh)= @_;
   
@@ -567,9 +679,10 @@ sub tk_field_edit
     my($row,$col)= split(",",$TableWidget->index('active'));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
  
-    my $Top= MainWindow->new(-background=>$BG);
-    
-    my $title= "$r_tbh->{table_name}: Edit $colname";
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $TableWidget->Toplevel(-background=>$BG);
+
+    #my $title= "$r_tbh->{table_name}: Edit $colname";
     $Top->title("$r_tbh->{table_name}");
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
@@ -723,7 +836,8 @@ sub make_table_window
   { my($r_glbl,$r_tbh)= @_;
   
     # create a new top-window
-    my $Top= MainWindow->new(-background=>$BG);
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
     $r_tbh->{top_widget}= $Top;
 
     # set the title
@@ -737,117 +851,187 @@ sub make_table_window
                 	   )->pack(-side=>'top' ,-fill=>'both', 
 			          -expand=>'y');
   
-    my $BtFile = $FrTop->Menubutton(-text => 'File',
-        			   %std_menue_button_options, 
-        			   )->pack(-side=>'left', -anchor=>'nw');
+    my $MnTop= $FrTop->Menu(-type=>'menubar');
 
-    my $BtDbase= $FrTop->Menubutton(-text => 'Database',
-        			   %std_menue_button_options, 
-        			   )->pack(-side=>'left', -anchor=>'nw');
-
-    my $BtEdit = $FrTop->Menubutton(-text => 'Edit',
-        			   %std_menue_button_options, 
-        			   )->pack(-side=>'left', -anchor=>'nw');
-
-    my $BtRela = $FrTop->Menubutton(-text => 'Relations',
-        			   %std_menue_button_options, 
-        			   )->pack(-side=>'left', -anchor=>'nw');
-
-    my $BtView = $FrTop->Menubutton(-text => 'View',
-        			   %std_menue_button_options, 
-        			   )->pack(-side=>'left', -anchor=>'nw');
-
+    my $MnFile  = $MnTop->Menu();
+    my $MnDbase = $MnTop->Menu();
+    my $MnEdit  = $MnTop->Menu();
+    my $MnRela  = $MnTop->Menu();
+    my $MnView  = $MnTop->Menu();
+    
+    $MnTop->add('cascade',
+		-label=> 'File',
+	        -accelerator => 'Meta+F',
+                -underline   => 0,
+		-menu=> $MnFile
+		);
+    $MnTop->add('cascade',
+		-label=> 'Database',
+	        -accelerator => 'Meta+D',
+                -underline   => 0,
+		-menu=> $MnDbase
+		);
+    $MnTop->add('cascade',
+		-label=> 'Edit',
+	        -accelerator => 'Meta+E',
+                -underline   => 0,
+		-menu=> $MnEdit
+		);
+    $MnTop->add('cascade',
+		-label=> 'Relations',
+	        -accelerator => 'Meta+R',
+                -underline   => 0,
+		-menu=> $MnRela
+		);
+    $MnTop->add('cascade',
+		-label=> 'View',
+	        -accelerator => 'Meta+V',
+                -underline   => 0,
+		-menu=> $MnView
+		);
+    
+    $MnTop->pack(-side=>'left', -fill=>'x', -expand=>'y');
+    
+    
     # configure file-menu:
-    my $MnFile = $BtFile->Menu();
-    $BtFile->configure(-menu=>$MnFile);
     $MnFile->add('command',
 		 -label=> 'Save',
+	         -accelerator => 'Meta+S',
+                 -underline   => 0,
 		 -command=> [\&tk_save_to_file, $r_tbh]
 		); 
     $MnFile->add('command',
 		 -label=> 'Load',
+	         -accelerator => 'Meta+L',
+                 -underline   => 0,
 		 -command=> [\&tk_load_from_file, $r_tbh]
 		); 
 
     # configure database-menu:
-    my $MnDbase = $BtDbase->Menu();
-    $BtDbase->configure(-menu=>$MnDbase);
     $MnDbase->add('command',
 		  -label=> 'Store',
+	          -accelerator => 'Meta+S',
+                  -underline   => 0,
 		  -command => [\&cb_store_db, $r_tbh],
 		); 
     $MnDbase->add('command',
 		  -label=> 'Reload',
+	          -accelerator => 'Meta+R',
+                  -underline   => 0,
 		  -command => [\&cb_reload_db, $r_tbh],
 		); 
 
 
     # configure edit-menu:
-    my $MnEdit = $BtEdit->Menu();
-    $BtEdit->configure(-menu=>$MnEdit);
+    my $MnEditField= $MnEdit->Menu();
+    my $MnEditLine = $MnEdit->Menu();
+    
+    
     $MnEdit->add('command',
-		  -label=> 'edit current field',
-		  -command => [\&tk_field_edit, $r_tbh],
+		  -label=> 'find in column',
+	          -accelerator => 'Meta+C',
+                  -underline   => 8,
+		  -command => [\&tk_find_line, $r_tbh],
 		); 
-    $MnEdit->add('command',
-		  -label=> 'insert line',
-		  -command => [\&cb_insert_line, $r_tbh],
+    $MnEdit->add('cascade',
+		  -label=> 'field',
+		  -accelerator => 'Meta+F',
+                  -underline   => 0,
+		  -menu => $MnEditField,
 		); 
-    $MnEdit->add('command',
-		  -label=> 'delete line',
-		  -command => [\&tk_delete_line_dialog, $r_tbh],
+    $MnEdit->add('cascade',
+		  -label=> 'line',
+		  -accelerator => 'Meta+L',
+                  -underline   => 0,
+		  -menu => $MnEditLine,
 		); 
-    $MnEdit->add('command',
-		  -label=> 'copy field',
-		  -command => [\&cb_copy_paste_field, 
-		               $r_glbl, $r_tbh, 'copy'],
-		); 
-    $MnEdit->add('command',
-		  -label=> 'paste field',
-		  -command => [\&cb_copy_paste_field, 
-		               $r_glbl, $r_tbh, 'paste'],
-		); 
-    $MnEdit->add('command',
-		  -label=> 'copy line',
-		  -command => [\&cb_copy_paste_line, 
-		               $r_glbl, $r_tbh, 'copy'],
-		); 
-    $MnEdit->add('command',
-		  -label=> 'paste line',
-		  -command => [\&cb_copy_paste_line, 
-		               $r_glbl, $r_tbh, 'paste'],
-		); 
+    
+		     
+    $MnEditLine->add('command',
+		      -label=> 'insert',
+		      -accelerator => 'Meta+I',
+                      -underline   => 0,
+		      -command => [\&cb_insert_line, $r_tbh],
+		    ); 
+    $MnEditLine->add('command',
+		      -label=> 'delete',
+		      -accelerator => 'Meta+D',
+                      -underline   => 0,
+		      -command => [\&tk_delete_line_dialog, $r_tbh],
+		    ); 
+    $MnEditLine->add('command',
+		      -label=> 'copy',
+		      -accelerator => 'Meta+C',
+                      -underline   => 0,
+		      -command => [\&cb_copy_paste_line, 
+		        	   $r_glbl, $r_tbh, 'copy'],
+		    ); 
+    $MnEditLine->add('command',
+		      -label=> 'paste',
+		      -accelerator => 'Meta+P',
+                      -underline   => 0,
+		      -command => [\&cb_copy_paste_line, 
+		        	   $r_glbl, $r_tbh, 'paste'],
+		    ); 
 		
+    $MnEditField->add('command',
+		       -label=> 'enter value',
+		       -accelerator => 'Meta+E',
+                       -underline   => 0,
+		       -command => [\&tk_field_edit, $r_tbh],
+		     ); 
+		     
+    $MnEditField->add('command',
+		      -label=> 'copy',
+		      -accelerator => 'Meta+C',
+                      -underline   => 0,
+		      -command => [\&cb_copy_paste_field, 
+		        	   $r_glbl, $r_tbh, 'copy'],
+		     ); 
+    $MnEditField->add('command',
+		       -label=> 'paste',
+		       -accelerator => 'Meta+P',
+                       -underline   => 0,
+		       -command => [\&cb_copy_paste_field, 
+		        	    $r_glbl, $r_tbh, 'paste'],
+		     ); 
+
 
     # configure relations-menu:
-    my $MnRela = $BtRela->Menu();
-    $BtRela->configure(-menu=>$MnRela);
     $MnRela->add('command',
 		  -label=> 'Dependencies',
+		  -accelerator => 'Meta+D',
+                  -underline   => 0,
 		  -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
 		); 
     $MnRela->add('command',
 		  -label=> 'Foreign Keys',
+		  -accelerator => 'Meta+F',
+                  -underline   => 0,
 		  -command => [\&tk_foreign_key_dialog, $r_glbl, $r_tbh],
 		); 
 
     if ($r_tbh->{resident_there})
       { $MnRela->add('command',
                      -label=> 'Select value',
+		     -accelerator => 'Meta+S',
+                     -underline   => 0,
 		     -command => [\&cb_select, $r_glbl, $r_tbh],
         	    );
       }
     else
-      { warn "NO resident_key in table $r_tbh->{table_name} !!!"; };
+      {
+        # warn "NO resident_key in table $r_tbh->{table_name} !!!"; 
+      };
 
 
     # configure view-menu:
-    my $MnView = $BtView->Menu();
-    $BtView->configure(-menu=>$MnView);
     # create the sub-menue:
     my $MnViewSort = $MnView->Menu();
     $MnView->add('cascade',
 		  -label=> 'Sort rows',
+		  -accelerator => 'Meta+S',
+                  -underline   => 0,
 		  -menu => $MnViewSort
 		); 
     $MnView->add('command',
@@ -978,14 +1162,14 @@ sub make_table_window
 sub tk_save_to_file
   { my($r_tbh)= @_;
   
-    warn "save to file";
+    # warn "save to file";
     my $Fs= $r_tbh->{top_widget}->FileSelect(
-                  -defaultextension=> ".dbt"
+                                               -defaultextension=> ".dbt"
 		                            );
     
     my $file= $Fs->Show();
 
-    warn "filename: $file ";
+    # warn "filename: $file ";
     return if (!defined $file);
     
     return if ($file=~ /^\s*$/);
@@ -997,7 +1181,7 @@ sub tk_save_to_file
                                 $table_name
                        )->store(pretty=> 1);  
     
-    warn "$file was updated/created";
+    # warn "$file was updated/created";
   }
 
 sub tk_load_from_file
@@ -1009,7 +1193,7 @@ sub tk_load_from_file
     
     my $file= $Fs->Show();
 
-    warn "filename: $file ";
+    # warn "filename: $file ";
     return if (!defined $file);
 
     
@@ -1029,11 +1213,11 @@ sub tk_load_from_file
     my $r_chg= $r_tbh->{changed_rows};
     my $row;
     
-    # re-calc list of primary keys:
-    $r_tbh->{pk_list}= get_pk_list($r_tbh);
-    $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
-    $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
-    $Table->configure(-rows => $r_tbh->{row_no} + 1);
+    # re-calc the number of rows, update the table- widget:
+    resize_table($r_tbh);
+    
+    # update the displayed content in the active cell:
+    tk_rewrite_active_cell($r_tbh);
     
     foreach my $pk ($dbitable->primary_keys(filter=>'updated'))
       { 
@@ -1048,7 +1232,8 @@ sub tk_load_from_file
         $Table->tagRow('changed_cell',$row);
       };
  
-    # the following forces a redraw:
+    # the following forces a redraw 
+    # (maybe not necessary ???) 
     $Table->configure(-padx => ($Table->cget('-padx')) );
     
   }   
@@ -1057,7 +1242,9 @@ sub tk_dump_global
  { my($r_glbl)= @_;
 # ommit dumping the tables-structures completely 
  
-   my $Top= MainWindow->new(-background=>$BG);
+   # my $Top= MainWindow->new(-background=>$BG);
+   my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+
    $Top->title("Global Datastructure-Dump");
 
    my %glbl_copy;
@@ -1085,7 +1272,9 @@ sub tk_table_dump
  { my($r_tbh)= @_;
    my $name= $r_tbh->{table_name};
  
-   my $Top= MainWindow->new(-background=>$BG);
+   # my $Top= MainWindow->new(-background=>$BG);
+   my $Top= $r_tbh->{table_widget}->Toplevel(-background=>$BG);
+   
    $Top->title("$name:Object-Dump");
 
    my $text= $Top->Scrolled('Text');
@@ -1103,7 +1292,9 @@ sub tk_dbitable_dump
    my $name= $r_tbh->{table_name};
    my $dbitable= $r_tbh->{dbitable};
  
-   my $Top= MainWindow->new(-background=>$BG);
+   # my $Top= MainWindow->new(-background=>$BG);
+   my $Top= $r_tbh->{table_widget}->Toplevel(-background=>$BG);
+   
    $Top->title("$name:DBITable-Dump");
 
    my $text= $Top->Scrolled('Text');
@@ -1169,7 +1360,7 @@ sub cb_close_window
    conn_delete_table($r_glbl, $table_name);
 
    delete $r_all_tables->{ $r_tbh->{table_name} };
-warn "Table $table_name successfully deleted !\n";
+# warn "Table $table_name successfully deleted !\n";
  }
 
 sub cb_handle_right_button
@@ -1204,7 +1395,7 @@ sub cb_handle_right_button
     
     my($fk_table,$fk_col)= @{$fk_data};
     
-    print "foreign key data: $fk_table,$fk_col\n";
+    # print "foreign key data: $fk_table,$fk_col\n";
     
     my $r_all_tables= $r_glbl->{all_tables};
     tkdie($r_glbl,"assertion in line " . __LINE__)
@@ -1302,7 +1493,7 @@ sub cb_select
    
    if (!defined $r_residents)
      { 
-warn "SELECT WARN1\n";
+# warn "SELECT WARN1\n";
        tk_err_dialog($Table, 
 	             "the selected column \"$colname\" is no " .
 		     "foreign key in any of the currently displayed " .
@@ -1314,7 +1505,7 @@ warn "SELECT WARN1\n";
    
    if ($#res_table_list>0)
      {
-warn "SELECT WARN2\n";
+# warn "SELECT WARN2\n";
        tk_err_dialog($Table, 
 	             "the selected column \"$colname\" is\n" .
 		     "a foreign key in more than one of currently " .
@@ -1358,7 +1549,7 @@ warn "SELECT WARN2\n";
 
        if (!$found)
          { 
-warn "SELECT WARN4\n";
+# warn "SELECT WARN4\n";
 	   tk_err_dialog($Table, 
 	                 "unable to set because in table \"$res_table\"\n" .
 			 "none of the following columns is selected:\n" .
@@ -1443,7 +1634,13 @@ sub cb_put_get_val
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
     
     if ($set)
-      { my $flag= $r_tbh->{write_protected_cols}->[$col];
+      { if ($r_tbh->{sim_put})
+          { # just simulate the put, do nothing real
+	    delete $r_tbh->{sim_put};
+	    return($val);
+	  };
+      
+        my $flag= $r_tbh->{write_protected_cols}->[$col];
       
         if ($flag eq 'P')
           { $r_tbh->{table_widget}->bell();
@@ -1534,13 +1731,9 @@ sub cb_insert_line
 
    my $Table= $r_tbh->{table_widget};
 
-   # re-calc list of primary keys:
+   # re-calc the number of rows, update the table- widget:
    # (there may be new lines inserted in the table)
-   $r_tbh->{pk_list}= get_pk_list($r_tbh);
-   $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
-   # the number of rows is now different:
-   $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
-   $Table->configure(-rows => $r_tbh->{row_no} + 1);
+   resize_table($r_tbh);
      	     
    my($row,$col)= pkcolname2rowcol($r_tbh,$new_pk,$pk_cols[0]);
    $Table->activate("$row,$col");
@@ -1557,8 +1750,9 @@ sub tk_delete_line_dialog
     my($row,$col)= split(",",$Table->index('active'));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
-    my $Top= MainWindow->new(-background=>$BG);
-    
+    # my $Top= MainWindow->new(-background=>$BG);
+    my $Top= $Table->Toplevel(-background=>$BG);
+
     $Top->title($r_tbh->{table_name});
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
@@ -1580,21 +1774,14 @@ sub tk_delete_line_dialog
 		                                 $r_tbh->{line_to_delete}
 						           );
 							   
-			     # re-calc list of primary keys:
-			     $r_tbh->{pk_list}= get_pk_list($r_tbh);
-			     $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
-			     $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+			     # re-calc the number of rows, 
+			     # update the table- widget:
+                             resize_table($r_tbh);
 
-			     $Table->configure(-rows => $r_tbh->{row_no} + 1);
-
-# @@@@@@@ the active cell is not updated,
-# when for example a line is deleted. This can be
-# circumvented by calling ->set() on the active cell,
-# but on write-protected cells this causes "beep" and it
-# also marks the cell as "changed" although it was not changed at
-# all. There is still some work to do here.
-#my($row,$col)= split(",",$Table->index('active'));
-#$Table->set("$row,$col",cb_put_get_val($r_tbh,0,$row,$col));
+			     # the active cell is not updated, 
+			     # when the line is deleted, so we have
+			     # to do it ourselves:
+                             tk_rewrite_active_cell($r_tbh);
 
 		  	     $Top->destroy;
 			   }		      
@@ -1627,15 +1814,18 @@ sub cb_store_db
    
    # re-calc list of primary keys:
    # (there may be new lines inserted in the table)
-   $r_tbh->{pk_list}= get_pk_list($r_tbh);
-   $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
-   $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+   
+   # re-calc the number of rows, update the table- widget:
+   # (there may be new lines inserted in the table)
+   resize_table($r_tbh);
+   
+   # ^^^ resize_table does also a re-draw of the table-widget
+   
+   # update the displayed content in the active cell:
+   tk_rewrite_active_cell($r_tbh);
 
-   my $Table= $r_tbh->{table_widget};
-   # the following forces a redraw
+   # the following would also force a redraw
    # $Table->configure(-padx => ($Table->cget('-padx')) );
-   # needed when the number of rows was changed:
-   $Table->configure(-rows => $r_tbh->{row_no} + 1);
  }
 
 sub cb_reload_db
@@ -1648,21 +1838,53 @@ sub cb_reload_db
    
    $r_tbh->{dbitable}->load();
 
-   # re-calc list of primary keys:
+   # re-calc the number of rows, update the table- widget:
    # (there may be new lines inserted in the table)
-   $r_tbh->{pk_list}= get_pk_list($r_tbh);
-   $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
-   $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+   resize_table($r_tbh);
+   # ^^^ resize_table does also a re-draw of the table-widget
 
-   # the following forces a redraw
-   # $Table_widget->configure(-padx => ($Table_widget->cget('-padx')) );
-   # needed when the number of rows was changed:
-   $Table->configure(-rows => $r_tbh->{row_no} + 1);
+   # update the displayed content in the active cell:
+   tk_rewrite_active_cell($r_tbh);
    
+   # the following would also force a redraw
+   # $Table->configure(-padx => ($Table->cget('-padx')) );
  }
 
 # $Table->tag
 # $Table->tagCell(tagName, ?)
+
+sub resize_table
+# must be called, when the number of lines in the table
+# has changed
+# updates the table-hash and the table-widget
+  { my($r_tbh)= @_;
+  
+    $r_tbh->{pk_list}= get_pk_list($r_tbh);
+    $r_tbh->{pk_hash}= calc_pk2index($r_tbh);
+    $r_tbh->{row_no} = $#{$r_tbh->{pk_list}} + 1;
+
+    $r_tbh->{table_widget}->configure(-rows => $r_tbh->{row_no} + 1);
+  }  
+    
+
+sub tk_rewrite_active_cell
+# updates the active cell by re-writing the value
+# of the cell. Tk::TableMatrix sometimes displayes
+# a wrong value in the active cell, e.g. when a line was
+# deleted, the old value of the deleted cell
+# still remains visible in the active cell
+  { my($r_tbh)= @_;
+  
+    my $Table= $r_tbh->{table_widget};
+    
+    my($row,$col)= split(",",$Table->index('active'));
+    $r_tbh->{sim_put}=1;
+    # ^^^ tells cb_put_get_val(), which is called by set()
+    # (I mean not that call in the line below!) to do (almost)
+    # nothing, so no marking as "changed cell", no write protection
+    # check and so on... 
+    $Table->set("$row,$col",cb_put_get_val($r_tbh,0,$row,$col));
+  }     
 
 sub tk_activate_cell
 # makes a cell active, given by column-name and value
@@ -1671,20 +1893,28 @@ sub tk_activate_cell
     my @pks= $r_tbh->{dbitable}->find($colname,$value,
                                      warn_not_pk=>1);
     if (!@pks)
-      { warn "select_cell(): table $r_tbh->{table_name}\n" .
-             "col $colname, val $value not found";
+      { tk_err_dialog($r_tbh->{table_widget},
+                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
+                     "col $colname, val $value not found");
 	return;
       };
     if (scalar @pks !=1 )  
-      { warn "select_cell(): table $r_tbh->{table_name}\n" .
-             "col $colname, val $value found more than once";
+      { tk_err_dialog($r_tbh->{table_widget},
+                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
+                     "col $colname, val $value found more than once");
 	return;
       };
      
     my($row,$col)= pkcolname2rowcol($r_tbh,$pks[0],$colname);
     my $Table= $r_tbh->{table_widget};
     $Table->activate("$row,$col");
-    $Table->see("$row,$col");
+    
+    
+    #$Table->see("$row,$col");
+    # somehow, yview works much more reliable
+    # than see()
+
+    $Table->yview($row-1);
   }
     
 
@@ -1841,8 +2071,9 @@ sub put_new_sort_column_first
       
     if ($i>$max)
       { # not found
-        warn "error in put_new_sort_column_first:" .
-	     "column $col_name not found\n";
+        tk_err_dialog($r_tbh->{table_widget},
+                     "put_new_sort_column_first:\n" .
+	             "column $col_name not found");
 	return;
       };
     splice( @$r_cols,$i,1 );
@@ -1868,7 +2099,7 @@ sub get_dbitable
 	return($tab);	       
       };		         
 
-warn "get from oracle: $r_tbh->{table_name} ";
+# warn "get from oracle: $r_tbh->{table_name} ";
   
     my $ntab= dbitable->new('table',$r_tbh->{dbh},
                            $r_tbh->{table_name},
