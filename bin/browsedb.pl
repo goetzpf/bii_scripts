@@ -4764,6 +4764,7 @@ sub cb_put_get_val
         
         my $r_h= $r_tbh->{col_maps}->{$colname}->{key_to_str};
         my $val= $r_tbh->{dbitable}->value($pk,$colname);
+        return ("") if (!defined $val);
         my $n= $r_h->{$val};
         return($n) if (defined $n);
         return($val);
