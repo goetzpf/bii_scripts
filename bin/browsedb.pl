@@ -1912,7 +1912,9 @@ sub find_next_col
               };
           };
         
-        for(my $i=0; $i<$max; $i++)
+        return if (!defined $str);
+	
+	for(my $i=0; $i<$max; $i++)
           { $row+= $dir;
             if    ($row<=0)
               { $row= $max; }
@@ -2014,7 +2016,7 @@ sub tk_field_edit
     $r_tbh->{edit_cells}= \@cells;
     
     # edit_cell is a temporary variable
-    $r_tbh->{edit_cell}= put_get_val_ect($r_tbh,$pk,$colname);
+    $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,$pk,$colname);
     my $w;
     
     if (defined $r_tbh->{edit_cell})
