@@ -45,7 +45,7 @@ my $PrgTitle= 'BrowseDB';
 
 my $sim_oracle_access=0;
 
-my $fast_test=1; # skip login dialog and open $fast_table
+my $fast_test=0; # skip login dialog and open $fast_table
 my $fast_table='p_insertion_value';
 
 my $db_table_name;
