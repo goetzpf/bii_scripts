@@ -42,8 +42,8 @@ use Tk::FileSelect;
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
 use Tk::ProgressBar;
-#use Tk::Date;
-#use Tk::NumEntry;
+use Tk::Date;
+use Tk::NumEntry;
 
 use Text::ParseWords;
 use IO::File;
@@ -81,6 +81,11 @@ $global_data{about} =
 $global_data{license}= [ "BESSY License"];
 
 $global_data{os} = $Config{osname};
+$global_data{date_format} = "%4y-%2m-%2d";
+$global_data{time_format} = "%2H:%2M:%2S";
+$global_data{number_decimal} = ".";
+$global_data{number_thousend} = ",";
+
 my %forkable_os= map { $_=>1 } qw(hpux linux);
 # MSWin32 on windows
 
@@ -161,6 +166,7 @@ my $db_proxy_port= $global_data{database}{dbproxy_port};
 $global_data{theme}{background} = "gray81";
 $global_data{theme}{button}{background} = "gray83";
 $global_data{theme}{action}{background} = "gray83";
+$global_data{theme}{text}{foreground} = "black";
 
 my $r_alias;
 
@@ -1331,7 +1337,7 @@ sub tk_handle_table_browse_entry
       };
 
     if ($rewrite_value)
-      { 
+      {
       
         my $Entry= $table_browse_widget->Subwidget('entry');
         my $r_var= ($Entry->configure('-textvariable'))[4];
@@ -2808,10 +2814,196 @@ sub cb_show_contenttable
 
 sub cb_show_contentform
   {
-    my($r_glbl, $r_tbh)= @_;
-    # --------------------- table widget
+    my($r_glbl, $r_tbh, $r_key)= @_;
+    #$r_key the actual key
+    # --------------------- entry widget
+
+    # repacking FrDown is important in order to get a
+    # sensible window-size
+    my $FrDn = $r_tbh->{'frame_down'};
+    $FrDn->gridForget($FrDn->gridSlaves());
+    my $back = 1;
+    my $next = 1;
+    my $new = 0;
+    my $selection = 0;
+    if (! defined($r_key)) {$r_key = 1;}
+    if ($r_key < 0)
+      {
+        $next = 0;
+        $back = 0;
+        $new = 1;
+      }
+
+    if ($r_key == 1) {$back = 0};
+    if ($r_key > $r_tbh->{row_no} - 1) {$next = 0};
+    my $rowcol = 0;
+    my $FastNav = $FrDn->Frame(
+                    -height=>14,
+                    -relief=>"raised",
+        )->grid(-row=>0, -column=>0);
+    if ($back == 1)
+      {
+        my $ButFirst = $FastNav->Button
+          (
+            -text=>"First", -width=>12, -cursor=>"hand1",
+            -command=>sub {
+                if ($r_key > 1)
+                  {
+                    cb_show_contentform ($r_glbl, $r_tbh, 1);
+                  };
+              }
+          )->grid(-row=>$rowcol, -column=>0, -padx=>1, -pady=>1 );
+        $rowcol++;
+        my $ButBack = $FastNav->Button
+          (
+            -text=>"Back", -width=>12, -cursor=>"hand1",
+            -command=>sub {
+                if ($r_key > 1)
+                  {
+                    cb_show_contentform ($r_glbl, $r_tbh, $r_key - 1);
+                  };
+              }
+          )->grid(-row=>$rowcol, -column=>0, -padx=>1, -padx=>1);
+          $rowcol++;
+      }
+    if ($next == 1)
+      {
+        my $ButLast = $FastNav->Button
+          (
+            -text=>"Last", -width=>12, -cursor=>"hand1",
+            -command=>sub {
+                if ($r_key > 1)
+                  {
+                    cb_show_contentform ($r_glbl, $r_tbh, $r_tbh->{row_no});
+                  }
+              }
+          )->grid(-row=>$rowcol, -column=>0, -pady=>4, -padx=>1);
+        $rowcol++;
+        my $ButNext = $FastNav->Button
+          (
+            -text=>"Next", -width=>12, -cursor=>"hand1",
+            -command=>sub {
+                if ($r_key > 1)
+                  {
+                    cb_show_contentform ($r_glbl, $r_tbh, $r_key + 1);
+                  }
+              }
+          )->grid(-row=>$rowcol, -column=>0, -pady=>1, -padx=>1);
+          $rowcol++;
+      }
+    $FastNav->Label()->grid(-row=>$rowcol, -column=>0);
+    $FastNav->gridColumnconfigure(0, -minsize=> 18);
+    $FastNav->gridRowconfigure($rowcol, -weight=>1);
+
+    my $MainText= $FrDn->Scrolled('Text',
+                -wrap=>'none',
+                -scrollbars=>"osoe",
+        )->grid(-column=>1, -row=>0);
+    $r_tbh->{form_widget} = $MainText;
+
+    if (!defined($r_tbh->{form}->{label_length}) )
+      { $r_tbh->{form}->{label_length} = 32; }
+    if (!defined($r_tbh->{form}->{label_anchor}) )
+      { $r_tbh->{form}->{label_anchor} = "e"; }
+
+    $FrDn->gridColumnconfigure(0, -weight=> 1);
+    $FrDn->gridRowconfigure(0, -weight=> 1);
+    $FrDn->gridColumnconfigure(0, -minsize=>128);
+    #$FrDn->gridColumnconfigure(1, -minsize=>240);
+    #$FrDn->gridRowconfigure(0, -minsize=>240);
+    BrowseDB::TkUtils::SetBusy($r_glbl,1);
+    # getting value
+
+    my @collist = $r_tbh->{dbitable}->column_list();
+    foreach my $colname ( @collist )
+      {
+        cb_show_content_form_retrieve($r_glbl, $r_tbh, row2pk($r_tbh, $r_key), $colname);
+      };
+    $MainText->configure(-state=>"disable");
+
+    BrowseDB::TkUtils::SetBusy($r_glbl,0);
 
 }
+
+sub cb_show_content_form_retrieve
+  {
+    # build form for given
+    # $r_glbl    : globalhash for config
+    # $r_tbh     : tablehash
+    # $r_pkey    : primary key of the row
+    # $r_colname : columnname
+    my ($r_glbl, $r_tbh, $r_pkey, $r_colname) = @_;
+    my $ret;
+    if (defined($r_tbh->{form_widget}))
+     {
+        my $ColWidget;
+        my $ColName;
+        my $ColValue = $r_tbh->{dbitable}->value($r_pkey, $r_colname);
+        if ($r_tbh->{dbitable}->get_column_property($r_colname, "null") ne "")
+          {
+            $ColName = "*".$r_colname;
+          }
+        else
+          {
+            $ColName = $r_colname;
+          }
+        my $ColLabel = $r_tbh->{form_widget}->Label(
+                -text=>"$ColName : ",
+                -relief=>"groove",
+                -width=>$r_tbh->{form}->{label_length},
+                -anchor=>$r_tbh->{form}->{label_anchor},
+              );
+        $r_tbh->{form_widget}->windowCreate('end', -window=>$ColLabel);
+        if ($r_tbh->{dbitable}->get_object_type() eq 'table')
+          {
+            my $ColWidget;
+            # setting default for new
+            my $coltype = $r_tbh->{dbitable}->get_column_type($r_colname);
+            if ($coltype eq "number")
+              { $ColWidget = $r_tbh->{form_widget}->NumEntry(
+                        -value=>$ColValue,
+                        -cursor=>"hand1",
+                  );
+              }
+            elsif($coltype eq "date")
+              {
+                $ColWidget = $r_tbh->{form_widget}->DateEntry
+                  (
+                    -daynames=>$global_data{date_format}{weekdays},
+                    -weekstart=>$global_data{date_format}{firstday},
+                    -value=>$ColValue,
+                    -variable=>$ColValue,
+                  );
+              }
+            else
+              { $ColWidget = $r_tbh->{form_widget}->Entry(
+                    -textvariable=>$ColValue,
+                  );
+              }
+            $ColWidget->configure(
+                    -width=>$r_tbh->{dbitable}->get_column_property(
+                        $r_colname,
+                        "length") + 2,
+                    -foreground=>$global_data{theme}{text}{foreground},
+                  );
+            $r_tbh->{form_widget}->windowCreate('end', -window=>$ColWidget);
+          }
+        else
+          {
+            $ColWidget = $r_tbh->{form_widget}->Label(-text=>$ColValue,
+                    -relief=>"sunken",
+                    -width=>$r_tbh->{dbitable}->get_column_property(
+                        $r_colname,
+                        "length") + 2,
+              );
+            $r_tbh->{form_widget}->windowCreate('end', -window=> $ColWidget);
+          };
+        $r_tbh->{form_widget}->insert('end', "\n");
+        $r_tbh->{form_widget}->{$r_colname}=$ColWidget;
+        $ret = 1;
+     }
+    return $ret;
+  }
 
 sub cb_show_objectinfo
   {
@@ -2822,13 +3014,13 @@ sub cb_show_objectinfo
     my $dbh= $r_glbl->{dbh};
 
 
-    my $content = $r_tbh->{'cache'}->{'info'}; 
+    my $content = $r_tbh->{'cache'}->{'info'};
     if (! defined($content))
       {
         BrowseDB::TkUtils::SetBusy($r_glbl,1);
 
 #        BrowseDB::TkUtils::SetBusy($r_glbl,1);
-        
+
         my $buffer;
 
         my $str;
@@ -2840,7 +3032,7 @@ sub cb_show_objectinfo
         { $str= "object-type: arbitrary SQL statement\n"; }
         else
         { $str= "object-type: unknown : $r_tbh->{table_type}\n"; }
-        
+
         $content = $str;
 
         if ($r_tbh->{table_type} ne 'sql')
@@ -2885,7 +3077,7 @@ sub cb_show_objectinfo
                 };
               my $fkh= $r_tbh->{foreign_key_hash}->{$colname};
               if (defined $fkh)
-                { # note: the table-name in the foreign_key_hash is 
+                { # note: the table-name in the foreign_key_hash is
                   # no public synonym but the name of the real table
                   # we cannot call dbdrv::real_name here since
                   # is only knows all synonyms and all user tables, but
@@ -2904,7 +3096,7 @@ sub cb_show_objectinfo
           if (@dependents)
             { $content .= "\n\ndependents:";
               foreach my $r_s (@dependents)
-              { 
+              {
                  $content .= "\n\t".sprintf("%s.%s (%s)\n",@$r_s);
               };
             };
@@ -2958,7 +3150,7 @@ sub cb_show_objectinfo
 
         BrowseDB::TkUtils::SetBusy($r_glbl,0);
       };
-            
+
     my $FrDn = $r_tbh->{'frame_down'};
 #    $FrDn->gridForget($FrDn->gridSlaves(-row=>1));
 #    $FrDn->gridForget($FrDn->gridSlaves(-column=>1));
@@ -3016,7 +3208,7 @@ sub table_hash_init_columns
 
    $r_tbh->{column_list} = [ $r_tbh->{dbitable}->column_list() ];
    $r_tbh->{column_hash} = { $r_tbh->{dbitable}->column_hash() };
-   $r_tbh->{column_properties} = { $r_tbh->{dbitable}->column_properties() };
+   $r_tbh->{column_properties} = { $r_tbh->{dbitable}->get_column_property() };
    $r_tbh->{column_no}   = $#{$r_tbh->{column_list}} + 1;
 
    $r_tbh->{column_width}= [ $r_tbh->{dbitable}->max_column_widths(5,25) ];
@@ -4754,11 +4946,11 @@ sub cb_put_get_val
           };
 
         if (!defined($r_tbh->{dbitable}->value($pk,$colname,$putval)))
-          { # writing was not allowed for some reason 
+          { # writing was not allowed for some reason
             # return the old value
             return($r_tbh->{dbitable}->value($pk,$colname));
-          };    
-        
+          };
+
         $r_tbh->{dbitable}->value($pk,$colname,$putval);
         $r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
         tk_add_changed_cell_tag($r_tbh,cell=>"$row,$col");

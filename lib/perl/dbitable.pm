@@ -1001,11 +1001,31 @@ sub column_hash
     return( %{$self->{_columns}} );
   }
 
-sub column_properties
+sub get_column_property
   { my $self= shift;
+    my ($colname, $colproperty) = @_;
 
-    return if (!exists $self->{_column_properties});
-    return( %{$self->{_column_properties}} );
+    if (! exists($self->{_column_properties}->{$colname}->{$colproperty}))
+      {
+        return if (!exists $self->{_column_properties});
+        return( %{$self->{_column_properties}} );
+      }
+    else
+      {
+        return( $self->{_column_properties}->{$colname}->{$colproperty} );
+      }
+  }
+
+sub get_column_type
+  { my $self= shift;
+    my ($colname) = @_;
+    return if (!exists $self->{_types}->[$self->{_columns}->{$colname}]);
+    return( $self->{_types}->[$self->{_columns}->{$colname}] );
+  }
+
+sub get_object_type
+  { my $self= shift;
+    return ($self->{_type});
   }
 
 sub max_column_widths
@@ -2574,7 +2594,6 @@ sub get_hash
     return(\%h);
   }
 
-
 sub new_counter_key
 #internal
   { my $self= shift;
@@ -3504,12 +3523,29 @@ the oracle database.
 This method returns a hash that maps each column-name it's column-index.
 Columns are numbered starting with 0.
 
-=item column_properties()
+=item get_column_property()
 
   my %columns= $table->column_properties()
+  my $length= $table->column_properties($columnname, $propertyname)
 
 This method returns a hash that maps each column-name it's type, length,
-precision, null-flag and default value.
+precision, null-flag and default value if no columnname and one of the
+property names given as argument. If columnname and propertyname given
+the value will be returned.
+
+=item get_column_type
+
+    my $type= get_column_type($columnname)
+
+This method returns the kind of logical columntype for $columnname.
+(string, number, date, file or <undef>)
+
+=item get_object_type
+
+    my $object = get_object_type()
+
+If you want to know what there is received from database (table, view
+or sql (query)), use this simple function.
 
 =item max_column_widths()
 
