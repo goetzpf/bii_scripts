@@ -7177,6 +7177,16 @@ evtl Store bei jeder Änderung (nur bei Autocommit off)
 -----------------------------------
 Save Preferences Dialog einbauen!
 
+Doppelclick auf Feld sollte Edit Fenster fuer das Feld oeffnen
+
+bei sql-update nur die geänderten Felder schreiben !
+
+Hide Columns mit Selektion über mehrere Columns mit einem Schritt
+
+4768 uninitialized Value in hash
+4770 uninitialized value in string "ne"
+
+Nachsehen ob Autocommit wirklich abschaltbar ist!!!
 
 ====================
 COMMIT ineffective with autocommit.... (in dbdrv.pm)
