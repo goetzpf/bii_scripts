@@ -1,0 +1,165 @@
+%save = (
+  'foreigners' => {
+    'P_SUBDOMAIN' => {
+      'P_DOMAIN' => [
+        'DOMAIN_KEY',
+        'DOMAIN_KEY'
+      ]
+    },
+    'P_NAME' => {
+      'P_SUBDOMAIN' => [
+        'SUBDOMAIN_KEY',
+        'SUBDOMAIN_KEY'
+      ],
+      'NAMES' => [
+        'KEY',
+        'NAME_KEY'
+      ],
+      'P_FAMILY' => [
+        'FAMILY_KEY',
+        'FAMILY_KEY'
+      ]
+    }
+  },
+  'open_tables' => {
+    'P_DOMAIN' => {
+      'displayed_cols' => {
+        'DOMAIN_KEY' => '1',
+        'DESCRIPTION' => '1',
+        'PART_DOMAIN' => '1'
+      },
+      'col_map_flags' => {
+        'DOMAIN_KEY' => 'N',
+        'DESCRIPTION' => 'N',
+        'PART_DOMAIN' => 'N'
+      },
+      'sql' => 'select * from P_DOMAIN ',
+      'table_type' => 'table',
+      'geometry' => '397x117+312+531',
+      'sort_columns' => [
+        'DOMAIN_KEY',
+        'PART_DOMAIN',
+        'DESCRIPTION'
+      ]
+    },
+    'P_NAME' => {
+      'displayed_cols' => {
+        'FAMILY_KEY' => '1',
+        'PART_INDEX' => '1',
+        'SUBDOMAIN_KEY' => '1',
+        'PART_COUNTER' => '1',
+        'DESCRIPTION' => '1',
+        'PART_SUBINDEX' => '1',
+        'PART_NAME' => '1',
+        'NAME_KEY' => '1'
+      },
+      'col_map_flags' => {
+        'PART_INDEX' => 'N',
+        'FAMILY_KEY' => 'M',
+        'SUBDOMAIN_KEY' => 'M',
+        'PART_COUNTER' => 'N',
+        'DESCRIPTION' => 'N',
+        'PART_SUBINDEX' => 'N',
+        'PART_NAME' => 'N',
+        'NAME_KEY' => 'N'
+      },
+      'sql' => 'select * from P_NAME ',
+      'table_type' => 'table',
+      'geometry' => '998x162+313+309',
+      'sort_columns' => [
+        'NAME_KEY',
+        'PART_NAME',
+        'PART_INDEX',
+        'PART_SUBINDEX',
+        'FAMILY_KEY',
+        'PART_COUNTER',
+        'SUBDOMAIN_KEY',
+        'DESCRIPTION'
+      ]
+    },
+    'P_SUBDOMAIN' => {
+      'displayed_cols' => {
+        'PART_SUBDOMAIN' => '1',
+        'DOMAIN_KEY' => '1',
+        'SUBDOMAIN_KEY' => '1',
+        'PART_POSTFIX' => '1',
+        'DESCRIPTION' => '1'
+      },
+      'col_map_flags' => {
+        'PART_SUBDOMAIN' => 'N',
+        'DOMAIN_KEY' => 'N',
+        'SUBDOMAIN_KEY' => 'N',
+        'PART_POSTFIX' => 'N',
+        'DESCRIPTION' => 'N'
+      },
+      'sql' => 'select * from P_SUBDOMAIN ',
+      'table_type' => 'table',
+      'geometry' => '590x117+720+531',
+      'sort_columns' => [
+        'SUBDOMAIN_KEY',
+        'PART_SUBDOMAIN',
+        'PART_POSTFIX',
+        'DOMAIN_KEY',
+        'DESCRIPTION'
+      ]
+    },
+    'P_FAMILY' => {
+      'displayed_cols' => {
+        'FAMILY_KEY' => '1',
+        'PART_FAMILY' => '1',
+        'DESCRIPTION' => '1'
+      },
+      'col_map_flags' => {
+        'FAMILY_KEY' => 'N',
+        'PART_FAMILY' => 'N',
+        'DESCRIPTION' => 'N'
+      },
+      'sql' => 'select * from P_FAMILY ',
+      'table_type' => 'table',
+      'geometry' => '397x117+311+706',
+      'sort_columns' => [
+        'FAMILY_KEY',
+        'PART_FAMILY',
+        'DESCRIPTION'
+      ]
+    },
+    'NAMES' => {
+      'displayed_cols' => {
+        'FAMILY' => '0',
+        'DOMAIN' => '1',
+        'COUNTER' => '0',
+        'NAME' => '1',
+        'KEY' => '1',
+        'MEMBER' => '0',
+        'SUBDOMAIN' => '1',
+        'IND' => '0',
+        'DESCRIPTION' => '1'
+      },
+      'col_map_flags' => {
+        'FAMILY' => 'N',
+        'DOMAIN' => 'N',
+        'COUNTER' => 'N',
+        'NAME' => 'N',
+        'KEY' => 'N',
+        'MEMBER' => 'N',
+        'SUBDOMAIN' => 'N',
+        'IND' => 'N',
+        'DESCRIPTION' => 'N'
+      },
+      'sql' => 'select * from NAMES ',
+      'table_type' => 'view',
+      'geometry' => '609x117+778+94',
+      'sort_columns' => [
+        'KEY',
+        'NAME',
+        'MEMBER',
+        'IND',
+        'FAMILY',
+        'COUNTER',
+        'SUBDOMAIN',
+        'DOMAIN',
+        'DESCRIPTION'
+      ]
+    }
+  }
+);
