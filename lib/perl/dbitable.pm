@@ -709,7 +709,7 @@ sub load_from_db
   { my $self= shift;
     my %options= @_;
 
-    my $filter_type= 'all';
+    my $select_trailer;
     my $filter_field;
     my $filter_value;
     
@@ -726,42 +726,42 @@ sub load_from_db
 
  
     if (exists $options{filter})
-      { my $r_filter= $options{filter};
+      { if ($self->{_type} ne 'table')
+          { die "sorry, filters are only allowed for type \'table\'"; };
+      
+        my $r_filter= $options{filter};
         if (ref($r_filter) ne 'ARRAY')
 	  { die "err: \"filter\" is not an array reference"; };
-	($filter_type,$filter_field,$filter_value)= @$r_filter;
-
-	if (!defined($filter_value))
-	  { die "err: filter specification is incomplete"; };
-	$filter_type= lc($filter_type);
-	$filter_field= uc($filter_field);
-	if ($filter_type ne 'equal')
-	  { die "err: only filter-type \"equal\" is supported"; };
-      };	
- 
-    if    ($filter_type eq 'all') # fetch all
-      { # do nothing special
-        # don't do the following with views! 
-	if ($self->{_type} eq 'table')
-	  { $self->{_fetch_cmd}= "select * from $self->{_table}"; };
-      }
-    elsif ($filter_type eq 'equal') # fetch when a field==value
-      { if ($self->{_type} ne 'table')
-          { die "sorry, \'equal\' is only allowed for type \'table\'"; };
-      
-        if ($filter_value!~ /^\'/)
-	  { $filter_value= "\'$filter_value\'"; };
-        die "unknown field" if (!exists $self->{_columns}->{$filter_field});
-
-        $self->{_fetch_cmd}= "select * from $self->{_table} where " .
-	                    "$filter_field = $filter_value";
-      }
-    else
-      { die "internal error: unknown filter-type: $filter_type"; };	
-
+	  
+	my $filter_type= $r_filter->[0];
+	if ($filter_type eq 'equal')
+	  { my($filter_field,$filter_value)= @$r_filter[1..2];
+	  
+	    if (!defined($filter_value))
+	      { die "err: filter specification is incomplete"; };
+	    $filter_type= lc($filter_type);
+	    $filter_field= uc($filter_field);
+	    if ($filter_value!~ /^\'/)
+	      { $filter_value= "\'$filter_value\'"; };
+            die "unknown field" 
+	         if (!exists $self->{_columns}->{$filter_field});
+            $select_trailer= "where $filter_field = $filter_value";
+	  }
+	elsif ($filter_type eq 'SQL')
+	  { $select_trailer= "WHERE " . $r_filter->[1]; }
+	else
+	  { die "unsupported filter-type: $filter_type"; };
+      };	  
+	   
+    if ($self->{_type} eq 'table')
+      { $self->{_fetch_cmd}= "select * from $self->{_table} " .
+                             "$select_trailer"; 
+      };
+    
     my $cmd= $self->{_fetch_cmd};
     print "$cmd\n" if ($sql_trace);
 
+#warn "|$cmd|\n";
     $r= $dbh->selectall_arrayref($cmd) or die $errstr . $DBI::errstr;
 
 
@@ -1689,10 +1689,30 @@ call of the C<load> function with a filter is:
   $table->load(filter=> ["equal",$column_name,$column_value])
   
 As you can see, filter is a hash-key that has as a value a list-reference.
-The list consists of three elements, the filter-type, the column-name and
-the column-value. Currently, only the filter-type "equal" is defined.
+The list consists of at least one element, the filter-type. This
+is possibly followed by a list of filter-parameters.
+
+known filters:
+
+=over 4
+
+=item equal
+
+  $table->load(filter=> ["equal",$column_name,$column_value])
+
 In this case, only lines of the table, where column C<$column_name> has
 a value that equals C<$column_value> are fetched.
+
+=item SQL
+
+  $table->load(filter=> ["SQL",$sql_statement])
+
+This is used to specify the "WHERE" part of the SQL "SELECT" 
+statement directly. Note that C<$sql_statement> must not contain 
+the word "WHERE" itself, dbitable adds this automatically.
+
+=back
+
 
 =item *
 
