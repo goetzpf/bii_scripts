@@ -6,7 +6,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 use strict;
 
 # search dbitable.pm ralative to the location of THIS script:
-#use lib "$FindBin::RealBin/../lib/perl";
+use lib "$FindBin::RealBin/../lib/perl";
 
 #You may specify where to find Tk::TableMatrix, when
 #it is not installed globally like this:
@@ -14,8 +14,8 @@ use strict;
 
 
 # the following is only for my testing perl-environment:
-use lib "$ENV{HOME}/pmodules";
-use perl_site; 
+#use lib "$ENV{HOME}/pmodules";
+#use perl_site; 
 
 use FindBin;
 use Tk;
@@ -28,11 +28,11 @@ use Tk::TableMatrix;
 
 use Tk::ErrorDialog;
 
-use dbitable 1.4;
+use dbitable 1.5;
 
 use Data::Dumper;
 
-my $VERSION= "0.85";
+my $VERSION= "0.86";
 
 
 my $PrgTitle= 'BrowseDB';
@@ -1587,8 +1587,13 @@ sub tk_delete_line_dialog
 
 			     $Table->configure(-rows => $r_tbh->{row_no} + 1);
 
-my($row,$col)= split(",",$Table->index('active'));
-$Table->activate("$row,$col");
+# @@@@@@@ the active cell is not updated,
+# when for example a line is deleted. This can be
+# circumvented by calling ->set() on the active cell,
+# but on write-protected cells this causes "beep" and it
+# also marks the cell as "changed" although it was not changed at
+# all. There is still some work to do here.
+#my($row,$col)= split(",",$Table->index('active'));
 #$Table->set("$row,$col",cb_put_get_val($r_tbh,0,$row,$col));
 
 		  	     $Top->destroy;
