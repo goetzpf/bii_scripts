@@ -472,14 +472,14 @@ sub tk_main_window
     $MnDb->add('command',
                -label=> 'commit',
                -underline  => 0,
-               -state=> 'disabled',
+               -state=> ($autocommit_var ? 'disabled' : 'active'),
                -command=> sub { dbdrv::commit($r_glbl->{dbh}); }
               );
     $c_commit_i= $MnDb->index('end');
     $MnDb->add('command',
                -label=> 'rollback',
                -underline  => 0,
-               -state=> 'disabled',
+               -state=> ($autocommit_var ? 'disabled' : 'active'),
                -command=> sub { dbdrv::rollback($r_glbl->{dbh});
                                 tk_reload_all_objects($r_glbl);
                               }
@@ -1182,7 +1182,7 @@ sub tk_about
    foreach my $l (@text)
      { $Text->insert('end',$l . "\n"); };
 
-   $Text->pack(-fill=>'both',expand=>'y');
+   $Text->pack(-fill=>'both',-expand=>'y');
  }
 
 sub tk_dump_global
@@ -2326,7 +2326,7 @@ sub make_table_window
                                 }
                       );
       };
-      
+
     $column_popup{popup_items} = $itemcnt;
     $column_popup{popup_item_h}= $r_itemhash;
 
@@ -3497,7 +3497,7 @@ sub tk_table_info
        $text->insert('end',$str);
      };
 
-   $text->pack(-fill=>'both',expand=>'y');
+   $text->pack(-fill=>'both',-expand=>'y');
 
    tk_set_busy($r_glbl,0);
 
@@ -4723,7 +4723,7 @@ sub tk_sort_menu
                                   -width=>0,
                                   -height=>0,
                                 )->pack(-side=>'top',-fill=>'x',
-                                        expand=>'y');
+                                        -expand=>'y');
 
 
     $Top->Label(-text => "right-button click to move\n" .
@@ -4944,13 +4944,13 @@ sub tk_simple_text_dialog
   { my($r_glbl,$r_tbh,%options)= @_;
 
     my $tag= $options{tag};
-    
+
     die if (!defined $tag); # assertion
 
     my $tagcnt;
     while(exists $r_tbh->{$tag.$tagcnt})
       { $tagcnt++; };
-    $tag.= $tagcnt;      
+    $tag.= $tagcnt;
 
     my %h;
     my $width=20;
@@ -5115,7 +5115,7 @@ sub tk_make_text_widget
 
     $text_widget->insert('end',$$r_content) if (defined $r_content);
 
-    $text_widget->pack(-fill=>'both',expand=>'y');
+    $text_widget->pack(-fill=>'both',-expand=>'y');
 
     return(\%text);
   }
@@ -5333,10 +5333,10 @@ sub tk_object_dialog
 
     die if (!defined $tag); # assertion
 
-    my $tagcnt;
+    my $tagcnt="";
     while(exists $r_tbh->{$tag.$tagcnt})
       { $tagcnt++; };
-    $tag.= $tagcnt;      
+    $tag.= $tagcnt;
 
     my %h;
 
@@ -6055,7 +6055,7 @@ sub get_dbitable
 
     if ($r_tbh->{table_type} ne "sql")
       { if ($r_tbh->{table_type} eq 'table_or_view')
-          { 
+          {
             if (dbdrv::object_is_table($r_glbl->{dbh},$r_tbh->{table_name}))
               { $r_tbh->{table_type}= 'table'; }
             else
@@ -6254,8 +6254,8 @@ sub file_find
 
     @wanted_array= ();
     $wanted_regex= $regexp;
-    
-    
+
+
     find( { wanted => \&wanted, follow => 1 }, @mydirs);
 
     #print "found:\n",join("\n",@wanted_array);
