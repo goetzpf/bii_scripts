@@ -942,6 +942,14 @@ it's owner.
 This converts a given object and it's owner to a name in the form
 "owner.name" or a public synonym that maps to the given object.
 
+=item dbdrv::object_is_table
+
+  my @list= dbdrv::object_is_table($dbh,$table_name,$table_owner)
+
+Checks wether a given object is a table (returns "1" in that case).
+Note that C<$table_owner> is not needed if it's a public synonym
+or of the table name contains the owner in the form "owner.object_name".
+
 =item dbdrv::object_dependencies
 
   my @list= dbdrv::object_dependencies($dbh,$table_name,$table_owner)
