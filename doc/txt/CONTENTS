@@ -32,6 +32,12 @@ canlink
 	a perl-module that can be used to encode or decode the
 	"cryptic can link" as it is used in the BESSY CAN Bus
 	device support for EPICS.
+
+parse_db
+	a perl-module for parsing EPICS db-files
+	
+parse_subst
+	a perl-module for parsing EPICS substitution-files
 	
 -----------------------------------------------------------------------
 (1)	This is a CPAN-like module which has to be installed via

@@ -18,4 +18,6 @@ Goetz Pfeiffer <pfeiffer@mail.bessy.de>
 	Sch2db.pl 
 	Pezca 
 	idcp_data
+	parse_db
+	parse_subst
 	
