@@ -77,13 +77,19 @@ sub SimpleTextDialog
 # ADD a WIDTH parameter here!
 # known options:
 # title
-# callback -> callback after something was selected
+# callback -> callback after something was selected (optional)
+# variable -> ref to a variable where to store the value (optional)
 # text -> text at the bottom of the widget
 # tag -> tag-name for the dialog data that
 #        is stored in the table-handle
+# r_tbh may be undef, in this case entries are made in
+# the global hash
 # default -> default-value of variable
   { my($r_glbl,$r_tbh,%options)= @_;
 
+    if (!defined $r_tbh)
+      { $r_tbh= $r_glbl; };
+    
     my $tag= $options{tag};
 
     die if (!defined $tag); # assertion
@@ -109,13 +115,13 @@ sub SimpleTextDialog
     my $entry=
        $Top->Entry(-textvariable => \$h{string},
                    -width=>$width
-                  )->pack(-side=>'top',-fill=>'x',-expand=>'y');
+                  )->pack(-side=>'top',-fill=>'both',-expand=>'y');
 
     $entry->focus();
 
     if (exists $options{text})
       { $Top->Label(-text => $options{text}
-                   )->pack(-side=>'top' ,-fill=>'y',
+                   )->pack(-side=>'top' ,-fill=>'x',
                           );
       };
 
@@ -127,7 +133,9 @@ sub SimpleTextDialog
               );
 
     $h{top}     = $Top;
-    $h{callback}= $options{callback};
+    $h{callback}= $options{callback} if (exists $options{callback});
+    $h{variable}= $options{variable} if (exists $options{variable});
+    
 
     $r_tbh->{$tag}= \%h;
 
@@ -147,9 +155,14 @@ sub simple_text_dialog_finish
 
     $Top->destroy;  # @@@@
 
-    my @callback= @{$r_h->{callback}};
+    my @callback;
+    if (exists $r_h->{callback})
+      { @callback= @{$r_h->{callback}}; };
 
     delete $r_tbh->{$tag};
+
+    if (exists $r_h->{variable})
+      { ${$r_h->{variable}}= $str; };
 
     if (@callback)
       { my $r_f= shift @callback;
@@ -163,13 +176,15 @@ sub simple_text_dialog_finish
 
 
 sub MakeTextWidget
-  { my($r_glbl,$title,$r_content)= @_;
+  { my($r_glbl,$title,$r_content,%tk_options)= @_;
 
     my %text;
 
-    # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{main}->{background});
+    # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{background});
     my $Top= MakeToplevel($r_glbl,
-                         title=>$r_glbl->{title});
+                         title=>$r_glbl->{title},
+                         %tk_options
+                         );
 
     $text{Top}= $Top;
 
@@ -467,6 +482,13 @@ sub ObjectDialog
 # callback -> callback after something was selected
 # tag -> tag-name for the dialog data that is stored in the table-handle
   { my($r_glbl,$r_tbh,%options)= @_;
+    my %known_opts=(title=>1, items=>1, text=>1, callback=>1, tag=>1);
+    my %tk_opts;
+
+    foreach my $opt (keys %options)
+      { next if ($known_opts{$opt});
+        $tk_opts{$opt}= $options{$opt};
+      };      
 
     my $tag= $options{tag};
 
@@ -480,10 +502,12 @@ sub ObjectDialog
     my %h;
 
     my $Top= MakeToplevel($r_glbl,
-                         title=>$options{title});
+                         title=>$options{title},
+                         %tk_opts
+                         );
 
     my $FrTop = $Top->Frame(-borderwidth=>2,
-                           -background=>$r_glbl->{theme}->{main}->{background}
+                            %tk_opts
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
 
@@ -511,7 +535,8 @@ sub ObjectDialog
                                 }
               );
 
-    $FrTop->Label(-text => $options{text}
+    $FrTop->Label(-text => $options{text},
+                  %tk_opts
                  )->pack(-side=>'left' ,-fill=>'y',
                         );
 
@@ -568,15 +593,23 @@ sub MakeToplevel
 #           geometry: geometry string
 #           parent_widget: parent-widget
 #           popover: 1: if 1 open window just above parent widget
+#  all other options found are passed to the "Toplevel" call
   { my($r_glbl,%options)= @_;
     my $MainWidget;
+    my %known_opts=(parent_widget=>1, title=>1, geometry=>1, popover=>1);
+    my %tk_opts;
+    
+    foreach my $opt (keys %options)
+      { next if ($known_opts{$opt});
+        $tk_opts{$opt}= $options{$opt};
+      };      
 
     if (exists $options{parent_widget})
       { $MainWidget= $options{parent_widget}; }
     else
       { $MainWidget= $r_glbl->{main_menu_widget}; };
 
-    my $Top= $MainWidget->Toplevel(-background=>$r_glbl->{theme}->{main}->{background});
+    my $Top= $MainWidget->Toplevel(%tk_opts);
 
     # add new toplevel widget to the BrowseDB group
     # looks nice in gnome-panel and kde-panel
@@ -678,6 +711,21 @@ sub Progress
 
     #$r_glbl->{progress_widget}->update();
     $r_glbl->{main_menu_widget}->update();
+  }
+
+# remove widgets from grid packer:
+#_______________________________________________________
+
+sub ungrid
+  { my($gridwidget)= @_;
+    
+    my @slaves= $gridwidget->gridSlaves();
+    
+    return if (!@slaves);
+        
+    $gridwidget->gridForget(@slaves);
+    foreach my $w (@slaves)
+      { $w->destroy(); };
   }
 
 # simple error-dialog:
