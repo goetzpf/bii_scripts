@@ -26,7 +26,7 @@ use Text::ParseWords;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.2';
+our $VERSION     = '1.3';
 
 our $export_version= "1.0";
 
@@ -527,6 +527,79 @@ sub column_list
 
     return( @{$self->{_column_list}} );
   }
+
+sub column_hash   
+  { my $self= shift;
+
+    return( %{$self->{_columns}} );
+  }
+
+sub max_column_widths
+  { my $self= shift;
+    my($minwidth,$maxwidth)= @_;
+    
+    my $r_cols= $self->{_column_list};
+    my $r_l   = $self->{_lines};
+    
+    my @col_widths= map { length($_) } (@$r_cols);
+    my @widths= @col_widths;
+    
+    foreach my $pk (keys %$r_l)
+      { my $r_line= $r_l->{$pk};
+        for(my $i=0; $i<= $#$r_line; $i++)
+          { my $l= length($r_line->[$i]);
+	    $widths[$i]= $l if ($l>$widths[$i]);
+	  };
+      };
+      
+    for(my $i=0; $i<= $#widths; $i++)
+      { if ($widths[$i] < $minwidth)
+	  { $widths[$i] = $minwidth; };
+
+        if ($widths[$i] > $maxwidth)
+	  { $widths[$i] = $maxwidth; 
+	    if ($widths[$i] < $col_widths[$i])
+	      { $widths[$i] = $col_widths[$i]; };
+	  };
+      };
+    return(@widths)
+  }        
+
+sub foreign_keys
+  { my $self= shift;
+  
+    if ($self->{_type} ne 'table')
+      { warn "foreign_keys does only work on type \"table\""; 
+        return; 
+      };
+    
+    my $r_foreign_keys= $self->{_foreign_keys};
+    return($r_foreign_keys) if (defined $r_foreign_keys);
+ 
+    $r_foreign_keys= db_get_foreign_keys($self->{_dbh},$self->{_table});
+ 
+    $self->{_foreign_keys}= $r_foreign_keys;
+    
+    return($r_foreign_keys);
+  }
+
+sub resident_keys
+  { my $self= shift;
+  
+    if ($self->{_type} ne 'table')
+      { warn "resident_keys does only work on type \"table\""; 
+        return; 
+      };
+    
+    my $r_resident_keys= $self->{_resident_keys};
+    return($r_resident_keys) if (defined $r_resident_keys);
+ 
+    $r_resident_keys= db_get_resident_keys($self->{_dbh},$self->{_table});
+ 
+    $self->{_resident_keys}= $r_resident_keys;
+    
+    return($r_resident_keys);
+  }
                
 sub value 
 # get or set a value
@@ -545,12 +618,69 @@ sub value
       { return $line->[ $self->{_columns}->{$column} ]; }
     else
       { my $i= $self->{_columns}->{$column};
+        if (!defined $i)
+	  { die "error: unknown column: $column"; };
         if ($i == $self->{_pki})
 	  { die "error: primary key must not be changed!"; };
-        $line->[ $self->{_columns}->{$column} ] =$newval; 
+	         $self->{_columns}->{$column};
+        $line->[ $i ] =$newval; 
         $self->{_updated}->{$pk}=1;
       };
   }
+ 
+sub find
+# find lines where column has a certain value 
+# Note: this function does string-compare!
+# flags: find_first=>1 : find only the first match
+#        warn_not_pk   : warn if column is not the primary key
+#        warn_multiple : warn more than one line was found
+  { my $self= shift;
+    my $column= shift; $column= uc($column);
+    my $value= shift;
+    my %flags= @_;
+    
+    my @pk_list;
+    my $r_l= $self->{_lines};
+    
+    my $colindex= $self->{_columns}->{$column};
+    if (!defined $colindex)
+      { die "error: unknown column: $column"; };
+
+    if ($colindex == $self->{_pki})
+      { # the primary key is given, this is the simple case
+        if (exists $r_l->{$value})
+	  { return($value); }
+	else
+	  { return; };
+      };
+     
+    if ($flags{warn_not_pk})
+      { warn "$column is not the primary key (dbitable::find)\n"; };  
+      
+    # from here: the complicated case, a real search
+    
+    foreach my $pk (keys %$r_l)
+      { if ($r_l->{$pk}->[$colindex] eq $value) 
+          { if ($flags{find_first})
+	      { return($pk); };
+            push @pk_list, $pk; 
+	  };
+      };
+    if ($flags{warn_multiple})
+      { if ($#pk_list>0)
+	  { warn "more than one line found for value $value " .
+	                                    "in column $column\n" .
+        	 " (dbitable::find)\n";
+	  }; 
+      };	   
+    return(@pk_list);
+  }
+     	  
+	  
+	  
+      
+      
+    
  
 sub add_line
   { my $self= shift;
@@ -1488,6 +1618,95 @@ sub db_types_no2string
     return(\%map);
   }
     
+sub db_get_foreign_keys
+# internal
+  { my($dbh,$table_name)= @_;
+
+    $table_name= uc($table_name);
+    my $SQL="select ST.TABLE_NAME, CL.COLUMN_NAME, " .
+                   "ST.CONSTRAINT_NAME, ST.R_CONSTRAINT_NAME, " .
+		   "CL2.TABLE_NAME AS FOREIGN_TABLE, " .
+		   "CL2.COLUMN_NAME AS FOREIGN_COLUMN " .
+		   "FROM " .
+		   "all_cons_columns CL, all_cons_columns CL2, " .
+		   "all_constraints ST, all_constraints ST2 " .
+		   "WHERE " .
+		   "ST.TABLE_NAME=\'$table_name\' AND ".
+		   "ST.CONSTRAINT_TYPE=\'R\' AND " .
+		   "ST.CONSTRAINT_NAME=CL.CONSTRAINT_NAME AND " .
+		   "ST.R_CONSTRAINT_NAME= ST2.CONSTRAINT_NAME AND " .
+		   "CL2.CONSTRAINT_NAME=ST2.CONSTRAINT_NAME";   
+    print $SQL,"\n" if ($sql_trace);
+    my $res=
+      $dbh->selectall_arrayref($SQL);
+    # gives:
+    # TABLE_NAME COLUMN_NAME CONSTRAINT_NAME R_CONSTRAINT_NAME 
+    #          FOREIGN_TABLE FOREIGN_COLUMN 
+	
+		      	   
+    if (!defined $res)
+      { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
+
+    # build a hash,
+    # col_name => [foreign_table,foreign_column]
+    my %foreign_keys;
+    foreach my $r_line (@$res)
+      { $foreign_keys{ $r_line->[1] } = [ $r_line->[4],$r_line->[5] ]; };
+
+    return( \%foreign_keys);
+  }
+    
+sub db_get_resident_keys
+# internal
+# the opposite of foreign keys,
+# find where the primary key of this table is used as foreign key
+  { my($dbh,$table_name)= @_;
+
+    $table_name= uc($table_name);
+    my $SQL= "select ST.TABLE_NAME, CL.COLUMN_NAME, ST.CONSTRAINT_NAME, " .
+		   " ST2.TABLE_NAME AS R_TABLE, " .
+		   " CL2.COLUMN_NAME AS R_COLUMN, " .
+		   " ST2.CONSTRAINT_NAME AS R_CONSTRAINT_NAME " .
+	     "from  " .
+	     "all_constraints ST, all_constraints ST2,  " .
+	     "all_cons_columns CL, all_cons_columns CL2 " .
+	     "where  ST.TABLE_NAME=\'$table_name\' AND " .
+		   " ST.CONSTRAINT_TYPE='P' AND " .
+		   " ST.CONSTRAINT_NAME=ST2.R_CONSTRAINT_NAME AND " .
+		   " ST2.CONSTRAINT_TYPE='R' AND " .
+		   " ST.CONSTRAINT_NAME=CL.CONSTRAINT_NAME AND " .
+		   " ST2.CONSTRAINT_NAME=CL2.CONSTRAINT_NAME ";
+
+    print $SQL,"\n" if ($sql_trace);
+    my $res=
+      $dbh->selectall_arrayref($SQL);
+    # gives:
+    # TABLE_NAME COLUMN_NAME CONSTRAINT_NAME R_TABLE R_COLUMN R_CONSTRAINT_NAME 
+	
+    if (!defined $res)
+      { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
+
+    # build a hash,
+    # col_name => [ [resident_table1,resident_column1],
+    #               [resident_table2,resident_column2], 
+    #                    ...
+    #             ]
+    #      resident_table may occur more than once
+    if ($#$res < 0)
+      { # no resident keys found, just return "undef"
+        return;
+      };
+      
+    my %resident_keys;
+    foreach my $r_line (@$res)
+      { 
+        push @{ $resident_keys{ $r_line->[1] } },
+	         [ $r_line->[3],$r_line->[4] ]; 
+      };
+
+    return( \%resident_keys);
+  }
+    
     
 
 sub db_get_primary_key
@@ -1510,6 +1729,10 @@ sub db_get_primary_key
     if (!defined $res)
       { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
 
+    # NOTE: in some tables, only the combination of several rows is
+    # the primary key, in this case, the SQL statement above returns
+    # more than one line. 
+    
     if ($#$res!=0)
       { die "error: result is not unique"; };
     return( lc($res->[0]->[2]) );
@@ -2084,7 +2307,47 @@ of all columns. The index of all columns starts with C<0>.
   my @columns= $table->column_list ()
  
 This method returns a list consisting of all column names
-in upper case.
+in upper case. The columns have the same sort order as in
+the oracle database. 
+
+=item column_hash()
+
+  my %columns= $table->column_hash()
+ 
+This method returns a hash that maps each column-name it's column-index.
+Columns are numbered starting with 0. 
+
+=item max_column_widths ()
+
+  my %columns= $table->max_column_widths($minwidth,$maxwidth)
+ 
+This method returns a list that contains the maxmimum width for
+each column. It is guaranteed that the returned values are
+larger than C<$minwidth> and smaller than C<$maxwidth>.
+
+=item foreign_keys ()
+
+  my $r_foreign_keys= $table->foreign_keys()
+ 
+This method returns a reference to a hash that maps column-names to a list 
+containing two elements, the name of the foreign table and the
+column-name in the foreign table. Note that this function works only 
+for the type 'table'.
+
+=item resident_keys ()
+
+  my $r_resident_keys= $table->resident_keys()
+ 
+This method returns a reference to a hash that maps column-names to a list 
+of lists. Each sub-list contains two elements, the name of the 
+resident table and the column-name in the resident table. "Resident" is
+used here in opposition to "foreign". Viewed from the perspective of
+the resident table, the current table is the foreign table. 
+The same relation is between foreign key and resident key. 
+A foreign key is always unique, it belongs to a single foreign 
+table. Viewed from the other side, this uniqueness is not guaranteed. That
+is the reason that the hash contains a list of lists. 
+Note that this function works only for the type 'table'.
 
 =item value()
 
@@ -2096,6 +2359,36 @@ This method is used to get or set a value, that means a single field of
 a single line. In the first form, the value is returned, in the 2nd form,
 the value is set. Note that changes do only take effect in the database 
 or file, when C<store()> is called later on. 
+
+=item find()
+
+  my @pk_list= $table->value($column_name, $value, %flags)
+  
+This method searches the table to find a row where the value
+in the specified column matches the given value. Note that this
+method may be slow (a linear search) for columns that are
+not the primary key column. The method returns a list of primary
+keys that fullfill the match criteria. The C<%flags> parameter is
+used to pass certain options. Known options are:
+
+=over 4
+
+=item find_first
+
+If this is set (non-zero) the find function returns only the
+primary key of the first line that matches, nothing more.
+
+=item warn_not_pk
+
+If this is set (non-zero) the function warns when the given
+column us not the primary-key column. 
+
+=item warn_multiple
+
+If this is set (non-zero) the function warns when more than
+one line was found that matches the given value.
+  
+=back
 
 =item add_line()
 
@@ -2364,6 +2657,16 @@ _pki: 	      the column-index of the primary key
 _table:       the name of the table, as it's used in oracle
 _type: 	      the type of the table, "table","view" or "file"
 _types:	      the types of the columns, "number" or "string"
+
+_foreign_keys ref to a hash, col_name => [foreign_table,foreign_column]
+	      this contains information about foreign keys
+_resident_keys 
+              ref to a hash, 
+	         col_name => [ [foreign_table1,foreign_column1],
+		               [foreign_table2,foreign_column2]
+			         ...
+		             ]
+	      this contains information about resident keys
 
 SELECT a.owner, a.table_name, b.column_name
   FROM all_constraints a, all_cons_columns b
