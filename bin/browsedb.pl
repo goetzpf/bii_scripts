@@ -929,7 +929,7 @@ sub tk_main_window
 #                     }
 #                );
 #        $listbox_action = sub { 
-#												$script_name$DlgScrListbox->get($DlgScrListbox->curselection);
+#                                                                                               $script_name$DlgScrListbox->get($DlgScrListbox->curselection);
 #                        $DlgScrText->replace("1.0", "end", join("\n", read_scripttext($dbh, 
 #                            
 #                        tk_open_new_object($r_glbl, "view", $cond, $order);
@@ -2307,25 +2307,33 @@ sub make_table_window
 
     # switching between different contents
     $r_tbh->{fastswitch}->{show} = 0;
-    $MnView->add('command',
+    $MnView->add('radiobutton',
                 -label=> 'Contenttable',
                 -underline=> 8,
                 -command=> [ \&cb_show_contenttable, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{fastswitch}->{show},
+                -value => 0,
                 );
-    $MnView->add('command',
+    $MnView->add('radiobutton',
                 -label=> 'Contentform',
                 -underline=> 8,
                 -command=> [ \&cb_show_contentform, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{fastswitch}->{show},
+                -value => 1,
                 );
-    $MnView->add('command',
+    $MnView->add('radiobutton',
                 -label=> 'Information',
                 -underline=> 1,
                 -command=> [ \&cb_show_objectinfo, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{fastswitch}->{show},
+                -value => 2,
                 );
-    $MnView->add('command',
+    $MnView->add('radiobutton',
                 -label=> 'Dependencies',
                 -underline=> 0,
                 -command=> [ \&cb_show_dependencies, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{fastswitch}->{show},
+                -value => 3,
                 );
 
     $MnView->add('separator');
@@ -2471,7 +2479,7 @@ sub cb_show_contenttable
     # --------------------- table widget
 
     my $FrDn = $r_tbh->{'frame_down'};
-    $FrDn->packForget();
+    $FrDn->gridForget($FrDn->gridSlaves());
     $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
     $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
 
@@ -2833,13 +2841,6 @@ sub cb_show_contentform
     my($r_glbl, $r_tbh)= @_;
     # --------------------- table widget
 
-    $r_tbh->{frame_down}->packForget();
-
-    my $FrDn = $r_tbh->{'frame_down'};
-    $FrDn->packForget();
-    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
-    $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
-    $FrDn->pack(-expand=> 1, -fill=>'both', );
 }
 
 sub cb_show_objectinfo
@@ -2847,133 +2848,146 @@ sub cb_show_objectinfo
     my($r_glbl, $r_tbh)= @_;
     # --------------------- object widget
 
-    my $FrDn = $r_tbh->{'frame_down'};
-    $FrDn->packForget();
-    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
-    $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
-
     my $name= $r_tbh->{table_name};
     my $dbh= $r_glbl->{dbh};
 
+
+    my $content = $r_tbh->{'cache'}->{'info'}; 
+    if (! defined($content))
+      {
+        BrowseDB::TkUtils::SetBusy($r_glbl,1);
+
+#        BrowseDB::TkUtils::SetBusy($r_glbl,1);
+        
+        my $buffer;
+
+        my $str;
+        if    ($r_tbh->{table_type} eq 'table')
+        { $str= "object-type: table\n"; }
+        elsif ($r_tbh->{table_type} eq 'view')
+        { $str= "object-type: view\n"; }
+        elsif ($r_tbh->{table_type} eq 'sql')
+        { $str= "object-type: arbitrary SQL statement\n"; }
+        else
+        { $str= "object-type: unknown : $r_tbh->{table_type}\n"; }
+        
+        $content = $str;
+
+        #@@@@@@@@@@@@@@@@@@@@@@@
+        my($object_name, $object_owner);
+        if ($r_tbh->{table_type} ne 'sql')
+        { 
+          ($object_name, $object_owner)=
+                dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
+          foreach my $colname ( @ { $r_tbh->{'column_list'} } )
+            {
+              $content .= "\n\t$colname";
+              if ($r_tbh->{'col_map_flags'}->{$colname} eq 'Y')
+              {
+              $content .= " mapped";
+              };
+              if (exists($r_tbh->{'pks_h'}->{$colname}))
+              {
+              $content .= "\n\t\tprimary key";
+              };
+              if (exists($r_tbh->{'foreign_key_hash'}->{$colname}))
+              {
+                my ($ref_table, $ref_owner) = 
+                        dbdrv::real_name($dbh, 
+                                $r_tbh->{'foreign_key_hash'}->{$colname}->[2],
+                                $r_tbh->{'foreign_key_hash'}->{$colname}->[0]
+                        );
+                $content .= "\n\t\tforeign key ( " .
+                     $ref_table.".".$r_tbh->{'foreign_key_hash'}->{$colname}->[1] .
+                      " )";
+              };
+            };
+
+          my @dependents=
+                  dbdrv::object_dependencies($dbh,$object_name,$object_owner);
+          if (@dependents)
+            { $content .= "\n\ndependents:";
+              foreach my $r_s (@dependents)
+              { 
+                 $content .= "\n\t".sprintf("%s.%s (%s)\n",@$r_s);
+              };
+            };
+
+          my @referenced=
+                   dbdrv::object_references($dbh,$object_name,$object_owner);
+          if (@referenced)
+            { $content .= "\n\nreferenced objects:\n\t";
+              foreach my $r_s (@referenced)
+              { my $st= sprintf("%s.%s (%s)\n\t",@$r_s);
+                $content .= $st;
+              };
+              $content .= "\n";
+            };
+
+        };
+
+        if ($r_tbh->{table_type} eq 'view')
+        {
+          my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
+          $str= "\nSQL command of the view:\n" . $sql. "\n";
+          $content .= $str;
+        }
+        elsif ($r_tbh->{table_type} eq 'table')
+        {
+          my @constraints_triggers=
+                   dbdrv::object_addicts($dbh,$object_name,$object_owner);
+          if (@constraints_triggers)
+            { $content .= "\nconstraints/triggers:\n";
+              foreach my $r_s (@constraints_triggers)
+                { # caution: name,owner,type here!
+                  $content .= "\n\t".sprintf("%s.%s (%s)",$r_s->[1],$r_s->[0],$r_s->[2]);
+                  if ($r_s->[2] eq 'C')
+                    { $content .= "\n\t\t{\n\t\t\t";
+                      $content .= dbdrv::read_checktext($dbh,
+                              $r_s->[0], $r_s->[1]);
+                      $content .= "\n\t\t}\n";
+                    }
+                };
+            };
+
+        };
+
+      my $dbitable= $r_tbh->{dbitable};
+      $str= "\n\nSQL command: " . $r_tbh->{dbitable}->{_fetch_cmd};
+
+      $content .=  $str;
+
+      $r_tbh->{'cache'}->{'info'} = $content;
+#      BrowseDB::TkUtils::SetBusy($r_glbl,1);
+
+        BrowseDB::TkUtils::SetBusy($r_glbl,0);
+      };
+            
+    my $FrDn = $r_tbh->{'frame_down'};
+#    $FrDn->gridForget($FrDn->gridSlaves(-row=>1));
+#    $FrDn->gridForget($FrDn->gridSlaves(-column=>1));
+    $FrDn->gridForget($FrDn->gridSlaves());
+    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
+    $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
+
+    # repacking FrDown is important in order to get a
+    # sensible window-size
+    $FrDn->pack(-expand=> 1, -fill=>'both', );
+
     my $Text= $FrDn->Scrolled('Text',
                 -wrap=>'word',
-								-scrollbars=>"osoe",
-        )->pack(-expand=>1, -fill=>'both');
-		my $content = $r_tbh->{'cache'}->{'info'}; 
-		if (! defined($content))
-			{
-  		my $buffer;
+                -scrollbars=>"osoe",
+        )->grid(-row=>0, -column=>0, -sticky=> "nsew");
 
-  		my $str;
-  		if    ($r_tbh->{table_type} eq 'table')
-    		{ $str= "object-type: table\n"; }
-  		elsif ($r_tbh->{table_type} eq 'view')
-    		{ $str= "object-type: view\n"; }
-  		elsif ($r_tbh->{table_type} eq 'sql')
-    		{ $str= "object-type: arbitrary SQL statement\n"; }
-  		else
-    		{ $str= "object-type: unknown : $r_tbh->{table_type}\n"; }
-  		$content = $str;
-
-		#@@@@@@@@@@@@@@@@@@@@@@@
-		 my($object_name, $object_owner);
-		 if ($r_tbh->{table_type} ne 'sql')
-  		 { ($object_name, $object_owner)=
-        		dbdrv::real_name($dbh,$r_glbl->{user},$r_tbh->{table_name});
-      		foreach my $colname ( @ { $r_tbh->{'column_list'} } )
-        		{
-          		$content .= "\n\t$colname";
-				  		if ($r_tbh->{'col_map_flags'}->{$colname} eq 'Y')
-	    					{
-	      					$content .= " mapped";
-	    					};
-          		if (exists($r_tbh->{'pks_h'}->{$colname}))
-            		{
-              		$content .= "\n\t\tprimary key";
-            		};
-          		if (exists($r_tbh->{'foreign_key_hash'}->{$colname}))
-            		{
-									my ($ref_table, $ref_owner) = 
-										dbdrv::real_name($dbh, 
-											$r_tbh->{'foreign_key_hash'}->{$colname}->[2],
-											$r_tbh->{'foreign_key_hash'}->{$colname}->[0]
-										);
-              		$content .= "\n\t\tforeign key ( " .
-										$ref_table.".".$r_tbh->{'foreign_key_hash'}->{$colname}->[1] .
-										" )";
-								};
-        		};
-
-      		my @dependents=
-            		dbdrv::object_dependencies($dbh,$object_name,$object_owner);
-      		if (@dependents)
-        		{ $content .= "\n\ndependents:";
-          		foreach my $r_s (@dependents)
-            		{ 
-									$content .= "\n\t".sprintf("%s.%s (%s)\n",@$r_s);
-            		};
-        		};
-
-      		my @referenced=
-          		 dbdrv::object_references($dbh,$object_name,$object_owner);
-      		if (@referenced)
-        		{ $content .= "\n\nreferenced objects:\n\t";
-          		foreach my $r_s (@referenced)
-            		{ my $st= sprintf("%s.%s (%s)\n\t",@$r_s);
-              		$content .= $st;
-            		};
-							$content .= "\n";
-        		};
-    		};
-
-  		if ($r_tbh->{table_type} eq 'view')
-    		{
-      		my $sql= dbdrv::read_viewtext($dbh,$object_name, $object_owner);
-      		$str= "\nSQL command of the view:\n" . $sql. "\n";
-      		$content .= $str;
-    		}
-  		elsif ($r_tbh->{table_type} eq 'table')
-    		{
-      		my @constraints_triggers=
-          		 dbdrv::object_addicts($dbh,$object_name,$object_owner);
-      		if (@constraints_triggers)
-        		{ $content .= "\nconstraints/triggers:\n";
-          		foreach my $r_s (@constraints_triggers)
-            		{ # caution: name,owner,type here!
-              		$content .= "\n\t".sprintf("%s.%s (%s)",$r_s->[1],$r_s->[0],$r_s->[2]);
-              		if ($r_s->[2] eq 'C')
-                		{ $content .= "\n\t\t{\n\t\t\t";
-                  		$content .= dbdrv::read_checktext($dbh,
-                          		$r_s->[0], $r_s->[1]);
-                  		$content .= "\n\t\t}\n";
-                		}
-            		};
-        		};
-
-    		};
-
-  		my $dbitable= $r_tbh->{dbitable};
-  		$str= "\n\nSQL command: " . $r_tbh->{dbitable}->{_fetch_cmd};
-
-  		$content .=  $str;
-
-				$r_tbh->{'cache'}->{'info'} = $content;
-			};
-		$Text->delete('1.0', 'end');
-		$Text->insert('end', $content);
-    $FrDn->pack(-side=>'top', -expand=>1, -fill=>'both');
+    $Text->delete('1.0', 'end');
+    $Text->insert('end', $content);
+    #$FrDn->pack(-side=>'top', -expand=>1, -fill=>'both');
   }
 
 sub cb_show_dependencies
   {
     my($r_glbl, $r_tbh)= @_;
     # --------------------- object widget
-
-    my $FrDn = $r_tbh->{'frame_down'};
-    $FrDn->packForget();
-    $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
-    $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
-    $FrDn->pack(-expand=> 1, -fill=>'both', );
 
   }
 
