@@ -1,9 +1,7 @@
 Changes
 LICENSE
 MANIFEST
-MANIFEST.bak
 Makefile.PL
-Makefile.old
 Pezca.pm
 Pezca.xs
 README
@@ -12,14 +10,9 @@ ca/BUILD_VMS.COM
 ca/Makefile.Host
 ca/Makefile.PL
 ca/Makefile.Vx
-ca/Makefile.old
 ca/O.Linux/Makefile
-ca/O.Linux/acctst
-ca/O.Linux/caRepeater
-ca/O.Linux/catime
 ca/O.hp700/Makefile
 ca/O.mv162/Makefile
-ca/O.mv162/caLib
 ca/access.c
 ca/addrList.h
 ca/bsd_depen.c
@@ -70,7 +63,6 @@ db/O.hp700/menuPriority.h
 db/O.hp700/menuScan.h
 db/O.hp700/menuYesNo.h
 db/O.mv162/Makefile
-db/O.mv162/dbLib
 db/TSdriver.html
 db/callback.c
 db/callback.h
@@ -134,14 +126,10 @@ ezca/CVS/Root
 ezca/Makefile.Host
 ezca/Makefile.PL
 ezca/Makefile.Unix
-ezca/Makefile.old
-ezca/O.Linux/.DEPENDS
 ezca/O.Linux/Makefile
 ezca/O.Linux/Target.include
-ezca/O.hp700/.DEPENDS
 ezca/O.hp700/Makefile
 ezca/O.hp700/Target.include
-ezca/O.solaris/.DEPENDS
 ezca/O.solaris/Makefile
 ezca/O.solaris/Target.include
 ezca/ezca.c
@@ -203,7 +191,6 @@ libCom/Com.rc
 libCom/Makefile.Host
 libCom/Makefile.PL
 libCom/Makefile.Vx
-libCom/Makefile.old
 libCom/O.Linux/Makefile
 libCom/O.Linux/Makefile.PL
 libCom/O.Linux/envData.c
@@ -215,7 +202,6 @@ libCom/O.hp700/errSymTbl.c
 libCom/O.mv162/Makefile
 libCom/O.mv162/envData.c
 libCom/O.mv162/errSymTbl.c
-libCom/O.mv162/libCom
 libCom/O.solaris/Makefile.PL
 libCom/O.solaris/Templates.DB/Dependency.state
 libCom/O.solaris/envData.c
@@ -285,7 +271,6 @@ libCom/os/WIN32/osdTime.cc
 libCom/os/WIN32/osiSleep.c
 libCom/os/WIN32/sigPipeIgnore.c
 libCom/os/generic/Makefile.PL
-libCom/os/generic/Makefile.old
 libCom/os/generic/README
 libCom/os/generic/bsdSockResource.c
 libCom/os/generic/osdTime.cc
@@ -320,5 +305,4 @@ libCom/tsDefs.h
 libCom/tsSubr.c
 platform.p
 test.pl
-test.pl.old
 typemap

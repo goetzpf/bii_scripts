@@ -23,7 +23,7 @@ if ($opt_help)
 
 die if (!defined $opt_script);
 
-chdir("$FindBin::Bin") or die;
+#chdir("$FindBin::Bin") or die;
 
 my $version= $Config{version};
 
@@ -33,6 +33,8 @@ if ($opt_hw) # hardware-dependant scripts
   { $src_path.= "/$Config{archname}"; };
 
 my $dst_path= "../../lib/perl";
+
+print "ln -s $src_path/$opt_script $opt_script\n";
 
 symlink("$src_path/$opt_script","$dst_path/$opt_script") or die;
 
