@@ -27,6 +27,7 @@ use Tk::ROText;
 use Tk::BrowseEntry;
 use Tk::Listbox;
 use Tk::FileSelect;
+
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
 use Tk::ProgressBar;
@@ -59,7 +60,7 @@ my $sim_oracle_access=0;
 
 my $guest_login=0; # for debuggin only, default: 0
 my $fast_test=0; # skip login dialog and open $fast_table
-my $fast_table='p_insertion';
+my $fast_table='p_adidas';
 
 my $db_table_name;
 if (!@ARGV)
@@ -1594,7 +1595,16 @@ sub tk_field_edit
 
 sub make_table_hash_and_window
   { my($r_glbl,%options)= @_;
-
+# known options:
+#   table_name   => $table_name
+#   table_type   => $type, $type either 'table','view', or 'sql'
+#   table_filter => $WHERE_part
+#        $WHERE_part is added after "WHERE" to the SQL fetch command
+#        this is not allowed for the type "sql" (see above)
+#   sequel       => $sql_statement
+#        only for the type "sql", specifies the SQL fetch command
+#   geometry     => $geometry_string
+#                   can be used to set the window geometry
 
     if ($options{table_type} =~ /(table|view|sql)/)
       {
@@ -1656,6 +1666,62 @@ sub make_table_hash_and_window
   }
 
 sub make_table_hash
+# elements of %hash_defaults (the table-hash):
+#
+#   table_name   => $table_name
+#   table_type   => $type, $type either 'table','view', or 'sql'
+#   table_filter => $WHERE_part
+#        $WHERE_part is added after "WHERE" to the SQL fetch command
+#        this is not allowed for the type "sql" (see above)
+#   sequel       => $sql_statement
+#        only for the type "sql", specifies the SQL fetch command
+#   displayed_cols  => \%displayed_columns
+#                      used to initialize the same item in the table_hash,
+#                      this parameter is optional !
+# -------------------------------------------------------------------
+# creates a table_hash with these contents:
+#  table_widget    => table-widget
+#  dbh             => database-handle
+#  dbitable        => dbitable_object
+#  no_pk_cols      => 1 if there are no primary key columns 
+#  pks             => \@primary_key_column_names 
+#  pks_h           => \%primary_key_column_hash
+#                     each key in this hash is a primary key column
+#  column_list     => \@column_names_list
+#  column_hash     => \%column_hash
+#                     a hash that maps column-names to indices
+#  column_no       => number of columns
+#  vis_column_list => equal to column_list
+#  vis_column_hash => equal to column_hash
+#  vis_column_no   => equal to column_no
+#  vis_column_width=> equal to column_width
+#  foreign_key_hash=> \%foreign_key_hash 
+#                     this hash maps column-names to a list containing 
+#                     two elements, the name of the foreign table and
+#                     the column-name in the foreign table.
+#  write_protected_cols=> \%write_protection_col_hash
+#                     each column in this hash that maps to 'P'
+#                     is write-protected
+#  sort_columns    => a list of columns that defines the sort-order
+#  pk_list         => \@all_primary_key_list
+#                     a list of all primary key values for all
+#                     lines of the table
+#  pk_hash         => \%primary_key_to_row_hash
+#                     this hash maps primary key to row-indices
+#  row_no          => the number of rows of the table
+#  changed_cells   => \%changed_cells_hash
+#                     initially empty, later this is a hash mapping
+#                     "$pk;$colname" to "$row,$col", that has an
+#                     entry for each changed cell
+#  changed_rows    => initially empty, later this is a hash mapping
+#                      "$pk" to "$row"
+#  curr_sort_col   => primary_sort_column
+#                     this is needed for the radiobuttons in the sort
+#                     dialog
+#  displayed_cols  => \%displayed_columns
+#                     this hash has an entry for each column. It is
+#                     set to 1 when the column is actually displayed,
+#                     else it is set to 0
   { my($r_glbl,%hash_defaults)= @_;
 
     my $dbh= $r_glbl->{dbh};
@@ -1742,20 +1808,45 @@ sub make_table_hash
                           # only needed to give the sort-
                           # radiobuttons a visible initial state
 
-    $table_hash{displayed_cols}= { map{ $_=>1 } @{$table_hash{column_list}} };
-
     return(\%table_hash);
   }
 
 sub make_table_window
+# known options in $r_tbh:
+#  table_name    => $table_name
+#  resident_there=> $resident_there
+#                   adds a certain menu entry to the table menu
+#                   if set to 1 
+#  geometry      => $geometry_string
+#                   can be used to set the window geometry
+#  column_list   => \@column_names_list
+#  curr_sort_col => primary_sort_column
+#                   this is needed for the radiobuttons in the sort
+#                   dialog
+#  displayed_cols=> \%displayed_columns
+#                   this hash has an entry for each column. It is
+#                   set to 1 when the column is actually displayed,
+#                   else it is set to 0
+#  vis_column_no => number of visible columns
+#  row_no        => the number of rows of the table
+# -----------------------------------------------------
+# sets the following parts in $r_tbh:
+# top_widget    => $top-widget
+# table_widget  => $table_widget
+# column_popup  => \%column_popup_data_hash
+# default_popup => \%default_popup_data_hash
+#
   { my($r_glbl,$r_tbh)= @_;
 
     # create a new top-window
     # my $Top= MainWindow->new(-background=>$BG);
     #my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
     my $Top = cf_open_window($r_glbl->{main_widget}, $r_glbl,
-                             $r_tbh->{table_name});
+                             $r_tbh->{table_name},
+                             $r_tbh->{geometry});
 
+    delete $r_tbh->{geometry}; # no longer needed
+    
     $r_tbh->{top_widget}= $Top;
 
     # set the title
@@ -1819,10 +1910,23 @@ sub make_table_window
                  -command=> [\&tk_save_to_file, $r_tbh]
                 );
     $MnFile->add('command',
-                 -label=> 'Load',
-                 -accelerator => 'Meta+L',
+                 -label=> 'Open',
+                 -accelerator => 'Meta+O',
                  -underline   => 0,
                  -command=> [\&tk_load_from_file, $r_tbh]
+                );
+
+    $MnFile->add('command',
+                 -label=> 'Export',
+                 -accelerator => 'Meta+E',
+                 -underline   => 0,
+                 -command=> [\&tk_export_csv, $r_tbh]
+                );
+    $MnFile->add('command',
+                 -label=> 'Import',
+                 -accelerator => 'Meta+I',
+                 -underline   => 0,
+                 -command=> [\&tk_import_csv, $r_tbh]
                 );
 
     # configure database-menu:
@@ -2299,6 +2403,80 @@ sub tk_load_from_file
 
   }
 
+sub tk_export_csv
+  { my($r_tbh)= @_;
+
+    # warn "save to file";
+
+    my $Fs= $r_tbh->{top_widget}->FileSelect(
+                                               -defaultextension=> ".csv"
+                                            );
+
+    my $file= $Fs->Show();
+
+    # warn "filename: $file ";
+    return if (!defined $file);
+
+    return if ($file=~ /^\s*$/);
+
+    my $dbitable= $r_tbh->{dbitable};
+    
+    $dbitable->export_csv($file, order_by=> $r_tbh->{sort_columns});
+
+    # warn "$file was updated/created";
+  }
+
+sub tk_import_csv
+  { my($r_tbh)= @_;
+
+    # warn "save to file";
+
+    my $Fs= $r_tbh->{top_widget}->FileSelect(
+                                               -defaultextension=> ".csv"
+                                            );
+
+
+    my $file= $Fs->Show();
+
+    # warn "filename: $file ";
+    return if (!defined $file);
+
+    return if ($file=~ /^\s*$/);
+    
+    my $Table= $r_tbh->{table_widget};
+
+    my $dbitable= $r_tbh->{dbitable};
+    
+    $dbitable->import_csv($file);
+
+    my $r_chg= $r_tbh->{changed_rows};
+    my $row;
+
+    # re-calc the number of rows, update the table- widget:
+    resize_table($r_tbh);
+
+    # update the displayed content in the active cell:
+    tk_rewrite_active_cell($r_tbh);
+
+    foreach my $pk ($dbitable->primary_keys(filter=>'updated'))
+      {
+        $row= pk2row($r_tbh,$pk);
+        $r_chg->{$pk}= $row;
+        $Table->tagRow('changed_cell',$row);
+      };
+
+    foreach my $pk ($dbitable->primary_keys(filter=>'inserted'))
+      { $row= pk2row($r_tbh,$pk);
+        $r_chg->{$pk}= $row;
+        $Table->tagRow('changed_cell',$row);
+      };
+
+    # the following forces a redraw
+    # (maybe not necessary ???)
+    $Table->configure(-padx => ($Table->cget('-padx')) );
+  }
+
+
 sub tk_dump_global
  { my($r_glbl)= @_;
 # ommit dumping the tables-structures completely
@@ -2500,7 +2678,7 @@ sub tkwarn
     if (!defined $Top)
       { $Top= $r_glbl->{login_widget}; };
     my $dialog= $Top->Dialog(
-                             -title=>'Fatal Error',
+                             -title=>'warning',
                              -text=> $message
                             );
     $dialog->Show();
@@ -2541,8 +2719,12 @@ sub tk_update_window_menu
   }
 
 sub cf_open_window
-  { my($parent_window, $r_glbl, $window_title) = @_;
+  { my($parent_window, $r_glbl, $window_title, $geometry) = @_;
     my $NewTop = $parent_window->Toplevel(-background=>$BG);
+    
+    if (defined $geometry) 
+      { $NewTop->geometry($geometry); };
+         
     $NewTop->configure(-title=>$window_title);
 
     tk_update_window_menu($r_glbl);
@@ -2693,8 +2875,6 @@ sub popup_enable_disable
 sub table_hash_init_columns
  { my($r_tbh)= @_;
 
-   my $Table_Widget= $r_tbh->{table_widget};
-
    # get (or set-up) column_list, column_hash, column_no:
 
    $r_tbh->{column_list} = [ $r_tbh->{dbitable}->column_list() ];
@@ -2703,10 +2883,14 @@ sub table_hash_init_columns
 
    $r_tbh->{column_width}= [ $r_tbh->{dbitable}->max_column_widths(5,25) ];
 
-   $r_tbh->{vis_column_list}  = $r_tbh->{column_list};
-   $r_tbh->{vis_column_hash}  = $r_tbh->{column_hash};
-   $r_tbh->{vis_column_no}    = $r_tbh->{column_no};
-   $r_tbh->{vis_column_width} = $r_tbh->{column_width};
+   if (!exists $r_tbh->{displayed_cols})
+     { # when displayed_cols is not defined, display
+       # all columns as a default 
+       $r_tbh->{displayed_cols}= 
+                   { map{ $_=>1 } @{$r_tbh->{column_list}} };
+     };             
+   
+   calc_visible_columns($r_tbh);
   }
 
 sub table_window_tag_columns
@@ -2748,6 +2932,11 @@ sub table_window_set_column_width
  }
 
 sub cb_set_visible_columns
+# parameters in $r_tbh:
+#  displayed_cols=> \%displayed_columns
+#                   this hash has an entry for each column. It is
+#                   set to 1 when the column is actually displayed,
+#                   else it is set to 0
  { my($r_glbl, $r_tbh)= @_;
 
    my $r_visible_columns= $r_tbh->{displayed_cols};
@@ -2760,14 +2949,36 @@ sub cb_set_visible_columns
      { # error, there would be no column left to display
        my $last_col= $r_tbh->{vis_column_list}->[0];
        $r_tbh->{displayed_cols}->{$last_col}=1;
-       return;
+       return; # it's safe to simply return here!
      };
+
+   calc_visible_columns($r_tbh);
+
+   table_window_set_column_width($r_tbh);
+
+   table_window_tag_columns($r_tbh);
+
+   my $Table_Widget= $r_tbh->{table_widget};
+
+   # the following forces a redraw
+   $Table_Widget->configure( -cols => $r_tbh->{vis_column_no},
+                           );
+  }
+
+sub calc_visible_columns
+ { my($r_tbh)= @_;
+ 
+   my $r_visible_columns= $r_tbh->{displayed_cols};
 
    my $r_col_hash    = $r_tbh->{column_hash};
    my $r_col_list    = $r_tbh->{column_list};
    my $r_col_widths  = $r_tbh->{column_width};
 
-   my %new_col_hash= %{ $r_tbh->{vis_column_hash} };
+   my %new_col_hash;
+
+   if (exists($r_tbh->{vis_column_hash}))
+     { %new_col_hash= %{ $r_tbh->{vis_column_hash} }; };
+     
    foreach my $c (keys %$r_visible_columns)
      { if ($r_visible_columns->{$c})
          { $new_col_hash{$c}=1; }        # make column visible
@@ -2789,18 +3000,7 @@ sub cb_set_visible_columns
    $r_tbh->{vis_column_hash} = \%new_col_hash;
    $r_tbh->{vis_column_no}   = $cnt;
    $r_tbh->{vis_column_width}= \@new_widths;
-
-   table_window_set_column_width($r_tbh);
-
-   table_window_tag_columns($r_tbh);
-
-   my $Table_Widget= $r_tbh->{table_widget};
-
-    # the following forces a redraw
-   $Table_Widget->configure( -cols => $r_tbh->{vis_column_no},
-                           );
-
-  }
+ }
 
 sub cb_open_foreign_table
  {  my($r_glbl, $r_tbh, $given_colname)= @_;
@@ -3128,6 +3328,8 @@ sub rdump
 #internal
   { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
 
+    $comma= '' if (!defined $comma);
+    
     my $r= ref($val);
     if (!$r)
       { $$r_buf.= " " x $indent if ($is_newline);
@@ -3554,10 +3756,18 @@ sub put_new_sort_column_first
 
 sub get_dbitable
 # global variables used: $sim_oracle_access
-# sets $r_tbh->{dbitable}
-# reads: $r_tbh->{table_name}
-#        $r_tbh->{table_type}
-#        $r_tbh->{table_filter}
+# returns a new table object
+#
+# elements of $r_tbh (the table-hash):
+#
+#   dbh          => $database_handle
+#   table_name   => $table_name
+#   table_type   => $type, $type either 'table','view', or 'sql'
+#   table_filter => $WHERE_part
+#        $WHERE_part is added after "WHERE" to the SQL fetch command
+#        this is not allowed for the type "sql" (see above)
+#   sequel       => $sql_statement
+#        only for the type "sql", specifies the SQL fetch command
   { my($r_glbl,$r_tbh)= @_;
 
     if ($sim_oracle_access)
@@ -3771,12 +3981,15 @@ print join(" ",keys %save),"\n";
       { my $r_dat= $r_all_tables->{$tab};
       
         
-        
-        make_table_hash_and_window($r_glbl,
-                                   table_name=>$tab,
-                                   table_type=>$r_dat->{table_type},
-                                   sequel=> $r_dat->{sql}
-                                  );
+        my $r_tbh= make_table_hash_and_window(
+                            $r_glbl,
+                             table_name=>$tab,
+                             table_type=>$r_dat->{table_type},
+                             sequel=> $r_dat->{sql},
+                             geometry=> $r_dat->{geometry},
+                             displayed_cols => $r_dat->{displayed_cols}
+                                             );
+
       };                                   
 
     
@@ -3816,17 +4029,21 @@ sub tk_save_collection
     
     my %open_tables;
     foreach my $table_name ( keys %$r_all_tables )
-      { my $r_tbl= $r_all_tables->{$table_name};
+      { my $r_tbh= $r_all_tables->{$table_name};
         
-        my %dat= (table_type => $r_tbl->{table_type},
-                  sql => $r_tbl->{dbitable}->{_fetch_cmd});
+        my %dat= (table_type => $r_tbh->{table_type},
+                  sql        => $r_tbh->{dbitable}->{_fetch_cmd},
+                  geometry   => $r_tbh->{top_widget}->geometry(),
+                  displayed_cols => $r_tbh->{displayed_cols},
+                 );
         
         $open_tables{$table_name}= \%dat;
       };
     
     $save{open_tables}= \%open_tables;
     $save{foreigners} = $r_glbl->{foreigners};
-    $save{residents}  = $r_glbl->{residents};
+    
+    #$save{residents}  = $r_glbl->{residents};
     
     $Data::Dumper::Indent= 1;
     
