@@ -13,7 +13,7 @@ use v5.6.0;
 use strict;
 
 use DBI;
-#use Data::Dumper;
+use Data::Dumper;
 use Text::Wrap;
 use Text::ParseWords;
 
@@ -27,13 +27,18 @@ our $sql_trace= 0;
 our $db_trace=0;
 our $prelim_key=0;
 
-my $slim_format=1; # do not save all elements of "table" element
+my $slim_format=0; # do not save all elements of "table" element
 
 my $key_fact= 100000; # for pseudo-random key generation
                       # the primary keys in the table should not
 		      # be greater than this value !
 
 my $std_dbh; # internal standard database-handle
+
+# variables for the gen_sort function:
+my $gen_sort_href;
+my @gen_sort_cols;
+my $gen_sort_r_coltypes;
 
 sub connect_database
 # if dbname=="", use DBD::AnyData
@@ -75,8 +80,6 @@ sub disconnect_database
       { warn "disconnect returned an error, error-code: \n$DBI::errstr"; };
   }
 
-
-
 sub new
   { # perl-Kochbuch, S. 486 "Klassen,Objekte und Ties
     my $proto= shift;
@@ -102,11 +105,14 @@ sub new
     bless($self, $class);
     
     if (defined $parent)                 
-      { # deep copy of the parent data-structure
+      { my $newtype= shift; # this is optional
+      
+        # deep copy of the parent data-structure
 	foreach my $k (keys %$parent)
           { 
 	    if ($k eq '_lines')
-	      { my %h;
+	      { 
+	        my %h;
 	        my $r_src_lines= $parent->{$k};
 	        foreach my $pk (keys %{$r_src_lines})
 		  { my @a= @{$r_src_lines->{$pk}};
@@ -131,10 +137,11 @@ sub new
 		next;
               };
 	  };
-        my $newtype= shift; # optional
+
+#warn "XXXstab: " . $self->{_table};
 	if (defined $newtype)
 	  {
-print "HERE: ",__LINE__,"\n"; #@@@
+#print "HERE: ",__LINE__,"\n"; #@@@
 # the following is better done always, regardless wether the 
 # type is changed. For example, the user might simply want to change
 # the database-handle, not the type
@@ -178,7 +185,7 @@ sub init_filetype
   { my $self= shift;
     
 
-print "INIT FILETYPE\n"; # @@@
+#print "INIT FILETYPE\n"; # @@@
     $self->{_type}= shift;
     my $filename= shift;
     die "type \'file\': filename parameter missing"
@@ -201,15 +208,40 @@ sub init_tableviewtype
     $self->{_type}= $type;
 
     my $dbh= shift;
-    die if (!defined $dbh);
-    if ($dbh eq "") # use internal standard database handle
+    # die if (!defined $dbh);
+    
+    # test wether to use internal standard database handle
+    if (!defined $dbh)
+      { $dbh= $std_dbh; }
+    elsif ($dbh eq "") 
       { $dbh= $std_dbh; };
+    
     if (ref($dbh) !~ /^DBI::/)
       { die "error: parameter is not a DBI handle!"; };
     $self->{_dbh}= $dbh; 
+    
+    # if self->{_table} already exists, take this if no table
+    # parameter is found in the argument-list    
     my $table= shift;
+    if ((!defined $table) || ($table eq ""))
+      { if (exists $self->{_table})
+          { $table= $self->{_table}; }
+      };
     die "table name missing" if (!defined $table);
+ 
+    # if self->{_pk} already exists, take this if no primary-key
+    # parameter is found in the argument-list    
     my $primary_key= shift; $primary_key= uc($primary_key);
+    if ((!defined $primary_key) || ($primary_key eq ""))
+      { if (exists $self->{_pk})
+          { $primary_key= $self->{_pk}; }
+	else
+	  { # try to determine primary key by a tricky SQL statement:
+	    $primary_key= db_get_primary_key($dbh,$table);
+	    
+	    #die "primary_key: $primary_key";
+	  };  
+      };
     die "primary key name missing" if (!defined $primary_key);
 
     $self->{_table}= $table;
@@ -226,7 +258,8 @@ sub init_tableviewtype
       { $self->{_type}= 'table'; # change type to 'table'
         return; 
       };
-    # no SQL Trace here: 
+    # no SQL Trace here:
+
     my $sth= $dbh->prepare($self->{_fetch_cmd})
         or die "prepare failed," .
                " error-code: \n$DBI::errstr";
@@ -235,6 +268,16 @@ sub init_tableviewtype
 #print "***KEYS: ",join("|",(keys %$sth)),"\n"; # @@@
 #print "XXX $sth->{NAME_uc}\n"; # @@@
     my @column_list= @{$sth->{NAME_uc}};
+    
+    my $type_no2string= db_types_no2string($dbh);
+    
+    my @x= map { $type_no2string->{$_} } @{$sth->{TYPE}};
+    db_simplify_types(\@x);
+    $self->{_types}= \@x;
+    
+#warn join("|",@x);
+#print Dumper($dbh->type_info_all);
+
 
     $self->init_columns($primary_key,@column_list);
   }   
@@ -333,21 +376,25 @@ sub import_table
     my %col_mapping;
     
     foreach my $scol (keys %$self_columns)
-      { my $s_i= $self_columns->{$scol};
+      { my $s_i= $self_columns->{$scol}; # self col-index
         my $o_i;
-	$o_i= $other_columns->{$scol}; 
-	if (defined $r_column_aliases)
-	  { # test wether column-alias exists
+	$o_i= $other_columns->{$scol};   # other col-index
+	if (defined $r_column_aliases) # if col-mapping exists
+	  { # test wether a column-alias for this column exists
 	    my $o= $r_column_aliases->{$scol}; 
 	    if (defined $o)
 	      { $o_i= $other_columns->{$o}; };
 	  };
       
-        if (defined $o_i)
+        if (defined $o_i)               # if an associated col was found:
           { $col_mapping{$s_i}= $o_i; };  
       };      
       
     my $mapped_pki= $col_mapping{ $pki };
+    
+    if (!defined $mapped_pki)
+      { die "error: no mapping for primary key defined, cannot import"; };
+    
     my $r_other_lines= $other->{_lines};
     my $r_self_lines  = $self->{_lines};
     my $r_self_aliases= $self->get_hash("_aliases");
@@ -382,8 +429,11 @@ sub import_table
 	      { $other_val= $r_other_line->[ $index ]; };
 	    # $other_val= "" if (!defined $other_val);
 	    if (!$operation)
-	      { if ($r_self_line->[$i] ne $other_val)
-	          { $operation= "updated"; };
+	      { 
+	        if ($r_self_line->[$i] ne $other_val)
+	          { 
+		    $operation= "updated"; 
+		  };
 	      };
 	    $r_self_line->[$i]= $other_val;
 	  };
@@ -406,6 +456,7 @@ sub import_table
               };
 	  };
       };	  	
+#die;
   }	    
 
 sub mark_inserted
@@ -465,7 +516,12 @@ sub add_line
 
     # usually this key should be unique, even if several instances of
     # dbitable are running, they shouldn't 'collide'
-    my $new_key= $self->new_prelim_key();
+    my $pk= $self->{_pk};
+    my $new_key= $values{$pk};
+    if (!defined $new_key)
+      { # if the primary key is not given, create one
+        $new_key= $self->new_prelim_key();
+      };
     
     my $r_lines  = $self->get_hash("_lines");
     my $r_aliases= $self->get_hash("_aliases");
@@ -476,7 +532,6 @@ sub add_line
     my @line;
     
     $r_aliases->{ $new_key }= $new_key;
-    my $pk= $self->{_pk};
     foreach my $col (@{$self->{_column_list}})
       { if ($col eq $pk)
           { push @line, $new_key; next; };
@@ -614,13 +669,20 @@ sub rdump
       
 sub pretty_print
   { my $self= shift;
+    my %options= @_;
+
     my @widths;
     my @lines;
+
+    $self->gen_sort_prepare(\%options);
+
     my $s_lines= $self->{_lines};
+    $gen_sort_href= $s_lines;
+    my @keys= sort gen_sort (keys %$s_lines);
     
     push @lines, $self->{_column_list};
     
-    push @lines, (map { $s_lines->{$_} } (sort keys %$s_lines));
+    push @lines, (map { $s_lines->{$_} } (@keys));
   
     @widths= col_widths(@lines);
     
@@ -656,6 +718,13 @@ sub load_from_db
     my $r;
     my $errstr= "selectall_arrayref() failed, errcode:\n";
     
+    my $mode= $options{mode};
+    if    (!defined $mode)
+      { $mode= 'set'; }
+    elsif (($mode ne 'add') && ($mode ne 'set') && ($mode ne 'overwrite'))
+      { die "unknown load-mode:$mode"; }; 
+
+ 
     if (exists $options{filter})
       { my $r_filter= $options{filter};
         if (ref($r_filter) ne 'ARRAY')
@@ -672,6 +741,9 @@ sub load_from_db
  
     if    ($filter_type eq 'all') # fetch all
       { # do nothing special
+        # don't do the following with views! 
+	if ($self->{_type} eq 'table')
+	  { $self->{_fetch_cmd}= "select * from $self->{_table}"; };
       }
     elsif ($filter_type eq 'equal') # fetch when a field==value
       { if ($self->{_type} ne 'table')
@@ -692,13 +764,69 @@ sub load_from_db
 
     $r= $dbh->selectall_arrayref($cmd) or die $errstr . $DBI::errstr;
 
-    my $r_lines  = $self->get_hash("_lines");
+
+    my $r_lines;
+
+    if ($mode eq 'set')
+      { # delete all lines that are already there 
+        delete $self->{_lines};
+      }	
+    
+    $r_lines= $self->get_hash("_lines");
+
+
     my $r_aliases= $self->get_hash("_aliases");
-      
+    my $pk;
+    
+    
+    my %updated;
+    my %inserted;
+    
+    if ($mode ne 'set')
+      { # 1: assume all lines to be inserted
+        %inserted = map { $_ => 1 } (keys %$r_lines); 
+      };
+    
     foreach my $rl (@$r)
-      { $r_lines->  { $rl->[$pki] } = $rl; 
+      { $pk= $rl->[$pki];
+        if ($mode ne 'set')
+	  {
+            $inserted{$pk}=0; 
+	    if (exists $r_lines->{$pk})
+	      { if ($mode ne 'overwrite')
+		  { 
+	            if (!lists_equal($r_lines->{$pk},$rl))
+	              { 
+			$updated{$pk}= 1; 
+		      };
+		    next;  
+		  };
+              };
+	  };  
+      
+        $r_lines->  { $rl->[$pki] } = $rl; 
         $r_aliases->{ $rl->[$pki] }= $rl->[$pki];
       };
+      
+    if ($mode eq 'set')
+      { delete $self->{_updated};
+        delete $self->{_inserted};
+      }
+    else
+      { if (%updated)
+          { $self->{_updated}= \%updated; }
+        else
+          { delete $self->{_updated}; };
+	
+	# all lines that were not found in the database are marked as inserted  
+	my %n_inserted= map { $_ => 1} grep {$inserted{$_}} (keys %inserted);   
+	if (%n_inserted)
+	  { $self->{_inserted}= \%n_inserted; }
+	else
+	  { delete $self->{_inserted}; };
+      
+      };  
+      
     return($self); 
   }	
 
@@ -951,14 +1079,19 @@ sub load_from_file
 	    next;
 	  };
 	    	     
+	if ($part eq 'Column-Types')
+	  { my @tokens = &parse_line('[\s,]+', 0, $line);
+	    my $r_t= $self->get_array("_types");
+	    foreach my $t (@tokens)
+	      { next if (!defined $t);
+	        push @{$r_t}, $t;
+              };
+	    next;
+	  };
+	    
 	if ($part eq 'Columns')
 	  { my @tokens = &parse_line('[\s,]+', 0, $line);
-	    my $r_t= $self->{_column_list};
-	    if (!defined $r_t)
-	      { my @l=(); 
-	        $r_t= \@l;
-		$self->{_column_list}= $r_t;
-              };
+	    my $r_t= $self->get_array("_column_list");
 	    foreach my $t (@tokens)
 	      { next if (!defined $t);
 	        push @{$r_t}, $t;
@@ -969,10 +1102,13 @@ sub load_from_file
 	if ($part eq 'Table')
 	  { my @values;
 	    if ($options{pretty}) 
-	      { @values= split(/\s*[;\|]/,$line); 
+	      { @values= split(/[;\|]/,$line); 
+	        foreach my $v (@values)
+		  { $v=~ s/\s+$//; };
 	      }
 	    else
 	      { @values= split(/;/,$line); };
+	      
 	    die "format error" if ($#values != $#{$self->{_column_list}});
 	    push @line_list,\@values;
 	  };
@@ -1001,7 +1137,9 @@ sub load_from_file
     foreach my $rl (@line_list)
       { $pk= $rl->[$pki];
         if (($gen_pk) && ($pk==0))
-	  { $pk= $self->new_prelim_key(); }
+	  { $pk= $self->new_prelim_key(); 
+	    $rl->[$pki]= $pk;
+	  }
 	      
         $lines_hash{ $pk } = $rl;
         $r_aliases->{ $pk }= $pk;
@@ -1014,18 +1152,12 @@ sub load_from_file
 sub store_to_file
 #internal
 # known options: 'order_by' => column-name
+#            or  'order_by' => [column-name1,column-name2...]
 #                'pretty' => 1 or 0
   { my $self= shift;
     my %options= @_;
 
-
-    my $sort_col= $self->{_pki}; 
-    
-    if (exists $options{order_by}) 
-      { $sort_col= $self->{_columns}->{uc($options{order_by})};
-        die "error: column $options{sort_by} doesn't exist" 
-	  if (!defined $sort_col);
-      };  
+    $self->gen_sort_prepare(\%options);
 
     if ($self->{_type} ne 'file')
       { die "sorry, \'store_to_file\' is only allowed for type" .
@@ -1085,14 +1217,19 @@ sub store_to_file
 	print G wrap('', '', join(", ",@text)),"\n"; 
       };
       
+    print G "[Column-Types]\n"; 
+    print G wrap('', '', join(", ",@{$self->{_types}})),"\n"; 
+
     print G "[Columns]\n"; 
     print G wrap('', '', join(", ",@{$self->{_column_list}})),"\n"; 
          
     print G "[Table]\n";
     my $r_l= $self->{_lines}; 
-    my @keylist= (sort { $r_l->{$a}->[$sort_col] cmp 
-                         $r_l->{$b}->[$sort_col]
-                       } keys %$r_l);
+
+    $gen_sort_href= $r_l;
+    my @keylist= sort gen_sort (keys %$r_l);
+    
+   		       
    #@@@@
     if ($options{'pretty'})
       { my @widths= col_widths( map { $r_l->{$_} } @keylist);
@@ -1121,6 +1258,19 @@ sub store_to_file
       { close(G) or die "unable to close $tempname"; };
     return($self);
   } 
+
+sub get_array
+#internal
+# returns the array-reference, creates it, if it's not already there
+  { my $self= shift;
+    my $arrayname= shift;
+    
+    my $r= $self->{$arrayname};
+    return($r) if (defined $r);
+    my @a;
+    $self->{$arrayname}= \@a;
+    return(\@a);
+  }
 
 sub get_hash
 #internal
@@ -1168,6 +1318,83 @@ sub col_widths
     return(@widths);    
   }
 
+sub db_simplify_types
+# internal
+  { my($r_types)= @_;
+    my %map= (RAW        => undef,
+              'LONG RAW' => undef,
+	      CHAR  => 'string',
+	      NUMBER=> 'number',
+	      DATE  => 'string',
+	      VARCHAR2 => 'string',
+	      DOUBLE => 'number',
+	      LONG => 'number');
+  
+    foreach my $t (@$r_types)
+      { $t= $map{uc($t)}; };
+  }
+
+sub db_types_no2string
+# internal
+# creates a hash, mapping number to string,
+# this is needed for $sth->{TYPE} !
+# known datatypes in DBD::oracle:
+# '-3' => 'RAW',
+# '-4' => 'LONG RAW',         
+# '1' => 'CHAR',              
+# '3' => 'NUMBER',            
+# '11' => 'DATE',             
+# '12' => 'VARCHAR2',         
+# '8' => 'DOUBLE',            
+# '-1' => 'LONG'              
+  { my($dbh)= @_;
+    my %map;
+  
+    my $info= $dbh->type_info_all(); # ref. to an array
+    
+    my $r_description= shift(@$info); # ref to a hash
+    
+    # TYPE_NAME is the string
+    # DATA_TYPE is the number 
+    
+    my $TYPE_NAME_index= $r_description->{TYPE_NAME}; 
+    my $DATA_TYPE_index= $r_description->{DATA_TYPE};  
+    
+    foreach my $r_t (@$info)
+      { $map{ $r_t->[$DATA_TYPE_index] } = $r_t->[$TYPE_NAME_index]; };
+     
+#print Dumper(\%map);
+    return(\%map);
+  }
+    
+    
+
+sub db_get_primary_key
+# internal
+  { my($dbh,$table_name)= @_;
+  
+    $table_name= uc($table_name);
+    
+    my $SQL= "SELECT a.owner, a.table_name, b.column_name " .
+             "FROM all_constraints a, all_cons_columns b " .
+	     "WHERE a.constraint_type='P' AND " .
+		  " a.constraint_name=b.constraint_name AND " .
+		  " a.table_name = \'$table_name\'";
+    
+    print $SQL,"\n" if ($sql_trace);
+    
+    my $res=
+      $dbh->selectall_arrayref($SQL);
+		      	   
+    if (!defined $res)
+      { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
+
+    if ($#$res!=0)
+      { die "error: result is not unique"; };
+    return( lc($res->[0]->[2]) );
+  }
+    
+
 sub db_prepare
 # internal
   { my($r_format,$dbh,$cmd)= @_;
@@ -1191,6 +1418,74 @@ sub db_execute
 
     return( $sth->execute( map {quote($dbh,$_)} @args));
   };    
+ 
+sub gen_sort_prepare
+# internal
+  { my $self= shift;
+    my $r_options= shift;
+    
+    # @gen_sort_cols and $gen_sort_r_coltypes are global variables
+    # used by gen_sort()
+    @gen_sort_cols= ($self->{_pki});
+    $gen_sort_r_coltypes= $self->{_types};
+
+    if (exists $r_options->{order_by}) 
+      { my $r= $r_options->{order_by};
+        if (!ref($r)) # directly given
+	  { my $ci= $self->{_columns}->{uc($r)};
+	    if (!defined $ci)
+	      { die "unknown column: $r"; };
+	    unshift @gen_sort_cols, $ci; 
+	  }
+	else
+	  { die "not an array" if (ref($r) ne 'ARRAY');
+	    # an array is given
+	    my $last= shift @gen_sort_cols; # save the last element
+	    foreach my $c (@$r)
+	      { my $ci= $self->{_columns}->{uc($c)};
+	        if (!defined $ci)
+	          { die "unknown column: $c"; };
+ 	        push @gen_sort_cols, $ci; 
+	      };
+	    push @gen_sort_cols,$last;
+	  };
+	
+      };  
+  }    
+
+# given: gen_sort_href gen_sort_params
+# gen_sort_cols   : a list of column-indices 
+# gen_sort_r_coltypes: a ref to an array: [number,string....]
+
+sub gen_sort
+  { my($r,$col,$t);
+    
+    for(my $i=0; $i<= $#gen_sort_cols; $i++)
+      { $col= $gen_sort_cols[$i];
+        $t  = $gen_sort_r_coltypes->[$col];
+    
+	if ($t eq 'number')
+	  { $r= $gen_sort_href->{$a}->[$col] <=> $gen_sort_href->{$b}->[$col];
+            return($r) if ($r!=0);
+	  }
+	else  
+	  { $r= $gen_sort_href->{$a}->[$col] cmp $gen_sort_href->{$b}->[$col];
+            return($r) if ($r!=0);
+	  };
+      };
+    return(0); # nothing else to do
+  }      
+    
+    
+sub lists_equal
+  { my($r_l1,$r_l2)= @_;
+  
+    return if ($#$r_l1 != $#$r_l2); 
+    
+    for(my $i=0; $i<= $#$r_l1; $i++)
+      { return if ($r_l1->[$i] ne $r_l2->[$i]); };
+    return(1);
+  }
     
 sub quote
 # internal
@@ -1202,6 +1497,8 @@ sub quote
   }
     
 1;
+
+__END__
 
 # Below is the short of documentation of the module.
 
@@ -1263,7 +1560,8 @@ to the first parameter of the C<connect> function of the DBI module. See
 also the DBI manpage. The function returns the DBI-handle or C<undef>
 in case of an error. The DBI-handle is also stored in the internal global
 handle variable. This variable is used as default in the dbitable constructor 
-function C<new()> when it's DBI-handle parameter is an empty string ("").
+function C<new()> when it's DBI-handle parameter is an empty string ("") or
+C<undef>.
 
 =item dbitable::disconnect_database()
 
@@ -1417,6 +1715,26 @@ new line he adds, which would be a rather dull task... ;)
 
 =item *
 
+"mode"
+
+  $table->load(mode=>'overwrite')
+
+This option can only be used for the type 'table'. It defines what
+to do, if the table already contains data before C<load()> is executed.
+Three modes are known, "set", "add" and "overwrite". With "set", all
+lines from the table are removed, before new lines are loaded from
+the database. With "add", the lines from the database are added to the
+lines already in the table. Lines that were not loaded from the
+database are marked "inserted". Lines that found in the table already but
+are different from that in the database are marked "updated". 
+"overwrite" is similar to "add', but in this case lines that are 
+found already in the table but also in the database are overwritten
+with the values from the database. The internal marking of lines
+as "inserted" or "updated" has a meaning when a C<store()> is executed
+for that table-object later.
+
+=item *
+
 "pretty"
 
   $table->load(pretty=>1)
@@ -1485,11 +1803,12 @@ with the "pretty" option also enabled.
 
 "order_by"
 
-  $table->store(order_by=>$column_name)
+  $table->store(order_by=>[$column_name1,$column_name2])
 
 This option can only be used for the type "file". It defines, wether lines
-should be sorted (string sort!) by a certain colum, given by 
-C<$column_name>.
+should be sorted by certain colums. The value may be the name of a single 
+column or (as shown above) a reference to a list
+of column names.
 
 =back
 
@@ -1587,6 +1906,8 @@ Note that the method returns the primary key for the new line. Note
 too, that this primary key changes with the next call of
 C<store()>, see also C<store()>, but via aliasing (see C<add_aliases>)
 it can then still be used to access the line.
+If the value of the primary key is specified in the list of values,
+it is taken as it is, and no new primary key is generated.
 
 =item delete_line()
 
@@ -1631,7 +1952,25 @@ and is for debugging purposes only.
 
   $table->pretty_print()
 
-This method is used to pretty-print a given table.
+  $table->pretty_print(%options)
+
+This method is used to pretty-print a given table. 
+
+Known options are:
+
+=over 4
+
+=item *
+
+"order_by"
+
+  $table->pretty_print(order_by=>[$column_name1,$column_name2])
+
+This option defines, wether lines should be sorted by certain colums. The 
+value may be the name of a single column or (as shown above) a reference 
+to a list of column names.
+
+=back
 
 =back
 
@@ -1772,3 +2111,26 @@ Goetz Pfeiffer,  pfeiffer@mail.bessy.de
 perl-documentation, DBI manpage
 
 =cut
+
+internal data-structure
+The table-Object is a hash. Summary of hash-keys:
+_aliases:     ref of a hash, that contains aliases
+_column_list: ref of a list of columns
+_columns:     ref of a hash that maps column-names to column-numbers,
+	      the first column has index 0
+_dbh: 	      the DBI-handle the table object uses
+_fetch_cmd:   the last SQL command,
+_lines:       a ref to a hash, each primary key points to a reference
+	      to a list. Each list contains the values in the order of the
+	      columns (see also "_column_list")
+_pk: 	      the column-name of the primary key
+_pki: 	      the column-index of the primary key
+_table:       the name of the table, as it's used in oracle
+_type: 	      the type of the table, "table","view" or "file"
+_types:	      the types of the columns, "number" or "string"
+
+SELECT a.owner, a.table_name, b.column_name
+  FROM all_constraints a, all_cons_columns b
+ WHERE a.constraint_type='P'
+   AND a.constraint_name=b.constraint_name
+   AND a.table_name = 'P_INSERTION_VALUE';
