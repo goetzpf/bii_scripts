@@ -46,7 +46,8 @@ my $VERSION= "0.91";
 my $PrgDir = $ENV{"HOME"}."/.browsedb";
 if (! -e $PrgDir)
   {
-    mkdir($PrgDir, 00700) or die "Can not create configuration location at ".$PrgDir;
+    mkdir($PrgDir, 00700) or
+      die "Can not create configuration location at ".$PrgDir;
   }
 
 my $PrgTitle= 'BrowseDB';
@@ -215,8 +216,9 @@ sub tk_login_finish
     if (defined($r_glbl->{login_widget}))
       {
         $r_glbl->{login_widget}->destroy();
-        $r_glbl->{main_widget}->update(); # important to really execute the destroy
-         delete $r_glbl->{login_widget};
+        $r_glbl->{main_widget}->update();
+	# important to really execute the destroy
+        delete $r_glbl->{login_widget};
       };
 
     tk_main_window_finish($r_glbl);
@@ -588,7 +590,8 @@ sub tk_main_window
                                             );
                      }
                 );
-        # dont remove these update, because of .toplevel problems for destroy operations
+        # dont remove these update, because of .toplevel
+	# problems for destroy operations
         $Top->update();
         tk_login(\%global_data); # calls tk_main_window_finish
   }
@@ -661,15 +664,22 @@ sub tk_main_window_finish
                  insert("end",  @{  $r_glbl->{accessible_objects_all} } );
 
         # opens or create a new history file
-        $r_glbl->{filename_sql_history} = $PrgDir."/history_".$r_glbl->{db_driver}."_".$r_glbl->{db_source}."_".$r_glbl->{user};
+        $r_glbl->{filename_sql_history} =
+	               $PrgDir . join("_","/history",
+		                      $r_glbl->{db_driver},
+				      $r_glbl->{db_source},
+				      $r_glbl->{user});
 
 
         if (-r $r_glbl->{filename_sql_history})
           {
-                $r_glbl->{handle_sql_history} = new IO::File "< ".$r_glbl->{filename_sql_history};
+                $r_glbl->{handle_sql_history} =
+		         new IO::File "< ".$r_glbl->{filename_sql_history};
                 if (! defined ($r_glbl->{handle_sql_history}))
                   {
-                        tkdie($r_glbl,"History file ".$r_glbl->{filename_sql_history}." can not be opened. Error in line " . __LINE__)
+                    tkdie($r_glbl,
+		          "History file " . $r_glbl->{filename_sql_history} .
+			  " can not be opened. Error in line " . __LINE__)
                   }
                 my $fh=$r_glbl->{handle_sql_history};
                 while (my $line = <$fh>)
@@ -679,17 +689,23 @@ sub tk_main_window_finish
                 $r_glbl->{handle_sql_history}->close;
           }
 
-        $r_glbl->{handle_sql_history} = new IO::File ">> ".$r_glbl->{filename_sql_history};
+        $r_glbl->{handle_sql_history} =
+	         new IO::File ">> ".$r_glbl->{filename_sql_history};
         if (! defined ($r_glbl->{handle_sql_history}))
           {
-                tkdie($r_glbl,"History file ".$r_glbl->{filename_sql_history}." can not be opened. Error in line " . __LINE__)
+                tkdie($r_glbl,
+		      "History file " .
+		      $r_glbl->{filename_sql_history} .
+		      " can not be opened. Error in line " . __LINE__)
           }
         my $fh=$r_glbl->{handle_sql_history};
-        (my $sec, my $min, my $hour, my $mday, my $mon, my $year) = localtime();
+        my ($sec,$min,$hour,$mday,$mon,$year) = localtime();
         $year += 1900;
         tk_progress($r_glbl,100);
-        print $fh "\n-- new log $year-$mon-$mday $hour-$min-$sec from ".$ENV{"HOSTNAME"};
-        print $fh "connect (".$r_glbl->{db_driver}.")".$r_glbl->{user}."@".$r_glbl->{db_source}."\n";
+        print $fh "\n-- new log $year-$mon-$mday $hour-$min-$sec from " .
+	          $ENV{"HOSTNAME"};
+        print $fh "connect (" . $r_glbl->{db_driver} . ")" .
+	           $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
         $fh->flush();
 
         if ($fast_test)
@@ -857,10 +873,10 @@ sub tk_execute_new_query
         if (length($sqlquery) >= 6)
           {
             my $success = make_table_hash_and_window(
-                                $r_glbl,
-                                table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
-                                table_type=>"sql",
-                                sequel=>$sqlquery);
+                             $r_glbl,
+                             table_name=>"SQL:" . $r_glbl->{sql_win_count}++,
+                             table_type=>"sql",
+                             sequel=>$sqlquery);
             if (defined ($success))
               {
                     $r_glbl->{sql_history_widget}->insert('end', "\n");
@@ -877,22 +893,24 @@ sub tk_execute_new_query
       {
         tk_progress($r_glbl, 10);
         my $TraceFormat;
-        my $StatementResult = dbdrv::prepare(\$TraceFormat, $r_glbl->{dbh}, $sqlquery);
+        my $StatementResult = dbdrv::prepare(\$TraceFormat,
+	                                     $r_glbl->{dbh}, $sqlquery);
         tk_progress($r_glbl, 25);
         if ($StatementResult)
           {
-                if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},$StatementResult, my @StatementParams))
-                  { tk_err_dialog($r_glbl->{main_menu_widget},
-                        "Wrong SQL command syntax or data error");
-                  }
-                else
-                  {
-                        tk_progress($r_glbl, 70);
-                        my $fh=$r_glbl->{handle_sql_history};
-                        print $fh $sqlquery.";\n";
-                        $fh->flush();
-                  }
-                tk_progress($r_glbl, 100);
+            if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},
+		        	$StatementResult))
+              { tk_err_dialog($r_glbl->{main_menu_widget},
+                    "Wrong SQL command syntax or data error");
+              }
+            else
+              {
+                    tk_progress($r_glbl, 70);
+                    my $fh=$r_glbl->{handle_sql_history};
+                    print $fh $sqlquery.";\n";
+                    $fh->flush();
+              }
+            tk_progress($r_glbl, 100);
           }
         else
           {
@@ -1110,7 +1128,7 @@ sub tk_foreign_key_dialog
 
     foreach my $col (@cols)
       { push @lines,
-             sprintf("%-" . $maxcolsz . "s -> %s",$col, 
+             sprintf("%-" . $maxcolsz . "s -> %s",$col,
 	             $fkh->{$col}->[2] . '.' . $fkh->{$col}->[0]
 	            )
       };
@@ -1560,8 +1578,6 @@ sub tk_field_edit
 sub make_table_hash_and_window
   { my($r_glbl,%options)= @_;
 
-    tk_set_busy($r_glbl,1);
-    tk_progress($r_glbl,10);
 
     if ($options{table_type} =~ /(table|view|sql)/)
       {
@@ -1569,17 +1585,29 @@ sub make_table_hash_and_window
           { $r_glbl->{all_tables}= {}; };
       }
     else
-      { tk_set_busy($r_glbl,0);
-        tk_progress($r_glbl,0);
-        tk_err_dialog($r_glbl->{main_menu_widget},
+      { tk_err_dialog($r_glbl->{main_menu_widget},
                       "unsupported table type: $options{table_type}");
         return;
       }
 
+
     my $r_all_tables= $r_glbl->{all_tables};
 
-    my $r_tbh=
-                make_table_hash($r_glbl,%options);
+    my $table_name= $options{table_name};
+
+    my $r_tbh= $r_glbl->{all_tables}->{$table_name};
+
+    # if the table is already opened, just raise the
+    # table window
+    if (defined $r_tbh)
+      { $r_tbh->{top_widget}->raise();
+        return ($r_tbh);
+      };
+
+    tk_set_busy($r_glbl,1);
+    tk_progress($r_glbl,10);
+
+    $r_tbh= make_table_hash($r_glbl,%options);
 
     if (!defined $r_tbh)
       { tk_set_busy($r_glbl,0);
@@ -1589,7 +1617,7 @@ sub make_table_hash_and_window
         return;
       };
 
-    $r_all_tables->{$options{table_name}}= $r_tbh;
+    $r_all_tables->{$table_name}= $r_tbh;
 
     tk_progress($r_glbl,90);
 
@@ -1603,7 +1631,7 @@ sub make_table_hash_and_window
 
     tk_set_busy($r_glbl,0);
 
-    tk_progress($r_glbl,100);
+    #tk_progress($r_glbl,100);
 
     tk_progress($r_glbl,0);
 
@@ -2793,7 +2821,7 @@ sub cb_open_foreign_table
 
     $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
                                    $fk_table,$fk_owner);
-    
+
     # print "foreign key data: $fk_table,$fk_col\n";
 
     my $r_all_tables= $r_glbl->{all_tables};
@@ -3713,8 +3741,5 @@ Verbesserungsvorschläge:
 
 BUGS:
 
-derzeit kann dieselbe Tabelle mehrfach geöffnet werden (oder nur derselbe
-View?) -> dann stimmt aber der globale Eintrag "all_tables" in
-$r_glbl nicht mehr...
 
 window ".toplevel" was deleted before its visibility changed at /usr/local/lib/perl5/site_perl/5.8.1/i686-linux-thread-multi/Tk/Widget.pm line 917.
