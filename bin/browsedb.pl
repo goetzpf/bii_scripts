@@ -587,6 +587,7 @@ sub tk_main_window
             -anchor=>'nw'
             );
     $r_glbl->{MainWindow}->{notebook} = $DlgTop;
+
     my $DlgEnt = $DlgTop->add("DlgEnt", -label=>"Short Exec", -underline=>0);
     my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables", -underline=>0, state=>"disabled");
     my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views", -underline=>0, state=>"disabled");
@@ -612,18 +613,16 @@ sub tk_main_window
 
     $r_glbl->{new_table_name}= "";
 
+    $DlgEnt->Label(-text => 'open table/view:'
+                  )->grid(-row=>0, -column=>0, -sticky=> "nsw");
+    
     $r_glbl->{MainWindow}->{table_browse_widget}=
          $DlgEnt->BrowseEntry(
-                      -label=>'please enter the table-name:',
-                      -labelPack=>=>[-side=>"left", -anchor=>"w"],
-                      -width=>34,
                       -validate=> 'key',
-
                       #-textvariable=>$r_glbl->{browse_val},
-
                       -validatecommand=> [ \&tk_handle_table_browse_entry,
                                            $r_glbl]
-                               )->pack( %dlg_def_labentry);
+                               )->grid(-row=>0, -column=>1,-sticky=> "ew");
 
     $r_glbl->{MainWindow}->{table_browse_widget}->
              bind('<Return>',
@@ -641,52 +640,69 @@ sub tk_main_window
                               -justify=>"center",
                               -command => [\&tk_open_new_object,
                                             $r_glbl, 'table_or_view' ],
-                            )->pack(
-                                -padx=>2,-pady=>2,
-                                -ipadx=>1,-ipady=>1,
-                                -side=>"top",-anchor=>"e",
-                            );
+                            )->grid(-row=>0,-column=>2,-sticky=> "ew");
 
-    my $DlgCollListbox = $DlgEnt->Scrolled(
-            "Listbox",
-            -label=>"Load your Collection :",
-            -scrollbars=>"osoe",
-            -width=>48,
-            -selectmode=>"browse",
-    )->packAdjust( %dlg_def_listbox,);
-    $DlgEnt->Label( -justify=>"center",
-                    -width=>10,
-                    -height=>20,
-                  )->pack(
-                           -padx=>2,-pady=>2,
-                           -ipadx=>1,-ipady=>1,
-                           -anchor=>"se",
-                           -expand=>0,
-                         );
+
+    # draw a kind of line to separate both parts
+    # in the menu
+    $DlgEnt->Frame(-borderwidth=>5,
+                  -relief=>'sunken',
+                   )->grid(-row=>1, -column=>0,
+                           -ipady=>1,
+                           -pady=>10,
+                           -columnspan=>3,-sticky=> "ew");
+
+    $DlgEnt->Label(-text => "Load your Collection :"
+                  )->grid(-row=>2, -column=>0,-sticky=> "nw");
+
+    my $DlgCollListbox = 
+       $DlgEnt->Scrolled(
+                             "Listbox",
+#                            -label=>"Load your Collection :",
+                             -scrollbars=>"osoe",
+                             -width=>48,
+                             -selectmode=>"browse",
+                           )->grid(-row=>2,-column=>1,-sticky=> "nsew");
+
+    $DlgEnt->gridRowconfigure   (2,-weight=>1); # make it stretchable
+    $DlgEnt->gridColumnconfigure(1,-weight=>1); # make it stretchable
+
+    
+    
+#    $DlgEnt->Label( -justify=>"center",
+#                    -width=>10,
+#                    -height=>20,
+#                   
+#                   -background=>'red',
+#                   
+#                  )->pack(
+#                           -padx=>2,-pady=>2,
+#                           #-ipadx=>1,-ipady=>1,
+#                           -anchor=>"se",
+#                           -expand=>1,
+#                         );
+
+    my $DlgEntBF= $DlgEnt->Frame()->grid(-row=>2, -column=>2,-sticky=> "sew");
 
     my $DlgCollOk =
-           $DlgEnt->Button( -state=>"disabled",
+           $DlgEntBF->Button( -state=>"disabled",
                             -text=>"load",
                             -underline=>1,
                             -justify=>"center",
-                            -width=>20,
+                            #-width=>20,
                             -command =>
                                sub { my $entry =
                                        $DlgCollListbox->get(
                                            $DlgCollListbox->curselection);
                                      tk_load_collection($Top, $r_glbl, $entry);
                                    },
-                          )->pack(
-                              -padx=>2,-pady=>2,
-                              -ipadx=>1,-ipady=>1,
-                              -anchor=>"se",
-                          );
+                          )->grid( -row=>0, -column=>0,-sticky=> "ew");
     my $DlgCollRefresh =
-             $DlgEnt->Button( -state=>"normal",
+           $DlgEntBF->Button( -state=>"normal",
                               -text=>"refresh dir",
                               -underline=>4,
                               -justify=>"center",
-                              -width=>20,
+                              #-width=>20,
                               -command =>
                                sub { $DlgCollListbox->delete(0, 'end');
                                      $DlgCollListbox->insert("end",
@@ -695,11 +711,7 @@ sub tk_main_window
                                                        $PrgDir
                                                       )     );
                                    },
-                            )->pack(
-                                -padx=>2,-pady=>2,
-                                -ipadx=>1,-ipady=>1,
-                                -anchor=>"se",
-                            );
+                          )->grid( -row=>1, -column=>0,-sticky=> "ew");
 
         $DlgCollListbox->insert("end",
                                 file_find('\.col$',$share_dir,$PrgDir) );
