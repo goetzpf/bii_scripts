@@ -104,11 +104,11 @@ sub split_sql_command
     my @statements;
     foreach my $p (@parts)
       { next if ($p=~ /^[\s\n\r]*$/);
-	
-	if ($p=~ /[\"\']/)
-	  { push @statements, $p;
-	    next;
-	  };
+        
+        if ($p=~ /[\"\']/)
+          { push @statements, $p;
+            next;
+          };
         
         $p =~ s/^[\s\n\r]//;
         $p =~ s/[\s\n\r]$//;
@@ -628,7 +628,7 @@ sub get_help
     my $fh;
     my $sth = dbdrv::prepare(\$fh, $dbh,
                          "SELECT info FROM system.help " .
-                          "WHERE topic LIKE '$topic' " .
+                          "WHERE topic = '$topic' " .
                           " ORDER BY seq");
 
     if (!dbdrv::execute($fh, $dbh, $sth))
