@@ -60,7 +60,7 @@ my $sim_oracle_access=0;
 
 my $guest_login=0; # for debuggin only, default: 0
 my $fast_test=0; # skip login dialog and open $fast_table
-my $fast_table='p_adidas';
+my $fast_table='p_adidas_names';
 
 my $db_table_name;
 if (!@ARGV)
@@ -307,6 +307,42 @@ sub tk_main_window
                -label=> 'Login',
                -command=> [\&tk_login, $r_glbl]
               );
+    $MnDb->add('separator');
+
+    my $autocommit_var=1;
+
+    my $c_commit_i;
+    my $c_rollback_i;
+    $MnDb->add('checkbutton',
+               -label=> 'autocommit',
+               -variable => \$autocommit_var,
+               -command=> 
+                       sub { 
+                             my %h=(-state=> ($autocommit_var) ?
+                                       "disabled" : "active"); 
+
+                             $MnDb->entryconfigure($c_commit_i,%h);
+                             $MnDb->entryconfigure($c_rollback_i,%h);
+
+                             dbdrv::set_autocommit($r_glbl->{dbh},
+                                                      $autocommit_var);
+                           }
+              );
+              
+    $MnDb->add('command',
+               -label=> 'commit',
+               -state=> 'disabled',
+               -command=> sub { dbdrv::commit($r_glbl->{dbh}); }
+              );
+    $c_commit_i= $MnDb->index('end');     
+    $MnDb->add('command',
+               -label=> 'rollback',
+               -state=> 'disabled',
+               -command=> sub { dbdrv::rollback($r_glbl->{dbh}); }
+              );
+    $c_rollback_i= $MnDb->index('end');     
+
+
     $MnDb->add('separator');
     $MnDb->add('command',
                -label=> 'Reload objects',
@@ -1148,9 +1184,6 @@ sub tk_references_dialog
                            -background=>$BG
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
-    my $FrDn  = $Top->Frame(-background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'y',
-                                  );
 
     my $maxcolsz=0;
     my @cols= (sort keys %$fkh);
@@ -1177,21 +1210,20 @@ sub tk_references_dialog
 
     $listbox->pack(-fill=>'both',-expand=>'y');
 
-    $FrDn->Button(-text => 'open table',
-                  %std_button_options,
-                 -command => [\&tk_references_dialog_finish, $r_glbl, $r_tbh],
-                 )->pack(-side=>'left' ,-fill=>'y');
+    $listbox->bind('<Return>', 
+                   sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
+    $listbox->bind('<Double-1>', 
+                   sub { tk_references_dialog_finish($r_glbl, $r_tbh); });
 
-    $FrDn->Button(-text => 'abort',
-                  %std_button_options,
-                  -command => sub {
-                                $Top->destroy;
+    $Top->bind('<Destroy>', sub { 
                                 delete $r_glbl->{foreign_key_dialog_widget},
                                 delete $r_glbl->{foreign_key_dialog_listbox},
-                                delete $r_glbl->{foreign_key_cols}
-                                  }
-                 )->pack(-side=>'left' ,-fill=>'y');
+                                delete $r_glbl->{foreign_key_cols} 
+                                });
 
+    $FrTop->Label(-text => 'double-click to open'
+                 )->pack(-side=>'left' ,-fill=>'y');
+ 
     $r_glbl->{foreign_key_dialog_widget} = $Top;
     $r_glbl->{foreign_key_dialog_listbox}= $listbox;
     $r_glbl->{foreign_key_cols} = \@cols;
@@ -1263,7 +1295,9 @@ sub tk_dependency_dialog
 
     my $parent_widget= $r_tbh->{table_widget};
 
+    tk_set_busy($r_glbl,1);
     my $r_resident_keys= $r_tbh->{dbitable}->resident_keys();
+    tk_set_busy($r_glbl,0);
     if (!defined $r_resident_keys)
       { tk_err_dialog($parent_widget,
                       "no other table depends on this one");
@@ -1296,9 +1330,6 @@ sub tk_dependency_dialog
                            -background=>$BG
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
-    my $FrDn  = $Top->Frame(-background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'y',
-                                  );
 
     my @resident_table_list= sort keys %resident_tables;
 
@@ -1307,24 +1338,41 @@ sub tk_dependency_dialog
     foreach my $r (@resident_table_list)
       { $max_width= length($r) if (length($r)>$max_width); };
 
+
+#----------------------------------------------
+#    my %listbox_options= (-selectmode => 'single',
+#                          -width=>$max_width,
+#                          -height=> $max_height);
+#
+#    if ($#resident_table_list < $max_height)
+#      {
+#        $listbox_options{-height}= $#resident_table_list + 1;
+#     };
+#
+#    my $listbox= $FrTop->Scrolled( 'Listbox1', %listbox_options );
+#-------------------------------------------------
+    my $listbox;
     my %listbox_options= (-selectmode => 'single',
                           -width=>$max_width,
                           -height=> $max_height);
-
-    if ($#resident_table_list < $max_height)
-      {
-        $listbox_options{-height}= $#resident_table_list + 1;
+    if ($#resident_table_list>$max_height)
+      { $listbox= $FrTop->Scrolled( 'Listbox', %listbox_options ); }
+    else
+      { $listbox_options{-height}= $#resident_table_list + 1;
+        $listbox= $FrTop->Listbox(%listbox_options );
       };
 
-    my $listbox= $FrTop->Scrolled( 'Listbox1', %listbox_options );
+#-------------------------------------------------
 
     foreach my $res_table (@resident_table_list)
       { $listbox->insert('end', $res_table); };
 
     $listbox->pack(-fill=>'both',-expand=>'y');
 
-    $listbox->bind('<Return>', sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
-    $listbox->bind('<Double-1>', sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
+    $listbox->bind('<Return>', 
+                   sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
+    $listbox->bind('<Double-1>', 
+                   sub { tk_dependency_dialog_finish($r_glbl, $r_tbh); });
 
     # not need anymore, because the action is bind to mouse and enter key
     #$FrDn->Button(-text => 'open table',
@@ -1332,15 +1380,16 @@ sub tk_dependency_dialog
     #             -command => [\&tk_dependency_dialog_finish, $r_glbl, $r_tbh],
     #             )->pack(-side=>'left' ,-fill=>'y');
 
-    $FrDn->Button(-text => 'abort',
-                  %std_button_options,
-                  -command => sub {
-                             $Top->destroy;
+
+    $Top->bind('<Destroy>', sub {  
                              delete $r_tbh->{dependency_dialog_top_widget};
                              delete $r_tbh->{dependency_dialog_listbox};
                              delete $r_tbh->{resident_tables};
                              delete $r_tbh->{resident_table_list};
-                                  }
+                                 });
+
+
+    $FrTop->Label(-text => 'double-click to open'
                  )->pack(-side=>'left' ,-fill=>'y');
 
     $r_tbh->{dependency_dialog_top_widget}= $Top;
@@ -1350,6 +1399,8 @@ sub tk_dependency_dialog
 
     # let the window appear near the mouse-cursor:
     $Top->Popup(-popover    => 'cursor');
+
+
   }
 
 sub tk_dependency_dialog_finish
@@ -1541,22 +1592,32 @@ sub tk_window_positioning
   }
 
 sub tk_field_edit
-  { my($r_tbh)= @_;
+# mode: "active" or "selected"
+  { my($r_tbh, $mode)= @_;
+
+    if (!defined $mode)
+      { $mode= 'active'; };
 
     my $TableWidget= $r_tbh->{table_widget};
 
 #my($wi,$h,$x,$y)= split(/[x\+\-]/,$TableWidget->geometry());
 #warn join("|",$wi,$h,$x,$y),"\n";
-
+    
+    my @cells;
+    if ($mode eq 'active')
+      { $cells[0]= $TableWidget->index('active'); }
+    else
+      { @cells=  $TableWidget->curselection(); };
 
     # get row-column of the active cell in the current table
-    my($row,$col)= split(",",$TableWidget->index('active'));
+    my($row,$col)= split(",",$cells[0]);
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
 
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $TableWidget->Toplevel(-background=>$BG);
-
+    #$Top->Popup(-popover    => 'cursor');
+ 
     #my $title= "$r_tbh->{table_name}: Edit $colname";
     $Top->title("$r_tbh->{table_name}");
 
@@ -1569,10 +1630,17 @@ sub tk_field_edit
                                   -expand=>'y'
                                   );
 
-    $FrTop->Label(-text=>"$colname: ")->pack(-side=>'left');
+    if ($mode eq 'active')
+      { $FrTop->Label(-text=>"$colname: ")->pack(-side=>'left'); };
 
+    $r_tbh->{edit_cells}= \@cells;
+    
+    # edit_cell is a temporary variable
     $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,$pk,$colname);
-    my $w= length($r_tbh->{edit_cell});
+    my $w;
+    
+    if (defined $r_tbh->{edit_cell})
+      { $w= length($r_tbh->{edit_cell}); };
 
     $w=20 if ($w<20);
 
@@ -1581,25 +1649,46 @@ sub tk_field_edit
                             )->pack(-side=>'left',-fill=>'x',-expand=>'y');
 
     $FrDn->Button(-text => 'accept',
-                 %std_button_options,
-                  -command => sub { $TableWidget->set("$row,$col",
-                                                      $r_tbh->{edit_cell});
+                  %std_button_options,
+                  -command => sub { foreach my $c (@{$r_tbh->{edit_cells}})
+                                      { $TableWidget->set(
+                                                       $c,
+                                                       $r_tbh->{edit_cell});
+                                      };                       
                                    delete $r_tbh->{edit_cell};
-                                   $Top->destroy;
-                                  }
-                 )->pack(-side=>'left', -fill=>'y');
-    $FrDn->Button(-text => 'abort',
-                 %std_button_options,
-                 -command => sub { delete $r_tbh->{edit_cell};
+                                   delete $r_tbh->{edit_cells};
                                    $Top->destroy;
                                   }
                  )->pack(-side=>'left', -fill=>'y');
 
-    $Entry->bind('<Return>', sub { $TableWidget->set("$row,$col",
-                                                      $r_tbh->{edit_cell});
-                                   delete $r_tbh->{edit_cell};
+
+    $FrDn->Button(-text => 'abort',
+                 %std_button_options,
+                 -command => sub { delete $r_tbh->{edit_cell};
+                                   delete $r_tbh->{edit_cells};
                                    $Top->destroy;
-                                 }
+                                  }
+                 )->pack(-side=>'left', -fill=>'y');
+
+    #$Top->Popup(-popover    => 'cursor');
+
+    $Top->bind('<Destroy>', 
+               sub { delete $r_tbh->{edit_cell}; 
+                     delete $r_tbh->{edit_cells}; 
+                   } 
+              );
+
+ 
+    $Entry->bind('<Return>', 
+                 sub { foreach my $c (@{$r_tbh->{edit_cells}})
+                          { $TableWidget->set(
+                                           $c,
+                                           $r_tbh->{edit_cell});
+                          };                   
+                       delete $r_tbh->{edit_cell};
+                       delete $r_tbh->{edit_cells};
+                       $Top->destroy;
+                     }
                 );
 
     # let the window appear near the mouse-cursor:
@@ -1920,7 +2009,7 @@ sub make_table_window
     my $MnFileOpen= $MnFile->Menu();
     my $MnFileSave= $MnFile->Menu();
     $MnFile->add('cascade',
-                -label=> 'Open',
+                -label=> 'Import',
                 -underline   => 0,
                 -menu=> $MnFileOpen
                 );
@@ -1939,7 +2028,7 @@ sub make_table_window
                     );
 
     $MnFile->add('cascade',
-                -label=> 'Save',
+                -label=> 'Export',
                 -underline   => 0,
                 -menu=> $MnFileSave
                 );
@@ -2049,13 +2138,13 @@ sub make_table_window
 
     # configure relations-menu:
     $MnRela->add('command',
-                  -label=> 'Dependencies',
+                  -label=> 'dependend tables',
                   -accelerator => 'Meta+D',
                   -underline   => 0,
                   -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
                 );
     $MnRela->add('command',
-                  -label=> 'References',
+                  -label=> 'referenced tables',
                   -accelerator => 'Meta+R',
                   -underline   => 0,
                   -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
@@ -2151,6 +2240,7 @@ sub make_table_window
 #-colstretchmode => "none",
                                   -rowstretchmode => "none", #"unset",
 #-rowstretchmode => "unset",
+-selectmode=> 'extended',
                                   #-flashmode=> 1,
                                   #-width => $dbi_column_no,
                                  );
@@ -2227,6 +2317,7 @@ sub make_table_window
                                      $column_popup{current_col});
                             }
                     );
+    $r_itemhash->{'unhide all columns'}= $itemcnt++;
     $MnColPopup->add('command',
                      -label=> 'unhide all columns',
                      -command =>
@@ -2235,6 +2326,7 @@ sub make_table_window
                               cb_set_visible_columns($r_glbl, $r_tbh);
                             }
                     );
+    $r_itemhash->{'hide column'}= $itemcnt++;
     $MnColPopup->add('command',
                      -label=> 'hide column',
                      -command =>
@@ -2268,6 +2360,11 @@ sub make_table_window
                    -label=> 'edit',
                    -command => [\&tk_field_edit, $r_tbh],
                  );
+    $r_itemhash->{'edit selection'}= $itemcnt++;
+    $MnPopup->add('command',
+                   -label=> 'edit selection',
+                   -command => [\&tk_field_edit, $r_tbh, 'selected'],
+                 );
     $r_itemhash->{copy}= $itemcnt++;
     $MnPopup->add('command',
                   -label=> 'copy',
@@ -2294,6 +2391,11 @@ sub make_table_window
     $MnPopup->add('command',
                   -label=> 'open foreign table',
                   -command => [\&cb_open_foreign_table, $r_glbl, $r_tbh],
+                );
+    $r_itemhash->{'export selection'}= $itemcnt++;
+    $MnPopup->add('command',
+                  -label=> 'export selection',
+                  -command => [\&cb_export_selection, $r_glbl, $r_tbh],
                 );
 
 # @@@@@@@@@@@@@@@@
@@ -3014,6 +3116,58 @@ sub calc_visible_columns
    $r_tbh->{vis_column_no}   = $cnt;
    $r_tbh->{vis_column_width}= \@new_widths;
  }
+
+sub cb_export_selection
+ {  my($r_glbl, $r_tbh)= @_;
+ 
+    my $Table_Widget= $r_tbh->{table_widget};
+
+    my $r_cells= $Table_Widget->curselection();
+    # is a list reference to elements in the form
+    # "$row,$col"
+    my %column_indices;
+    my %pk_selection;
+    my $cnt;
+    foreach my $e (@$r_cells)
+      { my($row,$col)= split(",",$e);
+        $column_indices{$col}=1;
+        $pk_selection{row2pk($r_tbh,$row)}= $cnt++;
+      };
+    my @col_selection;
+    foreach my $colname (@{$r_tbh->{column_list}})
+      { my $col= colname2col($r_tbh,$colname);
+        if ($column_indices{$col})
+          { push @col_selection,$colname; };
+      };
+
+    my $Fs= $r_tbh->{top_widget}->FileSelect(
+                                               -defaultextension=> ".csv"
+                                            );
+
+    my $file= $Fs->Show();
+
+    # warn "filename: $file ";
+    return if (!defined $file);
+
+    return if ($file=~ /^\s*$/);
+
+    my $dbitable= $r_tbh->{dbitable};
+    
+    my @pk_selection= sort { $pk_selection{$a} <=>  $pk_selection{$b} } 
+                             (keys %pk_selection);
+#@@@@@@@@@@@@@@
+
+    $dbitable->export_csv($file, 
+                          #order_by=> $r_tbh->{sort_columns},
+                          col_selection=> \@col_selection,
+                          pk_selection => \@pk_selection
+                         );
+
+    # warn "$file was updated/created";
+       
+    
+ }  
+
 
 sub cb_open_foreign_table
  {  my($r_glbl, $r_tbh, $given_colname)= @_;
