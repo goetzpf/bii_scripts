@@ -18,6 +18,8 @@ Goetz Pfeiffer <pfeiffer@mail.bessy.de>
 	pfind.pl 
 	Sch2db.pl 
 	Pezca 
+	dbdrv_oci
+	dbdrv
 	dbitable
 	idcp_data
 	parse_db

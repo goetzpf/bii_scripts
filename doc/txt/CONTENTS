@@ -43,6 +43,12 @@ canlink
 	"cryptic can link" as it is used in the BESSY CAN Bus
 	device support for EPICS.
 
+dbdrv_oci
+	low level routines for the ORACLE database. Needed by dbdrv.
+
+dbdrv	low level utilities for SQL database access, needed by
+	dbitable
+
 dbitable
 	an object-oriented Perl module for handling single tables
         from an SQL database
