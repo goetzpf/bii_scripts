@@ -6220,10 +6220,14 @@ sub path_beautify
 
 sub file_find
   { my($regexp,@dirs)= @_;
-
+  
+    # filter out dirs that are "undef"
+    my @mydirs= grep { defined $_ } @dirs;
+    return if (!@mydirs);
+    
     @wanted_array= ();
     $wanted_regex= $regexp;
-    find(\&wanted, @dirs);
+    find( \&wanted, @mydirs);
 
     #print "found:\n",join("\n",@wanted_array);
     return(sort @wanted_array);
