@@ -21,7 +21,10 @@ use Options;
 use ODB;
 
 Options::register(
-  ["file", "f", "=s", "write to file <tablename>.<part>.sql"],
+  ["dbase",  "d", "=s", "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
+  ["user",   "u", "=s", "User name",  "user",     "guest"],
+  ["passwd", "p", "=s", "Password",   "password", "bessyguest", 1],
+  ["file",   "f", "=s", "write to file <tablename>.<part>.sql"],
   ["groups", "g", "=s", "extract all groups of device"],
   ["output", "o", "=s", "output as a list, set, names"],
 );
@@ -48,9 +51,14 @@ die $usage if not @names;
 foreach my $devname (@names) {
   $devname =~ s/\*/%/;
   $devname =~ s/\?/_/;
-warn "Result parsed $devname";
-  my $result = ODB::sel("BASE.V_NAMES", "*", "NAME like '$devname'");
+# warn "Result parsed $devname";
+  my $result = ODB::sel("NAMES", "*", "NAME like '$devname'");
 
-  print "\n$result\n";
+  foreach my $row (@$result) {
+    print "================================================================================\n";
+    print join("\n",map(sprintf("%12s = '%s'",$_,$row->{$_}),
+      ('NAME','DESCRIPTION','KEY','MEMBER','IND','FAMILY','COUNTER','SUBDOMAIN','DOMAIN')))."\n";
+  }
 }
+
 exit;
