@@ -2,6 +2,15 @@ use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 
+# additional stuff:
+# perl Makfile.PL SHARE_DIR=/usr/share  
+#   -> install share-stuff to /usr/share
+#   -> installation is done with "make share"
+
+my $def_share_dir= "/usr/lib/share";
+my %add_args= (SHARE_DIR=> \$def_share_dir );
+
+
 my $ldir= "lib/perl/";
 
 my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl 
@@ -30,6 +39,18 @@ foreach my $p (@pods)
   { my($body)= ($p=~ /^([^\.]+)/);
     $mp{$ldir . $p}= '$(INST_MAN3DIR)/' . $body . '.$(MAN3EXT)'; 
   }; 
+  
+my @args= @ARGV;
+@ARGV=();
+foreach my $a (@args)
+  { my($name,$val)= split("=",$a);
+    if (!exists $add_args{$name})
+      { push @ARGV, $a;
+        next;
+      };
+    ${$add_args{$name}}= $val;
+  };
+      
 
 WriteMakefile(
     'NAME'		=> 'bii_scripts',
@@ -43,6 +64,7 @@ WriteMakefile(
     'PM'                => \%pm,
     'MAN1PODS'          => { },
     'MAN3PODS'          => \%mp,
+    'macro'             => { SHARE_DIR => "$def_share_dir/browsedb" }, 
     			   
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
       (
@@ -54,9 +76,22 @@ WriteMakefile(
       ) : ()),
 );
 
-#sub MY::post_initialize
-#{ my ($self) = @_;
-#print join("|",%{$self->{MAN3PODS}});
-#print "************\n";
-#print join("|",%mp);
+sub MY::postamble {
+    my $postamble = <<"END";
+.PHONY: share
+share:
+	echo \"installing to \" \$(SHARE_DIR)
+	install -m 755 -d share/browsedb \$(SHARE_DIR)
+	install -m 644 share/browsedb/[^C]* \$(SHARE_DIR)
+END
+    $postamble;
+}
+
+# add something to install-target:
+#sub MY::install {
+#    my $self = shift;
+#    my $string = $self->MM::install;
+#    my $add = 'html';
+#    $string =~ s/(pure_install\s+)(.*)/$1 $add $2/;
+#    return $string;
 #}
