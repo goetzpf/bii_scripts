@@ -1526,12 +1526,12 @@ sub make_table_hash
     # the database-handle:
     $table_hash{dbh}        = $dbh;
 
-    tk_progress($r_glbl,50);
+    tk_progress($r_glbl,30);
 
     # the dbitable object:
     $table_hash{dbitable}   = get_dbitable($r_glbl,\%table_hash);
 
-    tk_progress($r_glbl,60);
+    tk_progress($r_glbl,50);
 
     if (!defined $table_hash{dbitable})
       {
@@ -1543,21 +1543,6 @@ sub make_table_hash
 
     # $table_hash{dbitable}->dump(); die;
 
-    # the column-hash that maps column-names to indices:
-    $table_hash{column_hash}= { $table_hash{dbitable}->column_hash() };
-
-    # the column-list that maps column-indices to column-names:
-    $table_hash{column_list}= [ $table_hash{dbitable}->column_list() ];
-
-    # the number of columns:
-    $table_hash{column_no}  = $#{$table_hash{column_list}} + 1;
-
-    # the width of the columns:
-    $table_hash{column_width}=
-                    [ $table_hash{dbitable}->max_column_widths(5,25) ];
-
-
-
 #print "***CNT:",$table_hash{dbitable}->{_counter_pk},"\n";
     my @pks= $table_hash{dbitable}->primary_key_columns();
 #print "PKS:",join("|",@pks),"\n";
@@ -1568,13 +1553,12 @@ sub make_table_hash
     else
       { # the primary key column name
         $table_hash{pks}= \@pks;
-        # the primary key column index
-        $table_hash{pkis}       =
-                      [ $table_hash{dbitable}->primary_key_column_indices() ];
         # primary key hash, this is currently needed in the popup-menu
         $table_hash{pks_h}= { map { $_ => 1 } @pks };  
       };
-      
+
+    table_hash_init_columns(\%table_hash);
+
     tk_progress($r_glbl,70);
 
     # the foreign-key hash
@@ -1587,16 +1571,16 @@ sub make_table_hash
 
     # the list with write-protected column-indices:
     # P: protected, T: temporarily writable, undef: writable
-    my @wp;
+    my %wp;
 
     if (!$table_hash{no_pk_cols})
-      { foreach my $i (@{$table_hash{pkis}})
-          { $wp[ $i ]='P'; };
+      { foreach my $col (@{$table_hash{pks}})
+          { $wp{$col}='P'; };
       };
 
     foreach my $col (keys %{$table_hash{foreign_key_hash}})
-      { $wp[ colname2col(\%table_hash, $col) ]='P'; };
-    $table_hash{write_protected_cols}= \@wp;
+      { $wp{$col}='P'; };
+    $table_hash{write_protected_cols}= \%wp;
 
     # the hash that is used for sorting:
     $table_hash{sort_columns}= [ @{$table_hash{column_list}} ];
@@ -1619,6 +1603,8 @@ sub make_table_hash
     $table_hash{curr_sort_col}= $table_hash{sort_columns}->[0];
                           # only needed to give the sort-
                           # radiobuttons a visible initial state
+
+    $table_hash{displayed_cols}= { map{ $_=>1 } @{$table_hash{column_list}} };
 
     return(\%table_hash);
   }
@@ -1835,6 +1821,13 @@ sub make_table_window
                   -underline   => 0,
                   -menu => $MnViewSort
                 );
+    my $MnViewHCol = $MnView->Menu();
+    $MnView->add('cascade',
+                  -label=> 'hide/unhide columns',
+                  -accelerator => 'Meta+H',
+                  -underline   => 0,
+                  -menu => $MnViewHCol
+                );
     $MnView->add('command',
                   -label=> 'Object-Dump',
                   -command => [\&tk_table_dump, $r_tbh],
@@ -1843,8 +1836,6 @@ sub make_table_window
                   -label=> 'dbitable-Dump',
                   -command => [\&tk_dbitable_dump, $r_tbh],
                 );
-
-
 
     foreach my $col (@{$r_tbh->{column_list}})
       { $MnViewSort->add('radiobutton',
@@ -1855,6 +1846,12 @@ sub make_table_window
                                      $r_tbh,
                                      $col],
                     );
+        $MnViewHCol->add('checkbutton',
+                         -variable=> \$r_tbh->{displayed_cols}->{$col},
+                         -label=> $col,
+                         -command=>  [\&cb_set_visible_columns, 
+                                      $r_glbl, $r_tbh ]
+                        );      
       };
 
 
@@ -1891,7 +1888,7 @@ sub make_table_window
                                   -titlerows => 1,
                                   -height =>5,
                                   -width  =>0,
-                                  -cols => $r_tbh->{column_no},
+                                  -cols => $r_tbh->{vis_column_no},
                                   -rows => $r_tbh->{row_no} + 1, 
                                                      # 1 more f.the heading
                                   -justify => "left",
@@ -1903,19 +1900,13 @@ sub make_table_window
                                   #-width => $dbi_column_no,
                                  );
 
+    $r_tbh->{table_widget}= $Table;
+    
     $Table->activate("1,0"); # one cell must be activated initially,
                              # otherwise index('active') produces a
                              # Tk Error, when it is used
 
-    { my $r_width= $r_tbh->{column_width};
-
-      for(my $i=0; $i<= $#$r_width; $i++)
-        {
-          $Table->colWidth($i, $r_width->[$i] + 2);
-          # 2 characters more than the real maximum width
-        };
-    };
-
+    table_window_set_column_width($r_tbh);
 
     # The table is "packed" at this place !!!!!!!!!!!!!!!!!!!
 
@@ -1941,23 +1932,12 @@ sub make_table_window
     $Table->tagConfigure('pk_cell', -foreground => 'blue');
                          #-state => 'disabled');
 
-    # mark the primary key, it may not be edited
-    if (!$r_tbh->{no_pk_cols})
-      { foreach my $i (@{$r_tbh->{pkis}})
-          { $Table->tagCol('pk_cell', $i); };
-      };
-
     # create a tag for the foreign key column
     $Table->tagConfigure('fk_cell', -foreground => 'LimeGreen');
                         # -state => 'disabled');
 
-    foreach my $fk_col (keys % {$r_tbh->{foreign_key_hash}})
-      {
-        $Table->tagCol('fk_cell', colname2col($r_tbh,$fk_col) );
-      };
 
-    $r_tbh->{table_widget}= $Table;
-
+    table_window_tag_columns($r_tbh);
     
     # popup-menu for the columns in the tablematrix widget
     my $itemcnt=0;
@@ -1992,6 +1972,23 @@ sub make_table_window
                                      $column_popup{current_col});
                             }
                     );
+    $MnColPopup->add('command',
+                     -label=> 'unhide all columns',
+                     -command =>
+                        sub { foreach my $c (@{$r_tbh->{column_list}})
+                                { $r_tbh->{displayed_cols}->{$c}=1; };
+                              cb_set_visible_columns($r_glbl, $r_tbh);
+                            }
+                    );
+    $MnColPopup->add('command',
+                     -label=> 'hide column',
+                     -command =>
+                        sub { my $c= $column_popup{current_col};
+                              $r_tbh->{displayed_cols}->{$c}=0;
+                              cb_set_visible_columns($r_glbl, $r_tbh);
+                            }
+                    );
+
 
     $column_popup{popup_items} = $itemcnt;
     $column_popup{popup_item_h}= $r_itemhash;
@@ -2060,7 +2057,9 @@ sub make_table_window
                   };
                   
     $default_popup{popup_enable_lists} = 
-                  { foreign_key => ['open foreign table'] };
+                  { foreign_key => ['open foreign table'],
+                    primary_key => ['select THIS as foreign key'] 
+                  };
     
     if ($r_tbh->{resident_there})
       { $default_popup{popup_enable_lists}->{primary_key}= 
@@ -2471,8 +2470,8 @@ sub cb_default_popup_menu
       };          
     
     my $r_wp_flags= $r_tbh->{write_protected_cols};
-    if (defined $r_wp_flags->[$col])
-      { if ($r_wp_flags->[$col] eq 'P')
+    if (defined $r_wp_flags->{$colname})
+      { if ($r_wp_flags->{$colname} eq 'P')
           { push @cell_attributes, 'write_protected'; };
       };
     
@@ -2519,6 +2518,118 @@ sub popup_enable_disable
       };
   }    
 
+sub table_hash_init_columns
+ { my($r_tbh)= @_;
+
+   my $Table_Widget= $r_tbh->{table_widget};
+
+   # get (or set-up) column_list, column_hash, column_no:
+
+   $r_tbh->{column_list} = [ $r_tbh->{dbitable}->column_list() ];
+   $r_tbh->{column_hash} = { $r_tbh->{dbitable}->column_hash() };
+   $r_tbh->{column_no}   = $#{$r_tbh->{column_list}} + 1;
+       
+   $r_tbh->{column_width}= [ $r_tbh->{dbitable}->max_column_widths(5,25) ];
+   
+   $r_tbh->{vis_column_list}  = $r_tbh->{column_list};
+   $r_tbh->{vis_column_hash}  = $r_tbh->{column_hash};
+   $r_tbh->{vis_column_no}    = $r_tbh->{column_no};
+   $r_tbh->{vis_column_width} = $r_tbh->{column_width};
+  }
+
+sub table_window_tag_columns
+ { my($r_tbh)= @_;
+   my $Table_Widget= $r_tbh->{table_widget};
+ 
+   my $r_col_hash= $r_tbh->{vis_column_hash};
+
+   # remove all cell attributes 
+   for(my $i=0; $i< $r_tbh->{vis_column_no}; $i++)
+     { $Table_Widget->tagCol('', $i); };
+   
+   # mark the primary key, it may not be edited
+   if (!$r_tbh->{no_pk_cols})
+     { foreach my $colname (@{$r_tbh->{pks}})
+         { next if (!exists $r_col_hash->{$colname});
+           $Table_Widget->tagCol('pk_cell', colname2col($r_tbh,$colname) ); 
+         };
+     };
+
+   foreach my $fk_col (keys % {$r_tbh->{foreign_key_hash}})
+     { next if (!exists $r_col_hash->{$fk_col});
+       $Table_Widget->tagCol('fk_cell', colname2col($r_tbh,$fk_col) );
+     };
+  }
+
+sub table_window_set_column_width
+ { my($r_tbh)= @_;
+
+   my $Table_Widget= $r_tbh->{table_widget};
+
+   my $r_width= $r_tbh->{vis_column_width};
+
+   for(my $i=0; $i<= $#$r_width; $i++)
+     {
+       $Table_Widget->colWidth($i, $r_width->[$i] + 2);
+       # 2 characters more than the real maximum width
+     };
+ }
+
+sub cb_set_visible_columns  
+ { my($r_glbl, $r_tbh)= @_;
+  
+   my $r_visible_columns= $r_tbh->{displayed_cols};
+   
+   my $d_cnt=0;
+   
+   grep { $d_cnt++ if ($_) } (values %$r_visible_columns);
+   
+   if ($d_cnt<=0)
+     { # error, there would be no column left to display
+       my $last_col= $r_tbh->{vis_column_list}->[0];
+       $r_tbh->{displayed_cols}->{$last_col}=1;
+       return;
+     }; 
+
+   my $r_col_hash    = $r_tbh->{column_hash};
+   my $r_col_list    = $r_tbh->{column_list};
+   my $r_col_widths  = $r_tbh->{column_width};
+   
+   my %new_col_hash= %{ $r_tbh->{vis_column_hash} };
+   foreach my $c (keys %$r_visible_columns)
+     { if ($r_visible_columns->{$c})
+         { $new_col_hash{$c}=1; }        # make column visible
+       else
+         { delete $new_col_hash{$c}; };  # make column invisible
+     };
+ 
+   my @new_col_list;
+   my @new_widths;
+   my $cnt=0;
+   foreach my $c (@$r_col_list)
+     { next if (!exists $new_col_hash{$c});
+       push @new_col_list, $c;
+       push @new_widths, $r_col_widths->[ $r_col_hash->{$c} ];
+       $new_col_hash{$c}= $cnt++;
+     };
+    
+   $r_tbh->{vis_column_list} = \@new_col_list;
+   $r_tbh->{vis_column_hash} = \%new_col_hash;
+   $r_tbh->{vis_column_no}   = $cnt;
+   $r_tbh->{vis_column_width}= \@new_widths;
+      
+   table_window_set_column_width($r_tbh);
+   
+   table_window_tag_columns($r_tbh);
+       
+   my $Table_Widget= $r_tbh->{table_widget};
+
+    # the following forces a redraw
+   $Table_Widget->configure( -cols => $r_tbh->{vis_column_no},
+                           );
+
+  }   
+
 sub cb_open_foreign_table
  {  my($r_glbl, $r_tbh, $given_colname)= @_;
 
@@ -2545,9 +2656,6 @@ sub cb_open_foreign_table
     # now activate the cell:
     # $parent_widget->activate($at);
 
-
-    # the following should not be done in this callback:
-    my $maxcol= $r_tbh->{column_no}-1;
 
     # marking as active is difficult, since the cell is not editable
     # per definition, the "active" tag (inverse colors) can never be
@@ -2706,7 +2814,7 @@ sub cb_select
                # to be displayed correctly
 
                # remove cell write-protection temporarily:
-               $res_tbh->{write_protected_cols}->[$res_col]= 'T';
+               $res_tbh->{write_protected_cols}->{$res_colname}= 'T';
                $Res_Table->set("$res_row,$res_col",$value);
                $found=1;
                last;
@@ -2730,8 +2838,9 @@ sub cb_copy_paste_field
   
     my $Table= $r_tbh->{table_widget};
 
-    # get actibe cell:
+    # get active cell:
     my($row,$col)= split(",",$Table->index('active'));
+    my $colname= col2colname($r_tbh,$col);
 
     if ($mode eq 'copy')
       { 
@@ -2740,9 +2849,9 @@ sub cb_copy_paste_field
       };
     if ($mode eq 'paste')
       { my $r_wp_flags= $r_tbh->{write_protected_cols};
-        if (defined $r_wp_flags->[$col])
-          { if ($r_wp_flags->[$col] eq 'P')
-              { $r_wp_flags->[$col]= 'T';
+        if (defined $r_wp_flags->{$colname})
+          { if ($r_wp_flags->{$colname} eq 'P')
+              { $r_wp_flags->{$colname}= 'T';
                 # remove write protection temporarily
               };  
           };
@@ -2760,7 +2869,7 @@ sub cb_copy_paste_line
   
     my $Table= $r_tbh->{table_widget};
 
-    # get actibe cell:
+    # get active cell:
     my($row,$col)= split(",",$Table->index('active'));
 
     if ($mode eq 'copy')
@@ -2779,7 +2888,7 @@ sub cb_copy_paste_line
         my $pk= row2pk($r_tbh,$row);
         foreach my $colname (keys %$r_line)
           { my $this_col= colname2col($r_tbh,$colname);
-            next if ($r_wp_flags->[$this_col] eq 'P'); 
+            next if ($r_wp_flags->{$colname} eq 'P'); 
             # do not overwrite primary keys or foreign keys
             $Table->set("$row,$this_col", $r_line->{$colname});
           };
@@ -2790,14 +2899,13 @@ sub cb_copy_paste_line
           ", unknown mode: $mode");
   }
 
-
-
 sub cb_put_get_val
 # global variables used: NONE
+# if $visual, use visual column lists
   { my($r_tbh,$set,$row,$col,$val)= @_;
   
     if ($row==0) # row 0 has the column-names
-      { return( $r_tbh->{column_list}->[$col] ); };
+      { return( $r_tbh->{vis_column_list}->[$col] ); };
   
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
     
@@ -2808,7 +2916,7 @@ sub cb_put_get_val
             return($val);
           };
       
-        my $flag= $r_tbh->{write_protected_cols}->[$col];
+        my $flag= $r_tbh->{write_protected_cols}->{$colname};
       
         if (defined $flag)
           { if ($flag eq 'P')
@@ -2817,7 +2925,7 @@ sub cb_put_get_val
                 return($r_tbh->{dbitable}->value($pk,$colname));
               };
             if ($flag eq 'T')  
-              { $r_tbh->{write_protected_cols}->[$col]= 'P'; };   
+              { $r_tbh->{write_protected_cols}->{$colname}= 'P'; };   
           };
           
         chomp($val);
@@ -3165,7 +3273,9 @@ sub colname2col
 # map column-name to column-index 
   { my($r_tbh,$col_name)= @_;
   
-    return( $r_tbh->{column_hash}->{$col_name} );
+    my $col= $r_tbh->{vis_column_hash}->{$col_name};
+    $col=0 if (!defined $col); # if it's a hidden column
+    return($col);
   }
 
 sub pk2row
@@ -3179,8 +3289,9 @@ sub pkcolname2rowcol
 # map primary-key, column-name to row,column 
   { my($r_tbh,$pk,$col_name)= @_;
   
-    return( $r_tbh->{pk_hash}->{$pk},
-            $r_tbh->{column_hash}->{$col_name} );
+    my $col= $r_tbh->{vis_column_hash}->{$col_name};
+    $col=0 if (!defined $col); # if it's a hidden column
+    return( $r_tbh->{pk_hash}->{$pk}, $col );
   }
 
 
@@ -3188,7 +3299,7 @@ sub col2colname
 # map row,column to primary-key, column-name
   { my($r_tbh,$col)= @_;
     
-    return($r_tbh->{column_list}->[$col] );
+    return($r_tbh->{vis_column_list}->[$col] );
   }
     
 sub row2pk
@@ -3202,7 +3313,7 @@ sub rowcol2pkcolname
 # map row,column to primary-key, column-name
   { my($r_tbh,$row,$col)= @_;
     
-    return($r_tbh->{pk_list}->[$row-1], $r_tbh->{column_list}->[$col] );
+    return($r_tbh->{pk_list}->[$row-1], $r_tbh->{vis_column_list}->[$col] );
   }
 
 sub get_pk_list
