@@ -34,8 +34,9 @@ our $opt_action;
 our $opt_tag;
 our $opt_filter;
 our $opt_order_by;
+our $opt_summary;
 
-my $version="1.1";
+my $version="1.2";
 
 my %known_actions= (file2file=> 1,
                     db2file=>1, 
@@ -45,8 +46,11 @@ my %known_actions= (file2file=> 1,
 
 my %parameters;
 
+#warn "options:",join("|",@ARGV),"\n";
+
 Getopt::Long::config(qw(no_ignore_case));
-if (!GetOptions("help|h", "database|d=s", "user|u=s", "password|p=s",
+if (!GetOptions("help|h", "summary",
+                "database|d=s", "user|u=s", "password|p=s",
 	        "table|t=s", "file|f=s", "outfile|o=s",
 		"tag|T=s","action|a=s",
 		"filter|F=s","order_by=s",
@@ -58,6 +62,11 @@ if (!GetOptions("help|h", "database|d=s", "user|u=s", "password|p=s",
 
 if ($opt_help)
   { print_help();
+    exit;
+  };  
+
+if ($opt_summary)
+  { print_summary();
     exit;
   };  
   
@@ -178,6 +187,7 @@ sub db2file
     my %ld_options;
     copy_hash_entries(\%options,\%ld_options,"filter");
 
+
     my $tab= dbitable->new('table',$dbh,
                            $options{table},
 			   $options{pk})->load(%ld_options);
@@ -260,6 +270,11 @@ sub copy_hash_entries
       };
   }
 
+sub print_summary
+  { printf("%-20s: database to ascii file load and store tool\n",
+           $FindBin::Script);
+  }
+
 sub print_help
   { print <<END
 ************* $FindBin::Script $version *****************
@@ -303,6 +318,7 @@ options:
 
 END
   }
+
 
 
 
