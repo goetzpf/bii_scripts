@@ -26,7 +26,7 @@ use Text::ParseWords;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.3';
+our $VERSION     = '1.4';
 
 our $export_version= "1.0";
 
@@ -69,7 +69,6 @@ sub connect_database
 			      AutoCommit=>1} # automatically commit changes
 			     );
 
-#print "*** DBNAme: ",$dbname," dbh: $dbh\n"; #@@@
     if (!defined $dbh)
       { warn "unable to connect to database, error-code: \n$DBI::errstr"; 
         return;
@@ -149,10 +148,8 @@ sub new
               };
 	  };
 
-#warn "XXXstab: " . $self->{_table};
 	if (defined $newtype)
 	  {
-#print "HERE: ",__LINE__,"\n"; #@@@
 # the following is better done always, regardless wether the 
 # type is changed. For example, the user might simply want to change
 # the database-handle, not the type
@@ -196,7 +193,6 @@ sub init_filetype
   { my $self= shift;
     
 
-#print "INIT FILETYPE\n"; # @@@
     $self->{_type}= shift;
     my $filename= shift;
     die "type \'file\': filename parameter missing"
@@ -240,23 +236,44 @@ sub init_tableviewtype
       };
     die "table name missing" if (!defined $table);
  
-    # if self->{_pk} already exists, take this if no primary-key
+    # if self->{_pks} already exists, take this if no primary-key
     # parameter is found in the argument-list    
-    my $primary_key= shift; $primary_key= uc($primary_key);
-    if ((!defined $primary_key) || ($primary_key eq ""))
-      { if (exists $self->{_pk})
-          { $primary_key= uc($self->{_pk}); }
+    my $primary_key_par= shift;
+    my @primary_keys;
+
+    if ((defined $primary_key_par) && ($primary_key_par ne ""))
+      { 
+	if (!ref($primary_key_par))
+	  { push @primary_keys, $primary_key_par; } 
+	elsif (ref($primary_key_par) eq 'ARRAY')
+	  { @primary_keys= @$primary_key_par; }
+	else
+	  { die "error: primary key is neither scalar not " .
+	        "ARRAY reference"; 
+	  };
+      };
+
+    if (!@primary_keys)
+      { if (exists $self->{_pks})
+          { @primary_keys= @{$self->{_pks}};
+	  }
 	else
 	  { # try to determine primary key by a tricky SQL statement:
-	    $primary_key= db_get_primary_key($dbh,$table);
+	    @primary_keys= db_get_primary_keys($dbh,$table);
 	    
 	    #die "primary_key: $primary_key";
 	  };  
       };
-    die "primary key name missing" if (!defined $primary_key);
+    die "primary key name(s) missing" if (!@primary_keys);
 
+    # change primary key(s) to upper case :
+    foreach my $p (@primary_keys)
+      { $p= uc($p); };      
+ 
     $self->{_table}= $table;
-    $self->{_pk}   = uc($primary_key);
+    $self->{_pks}   = \@primary_keys;
+    if ($#primary_keys>0)
+      { $self->{_multi_pk}=1; };
     
     my $sql_statement= "select * from $table";
     if ($type eq 'view')
@@ -276,8 +293,6 @@ sub init_tableviewtype
                " error-code: \n$DBI::errstr";
 
     my $colcount=0;
-#print "***KEYS: ",join("|",(keys %$sth)),"\n"; # @@@
-#print "XXX $sth->{NAME_uc}\n"; # @@@
     my @column_list= @{$sth->{NAME_uc}};
     
     my $type_no2string= db_types_no2string($dbh);
@@ -290,36 +305,51 @@ sub init_tableviewtype
 #print Dumper($dbh->type_info_all);
 
 
-    $self->init_columns($primary_key,@column_list);
-    # ^^^ sets also $self->{_pki}
+    $self->init_columns(\@primary_keys,@column_list);
+    # ^^^ sets also $self->{_pkis}
   }   
 
 sub init_columns
 #internal
   { my $self= shift;
-    my ($pk,@columns)= @_;
+    my ($pk_par,@columns)= @_;
+    
+    my @primary_keys;
+    
+    if (!ref($pk_par))
+      { push @primary_keys, $pk_par; } 
+    elsif (ref($pk_par) eq 'ARRAY')
+      { @primary_keys= @$pk_par; }
+    else
+      { die "error: primary key is neither scalar not " .
+	    "ARRAY reference"; 
+      };
+    
+    # change primary key(s) to upper case :
+    foreach my $p (@primary_keys)
+      { $p= uc($p); };      
 
-    $pk= uc($pk);
     foreach my $c (@columns)
       { $c= uc($c); };
 
     my $exist_columns= $self->{_column_list};
-    my $exist_pk= $self->{_pk}; 
-    if (defined $exist_pk)
-      { if ($pk!= $exist_pk)
-          { die "error: existing primary key != new primary key,\n" .
-	        "$exist_pk != $pk";
+    my $exist_pks= $self->{_pks}; 
+    if (defined $exist_pks)
+      { if (!lists_equal($exist_pks,\@primary_keys))
+          { die "error: existing primary key(s) != new primary key (s)";
 	  };
       }
     else
-      { $self->{_pk}= uc($pk); };
+      { $self->{_pks}= \@primary_keys; 
+        if ($#primary_keys>0)
+	  { $self->{_multi_pk}=1; };
+      };
        
     if (defined $exist_columns)
-      { my $st1= join(",",(@$exist_columns));
-        my $st2= join(",",(@columns));
-        if ($st1 != $st2)
-          { die "error: existing columns != new columns,\n" .
-	        "$st1\n  !=\n$st2";
+      { if (!lists_equal($exist_columns,\@columns))
+          { die "error: existing columns != new columns:\n" .
+	        "exist: " . join(",",@$exist_columns) . "\n" .
+		"new  : " . join(",",@columns);
 	  };
       }
     else
@@ -328,9 +358,17 @@ sub init_columns
 	my %h= map { $_ => $i++ } @columns;
 	$self->{_columns}= \%h; 
       };
-    $self->{_pki}= $self->{_columns}->{$self->{_pk}};
-    if (!defined $self->{_pki})
-      { die "assertion failed, $self->{_pk} not found"; };
+    my @pki;
+    my $i;
+    my $r_col_hash= $self->{_columns};
+    foreach my $pk (@primary_keys)
+      { $i= $r_col_hash->{$pk};
+        if (!defined $i)
+          { die "assertion failed, primary key column $pk not found"; };
+        push @pki, $i;
+      };
+    
+    $self->{_pkis}= \@pki;
   }            
      
 
@@ -366,6 +404,9 @@ sub import_table
     my %options= @_;
     my $v;
 
+    my $is_multi_pk= $self->{_multi_pk};
+    my $single_pki;
+    
     $v= $options{mode};
     if    (!defined $v)
       { $options{mode}= 'add_lines'; }
@@ -378,13 +419,24 @@ sub import_table
     elsif (($v ne 'preserve') && ($v ne 'generate'))
       { die "unknown primary-key-mode:$v"; }; 
  
+    if ($is_multi_pk)
+      { if ($v eq 'generate')
+          { die "primary_key=generate not allowed for tables\n" .
+	        "with more than one primary key column!!";
+          };
+      };
+
     my $r_column_aliases= $options{column_aliases};
       # self->other column mapping
       # may be omitted if tables have the same columns
     my $self_columns = $self->{_columns};
     my $other_columns= $other->{_columns};
 
-    my $pki= $self->{_pki};
+    my @pkis= @{$self->{_pkis}};
+    
+    if (!$is_multi_pk)
+      { $single_pki= $pkis[0]; };
+    
     my $self_column_no= $#{$self->{_column_list}} + 1;
     
     my %col_mapping;
@@ -404,11 +456,16 @@ sub import_table
           { $col_mapping{$s_i}= $o_i; };  
       };      
       
-    my $mapped_pki= $col_mapping{ $pki };
-    
-    if (!defined $mapped_pki)
-      { die "error: no mapping for primary key defined, cannot import"; };
-    
+    my @mapped_pkis;
+    foreach my $pki (@pkis)
+      { my $mpki= $col_mapping{$pki};
+        if (!defined $mpki)
+          { die "error: no mapping for primary key (index $pki) defined," .
+	        " cannot import"; 
+	  };
+	push @mapped_pkis, $mpki;
+      };
+      
     my $r_other_lines= $other->{_lines};
     my $r_self_lines  = $self->{_lines};
     my $r_self_aliases= $self->get_hash("_aliases");
@@ -417,8 +474,9 @@ sub import_table
 
     foreach my $other_pk (keys %{$r_other_lines})
       { my $r_other_line= $r_other_lines->{$other_pk};
-        my $self_pk= $r_other_line->[$mapped_pki]; 
-	next if (!defined $self_pk);
+      
+        # now find the corresponding line in THIS table:
+        my $self_pk= compose_primary_key_str(\@mapped_pkis,$r_other_line);
         
         my $r_self_line= $r_self_lines->{$self_pk};
 	my $operation;
@@ -431,14 +489,20 @@ sub import_table
 	    $r_self_line= \@l;
 	    $r_self_lines->{$self_pk}= \@l; 
 	    $r_self_aliases->{$self_pk}= $self_pk;
-	    $r_self_line->[$pki]= $self_pk;
+	    if (!$is_multi_pk) # only one primary key, set it in the table
+	      { $r_self_line->[$single_pki]= $self_pk; };
 	    $self->{_inserted}->{$self_pk}= 1;
 	    $operation= 'inserted';
 	  };
 	$found_lines{$self_pk}=1;
 	
 	for(my $i=0; $i<$self_column_no; $i++)
-	  { next if ($i==$pki);
+	  { 
+	    if (!$is_multi_pk) # only one primary key, set it in the table
+	      { # then the primary key field is already set
+	        next if ($i==$single_pki);
+	      };
+	      
 	    my $other_val="";
 	    my $index= $col_mapping{$i};
 	    if (defined $index) # if a col-mapping exists
@@ -502,24 +566,44 @@ sub primary_keys
     
     if (!%options)
       { return(keys %{$self->{_lines}} ); };
-      
+     
     $self->gen_sort_prepare(\%options);
 
     my $s_lines= $self->{_lines};
     $gen_sort_href= $s_lines;
-    return( sort gen_sort (keys %$s_lines) );
+    
+    my $filter_opt= $options{filter};
+    if (!defined $filter_opt)
+      { return( sort gen_sort (keys %$s_lines) ); };
+      
+    my @keys;
+    if ($filter_opt eq 'inserted')
+      { my $r_k= $self->{_inserted};
+        return if (!defined $r_k);
+        @keys= keys (%$r_k);
+      }
+    elsif ($filter_opt eq 'updated')
+      { my $r_k= $self->{_updated};
+        return if (!defined $r_k);
+        @keys= keys (%$r_k);
+      }
+    else
+      { die "unknown filter-option: $filter_opt"; };
+      
+    return( sort gen_sort (@keys) );
+      
   }
    
-sub primary_key_column
+sub primary_key_columns
   { my $self= shift;
     
-    return( uc($self->{_pk}) );
+    return( @{$self->{_pks}} );
   }
 
-sub primary_key_column_index
+sub primary_key_column_indices
   { my $self= shift;
     
-    return( $self->{_pki} );
+    return( @{$self->{_pkis}} );
   }
 
 sub column_list   
@@ -620,10 +704,13 @@ sub value
       { my $i= $self->{_columns}->{$column};
         if (!defined $i)
 	  { die "error: unknown column: $column"; };
-        if ($i == $self->{_pki})
-	  { die "error: primary key must not be changed!"; };
-	         $self->{_columns}->{$column};
-        $line->[ $i ] =$newval; 
+        if (!$self->{_multi_pk})
+	  { # in the simple case the primary key must not be changed
+	    if ($i== $self->{_pkis}->[0]) 
+	      { die "error: primary key (col-index $i) must not be changed!"; 
+	      };
+          };
+	$line->[ $i ] =$newval; 
         $self->{_updated}->{$pk}=1;
       };
   }
@@ -641,20 +728,24 @@ sub find
     
     my @pk_list;
     my $r_l= $self->{_lines};
+    my $is_multi_pk= $self->{_multi_pk};
     
     my $colindex= $self->{_columns}->{$column};
     if (!defined $colindex)
       { die "error: unknown column: $column"; };
 
-    if ($colindex == $self->{_pki})
-      { # the primary key is given, this is the simple case
-        if (exists $r_l->{$value})
-	  { return($value); }
-	else
-	  { return; };
+    my $r_pkis= $self->{_pkis};
+    if (!$is_multi_pk) # there is only one primary key
+      { if ($colindex == $r_pkis->[0])
+	  { # the primary key is given, this is the simple case
+            if (exists $r_l->{$value})
+	      { return($value); }
+	    else
+	      { return; };
+	  };
       };
      
-    if ($flags{warn_not_pk})
+    if (($flags{warn_not_pk}) && (!$is_multi_pk))
       { warn "$column is not the primary key (dbitable::find)\n"; };  
       
     # from here: the complicated case, a real search
@@ -676,12 +767,6 @@ sub find
     return(@pk_list);
   }
      	  
-	  
-	  
-      
-      
-    
- 
 sub add_line
   { my $self= shift;
     my $dbh= $self->{_dbh};
@@ -689,10 +774,18 @@ sub add_line
 
     # usually this key should be unique, even if several instances of
     # dbitable are running, they shouldn't 'collide'
-    my $pk= uc($self->{_pk});
-    my $new_key= $values{$pk};
+
+    my $r_pkis= $self->{_pkis};
+    my $is_multi_pk= $self->{_multi_pk};
+    
+    my $new_key= build_primary_key_str($self->{_pks},\%values);
+
     if (!defined $new_key)
-      { # if the primary key is not given, create one
+      { if ($is_multi_pk)
+          { die "error:the primary key columns MUST be set for a \n" .
+	        "table with more than one primary key";
+	  };
+        # if the primary key is not given, create one
         $new_key= $self->new_prelim_key();
 	$self->{_preliminary}->{$new_key}= 1;
       };
@@ -704,12 +797,16 @@ sub add_line
        if (exists $r_lines->{$new_key});
     
     my @line;
+    my $first_pk= $self->{_pks}->[0];
     
     $r_aliases->{ $new_key }= $new_key;
     foreach my $col (@{$self->{_column_list}})
-      { if ($col eq $pk)
-          { push @line, $new_key; next; };
-        if (!exists $values{$col})
+      { if (!$is_multi_pk) # there is only one primary key
+          { if ($col eq $first_pk)
+              { push @line, $new_key; next; };
+          };
+	  
+	if (!exists $values{$col})
 	  { die "add_line: field \"$col\" is missing"; };
 	push @line, $values{$col};
       };
@@ -761,15 +858,18 @@ sub max_key
   { my $self= shift;    
     my $arg= shift;
     my $dbh= $self->{_dbh};
-
      
-
+    if ($self->{_multi_pk})
+      { die "max_key only works for tables with a single primary key!"; };
+      
+    my $pk= $self->{_pks}->[0];  
+    
     if ($self->{_type} ne 'table')
       { die "sorry, \'maxkey\' is only allowed for type \'table\'"; };
 
-    my $cmd= "select max( $self->{_pk} ) from $self->{_table}";
+    my $cmd= "select max( $pk ) from $self->{_table}";
     if ($arg eq 'capped')
-      { $cmd.= " where $self->{_pk}<$key_fact"; };
+      { $cmd.= " where $pk<$key_fact"; };
     
     print "$cmd\n" if ($sql_trace);
     
@@ -803,6 +903,16 @@ sub dump
     rdump($fh,\%h,0);
     if (defined $filename)
       { close(F) or die; };
+  }  
+
+sub dump_s
+  { my $self= shift;
+    my $buffer;
+    
+    my %h= %$self; 
+  
+    rdump_s(\$buffer,\%h,0);
+    return(\$buffer);
   }  
 
 sub rdump
@@ -839,6 +949,43 @@ sub rdump
       };
     print $fh " " x $indent if ($is_newline);
     print $fh "REF TO: \'$r\'$comma\n"; 
+  }
+
+sub rdump_s
+#internal
+  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
+  
+    my $r= ref($val);
+    if (!$r)
+      { $$r_buf.= " " x $indent if ($is_newline);
+	$$r_buf.= "\'$val\'$comma\n"; 
+        return;
+      };
+    if ($r eq 'ARRAY')
+      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
+        $$r_buf.= "[ \n"; $indent+=2;
+        for(my $i=0; $i<= $#$val; $i++)
+	  { rdump_s($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
+	  };
+	$indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
+	return;
+      };
+    if ($r eq 'HASH')
+      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
+        $$r_buf.=  "{ \n"; $indent+=2;
+        my @k= sort keys %$val;
+	for(my $i=0; $i<= $#k; $i++)
+          { my $k= $k[$i];
+	    my $st= (" " x $indent) . $k . " => ";
+	    my $nindent= length($st); 
+	    $$r_buf.= ($st); 
+            rdump_s($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
+	  };
+        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
+        return;
+      };
+    $$r_buf.=  " " x $indent if ($is_newline);
+    $$r_buf.=  "REF TO: \'$r\'$comma\n"; 
   }
       
 sub pretty_print
@@ -887,8 +1034,9 @@ sub load_from_db
     my $filter_field;
     my $filter_value;
     
-    my $dbh= $self->{_dbh};
-    my $pki= $self->{_pki};
+    my $dbh   = $self->{_dbh};
+    my $r_pkis= $self->{_pkis};
+
     my $r;
     my $errstr= "selectall_arrayref() failed, errcode:\n";
     
@@ -964,7 +1112,9 @@ sub load_from_db
       };
     
     foreach my $rl (@$r) # for all lines than came from the DB
-      { $pk= $rl->[$pki]; # primary key
+      { 
+        $pk= compose_primary_key_str($r_pkis,$rl); 
+	
         if ($mode ne 'set')
 	  {
             $inserted{$pk}=0; 
@@ -988,8 +1138,8 @@ sub load_from_db
 	      };  
 	  };  
         if ($mode ne 'subtract')
-	  { $r_lines->  { $rl->[$pki] } = $rl; 
-            $r_aliases->{ $rl->[$pki] }= $rl->[$pki];
+	  { $r_lines->  { $pk } = $rl; 
+            $r_aliases->{ $pk } = $pk;
 	  };  
       };
       
@@ -1049,19 +1199,42 @@ sub delete_
       };
 
     my $format;
-    my $sth= db_prepare(\$format,$dbh,
-                	"delete from $self->{_table} " .
-        		"where $self->{_pk} = ? ")
-        	or die "prepare failed," .
-        	       " error-code: \n$DBI::errstr";
+    my $sth;
+    
+    my $r_pks= $self->{_pks};
 
-    # update :
-    my $line;
-    foreach my $pk (keys %{$self->{_deleted}})
-      { db_execute($format,$dbh,$sth, $pk)
-          or die "execute() returned an error," .
-            " error-code: \n$DBI::errstr";
-      }; 
+    if (!$self->{_multi_pk}) # only one primary key column
+      { $sth= db_prepare(\$format,$dbh,
+                	 "delete from $self->{_table} " .
+        		 "where $r_pks->[0] = ? ")
+        	    or die "prepare failed," .
+        		   " error-code: \n$DBI::errstr";
+	# update :
+	foreach my $pk (keys %{$self->{_deleted}})
+	  { db_execute($format,$dbh,$sth, $pk)
+              or die "execute() returned an error," .
+        	" error-code: \n$DBI::errstr";
+	  }; 
+      }
+    else
+      {
+        # build the "where" clause:
+	my @conditions= map { "$_ = ?" } (@$r_pks); 
+	my $condition= join(" AND ",@conditions);
+	$sth= db_prepare(\$format,$dbh,
+                	 "delete from $self->{_table} " .
+        		 "where $condition ")
+        	    or die "prepare failed," .
+        		   " error-code: \n$DBI::errstr";
+	# that should work, but who gives me the opportunity to test it ??		   
+	# update :
+	foreach my $pk (keys %{$self->{_deleted}})
+	  { db_execute($format,$dbh,$sth, decompose_primary_key_str($pk))
+              or die "execute() returned an error," .
+        	" error-code: \n$DBI::errstr";
+	  }; 
+      };
+
     delete $self->{_deleted}; # all updates are finished 
    }  
 
@@ -1071,66 +1244,92 @@ sub update
   { my $self= shift;
     my $dbh= $self->{_dbh};
     my $lines= $self->{_lines};
-    my $pki= $self->{_pki};
-    my $pk= $self->{_pk};
 
-    # all fields except the primary key!
-    # the primary key cannot be set to a vlaue it already has !
-    my @fields= grep{$_ ne $pk} (@{$self->{_column_list}});
+    # @fields was used in db_prepare instead of @{$self->{_column_list}}
+
     my $format;
+    
+    my $r_pks= $self->{_pks};
+    my $is_multi_pk= $self->{_multi_pk};
+    
+    my $condition;
+    if (!$is_multi_pk) # only one primary key column
+      { $condition= "$r_pks->[0] = ?"; }
+    else
+      {	my @conditions= map { "$_ = ?" } (@$r_pks); 
+	$condition= join(" AND ",@conditions);
+      };
+    
     my $sth= db_prepare(\$format,$dbh,
                         "update $self->{_table} set " . 
-                	 join(" = ?, ",@fields) . " = ? " .
-        		"where $self->{_pk} = ? ")
+                	 join(" = ?, ",@{$self->{_column_list}}) . " = ? " .
+        		"where $condition ")
         	or die "prepare failed," .
         	       " error-code: \n$DBI::errstr";
 
 
     # update :
+        
     my $line;
-    my @reduced_line;
-    my $primary_key_val;
-    foreach my $pk (keys %{$self->{_updated}})
-      { $line= $lines->{$pk};
-        next if (!defined $line); 
-	# can happen with changing, then deleting a line
-        @reduced_line= @{$line};
-	($primary_key_val)=splice(@reduced_line,$pki,1); 
-	              # remove the primary key from the list
-	              # it's complicated, slow and stupid but
-		      # what can you do when databases function like
-		      # this and you are not allowed to write a value
-		      # to the primary key it already has
-	db_execute($format,$dbh,$sth, 
-	           @reduced_line, $primary_key_val)
-          or die "execute() returned an error," .
-            " error-code: \n$DBI::errstr";
-      }; 
+    
+    if (!$is_multi_pk) # only one primary key column
+      { foreach my $pk (keys %{$self->{_updated}})
+          { $line= $lines->{$pk};
+            next if (!defined $line); 
+	    # can happen with changing, then deleting a line
+	    db_execute($format,$dbh,$sth, 
+	               @$line, $line->[ $r_pks->[0] ] )
+              or die "execute() returned an error," .
+                     " error-code: \n$DBI::errstr";
+          }
+      }
+    else
+      { foreach my $pk (keys %{$self->{_updated}})
+          { $line= $lines->{$pk};
+            next if (!defined $line); 
+	    # can happen with changing, then deleting a line
+	    db_execute($format,$dbh,$sth, 
+	               @$line, map { $line->[$_] } (@$r_pks) )
+              or die "execute() returned an error," .
+                     " error-code: \n$DBI::errstr";
+          }
+      }
+
     delete $self->{_updated}; # all updates are finished 
   }  
 
 sub insert
-#insert
+# insert
 # internal
+# note; primaray_key=>generate is forbidden with 
+#   tables that have more than one primary key column
   { my $self= shift;
     my %options= @_;
 
     my $dbh= $self->{_dbh};
     my $lines= $self->{_lines};
-    my $pk= $self->{_pk};
-    my $pki= $self->{_pki};
+    my $is_multi_pk= $self->{_multi_pk};
 
     my @fields= @{$self->{_column_list}};
     
     my $format;
     return if (!$self->{_inserted});
- 
+    
+    
     my $v= $options{primary_key};
-    if    (!defined $v)
-      { $options{primary_key}= 'generate'; }
-    elsif (($v ne 'preserve') && ($v ne 'generate'))
+    if (!$is_multi_pk)
+      { $v= 'generate' if (!defined $v); }
+    else 
+      { $v= 'preserve' if (!defined $v); };
+      
+    if (($is_multi_pk) && ($v ne 'preserve'))
+      { die "primary key mode must be \"preserve\" for a \n" .
+	    "table with more than one primary key column";
+      };
+    
+    if (($v ne 'preserve') && ($v ne 'generate'))
       { die "unknown primary-key-mode:$v"; }; 
- 
+       
     my $sth= db_prepare(\$format,$dbh,
                          "insert into $self->{_table} " .
 			 " ( " . join(", ",@fields) . ") " .
@@ -1151,26 +1350,31 @@ sub insert
           or die "execute() returned an error," .
             " error-code: \n$DBI::errstr";
       };
-      
-    my $r_prelim_keys= $self->{_preliminary};
+
     my @prelim_keys;
+    
     if ($options{primary_key} eq 'generate')
       { @prelim_keys= (keys %{$self->{_inserted}}); }
     else
       { if (exists $self->{_preliminary})
-          { @prelim_keys= (keys %{$self->{_preliminary}}); };
+          { @prelim_keys= (keys %{$self->{_preliminary}}); 
+	  };
       };
     
-    if (!exists $self->{_types})
-      { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
-    elsif ($self->{_types}->[$pki] eq 'number')
-      { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
-    else
-      { @prelim_keys= sort { $a cmp $b } @prelim_keys; };      	
-    
-    
     if (@prelim_keys)
-      { $sth=    db_prepare(\$format,$dbh,
+      { if ($is_multi_pk)
+          { die "_prelimuinary set with multi-pk table (assertion)"; };
+
+	if (!exists $self->{_types})
+	  { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
+	elsif ($self->{_types}->[ $self->{_pkis}->[0] ] eq 'number')
+	  { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
+	else
+	  { @prelim_keys= sort { $a cmp $b } @prelim_keys; };      	
+
+	my $pk= $self->{_pks}->[0];
+	    
+        $sth=    db_prepare(\$format,$dbh,
                             "update $self->{_table} set $pk= ? " .
 			    "where $pk= ?")
         	    or die "prepare failed," .
@@ -1224,12 +1428,21 @@ sub load_from_file
   { my $self= shift;
     my %options= @_;
 
-    my $v= $options{primary_key};
-    if    (!defined $v)
-      { $options{primary_key}= 'preserve'; }
-    elsif (($v ne 'preserve') && ($v ne 'generate'))
-      { die "unknown import-mode:$v"; }; 
+    my $is_multi_pk= $self->{_multi_pk};
 
+    my $v= $options{primary_key};
+    if (!$is_multi_pk)
+      { $v= 'preserve' if (!defined $v); }
+    else 
+      { $v= 'preserve' if (!defined $v); };
+      
+    if (($is_multi_pk) && ($v ne 'preserve'))
+      { die "primary key mode must be \"preserve\" for a \n" .
+	    "table with more than one primary key column";
+      };
+    
+    if (($v ne 'preserve') && ($v ne 'generate'))
+      { die "unknown primary-key-mode:$v"; }; 
 
     if ($self->{_type} ne 'file')
       { die "sorry, \'store_to_file\' is only allowed for type" .
@@ -1285,7 +1498,8 @@ sub load_from_file
 	        if    ($t eq 'TABLE')
 	          { $self->{_table}= $tokens[$i+1]; }
 		elsif ($t eq 'PK')
-	          { $self->{_pk}   = uc($tokens[$i+1]); }
+	          { $self->{_pks}   = [ split(/\s+/, uc($tokens[$i+1])) ]; 
+		  }
 		elsif ($t eq 'TYPE')
 	          { $self->{_type} = $tokens[$i+1]; }
 		elsif ($t eq 'FETCH_CMD')
@@ -1349,28 +1563,42 @@ sub load_from_file
     
     # final clean-up work:
     # 1st: column-hash
-    my $primary_key= $self->{_pk};
+    my @primary_keys= @{$self->{_pks}};
     my $r_c= $self->{_column_list};
     my %colindices;
     for(my $i=0; $i<= $#$r_c; $i++)
       { $colindices{ $r_c->[$i] } = $i; };
     $self->{_columns}= \%colindices;
 
-    $self->{_pki}= $self->{_columns}->{uc($primary_key)};
+    my @pkis;
+    my $r_col_hash= $self->{_columns};
+    my $i;
+    foreach my $pk (@primary_keys)
+      { $i= $r_col_hash->{$pk};
+        if (!defined $i)
+          { die "assertion failed, primary key column $pk not found"; };
+        push @pkis, $i;
+      };
+    
+    $self->{_pkis}= \@pkis;
  
     # 2nd: lines
-    my $pki= $self->{_pki};
     my $r_aliases= $self->{_aliases};
     my %lines_hash;
+    my $single_pki= $pkis[0];
     my $pk;
     my $gen_pk= ($options{primary_key} eq 'generate');
+    if ($is_multi_pk && $gen_pk)
+      { die "can\'t generate pk on multi-pk tables (assertion)"; };
+    
     foreach my $rl (@line_list)
-      { $pk= $rl->[$pki];
+      { 
+        $pk= compose_primary_key_str(\@pkis,$rl); 
         if (($gen_pk) && ($pk==0))
 	  { $pk= $self->new_prelim_key(); 
 	    $self->{_preliminary}->{$pk}= 1;
-	    $rl->[$pki]= $pk;
-	  }
+	    $rl->[$single_pki]= $pk;
+	  };
 	      
         $lines_hash{ $pk } = $rl;
         $r_aliases->{ $pk }= $pk;
@@ -1387,6 +1615,7 @@ sub store_to_file
 #                'pretty' => 1 or 0
   { my $self= shift;
     my %options= @_;
+    my $is_multi_pk= $self->{_multi_pk};
 
     $self->gen_sort_prepare(\%options);
 
@@ -1433,12 +1662,13 @@ sub store_to_file
     if (!$slim_format)
       { print G "[Properties]\n"; 
         my @defines;
-	foreach my $prop (qw(_table _pk _type))
+	foreach my $prop (qw(_table _type))
 	  { my $val= $self->{$prop};
 	    next if (!defined $val);
 	    push @defines, (uc(substr($prop,1)) . '=' . $val);
 	  };
 	print G wrap('', '', join(" ",@defines)),"\n";
+	print G "PK=\"",join(" ",@{$self->{_pks}}),"\"\n";
 	if (exists $self->{_fetch_cmd})
 	  { # fetch_cmd is a long quoted string and MUST NOT 
 	    # be handled by wrap() !!!
@@ -1540,6 +1770,12 @@ sub get_hash
 sub new_prelim_key
 #internal
   { my $self= shift;
+    
+    if ($self->{_multi_pk})
+      { die "preliminary key must not be used on tables with more" .
+            "than one primary key column! (assertion)";
+      };
+    
     if (!$prelim_key)
       { my $max;
         if ($self->{_type} eq 'table')
@@ -1568,6 +1804,50 @@ sub col_widths
       };
     return(@widths);    
   }
+
+sub compose_primary_key_str
+# internal
+# especially for tables where more than one column fo the 
+# primary key
+  { my($r_pkis, $r_line)= @_;
+  
+    if ($#$r_pkis==0) # only one primary key
+      { return( $r_line->[ $r_pkis->[0] ] ); };
+      
+    join("||", (map { $r_line->[$_] } (@$r_pkis)) );
+  }
+  
+sub build_primary_key_str
+# internal
+# especially for tables where more than one column fo the 
+# primary key
+# build primary key from a given hash in the form
+# colname1 => col_value1, colname2 => col_value2
+# returns undef when (at least one) of the needed columns is
+# missing 
+  { my($r_pks, $r_values)= @_;
+  
+    if ($#$r_pks==0) # only one primary key
+      { return( $r_values->{ $r_pks->[0] } ); };
+      
+    my $str;
+    my $val;
+    foreach my $pk_col (@$r_pks)
+      { $val= $r_values->{$pk_col};
+        return if (!defined $val);
+	if (!$str)
+	  { $str= $val; }
+	else
+	  { $str.= '||' . $val; };
+      };
+    return($str);  
+  }
+  
+sub decompose_primary_key_str  
+# internal
+# especially for tables where more than one column fo the 
+# primary key
+  { return( split(/\|\|/, $_[0]) ); }
 
 sub db_simplify_types
 # internal
@@ -1707,10 +1987,10 @@ sub db_get_resident_keys
     return( \%resident_keys);
   }
     
-    
-
-sub db_get_primary_key
+sub db_get_primary_keys
 # internal
+# returns the one primary key or the list of columns
+# that form the primary key
   { my($dbh,$table_name)= @_;
   
     $table_name= uc($table_name);
@@ -1729,13 +2009,19 @@ sub db_get_primary_key
     if (!defined $res)
       { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
 
+    # returns  OWNER TABLE_NAME COLUMN_NAME  
+
     # NOTE: in some tables, only the combination of several rows is
     # the primary key, in this case, the SQL statement above returns
-    # more than one line. 
+    # more than a single line. 
     
-    if ($#$res!=0)
-      { die "error: result is not unique"; };
-    return( lc($res->[0]->[2]) );
+    my @pks;
+    foreach my $line (@$res)
+      { push @pks, $line->[2]; };
+    
+    if (!@pks)
+      { die "error: primary key(s) not found"; };
+    return(@pks);
   }
     
 
@@ -1770,7 +2056,8 @@ sub gen_sort_prepare
     
     # @gen_sort_cols and $gen_sort_r_coltypes are global variables
     # used by gen_sort()
-    @gen_sort_cols= ($self->{_pki});
+    @gen_sort_cols= $self->{_pkis}; # default
+    
     if (exists $self->{_types})
       { $gen_sort_r_coltypes= $self->{_types}; }
     else
@@ -1779,26 +2066,31 @@ sub gen_sort_prepare
       };
 
     if (exists $r_options->{order_by}) 
-      { my $r= $r_options->{order_by};
+      { my $cnt= $#gen_sort_cols;
+        my %sort_h= map { $_ => $cnt-- } @gen_sort_cols;
+        # ^^^ see further up, @gen_sort_cols is $self->{_pkis}, the
+	# list of primary key indices
+	$cnt= 10000; 
+      
+        my $r= $r_options->{order_by};
         if (!ref($r)) # directly given
 	  { my $ci= $self->{_columns}->{uc($r)};
 	    if (!defined $ci)
 	      { die "unknown column: $r"; };
-	    unshift @gen_sort_cols, $ci; 
+	    $sort_h{$ci}= $cnt--;
 	  }
 	else
 	  { die "not an array" if (ref($r) ne 'ARRAY');
 	    # an array is given
-	    my $last= shift @gen_sort_cols; # save the last element
 	    foreach my $c (@$r)
 	      { my $ci= $self->{_columns}->{uc($c)};
 	        if (!defined $ci)
 	          { die "unknown column: $c"; };
- 	        push @gen_sort_cols, $ci; 
+	        $sort_h{$ci}= $cnt--;
+ 	        #push @gen_sort_cols, $ci; 
 	      };
-	    push @gen_sort_cols,$last;
 	  };
-	
+	@gen_sort_cols= sort { $sort_h{$b} <=> $sort_h{$a} } (keys %sort_h);
       };  
   }    
 
@@ -1969,9 +2261,16 @@ With "table" the dbi-table object will hold a some or all parts of a
 single table. The name of the table is given with the C<$table_name> parameter,
 the name of the primary key is given with the C<$primary_key> parameter.
 A primary key here is a column, which has a unique value for each line of
-the table. Note that dbitable will not work correctly, if a column-name is
-supplied, where this condition is not always true. Note too, that the
-primary key must be a numeric (integer) field in the table.
+the table. As an alternative, a list of columns can be supplied, where
+only each combination of columns is unique. In this case the primary 
+key columns are give as an anonymous list like that:
+
+  [$primary_key1_column1, $primary_key1_column2 ...] 
+
+
+Note that dbitable will not work correctly, if the primary key is not
+unique for each line of the table. Note too, that usually the 
+primary key is a numeric (integer) field in the table.
 
 =item *
 
@@ -2082,6 +2381,9 @@ the C<load> method, a new unique primary key is created while loading the file.
 Otherwise, the user would have to count lines, and create unique numbers for each
 new line he adds, which would be a rather dull task... ;)
 
+Note that "generate" is not allowed for tables, where only a combination
+of several columns forms the primary key.
+
 =item *
 
 "mode"
@@ -2169,6 +2471,9 @@ as it is. The user must ensure, that this key is unique for the new
 inserted lines in the table-object. This mode is only useful, when 
 the primary key was directly set by the user.
 
+Note that "generate" is not allowed for tables where only a combination
+of columns forms the primary key.
+
 =item *
 
 "pretty"
@@ -2224,8 +2529,8 @@ source-table. All lines that are not present in the source-table
 
   $dest_tab->import_table($source_tab, primary_key=>"generate");
 
-This option defines the primary_key mode. It must be either "preserve" or "generate",
-"generate" is the default. 
+This option defines the primary_key mode. It must be either "preserve" 
+or "generate", "generate" is the default. 
 
 It is only relevant for lines that were added to the table.
 
@@ -2239,6 +2544,9 @@ With "preserve", the value of the primary key is just taken from the source-tabl
 and remains unchanged. If the table-object is written to the database
 (see C<store>), the user must ensure, that this key is unique for new
 inserted lines. 
+
+Note that "generate" is not allowed for tables, where only a combination
+of several columns forms the primary key.
 
 =item *
 
@@ -2277,29 +2585,46 @@ returns C<undef>.
   my @keys= $table->primary_keys(%options)
  
 This method returns a list consisting of the primary key of each
-line of the table. If no options are given, the primary keys
-are given in a more or less random order. If the the option
-C<order_by> is given like this:
+line of the table. If no options are given, all the primary keys
+are given in a more or less random order. 
+
+The following options are known:
+
+=over 4
+
+=item order_by
 
   my @keys= $table->primary_keys(order_by=>[@column_names_list])
 
-the primary key are sorted according to the contents of the 
+the primary keys are sorted according to the contents of the 
 columns given in the list. The first column has the highest precedence.
 When the 1st column is equal in two lines, then the second column is
 used for further sorting and so on. 
 
-=item primary_key_column ()
+=item filter
 
-  my $pk_col= $table->primary_key_column()
+  my @keys= $table->primary_keys(filter=>'updated')
+
+  my @keys= $table->primary_keys(filter=>'inserted')
+
+In this case, only primary keys of lines are returned, that are marked
+as "updated" or marked as "inserted".
+
+=back
+
+=item primary_key_columns ()
+
+  my $pk_cols= $table->primary_key_columns()
  
-This method returns the name of the primary-key column in upper case.
+This method returns the names of the primary-key columns in upper case.
+In most cases there is exactly one primary key column.
 
-=item primary_key_column_index ()
+=item primary_key_column_indices ()
 
-  my $pk_col_index= $table->primary_key_column_index()
+  my $pk_col_indices= $table->primary_key_column_indices()
  
-This method returns the index of the primary-key in the list
-of all columns. The index of all columns starts with C<0>.
+This method returns the indices of the primary-keys in the list
+of all columns. The index numbering of all columns starts with C<0>.
 
 
 =item column_list ()
@@ -2443,6 +2768,14 @@ matter what the current content of the table-object is.
 
 This method dumps the complete internal data-structure of a table-object
 and is for debugging purposes only.
+
+=item dump_s()
+
+  my $r_buffer= $table->dump_s()
+
+This method dumps the complete internal data-structure of a table-object
+to a text variable and returns a reference to that variable. It
+is for debugging purposes only.
 
 =item pretty_print()
 
@@ -2652,8 +2985,9 @@ _fetch_cmd:   the last SQL command,
 _lines:       a ref to a hash, each primary key points to a reference
 	      to a list. Each list contains the values in the order of the
 	      columns (see also "_column_list")
-_pk: 	      the column-name of the primary key, usually lower-case
-_pki: 	      the column-index of the primary key
+_pks: 	      the column-name(s) of the primary key, usually lower-case
+_pkis: 	      the column-index/indices of the primary key(s)
+_multi_pk     1 if there's more than one primary key
 _table:       the name of the table, as it's used in oracle
 _type: 	      the type of the table, "table","view" or "file"
 _types:	      the types of the columns, "number" or "string"
