@@ -3154,13 +3154,15 @@ sub make_table_window
 
     $default_popup{popup_disable_lists}=
                   { default => ['open foreign table',
-                                'select THIS as foreign key'],
+                                'select THIS as foreign key',
+				'select foreign key'],
                     write_protected =>
                                 ['edit','paste','edit selection']
                   };
 
     $default_popup{popup_enable_lists} =
-                  { foreign_key => ['open foreign table'],
+                  { foreign_key => ['open foreign table',
+		                    'select foreign key'],
                     primary_key => ['select THIS as foreign key']
                   };
 
