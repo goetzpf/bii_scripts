@@ -1644,6 +1644,10 @@ sub tk_find_line
   { my($widget, $r_tbh, $given_colname)= @_;
 
     my $TableWidget= $r_tbh->{table_widget};
+    
+    my %col_search_data;
+    
+    $r_tbh->{col_search_data}= \%col_search_data;
 
     # get row-column of the active cell in the current table
     my($row,$col)= split(",",$TableWidget->index('active'));
@@ -1652,16 +1656,10 @@ sub tk_find_line
     if (defined $given_colname)
       { $colname= $given_colname; };
 
-    my %find_line_data;
-    $r_tbh->{find_line_data}= \%find_line_data;
+    $col_search_data{colname}= $colname;
 
     # my $Top= MainWindow->new(-background=>$BG);
     my $Top= $TableWidget->Toplevel(-background=>$BG);
-
-    $find_line_data{Top}= $Top;
-    $find_line_data{colname}= $colname;
-
-    $find_line_data{find_cell}= undef;
 
     my $title= "$r_tbh->{table_name}: Find $colname";
     $Top->title($title);
@@ -1670,73 +1668,145 @@ sub tk_find_line
                            -background=>$BG
                            )->pack(-side=>'top' ,-fill=>'x',
                                   -expand=>'y');
-    my $FrDn  = $Top->Frame(-background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'y',
-                                  -expand=>'y'
-                                  );
-
-    $FrTop->Label(-text=>"string to find: ")->pack(-side=>'left');
 
     my $entry=
-
-       $FrTop->Entry(-textvariable => \$find_line_data{find_cell},
+       $FrTop->Entry(-textvariable => \$col_search_data{string},
                      -width=>20
                     )->pack(-side=>'left',-fill=>'x',-expand=>'y');
     $entry->focus();
 
-    $FrDn->Button(-text => 'accept',
-                 %std_button_options,
-                  -command => [ \&tk_find_line2, $r_tbh ]
-                 )->pack(-side=>'left', -fill=>'y');
+    $Top->bind('<Return>', 
+            sub {  my $row= find_next_col($r_tbh,
+                                          string=>\$col_search_data{string},
+                                          colname=>$colname,
+                                          from=>'current',
+                                          direction=>'down');
+            
+                   if (!defined $row)
+                     { tk_err_dialog($Top,
+                             "$col_search_data{string} " .
+                             "not found in table");
+                     }
+                   else
+                     { my $col= colname2col($r_tbh, $colname);
+                       $TableWidget->activate("$row,$col");
+                       $TableWidget->yview($row-1);
+                       $Top->destroy;
+                     };
+                }
+              );        
+                                 
 
-    $FrDn->Button(-text => 'abort',
-                 %std_button_options,
-                 -command => [ \&tk_find_destroy, $r_tbh ]
-                 )->pack(-side=>'left', -fill=>'y');
-
-    $Top->bind('<Return>', sub { tk_find_line2($r_tbh) } );
-
-    $Top->bind('<Destroy>', sub { tk_find_destroy($r_tbh) } );
+    #$Top->bind('<Destroy>', sub { delete $r_tbh->{find_line_data}; });
 
     # let the window appear near the mouse-cursor:
     $Top->Popup(-popover    => 'cursor');
   }
 
-sub tk_find_line2
-  { my($r_tbh)= @_;
-
-    my $TableWidget= $r_tbh->{table_widget};
-    my $r_find_line_data= $r_tbh->{find_line_data};
-    my $Top= $r_find_line_data->{Top};
-
-    my @pks=  $r_tbh->{dbitable}->find($r_find_line_data->{colname},
-                                       $r_find_line_data->{find_cell}
-                                      );
-
-    if (!@pks)
-      { tk_err_dialog($Top,
-                      "error: $r_find_line_data->{find_cell} " .
-                      "not found in table");
+sub tk_find_line_next
+# $dir: 'prev' or 'next'
+  { my($widget, $r_glbl, $r_tbh, $dir)= @_;
+  
+    my $r_col_search_data= $r_tbh->{col_search_data};
+    
+    if (!defined $r_col_search_data)
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      "no search string specified");
+        return;
+      };
+    
+    my $colname= $r_col_search_data->{colname};
+    
+    my $row= find_next_col($r_tbh,
+                           string=> $r_col_search_data->{string},
+                           colname=>$colname,
+                           from=>'current',
+                           direction=> ($dir eq 'next') ? 'down' : 'up');
+            
+    if (!defined $row)
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+              "$r_col_search_data->{string} " .
+              "not found in table");
       }
     else
-      { my $row= pk2row($r_tbh,$pks[0]);
-        my $col= colname2col($r_tbh, $r_find_line_data->{colname});
+      { my $col= colname2col($r_tbh, $colname);
+        my $TableWidget= $r_tbh->{table_widget};
         $TableWidget->activate("$row,$col");
         $TableWidget->yview($row-1);
       };
-    tk_find_destroy($r_tbh);
-   }
+ }
 
-sub tk_find_destroy
-  { my($r_tbh)= @_;
 
-    return if (!exists $r_tbh->{find_line_data});
+sub find_next_col
+# searches a value in a given column
+# returns the row-number or undef
+# known options: 
+# string => $string or reference to a string
+# colname=> $colname
+# from => "current","top"
+# direction=> 'down', 'up'
+# exact => 1 or undef
+# NOTE: row 0 is the heading!!!
+  { my($r_tbh,%options)= @_;
+  
+    my $Table= $r_tbh->{table_widget};
 
-    my $Top= $r_tbh->{find_line_data}->{Top};
+    my $str= $options{string};
+    if (ref($str))
+      { $str= $$str; };    
+    
+    my $dir= ($options{direction} eq 'down') ? 1 : -1;
 
-    delete $r_tbh->{find_line_data};
-    $Top->destroy;
-   }
+    my $max= $r_tbh->{row_no};
+    my $colname= $options{colname};
+    
+    my $row;
+    if ($options{from} eq 'top')
+      { $row=0; 
+      }
+    else
+      { my $c;
+        ($row,$c)= split(",",$Table->index('active'));
+      };        
+    
+    if ($options{exact})
+      { 
+        # make things faster if the column to search is 
+        # a primary key column:
+        if (exists $r_tbh->{pks_h}->{$colname}) # it's a primary key
+          { if ($#{$r_tbh->{pks}}==0) # only one primary key
+              { 
+                return($r_tbh->{pk_hash}->{$str}); 
+              };
+          };
+        
+        for(my $i=0; $i<$max; $i++)
+          { $row+= $dir;
+            if    ($row<=0)
+              { $row= $max; }
+            elsif ($row>$max)
+              { $row=1; };
+            if (put_get_val_direct($r_tbh,
+                                   row2pk($r_tbh,$row),$colname) eq $str)
+              { return($row); };
+          };
+      }
+    else
+      {
+        for(my $i=0; $i<$max; $i++)
+          { $row+= $dir;
+            if    ($row<=0)
+              { $row= $max; }
+            elsif ($row>$max)
+              { $row=1; };
+            if (put_get_val_direct($r_tbh,
+                                   row2pk($r_tbh,$row),$colname)=~/$str/)
+              { return($row); };
+          };
+      };
+    return;
+  }
+
 
 sub tk_window_positioning
   { my($parent_widget, $client_widget)= @_;
@@ -1812,7 +1882,7 @@ sub tk_field_edit
     $r_tbh->{edit_cells}= \@cells;
     
     # edit_cell is a temporary variable
-    $r_tbh->{edit_cell}= put_get_val_direct($r_tbh,$pk,$colname);
+    $r_tbh->{edit_cell}= put_get_val_ect($r_tbh,$pk,$colname);
     my $w;
     
     if (defined $r_tbh->{edit_cell})
@@ -2253,6 +2323,24 @@ sub make_table_window
                   -underline   => 8,
                   -command => [\&tk_find_line, "", $r_tbh],
                 );
+    $Top->bind($Top,'<Control-g>'=> [\&tk_find_line_next,  
+                                     $r_glbl, $r_tbh,'next']);
+    $MnEdit->add('command',
+                  -label=> 'find next column',
+                  -accelerator => 'Ctrl+g',
+                  -underline   => 5,
+                  -command => [\&tk_find_line_next, "", 
+                               $r_glbl, $r_tbh,'next'],
+                );
+    $Top->bind($Top,'<Shift-Control-G>'=> [\&tk_find_line_next,  
+                                           $r_glbl, $r_tbh,'prev']);
+    $MnEdit->add('command',
+                  -label=> 'find prev column',
+                  -accelerator => 'Shift+Ctrl+g',
+                  -underline   => 5,
+                  -command => [\&tk_find_line_next, "", 
+                               $r_glbl, $r_tbh,'next'],
+                );
     $MnEdit->add('cascade',
                   -label=> 'field',
                   -underline   => 0,
@@ -2571,7 +2659,7 @@ sub make_table_window
     $r_itemhash->{'find in column'}= $itemcnt++;
     $MnPopup->add('command',
                   -label=> 'find in column',
-                  -command => [\&tk_find_line, $r_tbh],
+                  -command => [\&tk_find_line, "", $r_tbh],
                 );
     $r_itemhash->{'select THIS as foreign key'}= $itemcnt++;
     $MnPopup->add('command',
@@ -4231,22 +4319,36 @@ sub tk_activate_cell
 # makes a cell active, given by column-name and value
   { my($r_tbh,$colname,$value)= @_;
 
-    my @pks= $r_tbh->{dbitable}->find($colname,$value,
-                                     warn_not_pk=>1);
-    if (!@pks)
-      { tk_err_dialog($r_tbh->{table_widget},
-                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
-                     "col $colname, val \"$value\" not found");
-        return;
-      };
-    if (scalar @pks !=1 )
-      { tk_err_dialog($r_tbh->{table_widget},
-                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
-                     "col $colname, val $value found more than once");
-        return;
-      };
+#    my @pks= $r_tbh->{dbitable}->find($colname,$value,
+#                                     warn_not_pk=>1);
 
-    my($row,$col)= pkcolname2rowcol($r_tbh,$pks[0],$colname);
+
+    my $row= find_next_col($r_tbh,
+                           string=>$value,
+                           colname=>$colname,
+                           from=>'top',
+                           direction=>'down',
+                           exact=>1);
+#warn "search val $value, col $colname result $row";
+
+    
+#    if (!@pks)
+#      { tk_err_dialog($r_tbh->{table_widget},
+#                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
+#                     "col $colname, val \"$value\" not found");
+#        return;
+#      };
+#    if (scalar @pks !=1 )
+#      { tk_err_dialog($r_tbh->{table_widget},
+#                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
+#                     "col $colname, val $value found more than once");
+#        return;
+#      };
+
+    return if (!defined $row);
+
+    my $col= colname2col($r_tbh,$colname);
+        
     my $Table= $r_tbh->{table_widget};
     $Table->activate("$row,$col");
 
@@ -4364,8 +4466,8 @@ sub col2colname
   }
 
 sub row2pk
-# map row,column to primary-key, column-name
-  { my($r_tbh,$row,$col)= @_;
+# map row to primary-key
+  { my($r_tbh,$row)= @_;
 
     return($r_tbh->{pk_list}->[$row-1] );
   }
@@ -4926,9 +5028,6 @@ __END__
 Verbesserungsvorschläge:
 
 * (default für rechte Maustaste (bei Doppelclick rechts))
-
-* shortcut-anzeige (Meta-...) stimmt nicht
-  (vielleicht nur auf HP-UX...)
 
 * entry-felder: return soll was aktivieren
 
