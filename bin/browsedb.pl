@@ -23,6 +23,7 @@ use Tk;
 use Tk::Menu;
 use Tk::Dialog;
 use Tk::NoteBook;
+use Tk::TextUndo;
 use Tk::ROText;
 use Tk::BrowseEntry;
 use Tk::Listbox;
@@ -676,16 +677,6 @@ sub tk_main_window
         $r_glbl->{view_listbox_widget}=$DlgVwListbox;
 
         # dialog sequel
-        $DlgSQL->Label( -text=> "Statement :",
-                      )->pack( %dlg_def_labentry, );
-        my $DlgSQLCommand = $DlgSQL->Scrolled(
-                "Text",
-                -height=> 10,
-                -wrap=> "word",
-                -scrollbars=> "osoe",
-                -width=>80,
-        )->packAdjust( %dlg_def_labentry, );
-        $r_glbl->{sql_command_widget} = $DlgSQLCommand;
         $DlgSQL->Label(
                 -text=>"History :",
         )->pack( %dlg_def_labentry, );
@@ -700,7 +691,20 @@ sub tk_main_window
                  -side=>"top", -anchor=>"sw",
                  -expand=> 1,
         );
+        $DlgSQLHistory->tagConfigure("blue", -foreground => "blue");
+        $DlgSQLHistory->tagConfigure("red", -foreground => "red");
+        $DlgSQLHistory->tagConfigure("blue", -foreground => "green");
         $r_glbl->{sql_history_widget}=$DlgSQLHistory;
+        $DlgSQL->Label( -text=> "Statement :",
+                      )->pack( %dlg_def_labentry, );
+        my $DlgSQLCommand = $DlgSQL->Scrolled(
+                "TextUndo",
+                -height=> 10,
+                -wrap=> "word",
+                -scrollbars=> "osoe",
+                -width=>80,
+        )->packAdjust( %dlg_def_labentry, );
+        $r_glbl->{sql_command_widget} = $DlgSQLCommand;
         my $DlgSelectedSQLOk =
            $DlgSQL->Button( -state=> "normal",
                             -text=> "Exec Selection",
@@ -708,7 +712,10 @@ sub tk_main_window
                             -justify=> "center",
                             -command=> sub {
                                         my $query_command = $DlgSQLCommand->getSelected();
-                                        tk_execute_new_query($r_glbl, $query_command);
+                                        if (length ($query_command) > 0)
+                                          {
+                                            tk_execute_new_query($r_glbl, $query_command);
+                                          }
                                     }
            )->pack(%dlg_def_okbutton);
         my $DlgSQLOk =
@@ -716,8 +723,8 @@ sub tk_main_window
                             -text=> "Exec",
                             -underline=> 0,
                             -justify=> "center",
-                            -command=> sub {  my $query_command;
-                                        $DlgSQLCommand->delete('insert - 1 char');
+                            -command=> sub {
+                                        my $query_command;
                                         $query_command = $DlgSQLCommand->get('1.0', 'end');
                                         tk_execute_new_query($r_glbl, $query_command);
                                     }
@@ -727,6 +734,11 @@ sub tk_main_window
             bind('<Control-Return>' =>
                  sub {  my $query_command;
                         $DlgSQLCommand->delete('insert - 1 char');
+                        my $failure_selection = $DlgSQLCommand->getSelection();
+                        if (length($failure_selection) > 0)
+                        {
+                            $DlgSQLCommand->insert("insert", $failure_selection);
+                        }
                         $query_command = $DlgSQLCommand->get('1.0', 'end');
                         tk_execute_new_query($r_glbl, $query_command);
                      }
@@ -831,6 +843,7 @@ sub tk_main_window_finish
             while (my $line = <$fh>)
               {
                 $r_glbl->{sql_history_widget}->insert("end", $line);
+                $r_glbl->{sql_history_widget}->see("end");
               }
             $r_glbl->{handle_sql_history}->close;
       }
@@ -1056,6 +1069,7 @@ sub tk_execute_new_query
     $sqlquery =~ s/\s*;\s*$//;
     $sqlquery =~ s/[\s\r\n]+/ /gm;
     $sqlquery =~ s/^\s*//;
+    tk_progress($r_glbl, 10);
     my ($sqlcommand, $sqlargs) = ($sqlquery =~ /^(\w+)\s+(.*)/);
     if (! defined ($sqlcommand))
       { tk_err_dialog($r_glbl->{main_menu_widget},
@@ -1066,6 +1080,7 @@ sub tk_execute_new_query
       { my @sqloptions = split(/\s*,\s*/, $sqlargs);
         $sqlquery = dbdrv::get_alias($sqlcommand, @sqloptions);
       }
+    tk_progress($r_glbl, 20);
     my $fh=$r_glbl->{handle_sql_history};
     if ($sqlquery =~ /^select /i)
       {
@@ -1078,21 +1093,15 @@ sub tk_execute_new_query
                              sequel=>$sqlquery);
             if (defined ($StatementResult))
               {
-#                    $r_glbl->{sql_history_widget}->insert('end', "\n");
-                    $r_glbl->{sql_history_widget}->insert('end', $sqlinput);
-                    $r_glbl->{sql_command_widget}->delete('1.0', "end");
-                    $r_glbl->{sql_command_widget}->insert('1.0', $sqlinput);
                     print $fh $sqlinput;
               }
           }
       }
     else
       {
-        tk_progress($r_glbl, 10);
         my $TraceFormat;
         my $StatementResult = dbdrv::prepare(\$TraceFormat,
                                              $r_glbl->{dbh}, $sqlquery);
-        tk_progress($r_glbl, 25);
         if ($StatementResult)
           {
             if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},
@@ -1102,10 +1111,8 @@ sub tk_execute_new_query
               }
             else
               {
-                    tk_progress($r_glbl, 70);
                     print $fh $sqlinput;
               }
-            tk_progress($r_glbl, 100);
           }
         else
           {
@@ -1115,6 +1122,9 @@ sub tk_execute_new_query
           }
 
       }
+    tk_progress($r_glbl, 100);
+    $r_glbl->{sql_history_widget}->insert('end', "\n");
+    $r_glbl->{sql_history_widget}->insert('end', $sqlinput);
     if (defined ($r_glbl->{dbh}->err))
       {
         $r_glbl->{sql_history_widget}->insert('end', "\nError #".$r_glbl->{dbh}->err.": ".$r_glbl->{dbh}->errstr."\n", "red");
@@ -1123,6 +1133,7 @@ sub tk_execute_new_query
       {
           $r_glbl->{sql_history_widget}->insert('end', "\nStatement successful.\n", "green");
       }
+    $r_glbl->{sql_history_widget}->see("end");
     $fh->flush();
     tk_progress($r_glbl, 0);
     return $sqlquery;
