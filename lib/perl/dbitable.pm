@@ -265,6 +265,7 @@ sub init_tableviewtype
 
             return;
           };
+          $self->{_owner} = $user;
       };
 
     # if self->{_pks} already exists, take this if no primary-key
@@ -414,7 +415,7 @@ sub init_tableviewtype
 sub init_columns
 #internal
   { my $self= shift;
-    my ($pk_par,@columns)= @_;
+    my ($pk_par,@columns,$properties)= @_;
 
     my @primary_keys;
 
@@ -435,6 +436,16 @@ sub init_columns
 
     foreach my $c (@columns)
       { $c= uc($c); };
+
+    if ($self->{_type} eq 'table')
+      {
+         $self->{_column_properties}= dbdrv::column_properties
+              (
+                $self->{_dbh},
+                $self->{_owner},
+                $self->{_table}
+              );
+      }
 
     my $exist_columns= $self->{_column_list};
     my $exist_pks= $self->{_pks};
@@ -992,6 +1003,12 @@ sub column_hash
   { my $self= shift;
 
     return( %{$self->{_columns}} );
+  }
+
+sub column_properties
+  { my $self= shift;
+
+    return( %{$self->{_column_properties}} );
   }
 
 sub max_column_widths
@@ -3489,6 +3506,13 @@ the oracle database.
 
 This method returns a hash that maps each column-name it's column-index.
 Columns are numbered starting with 0.
+
+=item column_properties()
+
+  my %columns= $table->column_properties()
+
+This method returns a hash that maps each column-name it's type, length,
+precision, null-flag and default value.
 
 =item max_column_widths()
 
