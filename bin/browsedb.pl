@@ -168,43 +168,120 @@ $global_data{database}{dbproxy_port}        = "12109";
 my $db_proxy     = $global_data{database}{dbproxy_server};
 my $db_proxy_port= $global_data{database}{dbproxy_port};
 
-$global_data{theme}{main}{background} = "gray81";
-$global_data{theme}{main}{color} = "black";
-$global_data{theme}{main}{font} = "{helvetica} 10";
-$global_data{theme}{button}{background} = "gray81";
-$global_data{theme}{button}{color} = "black";
-$global_data{theme}{button}{font} = "{helvetica} 10";
-$global_data{theme}{action}{background} = "gray81";
-$global_data{theme}{action}{color} = "black";
-$global_data{theme}{action}{font} = "{helvetica} 10 bold";
-$global_data{theme}{text}{background} = "white";
-$global_data{theme}{text}{color} = "black";
-$global_data{theme}{text}{font} = "{helvetica} 10";
-$global_data{theme}{shell}{background} = "black";
-$global_data{theme}{shell}{font} = "{courier} 10";
-$global_data{theme}{shell}{selection} = "{courier} 10 bold";
-$global_data{theme}{shell}{color} = "white";
-$global_data{theme}{shell}{cursor} = "yellow";
-$global_data{theme}{shell}{commit} = "green";
-$global_data{theme}{shell}{error} = "red";
-$global_data{theme}{sql}{background} = "gray81";
-$global_data{theme}{sql}{color} = "black";
-$global_data{theme}{sql}{font} = "{helvetica} 10";
-$global_data{theme}{sql}{foreign_key} = "green";
-$global_data{theme}{sql}{primary_key} = "blue";
-$global_data{theme}{sql}{changes} = "red";
-$global_data{theme}{_config} = {
-    "color"=>"color",
-    "background"=>"color",
-    "cursor"=>"color",
-    "commit"=>"color",
-    "primary_key"=>"color",
-    "foreign_key"=>"color",
-    "error"=>"color",
-    "changes"=>"color",
-    "font"=>"font",
-    "selection"=>"font",
-  } ;
+$global_data{theme}->{main}= { '-background' => "gray81",
+#                              '-font'       => "{helvetica} 10",
+                             };
+
+$global_data{theme}->{login}= { '-background'         => "gray90",
+                                '-font'               => "{helvetica} 10",
+                              };
+
+$global_data{theme}->{'login:entry'}= 
+                              { '-background'         => "gray87",
+                                '-disabledbackground' => "gray87",
+                              };
+                             
+$global_data{theme}->{'login:button'}= 
+                               { '-activebackground'=> "gray90",
+                               };
+
+$global_data{theme}->{table}=   { '-background' => "gray90",
+                                  '-font'       => "{helvetica} 9",
+                                };
+
+$global_data{theme}->{'table:menubar'}= 
+                                { '-background'       => "gray90",
+                                  '-activebackground' => "gray90",
+                                  '-font'             => "{helvetica} 9 bold",
+                                  '-foreground'       => 'black',
+                                  '-activeforeground' => 'black'
+                                };
+
+$global_data{theme}->{'table:changed'}= 
+                                { -foreground => 'red'
+                                };
+
+$global_data{theme}->{'table:changed_ro'}= 
+                                { -foreground => 'orange'
+                                };
+
+$global_data{theme}->{'table:pk'}= 
+                                { -foreground => 'blue'
+                                };
+
+$global_data{theme}->{'table:fk'}= 
+                                { -foreground => 'LimeGreen'
+                                };
+
+$global_data{theme}->{'table:manual_fk'}= 
+                                { -foreground => 'ForestGreen'
+                                };
+
+$global_data{theme}->{'table:colmap_on'}= 
+                                { -foreground => 'aquamarine2'
+                                };
+
+$global_data{theme}->{'table:colmap_off'}= 
+                                { -foreground => 'LightCyan2'
+                                };
+
+
+$global_data{theme}->{button}= { '-background'      => "gray81",
+                                 '-font'            => "{helvetica} 10",
+                                 '-activebackground'=>"gray81",
+                               };
+
+$global_data{theme}->{text}= { #'-background' => "white",
+                               '-foreground' => "black",
+                               #'-font'       => "{helvetica} 10"
+                             };
+                             
+$global_data{theme}->{shell}= { '-background' => "black",
+                                '-font'       => "{courier} 10",
+                                '-foreground' => "white",
+#                               '-selection'  => "{courier} 10 bold",
+#                               '-cursor'     => "yellow",
+#                               '-commit'     => "green",
+#                               '-error'      => "red",
+                              };
+
+$global_data{theme}->{'shell:selection'}= 
+                              { 
+#                               '-background' => "black";
+                                '-font'       => "{courier} 10 bold",
+#                               '-foreground' => "white",
+#                               '-cursor'     => "yellow",
+#                               '-commit'     => "green",
+#                               '-error'      => "red",
+                              };
+
+$global_data{theme}->{'shell:string'}= 
+                              { 
+#                               '-background' => "black";
+#                               '-font'       => "{courier} 10 bold",
+                                '-foreground' => "white",
+#                               '-cursor'     => "yellow",
+#                               '-commit'     => "green",
+#                               '-error'      => "red",
+                              };
+
+$global_data{theme}->{'shell:error'}= 
+                              { 
+#                               '-background' => "black";
+#                               '-font'       => "{courier} 10 bold",
+                                '-foreground' => "red",
+#                               '-cursor'     => "yellow",
+#                               '-commit'     => "green",
+                              };
+
+#$global_data{theme}->{sql}-> { '-background'  => "gray81";
+#                              '-color'       => "black",
+#                              '-font'        => "{helvetica} 10",
+#                              '-foreign_key' => "green",
+#                              '-primary_key' => "blue",
+#                              '-changes'     => "red",
+#                             };
+
 
 my $r_alias;
 
@@ -214,15 +291,14 @@ dbdrv::set_warn_func(\&dbiwarn);
 $dbitable::sim_delete = 0;
 
 my %std_button_options= (
-            -font=> $global_data{theme}{button}{font},
-            -background=>$global_data{theme}{button}{background},
-            -activebackground=>$global_data{theme}{action}{background});
+             theme_parameters(\%global_data,'button',
+                              '-background','-font','-activebackground'),
+                        );
 
 my %std_menue_button_options= (
-            -font=> $global_data{theme}{button}{font},
-            -background=>$global_data{theme}{button}{background},
-            -activebackground=>$global_data{theme}{action}{background},
-            -relief=> 'raised');
+             theme_parameters(\%global_data,'button',
+                              '-background','-font','-activebackground'),
+             -relief=> 'raised');
 
 # --------------------- chdir to the directory where THIS SCRIPT is located
 # change to the place where THIS SCRIPT is located:
@@ -263,47 +339,61 @@ sub tk_login
         return;
       };
 
-    my $Top= BrowseDB::TkUtils::MakeToplevel($r_glbl,title=>"$r_glbl->{title}:Login");
+    my $Top= BrowseDB::TkUtils::MakeToplevel(
+                         $r_glbl,
+                         title=>"$r_glbl->{title}:Login",
+                         theme_parameters($r_glbl,'login','-background')
+                                            );
     $r_glbl->{login_widget}= $Top;
-    my $FrTop = $Top->Frame(-background=>$r_glbl->{theme}->{main}->{background}
+    my $FrTop = $Top->Frame(theme_parameters($r_glbl,'login','-background')
                            )->pack(-side=>'top' ,-fill=>'both');
-    my $FrDn  = $Top->Frame(-background=>$r_glbl->{theme}->{main}->{background}
+    my $FrDn  = $Top->Frame(
+                            theme_parameters($r_glbl,'login','-background')
                            )->pack(-side=>'top' );
 
     my $row=0;
+    my %label_opts= theme_parameters($r_glbl,'login','-background','-font');
 
-    $FrTop->Label(-text => 'driver:'
+    $FrTop->Label(-text => 'driver:',%label_opts,
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
-    $FrTop->Label(-text => 'database:'
+    $FrTop->Label(-text => 'database:',%label_opts,
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
-    $FrTop->Label(-text => 'user:'
+    $FrTop->Label(-text => 'user:',%label_opts,
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
-    $FrTop->Label(-text => 'password:'
+    $FrTop->Label(-text => 'password:',%label_opts,
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
-    $FrTop->Label(-text => 'use dbi proxy:'
+    $FrTop->Label(-text => 'use dbi proxy:',%label_opts,
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
-    $FrTop->Label(-text => 'proxy server:'
+    $FrTop->Label(-text => 'proxy server:',%label_opts,
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
-    $FrTop->Label(-text => 'proxy port:'
+    $FrTop->Label(-text => 'proxy port:',%label_opts,
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
 
     $row=0;
+    my %entry_opts= theme_parameters($r_glbl,'login:entry',
+                                     '-background','-font',
+                                     '-disabledbackground');
 
     my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
-                                #-state=> 'readonly',
+                                %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
     my $e1= $FrTop->Entry(-textvariable => \$r_glbl->{db_source},
+                          %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
-    my $e2= $FrTop->Entry(-textvariable => \$r_glbl->{user}
+    my $e2= $FrTop->Entry(-textvariable => \$r_glbl->{user},
+                          %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
     my $e3= $FrTop->Entry(-textvariable => \$r_glbl->{password},
                           -show => '*',
+                          %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
 
 
     my $Button;
     my($e4,$e5);
     $Button = $FrTop->Checkbutton(
+                theme_parameters($r_glbl,'login:button',
+                                 '-background','-activebackground'),
                 #-text=>"use DBI Proxy",
                 -variable => \$r_glbl->{use_proxy},
                 -command =>
@@ -322,10 +412,10 @@ sub tk_login
                                           -sticky=> "w");
 
     $e4= $FrTop->Entry(-textvariable => \$r_glbl->{proxy},
-                       -state => 'disabled'
+                       -state => 'disabled', %entry_opts
                       )->grid(-row=>$row++, -column=>1, -sticky=> "w");
     $e5= $FrTop->Entry(-textvariable => \$r_glbl->{proxy_port},
-                       -state => 'disabled'
+                       -state => 'disabled', %entry_opts
                       )->grid(-row=>$row++, -column=>1, -sticky=> "w");
 
 
@@ -348,12 +438,18 @@ sub tk_login
     $e3->bind('<Return>', sub { tk_login_finish($r_glbl); } );
     $e3->bind('<Tab>', sub { $e1->focus(); } );
 
+    my %button_opts= theme_parameters($r_glbl,'login:button',
+                                      '-background','-font',
+                                      '-activebackground',
+                                     );
+
+    
     $FrDn->Button(-text => 'Login',
-                  %std_button_options,
+                  %button_opts,
                   -command => [\&tk_login_finish, $r_glbl ],
                    )->pack(-side=>'left', -anchor=>'nw');
     $FrDn->Button(-text => 'Quit',
-                  %std_button_options,
+                  %button_opts,
                   -command => sub { $Top->destroy(); exit(0); }
                    )->pack(-side=>'left', -anchor=>'nw');
 
@@ -450,7 +546,8 @@ sub tk_main_window
 #    $r_glbl->{password}    = $password;
 
     my $listbox_action;
-    my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{main}->{background});
+    my $Top= MainWindow->new(theme_parameters($r_glbl,'main','-background'));
+    
     $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit_main, $r_glbl]);
 
     $Top->minsize(400,400);
@@ -599,91 +696,58 @@ sub tk_main_window
       );
 #    warn "found theme ";
     my $ThemeValues  = $r_glbl->{theme};
-    foreach my $ThemeEntry (keys %$ThemeValues)
+    foreach my $ThemeEntry (sort keys %$ThemeValues)
       {
-        if ($ThemeEntry eq '_config')
-          { next; }
         my $MnPrefThemeItem = $MnPrefTheme->Menu();
         $MnPrefTheme->add(
             'cascade',
             -label=> $ThemeEntry,
             -menu=> $MnPrefThemeItem,
           );
-        my $ThemeDialog = $ThemeValues->{$ThemeEntry};
-        foreach my $ThemeEntry2 (keys %$ThemeDialog)
+        my $r_ThemeHash = $ThemeValues->{$ThemeEntry};
+        foreach my $property (keys %$r_ThemeHash)
           {
-            if ($ThemeValues->{_config}->{$ThemeEntry2} eq "color")
+            if ($property =~ /^-(color|background|foreground|cursor|
+                                activebackground)$/x)
               {
 
                 $MnPrefThemeItem->add('command',
-                    -label=> $ThemeEntry2,
-                    -command=>sub{ $ThemeDialog->{$ThemeEntry2} =
+                    -label=> $property,
+                    -command=>sub{ $r_ThemeHash->{$property} =
                         $MnPrefTheme->chooseColor(
-                            -initialcolor=>$ThemeDialog->{$ThemeEntry2},
-                            -title=> "Color for $ThemeEntry of $ThemeEntry2",
+                            -initialcolor=>$r_ThemeHash->{$property},
+                            -title=> "Color for $ThemeEntry, $property",
                             -parent=>$Top,
                           );
-                        if ($ThemeEntry2 eq 'color' || $ThemeEntry2 eq 'cursor')
-                          {
-                            $MnPrefThemeItem->configure(
-                                -foreground=> $ThemeDialog->{color},
-                              );
-                          }
-                        elsif ($ThemeEntry2 eq 'background' || $ThemeEntry2 eq 'highlight')
-                          {
-                            $MnPrefThemeItem->configure(
-                                -background=> $ThemeDialog->{background},
-                            );
-                          }
                       },
                   );
-                if ($ThemeEntry2 eq 'color' || $ThemeEntry2 eq 'cursor')
-                  {
-                    $MnPrefThemeItem->configure(
-                        -foreground=> $ThemeDialog->{color},
-                      );
-                  }
-                elsif ($ThemeEntry2 eq 'background' || $ThemeEntry2 eq 'highlight')
-                  {
-                    $MnPrefThemeItem->configure(
-                        -background=> $ThemeDialog->{background},
-                      );
-                  }
               }
-            elsif ($ThemeValues->{_config}->{$ThemeEntry2} eq "font")
+            elsif ($property eq "-font")
               {
                 $MnPrefThemeItem->add('command',
-                    -label=> $ThemeEntry2,
-                    -command=>sub{ $ThemeDialog->{$ThemeEntry2} =
+                    -label=> $property,
+                    -command=>sub{ $r_ThemeHash->{$property} =
                         $Top->FontDialog->Show(
-                            -title=> "Font for $ThemeEntry of $ThemeEntry2",
+                            -title=> "Font for $ThemeEntry, $property",
                             -sampletext=>"Choose font for $ThemeEntry.",
-                            -initfont=>$ThemeDialog->{$ThemeEntry2},
-                          );
-                        $MnPrefThemeItem->configure(
-                            -font=> $ThemeDialog->{$ThemeEntry2}
+                            #-initfont=>$r_ThemeHash->{$property},
                           );
                       },
-                  );
-                $MnPrefThemeItem->configure(
-                    -font=> $ThemeDialog->{$ThemeEntry2}
                   );
               }
             else
               {
                 $MnPrefThemeItem->add('command',
-                    -label=> $ThemeEntry2,
-                    -command=>sub{
-                        my $DlgWnd = $MnPrefTheme->TextDialog(
-                            -background=>$ThemeValues->{dialog}->{background},
-                            -foreground=>$ThemeValues->{dialog}->{color},
-                            -textlabel=> "Value (".$ThemeDialog->{$ThemeEntry2}."):",
-                            -title=> "Value for $ThemeEntry of $ThemeEntry2",
-                            -parent=>$Top,
-                          );
-                        $ThemeDialog->{$ThemeEntry2} = $DlgWnd->WaitForInput;
-                      },
-                  );
+                    -label=> $property,
+                    -command=> 
+                       [ \&BrowseDB::TkUtils::SimpleTextDialog,
+                          $r_glbl,undef,
+                           tag=> "theme_property_dialog",
+                           title=> "Value for $ThemeEntry of $property",
+                           default => $r_ThemeHash->{$property},
+                           variable=> \$r_ThemeHash->{$property}
+                       ]           
+                                     );
               }
           }
 #warn "found theme $ThemeEntry";
@@ -1074,9 +1138,8 @@ sub tk_main_window
                 -height=> 10,
                 -wrap=> "word",
                 -scrollbars=> "osoe",
-                -background=> $r_glbl->{theme}->{shell}->{background},
-                -foreground=> $r_glbl->{theme}->{shell}->{color},
-                -font=> $r_glbl->{theme}->{shell}->{font},
+                theme_parameters($r_glbl,'shell',
+                                 '-background','-foreground','-font')
 #                -width=>80,
 #                -validate=>cb_sqlcommand_validate(),
         )->pack( -anchor=> "s",
@@ -1090,7 +1153,10 @@ sub tk_main_window
         BrowseDB::TkUtils::clear_undef_keys($DlgSQLCommand);
         $DlgSQLCommand->bind('<Control-X>' => $listbox_action);
         $DlgSQLCommand->bind('<Control-S>' => $listbox_action);
-        $DlgSQLCommand->tagConfigure('selection', -font=> $r_glbl->{theme}->{shell}->{selection});
+        $DlgSQLCommand->tagConfigure('selection', 
+                theme_parameters($r_glbl,'shell:selection','-font')
+                                    );
+
         $DlgSQLCommand->
             bind('<Control-Return>' =>
                  sub {  my $query_command;
@@ -1110,9 +1176,12 @@ sub tk_main_window
                      }
                 );
         $DlgSQLCommand->tagConfigure("string",
-            -foreground => $r_glbl->{theme}->{shell}->{string});
+             theme_parameters($r_glbl,'shell:string','-foreground')
+                                    );
+
         $DlgSQLCommand->tagConfigure("command",
-            -foreground => $r_glbl->{theme}->{shell}->{error});
+             theme_parameters($r_glbl,'shell:error','-foreground')
+                                    );
 
         # help dialog of database
         my $DlgHelpListbox = $DlgHlp->Scrolled(
@@ -1174,7 +1243,7 @@ sub tk_main_window
         # dont remove these update, because of .toplevel
         # problems for destroy operations
         $Top->update();
-        tk_login(\%global_data); # calls tk_main_window_finish
+        tk_login($r_glbl); # calls tk_main_window_finish
   }
 
 sub tk_main_window_finish
@@ -1749,9 +1818,7 @@ sub tk_open_new_object
           { chomp($order);
             $params{table_order}= $order; };
       };
-
     make_table_hash_and_window($r_glbl,%params);
-
   }
 
 sub make_table_hash_and_window
@@ -1791,7 +1858,6 @@ sub make_table_hash_and_window
                       "unsupported table type: $options{table_type}");
         return;
       }
-
 
     my $r_all_tables= $r_glbl->{all_tables};
 
@@ -2074,6 +2140,8 @@ sub make_table_window
 #  row_no        => the number of rows of the table
 # -----------------------------------------------------
 # sets the following parts in $r_tbh:
+# display_mode  => $display_mode, either 'table'or 'form' or 'info' or
+#                       'dependencies'
 # top_widget    => $top-widget
 # frame_top     => fastbar container
 # frame_down    => tablematrix container
@@ -2087,7 +2155,8 @@ sub make_table_window
     my $Top= BrowseDB::TkUtils::MakeToplevel($r_glbl,
                          title    => $r_tbh->{table_name},
                          geometry => $r_tbh->{geometry},
-                         background => $r_glbl->{theme}->{main}->{background});
+                         theme_parameters($r_glbl,'table','-background')
+                                            );
 
     tk_update_window_menu($r_glbl);
 
@@ -2110,66 +2179,86 @@ sub make_table_window
 
     # set the title
 
-    my $FastBar = $Top->Frame(
+    my %top_opts = theme_parameters($r_glbl,'table:menubar',
+                                    '-background','-foreground',
+                                    '-font');
+    my %menu_opts= theme_parameters($r_glbl,'table:menubar',
+                                   '-background','-foreground',
+                                   '-font',
+                                   '-activebackground',
+                                   '-activeforeground',
+                                   );
+    my $FrTop = $Top->Frame(
                     -height=>14,
                     -relief=>"raised",
+                    theme_parameters($r_glbl,'table:menubar',
+                                   '-background')
         );
-    $r_tbh->{frame_top} = $FastBar;
-    $FastBar->Label(-text=>" Where ",
+    $r_tbh->{frame_top} = $FrTop;
+    $FrTop->Label(-text=>" Where ",
                     -relief=>"flat",
                     -pady=>1, -padx=>1,
                     -justify=>"right",
                     -anchor=>"w",
+                    %top_opts
         )->pack(-expand=>0, -side=>"left");
 
-#    my $WhereField = $FastBar->Entry(-foreground=>"orange",
-    $r_tbh->{fastbar}->{filter} = $FastBar->BrowseEntry(-foreground=>"orange",
+#    my $WhereField = $FrTop->Entry(-foreground=>"orange",
+    $r_tbh->{fastbar}->{filter} = $FrTop->BrowseEntry(-foreground=>"orange",
                     -justify=>"left",
                     -relief=>"sunken",
                     -exportselection=>1,
                     -variable=>\$r_tbh->{table_filter},
+                    %top_opts
         )->pack(-expand=>1, -fill=>"x", -side=>"left");
-    $FastBar->Label(-text=>" Order by ",
+
+    $FrTop->Label(-text=>" Order by ",
                     -relief=>"flat",
                     -pady=>1, -padx=>1,
                     -justify=>"right",
                     -anchor=>"w",
+                    %top_opts
         )->pack(-expand=>0, -side=>"left");
 
-    $r_tbh->{fastbar}->{order} = $FastBar->BrowseEntry(-foreground=>"orange",
+    $r_tbh->{fastbar}->{order} = $FrTop->BrowseEntry(-foreground=>"orange",
                     -justify=>"left",
                     -relief=>"sunken",
                     -exportselection=>1,
                     -variable=>\$r_tbh->{table_order},
+                    %top_opts
         )->pack(-expand=>1, -fill=>"x", -side=>"left");
-    my $OkButton = $FastBar->Button(-text => "Set",
+
+    my $OkButton = $FrTop->Button(-text => "Set",
                     -command=> [ \&cb_reload_db, $r_glbl, $r_tbh ],
                     -underline=> 0,
                     -justify=>"center",
                     -relief=>"raised",
+                    %top_opts
         )->pack(-expand=>0, -side=>"left");
 
     #$r_tbh->{frame_top}->packForget;
-    my $FrDn  = $Top->Frame(-background=>$r_glbl->{theme}->{main}->{background}
-           )->pack(-side=>'top' ,
-                -fill=>'both',
-                -anchor=>'sw',
-                -expand=>'y');
+
+    my $FrDn  = $Top->Frame(theme_parameters($r_glbl,
+                            'table','-background')
+                           )->pack(-side=>'top' ,
+                                -fill=>'both',
+                                -anchor=>'sw',
+                                -expand=>'y');
     $r_tbh->{frame_down} = $FrDn;
 
     # the Menu-Bar is now created in a way that works on
     # windows to0. Note that this is a property of the
     # top widget, $MnTop MUST NOT be packed
 
-    my $MnTop= $Top->Menu();
+    my $MnTop= $Top->Menu(%menu_opts);
     $Top->configure(-menu => $MnTop );
 
-    my $MnFile  = $MnTop->Menu();
-    my $MnDbase = $MnTop->Menu();
-    my $MnPref  = $MnTop->Menu();
-    my $MnEdit  = $MnTop->Menu();
-    my $MnView  = $MnTop->Menu();
-    my $MnHelp  = $MnTop->Menu();
+    my $MnFile  = $MnTop->Menu(%menu_opts);
+    my $MnDbase = $MnTop->Menu(%menu_opts);
+    my $MnPref  = $MnTop->Menu(%menu_opts);
+    my $MnEdit  = $MnTop->Menu(%menu_opts);
+    my $MnView  = $MnTop->Menu(%menu_opts);
+    my $MnHelp  = $MnTop->Menu(%menu_opts);
 
     $MnTop->add('cascade',
                 -label=> 'File',
@@ -2205,8 +2294,8 @@ sub make_table_window
                 );
 
     # configure file-menu:
-    my $MnFileOpen= $MnFile->Menu();
-    my $MnFileSave= $MnFile->Menu();
+    my $MnFileOpen= $MnFile->Menu(%menu_opts);
+    my $MnFileSave= $MnFile->Menu(%menu_opts);
 
     $MnFile->add('cascade',
                 -label=> 'Import',
@@ -2254,7 +2343,7 @@ sub make_table_window
 
     # configure database-menu:
 
-    my $MnDbaseRela = $MnDbase->Menu();
+    my $MnDbaseRela = $MnDbase->Menu(%menu_opts);
 
     if ($r_tbh->{table_type} eq 'table')
       {
@@ -2319,8 +2408,8 @@ sub make_table_window
                 );
 
     # configure edit-menu:
-    my $MnEditField= $MnEdit->Menu();
-    my $MnEditLine = $MnEdit->Menu();
+    my $MnEditField= $MnEdit->Menu(%menu_opts);
+    my $MnEditLine = $MnEdit->Menu(%menu_opts);
 
 
     $Top->bind($Top,'<Control-f>'=> [\&tk_find_line,$r_glbl, $r_tbh]);
@@ -2358,7 +2447,6 @@ sub make_table_window
                   -underline   => 0,
                   -menu => $MnEditLine,
                 );
-
 
     $MnEditLine->add('command',
                       -label=> 'Insert',
@@ -2408,50 +2496,60 @@ sub make_table_window
     # create the sub-menue:
 
     # switching between different contents
-    $r_tbh->{fastswitch}->{show} = 'form';
+    #$r_tbh->{display_mode} = 'form';
+    $r_tbh->{display_mode} = 'table';
     $MnView->add('radiobutton',
                 -label=> 'Contenttable',
                 -underline=> 8,
-                -command=> [ \&cb_show_contenttable, $r_glbl, $r_tbh ],
-                -variable=> \$r_tbh->{fastswitch}->{show},
+                -command=> [ \&cb_show_content, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{display_mode},
                 -value => 'table',
                 );
     $MnView->add('radiobutton',
                 -label=> 'Contentform',
                 -underline=> 8,
-                -command=> [ \&cb_show_contentform, $r_glbl, $r_tbh ],
-                -variable=> \$r_tbh->{fastswitch}->{show},
+                -command=> [ \&cb_show_content, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{display_mode},
                 -value => 'form',
                 );
     $MnView->add('radiobutton',
                 -label=> 'Information',
                 -underline=> 1,
-                -command=> [ \&cb_show_objectinfo, $r_glbl, $r_tbh ],
-                -variable=> \$r_tbh->{fastswitch}->{show},
+                -command=> [ \&cb_show_content, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{display_mode},
                 -value => 'info',
                 );
     $MnView->add('radiobutton',
                 -label=> 'Dependencies',
                 -underline=> 0,
-                -command=> [ \&cb_show_dependencies, $r_glbl, $r_tbh ],
-                -variable=> \$r_tbh->{fastswitch}->{show},
+                -command=> [ \&cb_show_content, $r_glbl, $r_tbh ],
+                -variable=> \$r_tbh->{display_mode},
                 -value => 'dependencies',
                 );
 
     $MnView->add('separator');
+
+    $MnView->add('command',
+                  -label=> 'object-info',
+                  -underline   => 0,
+                  -command=> [\&object_info, $r_glbl, $r_tbh]
+                );
+ 
     $MnView->add('command',
                   -label=> 'sort rows',
                   -underline   => 0,
                   -command=> [\&tk_sort_menu, $r_glbl, $r_tbh]
                 );
-    my $MnViewHCol = $MnView->Menu();
+ 
+ 
+    my $MnViewHCol = $MnView->Menu(%menu_opts);
     $MnView->add('cascade',
                   -label=> 'Hide/Unhide columns',
                   -underline   => 0,
                   -menu => $MnViewHCol
                 );
 
-    my $MnViewRela = $MnView->Menu();
+    my $MnViewRela = $MnView->Menu(%menu_opts);
 
     $MnView->add('cascade',
                 -label=> 'Relation',
@@ -2529,32 +2627,13 @@ sub make_table_window
 
     $Top->bind('<Control-Enter>', sub { &cb_reload_db ($r_glbl, $r_tbh) } );
 
-    $r_tbh->{fastbar}->{filter}->bind('<Return>',
-            sub {&cb_reload_db ($r_glbl, $r_tbh) } );
-    $r_tbh->{fastbar}->{order}->bind('<Return>',
-            sub { &cb_reload_db ($r_glbl, $r_tbh); } );
-    
-    if ($r_tbh->{fastswitch}->{show} eq 'table')
-      {
-        cb_show_contenttable($r_glbl, $r_tbh);
-      }
-    elsif ($r_tbh->{fastswitch}->{show} eq 'form')
-      {
-        cb_show_contentform ($r_glbl, $r_tbh);
-      }
-    elsif ($r_tbh->{fastswitch}->{show} eq 'info')
-      {
-        cb_show_objectinfo ($r_glbl, $r_tbh);
-      }
-    elsif ($r_tbh->{fastswitch}->{show} eq 'dependencies')
-      {
-        cb_show_dependencies ($r_glbl, $r_tbh);
-      }
-    else
-      { die "fastswitch has wrong value:" . $r_tbh->{fastswitch}->{show} .
-            "(assertion)";
-      };            
+    $r_tbh->{fastbar}->{filter}->bind('<Return>', 
+                            sub { &cb_reload_db ($r_glbl, $r_tbh) } );
 
+    $r_tbh->{fastbar}->{order}->bind('<Return>', 
+                            sub { &cb_reload_db ($r_glbl, $r_tbh); } );
+
+    cb_show_content($r_glbl, $r_tbh);
   }
 
 sub cb_build_fastbar
@@ -2580,6 +2659,33 @@ sub cb_build_fastbar
       }
   }
 
+sub cb_show_content
+  { 
+    my($r_glbl, $r_tbh)= @_;
+    my $dmode= $r_tbh->{display_mode};
+
+    if ($dmode eq 'table')
+      {
+        cb_show_contenttable($r_glbl, $r_tbh);
+      }
+    elsif ($dmode eq 'form')
+      {
+        cb_show_contentform ($r_glbl, $r_tbh);
+      }
+    elsif ($dmode eq 'info')
+      {
+        cb_show_objectinfo ($r_glbl, $r_tbh);
+      }
+    elsif ($dmode eq 'dependencies')
+      {
+        cb_show_dependencies ($r_glbl, $r_tbh);
+      }
+    else
+      { die "display_mode has wrong value:" . $r_tbh->{display_mode} .
+            "(assertion)";
+      }; 
+  }      
+         
 sub cb_show_contenttable
   {
     my($r_glbl, $r_tbh)= @_;
@@ -2589,7 +2695,7 @@ sub cb_show_contenttable
     
     
     #$FrDn->gridForget($FrDn->gridSlaves());
-    ungrid($FrDn);
+    BrowseDB::TkUtils::ungrid($FrDn);
     #$r_glbl->{main_menu_widget}->update();
     
     $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
@@ -2622,6 +2728,10 @@ sub cb_show_contenttable
                                 -selectmode=> 'extended',
                                 #-flashmode=> 1,
                                 #-width => $dbi_column_no,
+                                theme_parameters($r_glbl,'table',
+                                                 '-background',
+                                                 '-font')
+                                
                                 );
 
     $r_tbh->{table_widget}= $Table;
@@ -2652,30 +2762,37 @@ sub cb_show_contenttable
 
 
     # mark changed cells by changing the foreground color to red
-    $Table->tagConfigure('changed_cell'   , -foreground => 'red');
+    $Table->tagConfigure('changed_cell'   ,
+                         theme_parameters($r_glbl,'table:changed',
+                                          '-foreground'));
 
     # mark changed cells by changing the foreground color to red
-    $Table->tagConfigure('changed_cell_ro', -foreground => 'orange');
+    $Table->tagConfigure('changed_cell_ro', 
+                         theme_parameters($r_glbl,'table:changed_ro',
+                                          '-foreground'));
 
     # create a tag for the primary key column
-    $Table->tagConfigure('pk_cell', -foreground => 'blue');
-                        #-state => 'disabled');
+    $Table->tagConfigure('pk_cell', 
+                         theme_parameters($r_glbl,'table:pk','-foreground'));
 
     # create a tag for the foreign key column
-    $Table->tagConfigure('fk_cell', -foreground => 'LimeGreen');
-                        # -state => 'disabled');
+    $Table->tagConfigure('fk_cell',
+                          theme_parameters($r_glbl,'table:fk','-foreground'));
 
     # create a tag for the manually added foreign key column
-    $Table->tagConfigure('m_fk_cell', -foreground => 'ForestGreen');
-                        # -state => 'disabled');
+    $Table->tagConfigure('m_fk_cell', 
+                          theme_parameters($r_glbl,'table:manual_fk',
+                                           '-foreground'));
 
     # create a tag for column-mapped columns
-    $Table->tagConfigure('mapped_col_on' , -foreground => 'aquamarine2');
-                        # -state => 'disabled');
+    $Table->tagConfigure('mapped_col_on' , 
+                          theme_parameters($r_glbl,'table:colmap_on',
+                                           '-foreground'));
 
     # create a tag for column-mapped columns
-    $Table->tagConfigure('mapped_col_off', -foreground => 'LightCyan2');
-                        # -state => 'disabled');
+    $Table->tagConfigure('mapped_col_off', 
+                          theme_parameters($r_glbl,'table:colmap_off',
+                                           '-foreground'));
 
     $Table->tagRaise('mapped_col_on','title');
     # mapped_col gets a priority higher than "title"
@@ -2801,9 +2918,11 @@ sub cb_show_contenttable
     { $MnColMap->add('command',
                     -label=> 'Add column map to file',
                     -command =>
-                            sub { add_to_local_column_maps($r_glbl,$r_tbh,
-                                                
-"$r_glbl->{dir}/$column_map_file");                                }
+                         sub { add_to_local_column_maps(
+                                           $r_glbl,$r_tbh,
+                                           "$r_glbl->{dir}/$column_map_file"
+                                                       );
+                             }
                     );
     };
 
@@ -2962,7 +3081,7 @@ sub cb_show_contentform
     my $FrDn = $r_tbh->{frame_down};
     
     #$FrDn->gridForget($FrDn->gridSlaves());
-    ungrid($FrDn);
+    BrowseDB::TkUtils::ungrid($FrDn);
     # important to re-pack the frame here:
     $FrDn->pack(-expand=> 1, -fill=>'both', );
 
@@ -2976,7 +3095,6 @@ sub cb_show_contentform
 
 
     #$FrDn->pack(-expand=> 1, -fill=>'both', );
-
 
     my $rowcol = 0;
 
@@ -2998,6 +3116,7 @@ sub cb_show_contentform
                 cb_show_contentform_get ($r_glbl, $r_tbh, 'first');
           },
       )->grid(-row=>$rowcol, -column=>0, -sticky=>'ew' );
+
     $rowcol++;
     my $ButBack = $FastNav->Button
       (
@@ -3016,6 +3135,7 @@ sub cb_show_contentform
                   cb_show_contentform_get ($r_glbl, $r_tbh, 1);
           },
       )->grid(-row=>$rowcol, -column=>0, -sticky=>'ew');
+
     $rowcol++;
     my $ButLast = $FastNav->Button
       (
@@ -3025,6 +3145,7 @@ sub cb_show_contentform
                 cb_show_contentform_get ($r_glbl, $r_tbh, 'last');
           },
       )->grid(-row=>$rowcol, -column=>0, -sticky=>'ew');
+
     $rowcol++;
 
      
@@ -3036,6 +3157,7 @@ sub cb_show_contentform
                          );
 
     # manually add scrollbars:
+
     my $xscroll = $FrDn->Scrollbar(-command => ['xview', $Pane],
                                 -orient => 'horizontal',
                                 )->grid(-row=>1, -column=>1, -sticky=> "ew");
@@ -3103,7 +3225,6 @@ sub cb_show_contentform
 
     $Pane->grid(-row=>0, -column=>1, -sticky=>'nsew');
 
-
     cb_show_contentform_get ($r_glbl, $r_tbh);
 
 
@@ -3115,10 +3236,8 @@ sub cb_show_contentform
 
     $Pane->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
 
-
     $r_glbl->{main_menu_widget}->update();
     #BrowseDB::TkUtils::SetBusy($r_glbl,0);
-
 }
 
 sub cb_show_contentform_get
@@ -3203,7 +3322,6 @@ sub cb_show_contentform_entrywidgets
         $ColName = "*".$colname;
       };
 
-
     my $LabelWidget= $FormWidget->Label(
                             -text=>"$ColName : ",
                             -relief=>"groove",
@@ -3213,13 +3331,14 @@ sub cb_show_contentform_entrywidgets
 
 #return($LabelWidget, $FormWidget->Label(-text=>"second"));
 
-
     my $state= ($r_tbh->{table_type} eq 'table') ?
                 'normal' : 'readonly';
 
     my $ColWidget;
     # setting default for new
     my $coltype = $r_tbh->{dbitable}->get_column_type($colname);
+    $coltype="unknown" if (!defined $coltype);
+
     if ($coltype eq "number")
       { $ColWidget = $FormWidget->NumEntry(
                 -textvariable=>\$r_tbh->{form_values}->{$colname},
@@ -3254,14 +3373,131 @@ sub cb_show_contentform_entrywidgets
 
     $ColWidget->configure(
             -width=> $colwidth,
-            -foreground=>$global_data{theme}{text}{foreground},
+           theme_parameters($r_glbl,'text','-foreground')
           );
-
-    # update is needed in order for $widget->reqwidth to be
-    # calculated correctly
 
     return($LabelWidget,$ColWidget);
   }
+
+sub object_info
+  {
+    my($r_glbl, $r_tbh)= @_;
+
+    my $dbh= $r_glbl->{dbh};
+    my $table_type= $r_tbh->{table_type};
+    my $table_name= $r_tbh->{table_name};
+
+    my $text= "object-type: ";
+    if    ($table_type eq 'table')
+      { $text.= "table"; }
+    elsif ($table_type eq 'view')
+      { $text.= "view"; }
+    elsif ($table_type eq 'sql')
+      { $text.= "arbitrary SQL statement"; }
+    elsif ($table_type eq 'table_or_view')
+      { $text.= "table or view"; }
+    else
+      { warn "unknown type: $r_tbh->{table_type}"; };
+      
+    $text.= "\n\ncolumns:\n";  
+
+    if ($table_type ne 'sql')
+      { my $all_col_prop= $r_tbh->{column_properties};
+      
+        $text.= sprintf("%-20s %-15s %6s %9s %8s %8s\n",
+                        'name','type','length',
+                        'precision','nullable','key-type');
+        
+        foreach my $colname ( @ { $r_tbh->{column_list} } )
+          { my $col_prop= $all_col_prop->{$colname};
+          
+            my $type  = $col_prop->{type};
+            my $length= $col_prop->{length};
+            my $prec  = $col_prop->{precision};
+            my $null  = $col_prop->{null};
+            $type="" if (!defined $type);
+            $null="" if (!defined $null);
+            if (defined $length)
+              { $length= sprintf("%3d",$length); }
+            else
+              { $length=""; };
+            if (defined $prec)
+              { $prec  = sprintf("%3d",$prec); }
+            else
+              { $prec=""; };
+
+            my $keytype="";
+            
+            if (exists $r_tbh->{pks_h}->{$colname})
+              { $keytype= "primary"; }; 
+                    
+            my $fkh= $r_tbh->{foreign_key_hash}->{$colname};
+            if (defined $fkh)
+              { # note: the table-name in the foreign_key_hash is
+                # no public synonym but the name of the real table
+                # we cannot call dbdrv::real_name here since
+                # is only knows all synonyms and all user tables, but
+                # not all tables that exist
+                # the foreign_key_hash contains:
+                # table-name,column,table-owner
+
+                  $keytype = "foreign, " .
+                      dbdrv::full_name($fkh->[0],$fkh->[2]);
+              };
+              
+            $text.= sprintf("%-20s %-15s %6s %9s %8s %s\n",
+                            $colname, $type, $length, 
+                            $prec, $null, $keytype);
+          }; 
+        my @dependents=
+                dbdrv::object_dependencies($dbh,$table_name,$r_glbl->{user});
+        if (@dependents)
+          {     $text.="\n\ndependents:\n";   
+            foreach my $r_s (@dependents)
+              { $text .= sprintf("%s.%s (%s)\n",@$r_s);
+              };
+          };
+    
+        my @referenced=
+                   dbdrv::object_references($dbh,$table_name,$r_glbl->{user});
+        if (@referenced)
+          { $text .= "\n\nreferenced objects:\n";
+            foreach my $r_s (@referenced)
+            { $text .= sprintf("%s.%s (%s)\n",@$r_s);
+            };
+          };
+      };
+      
+    if ($table_type eq 'view')
+      {
+        my $sql= dbdrv::read_viewtext($dbh,$table_name,$r_glbl->{user});
+        $text.= "\nSQL command of the view:\n" . $sql. "\n";
+      };
+    if ($table_type eq 'table')
+        {
+          my @constraints_triggers=
+                   dbdrv::object_addicts($dbh,$table_name,$r_glbl->{user});
+          if (@constraints_triggers)
+            { $text .= "\nconstraints/triggers:\n";
+              foreach my $r_s (@constraints_triggers)
+                { # caution: name,owner,type here!
+                  $text .= sprintf("%s.%s (%s)",$r_s->[1],$r_s->[0],$r_s->[2]);
+                  if ($r_s->[2] eq 'C')
+                    { $text .= "\n  {\n";
+                      $text .= "    " . dbdrv::read_checktext($dbh,$r_s->[0], $r_s->[1]);
+                      $text .= "\n  }\n";
+                    }
+                };
+            };
+
+        };
+          
+    $text.= "\nSQL command: " . $r_tbh->{dbitable}->{_fetch_cmd};
+    BrowseDB::TkUtils::MakeTextWidget($r_glbl,$table_name,\$text)
+  }  
+
+   
+
 
 sub cb_show_objectinfo
   {
@@ -3591,7 +3827,8 @@ sub tk_add_relation_dialog
 
     my $Top= BrowseDB::TkUtils::MakeToplevel($r_glbl,
                          title=>"Add relation in $r_tbh->{table_name}",
-                         background=>$r_glbl->{theme}->{main}->{background});
+                         theme_parameters($r_glbl,'main','-background')
+                                            );
 
     $relation_hash{Top}= $Top;
 
@@ -3715,22 +3952,26 @@ sub tk_add_relation_dialog2
   }
 
 sub tk_mark_manual_foreign_key_col
+# mark foreign key columns with a special color, only for
+# the 'table' display_mode
   { my($r_tbh,$col_name)= @_;
 
-   my $Table_Widget= $r_tbh->{table_widget};
+    return if ($r_tbh->{display_mode} ne 'table');
+    
+    my $Table_Widget= $r_tbh->{table_widget};
 
-   # get column-indices of "green" columns
-   my @tagged_cols= $Table_Widget->tagCol('fk_cell');
+    # get column-indices of "green" columns
+    my @tagged_cols= $Table_Widget->tagCol('fk_cell');
 
-   my $col= colname2col($r_tbh,$col_name);
+    my $col= colname2col($r_tbh,$col_name);
 
-   foreach my $i (@tagged_cols)
-     { if ($i==$col)
-         { # col is already tagged
-           return;
-         };
-     };
-   $Table_Widget->tagCol('m_fk_cell', $col );
+    foreach my $i (@tagged_cols)
+      { if ($i==$col)
+          { # col is already tagged
+            return;
+          };
+      };
+    $Table_Widget->tagCol('m_fk_cell', $col );
   }
 
 # referenced-tables dialog:
@@ -3759,11 +4000,12 @@ sub tk_references_dialog
 
     my $Top= BrowseDB::TkUtils::MakeToplevel($r_glbl,
                          title=>"Foreign keys in $r_tbh->{table_name}",
-                         background=>$r_glbl->{theme}->{main}->{background});
+                         theme_parameters($r_glbl,'main','-background')
+                                            );
 
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$r_glbl->{theme}->{main}->{background}
+                            theme_parameters($r_glbl,'main','-background')
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
 
@@ -4093,7 +4335,7 @@ sub tk_find_line
     my $Top= BrowseDB::TkUtils::MakeToplevel($r_glbl,
                          parent_widget=> $TableWidget,
                          title=>"$r_tbh->{table_name}",
-                         background=>$r_glbl->{theme}->{main}->{background}
+                         theme_parameters($r_glbl,'main','-background')
                         );
 
 
@@ -4103,10 +4345,10 @@ sub tk_find_line
                 -expand=>'y');
 
     my $FrTop = $Top->Frame( -borderwidth=>2,
-                                -background=>$r_glbl->{theme}->{main}->{background}
-        )->pack(-side=>'top' ,
-                -fill=>'x',
-                -expand=>'y');
+                             theme_parameters($r_glbl,'main','-background')
+                           )->pack(-side=>'top' ,
+                                   -fill=>'x',
+                                   -expand=>'y');
 
 #    my $rbfrom1 = $FrTop->Radiobutton(-variable => \$fromOpt,
 #                                     -value => 'current',
@@ -4157,10 +4399,10 @@ sub tk_find_line
     #$rbexact1->select;
 
     my $FrBottom = $Top->Frame( -borderwidth=>2,
-                                -background=>$r_glbl->{theme}->{main}->{background}
-        )->pack(-side=>'top' ,
-                -fill=>'x',
-                -expand=>'y');
+                                theme_parameters($r_glbl,'main','-background')
+                              )->pack(-side=>'top' ,
+                                      -fill=>'x',
+                                      -expand=>'y');
     my $entry=
        $FrBottom->Entry(-textvariable => \$col_search_data{string},
                      -width=>20
@@ -4499,7 +4741,9 @@ sub tk_table_info
    my($object_name, $object_owner);
    if ($r_tbh->{table_type} ne 'sql')
      {
-       my @dependents= dbdrv::object_dependencies($dbh,$r_tbh->{table_name},$r_glbl->{user});
+       my @dependents= dbdrv::object_dependencies($dbh, 
+                                                  $r_tbh->{table_name},
+                                                  $r_glbl->{user});
        if (@dependents)
          { $text->insert('end',"\ndependents:\n");
            foreach my $r_s (@dependents)
@@ -4508,7 +4752,9 @@ sub tk_table_info
              };
          };
 
-       my @referenced= dbdrv::object_references($dbh,$r_tbh->{table_name},$r_glbl->{user});
+       my @referenced= dbdrv::object_references($dbh,
+                                                $r_tbh->{table_name},
+                                                $r_glbl->{user});
        if (@referenced)
          { $text->insert('end',"\nreferenced objects:\n");
            foreach my $r_s (@referenced)
@@ -5383,16 +5629,15 @@ sub tk_delete_line_dialog
     my($row,$col)= split(",",$Table->index('active'));
     my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
-    # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{main}->{background});
     my $Top= BrowseDB::TkUtils::MakeToplevel($r_glbl,
                          parent_widget=> $Table,
                          title=>"$r_tbh->{table_name}: delete");
 
     my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$r_glbl->{theme}->{main}->{background}
+                            theme_parameters($r_glbl,'main','-background')
                            )->pack(-side=>'top' ,-fill=>'x',
                                   -expand=>'y');
-    my $FrDn  = $Top->Frame(-background=>$r_glbl->{theme}->{main}->{background}
+    my $FrDn  = $Top->Frame(theme_parameters($r_glbl,'main','-background')
                            )->pack(-side=>'top' ,-fill=>'y',
                                   -expand=>'y'
                                   );
@@ -5625,9 +5870,8 @@ sub tk_activate_cell
 # makes a cell active, given by column-name and value
   { my($r_tbh,$use_colmap,$colname,$value)= @_;
 
-#    my @pks= $r_tbh->{dbitable}->find($colname,$value,
-#                                     warn_not_pk=>1);
-
+    # currently not defined for display-mode 'form':
+    return if ($r_tbh->{display_mode} ne 'table');
 
     my $row= find_next_col($r_tbh,
                            string=>$value,
@@ -5636,21 +5880,7 @@ sub tk_activate_cell
                            direction=>'down',
                            use_colmap=> $use_colmap,
                            exact=>1);
-#warn "search val $value, col $colname result $row";
 
-
-#    if (!@pks)
-#      { BrowseDB::TkUtils::err_dialog($r_tbh->{table_widget},
-#                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
-#                     "col $colname, val \"$value\" not found");
-#        return;
-#      };
-#    if (scalar @pks !=1 )
-#      { BrowseDB::TkUtils::err_dialog($r_tbh->{table_widget},
-#                     "tk_activate_cell: table $r_tbh->{table_name}\n" .
-#                     "col $colname, val $value found more than once");
-#        return;
-#      };
 
     return if (!defined $row);
 
@@ -5923,7 +6153,6 @@ sub tk_load_collection
     foreach my $tab (keys %$r_all_tables)
       { my $r_dat= $r_all_tables->{$tab};
 
-
         $r_dat->{tbh}= make_table_hash_and_window(
                             $r_glbl,
                              table_name=>$tab,
@@ -6083,6 +6312,53 @@ sub tkwarn
 #=======================================================
 # routines that do not create menues or windows:
 #=======================================================
+
+# get parameters from the "theme" hash:
+#_______________________________________________________
+
+sub theme_parameters
+  { my($r_glbl, $key, @keylist)= @_;
+    my %local;
+  
+    my $r_h= $r_glbl->{theme}->{$key};
+    my $r_h_glbl;
+    
+    if (!defined $r_h)
+      { warn "warning: theme for $key not found\n" .
+             "(was called from " . join(",",caller) . ")";
+        return; 
+      };
+      
+    if ($key=~ /^([^:]+):/)
+      { $r_h_glbl= $r_glbl->{theme}->{$1}; }; 
+      
+    if (!@keylist)
+      { if (!defined $r_h_glbl)
+          { return(%$r_h); };
+        %local= (%$r_h_glbl,%$r_h); # overlay both hashes
+        return(%local);
+      };
+    # we use the fact here that
+    # hashes and lists are a bit "the same"
+    # when they are returned by functions
+    # (hashes are then converted to lists)
+    my @l;
+    my $val;
+    foreach my $k (@keylist)
+      { $val= $r_h->{$k};
+        if (!defined $val)
+          { if (defined $r_h_glbl)
+              { $val= $r_h_glbl->{$k}; };
+            if (!defined $val)
+              { warn "warning: theme for $key, property $k not found\n" .
+                 "(was called from " . join(",",caller) . ")";
+                next; 
+              };        
+          };
+        $local{$k}= $val;
+      };
+    return(%local);      
+  }
 
 # find a value in a table:
 #_______________________________________________________
@@ -6730,7 +7006,7 @@ sub conn_f_find
     return($r_residents);
   }
 
-# beatify a file-path
+# beautify a file-path
 #_______________________________________________________
 
 sub path_beautify
@@ -6854,17 +7130,6 @@ sub rdump
     $$r_buf.=  "REF TO: \'$r\'$comma\n";
   }
 
-sub ungrid
-  { my($gridwidget)= @_;
-    
-    my @slaves= $gridwidget->gridSlaves();
-    
-    return if (!@slaves);
-        
-    $gridwidget->gridForget(@slaves);
-    foreach my $w (@slaves)
-      { $w->destroy(); };
-  }
 
 __END__
 
