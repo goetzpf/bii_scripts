@@ -1,0 +1,47 @@
+eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
+  if $running_under_some_shell;
+#
+# $Log: dbcount,v $
+# Revision 1.1  2003-10-22 11:12:26  franksen
+# new
+#
+# Revision 1.1.1.1  2001/10/18 18:07:57  franksen
+# Imported using TkCVS
+#
+#
+# Author: Rozelle Wright
+# -- LANSCE-8, Los Alamos National Laboratory
+# -- 3/22/2000
+# counts process variables in database files
+
+@pname = split("/",$0);
+$pname = $pname[$#pname];
+
+# Get argument
+
+if ($#ARGV < 0)
+{
+  print "usage: $pname <file1.db> <file2.db> ...\n";
+  print "example: $pname ~aptdvl/prod/*/db/*.db\n";
+  exit;
+}
+$count = 0;
+$total_count = 0;
+foreach $file (@ARGV)
+{
+  open FIN, "$file" or die "Cannot open $file";
+  while ( <FIN> )
+  {
+    # check for lines beginning with record"
+    # print $_;
+    if (m/record\(/) { 
+      $count++;
+      #print "$count:$_\n";
+    }
+  }
+  close FIN;
+  $total_count += $count;
+  print "$file has $count records\n";
+  $count = 0;
+}
+print "total count is  $total_count \n";

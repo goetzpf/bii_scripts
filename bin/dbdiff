@@ -1,0 +1,11 @@
+#/bin/sh
+if [[ ! -e ~/tmp ]]; then
+  mkdir ~/tmp
+fi
+f1=`basename $1`
+f2=`basename $2`
+dbsort $1 > ~/tmp/$f1.sorted.1
+dbsort $2 > ~/tmp/$f2.sorted.2
+/opt/tkdiff/bin/tkdiff ~/tmp/$f1.sorted.1 ~/tmp/$f2.sorted.2
+rm ~/tmp/$f1.sorted.1
+rm ~/tmp/$f2.sorted.2

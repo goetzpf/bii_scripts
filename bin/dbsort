@@ -1,0 +1,69 @@
+eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
+  if $running_under_some_shell;
+#
+# $Log: dbsort,v $
+# Revision 1.1  2003-10-22 11:11:51  franksen
+# new
+#
+# Revision 1.1.1.1  2001/10/18 18:07:57  franksen
+# Imported using TkCVS
+#
+#
+# Author: Rozelle Wright
+# -- LANSCE-8, Los Alamos National Laboratory
+# -- 2/10/2000
+# Sorts database files
+
+@pname = split("/",$0);
+$pname = $pname[$#pname];
+
+# Get argument
+
+if ($#ARGV < 0)
+{
+  print "usage: $pname <file.db>\n";
+  print "example: $pname ion.db > ion.db.sorted\n";
+  exit;
+}
+
+open FIN, "<$ARGV[0]" or die "Cannot open $ARGV[0]";
+@records = ();
+$record = {};
+while ( <FIN> )
+{
+  # concatenate each record into a single string delimited by '---"
+  # print $_;
+  chop;
+  s/^\s+/\t/;
+  if (m/record\s*\(\s*\w+\s*,\s*("[^"]+"|[)]+)/) {
+    $record->{text} = $_;
+    $record->{name} = $1;
+  }
+  else {
+    $record->{text} = $record->{text} .'---'. $_;
+  };
+  if (m/}$/) {
+    push @records,$record;
+    $record = {};
+  };
+}
+close FIN;
+@sorted = sort {$a->{name} cmp $b->{name};} @records;
+foreach $rrecord (@sorted)
+{
+  $record = $rrecord->{text};
+  #	print "$record\n";
+  # split the fields out again so that the result is
+  # a valid ascii database
+  @fields = split('---',$record);
+  print "$fields[0]\n";
+  #	print "------debug\n";
+  #	print @fields;
+  #	print "---------debug\n";
+  @sortfields = sort(@fields[1..$#fields]);
+  #	print "split fields-------- @fields\n";
+  #	print $#fields;
+  foreach $field (@sortfields) {
+    print $field,"\n";
+  }
+}
