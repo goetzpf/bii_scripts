@@ -35,6 +35,7 @@ our $opt_tag;
 our $opt_filter;
 our $opt_order_by;
 our $opt_summary;
+our $opt_no_auto_pk;
 
 my $version="1.2";
 
@@ -54,7 +55,7 @@ if (!GetOptions("help|h", "summary",
 	        "table|t=s", "file|f=s", "outfile|o=s",
 		"tag|T=s","action|a=s",
 		"filter|F=s","order_by=s",
-		"delete|D"
+		"delete|D", "no_auto_pk"
 		
                 ))
   { die(undef,"parameter error, use \"$0 -h\" to display the online-help\n"); 
@@ -206,8 +207,15 @@ sub file2db
   { my(%options)= @_;
     my $dbh= get_dbh(\%options);
 
+    my %ftab_options= (pretty=>1);
+    
+    if (!defined $opt_no_auto_pk)
+      { $ftab_options{primary_key=>"generate"} }
+    else
+      { $ftab_options{primary_key=>"preserve"} };
+    
     my $ftab= dbitable->new('file',$options{file},$options{tag},
-                           )->load(pretty=>1,primary_key=>"generate");
+                           )->load(%ftab_options);
 
     my $tab = $ftab->new('table',"",'','');
  
@@ -315,7 +323,10 @@ options:
   -D deletion mode (only for file2db). In this case, lines
      that are not found in the file but only the database are
      deleted from the database 
-
+     
+  --no_auto_pk (only for file2db)
+     do not generate primary keys but take the primary key field
+     in the file as it is
 END
   }
 
