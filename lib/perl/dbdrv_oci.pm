@@ -72,7 +72,9 @@ sub primary_keys
 
     # take table owner into account
     if (defined $table_owner)
-      { $SQL.= " AND a.owner=\'$table_owner\'"; };
+      { $SQL.= " AND a.owner=\'$table_owner\'"; 
+        $SQL.= " AND b.owner=\'$table_owner\'"; # @@@@@ NEW
+      };
 
     sql_trace($SQL) if ($sql_trace);
 
@@ -465,7 +467,7 @@ sub object_dependencies
     if (!defined $table_owner) # assertion !
       { dbwarn($mod,'object_dependencies',__LINE__,
                "no table owner found for");
-	return;       
+        return;       
       };
 
     
