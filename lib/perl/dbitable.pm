@@ -1721,7 +1721,8 @@ new line he adds, which would be a rather dull task... ;)
 
 This option can only be used for the type 'table'. It defines what
 to do, if the table already contains data before C<load()> is executed.
-Three modes are known, "set", "add" and "overwrite". With "set", all
+Three modes are known, "set", "add" and "overwrite". "set" is 
+the default. With "set", all
 lines from the table are removed, before new lines are loaded from
 the database. With "add", the lines from the database are added to the
 lines already in the table. Lines that were not loaded from the
@@ -2101,6 +2102,39 @@ SQL commands to the screen, before they are executed.
   $tab->store();
   
   dbitable::disconnect_database();
+
+=head2 writing a file back to the database
+
+This script reads a table from an existing file. Then it reads 
+from the database and kind of compares this with the data from the
+file. The changed lines are then stored back to the database. The advantage
+of reading from the database before writing to it is that the
+SQL "update" command is only executed for lines that have found to be
+different from the lines stored in the database.
+
+  use strict;
+  use dbitable;
+  
+  $dbitable::sql_trace=1;
+
+  my $dbname= "DBI:Oracle:bii_par";
+
+  my $user="guest";
+  my $pass="bessyguest";
+
+  dbitable::connect_database($dbname,$user,$pass) or die;
+  
+  my $ftab= dbitable->new('file',"TEST.TXT","TEST-TAG")->load();
+   
+  my $tab = $ftab->new('table',"",'','');
+  # 1st '': take table-name from $ftab
+  # 2nd '': take primary key from $ftab
+  
+  $tab->load(mode=>"add");
+
+  $tab->store();
+  dbitable::disconnect_database();
+
 
 =head1 AUTHOR
 
