@@ -149,12 +149,16 @@ sub tk_login
                   %std_button_options,
 		  -command => sub { $Top->destroy(); exit(0); }
         	   )->pack(-side=>'left', -anchor=>'nw');
+
   }
 
 sub tk_login_finish
   { my($r_glbl)= @_;
 
     my $db_handle;
+
+    tk_wait_box($r_glbl,'create',"connecting to database...");
+
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -174,6 +178,7 @@ sub tk_login_finish
         delete $r_glbl->{login_widget};
       };
 
+    tk_wait_box($r_glbl,'update',"building main window...");
     tk_main_window($r_glbl);
   }
 
@@ -262,6 +267,9 @@ sub tk_main_window
 	}
 	else
 		{ $r_glbl->{new_table_name}= ""; };
+
+        tk_wait_box($r_glbl,'update',"getting list of all tables...");
+
 
 	my @ao= dbdrv::accessible_objects($r_glbl->{'dbh'},
 			    		  $r_glbl->{user}, 
@@ -433,6 +441,9 @@ sub tk_main_window
 		-expand=>1,
 		-anchor=>"w"
 		);
+
+     tk_wait_box($r_glbl,'destroy');
+
 
     #if ($fast_test)
     #  { tk_open_new_table($r_glbl); };
@@ -1621,12 +1632,57 @@ sub tk_dbitable_dump
    $text->pack(-fill=>'both',expand=>'y');
  }
 
+sub tk_wait_box
+  { my $r_glbl= shift;
+    my $action= shift;
+  
+    $action=lc($action);
+    if ($action eq 'create')
+      { my($msg)= @_;
+        
+        my $MyTop= MainWindow->new(-background=>$BG);
+
+	$r_glbl->{wait_box_widget}= $MyTop;
+        $MyTop->title("wait");
+	my $MsgWin= $MyTop->Message(-textvariable=> \$msg);
+	$r_glbl->{wait_box_text_ref}= \$msg;
+	$MsgWin->pack();
+	$MyTop->update();
+	return;
+      };
+    if ($action eq 'update')
+      { my($msg)= @_;
+        my $MyTop= $r_glbl->{wait_box_widget};
+        
+        my $r_var= $r_glbl->{wait_box_text_ref};
+        if (!defined $r_var)
+	  { tkdie($r_glbl,"assertion in line " . __LINE__); };
+	$$r_var= $msg;
+	$MyTop->update();
+	return;
+      };
+    if ($action eq 'destroy')
+      { my $MyTop= $r_glbl->{wait_box_widget};
+        if (!defined $MyTop)
+	  { tkdie($r_glbl,"assertion in line " . __LINE__); };
+        $MyTop->destroy;
+	delete $r_glbl->{wait_box_text_ref};
+	delete $r_glbl->{wait_box_widget};
+	$MyTop->update();
+        return;
+      };
+    tkdie($r_glbl,"unknown action:$action in line " . __LINE__); 
+  };
+   
+	
+
+
 sub tk_err_dialog
   { my($parent,$message)= @_;
    
     my $dialog= $parent->Dialog(
-	                    -title=>'Error',
-		            -text=> $message
+	                	 -title=>'Error',
+		        	 -text=> $message
 		               );
     $dialog->Show();				     
   }
@@ -1641,7 +1697,11 @@ sub dbidie
 sub tkdie
   { my($r_glbl,$message)= @_;
    
+#warn "MSG:$message\n";
+
     my $Top= $r_glbl->{main_menu_widget};
+    if (!defined $Top)
+      { $Top= $r_glbl->{login_widget}; };
    
     #$Top->afterIdle([\&tkdie2,$Top,$message]);
     tkdie2($Top,$message);
