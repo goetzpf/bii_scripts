@@ -37,6 +37,9 @@ warn "patching $browsedb_file...\n";
 
 process($bak_filename,$browsedb_file);
 
+# set correct file permissions:
+chmod 0775, $browsedb_file; 
+
 sub process
   { my($backup,$new)= @_;
     local(*F);
