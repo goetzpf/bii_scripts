@@ -2482,4 +2482,15 @@ sub conn_f_find
     return($r_residents);   
   }  
 
+__END__
 
+Verbesserungsvorschläge:
+
+* Multiple Selection (Tk::TableMatrix, -selectmode=>"extended"
+  dann: mehrere Felder gemeinsam auf einen Wert setzen
+
+* Kontextmenüs benutzen (Aktivieren mit rechter Maustaste)
+
+* (default für rechte Maustaste (bei Doppelclick rechts))
+
+* SQL-Trace: in File speichern
