@@ -68,7 +68,7 @@ my %global_data;
 $global_data{title} = "BrowseDB";
 $global_data{version} = "0.95";
 
-$global_data{about} =         
+$global_data{about} =
       [ "written by Goetz Pfeiffer",
         "updated and improved by Patrick Laux",
         "BESSY GmbH, Berlin, Adlershof",
@@ -339,12 +339,12 @@ sub tk_login_finish
 
     if (!$r_glbl->{use_proxy})
       { if ($r_glbl->{db_driver} eq "Pg")
-          { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} . 
+          { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} .
                                   ":dbname=" . $r_glbl->{db_source};
-            $dbitable::default_dbdrv="Postgresql";                        
+            $dbitable::default_dbdrv="Postgresql";
           }
         else
-          { # Oracle:                     
+          { # Oracle:
             $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} . ":" .
                                  $r_glbl->{db_source};
           }
@@ -360,7 +360,6 @@ sub tk_login_finish
                              $r_glbl->{db_driver} . ':' .
                              $r_glbl->{db_source};
       };
-
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -380,6 +379,8 @@ sub tk_login_finish
 
     $r_glbl->{dbh}= $db_handle;
 
+    $r_glbl->{db_capability} = dbdrv::get_capabilities();
+    
     BrowseDB::TkUtils::Progress($r_glbl,20);
 
     BrowseDB::TkUtils::SetBusy($r_glbl,0);
@@ -568,14 +569,14 @@ sub tk_main_window
     $MnHelp->add('command',
                  -label=> 'About',
                  -underline  => 0,
-                 -command=> [\&BrowseDB::TkUtils::About, $r_glbl, 
+                 -command=> [\&BrowseDB::TkUtils::About, $r_glbl,
                               $r_glbl->{about}
                             ]
                 );
     $MnHelp->add('command',
                  -label=> 'License',
                  -underline  => 0,
-                 -command=> [\&BrowseDB::TkUtils::About, $r_glbl, 
+                 -command=> [\&BrowseDB::TkUtils::About, $r_glbl,
                               $r_glbl->{license}
                             ]
                 );
@@ -639,6 +640,7 @@ sub tk_main_window
     my $DlgEnt = $DlgTop->add("DlgEnt", -label=>"Short Exec", -underline=>0);
     my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables", -underline=>0, state=>"disabled");
     my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views", -underline=>0, state=>"disabled");
+    my $DlgScr = $DlgTop->add("DlgScr", -label=>"Scripts", -underline=>0, state=>"disabled");
     my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Command", -underline=>0);
     my $DlgHlp = $DlgTop->add("DlgHlp", -label=>"Help", -underline=>0);
     my %dlg_def_labentry = (
@@ -780,55 +782,19 @@ sub tk_main_window
                 -selectmode=>"browse",
                 -width=>0
         )->pack( %dlg_def_listbox );
-
-
-        my $DlgTblRowMin = $DlgTbl->LabEntry(
-                -label=>'Lowest Rownumber :',
-                -labelPack=>[-side=>"left", -anchor=>"w"],
-                -textvariable=>$r_glbl->{varDBRowMin},
-                -width=> 5,
-        )->pack( %dlg_def_labentry,  );
-        my $DlgTblRowMax = $DlgTbl->LabEntry(
-                -label=>'Highest Rownumber :',
-                -labelPack=>[-side=>"left", -anchor=>"w"],
-                -textvariable=>$r_glbl->{varDBRowMin},
-                -width=> 5,
-        )->pack( %dlg_def_labentry );
-        my $DlgTblRowId = $DlgTbl->Checkbutton(
-                -text=>"Show RowId",
-                -textvariable=>$r_glbl->{varDBRowId},
-        )->pack( %dlg_def_labentry, );
-        $DlgTbl->Label(
-                -text=>"Where Clause :",
-        )->pack( %dlg_def_labentry, );
-        my $DlgTblWhere = $DlgTbl->Scrolled(
-                "Text",
-                -height=>5,
-                -wrap=>"word",
-                -width=>60
-        )->pack( %dlg_def_labentry, );
-        $DlgTbl->Label(
-                -text=>"Order Clause :",
-        )->pack( %dlg_def_labentry, );
-        my $DlgTblOrder = $DlgTbl->Scrolled(
-                "Text",
-                -height=>5,
-                -wrap=>"word",
-                -width=>60
-        )->pack( %dlg_def_labentry, );
-        my $order;
-        my $cond;
         my $DlgTblOk = $DlgTbl->Button(
                 -state=>"disabled",
                 -text=>"Show",
                 -underline=>0,
                 -justify=>"center",
                 -command=>
-                  sub { $cond= $DlgTblWhere->get('1.0','end');
-                        $order= $DlgTblOrder->get('1.0','end');
+                  sub {
+#                        $cond= $DlgTblWhere->get('1.0','end');
+#                        $order= $DlgTblOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgTblListbox->get($DlgTblListbox->curselection);
-                        tk_open_new_object($r_glbl, "table", $cond, $order);
+#                        tk_open_new_object($r_glbl, "table", $cond, $order);
+                        tk_open_new_object($r_glbl, "table");
                       }
         )->pack(%dlg_def_okbutton, );
 
@@ -839,11 +805,12 @@ sub tk_main_window
                 );
 
         $listbox_action = sub {
-                $cond= $DlgTblWhere->get('1.0','end');
-                $order= $DlgTblOrder->get('1.0','end');
+#                $cond= $DlgTblWhere->get('1.0','end');
+#                $order= $DlgTblOrder->get('1.0','end');
                 $r_glbl->{new_table_name} =
                     $DlgTblListbox->get($DlgTblListbox->curselection);
-                tk_open_new_object($r_glbl, "table", $cond, $order);
+#                tk_open_new_object($r_glbl, "table", $cond, $order);
+                tk_open_new_object($r_glbl, "table");
             };
         $DlgTblListbox->bind('<Return>' => $listbox_action);
         $DlgTblListbox->bind('<Double-Button-1>' => $listbox_action);
@@ -857,35 +824,19 @@ sub tk_main_window
                 -selectmode=>"browse",
                 -width=>0
         )->pack( %dlg_def_listbox, );
-        $DlgVw->Label(
-                -text=>"Where Clause :",
-        )->pack( %dlg_def_labentry, );
-        my $DlgVwWhere = $DlgVw->Scrolled(
-                "Text",
-                -height=>5,
-                -wrap=>"word",
-                -width=>60
-        )->pack( %dlg_def_labentry, );
-        $DlgVw->Label(
-                -text=>"Order Clause :",
-        )->pack( %dlg_def_labentry, );
-        my $DlgVwOrder = $DlgVw->Scrolled(
-                "Text",
-                -height=>5,
-                -wrap=>"word",
-                -width=>60
-        )->pack( %dlg_def_labentry, );
         my $DlgVwOk = $DlgVw->Button(
                 -state=>"disabled",
                 -text=>"Show",
                 -underline=>0,
                 -justify=>"center",
                 -command=>
-                  sub { $cond = $DlgVwWhere->get('1.0','end');
-                        $order = $DlgVwOrder->get('1.0','end');
+                  sub {
+#                        $cond = $DlgVwWhere->get('1.0','end');
+#                        $order = $DlgVwOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgVwListbox->get($DlgVwListbox->curselection);
-                        tk_open_new_object($r_glbl, "view", $cond, $order);
+#                        tk_open_new_object($r_glbl, "view", $cond, $order);
+                        tk_open_new_object($r_glbl, "view");
                       }
         )->pack( %dlg_def_okbutton, );
 
@@ -894,50 +845,53 @@ sub tk_main_window
                  sub { $DlgVwOk->configure(-state=>"active");
                      }
                 );
-        $listbox_action = sub { $cond= $DlgVwWhere->get('1.0','end');
-                        $order= $DlgVwOrder->get('1.0','end');
+        $listbox_action = sub {
+#                        $cond= $DlgVwWhere->get('1.0','end');
+#                        $order= $DlgVwOrder->get('1.0','end');
                         $r_glbl->{new_table_name} =
                             $DlgVwListbox->get($DlgVwListbox->curselection);
-                        tk_open_new_object($r_glbl, "view", $cond, $order);
+#                        tk_open_new_object($r_glbl, "view", $cond, $order);
+                        tk_open_new_object($r_glbl, "view");
                       };
 
         $DlgVwListbox->bind('<Return>' => $listbox_action);
         $DlgVwListbox->bind('<Double-1>' => $listbox_action);
         $r_glbl->{MainWindow}->{view_listbox_widget}=$DlgVwListbox;
 
-        # dialog view
-#        my $DlgScrListbox = $DlgScr->Scrolled(
-#                "Listbox",
-#                -scrollbars=>"oe",
-#                -width=>34,
-#                -selectmode=>"browse",
-#                -width=>0
-#        )->pack( %dlg_def_listbox, );
-#        $DlgScr->Label(
-#                -text=>"Script :",
-#        )->pack( %dlg_def_labentry, );
-#        my $DlgScrText = $DlgScr->Scrolled(
-#                "Text",
-#                -height=>5,
-#                -wrap=>"word",
-#                -width=>60
-#        )->pack( %dlg_def_labentry, );
-#
-#        $DlgScrListbox->
-#            bind('<Button-1>' =>
-#                 sub { $DlgScrOk->configure(-state=>"active");
-#                     }
-#                );
-#        $listbox_action = sub { 
-#                                                                                               $script_name$DlgScrListbox->get($DlgScrListbox->curselection);
-#                        $DlgScrText->replace("1.0", "end", join("\n", read_scripttext($dbh, 
-#                            
-#                        tk_open_new_object($r_glbl, "view", $cond, $order);
-#                      };
-#
-#        $DlgScrListbox->bind('<Return>' => $listbox_action);
-#        $DlgScrListbox->bind('<Double-1>' => $listbox_action);
-#        $r_glbl->{MainWindow}->{view_listbox_widget}=$DlgScrListbox;
+        # dialog script
+        my $DlgScrListbox = $DlgScr->Scrolled(
+                "Listbox",
+                -scrollbars=>"oe",
+                -width=>34,
+                -selectmode=>"browse",
+                -width=>0
+        )->pack( %dlg_def_listbox, );
+
+        $listbox_action = sub
+          {
+            my $script_name = $DlgScrListbox->get($DlgScrListbox->curselection);
+            my $script_content = join "", dbdrv::read_scripttext
+                    ($r_glbl->{dbh}, $script_name, $r_glbl->{user} );
+            BrowseDB::TkUtils::MakeTextWidget($r_glbl, "Script ".$script_name, \$script_content);
+          };
+
+        my $DlgScrOk = $DlgScr->Button(
+                -state=>"disabled",
+                -text=>"Show",
+                -underline=>0,
+                -justify=>"center",
+                -command=> $listbox_action,
+        )->pack( %dlg_def_okbutton, );
+
+        $DlgScrListbox->
+            bind('<Button-1>' =>
+                sub { $DlgScrOk->configure(-state=>"active");
+                     }
+                );
+
+        $DlgScrListbox->bind('<Return>' => $listbox_action);
+        $DlgScrListbox->bind('<Double-1>' => $listbox_action);
+        $r_glbl->{MainWindow}->{script_listbox_widget}=$DlgScrListbox;
 
         # dialog sequel
         $DlgSQL->Label(
@@ -1020,10 +974,9 @@ sub tk_main_window
         # help dialog of database
         my $DlgHelpListbox = $DlgHlp->Scrolled(
                 "Listbox",
-                -scrollbars=>"oe",
-                #-width=>34,
+                -scrollbars=>"osoe",
                 -selectmode=>"browse",
-                -width=>0
+                -width=>20
         )->pack( %dlg_def_listbox, );
         $r_glbl->{MainWindow}->{help_listbox_widget} = $DlgHelpListbox;
         my $DlgHelpContent = $DlgHlp->Scrolled(
@@ -1085,7 +1038,7 @@ sub tk_main_window_finish
   { my($r_glbl)= @_;
 
     BrowseDB::TkUtils::SetBusy($r_glbl,1);
-
+#    BrowseDB::TkUtils::Progress($r_glbl,35);
     my $infotext= $r_glbl->{user} . "@" . $r_glbl->{db_driver} . ':' .
                   $r_glbl->{db_source};
 
@@ -1095,27 +1048,13 @@ sub tk_main_window_finish
     $r_glbl->{MainWindow}->
              {login_info}->configure(-text =>$infotext);
 
-    my @accessible_objects_views= 
-               dbdrv::accessible_objects($r_glbl->{'dbh'},
-                                         $r_glbl->{user},
-                                         "VIEW",
-                                         "PUBLIC,USER");
-
-    BrowseDB::TkUtils::Progress($r_glbl,40);
-
-    my $view_listbox_widget= $r_glbl->{MainWindow}->{view_listbox_widget};
-    $view_listbox_widget->delete(0, 'end');
-    $view_listbox_widget->
-             insert("end", @accessible_objects_views );
-    $r_glbl->{MainWindow}->{notebook}->pageconfigure("DlgVw", state=>"normal");
-
     my @accessible_objects_tables =
               dbdrv::accessible_objects($r_glbl->{'dbh'},
                                          $r_glbl->{user},
                                          "TABLE",
                                          "PUBLIC,USER");
 
-    BrowseDB::TkUtils::Progress($r_glbl,60);
+    BrowseDB::TkUtils::Progress($r_glbl,35);
 
     my $table_listbox_widget= $r_glbl->{MainWindow}->{table_listbox_widget};
     $table_listbox_widget->delete(0, 'end');
@@ -1123,13 +1062,41 @@ sub tk_main_window_finish
              insert("end",  @accessible_objects_tables );
     $r_glbl->{MainWindow}->{notebook}->pageconfigure("DlgTbl", state=>"normal");
 
-    $r_glbl->{MainWindow}->{accessible_objects_all} = 
+    my @accessible_objects_views=
+               dbdrv::accessible_objects($r_glbl->{'dbh'},
+                                         $r_glbl->{user},
+                                         "VIEW",
+                                         "PUBLIC,USER");
+
+    BrowseDB::TkUtils::Progress($r_glbl, 55);
+
+    my $view_listbox_widget= $r_glbl->{MainWindow}->{view_listbox_widget};
+    $view_listbox_widget->delete(0, 'end');
+    $view_listbox_widget->
+             insert("end", @accessible_objects_views );
+    $r_glbl->{MainWindow}->{notebook}->pageconfigure("DlgVw", state=>"normal");
+
+
+    $r_glbl->{MainWindow}->{accessible_objects_all} =
                     [sort @accessible_objects_tables,@accessible_objects_views];
 
-    BrowseDB::TkUtils::Progress($r_glbl,80);
+     BrowseDB::TkUtils::Progress($r_glbl,70);
+
+     my @accessible_objects_scripts=
+               dbdrv::accessible_objects($r_glbl->{'dbh'},
+                                         $r_glbl->{user},
+                                         "FUNCTION,PROCEDURE",
+                                         "PUBLIC,USER");
+
+    my $script_listbox_widget= $r_glbl->{MainWindow}->{script_listbox_widget};
+    $script_listbox_widget->delete(0, 'end');
+    $script_listbox_widget->insert("end",  @accessible_objects_scripts );
+    $r_glbl->{MainWindow}->{notebook}->pageconfigure("DlgScr", state=>"normal");
+
+     BrowseDB::TkUtils::Progress($r_glbl,85);
 
     my $help_listbox_widget = $r_glbl->{MainWindow}->{help_listbox_widget};
-    
+
     my @topics= dbdrv::get_help_topic($r_glbl->{dbh});
     my $size=10;
     my $l;
@@ -1137,8 +1104,8 @@ sub tk_main_window_finish
       { $l= length($t);
         $size= $l if ($size<$l); };
 
-    $help_listbox_widget->configure(-width=>$size); 
-    
+    $help_listbox_widget->configure(-width=>$size);
+
     $help_listbox_widget->
              insert("end",  @topics );
 
