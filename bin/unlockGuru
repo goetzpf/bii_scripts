@@ -28,7 +28,7 @@ if [ -h ~/.guruLock ]; then
 
 # Check if it is mine
 
-    if [ "$lock_id" = "$GURU_LOCK" ]; then
+    if [ "X$lock_id" = "X$GURU_LOCK" ]; then
 
 	if [ "${DEBUG:+1}" = "1" ]; then
 	    echo This lock is mine - deleting it

@@ -33,7 +33,7 @@ while [ 1 = 1 ]; do
 
 # Check if it is mine
 
-	if [ "$lock_id" = "$GURU_LOCK" ]; then
+	if [ "X$lock_id" = "X$GURU_LOCK" ]; then
 
 	    if [ "${DEBUG:+1}" = "1" ]; then
 		echo The lock is mine - OK
@@ -46,7 +46,7 @@ while [ 1 = 1 ]; do
 
 	    owner_alive=$(ps -e | grep "^ *$lock_id" | awk '{ print $1}')
 
-	    if [ "$owner_alive" = "$lock_id" ]; then
+	    if [ "X$owner_alive" = "X$lock_id" ]; then
 		echo Locked by $lock_owner \(ID $lock_id\) since $lock_time
 		exit 1
 	    else
