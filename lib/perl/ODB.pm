@@ -9,14 +9,6 @@ use DBI;
 use Options;
 use strict;
 
-BEGIN {
-  Options::register(
-    ["dbase",  "d", "=s", "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
-    ["user",   "u", "=s", "User name",                        "user",     $ENV{'USER'}],
-    ["passwd", "p", "=s", "Password",                         "password", "", 1],
-  );
-}
-
 our $dbh;
 my $config;
 
@@ -60,34 +52,21 @@ sub sel {
   my ($table, $col_names, $cond, @bind_values) = @_;
   $cond = " where $cond" if $cond;
   my $sql = "select $col_names from $table$cond";
+  my @rows;
 
   Options::print_out("$sql;\n") if $config->{"verbose"};
 
-#warn "$sql";
-  
-   
+# in newer versions of DBI selectall_hashref has different semantics
+# so we emulate it here
+# my $rows = $dbh->selectall_hashref($sql);
+
   my $sth = $dbh->prepare($sql);
-  if (!defined $sth)
-    { warn "DBI error: " . $dbh->errstr;
-      return;
-    };
-   
-  if (!defined ($sth->execute(@bind_values)))
-    { warn "DBI error: " . $sth->errstr;
-      return;
-    };
-  
-  my @rows;
-  while (my $hash_ref = $sth->fetchrow_hashref)
-    { push @rows, $hash_ref; }; 
-  
-  if ($sth->err)
-    { warn "DBI error: " . $sth->errstr;
-      return;
-    };
-  
-#  my $rows = $dbh->selectall_hashref($sql);
-  
+  $sth->execute(@bind_values);
+
+  while (my $hash_ref = $sth->fetchrow_hashref) {
+    push @rows, $hash_ref;
+  }
+
   if ($config->{"verbose"}) {
     foreach my $row (@rows) {
       Options::print_out(join(",",map("$_='$row->{$_}'", keys %$row))."\n");
