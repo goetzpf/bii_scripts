@@ -26,7 +26,7 @@ use Text::ParseWords;
 
 # use DBD::AnyData;
 
-our $VERSION     = '1.4';
+our $VERSION     = '1.5';
 
 our $export_version= "1.0";
 
@@ -34,6 +34,8 @@ our $sql_trace= 0;
 our $db_trace  =0;
 our $prelim_key=0;
 our $sim_delete=1; # deletions in the DB are only simulated
+
+our $errorfunc= \&my_err_func;
 
 my $slim_format=0; # do not save all elements of "table" element
 
@@ -163,7 +165,9 @@ sub new
 		      )
 		  { $self->init_tableviewtype($newtype,@_); }
 		else
-		  { die "unknown type: $newtype"; };   
+		  { dbierror('new',__LINE__,"unknown type: $newtype"); 
+		    return;
+		  };   
 #              };
 	  };
 	return($self);
@@ -182,7 +186,9 @@ sub new
 	  { $self->init_tableviewtype($type,@_);
           }
 	else
-	  { die "unknown dbitable-type: \"$type\""; };
+	  { dbierror('new',__LINE__,"unknown dbitable-type: \"$type\"");
+	    return; 
+	  };
 	return($self);
       };  
     return($self);  
@@ -191,16 +197,25 @@ sub new
 sub init_filetype
 #internal
   { my $self= shift;
-    
 
     $self->{_type}= shift;
     my $filename= shift;
-    die "type \'file\': filename parameter missing"
-      if (!defined $filename);
+    
+    if (!defined $filename)
+      { dbierror('init_filetype',__LINE__,
+                 "type \'file\': filename parameter missing");
+	return;
+      };
+      
     $self->{_filename}= $filename;
     my $tag= shift;
-    die "type \'file\': tag parameter missing"
-      if (!defined $tag);
+    if (!defined $tag)
+      { dbierror('init_filetype',__LINE__,
+                 "type \'file\': tag parameter missing");
+	return;
+      };
+		 
+      
     $self->{_tag}= $tag;
     return if (!@_); # optional, primary key + column-list
 
@@ -215,7 +230,6 @@ sub init_tableviewtype
     $self->{_type}= $type;
 
     my $dbh= shift;
-    # die if (!defined $dbh);
     
     # test wether to use internal standard database handle
     if (!defined $dbh)
@@ -224,7 +238,10 @@ sub init_tableviewtype
       { $dbh= $std_dbh; };
     
     if (ref($dbh) !~ /^DBI::/)
-      { die "error: parameter is not a DBI handle!"; };
+      { dbierror('init_tableviewtype',__LINE__,
+                 "error: parameter is not a DBI handle!"); 
+        return;
+      };
     $self->{_dbh}= $dbh; 
     
     # if self->{_table} already exists, take this if no table
@@ -234,7 +251,12 @@ sub init_tableviewtype
       { if (exists $self->{_table})
           { $table= $self->{_table}; }
       };
-    die "table name missing" if (!defined $table);
+    if (!defined $table)
+      { dbierror('init_tableviewtype',__LINE__,
+                 "table name missing");
+        return;
+      };
+		 
  
     # if self->{_pks} already exists, take this if no primary-key
     # parameter is found in the argument-list    
@@ -248,8 +270,10 @@ sub init_tableviewtype
 	elsif (ref($primary_key_par) eq 'ARRAY')
 	  { @primary_keys= @$primary_key_par; }
 	else
-	  { die "error: primary key is neither scalar not " .
-	        "ARRAY reference"; 
+	  { dbierror('init_tableviewtype',__LINE__,
+	             "error: primary key is neither scalar not " .
+	             "ARRAY reference"); 
+	    return;	     
 	  };
       };
 
@@ -261,10 +285,15 @@ sub init_tableviewtype
 	  { # try to determine primary key by a tricky SQL statement:
 	    @primary_keys= db_get_primary_keys($dbh,$table);
 	    
-	    #die "primary_key: $primary_key";
 	  };  
       };
-    die "primary key name(s) missing" if (!@primary_keys);
+    
+    if (!@primary_keys)
+      { dbierror('init_tableviewtype',__LINE__,
+                "primary key name(s) missing");
+	return;
+      };	
+		 
 
     # change primary key(s) to upper case :
     foreach my $p (@primary_keys)
@@ -277,8 +306,11 @@ sub init_tableviewtype
     
     my $sql_statement= "select * from $table";
     if ($type eq 'view')
-      { $sql_statement= shift; 
-	die "sql-statement missing" if (!defined $sql_statement);
+      { $sql_statement= shift;
+        if (!defined $sql_statement)
+	  { dbierror('init_tableviewtype',__LINE__,"sql-statement missing");
+	    return;
+	  }; 
       };
     $self->{_fetch_cmd}= $sql_statement;
     
@@ -288,9 +320,12 @@ sub init_tableviewtype
       };
     # no SQL Trace here:
 
-    my $sth= $dbh->prepare($self->{_fetch_cmd})
-        or die "prepare failed," .
-               " error-code: \n$DBI::errstr";
+    my $sth= $dbh->prepare($self->{_fetch_cmd});
+    if (!$sth)
+      { dbierror('init_tableviewtype',__LINE__,
+                 "prepare failed, error-code: \n$DBI::errstr");
+        return;
+      };		 
 
     my $colcount=0;
     my @column_list= @{$sth->{NAME_uc}};
@@ -321,8 +356,10 @@ sub init_columns
     elsif (ref($pk_par) eq 'ARRAY')
       { @primary_keys= @$pk_par; }
     else
-      { die "error: primary key is neither scalar not " .
-	    "ARRAY reference"; 
+      { dbierror('init_columns',__LINE__,
+                 "error: primary key is neither scalar not " .
+	         "ARRAY reference");
+	return;	  
       };
     
     # change primary key(s) to upper case :
@@ -336,7 +373,10 @@ sub init_columns
     my $exist_pks= $self->{_pks}; 
     if (defined $exist_pks)
       { if (!lists_equal($exist_pks,\@primary_keys))
-          { die "error: existing primary key(s) != new primary key (s)";
+          { dbierror('init_columns',__LINE__,
+	             "error: existing primary key(s)" .
+		     " != new primary key (s)");
+	    return;
 	  };
       }
     else
@@ -347,9 +387,11 @@ sub init_columns
        
     if (defined $exist_columns)
       { if (!lists_equal($exist_columns,\@columns))
-          { die "error: existing columns != new columns:\n" .
-	        "exist: " . join(",",@$exist_columns) . "\n" .
-		"new  : " . join(",",@columns);
+          { dbierror('init_columns',__LINE__,
+	             "error: existing columns != new columns:\n" .
+	             "exist: " . join(",",@$exist_columns) . "\n" .
+		     "new  : " . join(",",@columns));
+	    return;
 	  };
       }
     else
@@ -364,7 +406,11 @@ sub init_columns
     foreach my $pk (@primary_keys)
       { $i= $r_col_hash->{$pk};
         if (!defined $i)
-          { die "assertion failed, primary key column $pk not found"; };
+          { dbierror('init_columns',__LINE__,
+	            "assertion failed, primary key " .
+		    "column $pk not found"); 
+	    return;
+	  };
         push @pki, $i;
       };
     
@@ -380,7 +426,7 @@ sub load
       { return( $self->load_from_db(@_) ); }
     if ($type eq 'file')
       { return( $self->load_from_file(@_) ); };
-    die "unknown type: $type";
+    dbierror('load',__LINE__,"unknown type: $type");
   }
     
 
@@ -392,7 +438,7 @@ sub store
       { return( $self->store_to_db(@_) ); }
     if ($type eq 'file')
       { return( $self->store_to_file(@_) ); };
-    die "unknown type: $type";
+    dbierror('store',__LINE__,"unknown type: $type");
   }
 
 sub import_table 
@@ -411,19 +457,25 @@ sub import_table
     if    (!defined $v)
       { $options{mode}= 'add_lines'; }
     elsif (($v ne 'add_lines') && ($v ne 'set_lines'))
-      { die "unknown import-mode:$v"; }; 
+      { dbierror('import_table',__LINE__,"unknown import-mode:$v"); 
+        return;
+      }; 
 
     $v= $options{primary_key};
     if    (!defined $v)
       { $options{primary_key}= 'generate'; }
     elsif (($v ne 'preserve') && ($v ne 'generate'))
-      { die "unknown primary-key-mode:$v"; }; 
+      { dbierror('import_table',__LINE__,"unknown primary-key-mode:$v"); 
+        return;
+      }; 
  
     if ($is_multi_pk)
       { if ($v eq 'generate')
-          { die "primary_key=generate not allowed for tables\n" .
-	        "with more than one primary key column!!";
-          };
+          { dbierror('import_table',__LINE__,
+	             "primary_key=generate not allowed for tables\n" .
+	             "with more than one primary key column!!");
+            return;
+	  };
       };
 
     my $r_column_aliases= $options{column_aliases};
@@ -460,8 +512,10 @@ sub import_table
     foreach my $pki (@pkis)
       { my $mpki= $col_mapping{$pki};
         if (!defined $mpki)
-          { die "error: no mapping for primary key (index $pki) defined," .
-	        " cannot import"; 
+          { dbierror('import_table',__LINE__,
+	            "error: no mapping for primary key " .
+		    "(index $pki) defined, cannot import");
+	    return;	     
 	  };
 	push @mapped_pkis, $mpki;
       };
@@ -536,7 +590,6 @@ sub import_table
               };
 	  };
       };	  	
-#die;
   }	    
 
 sub mark_inserted
@@ -588,7 +641,10 @@ sub primary_keys
         @keys= keys (%$r_k);
       }
     else
-      { die "unknown filter-option: $filter_opt"; };
+      { dbierror('primary_keys',__LINE__,
+                 "unknown filter-option: $filter_opt"); 
+        return;
+      };
       
     return( sort gen_sort (@keys) );
       
@@ -703,11 +759,16 @@ sub value
     else
       { my $i= $self->{_columns}->{$column};
         if (!defined $i)
-	  { die "error: unknown column: $column"; };
+	  { dbierror('value',__LINE__,"error: unknown column: $column");
+	    return; 
+	  };
         if (!$self->{_multi_pk})
 	  { # in the simple case the primary key must not be changed
 	    if ($i== $self->{_pkis}->[0]) 
-	      { die "error: primary key (col-index $i) must not be changed!"; 
+	      { dbierror('value',__LINE__,
+	                 "error: primary key (col-index $i) " .
+	                   "must not be changed!"); 
+		return;	   
 	      };
           };
 	$line->[ $i ] =$newval; 
@@ -732,7 +793,9 @@ sub find
     
     my $colindex= $self->{_columns}->{$column};
     if (!defined $colindex)
-      { die "error: unknown column: $column"; };
+      { dbierror('find',__LINE__,"error: unknown column: $column"); 
+        return;
+      };
 
     my $r_pkis= $self->{_pkis};
     if (!$is_multi_pk) # there is only one primary key
@@ -782,8 +845,10 @@ sub add_line
 
     if (!defined $new_key)
       { if ($is_multi_pk)
-          { die "error:the primary key columns MUST be set for a \n" .
-	        "table with more than one primary key";
+          { dbierror('add_line',__LINE__,
+	             "error:the primary key columns MUST be set for a \n" .
+	             "table with more than one primary key");
+	    return;
 	  };
         # if the primary key is not given, create one
         $new_key= $self->new_prelim_key();
@@ -793,8 +858,11 @@ sub add_line
     my $r_lines  = $self->get_hash("_lines");
     my $r_aliases= $self->get_hash("_aliases");
     
-    die "internal error, assertion failed\n" 
-       if (exists $r_lines->{$new_key});
+    if (exists $r_lines->{$new_key})
+      { dbierror('add_line',__LINE__,"internal error, assertion failed\n");
+        return;
+      }; 
+       
     
     my @line;
     my $first_pk= $self->{_pks}->[0];
@@ -807,7 +875,10 @@ sub add_line
           };
 	  
 	if (!exists $values{$col})
-	  { die "add_line: field \"$col\" is missing"; };
+	  { dbierror('add_line',__LINE__,
+	            "add_line: field \"$col\" is missing"); 
+	    return;
+	  };
 	push @line, $values{$col};
       };
     $r_lines->{$new_key}= \@line;
@@ -860,12 +931,19 @@ sub max_key
     my $dbh= $self->{_dbh};
      
     if ($self->{_multi_pk})
-      { die "max_key only works for tables with a single primary key!"; };
+      { dbierror('max_key',__LINE__,
+                 "max_key only works for tables with a " .
+                  "single primary key!"); 
+        return;
+      };
       
     my $pk= $self->{_pks}->[0];  
     
     if ($self->{_type} ne 'table')
-      { die "sorry, \'maxkey\' is only allowed for type \'table\'"; };
+      { dbierror('max_key',__LINE__,
+                "sorry, \'maxkey\' is only allowed for type \'table\'"); 
+        return;
+      };
 
     my $cmd= "select max( $pk ) from $self->{_table}";
     if ($arg eq 'capped')
@@ -873,8 +951,12 @@ sub max_key
     
     print "$cmd\n" if ($sql_trace);
     
-    my @array = $dbh->selectrow_array($cmd)
-      or die "selectall_arrayref failed, errcode:\n$DBI::errstr";
+    my @array = $dbh->selectrow_array($cmd);
+    if (!@array)
+      { dbierror('max_key',__LINE__,
+                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
     return($array[0]);
   }
      
@@ -894,7 +976,10 @@ sub dump
     local(*F);
     
     if (defined $filename)
-      { open(F,">$filename") or die; 
+      { if (!open(F,">$filename"))
+          { dbierror('dump',__LINE__,"unable to open file"); 
+	    return;
+	  };
         $fh= \*F;
       };
       
@@ -902,7 +987,11 @@ sub dump
   
     rdump($fh,\%h,0);
     if (defined $filename)
-      { close(F) or die; };
+      { if (!close(F))
+          { dbierror('dump',__LINE__,"unable to close file"); 
+	    return;
+	  };
+      };	  
   }  
 
 sub dump_s
@@ -1045,35 +1134,53 @@ sub load_from_db
       { $mode= 'set'; }
     elsif (($mode ne 'add') && ($mode ne 'set') &&
           ($mode ne 'subtract') && ($mode ne 'overwrite'))
-      { die "unknown load-mode:$mode"; }; 
+      { dbierror('load_from_db',__LINE__,"unknown load-mode:$mode"); 
+        return;
+      }; 
 
  
     if (exists $options{filter})
       { if ($self->{_type} ne 'table')
-          { die "sorry, filters are only allowed for type \'table\'"; };
+          { dbierror('load_from_db',__LINE__,
+	             "sorry, filters are only " .
+		     "allowed for type \'table\'");
+            return;
+	  };
       
         my $r_filter= $options{filter};
         if (ref($r_filter) ne 'ARRAY')
-	  { die "err: \"filter\" is not an array reference"; };
+	  { dbierror('load_from_db',__LINE__,
+	             "err: \"filter\" is not an array reference"); 
+            return;
+	  };
 	  
 	my $filter_type= $r_filter->[0];
 	if ($filter_type eq 'equal')
 	  { my($filter_field,$filter_value)= @$r_filter[1..2];
 	  
 	    if (!defined($filter_value))
-	      { die "err: filter specification is incomplete"; };
+	      { dbierror('load_from_db',__LINE__,
+	                 "err: filter specification is incomplete"); 
+                return;
+	      };
 	    $filter_type= lc($filter_type);
 	    $filter_field= uc($filter_field);
 	    if ($filter_value!~ /^\'/)
 	      { $filter_value= "\'$filter_value\'"; };
-            die "unknown field" 
-	         if (!exists $self->{_columns}->{$filter_field});
+	    if (!exists $self->{_columns}->{$filter_field})
+	      { dbierror('load_from_db',__LINE__,"unknown field");
+	        return;
+	      }; 
+	         
             $select_trailer= "where $filter_field = $filter_value";
 	  }
 	elsif ($filter_type eq 'SQL')
 	  { $select_trailer= "WHERE " . $r_filter->[1]; }
 	else
-	  { die "unsupported filter-type: $filter_type"; };
+	  { dbierror('load_from_db',__LINE__,
+	             "unsupported filter-type: $filter_type"); 
+	    return;	     
+	  };
       };	  
 	   
     if ($self->{_type} eq 'table')
@@ -1085,7 +1192,11 @@ sub load_from_db
     print "$cmd\n" if ($sql_trace);
 
 #warn "|$cmd|\n";
-    $r= $dbh->selectall_arrayref($cmd) or die $errstr . $DBI::errstr;
+    $r= $dbh->selectall_arrayref($cmd);
+    if (!$r)
+      { dbierror('load_from_db',__LINE__,$errstr . $DBI::errstr);
+        return;
+      };
 
 
     my $r_lines;
@@ -1173,7 +1284,10 @@ sub store_to_db
   { my $self= shift;
   
     if ($self->{_type} ne 'table')
-      { die "sorry, \'store\' is only allowed for type \'table\'"; };
+      { dbierror('store_to_db',__LINE__,
+                 "sorry, \'store\' is only allowed for type \'table\'"); 
+        return;
+      };
       
     $self->delete_(@_);
     $self->update(@_);
@@ -1206,14 +1320,20 @@ sub delete_
     if (!$self->{_multi_pk}) # only one primary key column
       { $sth= db_prepare(\$format,$dbh,
                 	 "delete from $self->{_table} " .
-        		 "where $r_pks->[0] = ? ")
-        	    or die "prepare failed," .
-        		   " error-code: \n$DBI::errstr";
+        		 "where $r_pks->[0] = ? ");
+	if (!$sth)
+	  { dbierror('store_to_db',__LINE__,
+	             "prepare failed, error-code: \n$DBI::errstr");
+	    return;
+	  };
 	# update :
 	foreach my $pk (keys %{$self->{_deleted}})
-	  { db_execute($format,$dbh,$sth, $pk)
-              or die "execute() returned an error," .
-        	" error-code: \n$DBI::errstr";
+	  { if (!db_execute($format,$dbh,$sth, $pk))
+	      { dbierror('store_to_db',__LINE__,
+	                 "execute() returned an error," .
+        	         " error-code: \n$DBI::errstr");
+	        return;
+	      };	 
 	  }; 
       }
     else
@@ -1223,15 +1343,23 @@ sub delete_
 	my $condition= join(" AND ",@conditions);
 	$sth= db_prepare(\$format,$dbh,
                 	 "delete from $self->{_table} " .
-        		 "where $condition ")
-        	    or die "prepare failed," .
-        		   " error-code: \n$DBI::errstr";
+        		 "where $condition ");
+	if (!$sth)
+	  { dbierror('store_to_db',__LINE__,
+	             "prepare failed," .
+        	     " error-code: \n$DBI::errstr");
+	    return;
+	  };	     
 	# that should work, but who gives me the opportunity to test it ??		   
 	# update :
 	foreach my $pk (keys %{$self->{_deleted}})
-	  { db_execute($format,$dbh,$sth, decompose_primary_key_str($pk))
-              or die "execute() returned an error," .
-        	" error-code: \n$DBI::errstr";
+	  { if (!db_execute($format,$dbh,$sth, 
+	                   decompose_primary_key_str($pk)))
+	      { dbierror('store_to_db',__LINE__,
+	                 "execute() returned an error," .
+        	         " error-code: \n$DBI::errstr");
+	        return;	
+	      };	 
 	  }; 
       };
 
@@ -1263,9 +1391,13 @@ sub update
     my $sth= db_prepare(\$format,$dbh,
                         "update $self->{_table} set " . 
                 	 join(" = ?, ",@{$self->{_column_list}}) . " = ? " .
-        		"where $condition ")
-        	or die "prepare failed," .
-        	       " error-code: \n$DBI::errstr";
+        		"where $condition ");
+    if (!$sth)
+      { dbierror('update',__LINE__,
+                 "prepare failed," .
+        	 " error-code: \n$DBI::errstr");
+	return;
+      };	 
 
 
     # update :
@@ -1277,10 +1409,13 @@ sub update
           { $line= $lines->{$pk};
             next if (!defined $line); 
 	    # can happen with changing, then deleting a line
-	    db_execute($format,$dbh,$sth, 
-	               @$line, $line->[ $r_pks->[0] ] )
-              or die "execute() returned an error," .
-                     " error-code: \n$DBI::errstr";
+	    if (!db_execute($format,$dbh,$sth, 
+	               @$line, $line->[ $r_pks->[0] ] ))
+	      { dbierror('update',__LINE__,
+	                 "execute() returned an error," .
+                         " error-code: \n$DBI::errstr");
+		return;
+	      };	 
           }
       }
     else
@@ -1288,10 +1423,13 @@ sub update
           { $line= $lines->{$pk};
             next if (!defined $line); 
 	    # can happen with changing, then deleting a line
-	    db_execute($format,$dbh,$sth, 
-	               @$line, map { $line->[$_] } (@$r_pks) )
-              or die "execute() returned an error," .
-                     " error-code: \n$DBI::errstr";
+	    if (!db_execute($format,$dbh,$sth, 
+	               @$line, map { $line->[$_] } (@$r_pks) ))
+	      { dbierror('update',__LINE__,
+	                 "execute() returned an error," .
+                         " error-code: \n$DBI::errstr");
+		return;
+	      };	 
           }
       }
 
@@ -1323,20 +1461,27 @@ sub insert
       { $v= 'preserve' if (!defined $v); };
       
     if (($is_multi_pk) && ($v ne 'preserve'))
-      { die "primary key mode must be \"preserve\" for a \n" .
-	    "table with more than one primary key column";
+      { dbierror('insert',__LINE__,
+                 "primary key mode must be \"preserve\" for a \n" .
+	         "table with more than one primary key column");
+        return;
       };
     
     if (($v ne 'preserve') && ($v ne 'generate'))
-      { die "unknown primary-key-mode:$v"; }; 
+      { dbierror('insert',__LINE__,"unknown primary-key-mode:$v");
+        return; 
+      }; 
        
     my $sth= db_prepare(\$format,$dbh,
                          "insert into $self->{_table} " .
 			 " ( " . join(", ",@fields) . ") " .
 			 "values( " .
-			 ("?, " x $#fields) . " ? )" )
-        	 or die "prepare failed," .
-        		" error-code: \n$DBI::errstr";
+			 ("?, " x $#fields) . " ? )" );
+    if (!$sth)
+      { dbierror('insert',__LINE__,
+                "prepare failed, error-code: \n$DBI::errstr");
+        return;
+      };
 
     my $r_aliases= $self->get_hash("_aliases");
 
@@ -1346,9 +1491,12 @@ sub insert
     foreach my $pk (keys %{$self->{_inserted}})
       { $line= $lines->{$pk};
 
-        db_execute($format,$dbh,$sth, @{$line})
-          or die "execute() returned an error," .
-            " error-code: \n$DBI::errstr";
+        if (!db_execute($format,$dbh,$sth, @{$line}))
+	  { dbierror('insert',__LINE__,
+	             "execute() returned an error," .
+                     " error-code: \n$DBI::errstr");
+            return;
+	  };
       };
 
     my @prelim_keys;
@@ -1363,7 +1511,10 @@ sub insert
     
     if (@prelim_keys)
       { if ($is_multi_pk)
-          { die "_prelimuinary set with multi-pk table (assertion)"; };
+          { dbierror('insert',__LINE__,
+	             "_prelimuinary set with multi-pk table (assertion)"); 
+            return;
+	  };
 
 	if (!exists $self->{_types})
 	  { @prelim_keys= sort { $a <=> $b } @prelim_keys; }
@@ -1376,9 +1527,14 @@ sub insert
 	    
         $sth=    db_prepare(\$format,$dbh,
                             "update $self->{_table} set $pk= ? " .
-			    "where $pk= ?")
-        	    or die "prepare failed," .
-        		   " error-code: \n$DBI::errstr";
+			    "where $pk= ?");
+	if (!$sth)
+	  { dbierror('insert',__LINE__,
+	             "prepare failed," .
+        	     " error-code: \n$DBI::errstr");
+            return;
+	  };
+		     
 
 	my $max= $self->max_key('capped');
 
@@ -1393,12 +1549,18 @@ sub insert
 			# give it another try
 			if ($failcount++ < 5)
 			  { next; };
-			die "fatal: changing of primary key $pk failed\n" .
-		            "again and again, giving up, last DBI error\n" .
-			    "message was: $DBI::errstr";
+			dbierror('insert',__LINE__,
+			  "fatal: changing of primary key $pk failed\n" .
+		          "again and again, giving up, last DBI error\n" .
+			  "message was: $DBI::errstr");
+			return;  
 		      }
 		    else
-		      { die "db_execute failed, errstring:\n$DBI::errstr"; };
+		      { dbierror('insert',__LINE__,
+		                 "db_execute failed, errstring:\n" .
+		                 $DBI::errstr); 
+			return;	 
+		      };
         	  }
 		else
 		  { $failcount=0; 
@@ -1437,22 +1599,35 @@ sub load_from_file
       { $v= 'preserve' if (!defined $v); };
       
     if (($is_multi_pk) && ($v ne 'preserve'))
-      { die "primary key mode must be \"preserve\" for a \n" .
-	    "table with more than one primary key column";
+      { dbierror('load_from_file',__LINE__,
+                 "primary key mode must be \"preserve\" for a \n" .
+	         "table with more than one primary key column");
+        return;
       };
     
     if (($v ne 'preserve') && ($v ne 'generate'))
-      { die "unknown primary-key-mode:$v"; }; 
+      { dbierror('load_from_file',__LINE__,
+                 "unknown primary-key-mode:$v"); 
+        return;
+      }; 
 
     if ($self->{_type} ne 'file')
-      { die "sorry, \'store_to_file\' is only allowed for type" .
-            " \'file\'"; };
+      { dbierror('load_from_file',__LINE__,
+            "sorry, \'store_to_file\' is only allowed for type" .
+            " \'file\'"); 
+        return;
+      };
 
     my $filename= $self->{_filename};
     my $tag= $self->{_tag};
     local(*F);
     
-    open(F,"$filename") or die "unable to read to $filename";
+    if (!open(F,"$filename"))
+      { dbierror('load_from_file',__LINE__,
+                 "unable to read to $filename");
+        return;
+      };
+		 
     my $line;
     my $part;
     my $version;
@@ -1478,7 +1653,10 @@ sub load_from_file
 	if ($part eq 'search_version')
           { next if ($line !~ /^\[Version ([^\]\s]+)\s*\]\s*$/); 
 	    if ($export_version < $1)
-	      { die "unsupported export-file version: $1"; };
+	      { dbierror('load_from_file',__LINE__,
+	                 "unsupported export-file version: $1"); 
+	        return;
+	      };
 	    $version= $1;
 	    $part= 'scan';
 	    next;
@@ -1492,7 +1670,10 @@ sub load_from_file
 	if (($part eq 'Properties') && (!$slim_format))
 	  { my @tokens = &parse_line('[\s=]+', 0, $line);
 	    if (!($#tokens % 2))
-	      { die "unrecognized line: \n\"$line\""; };
+	      { dbierror('load_from_file',__LINE__,
+	                 "unrecognized line: \n\"$line\""); 
+	        return;
+	      };
 	    for(my $i=0; $i< $#tokens; $i+=2)
 	      { my $t= $tokens[$i];
 	        if    ($t eq 'TABLE')
@@ -1516,7 +1697,10 @@ sub load_from_file
 	      { next if (!defined $t); # don't know why this happens
 	        my($a,$pk)= ($t=~ /^\s*(.*?)\s*=>\s*(.*?)\s*$/);
 	        if (!defined $pk)
-		  { die "unrecognized line: \n\"$line\""; };
+		  { dbierror('load_from_file',__LINE__,
+		             "unrecognized line: \n\"$line\""); 
+		    return;
+		  };
 	        $self->{_aliases}->{$a}= $pk;
 	      };
 	    next;
@@ -1552,14 +1736,26 @@ sub load_from_file
 	    else
 	      { @values= split(/;/,$line); };
 	      
-	    die "format error" if ($#values != $#{$self->{_column_list}});
+	    if ($#values != $#{$self->{_column_list}})
+	      { dbierror('load_from_file',__LINE__,"format error");
+	        return;
+              };
+	         
 	    push @line_list,\@values;
 	  };
       };
       
-    close(F) or die "unable to close $filename";
-    
-    die "tag $tag not found in file $filename" if (!$found);
+    if (!close(F))
+      { dbierror('load_from_file',__LINE__,
+                 "unable to close $filename");
+	return;
+      };
+      
+    if (!$found)
+      { dbierror('load_from_file',__LINE__,
+                 "tag $tag not found in file $filename"); 
+	return;
+      };
     
     # final clean-up work:
     # 1st: column-hash
@@ -1576,7 +1772,11 @@ sub load_from_file
     foreach my $pk (@primary_keys)
       { $i= $r_col_hash->{$pk};
         if (!defined $i)
-          { die "assertion failed, primary key column $pk not found"; };
+          { dbierror('load_from_file',__LINE__,
+	             "assertion failed, primary key column $pk" .
+	             " not found"); 
+            return;
+	  };
         push @pkis, $i;
       };
     
@@ -1589,7 +1789,10 @@ sub load_from_file
     my $pk;
     my $gen_pk= ($options{primary_key} eq 'generate');
     if ($is_multi_pk && $gen_pk)
-      { die "can\'t generate pk on multi-pk tables (assertion)"; };
+      { dbierror('load_from_file',__LINE__,
+                 "can\'t generate pk on multi-pk tables (assertion)"); 
+        return;
+      };
     
     foreach my $rl (@line_list)
       { 
@@ -1620,8 +1823,11 @@ sub store_to_file
     $self->gen_sort_prepare(\%options);
 
     if ($self->{_type} ne 'file')
-      { die "sorry, \'store_to_file\' is only allowed for type" .
-            " \'file\'"; };
+      { dbierror('store_to_file',__LINE__,
+                 "sorry, \'store_to_file\' is only allowed for type" .
+            " \'file\'"); 
+        return;
+      };
 
     my $filename= $self->{_filename};
     my $tag= $self->{_tag};
@@ -1631,8 +1837,16 @@ sub store_to_file
     
     if (-e $filename)
       { $tempname= "dbitable-$$"; 
-        open(F,$filename) or die "unable to read $filename";
-	open(G,">$tempname") or die "unable to write $tempname";
+        if (!open(F,$filename))
+	  { dbierror('store_to_file',__LINE__,
+	             "unable to read $filename");
+	    return;
+	  };
+	if (!open(G,">$tempname"))
+	  { dbierror('store_to_file',__LINE__,
+	             "unable to write $tempname");
+	    return;
+	  };
 	my $line;
 	my $ftag;
 	while($line=<F>)
@@ -1652,10 +1866,19 @@ sub store_to_file
 	      { print G $line; };
 	    next;
 	  }
-	close(F) or die "unable to close $filename";
+	if (!close(F))
+	  { dbierror('store_to_file',__LINE__,
+	             "unable to close $filename");
+	    return;
+	  };	     
       }
     else
-      { open(G,">$filename") or die "unable to write $tempname"; };
+      { if (!open(G,">$filename"))
+          { dbierror('store_to_file',__LINE__,
+	             "unable to write $tempname"); 
+	    return;
+	  };	     
+      };
     
     print G "[Tag $tag]\n"; 
     print G "[Version $export_version]\n";
@@ -1726,17 +1949,31 @@ sub store_to_file
       { print G "#","=" x 70,"\n"; };
 
     if (defined $tempname)
-      { close(G) or die "unable to close $tempname";
+      { if (!close(G))
+          { dbierror('store_to_file',__LINE__,
+	             "unable to close $tempname");
+	    return;
+	  };
         if (1!=unlink($filename))
-	  { die "unable to delete $filename"; };
-	system("mv $tempname $filename") and 
-	  die "unable to rename $tempname to $filename";
+	  { dbierror('store_to_file',__LINE__,
+	            "unable to delete $filename"); 
+	    return;
+	  };
+	if (system("mv $tempname $filename"))
+	  { dbierror('store_to_file',__LINE__,
+	             "unable to rename $tempname to $filename");
+	    return;
+	  };
 	
 	#rename($tempname,$filename) or 
-	#  die "unable to rename $tempname to $filename";
       }
     else
-      { close(G) or die "unable to close $tempname"; };
+      { if (!close(G))
+          { dbierror('store_to_file',__LINE__,
+	             "unable to close $tempname"); 
+	    return;
+	  };
+      };	  
     return($self);
   } 
 
@@ -1772,8 +2009,10 @@ sub new_prelim_key
   { my $self= shift;
     
     if ($self->{_multi_pk})
-      { die "preliminary key must not be used on tables with more" .
-            "than one primary key column! (assertion)";
+      { dbierror('new_prelim_key',__LINE__,
+                 "preliminary key must not be used on tables with more" .
+                 "than one primary key column! (assertion)");
+        return;
       };
     
     if (!$prelim_key)
@@ -1925,7 +2164,10 @@ sub db_get_foreign_keys
 	
 		      	   
     if (!defined $res)
-      { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
+      { dbierror('db_get_foreign_keys',__LINE__,
+                 "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
 
     # build a hash,
     # col_name => [foreign_table,foreign_column]
@@ -1964,7 +2206,10 @@ sub db_get_resident_keys
     # TABLE_NAME COLUMN_NAME CONSTRAINT_NAME R_TABLE R_COLUMN R_CONSTRAINT_NAME 
 	
     if (!defined $res)
-      { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
+      { dbierror('db_get_resident_keys',__LINE__,
+                 "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
 
     # build a hash,
     # col_name => [ [resident_table1,resident_column1],
@@ -2007,7 +2252,10 @@ sub db_get_primary_keys
       $dbh->selectall_arrayref($SQL);
 		      	   
     if (!defined $res)
-      { die "selectall_arrayref failed, errcode:\n$DBI::errstr"; };
+      { dbierror('db_get_primary_keys',__LINE__,
+                 "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
 
     # returns  OWNER TABLE_NAME COLUMN_NAME  
 
@@ -2020,7 +2268,10 @@ sub db_get_primary_keys
       { push @pks, $line->[2]; };
     
     if (!@pks)
-      { die "error: primary key(s) not found"; };
+      { dbierror('db_get_primary_keys',__LINE__,
+                 "error: primary key(s) not found"); 
+        return;
+      };
     return(@pks);
   }
     
@@ -2076,16 +2327,24 @@ sub gen_sort_prepare
         if (!ref($r)) # directly given
 	  { my $ci= $self->{_columns}->{uc($r)};
 	    if (!defined $ci)
-	      { die "unknown column: $r"; };
+	      { dbierror('gen_sort_prepare',__LINE__,"unknown column: $r"); 
+	        return;
+	      };
 	    $sort_h{$ci}= $cnt--;
 	  }
 	else
-	  { die "not an array" if (ref($r) ne 'ARRAY');
+	  { if (ref($r) ne 'ARRAY')
+	      { dbierror('gen_sort_prepare',__LINE__,"not an array");
+	        return;
+              };
 	    # an array is given
 	    foreach my $c (@$r)
 	      { my $ci= $self->{_columns}->{uc($c)};
 	        if (!defined $ci)
-	          { die "unknown column: $c"; };
+	          { dbierror('gen_sort_prepare',__LINE__,
+		            "unknown column: $c"); 
+		    return;
+		  };
 	        $sort_h{$ci}= $cnt--;
  	        #push @gen_sort_cols, $ci; 
 	      };
@@ -2136,6 +2395,16 @@ sub quote
     #  { return($dbh->quote($val)) };
     return($val);  
   }
+
+sub dbierror
+  { my($func,$line,$msg)= @_;
+    my $str= "dbitable::$func [dbitable.pm:$line]:\n" . $msg;
+    
+    &$errorfunc($str);
+  }
+
+sub my_err_func
+  { die $_[0]; }
     
 1;
 
@@ -2800,6 +3069,31 @@ value may be the name of a single column or (as shown above) a reference
 to a list of column names.
 
 =back
+
+=back
+
+=head2 miscelanious variables:
+
+=over 4
+
+=item $sql_trace
+
+when set to "1", all SQL commands are printed on STDOUT. The default of
+this variable is 0.
+
+=item $sim_delete
+
+when set to 1, the deletion of lines in the table is only simulated
+and not done for real. The default of this variable is 1.
+
+=item $errorfunc
+
+This variable contains a reference to a function that is used to print
+error-messages. The default is C<\&my_err_func> which has the 
+same functionality as C<die>. You can redefine this variable in
+order to call your own error-handler. Usually, the program should be
+terminated after an error, although there may be cases, where it makes
+sense to continue.
 
 =back
 
