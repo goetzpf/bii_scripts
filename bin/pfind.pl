@@ -26,7 +26,10 @@ use vars qw($opt_help $opt_summary
            $opt_text $opt_ccode $opt_make $opt_perl 
             $opt_progress
             $opt_perl_ex
-            $opt_blank $opt_no_filenames $opt_list $opt_stdin_list);
+            $opt_blank $opt_no_filenames $opt_list 
+	    $opt_stdin_list
+	    $opt_mult
+	    );
 
 
 my $version= "1.3";
@@ -44,7 +47,8 @@ if (!GetOptions("help|h","summary",
                 "perl_ex|P",
 		"progress",
                 "list|l", "blank|b", "no_filenames|n",
-		"stdin_list|i",
+		"mult:i",
+		"stdin_list|I",
 		))
   { die "parameter error!\n"; };		
 
@@ -65,6 +69,7 @@ if ($#ARGV<0)
 my $path   = '.';
 my $f_regex= '*';
 my $s_regex;
+my $s_regex_mod;
 
 if    (($#ARGV==0) || (defined $opt_stdin_list))
   { $s_regex= $ARGV[0]; }
@@ -92,6 +97,27 @@ if ($s_regex !~ /^\//)
   { $s_regex= "/$s_regex/"; };
       
 # print "****|$s_regex|\n";
+
+if (defined $opt_mult) # multi-line mode
+  { $s_regex=~ /^\/(.*)\/(\w*)$/;
+    $s_regex= $1;
+    $s_regex_mod= $2;
+  
+    if ($s_regex!~ /\\G/) # \G option is missing...
+      { $s_regex= '\G.*?' . $s_regex; };
+
+    if ($s_regex_mod!~ /g/) # g option is missing...
+      { $s_regex_mod.= 'g'; };
+
+    if ($s_regex_mod!~ /s/) # s option is missing...
+      { $s_regex_mod.= 's'; };
+
+#die "regexp:$s_regex|$s_regex_mod";
+#    $s_regex= qr/$s_regex/$s_regex_mod;
+    $s_regex= '/' . $s_regex . '/' . $s_regex_mod;
+
+  }    
+
 
 eval( "sub line_filter " .
       " { return( scalar (\$_[0]=~$s_regex) ); }" );
@@ -200,6 +226,39 @@ sub check_file
       { warn "unable to open file $name in path $File::Find::dir\n";
         return; 
       };
+    if (defined $opt_mult) # multi-line mode
+      { my $content;
+        { local($/);
+          undef $/;
+	  $content=<F>;
+	};  
+	close(F);
+#warn "regexp: $s_regex";
+        pos($content)=0;
+	
+	while(line_filter($content))
+	  { if ($fullname)
+	      { if ($opt_list)
+  		  { print "$fullname\n"; }
+		else
+		  { print "\n-------> $fullname\n"; };
+		$fullname= undef;
+	      };
+	    my $pos= pos($content) - length($&);
+	    if ($opt_mult)
+	      { print "match at position ",$pos,"\n"; }; 
+	    if (!$opt_list)
+              { my($lineno,$line)= find_position_in_file($name,$pos);
+		chomp($line);
+		if ($opt_blank)
+		  { print "$line\n"; }
+		else
+		  { printf("%5d: %s\n",$lineno,$line); };
+	      };
+	  };
+	return;
+      };      
+    
     while ($line=<F>)
       { $lineno++;
         next unless line_filter($line);
@@ -220,7 +279,27 @@ sub check_file
 	  { printf("%5d: %s\n",$lineno,$line); };
       };
     close(F);
-  }	  	
+  }	
+  
+sub find_position_in_file
+  { my($name,$position)= @_;
+    local(*F);
+    if (!open(F,$name))
+      { warn "unable to open file $name";
+        return; 
+      };
+    my $cnt=0;
+    my $lineno=0;
+    my $line;
+    while ($line=<F>)
+      { $lineno++;
+        $cnt+= length($line);
+	last if ($cnt>=$position);
+      };
+    close(F);
+    return($lineno,$line);
+  }
+            	
 	
 sub filemask_convert
   { my($r)= @_;
@@ -256,7 +335,7 @@ sub help
     print <<END;
 
            **** $p $version -- the file-tree regexp-search program ****
-	   	              Goetz Pfeiffer 2002
+	   	              Goetz Pfeiffer 2004
 
 Syntax: 
   $p {options} [path] [file-regexp] [search-regexp] or 
@@ -284,9 +363,13 @@ Syntax:
     -l: just list the files that matched
     -b: blank, print just matching lines, no line-numbers
     -n: no filenames, do not print the filenames
-    -i: take list of files to search from STDIN, this allows searching
+    -I: take list of files to search from STDIN, this allows searching
         for two items at different lines of the file: 
         e.g. "$p -c -l printf | $p -i include"
+    --mult [value]: multiple line search, apply regexp to the file as a whole,
+        this allows the specification of regular expressions that span
+	several lines. 
+	if [value] is non-zero, print the byte-position of the match, too
     --progress: show progress on stderr	
 END
   }
