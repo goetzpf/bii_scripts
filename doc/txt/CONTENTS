@@ -1,6 +1,11 @@
 ----------------------------------------------------------------------
 Scripts:
 ----------------------------------------------------------------------
+SetPerms
+	a semi-automatic shell-script for setting file and 
+	directory permissions in the CVS repository, in 
+	epics, vxworks or development related directories.
+
 pfind.pl
 	a perl-script for recursive file pattern search, like
 	a recursive grep, but better...
