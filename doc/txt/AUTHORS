@@ -11,6 +11,7 @@ Ralph Lange <lange@mail.bessy.de>
 
 Patrick Laux <laux@mail.bessy.de>
 	bii_scripts in general
+	browsedb.pl
 
 Goetz Pfeiffer <pfeiffer@mail.bessy.de>
 	bii_scripts in general
@@ -18,9 +19,11 @@ Goetz Pfeiffer <pfeiffer@mail.bessy.de>
 	pfind.pl 
 	Sch2db.pl 
 	Pezca 
+	browsedb.pl
 	dbdrv_oci
 	dbdrv
 	dbitable
+	hgen.pl
 	parse_db
 	parse_subst
 	

@@ -29,6 +29,8 @@ dbscan.pl
         given db file (along with the target record). Unfortunately
         does not tell which link field and which target field.
 
+hgen.pl a header-generator for c and c++
+
 ----------------------------------------------------------------------
 Libraries and Modules:
 ----------------------------------------------------------------------
