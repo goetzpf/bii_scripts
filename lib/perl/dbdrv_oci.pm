@@ -1054,7 +1054,7 @@ sub column_properties
     if (!defined $table_name)
       { # not in list of synonyms and user objects
         # the object is probably not accessible
-        dbwarn($mod_l,'primary_keys',__LINE__,
+        dbwarn($mod_l,'column_properties',__LINE__,
                "warning:no data found for object $table_name");
         return;
       };
@@ -1076,7 +1076,7 @@ sub column_properties
 
 #warn "get columndefs $SQL";
 
-     sql_trace($SQL) if ($sql_trace);
+    sql_trace($SQL) if ($sql_trace);
     my $res_r=
       $dbh->selectall_arrayref($SQL);
 
