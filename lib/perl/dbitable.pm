@@ -631,7 +631,7 @@ sub import_table
 	      { 
 	        if ($r_self_line->[$i] ne $other_val)
 	          { 
-		    $operation= "updated"; 
+		    $operation= "updated";
 		  };
 	      };
 	    $r_self_line->[$i]= $other_val;
@@ -1442,8 +1442,8 @@ sub delete_
 	  }; 
       };
 
-    delete $self->{_deleted}; # all updates are finished 
-   }  
+    delete $self->{_deleted}; # all updates are finished
+   }
 
 
 sub update
@@ -1455,20 +1455,21 @@ sub update
     # @fields was used in db_prepare instead of @{$self->{_column_list}}
 
     my $format;
-    
+
     my $r_pks= $self->{_pks};
+    my $r_pkis= $self->{_pkis};
     my $is_multi_pk= $self->{_multi_pk};
-    
+
     my $condition;
     if (!$is_multi_pk) # only one primary key column
       { $condition= "$r_pks->[0] = ?"; }
     else
-      {	my @conditions= map { "$_ = ?" } (@$r_pks); 
+      {	my @conditions= map { "$_ = ?" } (@$r_pks);
 	$condition= join(" AND ",@conditions);
       };
-    
+
     my $sth= db_prepare(\$format,$dbh,
-                        "update $self->{_table} set " . 
+                        "update $self->{_table} set " .
                 	 join(" = ?, ",@{$self->{_column_list}}) . " = ? " .
         		"where $condition ");
     if (!$sth)
@@ -1476,43 +1477,43 @@ sub update
                  "prepare failed," .
         	 " error-code: \n$DBI::errstr");
 	return;
-      };	 
+      };
 
 
     # update :
-        
+
     my $line;
-    
+
     if (!$is_multi_pk) # only one primary key column
       { foreach my $pk (keys %{$self->{_updated}})
           { $line= $lines->{$pk};
-            next if (!defined $line); 
+            next if (!defined $line);
 	    # can happen with changing, then deleting a line
-	    if (!db_execute($format,$dbh,$sth, 
-	               @$line, $line->[ $r_pks->[0] ] ))
+	    if (!db_execute($format,$dbh,$sth,
+	               @$line, $line->[ $r_pkis->[0] ] ))
 	      { dbierror('update',__LINE__,
 	                 "execute() returned an error," .
                          " error-code: \n$DBI::errstr");
 		return;
-	      };	 
+	      };
           }
       }
     else
       { foreach my $pk (keys %{$self->{_updated}})
           { $line= $lines->{$pk};
-            next if (!defined $line); 
+            next if (!defined $line);
 	    # can happen with changing, then deleting a line
-	    if (!db_execute($format,$dbh,$sth, 
-	               @$line, map { $line->[$_] } (@$r_pks) ))
+	    if (!db_execute($format,$dbh,$sth,
+	               @$line, map { $line->[$_] } (@$r_pkis) ))
 	      { dbierror('update',__LINE__,
 	                 "execute() returned an error," .
                          " error-code: \n$DBI::errstr");
 		return;
-	      };	 
+	      };
           }
       }
 
-    delete $self->{_updated}; # all updates are finished 
+    delete $self->{_updated}; # all updates are finished
   }  
 
 sub insert
