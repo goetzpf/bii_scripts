@@ -1374,7 +1374,8 @@ sub load_from_db
       { $mode= 'set'; }
     elsif (($mode ne 'add') && ($mode ne 'set') &&
           ($mode ne 'subtract') && ($mode ne 'overwrite'))
-      { dbdrv::dberror($mod,'load_from_db',__LINE__,
+      { # a kind of assertion, therefore an error
+        dbdrv::dberror($mod,'load_from_db',__LINE__,
                        "unknown load-mode:$mode");
         return;
       };
@@ -1400,7 +1401,8 @@ sub load_from_db
 
         my $r_filter= $options{filter};
         if (ref($r_filter) ne 'ARRAY')
-          { dbdrv::dberror($mod,'load_from_db',__LINE__,
+          { # a kind of assertion, therefore an error
+            dbdrv::dberror($mod,'load_from_db',__LINE__,
                            "err: \"filter\" is not an array reference");
             return;
           };
@@ -1410,7 +1412,8 @@ sub load_from_db
           { my($filter_field,$filter_value)= @$r_filter[1..2];
 
             if (!defined($filter_value))
-              { dbdrv::dberror($mod,'load_from_db',__LINE__,
+              { # kind of usage error
+                dbdrv::dbwarn($mod,'load_from_db',__LINE__,
                                "err: filter specification is incomplete");
                 return;
               };
@@ -1419,7 +1422,8 @@ sub load_from_db
             if ($filter_value!~ /^\'/)
               { $filter_value= "\'$filter_value\'"; };
             if (!exists $self->{_columns}->{$filter_field})
-              { dbdrv::dberror($mod,'load_from_db',__LINE__,"unknown field");
+              { # kind of usage error
+                dbdrv::dbwarn($mod,'load_from_db',__LINE__,"unknown field");
                 return;
               };
 
@@ -1428,14 +1432,16 @@ sub load_from_db
         elsif ($filter_type eq 'SQL')
           { $select_trailer= "WHERE " . $r_filter->[1]; }
         else
-          { dbdrv::dberror($mod,'load_from_db',__LINE__,
+          { # a kind of assertion, therefore an error
+            dbdrv::dberror($mod,'load_from_db',__LINE__,
                            "unsupported filter-type: $filter_type");
             return;
           };
       };
     if (exists $options{order_by})
       { if ($self->{_type} ne 'table')
-          { dbdrv::dberror($mod,'load_from_db',__LINE__,
+          { # a kind of assertion, therefore an error
+            dbdrv::dberror($mod,'load_from_db',__LINE__,
                            "sorry, order-by is only " .
                            "allowed for type \'table\'");
             return;
@@ -1445,6 +1451,8 @@ sub load_from_db
       };
 
 
+    my $last_fetch_cmd= $self->{_fetch_cmd};
+    
     if ($self->{_type} eq 'table')
       { $self->{_fetch_cmd}= "select * from $self->{_table} " .
                              "$select_trailer";
@@ -1456,7 +1464,9 @@ sub load_from_db
 #warn "|$cmd|\n";
     $r= $dbh->selectall_arrayref($cmd);
     if (!$r)
-      { dbdrv::dberror($mod,'load_from_db',__LINE__,$errstr . $DBI::errstr);
+      { # restore the fetch-command
+        $self->{_fetch_cmd}= $last_fetch_cmd;
+        dbdrv::dbwarn($mod,'load_from_db',__LINE__,$errstr . $DBI::errstr);
         return;
       };
 
@@ -2922,6 +2932,10 @@ or from a file (type "file") or via a user-defined SQL statement
 parameters to the function. The function returns the object itself,
 so it can be cascaded with C<new> in a single call, as you can see in
 the third example.
+
+In case of an error, the function calls C<dbdrv::dberror> or C<dbdrv::dbwarn> 
+and returns C<undef>. If the dbitable-object already contains data and
+the SQL command issued fails, the data will be left intact.
 
 Known options are:
 
