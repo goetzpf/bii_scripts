@@ -43,6 +43,8 @@ our $sim_delete=1; # deletions in the DB are only simulated
 
 our $last_error;
 
+my $proxy_patch=1;
+
 my $mod= "dbitable";
 
 my $slim_format=0; # do not save all elements of "table" element
@@ -160,7 +162,9 @@ sub new
                       ($newtype eq 'new_table')
                       )
                   { if (!$self->init_tableviewtype($newtype,@_))
-                      { return; };
+                      { 
+		        return; 
+		      };
                   }
                 else
                   { dbdrv::dberror($mod,'new',
@@ -349,29 +353,53 @@ sub init_tableviewtype
       };
     # no SQL Trace here:
 
-    my $sth= $dbh->prepare($self->{_fetch_cmd});
+    my $sth;
+    
+    if (!$proxy_patch)
+      { $sth= $dbh->prepare($self->{_fetch_cmd}); }
+    else
+      { my $cmd= $self->{_fetch_cmd};
+        $cmd=~ s/\bwhere.*//i;
+	$cmd.= " where rownum<2"; 
+	$sth= $dbh->prepare($cmd);
+      };	
+      
     if (!$sth)
       { 
-      
         dbdrv::dbwarn($mod,'init_tableviewtype',__LINE__,
                      "prepare failed, error-code: \n$DBI::errstr");
         #dbdrv::dberror($mod,'init_tableviewtype',__LINE__,
         #               "prepare failed, error-code: \n$DBI::errstr");
         return;
-      };                 
+      };   
+      
+    if ($proxy_patch)
+      { if (!$sth->execute())
+	  {
+            dbdrv::dbwarn($mod,'init_tableviewtype',__LINE__,
+                	 "execute failed, error-code: \n$DBI::errstr");
+            #dbdrv::dberror($mod,'init_tableviewtype',__LINE__,
+            #               "prepare failed, error-code: \n$DBI::errstr");
+            $sth->finish();
+	    return;
+	  };   
+      };              
 
     my $colcount=0;
     my @column_list= @{$sth->{NAME_uc}};
-    
+
     my $type_no2string= db_types_no2string($dbh);
     
     my @x= map { $type_no2string->{$_} } @{$sth->{TYPE}};
+    
+    if ($proxy_patch)
+      { $sth->finish(); };    
+    
     db_simplify_types(\@x);
     $self->{_types}= \@x;
     
 #warn join("|",@x);
 #print Dumper($dbh->type_info_all);
-
 
     return($self->init_columns(\@primary_keys,@column_list));
     # ^^^ sets also $self->{_pkis}
@@ -433,9 +461,11 @@ sub init_columns
         my %h= map { $_ => $i++ } @columns;
         $self->{_columns}= \%h; 
       };
+
     my @pki;
     my $i;
     my $r_col_hash= $self->{_columns};
+
     if ($self->{_counter_pk})
       { @pki= (undef); }
     else
@@ -1509,14 +1539,13 @@ sub delete_
       };
 
     my $format;
-    my $sth;
     
     my $r_pks= $self->{_pks};
 
     if (!$self->{_multi_pk}) # only one primary key column
-      { $sth= dbdrv::prepare(\$format,$dbh,
-                             "delete from $self->{_table} " .
-                             "where $r_pks->[0] = ? ");
+      { my $sth= dbdrv::prepare(\$format,$dbh,
+                        	"delete from $self->{_table} " .
+                        	"where $r_pks->[0] = ? ");
         if (!$sth)
           { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                            "prepare failed, error-code: \n$DBI::errstr");
@@ -1528,18 +1557,20 @@ sub delete_
               { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
-                return;
+                $sth->finish;
+		return;
               };         
-          }; 
+          };
+	$sth->finish;   
       }
     else
       {
         # build the "where" clause:
         my @conditions= map { "$_ = ?" } (@$r_pks); 
         my $condition= join(" AND ",@conditions);
-        $sth= dbdrv::prepare(\$format,$dbh,
-                             "delete from $self->{_table} " .
-                             "where $condition ");
+        my $sth= dbdrv::prepare(\$format,$dbh,
+                        	"delete from $self->{_table} " .
+                        	"where $condition ");
         if (!$sth)
           { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                            "prepare failed," .
@@ -1554,9 +1585,11 @@ sub delete_
               { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
-                return; 
+                $sth->finish;
+		return; 
               };         
           }; 
+	$sth->finish;   
       };
 
     delete $self->{_deleted}; # all updates are finished
@@ -1611,7 +1644,8 @@ sub update
               { dbdrv::dbwarn($mod,'update',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
-                return;
+                $sth->finish;  
+		return;
               };
           }
       }
@@ -1625,11 +1659,13 @@ sub update
               { dbdrv::dbwarn($mod,'update',__LINE__,
                                "execute() returned an error," .
                                " error-code: \n$DBI::errstr");
-                return;
+                $sth->finish;  
+		return;
               };
           }
       }
 
+    $sth->finish;
     delete $self->{_updated}; # all updates are finished
   }  
 
@@ -1700,10 +1736,13 @@ sub insert
           { dbdrv::dbwarn($mod,'insert',__LINE__,
                            "execute() returned an error," .
                            " error-code: \n$DBI::errstr");
-            return;
+            $sth->finish;  
+	    return;
           };
       };
 
+    $sth->finish;
+    
     my @prelim_keys;
     
     if ($options{primary_key} eq 'generate')
@@ -1759,13 +1798,15 @@ sub insert
                           "error: changing of primary key $pk failed\n" .
                           "again and again, giving up, last DBI error\n" .
                           "message was: $DBI::errstr");
-                        return;  
+                        $sth->finish;  
+			return;  
                       }
                     else
                       { dbdrv::dbwarn($mod,'insert',__LINE__,
                                  "execute() failed, errstring:\n" .
                                  $DBI::errstr); 
-                        return;  
+                        $sth->finish;  
+			return;  
                       };
                   }
                 else
@@ -1774,7 +1815,9 @@ sub insert
                   }; 
               };
 
-            # now change the primary key, retain the old one as an alias    
+            $sth->finish;  
+	    
+	    # now change the primary key, retain the old one as an alias    
             $r_aliases->{$pk} = $max;    
             $r_aliases->{$max}= $max;    
             $lines->{$max}= $lines->{$pk};
