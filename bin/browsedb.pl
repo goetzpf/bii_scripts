@@ -61,7 +61,7 @@ use BrowseDB::TkUtils 1.0;
 
 use Data::Dumper;
 
-#warn "TK Version: " . $Tk::VERSION;
+# warn "TK Version: " . $Tk::VERSION;
 
 # Configurational global data
 
@@ -371,8 +371,11 @@ sub tk_login
 
     $row=0;
     my %entry_opts= theme_parameters($r_glbl,'login:entry',
-                                     '-background','-font',
-                                     '-disabledbackground');
+                                         '-background','-font',
+                                        ($Tk::VERSION >= 804.027) ? 
+                                        '-disabledbackground':undef
+                                    );
+    # ^^^ -disabledbackground not allowed here in older Tk versions                                 
 
     my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
                                 %entry_opts
@@ -6347,7 +6350,9 @@ sub theme_parameters
     my @l;
     my $val;
     foreach my $k (@keylist)
-      { $val= $r_h->{$k};
+      { next if (!defined $k); # special hack, <undef> 
+                               # keys are not looked for
+        $val= $r_h->{$k};
         if (!defined $val)
           { if (defined $r_h_glbl)
               { $val= $r_h_glbl->{$k}; };
