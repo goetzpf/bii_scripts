@@ -2545,7 +2545,7 @@ sub make_table_hash
         delete $table_hash{col_maps};
         
         foreach my $c (keys %maps)
-          { set_column_map(\%table_hash,$maps{$c},$c); };
+          { set_column_map($r_glbl,\%table_hash,$maps{$c},$c); };
       };
 
     # calculate column-map flags
@@ -3049,6 +3049,7 @@ sub make_table_window
                         sub { tk_define_col_map($r_glbl, $r_tbh,
                                                  $column_popup{current_col}
                                                 );
+                              tk_rewrite_active_cell($r_tbh);  
                             }
                    );
     $MnColMap->add('command',    
@@ -3155,14 +3156,14 @@ sub make_table_window
     $default_popup{popup_disable_lists}=
                   { default => ['open foreign table',
                                 'select THIS as foreign key',
-				'select foreign key'],
+                                'select foreign key'],
                     write_protected =>
                                 ['edit','paste','edit selection']
                   };
 
     $default_popup{popup_enable_lists} =
                   { foreign_key => ['open foreign table',
-		                    'select foreign key'],
+                                    'select foreign key'],
                     primary_key => ['select THIS as foreign key']
                   };
 
@@ -3180,6 +3181,12 @@ sub make_table_window
 
     # $Table->bind('<3>', [\&cb_handle_right_button,
     #                      $r_glbl, $r_tbh, Ev('@')] );
+
+    $Table->bind('<Control-plus>',  [\&cb_resize_col, 
+                                  $r_glbl, $r_tbh, 'inc']);
+    $Table->bind('<Control-minus>',  [\&cb_resize_col, 
+                                  $r_glbl, $r_tbh, 'dec']);
+
 
     $Table->bind('<Destroy>', [\&cb_close_window, $r_glbl, $r_tbh] );
 
@@ -3940,6 +3947,21 @@ sub cb_close_window
 # warn "Table $table_name successfully deleted !\n";
  }
 
+sub cb_resize_col
+  { my($parent_widget, $r_glbl, $r_tbh, $mode, $at)= @_;
+
+    my($row,$col)= split(",",$parent_widget->index('active'));
+    
+    my $w= $parent_widget->colWidth($col);
+    if ($mode eq 'inc')
+      { $w++; }
+    else
+      { $w--};
+    return if ($w<2);
+    $parent_widget->colWidth($col,$w);
+  }
+    
+
 sub cb_popup_menu
   { my($parent_widget, $r_glbl, $r_tbh, $at)= @_;
 
@@ -4650,6 +4672,11 @@ sub rdump
           { my $k= $k[$i];
             my $st= (" " x $indent) . $k . " => ";
             my $nindent= length($st);
+            if ($nindent-$indent > 20)
+              { $nindent= $indent+20; 
+                $st.= "\n" . (" " x $nindent)
+              };
+              
             $$r_buf.= ($st);
             rdump($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
           };
@@ -4844,7 +4871,7 @@ sub tk_define_col_map
 sub tk_define_col_map_finish 
   { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
   
-    if (!set_column_map($r_tbh,$sql_command,$column_name))
+    if (!set_column_map($r_glbl,$r_tbh,$sql_command,$column_name))
       { return; };
 
     # the following forces a redraw
@@ -4854,15 +4881,55 @@ sub tk_define_col_map_finish
   }  
   
 sub set_column_map
-  { my($r_tbh,$sql_command,$column_name)= @_;
+  { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
   
-    my $ntab= dbitable->new('view',$r_tbh->{dbh},
+    
+    my($r_key_to_str,$r_str_to_key)= 
+            get_column_map($r_glbl,$sql_command,$column_name);
+
+    return if (!defined $r_str_to_key);
+    
+    my %col_map;
+    $col_map{key_to_str} = $r_key_to_str;     
+    $col_map{str_to_key} = $r_str_to_key; 
+    $col_map{sql_command}= $sql_command;
+    
+    $r_tbh->{col_map_flags}->{$column_name}= 'M';
+    
+    $r_tbh->{col_maps}->{$column_name}= \%col_map;        
+ 
+    return(1);
+  }  
+ 
+ 
+sub get_column_map    
+  { my($r_glbl,$sql_command,$column_name)= @_;
+  
+    $sql_command=~ s/[\r\n]+/ /g;
+    $sql_command=~ s/\s+/ /g;
+    $sql_command=~ s/\s+$//;
+    $sql_command=~ s/^\s+//;
+
+    my $r_map_hash= $r_glbl->{map_hash};
+    if (!defined $r_map_hash)
+      { my %h;
+        $r_glbl->{map_hash}= \%h;
+        $r_map_hash= \%h;
+      };
+  
+    if (exists $r_map_hash->{$sql_command})
+      { return($r_map_hash->{$sql_command}->{key_to_str},
+               $r_map_hash->{$sql_command}->{str_to_key}
+              );
+      };
+      
+    my $ntab= dbitable->new('view',$r_glbl->{dbh},
                              'col_map_query',"",$sql_command
                            );
                             
     $ntab->load();
     return if (!defined $ntab);
-    
+ 
     my @columns= $ntab->column_list();
     my $c1= $columns[0];
     my $c2= $columns[1];
@@ -4877,19 +4944,11 @@ sub set_column_map
         $key_to_str{$key}= $str;
         $str_to_key{$str}= $key;
       };
-    
-    my %col_map;
-    $col_map{key_to_str} = \%key_to_str;     
-    $col_map{str_to_key} = \%str_to_key; 
-    $col_map{sql_command}= $sql_command;
-    
-    $r_tbh->{col_map_flags}->{$column_name}= 'M';
-    
-    $r_tbh->{col_maps}->{$column_name}= \%col_map;        
- 
-    return(1);
-  }  
-    
+
+    $r_map_hash->{$sql_command}->{key_to_str}= \%key_to_str;
+    $r_map_hash->{$sql_command}->{str_to_key}= \%str_to_key;
+    return(\%key_to_str,\%str_to_key);
+  }       
 
 sub tk_rewrite_active_cell
 # updates the active cell by re-writing the value
