@@ -37,17 +37,26 @@ if (0)
   
 if (0)
   { 
-    my $text=dbdrv::read_checktext(undef,"CHK_INSERTION_NN","ODBADM"); 
+#    my $text=dbdrv::read_checktext(undef,"CHK_INSERTION_NN","ODBADM"); 
+    my $text=dbdrv::read_checktext(undef,"PS_FAMILY","ODBADM"); 
     print $text,"\n";
     
   };
 
-if (1)
+if (0)
   { 
     print "read_triggertext from T_VME_CARD_AUR\n";
-    my $x=dbdrv::read_triggertext(undef,"T_VME_CARD_AUR","ODBADM"); 
+    my $text=dbdrv::read_triggertext(undef,"T_VME_CARD_AUR","ODBADM"); 
     
-    #print Dumper($x),"\n";
+    print $text,"\n";
+  };
+
+if (1)
+  {
+    print "object_addicts from p_ps_names\n";
+    my @lines=dbdrv::object_addicts(undef,"p_ps_names"); 
+    
+#    print Dumper(\@x),"\n";
     foreach my $r_a (@lines)
       { print join(",",@$r_a),"\n"; };
   };
