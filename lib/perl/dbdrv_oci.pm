@@ -5,10 +5,9 @@
 my $mod_l= "dbdrv_oci";
 
 sub check_existence
-# returns the one primary key or the list of columns
-# that form the primary key
   { my($dbh,$table_name)= @_;
   
+#return(1);
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
       
@@ -183,8 +182,7 @@ sub resident_keys
     return( \%resident_keys);
   }
 
-
-sub accessible_objects
+sub accessible_objects_hash
 # returns the one primary key or the list of columns
 # that form the primary key
 # $types: a comma separated list of :"TABLE", "VIEW", "SYNONYM"
@@ -269,8 +267,14 @@ sub accessible_objects
       };
 
     #print join(",",@list),"\n";
-    return( sort keys %result );
+    return( \%result );
   }
+
+sub accessible_objects
+  { my $r_h= accessible_objects_hash(@_);
+    return( sort keys %$r_h );
+  } 
+
 
 sub sql_request_to_hash
 # internal
