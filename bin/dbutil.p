@@ -9,10 +9,10 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 
 #pragmas:
 use strict;
+use FindBin;
 
 use lib "$FindBin::RealBin/../lib/perl";
 
-use FindBin;
 use Getopt::Long;
 
 use dbitable;
