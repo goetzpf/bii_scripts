@@ -407,6 +407,11 @@ sub init_tableviewtype
 
 #warn join("|",@x);
 #print Dumper($dbh->type_info_all);
+    if ($type eq 'table')
+      { my $r_col_prop= dbdrv::column_properties($dbh,$self->{_owner},$table);
+        $self->{_column_properties}= $r_col_prop if (defined $r_col_prop);
+      };
+
 
     return($self->init_columns(\@primary_keys,@column_list));
     # ^^^ sets also $self->{_pkis}
@@ -414,8 +419,9 @@ sub init_tableviewtype
 
 sub init_columns
 #internal
+# no sql queries in this function!
   { my $self= shift;
-    my ($pk_par,@columns,$properties)= @_;
+    my ($pk_par,@columns)= @_;
 
     my @primary_keys;
 
@@ -436,16 +442,6 @@ sub init_columns
 
     foreach my $c (@columns)
       { $c= uc($c); };
-
-    if ($self->{_type} eq 'table')
-      {
-         $self->{_column_properties}= dbdrv::column_properties
-              (
-                $self->{_dbh},
-                $self->{_owner},
-                $self->{_table}
-              );
-      }
 
     my $exist_columns= $self->{_column_list};
     my $exist_pks= $self->{_pks};
@@ -1008,6 +1004,7 @@ sub column_hash
 sub column_properties
   { my $self= shift;
 
+    return if (!exists $self->{_column_properties});
     return( %{$self->{_column_properties}} );
   }
 
