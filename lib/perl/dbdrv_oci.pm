@@ -11,7 +11,7 @@ our $r_db_reverse_synonyms;
 my $mod_l= "dbdrv_oci";
 
 # object types known to oracle with their oracle abbreviation
-our @db_object_types= qw(TABLE VIEW PROCEDURE FUNCTION SEQUENCE);
+my @db_object_types= qw(TABLE VIEW PROCEDURE FUNCTION SEQUENCE);
 
 my %db_object_types = map{ $_ => 1 } @db_object_types;
 
@@ -91,13 +91,402 @@ foreach my $cap_aliases (keys %$sql_capabilities)
       }
   }
 
-sub query_limit_rows_str
-# limit number of returned rows in a query
-  { my($no)= @_;
-    return("rownum<=$no","add_after_where");
+#=============================================================
+# name conversions, name spaces, schemas 
+#=============================================================
+
+sub real_name
+# EXPORTED 
+# resolves a given table-name or synonym,
+# returns: full-qualified-name,owner,unqualified-name,schema
+# NOTE: user-name is not the owner of the table but the user
+# that has logged in
+  { my($dbh,$user_name,$obj)= @_;
+
+    #warn "realname called with:$user_name.$obj";
+
+    my $object_name;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $user_name= uc($user_name);
+
+    load_object_dict($dbh,$user_name);
+
+    if ($obj !~ /\./) # not in the form user.tablename
+      { $object_name= "PUBLIC." . $obj; };
+
+
+    my $data= $r_db_objects->{$object_name};
+    if (!defined $data)
+      { # try a 2nd lookup with the user-name as prefix:
+        $object_name= "$user_name.$obj";
+        $data= $r_db_objects->{$object_name};
+      };
+
+    if (!defined $data)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'real_name',__LINE__,
+               "warning:no data found for object $obj");
+        return;
+      };
+
+    # user objects have only a type-field !
+
+    if ($#$data>0) # more than 2 objects in hash: it's a synonym
+      { my($owner,$name)= split(/\./, $data->[1]);
+
+        #warn "realname returns: $data->[1],$owner,$name";
+        return($data->[1],$owner,$name);
+      };
+
+    # no synonym, the table is probably owner by the current user:
+    my($owner,$short_name)= split(/\./,$object_name);
+
+    #warn "realname returns: $object_name,$owner,$short_name";
+    return($object_name,$owner,$short_name);
   }
 
+sub canonify_name
+# EXPORTED 
+# returns a "nice" name
+  { my($dbh,$user_name,$object_name,$object_owner)= @_;
+
+    if ($object_name =~ /\./)
+      { ($object_owner,$object_name)= split(/\./,$object_name); };
+
+    return($object_name) if (!defined $object_owner);
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    load_object_dict($dbh,$user_name);
+
+    my $name= $object_owner . '.' . $object_name;
+
+    my $r_list= $r_db_reverse_synonyms->{$name};
+    if (!defined $r_list)
+      { return($name); };
+
+    foreach my $n (@$r_list)
+      { my($owner,$obj)= split(/\./,$n);
+        if ($owner eq 'PUBLIC')
+          { return($obj); };
+      };
+
+    return($name);
+  }
+
+# INTERNAL-------------------
+
+sub get_synonyms
+# INTERNAL to dbdrv_oci!!!
+# returns a ref to a hash : syn_name => [$type, "$t_own.$t_name"]
+# type is 'T' (table) or 'V' (view) or
+#  'P' (procedure), 'F':function, 'S': sequence
+# $t_name: table or view referred to
+# $t_own: owner of referred table or view
+# $r_reverse_syn : a hash: owner.table => synonym
+  { my($dbh,$r_syn,$r_reverse_syn)= @_;
+
+    die if (!defined $r_syn);
+    die if (ref($r_syn) ne 'HASH');
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    my $sql;
+
+    $sql= "SELECT asyn.synonym_name, asyn.owner, " .
+                "asyn.table_name,asyn.table_owner, ao.object_type " .
+        "FROM all_synonyms asyn, all_objects ao " .
+        "WHERE " .
+                "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
+                "asyn.table_name=ao.object_name AND " .
+                "asyn.table_owner=ao.owner" ;
+    #print Dumper($sql);
+    sql_trace($sql) if ($sql_trace);
+
+    my $res= $dbh->selectall_arrayref($sql);
+
+    if (!defined $res)
+    { dberror($mod_l,'get_synonyms',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+    };
+
+    foreach my $line (@$res)
+    {
+        my $syn= $line->[1] . '.' . $line->[0];
+        my $obj= $line->[3] . '.' . $line->[2];
+        $r_syn->{$syn} = [ type_to_typechar($line->[4]), $obj ];
+
+        if (!exists $r_reverse_syn->{$obj})
+        { $r_reverse_syn->{$obj}= [$syn]; }
+        else
+        { push @{$r_reverse_syn->{$obj}}, $syn; };
+    };
+
+    #print Dumper($r_syn);
+    return(1);
+  }
+
+
+#=============================================================
+# object catalogs
+#=============================================================
+
+#-------------------------------------------------------------
+# Object dictionary (INTERNAL)
+#-------------------------------------------------------------
+
+sub load_object_dict
+# INTERNAL to dbdrv_oci!!!
+# WRITES TO GLOBAL VARIABLES:
+# $r_db_objects and $r_db_reverse_synonyms
+  { my($dbh,$user)= @_;
+
+    return if (defined $r_db_objects);
+    my %h;
+    $r_db_objects= \%h;
+    my %r;
+    $r_db_reverse_synonyms= \%r;
+    if ((defined $user) && ($user ne ""))
+      {
+        if (!get_user_objects($dbh,$user,$r_db_objects))
+          { dberror($mod_l,'load_object_dict',__LINE__,
+                    'loading of user-objects failed');
+            return;
+          };
+      };
+
+    if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
+      { dberror($mod_l,'load_object_dict',__LINE__,
+                'loading of synonyms failed');
+        return;
+      };
+  }
+
+#-------------------------------------------------------------
+# get catalog of accessible objects
+#-------------------------------------------------------------
+
+sub accessible_objects
+# EXPORTED 
+  { my($dbh,$user_name,$types,$access)= @_;
+#    my %known_types= { table => 'T', view => 'V', 
+#                       procedure => 'P', FUNCTION => 'F',
+#                       sequence=> 'S');
+    my %known_acc  = map { $_ =>1 } qw( user public );
+    my %types;
+    my %access;
+
+
+#warn "requested types: $types";
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    if (!defined $types)
+      { %types= (T=>1); }
+    else
+      { $types= uc($types);
+        my @types= split(",",$types);
+        foreach my $t (@types)
+          { if (!exists $db_object_types{$t})
+              { dberror($mod_l,'accessible_objects',__LINE__,
+                    "unknown object type: $t");
+                return;
+              };
+            $types{type_to_typechar($t)}= 1; 
+          };
+      };
+
+    load_object_dict($dbh,$user_name);
+    # loads also functions and procedures
+    
+    my @keys= keys %$r_db_objects;
+
+#print Dumper(\%types);
+    my @keys2;
+    foreach my $dbobj_type (keys %types)
+      {
+        push @keys2, (grep { $r_db_objects->{$_}->[0] eq $dbobj_type } @keys);
+      }
+
+    if (!defined $access)
+      { %access= ("public" => 1); }
+    else
+      { $access= lc($access);
+        %access= map { $_ => 1} split(",",$access);
+        foreach my $t (keys %access)
+          { if (!exists $known_acc{$t})
+              { dberror($mod_l,'accessible_objects',__LINE__,
+                    "unknown object access type: $t");
+                return;
+              };
+          };
+      };
+
+    my @result;
+
+    if (exists $access{public})
+      { push @result,
+             grep { /^PUBLIC\./ } @keys2;
+      };
+
+    if (exists $access{user})
+      {
+        push @result,
+             grep { /^$user_name\./i } @keys2;
+      };
+
+    #warn join("|",@result) . "\n";
+
+    map { $_=~ s/^[^\.]+\.// } @result; # remove "owner"
+
+#print Dumper(\@result);
+
+    return(sort @result);
+  }
+
+# INTERNAL-------------------
+
+sub get_user_objects
+# INTERNAL to dbdrv_oci!!!
+# returns a ref to a hash : own.obj_name => [$type]
+# type is 'T' (table) or 'V' (view) or 'P' (procedure) or
+#         'F' (function) or 'Q' (sequence)
+# $t_name: table or view referred to
+# $t_own: owner of referred table or view (equal to the $user-parameter)
+  { my($dbh,$user,$r_tab)= @_;
+
+    die if (!defined $r_tab);
+    die if (ref($r_tab) ne 'HASH');
+
+    return if (!defined $user);
+    return if ($user eq "");
+
+    $user= uc($user);
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    my $sql;
+    # per database_object_type registration of all known objects
+    foreach my $dbobj_type (keys %db_object_types)
+      {
+        $sql= "SELECT object_name " .
+              "FROM user_objects " .
+              "WHERE object_type = '".$dbobj_type."'";
+
+        #print "\n$dbobj_string: $sql";
+        sql_trace($sql) if ($sql_trace);
+
+        my $res= $dbh->selectall_arrayref($sql);
+
+        if (!defined $res)
+          { dberror($mod_l,'get_user_objects',__LINE__,
+                    "selectall_arrayref failed for $dbobj_type " .
+                    "request, errcode:\n$DBI::errstr");
+            return;
+          };
+
+        foreach my $line (@$res)
+          {
+            $r_tab->{ $user . '.' . $line->[0] } = 
+                                  [type_to_typechar($dbobj_type) ];
+            };
+      }
+
+#    print "rtab:".Dumper($r_tab);
+    return(1);
+  }
+
+#=============================================================
+# object type and existence
+#=============================================================
+
+#-------------------------------------------------------------
+# check existence
+#-------------------------------------------------------------
+
+sub check_existence
+  { my($dbh,$table_name,$user_name)= @_;
+
+    # when the table has the form "owner.table", the check cannot
+    # be made, since it's no public synonym and not in the
+    # synonym list
+    return(1) if ($table_name=~ /\./);
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    load_object_dict($dbh,$user_name);
+
+    if (exists $r_db_objects->{uc($user_name) . '.' . uc($table_name)})
+      { return(1); };
+    if (exists $r_db_objects->{"PUBLIC." . uc($table_name)})
+      { return(1); };
+
+    return;
+  }
+
+#-------------------------------------------------------------
+# object-type 
+#-------------------------------------------------------------
+
+sub object_is_table
+# return 1 when it is a table
+  { my($dbh,$table_name,$user_name)= @_;
+    my $table_owner;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'object_is_table',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
+      };
+
+    my $SQL= "select OWNER,TABLE_NAME from " .
+             "all_tables " .
+             "where table_name=\'$table_name\' and owner=\'$table_owner\'";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'object_is_table',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    if (@$res_r)
+      { return(1); };
+    return(0);
+  }
+
+#=============================================================
+# columns
+#=============================================================
+
+#-------------------------------------------------------------
+# column-types 
+#-------------------------------------------------------------
+
 sub get_simple_column_types
+# EXPORTED
 # returns for each column:
 # 'number', 'string' or undef
   { my($dbh,$sth,$tablename)= @_;
@@ -109,6 +498,77 @@ sub get_simple_column_types
     db_simplify_types(\@x);
     return(@x);
   }
+
+sub column_properties
+# EXPORTED
+# need handle, table_name, table_owner
+# read the type, length, precision, null-condition of a check constraint
+  { my($dbh, $user_name, $table_name)= @_;
+    my $table_owner;
+
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    $table_name= uc($table_name);
+    ($table_owner,$table_name)=
+                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+
+    if (!defined $table_name)
+      { # not in list of synonyms and user objects
+        # the object is probably not accessible
+        dbwarn($mod_l,'column_properties',__LINE__,
+               "warning:no data found for object $table_name");
+        return;
+      };
+
+    if (!defined $table_owner || !defined $table_name ||
+        $table_owner eq '' || $table_name eq '')
+      { dberror($mod_l,'column_properties',__LINE__,
+                "arguments not complete (assertion) \n" .
+                "args:\"$table_owner.$table_name\"");
+        return;
+      };
+
+    my $SQL= "select AC.COLUMN_NAME, AC.DATA_TYPE, AC.DATA_LENGTH, ".
+                "AC.DATA_PRECISION, AC.NULLABLE, AC.DATA_DEFAULT" .
+                " from ALL_TAB_COLUMNS AC" .
+                " where" .
+                   " AC.OWNER=\'$table_owner\' AND " .
+                   " AC.TABLE_NAME=\'$table_name\'";
+
+#warn "get columndefs $SQL";
+
+    sql_trace($SQL) if ($sql_trace);
+    my $res_r=
+      $dbh->selectall_arrayref($SQL);
+
+    if (!defined $res_r)
+      { dberror($mod_l,'db_column_properties',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+    
+    return if (!@$res_r);
+    # no column-properties found
+    
+    my %ret;
+    # caution: the hash may be empty !
+    foreach my $line ( @$res_r )
+      {
+        $ret{$line->[0]} = {
+            type=>$line->[1],
+            length=>$line->[2],
+            precision=>$line->[3],
+            null=>$line->[4],
+            default=>$line->[5],
+        };
+      };
+#print Dumper(\%ret);      
+      
+    return( \%ret );
+  }
+
+# INTERNAL-------------------
 
 sub db_simplify_types
 # INTERNAL to dbdrv_oci!!!
@@ -214,7 +674,16 @@ sub db_types_no2string
     return(\%map);
   }
 
+#=============================================================
+# relations: primary, foreign, resident keys
+#=============================================================
+
+#-------------------------------------------------------------
+# primary key
+#-------------------------------------------------------------
+
 sub primary_keys
+# EXPORTED
 # returns the one primary key or the list of columns
 # that form the primary key
   { my($dbh,$user_name,$table_name)= @_;
@@ -274,7 +743,12 @@ sub primary_keys
     return(@pks);
   }
 
+#-------------------------------------------------------------
+# foreign-key
+#-------------------------------------------------------------
+
 sub foreign_keys
+# EXPORTED
   { my($dbh,$user_name,$table_name)= @_;
     my $table_owner;
 
@@ -352,8 +826,12 @@ sub foreign_keys
     return( \%foreign_keys);
   }
 
+#-------------------------------------------------------------
+# resident-key
+#-------------------------------------------------------------
 
 sub resident_keys
+# EXPORTED
 # the opposite of foreign keys,
 # find where the primary key of this table is used as foreign key
   { my($dbh,$user_name,$table_name)= @_;
@@ -443,387 +921,16 @@ sub resident_keys
     return( \%resident_keys);
   }
 
-sub get_help_topic
-  {
-    my($dbh)= @_;
-    return if (! defined($dbh));
-    my $fh;
-    my $sth= dbdrv::prepare($fh, $dbh,
-                         "SELECT DISTINCT topic FROM system.help " .
-                          " ORDER BY topic");
-
-    if (!dbdrv::execute($fh ,$dbh,$sth))
-      {
-        dbdrv::dbwarn($mod_l,'get_help_topic',__LINE__,
-                 "execute() returned an error," .
-                 " error-code: \n$DBI::errstr");
-      }
-    my $topic_list = $sth->fetchall_arrayref;
-    $sth->finish;
-    # $topic_list is a list of lists with one element
-    # but we want to return a simple list:
-    return(map{ $_->[0] } @$topic_list);
-  }
-
-sub get_user_objects
-# INTERNAL to dbdrv_oci!!!
-# returns a ref to a hash : own.obj_name => [$type]
-# type is 'T' (table) or 'V' (view) or 'P' (procedure) or
-#         'F' (function) or 'Q' (sequence)
-# $t_name: table or view referred to
-# $t_own: owner of referred table or view (equal to the $user-parameter)
-  { my($dbh,$user,$r_tab)= @_;
-
-    die if (!defined $r_tab);
-    die if (ref($r_tab) ne 'HASH');
-
-    return if (!defined $user);
-    return if ($user eq "");
-
-    $user= uc($user);
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    my $sql;
-    # per database_object_type registration of all known objects
-    foreach my $dbobj_type (keys %db_object_types)
-      {
-        $sql= "SELECT object_name " .
-              "FROM user_objects " .
-              "WHERE object_type = '".$dbobj_type."'";
-
-        #print "\n$dbobj_string: $sql";
-        sql_trace($sql) if ($sql_trace);
-
-        my $res= $dbh->selectall_arrayref($sql);
-
-        if (!defined $res)
-          { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                    "selectall_arrayref failed for $dbobj_type " .
-                    "request, errcode:\n$DBI::errstr");
-            return;
-          };
-
-        foreach my $line (@$res)
-          {
-            $r_tab->{ $user . '.' . $line->[0] } = 
-                                  [type_to_typechar($dbobj_type) ];
-            };
-      }
-
-#    print "rtab:".Dumper($r_tab);
-    return(1);
-  }
-
-sub get_synonyms
-# INTERNAL to dbdrv_oci!!!
-# returns a ref to a hash : syn_name => [$type, "$t_own.$t_name"]
-# type is 'T' (table) or 'V' (view) or
-#  'P' (procedure), 'F':function, 'S': sequence
-# $t_name: table or view referred to
-# $t_own: owner of referred table or view
-# $r_reverse_syn : a hash: owner.table => synonym
-  { my($dbh,$r_syn,$r_reverse_syn)= @_;
-
-    die if (!defined $r_syn);
-    die if (ref($r_syn) ne 'HASH');
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    my $sql;
-
-    $sql= "SELECT asyn.synonym_name, asyn.owner, " .
-                "asyn.table_name,asyn.table_owner, ao.object_type " .
-        "FROM all_synonyms asyn, all_objects ao " .
-        "WHERE " .
-                "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
-                "asyn.table_name=ao.object_name AND " .
-                "asyn.table_owner=ao.owner" ;
-    #print Dumper($sql);
-    sql_trace($sql) if ($sql_trace);
-
-    my $res= $dbh->selectall_arrayref($sql);
-
-    if (!defined $res)
-    { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-    };
-
-    foreach my $line (@$res)
-    {
-        my $syn= $line->[1] . '.' . $line->[0];
-        my $obj= $line->[3] . '.' . $line->[2];
-        $r_syn->{$syn} = [ type_to_typechar($line->[4]), $obj ];
-
-        if (!exists $r_reverse_syn->{$obj})
-        { $r_reverse_syn->{$obj}= [$syn]; }
-        else
-        { push @{$r_reverse_syn->{$obj}}, $syn; };
-    };
-
-    #print Dumper($r_syn);
-    return(1);
-  }
-
-sub load_object_dict
-# INTERNAL to dbdrv_oci!!!
-# WRITES TO GLOBAL VARIABLES:
-# $r_db_objects and $r_db_reverse_synonyms
-  { my($dbh,$user)= @_;
-
-    return if (defined $r_db_objects);
-    my %h;
-    $r_db_objects= \%h;
-    my %r;
-    $r_db_reverse_synonyms= \%r;
-    if ((defined $user) && ($user ne ""))
-      {
-        if (!get_user_objects($dbh,$user,$r_db_objects))
-          { dberror($mod_l,'load_object_dict',__LINE__,
-                    'loading of user-objects failed');
-            return;
-          };
-      };
-
-    if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
-      { dberror($mod_l,'load_object_dict',__LINE__,
-                'loading of synonyms failed');
-        return;
-      };
-  }
-
-sub check_existence
-  { my($dbh,$table_name,$user_name)= @_;
-
-    # when the table has the form "owner.table", the check cannot
-    # be made, since it's no public synonym and not in the
-    # synonym list
-    return(1) if ($table_name=~ /\./);
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    load_object_dict($dbh,$user_name);
-
-    if (exists $r_db_objects->{uc($user_name) . '.' . uc($table_name)})
-      { return(1); };
-    if (exists $r_db_objects->{"PUBLIC." . uc($table_name)})
-      { return(1); };
-
-    return;
-  }
-
-sub accessible_objects
-  { my($dbh,$user_name,$types,$access)= @_;
-#    my %known_types= { table => 'T', view => 'V', 
-#                       procedure => 'P', FUNCTION => 'F',
-#                       sequence=> 'S');
-    my %known_acc  = map { $_ =>1 } qw( user public );
-    my %types;
-    my %access;
-
-
-#warn "requested types: $types";
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    if (!defined $types)
-      { %types= (T=>1); }
-    else
-      { $types= uc($types);
-        my @types= split(",",$types);
-        foreach my $t (@types)
-          { if (!exists $db_object_types{$t})
-              { dberror($mod_l,'accessible_objects',__LINE__,
-                    "unknown object type: $t");
-                return;
-              };
-            $types{type_to_typechar($t)}= 1; 
-          };
-      };
-
-    load_object_dict($dbh,$user_name);
-    # loads also functions and procedures
-    
-    my @keys= keys %$r_db_objects;
-
-#print Dumper(\%types);
-    my @keys2;
-    foreach my $dbobj_type (keys %types)
-      {
-        push @keys2, (grep { $r_db_objects->{$_}->[0] eq $dbobj_type } @keys);
-      }
-
-    if (!defined $access)
-      { %access= ("public" => 1); }
-    else
-      { $access= lc($access);
-        %access= map { $_ => 1} split(",",$access);
-        foreach my $t (keys %access)
-          { if (!exists $known_acc{$t})
-              { dberror($mod_l,'accessible_objects',__LINE__,
-                    "unknown object access type: $t");
-                return;
-              };
-          };
-      };
-
-    my @result;
-
-    if (exists $access{public})
-      { push @result,
-             grep { /^PUBLIC\./ } @keys2;
-      };
-
-    if (exists $access{user})
-      {
-        push @result,
-             grep { /^$user_name\./i } @keys2;
-      };
-
-    #warn join("|",@result) . "\n";
-
-    map { $_=~ s/^[^\.]+\.// } @result; # remove "owner"
-
-#print Dumper(\@result);
-
-    return(sort @result);
-  }
-
-
-sub full_name
-  { my($short_name,$owner,$schema)= @_;
-
-    return("$owner.$short_name");
-  }
-
-sub real_name
-# resolves a given table-name or synonym,
-# returns: full-qualified-name,owner,unqualified-name,schema
-# NOTE: user-name is not the owner of the table but the user
-# that has logged in
-  { my($dbh,$user_name,$obj)= @_;
-
-    #warn "realname called with:$user_name.$obj";
-
-    my $object_name;
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    $user_name= uc($user_name);
-
-    load_object_dict($dbh,$user_name);
-
-    if ($obj !~ /\./) # not in the form user.tablename
-      { $object_name= "PUBLIC." . $obj; };
-
-
-    my $data= $r_db_objects->{$object_name};
-    if (!defined $data)
-      { # try a 2nd lookup with the user-name as prefix:
-        $object_name= "$user_name.$obj";
-        $data= $r_db_objects->{$object_name};
-      };
-
-    if (!defined $data)
-      { # not in list of synonyms and user objects
-        # the object is probably not accessible
-        dbwarn($mod_l,'real_name',__LINE__,
-               "warning:no data found for object $obj");
-        return;
-      };
-
-    # user objects have only a type-field !
-
-    if ($#$data>0) # more than 2 objects in hash: it's a synonym
-      { my($owner,$name)= split(/\./, $data->[1]);
-
-        #warn "realname returns: $data->[1],$owner,$name";
-        return($data->[1],$owner,$name);
-      };
-
-    # no synonym, the table is probably owner by the current user:
-    my($owner,$short_name)= split(/\./,$object_name);
-
-    #warn "realname returns: $object_name,$owner,$short_name";
-    return($object_name,$owner,$short_name);
-  }
-
-sub canonify_name
-  { my($dbh,$user_name,$object_name,$object_owner)= @_;
-
-    if ($object_name =~ /\./)
-      { ($object_owner,$object_name)= split(/\./,$object_name); };
-
-    return($object_name) if (!defined $object_owner);
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    load_object_dict($dbh,$user_name);
-
-    my $name= $object_owner . '.' . $object_name;
-
-    my $r_list= $r_db_reverse_synonyms->{$name};
-    if (!defined $r_list)
-      { return($name); };
-
-    foreach my $n (@$r_list)
-      { my($owner,$obj)= split(/\./,$n);
-        if ($owner eq 'PUBLIC')
-          { return($obj); };
-      };
-
-    return($name);
-  }
-
-sub object_is_table
-# return 1 when it is a table
-  { my($dbh,$table_name,$user_name)= @_;
-    my $table_owner;
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    $table_name= uc($table_name);
-
-    ($table_owner,$table_name)=
-                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
-
-    if (!defined $table_name)
-      { # not in list of synonyms and user objects
-        # the object is probably not accessible
-        dbwarn($mod_l,'object_is_table',__LINE__,
-               "warning:no data found for object $table_name");
-        return;
-      };
-
-    my $SQL= "select OWNER,TABLE_NAME from " .
-             "all_tables " .
-             "where table_name=\'$table_name\' and owner=\'$table_owner\'";
-
-    sql_trace($SQL) if ($sql_trace);
-    my $res_r=
-      $dbh->selectall_arrayref($SQL);
-
-    if (!defined $res_r)
-      { dberror($mod_l,'object_is_table',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
-
-    if (@$res_r)
-      { return(1); };
-    return(0);
-  }
-
-
+#=============================================================
+# relations: dependent and referenced objects 
+#=============================================================
+
+#-------------------------------------------------------------
+# object-dependencies
+#-------------------------------------------------------------
 
 sub object_dependencies
+# EXPORTED
 # read the owner, name and of type dependend objects,
 # type is either "TABLE" or "VIEW"
   { my($dbh,$table_name,$user_name)= @_;
@@ -863,7 +970,12 @@ sub object_dependencies
     return( @$res_r );
   }
 
+#-------------------------------------------------------------
+# object-references
+#-------------------------------------------------------------
+
 sub object_references
+# EXPORTED
 # read the owner, name  and of referenced objects
   { my($dbh,$table_name,$user_name)= @_;
     my $table_owner;
@@ -902,8 +1014,12 @@ sub object_references
     return( @$res_r );
   }
 
+#-------------------------------------------------------------
+# object-addicts
+#-------------------------------------------------------------
+
 sub object_addicts
-# INTERNAL
+# EXPORTED
 # read all constraints and triggers for the given object
   { my($dbh,$table_name,$user_name)= @_;
     my $table_owner;
@@ -952,8 +1068,16 @@ sub object_addicts
     return( @$res_r );
   }
 
+#=============================================================
+# definitions of views, triggers and scripts
+#=============================================================
+
+#-------------------------------------------------------------
+# read viewtext
+#-------------------------------------------------------------
+
 sub read_viewtext
-# INTERNAL
+# EXPORTED
 # read the text of a view
   { my($dbh,$table_name,$user_name)= @_;
     my $table_owner;
@@ -996,77 +1120,12 @@ sub read_viewtext
     return( $text );
   }
 
-sub column_properties
-# INTERNAL
-# need handle, table_name, table_owner
-# read the type, length, precision, null-condition of a check constraint
-  { my($dbh, $user_name, $table_name)= @_;
-    my $table_owner;
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    $table_name= uc($table_name);
-    ($table_owner,$table_name)=
-                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
-
-    if (!defined $table_name)
-      { # not in list of synonyms and user objects
-        # the object is probably not accessible
-        dbwarn($mod_l,'column_properties',__LINE__,
-               "warning:no data found for object $table_name");
-        return;
-      };
-
-    if (!defined $table_owner || !defined $table_name ||
-        $table_owner eq '' || $table_name eq '')
-      { dberror($mod_l,'column_properties',__LINE__,
-                "arguments not complete (assertion) \n" .
-                "args:\"$table_owner.$table_name\"");
-        return;
-      };
-
-    my $SQL= "select AC.COLUMN_NAME, AC.DATA_TYPE, AC.DATA_LENGTH, ".
-                "AC.DATA_PRECISION, AC.NULLABLE, AC.DATA_DEFAULT" .
-                " from ALL_TAB_COLUMNS AC" .
-                " where" .
-                   " AC.OWNER=\'$table_owner\' AND " .
-                   " AC.TABLE_NAME=\'$table_name\'";
-
-#warn "get columndefs $SQL";
-
-    sql_trace($SQL) if ($sql_trace);
-    my $res_r=
-      $dbh->selectall_arrayref($SQL);
-
-    if (!defined $res_r)
-      { dberror($mod_l,'db_column_properties',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
-    
-    return if (!@$res_r);
-    # no column-properties found
-    
-    my %ret;
-    # caution: the hash may be empty !
-    foreach my $line ( @$res_r )
-      {
-        $ret{$line->[0]} = {
-            type=>$line->[1],
-            length=>$line->[2],
-            precision=>$line->[3],
-            null=>$line->[4],
-            default=>$line->[5],
-        };
-      };
-#print Dumper(\%ret);      
-      
-    return( \%ret );
-  }
+#-------------------------------------------------------------
+# read checktext
+#-------------------------------------------------------------
 
 sub read_checktext
-# INTERNAL
+# EXPORTED
 # read the name, condition of a check constraint
   { my($dbh,$constraint_name,$table_owner)= @_;
 
@@ -1106,8 +1165,12 @@ sub read_checktext
 
   }
 
+#-------------------------------------------------------------
+# read triggertext
+#-------------------------------------------------------------
+
 sub read_triggertext
-# INTERNAL
+# EXPORTED
 # reads the name, type, event, referer, clause, status
 # body and description of a trigger
   { my($dbh,$trigger_name,$table_owner)= @_;
@@ -1142,8 +1205,12 @@ sub read_triggertext
     return( @$res_r );
   }
 
+#-------------------------------------------------------------
+# read scripttext
+#-------------------------------------------------------------
+
 sub read_scripttext
-# INTERNAL
+# EXPORTED
 # reads the name, type, text
   { my($dbh,$script_name,$user_name)= @_;
 
@@ -1197,31 +1264,58 @@ sub read_scripttext
     return( @ret );
   }
 
+#=============================================================
+# misc
+#=============================================================
+
+#-------------------------------------------------------------
+# online-help
+#-------------------------------------------------------------
+
+sub get_help_topic
+# EXPORTED
+  {
+    my($dbh)= @_;
+    return if (! defined($dbh));
+    my $fh;
+    my $sth= dbdrv::prepare($fh, $dbh,
+                         "SELECT DISTINCT topic FROM system.help " .
+                          " ORDER BY topic");
+
+    if (!dbdrv::execute($fh ,$dbh,$sth))
+      {
+        dbdrv::dbwarn($mod_l,'get_help_topic',__LINE__,
+                 "execute() returned an error," .
+                 " error-code: \n$DBI::errstr");
+      }
+    my $topic_list = $sth->fetchall_arrayref;
+    $sth->finish;
+    # $topic_list is a list of lists with one element
+    # but we want to return a simple list:
+    return(map{ $_->[0] } @$topic_list);
+  }
+
+#-------------------------------------------------------------
+# string for row limitation
+#-------------------------------------------------------------
+
+sub query_limit_rows_str
+# EXPORTED
+# limit number of returned rows in a query
+  { my($no)= @_;
+    return("rownum<=$no","add_after_where");
+  }
+
+
+#-------------------------------------------------------------
+# misc internal functions
+#-------------------------------------------------------------
+
 sub type_to_typechar
 # internal
   { my($type)= @_;
     return( uc(substr($type,0,1)) );
   }
-
-sub sql_request_to_hash
-# internal
-  { my($dbh,$sql,$r_h)= @_;
-
-    sql_trace($sql) if ($sql_trace);
-
-    my $res=
-      $dbh->selectall_arrayref($sql);
-
-    if (!defined $res)
-      { dberror($mod_l,'sql_request_to_hash',__LINE__,
-                "selectall_arrayref failed, errcode:\n$DBI::errstr");
-        return;
-      };
-    foreach my $line (@$res)
-      { $r_h->{$line->[0]}= 1;
-      };
-  };
-
 
 
 1;
