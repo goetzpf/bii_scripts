@@ -1578,9 +1578,9 @@ sub store_to_db
         return;
       };
 
-    $self->delete_(@_);
-    $self->update(@_);
-    $self->insert(@_);
+    return if (!$self->delete_(@_));
+    return if (!$self->update(@_));
+    return if (!$self->insert(@_));
     return($self);
  }
 
@@ -1590,7 +1590,7 @@ sub delete_
     my $dbh= $self->{_dbh};
     my $lines= $self->{_lines};
 
-    return if (!$self->{_deleted});
+    return(1) if (!$self->{_deleted});
 
     if ($sim_delete)
       { print STDERR "In table $self->{_table} the following\n";
@@ -1598,7 +1598,7 @@ sub delete_
         print STDERR join(",",(keys %{$self->{_deleted}})),"\n";
         print STDERR "set \$dbitable::sim_delete to 0 if you want\n" .
                     "deletions to be carried out\n";
-        return;
+        return(1);
       };
 
     my $format;
@@ -1656,6 +1656,7 @@ sub delete_
       };
 
     delete $self->{_deleted}; # all updates are finished
+    return(1);
    }
 
 
@@ -1730,6 +1731,7 @@ sub update
 
     $sth->finish;
     delete $self->{_updated}; # all updates are finished
+    return(1);
   }
 
 sub insert
@@ -1747,7 +1749,7 @@ sub insert
     my @fields= @{$self->{_column_list}};
 
     my $format;
-    return if (!$self->{_inserted});
+    return(1) if (!$self->{_inserted});
 
 
     if ($self->{_counter_pk})
@@ -1889,6 +1891,7 @@ sub insert
       };
     delete $self->{_inserted};    # all updates are finished
     delete $self->{_preliminary}; # all updates are finished
+    return(1);
   }
 
 # ------------------ file load and store
