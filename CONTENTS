@@ -1,0 +1,25 @@
+Pezca	
+	a perl-module that implements the channel-access protocol
+	and gives access to EPICS variables (1)
+	
+	
+idcp_data
+	a perl-module that is is used to give information about
+	undulator properties. (2)	
+	
+canlink 
+	a perl-module that can be used to encode or decode the
+	"cryptic can link" as it is used in the BESSY CAN Bus
+	device support for EPICS.
+	
+-----------------------------------------------------------------------
+(1)	This is a CPAN-like module which has to be installed via
+	"make". This module needs a working C-compiler in order to
+	be installed. The source is in "bii_scipts/src/perl/[module]",
+	the documentation in "bii_scipts/doc/man/man3/[module].3",
+	
+(2)	This is a "flat" perl module, which is simply placed in 
+	"bii_scipts/lib/perl" with the name "[module].pm". This module
+	contains embedded documenation, which is extracted to a 
+	man-page via "make". The documentation is in 
+	"bii_scipts/doc/man/man3/[module].3",

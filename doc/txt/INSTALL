@@ -1,0 +1,8 @@
+This is the BESSY-scripts bundle.
+
+after CVS checkout, you have to do the following
+to install all the modules and make them "ready to run":
+
+in bii_scripts:
+
+"make install"
