@@ -12,7 +12,8 @@ my $umask= '0755';
 
 chdir("$FindBin::Bin") or die;
 
-chdir("../lib/perl_std") or die;
+chdir("../lib/perl") or die;
+#chdir("../lib/perl_std") or die;
 
 symlink("../../bin","bin") or die;
 symlink("../../doc/man","man") or die;

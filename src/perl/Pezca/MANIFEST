@@ -196,7 +196,6 @@ libCom/O.Linux/Makefile.PL
 libCom/O.Linux/envData.c
 libCom/O.Linux/errSymTbl.c
 libCom/O.hp700/Makefile.PL
-libCom/O.hp700/Makefile.old
 libCom/O.hp700/envData.c
 libCom/O.hp700/errSymTbl.c
 libCom/O.mv162/Makefile
