@@ -182,98 +182,129 @@ sub resident_keys
     return( \%resident_keys);
   }
 
-sub accessible_objects_hash
-# returns the one primary key or the list of columns
-# that form the primary key
-# $types: a comma separated list of :"TABLE", "VIEW", "SYNONYM"
-# $access: a comma separated list of "USER", "PUBLIC"
-  { my($dbh,$user_name,$types,$access)= @_;
-    my %known_types= map { $_ =>1 } qw( table view synonym );
-    my %known_acc  = map { $_ =>1 } qw( user public );
-    my @types;
-    my %access;
-    my %result;
 
-# $sql_trace=1; 
+sub get_user_objects
+# INTERNAL
+# returns a ref to a hash : obj_name => [$type, $own]
+# type is 'T' (table) or 'V' (view)
+# $t_name: table or view referred to
+# $t_own: owner of referred table or view (equal to the $user-parameter)
+  { my($dbh,$user,$r_tab)= @_;
 
-    $user_name= uc($user_name);
-  
+    die if (!defined $r_tab);
+    die if (ref($r_tab) ne 'HASH');
+
+    return if (!defined $user);
+    return if ($user eq "");
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
-      
-    if (!defined $types)
-      { @types= ("table"); }
-    else
-      { $types= lc($types);
-        @types= split(",",$types);
-	foreach my $t (@types)
-	  { if (!exists $known_types{$t})
-	      { dberror($mod_l,'accessible_objects',__LINE__,
-                    "unknown object type: $t"); 
-        	return;
-              };
-          };
-      };
-      
-    if (!defined $access)
-      { %access= ("public" => 1); }
-    else
-      { $access= lc($access);
-        %access= map { $_ => 1} split(",",$access);
-	foreach my $t (@access)
-	  { if (!exists $known_acc{$t})
-	      { dberror($mod_l,'accessible_objects',__LINE__,
-                    "unknown object access type: $t"); 
-        	return;
-              };
-          };
-      };
-      
-    if (exists $access{public})
-      {
-	my @users= ('PUBLIC');
-	if (defined $user_name)
-	  { push @users, $user_name; };
-
-	my $owner_filter;
-	if ($#users<=0)
-	  { $owner_filter= "asyn.owner=\'$users[0]\'"; }
-	else
-	  { $owner_filter= "asyn.owner IN (" .
-                            join(", ", map { "\'$_\'" } @users) .
-			   ")";
-	  };		       
-
-	foreach my $t (@types)
-	  { my $SQL= "SELECT asyn.synonym_name " .
-        	     "FROM all_synonyms asyn, all_${t}s aobj " .
-		     "WHERE $owner_filter AND " .
-
-		     "asyn.table_owner NOT IN (\'SYS\', \'SYSTEM\') AND " .
-
-  		     "asyn.table_name=aobj.${t}_name AND " .
-		     "asyn.table_owner=aobj.owner";
-
-	    sql_request_to_hash($dbh, $SQL, \%result); 
-	  };
-      };
+ 
+    my $sql;
     
-    if (exists $access{user})
-      { foreach my $t (@types)
-	  { my $SQL= "SELECT ${t}_name " .
-             "FROM user_${t}s aobj";
-	    sql_request_to_hash($dbh, $SQL, \%result); 
-          };
+    $sql= "SELECT table_name from user_tables";
+
+    sql_trace($sql) if ($sql_trace);
+
+    my $res= $dbh->selectall_arrayref($sql);
+
+    if (!defined $res)
+      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
+      
+    # hash: [type('T'or'V'),owner,table-name,table-owner
+    foreach my $line (@$res)
+      { $r_tab->{ $line->[0] } = ['T',$user ]; };
+      
+    $sql= "SELECT view_name from user_views";
+      
+    sql_trace($sql) if ($sql_trace);
+
+    my $res= $dbh->selectall_arrayref($sql);
+
+    if (!defined $res)
+      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
+      
+    # hash: [type('T'or'V'),owner,table-name,table-owner
+    foreach my $line (@$res)
+      { $r_tab{ $line->[0] } = ['V',$user ]; 
+      };
+     
+    #print Dumper($r_tab);
+    return(1);
+  } 
+     
+sub get_synonyms
+# INTERNAL
+# returns a ref to a hash : syn_name => [$type, $own, $t_name, $t_own]
+# type is 'T' (table) or 'V' (view)
+# $t_name: table or view referred to
+# $t_own: owner of referred table or view
+  { my($dbh,$r_syn)= @_;
+    
+    die if (!defined $r_syn);
+    die if (ref($r_syn) ne 'HASH');
+    
+    $dbh= check_dbi_handle($dbh);
+    return if (!defined $dbh);
+
+    my $sql;
+    
+    $sql= "SELECT asyn.synonym_name,asyn.owner, " .
+                  "asyn.table_name,asyn.table_owner " . 
+          "FROM all_synonyms asyn, all_tables at " .
+          "WHERE " . 
+                   "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
+                   "asyn.table_name=at.table_name AND " . 
+                   "asyn.table_owner=at.owner" ;
+		      
+    sql_trace($sql) if ($sql_trace);
+
+    my $res= $dbh->selectall_arrayref($sql);
+
+    if (!defined $res)
+      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
+      };
+      
+    # hash: [type('T'or'V'),owner,table-name,table-owner
+    foreach my $line (@$res)
+      { $r_syn->{ $line->[0] } = 
+                    ['T',$line->[1], $line->[2], $line->[3] ]; };
+
+
+    $sql= "SELECT asyn.synonym_name,asyn.owner, " .
+                  "asyn.table_name,asyn.table_owner " . 
+          "FROM all_synonyms asyn, all_views av " .
+          "WHERE " . 
+                   "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
+                   "asyn.table_name=av.view_name AND " . 
+                   "asyn.table_owner=av.owner" ;
+		      
+    sql_trace($sql) if ($sql_trace);
+
+    my $res= $dbh->selectall_arrayref($sql);
+
+    if (!defined $res)
+      { dberror($mod_l,'sql_request_to_hash',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr"); 
+        return;
       };
 
-    #print join(",",@list),"\n";
-    return( \%result );
-  }
+    # hash: [type('T'or'V'),owner,table-name,table-owner
+    foreach my $line (@$res)
+      { $r_syn->{ $line->[0] } 
+                 = ['V',$line->[1], $line->[2], $line->[3] ]; };
 
-sub accessible_objects
-  { my $r_h= accessible_objects_hash(@_);
-    return( sort keys %$r_h );
-  } 
+    #print Dumper($r_syn);
+    return(1);
+  }
 
 
 sub sql_request_to_hash
