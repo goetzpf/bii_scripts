@@ -14,10 +14,10 @@ use lib "$FindBin::RealBin/../lib/perl";
 #it is not installed globally like this:
 #use lib "$ENV{HOME}/project/perl/lib/site_perl";
 
-
 # the following is only for my testing perl-environment:
 #use lib "$ENV{HOME}/pmodules";
 #use perl_site;
+use Sys::Hostname;
 
 use Tk;
 use Tk::Menu;
@@ -45,6 +45,8 @@ use dbitable 2.1;
 
 use Data::Dumper;
 my $VERSION= "0.93";
+
+#warn "TK Version: " . $Tk::VERSION;
 
 our %save; # global configuration variable
 
@@ -190,6 +192,7 @@ sub tk_login
 sub tk_login_finish
   { my($r_glbl)= @_;
     my $db_handle;
+
     if (defined($r_glbl->{handle_sql_history}))
       {
         $r_glbl->{handle_sql_history}->close();
@@ -220,6 +223,8 @@ sub tk_login_finish
     $r_glbl->{dbh}= $db_handle;
 
     tk_progress($r_glbl,20);
+
+    tk_set_busy($r_glbl,0);
 
     if (defined($r_glbl->{login_widget}))
       {
@@ -259,25 +264,21 @@ sub tk_main_window
     $r_glbl->{menu_windows_widget} = $MnWindow;
     $MnTop->add('cascade',
                 -label=> 'File',
-                -accelerator => 'Meta+F',
                 -underline   => 0,
                 -menu=> $MnFile
                );
     $MnTop->add('cascade',
                 -label=> 'Database',
-                -accelerator => 'Meta+D',
                 -underline   => 0,
                 -menu=> $MnDb
                );
     $MnTop->add('cascade',
                 -label=> 'Windows',
-                -accelerator => 'Meta+W',
                 -underline  => 0,
                 -menu=> $MnWindow
                );
     $MnTop->add('cascade',
                 -label=> 'Help',
-                -accelerator => 'Meta+H',
                 -underline  => 0,
                 -menu=> $MnHelp
                );
@@ -288,18 +289,21 @@ sub tk_main_window
     $Top->bind($Top,'<Control-o>'=> [\&tk_load_collection,$r_glbl]);
     $MnFile->add('command',
                -label=> 'open collection',
-               -accelerator => 'Control-o',
+               -accelerator => 'Ctrl+o',
+               -underline  => 0,
                -command=> [\&tk_load_collection,"",$r_glbl]
               );
     $Top->bind($Top,'<Control-s>'=> [\&tk_save_collection,$r_glbl]); 
     $MnFile->add('command',
                -label=> 'save collection',
-               -accelerator => 'Control-s',
+               -accelerator => 'Ctrl+s',
+               -underline  => 0,
                -command=> [\&tk_save_collection,"",$r_glbl]
               );
     $MnFile->add('separator');
     $MnFile->add('command',
-               -label=> 'quit',
+                 -label=> 'quit',
+                 -underline  => 0,
                  -command => sub
                    {
                      $Top->destroy();
@@ -310,6 +314,7 @@ sub tk_main_window
     # configure Database-menu:
     $MnDb->add('command',
                -label=> 'Login',
+               -underline  => 0,
                -command=> [\&tk_login, $r_glbl]
               );
     $MnDb->add('separator');
@@ -336,12 +341,14 @@ sub tk_main_window
               
     $MnDb->add('command',
                -label=> 'commit',
+               -underline  => 0,
                -state=> 'disabled',
                -command=> sub { dbdrv::commit($r_glbl->{dbh}); }
               );
     $c_commit_i= $MnDb->index('end');     
     $MnDb->add('command',
                -label=> 'rollback',
+               -underline  => 0,
                -state=> 'disabled',
                -command=> sub { dbdrv::rollback($r_glbl->{dbh}); 
                                 tk_reload_all_objects($r_glbl);
@@ -353,29 +360,35 @@ sub tk_main_window
     $MnDb->add('separator');
     $MnDb->add('command',
                -label=> 'Reload objects',
+               -underline  => 0,
                -command=> [\&tk_reload_all_objects, $r_glbl]
               );
     $MnDb->add('command',
                -label=> 'show SQL commands',
+               -underline  => 5,
                -command=> [\&tk_sql_commands, $r_glbl]
               );
 
     # configure Help-menu:
     $MnHelp->add('command',
                  -label=> 'dump global datastructure',
+                 -underline  => 5,
                  -command => [\&tk_dump_global, $r_glbl],
                 );
     $MnHelp->add('command',
                  -label=> 'dump object dictionary',
+                 -underline  => 5,
                  -command => [\&tk_object_dict_dump, $r_glbl],
                 );
     $MnHelp->add('command',
                  -label=> 'dump reverse object dictionary',
+                 -underline  => 5,
                  -command => [\&tk_r_object_dict_dump, $r_glbl],
                 );
     $MnHelp->add('separator');
     $MnHelp->add('command',
                  -label=> 'About',
+                 -underline  => 0,
                  -command=> [\&tk_about, $r_glbl]
                 );
 
@@ -480,7 +493,7 @@ sub tk_main_window
         $r_glbl->{table_browse_widget}->bind('<Return>', 
                             sub { my $b= $r_glbl->{table_browse_button};
                                   return if ($b->cget('-state') eq "disabled");
-                                  tk_open_new_object($r_glbl, "table");
+                                  tk_open_new_object($r_glbl, 'table_or_view');
                                 }
                                              );
 
@@ -490,7 +503,7 @@ sub tk_main_window
                                   -underline=>0,
                                   -justify=>"center",
                                   -command => [\&tk_open_new_object,
-                                                $r_glbl, "table" ],
+                                                $r_glbl, 'table_or_view' ],
                                 )->pack( %dlg_def_okbutton,);
 
 
@@ -674,7 +687,6 @@ sub tk_main_window
 sub tk_set_busy
   { my($r_glbl,$val)= @_;
 
-    
     if (!$val)
       { if (--$r_glbl->{busy_count} <=0)
           { $r_glbl->{busy_count}=0; 
@@ -704,97 +716,102 @@ sub tk_progress
 sub tk_main_window_finish
   { my($r_glbl)= @_;
 
-        $r_glbl->{accessible_objects_views} =
-                 [ dbdrv::accessible_objects($r_glbl->{'dbh'},
-                                             $r_glbl->{user},
-                                             "VIEW",
-                                             "PUBLIC,USER")
-                 ];
+    tk_set_busy($r_glbl,1);
 
-        tk_progress($r_glbl,40);
+    $r_glbl->{accessible_objects_views} =
+             [ dbdrv::accessible_objects($r_glbl->{'dbh'},
+                                         $r_glbl->{user},
+                                         "VIEW",
+                                         "PUBLIC,USER")
+             ];
 
-        $r_glbl->{view_listbox_widget}->delete(0, 'end');
-        $r_glbl->{view_listbox_widget}->
-                 insert("end", @{ $r_glbl->{accessible_objects_views} } );
+    tk_progress($r_glbl,40);
 
-        $r_glbl->{accessible_objects_tables} =
-                 [ dbdrv::accessible_objects($r_glbl->{'dbh'},
-                                             $r_glbl->{user},
-                                             "TABLE",
-                                             "PUBLIC,USER")
-                 ];
+    $r_glbl->{view_listbox_widget}->delete(0, 'end');
+    $r_glbl->{view_listbox_widget}->
+             insert("end", @{ $r_glbl->{accessible_objects_views} } );
 
-        tk_progress($r_glbl,60);
+    $r_glbl->{accessible_objects_tables} =
+             [ dbdrv::accessible_objects($r_glbl->{'dbh'},
+                                         $r_glbl->{user},
+                                         "TABLE",
+                                         "PUBLIC,USER")
+             ];
 
-        $r_glbl->{table_listbox_widget}->delete(0, 'end');
-        $r_glbl->{table_listbox_widget}->
-                 insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
-        $r_glbl->{accessible_objects_all} =
-                 [ dbdrv::accessible_objects($r_glbl->{'dbh'},
-                                             $r_glbl->{user},
-                                             "TABLE,VIEW",
-                                             "PUBLIC,USER")
-                 ];
+    tk_progress($r_glbl,60);
 
-        tk_progress($r_glbl,80);
+    $r_glbl->{table_listbox_widget}->delete(0, 'end');
+    $r_glbl->{table_listbox_widget}->
+             insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
+    $r_glbl->{accessible_objects_all} =
+             [ dbdrv::accessible_objects($r_glbl->{'dbh'},
+                                         $r_glbl->{user},
+                                         "TABLE,VIEW",
+                                         "PUBLIC,USER")
+             ];
 
-        $r_glbl->{table_browse_widget}->delete(0, 'end');
-        $r_glbl->{table_browse_widget}->
-                 insert("end",  @{  $r_glbl->{accessible_objects_all} } );
+   tk_progress($r_glbl,80);
 
-        # opens or create a new history file
-        $r_glbl->{filename_sql_history} =
-                       $PrgDir . join("_","/history",
-                                      $r_glbl->{db_driver},
-                                      $r_glbl->{db_source},
-                                      $r_glbl->{user});
+    $r_glbl->{table_browse_widget}->delete(0, 'end');
+    $r_glbl->{table_browse_widget}->
+             insert("end",  @{  $r_glbl->{accessible_objects_all} } );
+
+    # opens or create a new history file
+    $r_glbl->{filename_sql_history} =
+                   $PrgDir . join("_","/history",
+                                  $r_glbl->{db_driver},
+                                  $r_glbl->{db_source},
+                                  $r_glbl->{user});
 
 
-        if (-r $r_glbl->{filename_sql_history})
-          {
-                $r_glbl->{handle_sql_history} =
-                         new IO::File "< ".$r_glbl->{filename_sql_history};
-                if (! defined ($r_glbl->{handle_sql_history}))
-                  {
-                    tkdie($r_glbl,
-                          "History file " . $r_glbl->{filename_sql_history} .
-                          " can not be opened. Error in line " . __LINE__)
-                  }
-                my $fh=$r_glbl->{handle_sql_history};
-                while (my $line = <$fh>)
-                  {
-                    $r_glbl->{sql_history_widget}->insert("end", $line);
-                  }
-                $r_glbl->{handle_sql_history}->close;
-          }
-
-        $r_glbl->{handle_sql_history} =
-                 new IO::File ">> ".$r_glbl->{filename_sql_history};
-        if (! defined ($r_glbl->{handle_sql_history}))
-          {
+    if (-r $r_glbl->{filename_sql_history})
+      {
+            $r_glbl->{handle_sql_history} =
+                     new IO::File "< ".$r_glbl->{filename_sql_history};
+            if (! defined ($r_glbl->{handle_sql_history}))
+              {
                 tkdie($r_glbl,
-                      "History file " .
-                      $r_glbl->{filename_sql_history} .
+                      "History file " . $r_glbl->{filename_sql_history} .
                       " can not be opened. Error in line " . __LINE__)
-          }
-        my $fh=$r_glbl->{handle_sql_history};
-        my ($sec,$min,$hour,$mday,$mon,$year) = localtime();
-        $year += 1900;
-        tk_progress($r_glbl,100);
-        tk_set_busy($r_glbl,0);
+              }
+            my $fh=$r_glbl->{handle_sql_history};
+            while (my $line = <$fh>)
+              {
+                $r_glbl->{sql_history_widget}->insert("end", $line);
+              }
+            $r_glbl->{handle_sql_history}->close;
+      }
 
-        print $fh "\n-- new log $year-$mon-$mday $hour-$min-$sec from " .
-                  $ENV{"HOSTNAME"};
-        print $fh "connect (" . $r_glbl->{db_driver} . ")" .
-                   $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
-        $fh->flush();
+    $r_glbl->{handle_sql_history} =
+             new IO::File ">> ".$r_glbl->{filename_sql_history};
+    if (! defined ($r_glbl->{handle_sql_history}))
+      {
+            tkdie($r_glbl,
+                  "History file " .
+                  $r_glbl->{filename_sql_history} .
+                  " can not be opened. Error in line " . __LINE__)
+      }
+    my $fh=$r_glbl->{handle_sql_history};
+    my ($sec,$min,$hour,$mday,$mon,$year) = localtime();
+    $year += 1900;
+    tk_progress($r_glbl,100);
+    tk_set_busy($r_glbl,0);
 
-        if ($fast_test)
-          { $r_glbl->{new_table_name}= $fast_table;
-                tk_open_new_object($r_glbl, "table");
-          };
+    my $hostname= $ENV{HOSTNAME};
+    $hostname= hostname() if (!$hostname);
 
-        tk_progress($r_glbl,0);
+    print $fh "\n-- new log $year-$mon-$mday $hour-$min-$sec from " .
+              $hostname;
+    print $fh "connect (" . $r_glbl->{db_driver} . ")" .
+               $r_glbl->{user} . "@" . $r_glbl->{db_source}."\n";
+    $fh->flush();
+
+    if ($fast_test)
+      { $r_glbl->{new_table_name}= $fast_table;
+            tk_open_new_object($r_glbl, 'table_or_view');
+      };
+
+    tk_progress($r_glbl,0);
 
   }
 
@@ -1173,7 +1190,7 @@ sub tk_add_relation_dialog2
         return;
       };
 
-    warn "selected:$my_tab $my_col $o_tab $o_col";
+    # warn "selected:$my_tab $my_col $o_tab $o_col";
 
     $r_relation_hash->{Top}->destroy();
     $r_glbl->{main_widget}->update; # force destroy to be executed now
@@ -1621,8 +1638,10 @@ sub tk_object_dialog_finish
   }
   
 sub tk_find_line
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
 # if $given_colname is undefined, take it from the active cell
-  { my($r_tbh, $given_colname)= @_;
+  { my($widget, $r_tbh, $given_colname)= @_;
 
     my $TableWidget= $r_tbh->{table_widget};
 
@@ -2134,31 +2153,26 @@ sub make_table_window
 
     $MnTop->add('cascade',
                 -label=> 'File',
-                -accelerator => 'Meta+F',
                 -underline   => 0,
                 -menu=> $MnFile
                 );
     $MnTop->add('cascade',
                 -label=> 'Database',
-                -accelerator => 'Meta+D',
                 -underline   => 0,
                 -menu=> $MnDbase
                 );
     $MnTop->add('cascade',
                 -label=> 'Edit',
-                -accelerator => 'Meta+E',
                 -underline   => 0,
                 -menu=> $MnEdit
                 );
     $MnTop->add('cascade',
                 -label=> 'Relations',
-                -accelerator => 'Meta+R',
                 -underline   => 0,
                 -menu=> $MnRela
                 );
     $MnTop->add('cascade',
                 -label=> 'View',
-                -accelerator => 'Meta+V',
                 -underline   => 0,
                 -menu=> $MnView
                 );
@@ -2176,17 +2190,20 @@ sub make_table_window
                 -menu=> $MnFileOpen
                 );
 
+        $Top->bind($Top,'<Control-o>'=> [\&tk_load_from_file,$r_tbh]);
         $MnFileOpen->add('command',
                     -label=> 'Standard',
-                    -accelerator => 'Meta+O',
+                    -accelerator => 'Ctrl+o',
                     -underline   => 0,
-                    -command=> [\&tk_load_from_file, $r_tbh]
+                    -command=> [\&tk_load_from_file, "",$r_tbh]
                     );
 
+        $Top->bind($Top,'<Shift-Control-O>'=> [\&tk_import_csv,$r_tbh]);
         $MnFileOpen->add('command',
                     -label=> 'CSV',
+                    -accelerator => 'Shift+Ctrl+o',
                     -underline   => 0,
-                    -command=> [\&tk_import_csv, $r_tbh]
+                    -command=> [\&tk_import_csv, "", $r_tbh]
                     );
 
     $MnFile->add('cascade',
@@ -2195,29 +2212,30 @@ sub make_table_window
                 -menu=> $MnFileSave
                 );
 
+        $Top->bind($Top,'<Control-s>'=> [\&tk_save_to_file,$r_tbh]);
         $MnFileSave->add('command',
                     -label=> 'Standard',
-                    -accelerator => 'Meta+S',
+                    -accelerator => 'Ctrl+s',
                     -underline   => 0,
-                    -command=> [\&tk_save_to_file, $r_tbh]
+                    -command=> [\&tk_save_to_file, "", $r_tbh]
                     );
 
+        $Top->bind($Top,'<Shift-Control-S>'=> [\&tk_export_csv,$r_tbh]);
         $MnFileSave->add('command',
                     -label=> 'CSV',
+                    -accelerator => 'Shift+Ctrl+s',
                     -underline   => 0,
-                    -command=> [\&tk_export_csv, $r_tbh]
+                    -command=> [\&tk_export_csv, "", $r_tbh]
                     );
 
     # configure database-menu:
     $MnDbase->add('command',
                   -label=> 'Store',
-                  -accelerator => 'Meta+S',
                   -underline   => 0,
                   -command => [\&cb_store_db, $r_tbh],
                 );
     $MnDbase->add('command',
                   -label=> 'Reload',
-                  -accelerator => 'Meta+R',
                   -underline   => 0,
                   -command => [\&cb_reload_db, $r_glbl, $r_tbh],
                 );
@@ -2228,21 +2246,20 @@ sub make_table_window
     my $MnEditLine = $MnEdit->Menu();
 
 
+    $Top->bind($Top,'<Control-f>'=> [\&tk_find_line,$r_tbh]);
     $MnEdit->add('command',
                   -label=> 'find in column',
-                  -accelerator => 'Meta+C',
+                  -accelerator => 'Ctrl+f',
                   -underline   => 8,
-                  -command => [\&tk_find_line, $r_tbh],
+                  -command => [\&tk_find_line, "", $r_tbh],
                 );
     $MnEdit->add('cascade',
                   -label=> 'field',
-                  -accelerator => 'Meta+F',
                   -underline   => 0,
                   -menu => $MnEditField,
                 );
     $MnEdit->add('cascade',
                   -label=> 'line',
-                  -accelerator => 'Meta+L',
                   -underline   => 0,
                   -menu => $MnEditLine,
                 );
@@ -2250,26 +2267,22 @@ sub make_table_window
 
     $MnEditLine->add('command',
                       -label=> 'insert',
-                      -accelerator => 'Meta+I',
                       -underline   => 0,
                       -command => [\&cb_insert_line, $r_tbh],
                     );
     $MnEditLine->add('command',
                       -label=> 'delete',
-                      -accelerator => 'Meta+D',
-                      -underline   => 0,
+                       -underline   => 0,
                       -command => [\&tk_delete_line_dialog, $r_tbh],
                     );
     $MnEditLine->add('command',
                       -label=> 'copy',
-                      -accelerator => 'Meta+C',
                       -underline   => 0,
                       -command => [\&cb_copy_paste_line,
                                    $r_glbl, $r_tbh, 'copy'],
                     );
     $MnEditLine->add('command',
                       -label=> 'paste',
-                      -accelerator => 'Meta+P',
                       -underline   => 0,
                       -command => [\&cb_copy_paste_line,
                                    $r_glbl, $r_tbh, 'paste'],
@@ -2277,21 +2290,18 @@ sub make_table_window
 
     $MnEditField->add('command',
                        -label=> 'enter value',
-                       -accelerator => 'Meta+E',
                        -underline   => 0,
                        -command => [\&tk_field_edit, $r_tbh],
                      );
 
     $MnEditField->add('command',
                       -label=> 'copy',
-                      -accelerator => 'Meta+C',
                       -underline   => 0,
                       -command => [\&cb_copy_paste_field,
                                    $r_glbl, $r_tbh, 'copy'],
                      );
     $MnEditField->add('command',
                        -label=> 'paste',
-                       -accelerator => 'Meta+P',
                        -underline   => 0,
                        -command => [\&cb_copy_paste_field,
                                     $r_glbl, $r_tbh, 'paste'],
@@ -2302,8 +2312,7 @@ sub make_table_window
     if ($r_tbh->{table_type} eq 'table')
       { $MnRela->add('command',
                       -label=> 'dependend tables',
-                      -accelerator => 'Meta+D',
-                      -underline   => 0,
+                      -underline   => 10,
                       -command => [\&tk_dependency_dialog, $r_glbl, $r_tbh],
                     );
       };
@@ -2312,8 +2321,7 @@ sub make_table_window
       {
         $MnRela->add('command',
                       -label=> 'dependend views',
-                      -accelerator => 'Meta+D',
-                      -underline   => 0,
+                      -underline   => 10,
                       -command => [\&tk_dependend_views_dialog, $r_glbl, $r_tbh],
                     );
       };
@@ -2321,7 +2329,6 @@ sub make_table_window
     if ($r_tbh->{table_type} eq 'table')
       { $MnRela->add('command',
                       -label=> 'referenced tables',
-                      -accelerator => 'Meta+R',
                       -underline   => 0,
                       -command => [\&tk_references_dialog, $r_glbl, $r_tbh],
                     );
@@ -2329,8 +2336,7 @@ sub make_table_window
     if ($r_tbh->{table_type} eq 'view')
       { $MnRela->add('command',
                       -label=> 'referenced objects',
-                      -accelerator => 'Meta+R',
-                      -underline   => 0,
+                      -underline   => 11,
                       -command => [\&tk_view_dependency_dialog, $r_glbl, $r_tbh],
                     );
       };
@@ -2338,15 +2344,13 @@ sub make_table_window
  
     $MnRela->add('command',
                   -label=> 'add scroll-relation',
-                  -accelerator => 'Meta+A',
                   -underline   => 0,
                   -command => [\&tk_add_relation_dialog, $r_glbl, $r_tbh],
                 );
 
     if ($r_tbh->{resident_there})
       { $MnRela->add('command',
-                     -label=> 'Select value',
-                     -accelerator => 'Meta+S',
+                     -label=> 'select value',
                      -underline   => 0,
                      -command => [\&cb_select, $r_glbl, $r_tbh],
                     );
@@ -2361,28 +2365,29 @@ sub make_table_window
     # create the sub-menue:
 
     $MnView->add('command',
-                  -label=> 'Sort rows',
-                  -accelerator => 'Meta+S',
+                  -label=> 'sort rows',
                   -underline   => 0,
                   -command=> [\&tk_sort_menu, $r_glbl, $r_tbh]
                 );
     my $MnViewHCol = $MnView->Menu();
     $MnView->add('cascade',
                   -label=> 'hide/unhide columns',
-                  -accelerator => 'Meta+H',
                   -underline   => 0,
                   -menu => $MnViewHCol
                 );
     $MnView->add('command',
                   -label=> 'info',
+                  -underline   => 0,
                   -command => [\&tk_table_info, $r_glbl, $r_tbh],
                 );
     $MnView->add('command',
                   -label=> 'Dump Object',
+                  -underline   => 0,
                   -command => [\&tk_table_dump, $r_glbl, $r_tbh],
                 );
     $MnView->add('command',
                   -label=> 'Dump dbitable',
+                  -underline   => 1,
                   -command => [\&tk_dbitable_dump, $r_glbl, $r_tbh],
                 );
 
@@ -2489,7 +2494,7 @@ sub make_table_window
     $MnColPopup->add('command',
                      -label=> 'find in column',
                      -command =>
-                        sub { tk_find_line(
+                        sub { tk_find_line("",
                                     $r_tbh,
                                     $column_popup{current_col});
                             }
@@ -2624,7 +2629,9 @@ sub make_table_window
   }
 
 sub tk_save_to_file
-  { my($r_tbh)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_tbh)= @_;
 
     # warn "save to file";
 
@@ -2654,13 +2661,15 @@ sub tk_save_to_file
   }
 
 sub tk_load_from_file
-  { my($r_tbh)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_tbh)= @_;
 
     my $file= tk_simple_file_menu(widget=> $r_tbh->{top_widget},
                                   type=> 'load',
                                   extension=>'.dbt',
                                   #defaultdir=>$PrgDir,
-                                  title=>'save table to *.dbt',
+                                  title=>'load table from *.dbt',
                                   extension_description=> 
                                               'browsedb table files');
 
@@ -2711,7 +2720,9 @@ sub tk_load_from_file
   }
 
 sub tk_export_csv
-  { my($r_tbh)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_tbh)= @_;
 
     # warn "save to file";
 
@@ -2737,7 +2748,9 @@ sub tk_export_csv
   }
 
 sub tk_import_csv
-  { my($r_tbh)= @_;
+# note: $widget is not really needed, it's just here
+# since  this function can be called from via <bind>
+  { my($widget,$r_tbh)= @_;
 
     # warn "save to file";
 
@@ -2745,7 +2758,7 @@ sub tk_import_csv
                                   type=> 'load',
                                   extension=>'.csv',
                                   #defaultdir=>$PrgDir,
-                                  title=>'export to csv',
+                                  title=>'load from csv',
                                   extension_description=> 
                                               'browsedb csv files');
 
@@ -2847,6 +2860,7 @@ sub tk_make_text_widget
     $MnFile->add('command',
                -label=> 'save',
                -accelerator => 'Control-s',
+               -underline   => 0,
                -command=>  [\&tk_text_save,"",$r_glbl,\%text]
               );
 
@@ -2855,6 +2869,7 @@ sub tk_make_text_widget
     $MnSearch->add('command',
                  -label=> 'find',
                  -accelerator => 'Control-f',
+                 -underline   => 0,
                  -command=> [\&tk_text_search,"",$r_glbl,\%text]
               );
 
