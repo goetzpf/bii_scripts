@@ -50,6 +50,7 @@ my $PrgTitle= 'BrowseDB';
 
 my $sim_oracle_access=0;
 
+my $guest_login=0; # for debuggin only, default: 0
 my $fast_test=0; # skip login dialog and open $fast_table
 my $fast_table='p_insertion_value';
 
@@ -96,6 +97,7 @@ my %global_data;
 #tk_login(\%global_data, $db_name, $db_username, $db_password);
 tk_main_window(\%global_data, $db_name, $db_username, $db_password);
 
+tk_login(\%global_data); # calls tk_main_window_finish
 
 # --------------------- create some entry widgets
 
@@ -114,7 +116,7 @@ sub tk_login
     $r_glbl->{user}         = $db_username;
     $r_glbl->{password}     = $db_password;
 
-    if ($fast_test)
+    if ($fast_test || $guest_login)
       { tk_login_finish($r_glbl);
         return;
       };
@@ -175,6 +177,8 @@ sub tk_login
                   -command => sub { $Top->destroy(); exit(0); }
                    )->pack(-side=>'left', -anchor=>'nw');
 
+    $Top->Popup(-popover=> $r_glbl->{main_menu_widget} );
+
   }
 
 sub tk_login_finish
@@ -185,13 +189,16 @@ sub tk_login_finish
       { dbitable::disconnect_database($r_glbl->{dbh});
         delete $r_glbl->{dbh};
       };
+
+    tk_progress($r_glbl,10);
+
     $r_glbl->{db_name} = "DBI:".$r_glbl->{db_driver}.":".$r_glbl->{db_source};
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
                                                $r_glbl->{password});
         if (!defined $db_handle)
-          { tk_err_dialog($r_glbl->{login_widget},
+          { tk_err_dialog($r_glbl->{main_menu_widget},
                           "opening of the database failed");
             return;
           };
@@ -200,10 +207,14 @@ sub tk_login_finish
 
     $r_glbl->{dbh}= $db_handle;
 
-    tk_main_window_finish($r_glbl);
-    $r_glbl->{progress}=0;
-    $r_glbl->{progress_widget}->update;
+    tk_progress($r_glbl,20);
 
+    if (defined($r_glbl->{login_widget})) 
+      { $r_glbl->{login_widget}->destroy;
+         delete $r_glbl->{login_widget};
+      };
+
+    tk_main_window_finish($r_glbl);
   }
 
 sub tk_main_window
@@ -214,8 +225,11 @@ sub tk_main_window
     $r_glbl->{password}    = $password;
 
     my $Top= MainWindow->new(-background=>$BG);
-    $Top->minsize(400,400);
-    $Top->maxsize(800,800);
+    
+#    $Top->minsize(400,400);
+#    $Top->maxsize(800,800);
+    
+    
     $r_glbl->{main_widget} = $Top;
     $Top->title("$PrgTitle");
     $r_glbl->{main_menu_widget}= $Top;
@@ -310,15 +324,16 @@ sub tk_main_window
                 -anchor=> "e",
                 -expand=> "0",
                 );
+     
      my $MnStatusProgress = $MnStatus->ProgressBar(
 #                -width=>50,
+                -blocks=>10,
                 -height=>10,
                 -length=>100,
                 -from=>0,
                 -to=>100,
                 -blocks=> 10,
                 -colors=>[ 0, 'blue' ],
-                -variable=> \$r_glbl->{progress},
         )->pack(
                 -side=> "right",
                 -anchor=> "e",
@@ -327,7 +342,7 @@ sub tk_main_window
                 );
         $r_glbl->{progress_widget} = $MnStatusProgress;
 
-        $Top->update();
+#        $Top->update();
 
     # prepareing mainwindow with dialog
         my $DlgTop = $Top->NoteBook()->pack(
@@ -357,11 +372,8 @@ sub tk_main_window
             -side=>"left", -anchor=>"nw",
             -fill=>"both", -expand=>1,
         );
-        if ($fast_test)
-                { $r_glbl->{new_table_name}= $fast_table;
-        }
-        else
-                { $r_glbl->{new_table_name}= ""; };
+        
+        $r_glbl->{new_table_name}= "";
 
         $r_glbl->{table_browse_widget}=
              $DlgEnt->BrowseEntry(
@@ -399,6 +411,7 @@ sub tk_main_window
                 -scrollbars=>"oe",
                 -width=>34,
                 -selectmode=>"browse",
+                -width=>0
         )->pack( %dlg_def_listbox );
 
 
@@ -425,6 +438,7 @@ sub tk_main_window
                 "Text",
                 -height=>5,
                 -wrap=>"word",
+                -width=>60
         )->pack( %dlg_def_labentry, );
         my $DlgTblOk = $DlgTbl->Button(
                 -state=>"disabled",
@@ -453,7 +467,7 @@ sub tk_main_window
                  sub { tk_open_new_object($r_glbl, "table"); } 
                 );
         $r_glbl->{table_listbox_widget}=$DlgTblListbox;
-        $Top->update();
+#        $Top->update();
 
         # dialog view
         my $DlgVwListbox = $DlgVw->Scrolled(
@@ -461,6 +475,7 @@ sub tk_main_window
                 -scrollbars=>"oe",
                 -width=>34,
                 -selectmode=>"browse",
+                -width=>0
         )->pack( %dlg_def_listbox, );
         $DlgVw->Label(
                 -text=>"Where Clause :",
@@ -469,6 +484,7 @@ sub tk_main_window
                 "Text",
                 -height=>5,
                 -wrap=>"word",
+                -width=>60
         )->pack( %dlg_def_labentry, );
         my $DlgVwOk = $DlgVw->Button(
                 -state=>"disabled",
@@ -508,6 +524,7 @@ sub tk_main_window
                 -height=> 10,
                 -wrap=> "word",
                 -scrollbars=> "se",
+                -width=>80,
         )->packAdjust( %dlg_def_labentry, );
         $r_glbl->{sql_command_widget}=$DlgSQLCommand;
         $DlgSQL->Label(
@@ -516,6 +533,8 @@ sub tk_main_window
         my $DlgSQLHistory = $DlgSQL->Scrolled(
                 "ROText",
                 -scrollbars=> "se",
+                -height=> 10,
+                -width=>80,
         )->pack( %dlg_def_labentry, );
         $r_glbl->{sql_history_widget}=$DlgSQLHistory;
         my $DlgSQLOk = 
@@ -541,22 +560,37 @@ sub tk_main_window
                 
         $Top->update();
 
-        if (! defined ($r_glbl->{dbh}))
-          { tk_login($r_glbl);
-            tk_window_positioning($Top, $r_glbl->{login_widget});
-          }
-          
-    #if ($fast_test)
-    #  { tk_open_new_table($r_glbl); };
   }
 
 
+sub tk_set_busy
+  { my($r_glbl,$val)= @_;
+    
+    if (!$val)
+      { $r_glbl->{main_menu_widget}->Unbusy(-recurse => 1); 
+        return;
+      };
+    
+    $r_glbl->{main_menu_widget}->Busy(-recurse => 1); 
+  }
+    
+
+sub tk_progress
+  { my($r_glbl,$val)= @_;
+  
+    return if (!exists $r_glbl->{progress_widget});
+    
+    $r_glbl->{progress_widget}->value($val);
+    
+    $r_glbl->{progress}=$val;
+
+    $r_glbl->{progress_widget}->update();
+
+  }    
+
 sub tk_main_window_finish
   { my($r_glbl)= @_;
-        if (defined($r_glbl->{login_widget})) {
-                $r_glbl->{login_widget}->destroy;
-                delete $r_glbl->{login_widget};
-        }
+
         $r_glbl->{accessible_objects_views} = 
                  [ dbdrv::accessible_objects($r_glbl->{'dbh'},
                                              $r_glbl->{user},
@@ -564,14 +598,12 @@ sub tk_main_window_finish
                                              "PUBLIC,USER")
                  ];
                  
-        $r_glbl->{progress}=20;
-        $r_glbl->{progress_widget}->update;
+        tk_progress($r_glbl,40);
+
         $r_glbl->{view_listbox_widget}->delete(0, 'end');
         $r_glbl->{view_listbox_widget}->
                  insert("end", @{ $r_glbl->{accessible_objects_views} } );
 
-        $r_glbl->{progress}=25;
-        $r_glbl->{progress_widget}->update;
         $r_glbl->{accessible_objects_tables} = 
                  [ dbdrv::accessible_objects($r_glbl->{'dbh'},
                                              $r_glbl->{user},
@@ -579,13 +611,12 @@ sub tk_main_window_finish
                                              "PUBLIC,USER")
                  ];
                  
-        $r_glbl->{progress}=45;
-        $r_glbl->{progress_widget}->update;
+        tk_progress($r_glbl,60);
+
         $r_glbl->{table_listbox_widget}->delete(0, 'end');
         $r_glbl->{table_listbox_widget}->
                  insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
-        $r_glbl->{progress}=50;
-        $r_glbl->{progress_widget}->update;
+
         $r_glbl->{accessible_objects_all} = 
                  [ dbdrv::accessible_objects($r_glbl->{'dbh'},
                                              $r_glbl->{user},
@@ -593,13 +624,20 @@ sub tk_main_window_finish
                                              "PUBLIC,USER")
                  ];
                  
-        $r_glbl->{progress}=90;
-        $r_glbl->{progress_widget}->update;
+        tk_progress($r_glbl,80);
+
         $r_glbl->{table_browse_widget}->delete(0, 'end');
         $r_glbl->{table_browse_widget}->
-                 insert("end",  @{  $r_glbl->{accessible_objects_all } } );
-        $r_glbl->{progress}=100;
-        $r_glbl->{progress_widget}->update;
+                 insert("end",  @{  $r_glbl->{accessible_objects_all} } );
+
+
+        tk_progress($r_glbl,100);
+
+    if ($fast_test)
+      { $r_glbl->{new_table_name}= $fast_table;
+        tk_open_new_object($r_glbl, "table"); 
+      };
+
   }
 
 
@@ -733,13 +771,6 @@ sub tk_open_new_object
     if ($fast_test)
       { $fast_test=0;
         return;
-      };
-
-    delete $r_glbl->{new_where_clause};
-
-    if (exists $r_glbl->{table_dialog_widget})
-      { $r_glbl->{table_dialog_widget}->destroy();
-        delete $r_glbl->{table_dialog_widget};
       };
   }
 
@@ -1437,13 +1468,18 @@ sub tk_field_edit
 sub make_table_hash_and_window
   { my($r_glbl,%options)= @_;
 
+    tk_set_busy($r_glbl,1);
+    tk_progress($r_glbl,10);
+    
     if ($options{table_type} =~ /(table|view|sql)/)
       {
         if (!exists $r_glbl->{all_tables})
           { $r_glbl->{all_tables}= {}; };
       }
     else
-      { tk_err_dialog($r_glbl->{main_menu_widget},
+      { tk_set_busy($r_glbl,0);
+        tk_progress($r_glbl,0);
+        tk_err_dialog($r_glbl->{main_menu_widget},
                       "unsupported table type: $options{table_type}");
         return;
       }
@@ -1454,14 +1490,28 @@ sub make_table_hash_and_window
                 make_table_hash($r_glbl,%options);
 
     if (!defined $r_tbh)
-      { tk_err_dialog($r_glbl->{main_menu_widget},
+      { tk_set_busy($r_glbl,0);
+        tk_progress($r_glbl,0);
+        tk_err_dialog($r_glbl->{main_menu_widget},
                       "opening of the table failed!");
         return;
       };
 
     $r_all_tables->{$options{table_name}}= $r_tbh;
 
+    tk_progress($r_glbl,90);
+
     make_table_window($r_glbl,$r_tbh);
+ 
+    # Note: calling tk_progress before tk_set_busy
+    # creates a dubious warning:
+    #    Use of uninitialized value in subroutine entry at 
+    #    ./browsedb.pl line 586.
+    # which is the update() call in tk_progress
+
+    tk_set_busy($r_glbl,0);
+
+    tk_progress($r_glbl,100);
 
     return($r_tbh);
   }
@@ -1476,8 +1526,12 @@ sub make_table_hash
     # the database-handle:
     $table_hash{dbh}        = $dbh;
 
+    tk_progress($r_glbl,50);
+
     # the dbitable object:
     $table_hash{dbitable}   = get_dbitable($r_glbl,\%table_hash);
+
+    tk_progress($r_glbl,60);
 
     if (!defined $table_hash{dbitable})
       {
@@ -1521,12 +1575,15 @@ sub make_table_hash
         $table_hash{pks_h}= { map { $_ => 1 } @pks };  
       };
       
+    tk_progress($r_glbl,70);
+
     # the foreign-key hash
     # this is just the pure information from the database which
     # columns are foreign keys. This has nothing to do with the
     # fact wether that foreign key table is displayed or not
     $table_hash{foreign_key_hash}= $table_hash{dbitable}->foreign_keys();
 
+    tk_progress($r_glbl,80);
 
     # the list with write-protected column-indices:
     # P: protected, T: temporarily writable, undef: writable
@@ -1838,8 +1895,10 @@ sub make_table_window
                                   -rows => $r_tbh->{row_no} + 1, 
                                                      # 1 more f.the heading
                                   -justify => "left",
-                                  -colstretchmode => "all",
+                                 -colstretchmode => "all",
+#-colstretchmode => "none",
                                   -rowstretchmode => "none", #"unset",
+#-rowstretchmode => "unset",
                                   #-flashmode=> 1,
                                   #-width => $dbi_column_no,
                                  );
@@ -1852,7 +1911,8 @@ sub make_table_window
 
       for(my $i=0; $i<= $#$r_width; $i++)
         {
-          $Table->colWidth($i, $r_width->[$i]);
+          $Table->colWidth($i, $r_width->[$i] + 2);
+          # 2 characters more than the real maximum width
         };
     };
 
