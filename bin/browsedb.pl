@@ -993,7 +993,7 @@ sub tk_main_window
         my $DlgHelpListbox = $DlgHlp->Scrolled(
                 "Listbox",
                 -scrollbars=>"oe",
-                -width=>34,
+                #-width=>34,
                 -selectmode=>"browse",
                 -width=>0
         )->pack( %dlg_def_listbox, );
@@ -1014,17 +1014,12 @@ sub tk_main_window
                  sub {  my $entry =
                             $DlgHelpListbox->get($DlgHelpListbox->curselection);
                         $DlgHelpContent->delete('1.0', 'end');
-                        my $text_hash = dbdrv::get_help($r_glbl->{dbh}, $entry->[0]);
+                        my $text = dbdrv::get_help(
+                                                    $r_glbl->{dbh}, 
+                                                    $entry
+                                                  );
 #print Dumper($text_hash);
-                        $DlgHelpContent->insert('1.0',
-                                     join ("\n", (map { defined($_->[0]) ? 
-                                                           $_->[0] : ""
-                                                      } 
-                                                       @$text_hash
-                                                 ) 
-                                          
-                                          )
-                            );
+                        $DlgHelpContent->insert('1.0',$text);
                      };
         $DlgHelpListbox->bind('<Return>' => $DlgHelpAction);
         $DlgHelpListbox->bind('<Button-1>' =>$DlgHelpAction);
@@ -1112,8 +1107,18 @@ sub tk_main_window_finish
     tk_progress($r_glbl,80);
 
     my $help_listbox_widget = $r_glbl->{MainWindow}->{help_listbox_widget};
+    
+    my @topics= dbdrv::get_help_topic($r_glbl->{dbh});
+    my $size=10;
+    my $l;
+    foreach my $t (@topics)
+      { $l= length($t);
+        $size= $l if ($size<$l); };
+
+    $help_listbox_widget->configure(-width=>$size); 
+    
     $help_listbox_widget->
-             insert("end",  @{ dbdrv::get_help_topic($r_glbl->{dbh}) } );
+             insert("end",  @topics );
 
     $r_glbl->{MainWindow}->{table_browse_widget}->delete(0, 'end');
     $r_glbl->{MainWindow}->{table_browse_widget}->
