@@ -41,7 +41,8 @@ use Text::ParseWords;
 
 # initialize package globals
 
-our %drivers= ( Oracle => 'dbdrv_oci.pm' );
+our %drivers= ( Oracle => 'dbdrv_oci.pm',
+                Postgresql => 'dbdrv_pg.pm' );
 our $std_dbh;      # internal standard database-handle
 our $std_username; # internal standard username
 
@@ -52,8 +53,10 @@ our $sql_trace=0;
 our $db_trace  =0;
 
 my $mod= "dbdrv";
+
 my $r_db_objects;
 my $r_db_reverse_synonyms;
+
 my %sql_commands = (
     "and" => "SQL", "or" => "SQL", "in" => "SQL",
     "join" => "SQL", "outer" => "SQL", "inner" => "SQL",
@@ -349,186 +352,6 @@ sub dump_r_object_dict_s
   }  
 
 
-sub load_object_dict
-  { my($dbh,$user)= @_;
-    return if (defined $r_db_objects);
-    my %h;
-    $r_db_objects= \%h;
-    my %r;
-    $r_db_reverse_synonyms= \%r;
-    if ((defined $user) && ($user ne ""))
-      {
-        if (!get_user_objects($dbh,$user,$r_db_objects))
-          { dberror($mod,'load_object_dict',__LINE__,
-                    'loading of user-objects failed');
-            return;
-          };
-      };
-
-    if (!get_synonyms($dbh,$r_db_objects,$r_db_reverse_synonyms))
-      { dberror($mod,'load_object_dict',__LINE__,
-                'loading of synonyms failed');
-        return;
-      };
-  }
-
-sub check_existence
-  { my($dbh,$table_name,$user_name)= @_;
-
-    # when the table has the form "owner.table", the check cannot
-    # be made, since it's no public synonym and not in the
-    # synonym list
-    return(1) if ($table_name=~ /\./);
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    my $obj_name= "PUBLIC." . uc($table_name);
-
-    load_object_dict($dbh,$user_name);
-
-    return( exists $r_db_objects->{$obj_name} );
-  }
-
-
-sub accessible_objects
-  { my($dbh,$user_name,$types,$access)= @_;
-    my %known_types= (table => 'T', view => 'V');
-    my %known_acc  = map { $_ =>1 } qw( user public );
-    my %types;
-    my %access;
-
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    if (!defined $types)
-      { %types= (T=>1); }
-    else
-      { $types= lc($types);
-        my @types= split(",",$types);
-        foreach my $t (@types)
-          { my $c= $known_types{$t};
-            if (!defined $c)
-              { dberror($mod,'accessible_objects',__LINE__,
-                    "unknown object type: $t");
-                return;
-              };
-            $types{$c}=1;
-          };
-      };
-
-    load_object_dict($dbh,$user_name);
-    my @keys= keys %$r_db_objects;
-
-#print Dumper(\%types);
-
-    if ((!exists $types{T}) || (!exists $types{V}))
-      { # there are only tables and views, so only if not BOTH
-        # are wanted, we have to filter
-        if (exists $types{T})
-          { @keys= grep { $r_db_objects->{$_}->[0] eq 'T' } @keys; }
-        else
-          { @keys= grep { $r_db_objects->{$_}->[0] eq 'V' } @keys; };
-      };
-
-
-    if (!defined $access)
-      { %access= ("public" => 1); }
-    else
-      { $access= lc($access);
-        %access= map { $_ => 1} split(",",$access);
-        foreach my $t (keys %access)
-          { if (!exists $known_acc{$t})
-              { dberror($mod,'accessible_objects',__LINE__,
-                    "unknown object access type: $t");
-                return;
-              };
-          };
-      };
-
-    my @result;
-
-    if (exists $access{public})
-      { push @result,
-             grep { /^PUBLIC\./ } @keys;
-      };
-
-    if (exists $access{user})
-      { push @result,
-             grep { /^$user_name\./ } @keys;
-      };
-
-    #warn join("|",@result) . "\n";
-
-    map { $_=~ s/^[^\.]+\.// } @result; # remove "owner"
-
-#print Dumper(\@result);
-
-    return(sort @result);
-  }
-
-sub real_name
-# resolves a given table-name or synonym,
-# returns the table-owner and the table-name
-# NOTE: user-name is not the owner of the table but the user
-# that has logged in
-  { my($dbh,$user_name,$object_name)= @_;
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    $user_name= uc($user_name);
-
-    load_object_dict($dbh,$user_name);
-
-    if ($object_name !~ /\./) # not in the form user.tablename
-      { $object_name= "PUBLIC." . $object_name; };
-
-
-    my $data= $r_db_objects->{$object_name};
-
-    return if (!defined $data); # not in list of synonyms and
-                                # user objects
-
-    # user objects have only a type-field (why?)
-
-    if ($#$data>0) # more than 2 objects in hash:synonym
-      { my($owner,$name)= split(/\./, $data->[1]);
-
-        return($name,$owner);
-      };
-
-    return( $object_name, $user_name );
-  }
-
-sub canonify_name
-  { my($dbh,$user_name,$object_name,$object_owner)= @_;
-
-    if ($object_name =~ /\./)
-      { ($object_owner,$object_name)= split(/\./,$object_name); };
-
-    return($object_name) if (!defined $object_owner);
-
-    $dbh= check_dbi_handle($dbh);
-    return if (!defined $dbh);
-
-    load_object_dict($dbh,$user_name);
-
-    my $name= $object_owner . '.' . $object_name;
-
-    my $r_list= $r_db_reverse_synonyms->{$name};
-    if (!defined $r_list)
-      { return($name); };
-
-    foreach my $n (@$r_list)
-      { my($owner,$obj)= split(/\./,$n);
-        if ($owner eq 'PUBLIC')
-          { return($obj); };
-      };
-
-    return($name);
-  }
 
 
 sub load
@@ -656,28 +479,6 @@ sub get_help
       }; 
     
     return join("\n",@lines);
-  }
-
-sub get_help_topic
-  {
-    my($dbh)= @_;
-    return if (! defined($dbh));
-    my $fh;
-    my $sth= dbdrv::prepare($fh, $dbh,
-                         "SELECT DISTINCT topic FROM system.help " .
-                          " ORDER BY topic");
-
-    if (!dbdrv::execute($fh ,$dbh,$sth))
-      {
-        dbdrv::dbwarn($mod,'get_help_topic',__LINE__,
-                 "execute() returned an error," .
-                 " error-code: \n$DBI::errstr");
-      }
-    my $topic_list = $sth->fetchall_arrayref;
-    $sth->finish;
-    # $topic_list is a list of lists with one element
-    # but we want to return a simple list:
-    return(map{ $_->[0] } @$topic_list);
   }
 
 sub connect_database
