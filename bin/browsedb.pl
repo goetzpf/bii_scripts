@@ -28,7 +28,10 @@ use Tk::TableMatrix;
 
 use Tk::ErrorDialog;
 
-use dbitable 1.6;
+use warnings;
+#use diagnostics;
+
+use dbitable 1.7;
 
 use Data::Dumper;
 
@@ -152,6 +155,8 @@ sub tk_login_finish
 	    return;
 	  };  
       };
+    $r_glbl->{password}=~ s/./\*/g;  
+    
     $r_glbl->{dbh}= $db_handle;
    
     if (!$fast_test)
@@ -339,6 +344,12 @@ sub tk_foreign_key_dialog
     # col_name => [foreign_table,foreign_column]
 
     if (!defined $fkh) # no foreign keys defined
+      { tk_err_dialog($parent_widget,
+	              "there are no foreign keys in this table");
+     	return;
+      };
+
+    if (!keys %$fkh) # no foreign keys defined
       { tk_err_dialog($parent_widget,
 	              "there are no foreign keys in this table");
      	return;
@@ -731,7 +742,7 @@ sub make_table_hash_and_window
     my $r_all_tables= $r_glbl->{all_tables};
 
     my $r_tbh= 
-            make_table_hash($r_glbl->{dbh},$table_name,%hash_defaults);
+            make_table_hash($r_glbl,$table_name,%hash_defaults);
 
     if (!defined $r_tbh)
       { tk_err_dialog($r_glbl->{main_menu_widget}, 
@@ -748,8 +759,10 @@ sub make_table_hash_and_window
 
 
 sub make_table_hash
-  { my($dbh,$table_name,%hash_defaults)= @_;
+  { my($r_glbl,$table_name,%hash_defaults)= @_;
   
+    my $dbh= $r_glbl->{dbh};
+    
     my %table_hash= %hash_defaults;
     
     # the database-handle:
@@ -759,7 +772,7 @@ sub make_table_hash
     $table_hash{table_name} = $table_name;
 
     # the dbitable object:
-    $table_hash{dbitable}   = get_dbitable(\%table_hash,$table_name);
+    $table_hash{dbitable}   = get_dbitable($r_glbl,\%table_hash);
 
     if (!defined $table_hash{dbitable})
       { 
@@ -784,14 +797,23 @@ sub make_table_hash
     $table_hash{column_width}= 
                     [ $table_hash{dbitable}->max_column_widths(5,25) ];
 
-    # the primary key column name
-    $table_hash{pks}        = 
-                      [ $table_hash{dbitable}->primary_key_columns() ];
 
-    # the primary key column index
-    $table_hash{pkis}       = 
+
+#print "***CNT:",$table_hash{dbitable}->{_counter_pk},"\n";
+    my @pks= $table_hash{dbitable}->primary_key_columns();
+#print "PKS:",join("|",@pks),"\n";
+    if (!@pks)
+      { # this is the special case where there is no primary key column
+        $table_hash{no_pk_cols}=1; 
+      }
+    else
+      { # the primary key column name
+        $table_hash{pks}= \@pks;  
+        # the primary key column index
+        $table_hash{pkis}       = 
                       [ $table_hash{dbitable}->primary_key_column_indices() ];
-
+      }; 
+      
     # the foreign-key hash
     # this is just the pure information from the database which
     # columns are foreign keys. This has nothing to do with the
@@ -802,8 +824,12 @@ sub make_table_hash
     # the list with write-protected column-indices:
     # P: protected, T: temporarily writable, undef: writable
     my @wp;
-    foreach my $i (@{$table_hash{pkis}})
-      { $wp[ $i ]='P'; };
+    
+    if (!$table_hash{no_pk_cols})
+      { foreach my $i (@{$table_hash{pkis}})
+          { $wp[ $i ]='P'; };
+      };
+    
     foreach my $col (keys %{$table_hash{foreign_key_hash}})
       { $wp[ colname2col(\%table_hash, $col) ]='P'; };
     $table_hash{write_protected_cols}= \@wp;
@@ -1136,9 +1162,11 @@ sub make_table_window
 			 #-state => 'disabled');
 
     # mark the primary key, it may not be edited
-    foreach my $i (@{$r_tbh->{pkis}})
-      { $Table->tagCol('pk_cell', $i); };
-
+    if (!$r_tbh->{no_pk_cols})
+      { foreach my $i (@{$r_tbh->{pkis}})
+          { $Table->tagCol('pk_cell', $i); };
+      };
+      
     # create a tag for the foreign key column
     $Table->tagConfigure('fk_cell', -foreground => 'LimeGreen');
 			# -state => 'disabled');
@@ -1179,7 +1207,9 @@ sub tk_save_to_file
     
     my $new_dbi= $dbitable->new('file',$file,
                                 $table_name
-                       )->store(pretty=> 1);  
+                               )->store(pretty=> 1,
+		                        order_by=> $r_tbh->{sort_columns}
+			               );  
     
     # warn "$file was updated/created";
   }
@@ -1328,7 +1358,8 @@ sub tkdie
    
     my $Top= $r_glbl->{main_menu_widget};
    
-    $Top->afterIdle([\&tkdie2,$Top,$message]);
+    #$Top->afterIdle([\&tkdie2,$Top,$message]);
+    tkdie2($Top,$message);
   }
   
 sub tkdie2
@@ -1428,7 +1459,8 @@ sub cb_handle_browse
    
    my($oldrow,$oldcol)= split(",",$oldrowcol);
    my($row,$col)= split(",",$newrowcol);
-   return if ($oldrow == $row);
+   if (defined $oldrow)
+     { return if ($oldrow == $row); };
    
    my($pk,$colname)= rowcol2pkcolname($r_tbh,$row,$col);
 
@@ -1642,14 +1674,16 @@ sub cb_put_get_val
       
         my $flag= $r_tbh->{write_protected_cols}->[$col];
       
-        if ($flag eq 'P')
-          { $r_tbh->{table_widget}->bell();
-	    # warn "no writing allowed on this column
-            return($r_tbh->{dbitable}->value($pk,$colname));
-	  };
-	if ($flag eq 'T')  
-	  { $r_tbh->{write_protected_cols}->[$col]= 'P'; };   
-    
+        if (defined $flag)
+	  { if ($flag eq 'P')
+              { $r_tbh->{table_widget}->bell();
+		# warn "no writing allowed on this column
+        	return($r_tbh->{dbitable}->value($pk,$colname));
+	      };
+	    if ($flag eq 'T')  
+	      { $r_tbh->{write_protected_cols}->[$col]= 'P'; };   
+          };
+	  
         chomp($val);
         $r_tbh->{dbitable}->value($pk,$colname,$val);
 	$r_tbh->{changed_cells}->{"$pk;$colname"}= "$row,$col";
@@ -1709,7 +1743,11 @@ sub rdump
 sub cb_insert_line
  { my($r_tbh)= @_;
  
-   my @pk_cols= @{$r_tbh->{pks}};
+   my @pk_cols;
+   
+   if (!$r_tbh->{no_pk_cols})
+     { @pk_cols= @{$r_tbh->{pks}}; };
+     
    my $dbitable= $r_tbh->{dbitable};
    
    if ($#pk_cols>0)
@@ -2049,6 +2087,8 @@ sub calc_pk2index
 sub initialize_sort_columns
   { my($r_tbh)= @_;
   
+    return if ($r_tbh->{no_pk_cols});
+    
     my @pks= @{$r_tbh->{pks}};
     
     for(my $i= $#pks; $i>=0; $i--)
@@ -2083,7 +2123,7 @@ sub put_new_sort_column_first
 sub get_dbitable
 # global variables used: $sim_oracle_access
 # sets $r_tbh->{dbitable}
-  { my($r_tbh)= @_;
+  { my($r_glbl,$r_tbh)= @_;
   
     if ($sim_oracle_access)
       { 
@@ -2103,7 +2143,14 @@ sub get_dbitable
   
     my $ntab= dbitable->new('table',$r_tbh->{dbh},
                            $r_tbh->{table_name},
-                           )->load();
+                           );
+    if (!defined $ntab)
+      { tk_err_dialog($r_glbl->{main_menu_widget},
+                      $dbitable::last_error);
+	return;
+      };	      
+      
+    $ntab->load();
 			   
     return($ntab); 
   }
@@ -2142,8 +2189,6 @@ sub conn_delete_table
     tkdie($r_glbl,"assertion in line " . __LINE__)
       if (ref($table)); # assertion
 
-    my %resident_tables;
-    
     my $r_residents = $r_glbl->{residents}->{$table};
     my $r_foreigners= $r_glbl->{foreigners}->{$table};
 
