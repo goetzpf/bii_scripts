@@ -1003,8 +1003,15 @@ sub tk_main_window
                             $DlgHelpListbox->get($DlgHelpListbox->curselection);
                         $DlgHelpContent->delete('1.0', 'end');
                         my $text_hash = dbdrv::get_help($r_glbl->{dbh}, $entry->[0]);
+#print Dumper($text_hash);
                         $DlgHelpContent->insert('1.0',
-                                     join ("\n", (map { $_->[0] } @$text_hash) )
+                                     join ("\n", (map { defined($_->[0]) ? 
+                                                           $_->[0] : ""
+                                                      } 
+                                                       @$text_hash
+                                                 ) 
+                                          
+                                          )
                             );
                      };
         $DlgHelpListbox->bind('<Return>' => $DlgHelpAction);
