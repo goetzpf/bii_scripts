@@ -217,6 +217,7 @@ sub tk_login_finish
 
     if (defined($r_glbl->{login_widget}))
       { $r_glbl->{login_widget}->destroy;
+        $r_glbl->{main_widget}->update(); # important to really execute the destroy
          delete $r_glbl->{login_widget};
       };
 
@@ -1060,6 +1061,7 @@ sub tk_add_relation_dialog2
     warn "selected:$my_tab $my_col $o_tab $o_col";
 
     $r_relation_hash->{Top}->destroy();
+    $r_glbl->{main_widget}->update; # force destroy to be executed now
     delete $r_tbh->{relation_hash};
 
     conn_add($r_glbl,
@@ -3718,3 +3720,5 @@ BUGS:
 derzeit kann dieselbe Tabelle mehrfach geöffnet werden (oder nur derselbe
 View?) -> dann stimmt aber der globale Eintrag "all_tables" in
 $r_glbl nicht mehr...
+
+window ".toplevel" was deleted before its visibility changed at /usr/local/lib/perl5/site_perl/5.8.1/i686-linux-thread-multi/Tk/Widget.pm line 917.
