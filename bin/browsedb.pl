@@ -278,6 +278,7 @@ sub tk_main_window
 
     my $MnFile   = $MnTop->Menu();
     my $MnDb     = $MnTop->Menu();
+    my $MnPref   = $MnTop->Menu();
     my $MnWindow = $MnTop->Menu();
     my $MnHelp   = $MnTop->Menu();
 
@@ -291,6 +292,11 @@ sub tk_main_window
                 -label=> 'Database',
                 -underline   => 0,
                 -menu=> $MnDb
+               );
+    $MnTop->add('cascade',
+                -label=> 'Preferences',
+                -underline  => 0,
+                -menu=> $MnPref
                );
     $MnTop->add('cascade',
                 -label=> 'Windows',
@@ -341,7 +347,9 @@ sub tk_main_window
 
     my $c_commit_i;
     my $c_rollback_i;
-    $MnDb->add('checkbutton',
+    
+    $MnPref->add(
+              'checkbutton',
                -label=> 'autocommit',
                -variable => \$autocommit_var,
                -command=>
@@ -386,6 +394,15 @@ sub tk_main_window
                -underline  => 5,
                -command=> [\&tk_sql_commands, $r_glbl]
               );
+
+    # configure Preferences-menu:
+    # (see also above, $MnPref)
+    $r_glbl->{primary_key_auto_generate}= 1;
+    $MnPref->add(
+                  'checkbutton',
+                   -label=> 'auto-generate primary keys',
+                   -variable => \$r_glbl->{primary_key_auto_generate},
+                );
 
     # configure Help-menu:
     $MnHelp->add('command',
@@ -1866,7 +1883,7 @@ sub tk_view_dependency_dialog_finish
                                table_type=>$r_types->{$obj});
   }    
   
-sub tk_sql_dialog
+sub tk_simple_text_dialog
 # known options:
 # title
 # callback -> callback after something was selected
@@ -1896,7 +1913,7 @@ sub tk_sql_dialog
                       );
 
 
-    $Top->bind('<Return>',[ \&tk_sql_dialog_finish, $r_glbl,$r_tbh,$tag ]);
+    $Top->bind('<Return>',[ \&tk_simple_text_dialog_finish, $r_glbl,$r_tbh,$tag ]);
     
     $Top->bind('<Destroy>',  sub { 
                                    delete $r_tbh->{$tag};
@@ -1912,13 +1929,14 @@ sub tk_sql_dialog
     $Top->Popup(-popover    => 'cursor');
   }                                 
 
-sub tk_sql_dialog_finish
+sub tk_simple_text_dialog_finish
   { my($widget,$r_glbl,$r_tbh,$tag)= @_;
 
     my $r_h = $r_tbh->{$tag};
     my $Top = $r_h->{top};                 
 
     my $str=  $r_h->{string};
+    chomp($str);
     
     $Top->destroy;  # @@@@
     
@@ -1956,11 +1974,15 @@ sub tk_object_dialog
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
     
+    my $itemno=0;
+    if ($#{$options{items}} > 20)
+      { $itemno=20; }; 
+    
     my $Listbox= $FrTop->Scrolled( 'Listbox', 
                                    -scrollbars=>"oe",
                                    -selectmode => 'single',
                                    -width=>0,
-                                   -height=>0);
+                                   -height=>$itemno);
   
     $Listbox->insert('end', @{$options{items}});
     $Listbox->pack(-fill=>'both',-expand=>'y');
@@ -2808,7 +2830,7 @@ sub make_table_window
     $MnEditLine->add('command',
                       -label=> 'insert',
                       -underline   => 0,
-                      -command => [\&cb_insert_line, $r_tbh],
+                      -command => [\&cb_insert_line, $r_glbl, $r_tbh],
                     );
     $MnEditLine->add('command',
                       -label=> 'delete',
@@ -3144,15 +3166,15 @@ sub make_table_window
                  );
 
 
-    $r_itemhash->{'select foreign key'}= $itemcnt++;
+    $r_itemhash->{'new value from list'}= $itemcnt++;
     $MnPopup->add('command',
-                   -label=> 'select foreign key',
+                   -label=> 'new value from list',
                    -command => [\&tk_fk_select_dialog, $r_glbl, $r_tbh],
                  );
 
-    $r_itemhash->{'edit selection'}= $itemcnt++;
+    $r_itemhash->{'edit all in selection'}= $itemcnt++;
     $MnPopup->add('command',
-                   -label=> 'edit selection',
+                   -label=> 'edit all in selection',
                    -command => [\&tk_field_edit, $r_tbh, 'selected'],
                  );
     $r_itemhash->{copy}= $itemcnt++;
@@ -3199,15 +3221,15 @@ sub make_table_window
     $default_popup{popup_disable_lists}=
                   { default => ['open foreign table',
                                 'select THIS as foreign key',
-                                'select foreign key'],
+                                'new value from list'],
                     write_protected =>
-                                ['edit','paste','edit selection']
+                                ['edit','paste','edit all in selection']
                   };
 
     $default_popup{popup_enable_lists} =
-                  { foreign_key => ['open foreign table',
-                                    'select foreign key'],
-                    primary_key => ['select THIS as foreign key']
+                  { foreign_key => ['open foreign table'],
+                    primary_key => ['select THIS as foreign key'],
+                    column_map  => ['new value from list']
                   };
 
     if ($r_tbh->{resident_there})
@@ -4067,7 +4089,9 @@ sub cb_default_popup_menu
       { if (exists $r_tbh->{pks_h}->{$colname})
           { push @cell_attributes, 'primary_key'; };
       };
-
+    if (exists $r_tbh->{col_maps}->{$colname})
+      { push @cell_attributes, 'column_map'; }; 
+    
     my $r_wp_flags= $r_tbh->{write_protected_cols};
     if (defined $r_wp_flags->{$colname})
       { if ($r_wp_flags->{$colname} eq 'P')
@@ -4104,7 +4128,9 @@ sub popup_enable_disable
       { my $r_l= $r_enable_list->{$attr};
         if (defined $r_l)
           { foreach my $item (@$r_l)
-              { $entrystates[$r_items->{$item}]=1;
+              { 
+                $entrystates[$r_items->{$item}]=1;
+
               };
           };
       };
@@ -4732,14 +4758,11 @@ sub rdump
   }
 
 sub cb_insert_line
- { my($r_tbh)= @_;
+ { my($r_glbl,$r_tbh)= @_;
 
    my @pk_cols;
-
-   if (!$r_tbh->{no_pk_cols})
+   if (!$r_tbh->{no_pk_cols}) # if there are primary key columns at all
      { @pk_cols= @{$r_tbh->{pks}}; };
-
-   my $dbitable= $r_tbh->{dbitable};
 
    if ($#pk_cols>0)
      { tk_err_dialog($r_tbh->{table_widget},
@@ -4749,6 +4772,52 @@ sub cb_insert_line
                      );
        return;
      };
+     
+   if (!$r_glbl->{primary_key_auto_generate})
+     { tk_simple_text_dialog($r_glbl,$r_tbh,
+                             tag=> "primary_key_dialog",
+                             title=> "enter a primary key",
+                             text=> "enter a new primary key",
+                             callback=> [\&cb_insert_line_check]
+                            );
+       return;  
+     };
+ 
+   cb_insert_line_finish($r_glbl,$r_tbh,undef);
+
+  }
+
+sub cb_insert_line_check
+  { my($r_glbl,$r_tbh,$pk)= @_;
+  
+    if (exists $r_tbh->{pk_hash}->{$pk})
+      { 
+        tk_err_dialog($r_tbh->{table_widget},
+                     "error: primary key \"$pk\" is already taken");
+        return;
+      };
+    cb_insert_line_finish($r_glbl,$r_tbh,$pk);
+  }  
+  
+sub cb_insert_line_finish
+ { my($r_glbl,$r_tbh,$pk)= @_;
+   my @pk_cols;
+
+   if (!$r_tbh->{no_pk_cols}) # if there are primary key columns at all
+     { @pk_cols= @{$r_tbh->{pks}}; };
+
+   if ($#pk_cols>0)
+     { tk_err_dialog($r_tbh->{table_widget},
+                     "this table has more than one " .
+                     "primary key column. Direct inserting " .
+                     "of an empty line is not possible here!"
+                     );
+       return;
+     };
+
+
+   my $dbitable= $r_tbh->{dbitable};
+
    my $r_col_hash= $r_tbh->{column_hash};
    my %h;
    foreach my $col (keys %$r_col_hash)
@@ -4756,6 +4825,11 @@ sub cb_insert_line
        $h{$col}="";
      };
 
+   if (defined $pk)
+     { $h{ $r_tbh->{pks}->[0] } = $pk; };
+   
+   # if the primary key is specified in add_line, it 
+   # will use that primary key and not a generated one
    my $new_pk= $dbitable->add_line(%h);
 
    my $Table= $r_tbh->{table_widget};
@@ -4768,7 +4842,7 @@ sub cb_insert_line
    $Table->activate("$row,$col");
    $Table->see("$row,$col");
 
-  }
+ }
 
 sub tk_delete_line_dialog
   { my($r_tbh)= @_;
@@ -4903,13 +4977,13 @@ sub tk_define_col_map
 # define a map for a cell
   { my($r_glbl,$r_tbh,$column_name)= @_;
   
-    tk_sql_dialog($r_glbl,$r_tbh,
-                     tag=> "col_map_sql_dialog",
-                     title=> "define cell map",
-                     text=> "enter a valid SQL command",
-                     callback=> [\&tk_define_col_map_finish,
-                                 $column_name]
-                    );
+    tk_simple_text_dialog($r_glbl,$r_tbh,
+                          tag=> "col_map_sql_dialog",
+                          title=> "define cell map",
+                          text=> "enter a valid SQL command",
+                          callback=> [\&tk_define_col_map_finish,
+                                      $column_name]
+                         );
   }
   
 sub tk_define_col_map_finish 
@@ -4936,7 +5010,7 @@ sub set_column_map
     my %col_map;
     $col_map{key_to_str} = $r_key_to_str;     
     $col_map{str_to_key} = $r_str_to_key; 
-    $col_map{sql_command}= $sql_command;
+    $col_map{sql_command}= format_sql_command($sql_command);
     
     $r_tbh->{col_map_flags}->{$column_name}= 'M';
     
@@ -5756,7 +5830,7 @@ sub tk_fk_select_dialog
 
     tk_object_dialog($r_glbl,$r_tbh,
                      tag=> "fk_select_dialog",
-                     title=> "select a foreign key",
+                     title=> "select a value",
                      items=> \@values,
                      text => 'double-click to select',
                      callback=> [\&tk_fk_select_dialog_finish,
