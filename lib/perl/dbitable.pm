@@ -1923,10 +1923,12 @@ sub insert
     for(;;) #not a real loop...
       { $pk_opt= $options{primary_key};
 
-        if (($pk_opt ne 'preserve') && ($pk_opt ne 'generate'))
-          { dbdrv::dberror($mod,'insert',__LINE__,
-                           "unknown primary-key-mode:$pk_opt");
-            return;
+        if (defined $pk_opt)
+	  { if ($pk_opt ne 'preserve') && ($pk_opt ne 'generate'))
+            { dbdrv::dberror($mod,'insert',__LINE__,
+                             "unknown primary-key-mode:$pk_opt");
+              return;
+            };
           };
 
         if ($self->{_counter_pk})
