@@ -6,64 +6,84 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(parse);
 our $VERSION = 1.00;
 
-use strict;
+$pmem = "[A-Z]{1,6}";
+$pind = "([0-9]{1,3})(-([0-9]{1,2}))?";
 
-my $re = "\\A([A-Z]{1,6})"
-    . "(([0-9]{1,3})(-([0-9]{1,2}))?)?"
-    . "(([BCFGHIKLMNOPQRVWYZ])([0-9]{0,2})([DSTX][0-9]{0,3})?([BIMRTCGLV])|"
-    .  "([BCFGHIKLMNOPQRVWYZT])([0-9]{0,2})([LCEMSUX][0-9]{0,3})([ADEFSP]))\\Z";
+$pfam{B} = "BCFGHIKLMNOPQRVWYZ";
+$pfam{F} = "BCFGHIKLMNOPQRSTVWYZ";
+$pfam{P} = "BCFGHIKLMNOPQRVWYZ";
 
-# member
-# all-index
-#  index
-#  dash-subindex
-#   subindex
-# fcsd
-#  family
-#  counter
-#  subdomain
-#  domain
+$pcnt = "[0-9]{0,2}";
+
+$psdom{B} = "DSTX";
+$psdom{F} = "LCEGMSUX";
+$psdom{P} = "KLSX";
+
+$psdnum = "[0-9]{0,3}";
+
+$pdom{B} = "BIMRTCGLV";
+$pdom{F} = "ACDEFGLSV";
+$pdom{P} = "BIMRTCGLV";
+
+$re = "\\A($pmem)"
+    . "($pind)?"
+    . "((([$pfam{B}])($pcnt)([$psdom{B}]$psdnum)?([$pdom{B}]))|"
+    .  "(([$pfam{F}])($pcnt)([$psdom{F}]$psdnum)([$pdom{F}])F?)|"
+    .  "(([$pfam{P}])($pcnt)([$psdom{P}]$psdnum)([$pdom{P}])P))\\Z";
 
 sub parse {
   my $devname = shift;
+  my $facility;
   $devname =~ tr/a-z/A-Z/;
-  if ("$devname" =~ /$re/) {
-    my ($member, $allindex, $index, $subindex, $f1, $c1, $sd1, $d1, $f2, $c2, $sd2, $d2) = 
-      ($1, $2, $3, $5, $7, $8, $9, $10, $11, $12, $13, $14, $15);
-
-    my ($family, $counter, $subdomain, $domain) = ("", "", "", "");
-
-    if ( "$d1" =~ "^\$" ) {
-      ($family, $counter, $subdomain, $domain) = ($f2, $c2, $sd2, $d2);
-    } else {
-      ($family, $counter, $subdomain, $domain) = ($f1, $c1, $sd1, $d1);
-    }
-
-    $subdomain = "" if not defined $subdomain;
-    $counter = "" if not defined $counter;
-    $allindex = "" if not defined $allindex;
-    $index = "" if not defined $index;
-    $subindex = "" if not defined $subindex;
-
-    my ($subdompre, $subdomnumber) = ("", "");
-
-    if ("$subdomain" =~ /([A-Z])(.*)/) {
-      ($subdompre, $subdomnumber) = ($1, $2);
-    }
-
-    if ("$subdomain$domain" =~ "^[RB]\$") {
-      $subdomain = $counter;
-      $counter = "";
-    }
-
-    my $allsubdomain = $subdomain . $domain;
-
-    return (1, $member, $allindex, $index, $subindex, $family, $counter,
-      $allsubdomain, $subdomain, $subdompre, $subdomnumber, $domain);
+  my (
+    $member,
+    $allindex, 
+      $index,
+      $dashsubindex,
+        $subindex,
+    $fcsd
+      $ring,
+        $rfamily,
+        $rcounter,
+        $rsubdomain,
+        $rdomain,
+      $fel,
+        $ffamily,
+        $fcounter,
+        $fsubdomain,
+        $fdomain,
+      $ptb,
+        $pfamily,
+        $pcounter,
+        $psubdomain,
+        $pdomain
+    ) = ($devname =~ /$re/);
+  if (defined $ring) {
+    ($family,$counter,$subdomain,$domain) = ($rfamily,$rcounter,$rsubdomain,$rdomain);
+    $facility = "B";
+  }
+  elsif (defined $fel) {
+    ($family,$counter,$subdomain,$domain) = ($ffamily,$fcounter,$fsubdomain,$fdomain);
+    $facility = "F";
+  }
+  elsif (defined $ptb) {
+    ($family,$counter,$subdomain,$domain) = ($pfamily,$pcounter,$psubdomain,$pdomain);
+    $facility = "P";
   }
   else {
-    return;
+    return; # mismatch
   }
+  my ($subdompre, $subdomnumber) = ($subdomain =~ /([A-Z])(.*)/);
+
+  if ("$subdomain$domain" =~ /^[RB]$/) {
+    $subdomain = $counter;
+    $counter = undef;
+  }
+
+  my $allsubdomain = $subdomain . $domain;
+
+  return ($member, $allindex, $index, $subindex, $family, $counter,
+    $allsubdomain, $subdomain, $subdompre, $subdomnumber, $domain, $facility);
 }
 
 1;
