@@ -56,7 +56,8 @@ sub foreign_keys
     my $SQL="select ST.TABLE_NAME, CL.COLUMN_NAME, " .
                    "ST.CONSTRAINT_NAME, ST.R_CONSTRAINT_NAME, " .
 		   "CL2.TABLE_NAME AS FOREIGN_TABLE, " .
-		   "CL2.COLUMN_NAME AS FOREIGN_COLUMN " .
+		   "CL2.COLUMN_NAME AS FOREIGN_COLUMN, " .
+		   "ST.OWNER, ST2.OWNER " .
 		   "FROM " .
 		   "all_cons_columns CL, all_cons_columns CL2, " .
 		   "all_constraints ST, all_constraints ST2 " .
@@ -65,14 +66,19 @@ sub foreign_keys
 		   "ST.CONSTRAINT_TYPE=\'R\' AND " .
 		   "ST.CONSTRAINT_NAME=CL.CONSTRAINT_NAME AND " .
 		   "ST.R_CONSTRAINT_NAME= ST2.CONSTRAINT_NAME AND " .
-		   "CL2.CONSTRAINT_NAME=ST2.CONSTRAINT_NAME";   
+		   "CL2.CONSTRAINT_NAME=ST2.CONSTRAINT_NAME AND ".
+		   "ST2.OWNER=CL2.OWNER";   
     sql_trace($SQL) if ($sql_trace);
     my $res=
       $dbh->selectall_arrayref($SQL);
     # gives:
     # TABLE_NAME COLUMN_NAME CONSTRAINT_NAME R_CONSTRAINT_NAME 
-    #          FOREIGN_TABLE FOREIGN_COLUMN 
-	
+    #          FOREIGN_TABLE FOREIGN_COLUMN OWNER OWNER
+
+    # do only take lines where both OWNERS match
+    # if you adde "ST.OWNER=ST2.OWNER" to the SQL statement
+    # it takes 4 minutes instead of 1 second !!!
+    # perl is a bit faster... ;-)	
 		      	   
     if (!defined $res)
       { dberror($mod_l,'db_get_foreign_keys',__LINE__,
@@ -84,7 +90,11 @@ sub foreign_keys
     # col_name => [foreign_table,foreign_column]
     my %foreign_keys;
     foreach my $r_line (@$res)
-      { $foreign_keys{ $r_line->[1] } = [ $r_line->[4],$r_line->[5] ]; };
+      { # owner mismatch
+        next if ($r_line->[6] ne $r_line->[7]);
+      
+        $foreign_keys{ $r_line->[1] } = [ $r_line->[4],$r_line->[5] ]; 
+      };
 
     return( \%foreign_keys);
   }
