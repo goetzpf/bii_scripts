@@ -1,4 +1,7 @@
-#!/opt/perl/bin/perl -w
+#!/opt/perl5/bin/perl -w
+
+eval 'exec /opt/perl5/bin/perl -w -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
 use strict;
 
 #
