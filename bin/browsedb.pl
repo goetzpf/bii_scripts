@@ -27,6 +27,7 @@ use Tk::Listbox;
 use Tk::FileSelect;
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
+use Tk::ProgressBar;
 
 #use Tk::ErrorDialog;
 
@@ -84,7 +85,8 @@ chdir $FindBin::Bin;
 
 my %global_data;
 
-tk_login(\%global_data, $db_name, $db_username, $db_password);
+#tk_login(\%global_data, $db_name, $db_username, $db_password);
+tk_main_window(\%global_data, $db_name, $db_username, $db_password);
 
 
 # --------------------- create some entry widgets
@@ -94,22 +96,23 @@ MainLoop();
 
 sub tk_login
 # r_glbl: hash with global entries
-  { my($r_glbl,$db_name,$user,$password)= @_;
+  { my($r_glbl)= @_;
 
-    $r_glbl->{db_name}     = $db_name;
-    $r_glbl->{user}        = $user;
-    $r_glbl->{password}    = $password;
+#  { my($r_glbl,$db_name,$user,$password)= @_;
+
+#    $r_glbl->{db_name}     = $db_name;
+#    $r_glbl->{user}        = $user;
+#    $r_glbl->{password}    = $password;
 
     if ($fast_test)
       { tk_login_finish($r_glbl);
         return;
       };
-
-    my $Top= MainWindow->new(-background=>$BG);
+	my $Main=$r_glbl->{main_widget};
+    my $Top= $Main->Toplevel(-background=>$BG);
     $Top->title("$PrgTitle:Login");
 
     $r_glbl->{login_widget}= $Top;
-
     my $FrTop = $Top->Frame(-background=>$BG
                 	   )->pack(-side=>'top' ,-fill=>'both');
     my $FrDn  = $Top->Frame(-background=>$BG
@@ -156,9 +159,9 @@ sub tk_login_finish
   { my($r_glbl)= @_;
 
     my $db_handle;
-
-    tk_wait_box($r_glbl,'create',"connecting to database...");
-
+	if (defined($r_glbl->{dbh})) {  
+		dbitable::disconnect_database($r_glbl->{dbh}); 
+	}
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -166,28 +169,27 @@ sub tk_login_finish
         if (!defined $db_handle)
           { tk_err_dialog($r_glbl->{login_widget},
 	                  "opening of the database failed");
-	    return;
-	  };
+    	    return;
+	      };
       };
     $r_glbl->{password}=~ s/./\*/g;
 
     $r_glbl->{dbh}= $db_handle;
+	
+	tk_main_window_finish($r_glbl); 
 
-    if (!$fast_test)
-      { $r_glbl->{login_widget}->destroy;
-        delete $r_glbl->{login_widget};
-      };
-
-    tk_wait_box($r_glbl,'update',"building main window...");
-    tk_main_window($r_glbl);
   }
 
 sub tk_main_window
-  { my($r_glbl)= @_;
+  { my($r_glbl,$db_name,$user,$password)= @_;
+
+    $r_glbl->{db_name}     = $db_name;
+    $r_glbl->{user}        = $user;
+    $r_glbl->{password}    = $password;
 
     my $Top= MainWindow->new(-background=>$BG);
+	$r_glbl->{main_widget} = $Top;
     $Top->title("$PrgTitle");
-
     $r_glbl->{main_menu_widget}= $Top;
 
     my $MnTop= $Top->Menu(-type=>'menubar');
@@ -211,10 +213,14 @@ sub tk_main_window
     $MnTop->pack(-side=>'top', -fill=>'x', anchor=>'nw');
 
     # configure Database-menu:
-#    $MnDb->add('command',
-#               -label=> 'Open Table',
-#	       -command=> [\&tk_open_new_table, $r_glbl]
-#	      );
+    $MnDb->add('command',
+               -label=> 'Login',
+	       -command=> [\&tk_login, $r_glbl]
+	      );
+    $MnDb->add('command',
+               -label=> 'Reload objects',
+	       -command=> [\&tk_main_window_finish, $r_glbl]
+	      );
     $MnDb->add('command',
                -label=> 'show SQL commands',
 	       -command=> [\&tk_sql_commands, $r_glbl]
@@ -233,7 +239,7 @@ sub tk_main_window
                  -label=> 'dump global datastructure',
 		 -command => [\&tk_dump_global, $r_glbl],
 	        );
-	#showing waitbox for preparation 
+ 
     # prepareing mainwindow with dialog
 	my $DlgTop = $Top->NoteBook()->pack(
 		-fill=>'both',
@@ -268,18 +274,6 @@ sub tk_main_window
 	else
 		{ $r_glbl->{new_table_name}= ""; };
 
-        tk_wait_box($r_glbl,'update',"getting list of all tables...");
-
-
-	my @ao= dbdrv::accessible_objects($r_glbl->{'dbh'},
-			    		  $r_glbl->{user}, 
-		                          "TABLE,VIEW", 
-					  "PUBLIC,USER");
-	
-	$r_glbl->{accessible_objects_all}= \@ao; # all tables and views as list
-	
-	$r_glbl->{table_browse_objs}= \@ao;     # for BrowseEntry widget
-	
 	$r_glbl->{table_browse_widget}= 
 	
 
@@ -302,9 +296,6 @@ sub tk_main_window
 				  tk_open_new_object($r_glbl, "table");
 			        } 
 			                     );
-
-	$r_glbl->{table_browse_widget}->insert(
-	                     'end',@{$r_glbl->{table_browse_objs}});
 
 	$r_glbl->{table_browse_button}= 
 	         $DlgEnt->Button( -state=>"disabled",
@@ -356,12 +347,6 @@ sub tk_main_window
 		-command=> [\&tk_open_new_object, $r_glbl, "table" ]
 	)->pack(%dlg_def_okbutton, );
 
-	$r_glbl->{accessible_objects_tables} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
-			    				$r_glbl->{user}, 
-		                        "TABLE", 
-					            "PUBLIC,USER")
-					    ];
-	$DlgTblListbox->insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
 	$DlgTblListbox->bind('<Button-1>' => sub {
 					$DlgTblOk->configure(-state=>"active"); 
 					$r_glbl->{new_table_name} = $DlgTblListbox->get($DlgTblListbox->curselection, $DlgTblListbox->curselection);
@@ -370,6 +355,8 @@ sub tk_main_window
 
     $DlgTblListbox->bind('<Return>' => sub { tk_open_new_object($r_glbl, "table"); } );
     $DlgTblListbox->bind('<Double-1>' => sub { tk_open_new_object($r_glbl, "table"); } );
+	$r_glbl->{table_listbox_widget}=$DlgTblListbox;
+	$Top->update();
 						
 	# dialog view
 	my $DlgVwListbox = $DlgVw->Scrolled(
@@ -393,12 +380,6 @@ sub tk_main_window
 		-command=> [ \&tk_open_new_object, $r_glbl, "view" ],
 	)->pack( %dlg_def_okbutton, );
 
-	$r_glbl->{accessible_objects_views} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
-			      				$r_glbl->{user}, 
-		                        "VIEW", 
-					        	"PUBLIC,USER")
-					    ];
-	$DlgVwListbox->insert("end", @{ $r_glbl->{accessible_objects_views} } );
 	$DlgVwListbox->bind('<Button-1>' => sub {
 					$DlgVwOk->configure(-state=>"active");
 					$r_glbl->{new_table_name} = $DlgVwListbox->get($DlgVwListbox->curselection, $DlgVwListbox->curselection);
@@ -410,7 +391,7 @@ sub tk_main_window
         $DlgVwListbox->bind(
 	                    '<Double-1>' => sub { tk_open_new_object($r_glbl, "view"); }
 			    		); 
-	
+	$r_glbl->{view_listbox_widget}=$DlgVwListbox;
 	# dialog sequel
 	$DlgSQL->Label(
 		-text=>"Statement :",
@@ -424,6 +405,7 @@ sub tk_main_window
 		-justify=>"center",
 		-command=> [ \&tk_open_new_object, $r_glbl, "sql" ],
 	)->pack( %dlg_def_okbutton, );
+	$Top->update();
 
 	# statusbar
 	my $MnStatus = $Top->Frame(
@@ -441,13 +423,91 @@ sub tk_main_window
 		-expand=>1,
 		-anchor=>"w"
 		);
+	my $MnStatusInfo = $MnStatus->Label(
+		-textvariable=>\$r_glbl->{info},
+	)->pack(
+		-side=>"left",
+		-expand=>1,
+		-anchor=>"w"
+		);
+	$MnStatusInfo = $r_glbl->{info_widget};
+	$MnStatus->Label(
+		-text=>'%'
+	)->pack(
+		-padx=>2,
+		-pady=>2,
+		-side=>"right",
+		-anchor=>"e"
+		);
+	my $MnStatusProgress = $MnStatus->ProgressBar(
+		-width=>50,
+		-length=>100,
+		-from=>0,
+		-to=>100,
+		-blocks=> 10,
+		-colors=>[ 0, 'blue' ],
+		-variable=> \$r_glbl->{progress},
+	)->pack(
+		-side=>"right",
+		-anchor=>"e",
+		-fill=>'y'
+		);
+	$r_glbl->{progress_widget} = $MnStatusProgress;
+	
+	$Top->update();
+	
+	if (! defined ($r_glbl->{dbh})) 
+	  {
+	       	tk_login($r_glbl); 
+			tk_window_positioning($Top, $r_glbl->{login_widget});
 
-     tk_wait_box($r_glbl,'destroy');
-
-
+      }
     #if ($fast_test)
     #  { tk_open_new_table($r_glbl); };
   }
+
+
+sub tk_main_window_finish
+  { my($r_glbl)= @_;
+  	if (defined($r_glbl->{login_widget})) {
+	  	$r_glbl->{login_widget}->destroy;
+		delete $r_glbl->{login_widget};
+	}
+	$r_glbl->{accessible_objects_views} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
+			      				$r_glbl->{user}, 
+		                        "VIEW", 
+					        	"PUBLIC,USER")
+					    ];
+	$r_glbl->{progress}=20;
+	$r_glbl->{progress_widget}->update;
+	$r_glbl->{view_listbox_widget}->delete(0, 'end');
+	$r_glbl->{view_listbox_widget}->insert("end", @{ $r_glbl->{accessible_objects_views} } );
+	$r_glbl->{progress}=25;
+	$r_glbl->{progress_widget}->update;
+	$r_glbl->{accessible_objects_tables} = [ dbdrv::accessible_objects($r_glbl->{'dbh'}, 
+			    				$r_glbl->{user}, 
+		                        "TABLE", 
+					            "PUBLIC,USER")
+					    ];
+	$r_glbl->{progress}=45;
+	$r_glbl->{progress_widget}->update;
+	$r_glbl->{table_listbox_widget}->delete(0, 'end');
+	$r_glbl->{table_listbox_widget}->insert("end",  @{ $r_glbl->{accessible_objects_tables} } );
+	$r_glbl->{progress}=50;
+  	$r_glbl->{progress_widget}->update;
+	$r_glbl->{accessible_objects_all} = [ dbdrv::accessible_objects($r_glbl->{'dbh'},
+	                             $r_glbl->{user}, 
+	                             "TABLE,VIEW", 
+					             "PUBLIC,USER")
+						];
+	$r_glbl->{progress}=90;
+	$r_glbl->{progress_widget}->update;
+	$r_glbl->{table_browse_widget}->delete(0, 'end');
+	$r_glbl->{table_browse_widget}->insert("end",  @{  $r_glbl->{accessible_objects_all } } );
+	$r_glbl->{progress}=100;
+	$r_glbl->{progress_widget}->update;
+  }
+
 
 sub tk_wait
  { 	my($r_glbl, $topwidget, $message)= @_;
@@ -464,7 +524,7 @@ sub tk_wait
 sub tk_about
  { my($r_glbl)= @_;
 
-   my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+   my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
    $Top->title("About $PrgTitle");
 
    my @text= ("$PrgTitle $VERSION",
@@ -587,9 +647,9 @@ sub tk_open_new_object
 
 sub tk_sql_commands
   { my($r_glbl)= @_;
-  
-   # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+   my $Main=$r_glbl->{main_widget};
+   my $Top= $Main->Toplevel(-background=>$BG);
+   #my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
 
    $Top->title("SQL command trace");
 
@@ -635,7 +695,7 @@ sub tk_foreign_key_dialog
       };
     
     #my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
     $Top->title("foreign keys in $r_tbh->{table_name}");
 
@@ -780,7 +840,7 @@ sub tk_dependency_dialog
       };
       
     # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
     $Top->title("dependents from $r_tbh->{table_name}");
 
@@ -958,8 +1018,33 @@ sub tk_find_line
 				   $Top->destroy; 
 				  }
         	 )->pack(-side=>'left', -fill=>'y');
-  }		 
+  }
 
+sub tk_window_positioning 
+  { my($parent_widget, $client_widget)= @_;
+    my ($parent, $client);
+    # place the client on the center of parent
+    $parent->{x}=$parent_widget->rootx(); 
+    $parent->{y}=$parent_widget->rooty(); 
+    $parent->{width}=$parent_widget->width(); 
+    $parent->{height}=$parent_widget->height(); 
+    $client->{width}=$client_widget->width(); 
+    $client->{height}=$client_widget->height(); 
+	my $x = $parent->{x};
+	my $y = $parent->{y};
+	if ($client->{width} < $parent->{width} && $parent->{x} > 0) {
+		$x = sprintf("+%d", $parent->{x} + ($parent->{width}/2)-($client->{width}/2));
+	} else {
+		$x = "+0";
+	}
+	if ($client->{height} < $parent->{height} && $parent->{x} > 0) {
+		$y = sprintf("+%d", $parent->{y} + ($parent->{height}/2)-($client->{height}/2));
+	}else {
+		$y = "+0";
+	}
+    $client_widget->geometry($x . $y);  
+  }
+  
 sub tk_field_edit
   { my($r_tbh)= @_;
   
@@ -968,8 +1053,6 @@ sub tk_field_edit
 #my($wi,$h,$x,$y)= split(/[x\+\-]/,$TableWidget->geometry());
 #warn join("|",$wi,$h,$x,$y),"\n";
 
-    my $xroot=$TableWidget->rootx(); 
-    my $yroot=$TableWidget->rooty(); 
 
     # get row-column of the active cell in the current table
     my($row,$col)= split(",",$TableWidget->index('active'));
@@ -980,6 +1063,8 @@ sub tk_field_edit
 
     # place the new window on the upper-left corner of
     # the Tablematrix-Window
+    my $xroot=$TableWidget->rootx(); 
+    my $yroot=$TableWidget->rooty(); 
     $xroot= '+' . $xroot if ($xroot>=0);
     $yroot= '+' . $yroot if ($yroot>=0);
     $Top->geometry($xroot . $yroot);
@@ -1159,7 +1244,7 @@ sub make_table_window
   
     # create a new top-window
     # my $Top= MainWindow->new(-background=>$BG);
-    my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+    my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
     $r_tbh->{top_widget}= $Top;
 
     # set the title
@@ -1569,7 +1654,7 @@ sub tk_dump_global
 # ommit dumping the tables-structures completely 
  
    # my $Top= MainWindow->new(-background=>$BG);
-   my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
+   my $Top= $r_glbl->{main_widget}->Toplevel(-background=>$BG);
 
    $Top->title("Global Datastructure-Dump");
 
