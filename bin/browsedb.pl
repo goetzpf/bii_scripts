@@ -35,6 +35,8 @@ use Tk::TableMatrix;
 use Tk::ProgressBar;
 #use Tk::Date;
 use Tk::NumEntry;
+
+use Text::ParseWords;
 use IO::File;
 #use Tk::ErrorDialog;
 
@@ -734,7 +736,8 @@ sub tk_main_window
             bind('<Control-Return>' =>
                  sub {  my $query_command;
                         $DlgSQLCommand->delete('insert - 1 char');
-                        my $failure_selection = $DlgSQLCommand->getSelection();
+                        #my $failure_selection = $DlgSQLCommand->getSelection();
+                        my $failure_selection = $DlgSQLCommand->getSelected();
                         if (length($failure_selection) > 0)
                         {
                             $DlgSQLCommand->insert("insert", $failure_selection);
@@ -1066,19 +1069,30 @@ sub tk_execute_new_query
 # routine for executing free sequel
   { my($r_glbl, $sqlquery)= @_;
     my $sqlinput = $sqlquery;
-    $sqlquery =~ s/\s*;\s*$//;
     $sqlquery =~ s/[\s\r\n]+/ /gm;
+    $sqlquery =~ s/\s*;?\s*$//;
     $sqlquery =~ s/^\s*//;
     tk_progress($r_glbl, 10);
-    my ($sqlcommand, $sqlargs) = ($sqlquery =~ /^(\w+)\s+(.*)/);
+    my ($sqlcommand, $sqlargs) = ($sqlquery =~ /^(\w+)\b(.*)/);
     if (! defined ($sqlcommand))
       { tk_err_dialog($r_glbl->{main_menu_widget},
-                    "Invalid SQL commandstring");
+                    "Invalid SQLh commandstring");
         return;
       }
     if (dbdrv::check_alias($sqlcommand))
-      { my @sqloptions = split(/\s*,\s*/, $sqlargs);
+      { $sqlargs=~ s/^\s+//; 
+        my @sqloptions = &parse_line('(\s+|\s*,\s*)', 0, $sqlargs); 
+        #my @sqloptions split(/\s*,\s*/, $sqlargs);
+
+#warn join("|", @sqloptions);
+#warn "|" . $sqloptions[0] . "|";
+
         $sqlquery = dbdrv::get_alias($sqlcommand, @sqloptions);
+        if ($sqlquery=~ /^ERROR/i)
+          { tk_err_dialog($r_glbl->{main_menu_widget},
+                        $sqlquery);
+            return;
+          }
       }
     tk_progress($r_glbl, 20);
     my $fh=$r_glbl->{handle_sql_history};
@@ -1107,7 +1121,9 @@ sub tk_execute_new_query
             if (!dbdrv::execute($TraceFormat,$r_glbl->{dbh},
                                 $StatementResult))
               { tk_err_dialog($r_glbl->{main_menu_widget},
-                    "Wrong SQL command syntax or data error");
+                    #"Wrong SQL command syntax or data error:\n$DBI::errstr");
+                              $DBI::errstr
+                             );
               }
             else
               {
@@ -1117,8 +1133,10 @@ sub tk_execute_new_query
         else
           {
                 tk_err_dialog($r_glbl->{main_menu_widget},
-                        "Unknown SQL commend or command not for " .
-                        "owner use sepcified!");
+                        #"Unknown SQL commend or command not for " .
+                        #"owner use specified!:\n$DBI::errstr"
+                             $DBI::errstr
+                             );
           }
 
       }
