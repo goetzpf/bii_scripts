@@ -16,6 +16,8 @@ htmlfiles:=$(addprefix $(htmldir)/,$(addsuffix .html,$(modules)))
 
 install all: $(manpages) $(htmlfiles)
 
+clean:
+
 $(man3dir)/%.3 : %.pm
 	pod2man $< > $@
 
