@@ -2169,6 +2169,20 @@ sub make_table_window
     $Table->tagConfigure('m_fk_cell', -foreground => 'ForestGreen');
                         # -state => 'disabled');
 
+    # create a tag for column-mapped columns
+    $Table->tagConfigure('mapped_col_on' , -foreground => 'aquamarine2');
+                        # -state => 'disabled');
+
+    # create a tag for column-mapped columns
+    $Table->tagConfigure('mapped_col_off', -foreground => 'LightCyan2');
+                        # -state => 'disabled');
+
+    $Table->tagRaise('mapped_col_on','title');
+    # mapped_col gets a priority higher than "title"
+
+    $Table->tagRaise('mapped_col_off','title');
+    # mapped_col gets a priority higher than "title"
+
 
     table_window_tag_columns($r_tbh);
 
@@ -2238,6 +2252,8 @@ sub make_table_window
                                                  $column_popup{current_col}
                                                 );
                               tk_rewrite_active_cell($r_tbh);
+                              table_window_title_tags($r_tbh,
+                                                 $column_popup{current_col});
                             }
                    );
     $MnColMap->add('command',
@@ -2260,6 +2276,8 @@ sub make_table_window
                                             -padx => ($Table->cget('-padx'))
                                                    );
                                   tk_rewrite_active_cell($r_tbh);
+                                  table_window_title_tags($r_tbh,
+                                                 $column_popup{current_col});
                                 };
                             }
                   );
@@ -2443,42 +2461,82 @@ sub table_hash_init_columns
   }
 
 sub table_window_tag_columns
- { my($r_tbh)= @_;
-   my $Table_Widget= $r_tbh->{table_widget};
+  { my($r_tbh)= @_;
+    my $Table_Widget= $r_tbh->{table_widget};
 
-   my $r_col_hash= $r_tbh->{vis_column_hash};
+    my $r_col_hash= $r_tbh->{vis_column_hash};
 
-   # remove all cell attributes
-   for(my $i=0; $i< $r_tbh->{vis_column_no}; $i++)
-     { $Table_Widget->tagCol('', $i); };
+    # remove all cell attributes
+    for(my $i=0; $i< $r_tbh->{vis_column_no}; $i++)
+      { $Table_Widget->tagCol('', $i); };
 
-   # mark the primary key, it may not be edited
-   if (!$r_tbh->{no_pk_cols})
-     { foreach my $colname (@{$r_tbh->{pks}})
-         { next if (!exists $r_col_hash->{$colname});
-           $Table_Widget->tagCol('pk_cell', colname2col($r_tbh,$colname) );
-         };
-     };
+    # mark the primary key, it may not be edited
+    if (!$r_tbh->{no_pk_cols})
+      { foreach my $colname (@{$r_tbh->{pks}})
+          { next if (!exists $r_col_hash->{$colname});
+            $Table_Widget->tagCol('pk_cell', colname2col($r_tbh,$colname) );
 
-   foreach my $fk_col (keys % {$r_tbh->{foreign_key_hash}})
-     { next if (!exists $r_col_hash->{$fk_col});
-       $Table_Widget->tagCol('fk_cell', colname2col($r_tbh,$fk_col) );
-     };
+          };
+      };
+
+    foreach my $fk_col (keys % {$r_tbh->{foreign_key_hash}})
+      { next if (!exists $r_col_hash->{$fk_col});
+        $Table_Widget->tagCol('fk_cell', colname2col($r_tbh,$fk_col) );
+      };
+
+    # mark mapped columns:
+    table_window_title_tags($r_tbh);
   }
 
+sub table_window_title_tags
+  { my($r_tbh,$col)= @_;
+    my $Table_Widget= $r_tbh->{table_widget};
+
+    my $r_col_hash= $r_tbh->{vis_column_hash};
+
+    my $r_cmf= $r_tbh->{col_map_flags};
+    my $r_cm = $r_tbh->{col_maps};
+    my @cols;
+
+    if (defined $col)
+      { if (!exists $r_col_hash->{$col}) # col is invisible
+          { $col= undef; } # retag all titles
+        else
+          { @cols= ($col); }
+      };
+
+    if (!defined $col)  
+      { @cols= keys %$r_col_hash; }; # only visible columns
+
+    foreach my $colname (@cols)
+      { my $col= colname2col($r_tbh,$colname);
+
+        if ($r_cmf->{$colname} eq 'N')
+          { if (!exists $r_cm->{$colname})
+              { $Table_Widget->tagCell('', "0,$col"); }
+            else
+              { $Table_Widget->tagCell('mapped_col_off', "0,$col"); 
+              }
+          }
+        else
+          { $Table_Widget->tagCell('mapped_col_on', "0,$col"); }
+
+      }; 
+  }  
+
 sub table_window_set_column_width
- { my($r_tbh)= @_;
+  { my($r_tbh)= @_;
 
-   my $Table_Widget= $r_tbh->{table_widget};
+    my $Table_Widget= $r_tbh->{table_widget};
 
-   my $r_width= $r_tbh->{vis_column_width};
+    my $r_width= $r_tbh->{vis_column_width};
 
-   for(my $i=0; $i<= $#$r_width; $i++)
-     {
-       $Table_Widget->colWidth($i, $r_width->[$i] + 2);
-       # 2 characters more than the real maximum width
-     };
- }
+    for(my $i=0; $i<= $#$r_width; $i++)
+      {
+        $Table_Widget->colWidth($i, $r_width->[$i] + 2);
+        # 2 characters more than the real maximum width
+      };
+  }
 
 sub resize_table
 # must be called, when the number of lines in the table
@@ -4392,13 +4450,19 @@ sub tk_define_col_map
 # define a map for a cell
   { my($r_glbl,$r_tbh,$column_name)= @_;
 
-    tk_simple_text_dialog($r_glbl,$r_tbh,
-                          tag=> "col_map_sql_dialog",
-                          title=> "define cell map",
-                          text=> "enter a valid SQL command",
-                          callback=> [\&tk_define_col_map_finish,
-                                      $column_name]
-                         );
+    my %options= ( tag=> "col_map_sql_dialog",
+                   title=> "define cell map",
+                   text=> "enter a valid SQL command",
+                   callback=> [\&tk_define_col_map_finish,
+                               $column_name]
+                 );
+
+    my $r_m= $r_tbh->{col_maps}->{$column_name};
+
+    if (defined $r_m)
+      { $options{default}= $r_m->{sql_command}; };
+
+    tk_simple_text_dialog($r_glbl,$r_tbh,%options);
   }
 
 sub tk_define_col_map_finish
@@ -4864,6 +4928,7 @@ sub tk_simple_text_dialog
 # text -> text at the bottom of the widget
 # tag -> tag-name for the dialog data that
 #        is stored in the table-handle
+# default -> default-value of variable
   { my($r_glbl,$r_tbh,%options)= @_;
 
     my $tag= $options{tag};
@@ -4871,6 +4936,9 @@ sub tk_simple_text_dialog
     die if (!defined $tag); # assertion
 
     my %h;
+
+    if (exists $options{default})
+      { $h{string}= $options{default}; };
 
     my $Top= $r_glbl->{main_menu_widget}->Toplevel(-background=>$BG);
     $Top->title($options{title});
@@ -5618,6 +5686,8 @@ sub get_column_map
     my $ntab= dbitable->new('view',$r_glbl->{dbh},
                              'col_map_query',"",$sql_command
                            );
+
+    return if (!defined $ntab);
 
     $ntab->load();
     return if (!defined $ntab);
