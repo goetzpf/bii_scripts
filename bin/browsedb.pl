@@ -19,8 +19,9 @@ use lib "$FindBin::RealBin/../lib/perl";
 #use lib "$ENV{HOME}/pmodules";
 #use perl_site;
 use Sys::Hostname;
+use Config;
 
-use Tk 800.025;
+use Tk 800.024;
 use Tk::Menu;
 use Tk::Dialog;
 use Tk::NoteBook;
@@ -35,7 +36,7 @@ use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
 use Tk::ProgressBar;
 #use Tk::Date;
-use Tk::NumEntry;
+#use Tk::NumEntry;
 
 use Text::ParseWords;
 use IO::File;
@@ -52,16 +53,27 @@ my $VERSION= "0.93";
 
 #warn "TK Version: " . $Tk::VERSION;
 
-# switch myself to the background:
-if (0 != fork) 
-  { # parent here
-    exit(0);
-  };
+my $os= $Config{osname};
+my %forkable_os= map { $_=>1 } qw(hpux linux);
+# MSWin32 on windows
 
+if ($forkable_os{$os})
+  { 
+    # switch myself to the background:
+    # (doesn't work on windows)
+    if (0 != fork) 
+      { # parent here
+	exit(0);
+      };
+  };
 
 our %save; # global configuration variable
 
-my $PrgDir = $ENV{"HOME"}."/.browsedb";
+my $home= $ENV{"HOME"};
+if (!defined $home)
+  { $home=""; };
+  
+my $PrgDir = $home."/.browsedb";
 if (! -e $PrgDir)
   {
     mkdir($PrgDir, 00700) or
@@ -86,9 +98,11 @@ else
 
 my $db_driver    = "Oracle";
 my $db_source    = "bii_par";
-my $db_name      = "DBI:$db_driver:$db_source";
 my $db_username  = "guest";
 my $db_password  = "bessyguest";
+
+my $db_proxy     = "ocean.acc.bessy.de";
+my $db_proxy_port= 12109;
 
 my $r_alias;
 
@@ -119,7 +133,7 @@ chdir $FindBin::Bin;
 my %global_data;
 
 #tk_login(\%global_data, $db_name, $db_username, $db_password);
-tk_main_window(\%global_data, $db_name, $db_username, $db_password);
+tk_main_window(\%global_data);
 
 # --------------------- create some entry widgets
 
@@ -133,9 +147,11 @@ sub tk_login
 
     $r_glbl->{db_driver}    = $db_driver;
     $r_glbl->{db_source}    = $db_source;
-    $r_glbl->{db_name}      = "DBI:$db_driver:$db_source";
     $r_glbl->{user}         = $db_username;
     $r_glbl->{password}     = $db_password;
+
+    $r_glbl->{use_proxy}    = 0;
+
 
     if ($fast_test || $guest_login)
       { tk_login_finish($r_glbl);
@@ -161,8 +177,15 @@ sub tk_login
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
     $FrTop->Label(-text => 'password:'
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
+    $FrTop->Label(-text => 'use dbi proxy:'
+                 )->grid(-row=>$row++, -column=>0, -sticky=> "w");
+    $FrTop->Label(-text => 'proxy server:'
+                 )->grid(-row=>$row++, -column=>0, -sticky=> "w");
+    $FrTop->Label(-text => 'proxy port:'
+                 )->grid(-row=>$row++, -column=>0, -sticky=> "w");
 
     $row=0;
+    
     my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
                                 -state=> 'readonly',
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
@@ -173,6 +196,36 @@ sub tk_login
     my $e3= $FrTop->Entry(-textvariable => \$r_glbl->{password},
                           -show => '*',
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+
+
+    my $Button;
+    my($e4,$e5);
+    $Button = $FrTop->Checkbutton(
+                #-text=>"use DBI Proxy",
+		-variable => \$r_glbl->{use_proxy},
+                -command => 
+		   sub { my $state= 'disabled';
+		         if ($r_glbl->{use_proxy})
+			   { $state= 'normal'; 
+			     if (!$r_glbl->{proxy})
+			       { $r_glbl->{proxy}      = $db_proxy;
+                                 $r_glbl->{proxy_port} = $db_proxy_port;
+                               };
+			   };
+		         $e4->configure(-state => $state);
+		         $e5->configure(-state => $state);
+		       }
+                                  )->grid(-row=>$row++, -column=>1, 
+				          -sticky=> "w");
+
+    $e4= $FrTop->Entry(-textvariable => \$r_glbl->{proxy},
+                       -state => 'disabled'
+                      )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+    $e5= $FrTop->Entry(-textvariable => \$r_glbl->{proxy_port},
+                       -state => 'disabled'
+                      )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+
+
 
     foreach my $db_driver (DBI->available_drivers)
       {
@@ -223,7 +276,23 @@ sub tk_login_finish
     tk_set_busy($r_glbl,1);
 
     tk_progress($r_glbl,10);
-    $r_glbl->{db_name} = "DBI:".$r_glbl->{db_driver}.":".$r_glbl->{db_source};
+    
+    if (!$r_glbl->{use_proxy})
+      { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} . ":" .
+                             $r_glbl->{db_source};
+      }
+    else
+      { my $host= $r_glbl->{proxy}; $host=~ s/^\s+//; $host=~ s/\s+$//; 
+        $r_glbl->{proxy}= $host;
+        my $port= $r_glbl->{proxy_port};
+	$port=~ s/^\s+//; $port=~ s/\s+$//; 
+	$r_glbl->{proxy_port}= $port;
+      
+        $r_glbl->{db_name} = "DBI:Proxy:hostname=$host;port=$port;dsn=DBI:" .
+	                     $r_glbl->{db_driver} . ':' . 
+			     $r_glbl->{db_source};
+      };
+    
     if (!$sim_oracle_access)
       { $db_handle= dbitable::connect_database($r_glbl->{db_name},
                                                $r_glbl->{user},
@@ -233,7 +302,10 @@ sub tk_login_finish
             tk_err_dialog($r_glbl->{main_menu_widget},
                           "opening of the database failed");
 
-            return;
+            tk_set_busy($r_glbl,0);
+            tk_progress($r_glbl,0);
+	    $r_glbl->{login_widget}->raise();
+	    return;
           };
       };
     $r_glbl->{password}=~ s/./\*/g;
@@ -256,11 +328,11 @@ sub tk_login_finish
   }
 
 sub tk_main_window
-  { my($r_glbl,$db_name,$user,$password)= @_;
+  { my($r_glbl)= @_;
 
-    $r_glbl->{db_name}     = $db_name;
-    $r_glbl->{user}        = $user;
-    $r_glbl->{password}    = $password;
+#    $r_glbl->{db_name}     = $db_name;
+#    $r_glbl->{user}        = $user;
+#    $r_glbl->{password}    = $password;
 
     my $Top= MainWindow->new(-background=>$BG);
     $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit, $r_glbl ]);
@@ -274,7 +346,13 @@ sub tk_main_window
     $Top->title("$PrgTitle");
     $r_glbl->{main_menu_widget}= $Top;
 
-    my $MnTop= $Top->Menu(-type=>'menubar');
+    # the Menu-Bar is now created in a way that works on
+    # windows to0. Note that this is a property of the
+    # top widget, $MnTop MUST NOT be packed
+    
+    my $MnTop= $Top->Menu();
+    $Top->configure(-menu => $MnTop );
+
 
     my $MnFile   = $MnTop->Menu();
     my $MnDb     = $MnTop->Menu();
@@ -308,8 +386,6 @@ sub tk_main_window
                 -underline  => 0,
                 -menu=> $MnHelp
                );
-
-    $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
 
     # configure File-menu:
     $Top->bind($Top,'<Control-o>'=> [\&tk_load_collection,$r_glbl]);
@@ -944,7 +1020,11 @@ sub tk_set_busy
 
     if ($r_glbl->{busy_count}++ <=0)
       { $r_glbl->{main_menu_widget}->Busy(-recurse => 1); 
-        $r_glbl->{main_menu_widget}->grabRelease();
+        
+        if ($os ne "MsWin32")
+	  { $r_glbl->{main_menu_widget}->grabRelease(); }
+	else
+	  { $r_glbl->{main_menu_widget}->focus(); };
       };
   }
 
@@ -952,6 +1032,9 @@ sub tk_set_busy
 sub tk_progress
   { my($r_glbl,$val)= @_;
 
+my ($p,$f,$l)= caller; print "**** $p $f $l\n";
+#my $x= $r_glbl->{main_menu_widget};
+#print "main-menu-widget: $x\n";
     my $progress_widget= $r_glbl->{MainWindow}->{progress_widget};
     return if (!defined $progress_widget);
 
@@ -966,10 +1049,14 @@ sub tk_main_window_finish
 
     tk_set_busy($r_glbl,1);
     
+    my $infotext= $r_glbl->{user} . "@" . $r_glbl->{db_driver} . ':' .
+                  $r_glbl->{db_source};
+    
+    if ($r_glbl->{use_proxy})
+      { $infotext.= " (proxy $r_glbl->{proxy}:$r_glbl->{proxy_port})"; };		  
+    
     $r_glbl->{MainWindow}->
-             {login_info}->configure(-text =>
-                                     $r_glbl->{user}."@".$r_glbl->{db_name}
-                                    );
+             {login_info}->configure(-text =>$infotext);
 
     $r_glbl->{accessible_objects_views} =
              [ dbdrv::accessible_objects($r_glbl->{'dbh'},
@@ -1017,7 +1104,7 @@ sub tk_main_window_finish
                                   $r_glbl->{db_driver},
                                   $r_glbl->{db_source},
                                   $r_glbl->{user});
-
+#@@@@@@@@@@@@@ change here!
 
     if (-r $r_glbl->{filename_sql_history})
       {
@@ -1437,17 +1524,18 @@ sub tk_add_relation_dialog
     $Top->Label(-text => 'other column:'
                )->grid(-row=>3, -column=>0, -sticky=> "w");
 
-    my @std_options= (-autolimitheight=>1,
-                      -state=> 'readonly');
+    my %std_options= (-state=> 'readonly');
+    if ($Tk::VERSION >= 800.025) # in older Tk versions unknown
+      { $std_options{-autolimitheight}=1; };
 
-    $Top->BrowseEntry( @std_options,
+    $Top->BrowseEntry( %std_options,
                        -choices=> $r_tbh->{column_list},
                        -variable=> \$relation_hash{mycol}
                      )->grid(-row=>1,
                              -column=>1,
                              -sticky=> "w");
 
-    $Top->BrowseEntry( @std_options,
+    $Top->BrowseEntry( %std_options,
                        -choices=> \@open_tables,
                        -browsecmd=> [\&cb_add_relation,
                                      $r_glbl,
@@ -1457,7 +1545,7 @@ sub tk_add_relation_dialog
                              -column=>1,
                              -sticky=> "w");
 
-    my $Lb_o_cols = $Top->BrowseEntry( @std_options,
+    my $Lb_o_cols = $Top->BrowseEntry( %std_options,
                                        -variable=> \$relation_hash{ocol}
                                      )->grid(-row=>3,
                                              -column=>1,
@@ -2680,14 +2768,16 @@ sub make_table_window
     #$Top->title($r_tbh->{table_name});
 
 
-    my $FrTop = $Top->Frame(-borderwidth=>2,-relief=>'raised',
-                           -background=>$BG
-                           )->pack(-side=>'top' ,-fill=>'both');
     my $FrDn  = $Top->Frame(-background=>$BG
                            )->pack(-side=>'top' ,-fill=>'both',
                                   -expand=>'y');
 
-    my $MnTop= $FrTop->Menu(-type=>'menubar');
+    # the Menu-Bar is now created in a way that works on
+    # windows to0. Note that this is a property of the
+    # top widget, $MnTop MUST NOT be packed
+
+    my $MnTop= $Top->Menu();
+    $Top->configure(-menu => $MnTop );
 
     my $MnFile  = $MnTop->Menu();
     my $MnDbase = $MnTop->Menu();
@@ -2720,9 +2810,6 @@ sub make_table_window
                 -underline   => 0,
                 -menu=> $MnView
                 );
-
-    $MnTop->pack(-side=>'left', -fill=>'x', -expand=>'y');
-
 
     # configure file-menu:
     my $MnFileOpen= $MnFile->Menu();
@@ -3468,18 +3555,22 @@ sub tk_make_text_widget
 
     my $text;
 
-    my $MnTop= $Top->Menu(-type=>'menubar');
+    # the Menu-Bar is now created in a way that works on
+    # windows to0. Note that this is a property of the
+    # top widget, $MnTop MUST NOT be packed
+    
+    my $MnTop= $Top->Menu();
+    $Top->configure(-menu => $MnTop );
+    
     my $MnFile   = $MnTop->Menu();
     my $MnSearch = $MnTop->Menu();
     $MnTop->add('cascade',
                 -label=> 'File',
-                -accelerator => 'Meta+F',
                 -underline   => 0,
                 -menu=> $MnFile
                );
     $MnTop->add('cascade',
                 -label=> 'Search',
-                -accelerator => 'Meta+S',
                 -underline   => 0,
                 -menu=> $MnSearch
                );
@@ -3519,8 +3610,6 @@ sub tk_make_text_widget
                  -command=> [\&tk_text_search_next,"",$r_glbl,'prev',\%text]
               );
 
-
-    $MnTop->pack(-side=>'top', -fill=>'x', -anchor=>'nw');
 
     my $text_widget=  $Top->Scrolled('Text',
                                      -scrollbars=>"ose",
