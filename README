@@ -1,10 +1,18 @@
-This is the BESSY-scripts Module.
+This is the BESSY-scripts bundle.
 
 You find here modules for perl and scripts that hopefully
 will make your work easier.
 
 You can find further Documentation here:
 
-CONTENTS: list of all modules and scripts 
+doc/txt/CONTENTS 
+	list of all modules and scripts 
 
-DIRS    : explanation of the directory-tree
+doc/txt/AUTHORS
+	a list of who wrote what
+
+DIRS    explanation of the directory-tree
+
+doc/txt/INSTALL
+	how to install the bundle 
+	(only needed if you did a CVS checkout)
