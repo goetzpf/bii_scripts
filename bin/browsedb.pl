@@ -237,7 +237,7 @@ $global_data{theme}->{text}= { '-background' => "gray81",
                                '-font'       => "{helvetica} 10"
                              };
                              
-$global_data{theme}->{shell}= { '-background' => "black",
+$global_data{theme}->{shell}= { #'-background' => "black",
                                 '-font'       => "{courier} 10",
                                 '-foreground' => "white",
 #                               '-selection'  => "{courier} 10 bold",
