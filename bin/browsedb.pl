@@ -506,23 +506,120 @@ sub tk_main_window
                                   -justify=>"center",
                                   -command => [\&tk_open_new_object,
                                                 $r_glbl, 'table_or_view' ],
-                                )->pack( %dlg_def_okbutton,);
+                                )->pack(
+                                    -padx=>2,-pady=>2,
+                                    -ipadx=>1,-ipady=>1,
+                                    -side=>"top",-anchor=>"e",
+                                );
 
+        my $DlgCollListbox = $DlgEnt->Scrolled(
+                "Listbox",
+                -label=>"Load your Collection :",
+                -scrollbars=>"osoe",
+                -width=>48,
+                -selectmode=>"browse",
+        )->packAdjust( %dlg_def_listbox,);
+        $DlgEnt->Label(           -justify=>"center",
+                                  -width=>10,
+                                  -height=>20,
+                    )->pack(
+                                    -padx=>2,-pady=>2,
+                                    -ipadx=>1,-ipady=>1,
+                                    -anchor=>"se",
+                                    -expand=>0,
+                            );
+
+        my $DlgCollOk =
+                 $DlgEnt->Button( -state=>"disabled",
+                                  -text=>"Load",
+                                  -underline=>1,
+                                  -justify=>"center",
+                                  -width=>20,
+                                  -command => sub
+                                            { my $entry =
+                                                $DlgCollListbox->get(
+                                                    $DlgCollListbox->curselection);
+                                              tk_load_collection($Top, $r_glbl, $entry);
+                                            },
+                                )->pack(
+                                    -padx=>2,-pady=>2,
+                                    -ipadx=>1,-ipady=>1,
+                                    -anchor=>"se",
+                                );
+        my $DlgCollRefresh =
+                 $DlgEnt->Button( -state=>"normal",
+                                  -text=>"Refresh",
+                                  -underline=>4,
+                                  -justify=>"center",
+                                  -width=>20,
+                                  -command => sub
+                                          { $DlgCollListbox->delete(0, 'end');
+                                            if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
+                                                while (my $collection = readdir(BROWSEDBCONFDIR))
+                                                {
+                                                    if ($collection =~ /\.col$/)
+                                                    {
+                                                        $DlgCollListbox->insert("end",
+                                                            $PrgDir."/".$collection );
+                                                    }
+                                                }
+                                                closedir(BROWSEDBCONFDIR);
+                                            }
+                                          },
+                                )->pack(
+                                    -padx=>2,-pady=>2,
+                                    -ipadx=>1,-ipady=>1,
+                                    -anchor=>"se",
+                                );
         if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
-            my @all_collections = glob "*.col";
-            if ($#all_collections + 1 > 0) {
-                my $DlgCollListbox = $DlgEnt->Scrolled(
-                        "Listbox",
-                        -lable=>"Load your Collection Clause :",
-                        -scrollbars=>"osoe",
-                        -width=>48,
-                        -selectmode=>"browse",
-                        -width=>0
-                )->pack( %dlg_def_listbox );
-                $DlgCollListbox->insert("end",  @all_collections );
-            }
+            while (my $collection = readdir(BROWSEDBCONFDIR))
+              {
+                if ($collection =~ /\.col$/)
+                  {
+                    $DlgCollListbox->insert("end",  $PrgDir."/".$collection );
+                  }
+              }
             closedir(BROWSEDBCONFDIR);
         }
+        $DlgCollListbox->
+            bind('<Button-1>' =>
+                 sub { $DlgCollOk->configure(-state=>"active");
+                     }
+                );
+
+        $DlgCollListbox->
+            bind('<Control-r>' => sub
+                 {  $DlgCollListbox->delete(0, 'end');
+                    if (opendir (BROWSEDBCONFDIR, $PrgDir)) {
+                        while (my $collection = readdir(BROWSEDBCONFDIR))
+                        {
+                            if ($collection =~ /\.col$/)
+                            {
+                                $DlgCollListbox->insert("end",  $PrgDir."/".$collection );
+                            }
+                        }
+                        closedir(BROWSEDBCONFDIR);
+                    }
+                 }
+               );
+        $DlgCollListbox->
+            bind('<Return>' =>
+                  sub { my $entry =
+                            $DlgCollListbox->get($DlgCollListbox->curselection);
+                        tk_load_collection($Top, $r_glbl, $entry);
+                      }
+                );
+        $DlgCollListbox->
+            bind('<Double-1>' =>
+                  sub { my $entry =
+                            $DlgCollListbox->get($DlgCollListbox->curselection);
+                        tk_load_collection($Top, $r_glbl, $entry);
+                      }
+                );
+        $r_glbl->{table_collectionbox_widget}=$DlgCollListbox;
+        $r_glbl->{table_collectionbutton_widget}=$DlgCollOk;
+        $r_glbl->{table_collectionrefresh_widget}=$DlgCollRefresh;
+
         # dialog tables
         my $DlgTblListbox = $DlgTbl->Scrolled(
                 "Listbox",
@@ -687,61 +784,72 @@ sub tk_main_window
                 -scrollbars=> "osoe",
                 -height=> 10,
                 -width=>80,
-        )->pack( -padx=>2, -pady=>2,
+        )->packAdjust( -padx=>2, -pady=>2,
                  -ipadx=>1, -ipady=>1,
                  -fill=>"both",
-                 -side=>"top", -anchor=>"sw",
+                 -side=>"top",
                  -expand=> 1,
         );
         $DlgSQLHistory->tagConfigure("blue", -foreground => "blue");
         $DlgSQLHistory->tagConfigure("red", -foreground => "red");
         $DlgSQLHistory->tagConfigure("blue", -foreground => "green");
+        tk_clear_undefkey($DlgSQLHistory);
         $r_glbl->{sql_history_widget}=$DlgSQLHistory;
         $DlgSQL->Label( -text=> "Statement :",
                       )->pack( %dlg_def_labentry, );
-        my $DlgSQLCommand = $DlgSQL->Scrolled(
+        my $DlgSQLCommand;
+        my $DlgSQLOk =
+           $DlgSQL->Button( -state=> "normal",
+                            -text=> "EXec",
+                            -underline=> 1,
+                            -justify=> "center",
+                            -command=> sub {
+                                        my $query_command = $DlgSQLCommand->getSelected();
+                                        if (length ($query_command) <= 2)
+                                          {
+                                            $query_command = $DlgSQLCommand->get('1.0', 'end');
+                                          }
+                                        tk_execute_new_query($r_glbl, $query_command);
+                                    }
+           )->pack(%dlg_def_okbutton,
+                -side=>"bottom");
+        $DlgSQLCommand = $DlgSQL->Scrolled(
                 "TextUndo",
                 -height=> 10,
                 -wrap=> "word",
                 -scrollbars=> "osoe",
                 -width=>80,
-        )->packAdjust( %dlg_def_labentry, );
+        )->pack( -anchor=> "s",
+                 -padx=>2, -pady=>2,
+                 -ipadx=>1, -ipady=>1,
+                 -fill=>"both",
+                 -side=>"bottom",
+                 -expand=> 0, );
         $r_glbl->{sql_command_widget} = $DlgSQLCommand;
-        my $DlgSelectedSQLOk =
-           $DlgSQL->Button( -state=> "normal",
-                            -text=> "Exec Selection",
-                            -underline=> 6,
-                            -justify=> "center",
-                            -command=> sub {
-                                        my $query_command = $DlgSQLCommand->getSelected();
-                                        if (length ($query_command) > 0)
-                                          {
-                                            tk_execute_new_query($r_glbl, $query_command);
-                                          }
-                                    }
-           )->pack(%dlg_def_okbutton);
-        my $DlgSQLOk =
-           $DlgSQL->Button( -state=> "normal",
-                            -text=> "Exec",
-                            -underline=> 0,
-                            -justify=> "center",
-                            -command=> sub {
-                                        my $query_command;
-                                        $query_command = $DlgSQLCommand->get('1.0', 'end');
-                                        tk_execute_new_query($r_glbl, $query_command);
-                                    }
-           )->pack(%dlg_def_okbutton);
-
+        tk_clear_undefkey($DlgSQLCommand);
+        $DlgSQLCommand->
+            bind('<Control-X>' =>
+                 sub {  my $query_command;
+                        $query_command = $DlgSQLCommand->get('1.0', 'end');
+                        tk_execute_new_query($r_glbl, $query_command);
+                     }
+                );
+        $DlgSQLCommand->
+            bind('<Control-S>' =>
+                 sub {  my $query_command;
+                        $query_command = $DlgSQLCommand->get('1.0', 'end');
+                        tk_execute_new_query($r_glbl, $query_command);
+                     }
+                );
         $DlgSQLCommand->
             bind('<Control-Return>' =>
                  sub {  my $query_command;
-                        $DlgSQLCommand->delete('insert - 1 char');
-                        #my $failure_selection = $DlgSQLCommand->getSelection();
                         my $failure_selection = $DlgSQLCommand->getSelected();
                         if (length($failure_selection) > 0)
                         {
                             $DlgSQLCommand->insert("insert", $failure_selection);
                         }
+                        $DlgSQLCommand->delete('insert - 1 char');
                         $query_command = $DlgSQLCommand->get('1.0', 'end');
                         tk_execute_new_query($r_glbl, $query_command);
                      }
@@ -750,6 +858,31 @@ sub tk_main_window
         # problems for destroy operations
         $Top->update();
         tk_login(\%global_data); # calls tk_main_window_finish
+  }
+
+sub tk_clear_undefkey
+  {
+    my ($this_widget) = @_;
+    if (defined ($this_widget))
+      {
+        $this_widget->bind('<Control-1>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-2>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-3>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-4>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-5>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-6>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-7>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-8>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-9>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-0>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-q>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-r>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-u>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-g>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-s>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-l>' => sub {$this_widget->delete('insert - 1 char');});
+        $this_widget->bind('<Control-m>' => sub {$this_widget->delete('insert - 1 char');});
+      }
   }
 
 sub tk_set_busy
@@ -888,10 +1021,10 @@ sub tk_wait
 
 sub tk_quit
   {
-    my($r_glbl)= @_;
-    my $Top;
+    my($r_glbl, $widget)= @_;
     my $choice = "No";
-    if (defined $r_glbl)
+    my $Top;
+    if (defined $r_glbl || $fast_test == 0 || undefined($fast_test))
       {
         $Top = $r_glbl->{main_widget};
         my $DlgQuit = $Top->Dialog(
@@ -1660,7 +1793,7 @@ sub tk_view_dependency_dialog
         $types{ $objects[$i] } = ($t eq 'TABLE') ? 'table' : 'view' ;
       };
     
-    @objects= sort @objects;                                       
+    @objects= sort @objects;
 
     tk_object_dialog($r_glbl,$r_tbh,
                      tag=> "view_dependendcy_dialog",
@@ -1891,7 +2024,7 @@ sub find_next_col
 
     my $max= $r_tbh->{row_no};
     my $colname= $options{colname};
-    
+
     my $row;
     if ($options{from} eq 'top')
       { $row=0; 
@@ -3211,7 +3344,7 @@ sub tk_text_search
                 );
 
     $Entry->focus();
-    
+
     $Top->Popup(-popover    => 'cursor');
 
   }
@@ -3277,7 +3410,7 @@ sub tk_text_save
                                   extension=>'.txt',
                                   defaultdir=>$PrgDir,
                                   title=>'save text',
-                                  extension_description=> 
+                                  extension_description=>
                                               'ascii text files');
 
     # warn "filename: $file ";
@@ -3310,7 +3443,7 @@ sub tk_table_info
    my $r_text= tk_make_text_widget($r_glbl,"$name:Object-Info");
 
    my $text= $r_text->{text_widget};
-   
+
    my $buffer;
 
    my $str;
@@ -3541,7 +3674,7 @@ sub tk_update_window_menu
     my $r_all_tables= $r_glbl->{all_tables};
 
     my @all_table_names;
-    
+
     if (defined $r_all_tables)
       { @all_table_names  = (sort keys %$r_all_tables); };
 
@@ -3739,7 +3872,7 @@ sub table_hash_init_columns
        # all columns as a default 
        $r_tbh->{displayed_cols}= 
                    { map{ $_=>1 } @{$r_tbh->{column_list}} };
-     };             
+     };
    
    calc_visible_columns($r_tbh);
   }
@@ -3904,7 +4037,7 @@ sub cb_export_selection
     # warn "$file was updated/created";
        
     
- }  
+ }
 
 
 sub cb_open_foreign_table
@@ -4234,7 +4367,7 @@ sub rdump
   { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
 
     $comma= '' if (!defined $comma);
-    
+
     my $r= ref($val);
     if (!$r)
       { $$r_buf.= " " x $indent if ($is_newline);
@@ -4737,9 +4870,9 @@ sub get_dbitable
           { if (dbdrv::object_is_table($r_glbl->{dbh},$r_tbh->{table_name}))
               { $r_tbh->{table_type}= 'table'; }
             else
-              { $r_tbh->{table_type}= 'view'; }; 
+              { $r_tbh->{table_type}= 'view'; };
           };
-        
+
         $ntab= dbitable->new('table',$r_tbh->{dbh},
                              $r_tbh->{table_name},
                             );
@@ -4899,37 +5032,39 @@ sub same_start
 sub tk_load_collection
 # note: $widget is not really needed, it's just here
 # since  this function can be called from via <bind>
-  { my($widget,$r_glbl)= @_;
+  { my($widget,$r_glbl,$file)= @_;
     local(*F);
-    
+
     my $Top= $r_glbl->{main_menu_widget};
-    
-    my $file= tk_simple_file_menu(widget=> $Top,
+
+    if (! -r $file)
+      {
+        my $file= tk_simple_file_menu(widget=> $Top,
                                   type=> 'load',
                                   extension=>'.col',
                                   defaultdir=>$PrgDir,
                                   title=>'open collection',
-                                  extension_description=> 
+                                  extension_description=>
                                               'browsedb collections');
 
-
+      }
     # warn "filename: $file ";
     return if (!defined $file);
 
-    
+
 #print Dumper(\%save);
 #print join(" ",keys %save),"\n";
     do $file;
-    
+
 #print Dumper(\%save);
 #print join(" ",keys %save),"\n";
 
     my $r_all_tables= $save{open_tables};
-    
+
     foreach my $tab (keys %$r_all_tables)
       { my $r_dat= $r_all_tables->{$tab};
-      
-        
+
+
         $r_dat->{tbh}= make_table_hash_and_window(
                             $r_glbl,
                              table_name=>$tab,
@@ -4940,9 +5075,9 @@ sub tk_load_collection
                              sort_columns=> $r_dat->{sort_columns}
                                                  );
 
-      };                                   
+      };
 
-    
+
     foreach my $tab (keys %{$save{foreigners}})
       { my $r_tbh= $r_all_tables->{$tab}->{tbh};
                 
