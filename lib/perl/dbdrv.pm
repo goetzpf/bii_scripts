@@ -599,11 +599,8 @@ is not a valid DBI handle, it returns C<undef>.
 This function performs a simple check wether a table exists. 
 C<$dbh> is the database handle, C<$table_name> the name of the table.
 C<$user_name> is the username and optional. The username is
-stored when C<connect_database()> is called. If the database-handle
-provided is identical with the standard database handle or of
-the database handle is "" or C<undef>, that username ,
-C<dbdrv::std_username> is taken, if not specified differently.
-The function returns C<1> when the table is accessible and 
+storedin the variable C<dbdrv::std_username> when C<connect_database()> 
+is called. The function returns C<1> when the table is accessible and 
 C<undef> when not.
 
 =item dbdrv::primary_keys()
