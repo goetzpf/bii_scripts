@@ -51,6 +51,13 @@ my $VERSION= "0.93";
 
 #warn "TK Version: " . $Tk::VERSION;
 
+# switch myself to the background:
+if (0 != fork) 
+  { # parent here
+    exit(0);
+  };
+
+
 our %save; # global configuration variable
 
 my $PrgDir = $ENV{"HOME"}."/.browsedb";
@@ -168,6 +175,10 @@ sub tk_login
       {
         $e0->insert('end', $db_driver);
       }
+
+# an experiment with the Oracle Proxy:
+#$e0->insert('end', "Proxy:hostname=tarn;port=4097;dsn=DBI:Oracle");     
+      
     $e0->focus();
     $e0->bind('<Return>', sub { $e1->focus() } );
     $e0->bind('<Tab>', sub { $e1->focus() } );
@@ -531,7 +542,7 @@ sub tk_main_window
 
         my $DlgCollOk =
                  $DlgEnt->Button( -state=>"disabled",
-                                  -text=>"Load",
+                                  -text=>"load",
                                   -underline=>1,
                                   -justify=>"center",
                                   -width=>20,
@@ -548,7 +559,7 @@ sub tk_main_window
                                 );
         my $DlgCollRefresh =
                  $DlgEnt->Button( -state=>"normal",
-                                  -text=>"Refresh",
+                                  -text=>"refresh dir",
                                   -underline=>4,
                                   -justify=>"center",
                                   -width=>20,
@@ -800,7 +811,7 @@ sub tk_main_window
         my $DlgSQLCommand;
         my $DlgSQLOk =
            $DlgSQL->Button( -state=> "normal",
-                            -text=> "EXec",
+                            -text=> "Exec",
                             -underline=> 1,
                             -justify=> "center",
                             -command=> sub {
@@ -897,7 +908,9 @@ sub tk_set_busy
       };
 
     if ($r_glbl->{busy_count}++ <=0)
-      { $r_glbl->{main_menu_widget}->Busy(-recurse => 1); };
+      { $r_glbl->{main_menu_widget}->Busy(-recurse => 1); 
+        $r_glbl->{main_menu_widget}->grabRelease();
+      };
   }
 
 
@@ -2046,8 +2059,8 @@ sub find_next_col
           };
         
         return if (!defined $str);
-	
-	for(my $i=0; $i<$max; $i++)
+        
+        for(my $i=0; $i<$max; $i++)
           { $row+= $dir;
             if    ($row<=0)
               { $row= $max; }
@@ -4851,6 +4864,7 @@ sub get_dbitable
         my $tab= dbitable->new('file',"","Test-Table",
                                'PK','PK','NAME','VALUE'
                               );
+
         for(my $i=0; $i<20; $i++)
           { my %h;
             $tab->add_line(#PK=>  $i,
