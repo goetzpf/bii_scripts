@@ -1,0 +1,64 @@
+#.VER "2.0"
+#.DECLARE %1"fdManager.o": %2"../fdManager.cc"
+#.DECLARE %3"@gaaiA30hDmT": %4"/net/csr/csr/epics/R3.13.1/support/base/3-13-3/src/libCom/O.solaris/../../../include/resourceLib.h"
+#.DECLARE %5"L8NV6WitWTZ8": 4 
+#.DECLARE %6"gc5PyGJX8qzr": 4 
+#.DECLARE %7"7TFg0lYPkYSf": 4 
+#.DECLARE %8"HSkfF@cJMUS9": 4 
+#.DECLARE %9"xLa0YGczibqh": 4 
+#.DECLARE %10"qGE6kXTfdEGc": 4 
+#.DECLARE %11"6W79QmXDQTMF": 4 
+#.DECLARE %12"9VC8uYcUR2Vv": 4 
+#.DECLARE %13"AYFU6UvYDdaA": %14"/net/csr/csr/epics/R3.13.1/support/base/3-13-3/src/libCom/O.solaris/../../../include/tsDLList.h"
+#.DECLARE %15"xSppUic76F6u": 14 
+#.DECLARE %16"hcIobfITWjtC": %17"/net/csr/csr/epics/R3.13.1/support/base/3-13-3/src/libCom/O.solaris/../../../include/tsSLList.h"
+#.DECLARE %18"_om0g_Irm2wg": 17 
+#.DECLARE %19"VjUADl52xFMm": 17 
+#.DECLARE %20"osiTimer.o": %21"../osiTimer.cc"
+#.DECLARE %22"bGM9pEQBd3Qr": 14 
+#.DECLARE %23"KCITdjquEiKp": 14 
+#.DECLARE %24"oXbcbZPuK5CV": 14 
+#.DECLARE %25"qa_pK50117G2": 14 
+#.OPTIONS 1 : %26"-I. -I.. -I../../../include -I../../../include/os/solaris -c  -DUNIX -D_REENTRANT -KPIC  -DSOLARIS +w  +p  -O"
+#.OPTIONS 20 : 26 
+#.DEPEND 3 : %27"/net/csr/csr/epics/R3.13.1/support/base/3-13-3/src/libCom/O.solaris/../../../include/os/solaris/osiSock.h"4%28,"shareLib.h"14 17%29"/net/csr/csr/epics/R3.13.1/support/base/3-13-3/src/libCom/O.solaris/../bsdSocketResource.h"%30,"fdManager.h"%31,"osiSleep.h"%32,"osiTime.h"%33,"osiTimer.h"%34"/usr/include/arpa/inet.h"%35"/usr/include/assert.h"%36,"errno.h"%37,"floatingpoint.h"%38,"limits.h"%39,"math.h"%40"/usr/include/net/if.h"%41"/usr/include/netdb.h"%42"/usr/include/netinet/in.h"%43,"tcp.h"%44"/usr/include/stdio.h"%45,"string.h"%46"/usr/include/sys/byteorder.h"%47,"condvar.h"%48,"cred.h"%49,"errno.h"%50,"feature_tests.h"%51,"filio.h"%52,"ieeefp.h"%53,"int_limits.h"%54,"int_types.h"%55,"ioccom.h"%56,"ioctl.h"%57,"isa_defs.h"%58,"machlock.h"%59,"machsig.h"%60,"machtypes.h"%61,"model.h"%62,"mutex.h"%63,"netconfig.h"%64,"param.h"%65,"pirec.h"%66,"poll.h"%67,"resource.h"%68,"rwlock.h"%69,"select.h"%70,"semaphore.h"%71,"siginfo.h"%72,"sleepq.h"%73,"socket.h"%74,"sockio.h"%75,"stream.h"%76,"strmdep.h"%77,"t_lock.h"%78,"time.h"%79,"turnstile.h"%80,"types.h"%81,"uio.h"%82,"unistd.h"%83,"va_list.h"%84,"vnode.h"%85"/usr/include/time.h"%86,"unistd.h"%87"/usr/include/vm/seg_enum.h"
+#.DEPEND 5 : *64
+#.DEPEND 6 : *64
+#.DEPEND 7 : *64
+#.DEPEND 8 : *64
+#.DEPEND 9 : *64
+#.DEPEND 10 : *64
+#.DEPEND 11 : *64
+#.DEPEND 12 : *64
+#.DEPEND 13 : *64
+#.DEPEND 15 : *64
+#.DEPEND 16 : *64
+#.DEPEND 18 : *64
+#.DEPEND 19 : *64
+#.DEPEND 22 : 28*1 32*1 35 38 44 50 53 57 83
+#.DEPEND 23 : *11
+#.DEPEND 24 : *11
+#.DEPEND 25 : *11
+#.TEMPLATE 5 : 11 7 12 8 19 18 6 16 10 9
+#.TEMPLATE 6 : 19*1 16
+#.TEMPLATE 7 : *1
+#.TEMPLATE 8 : *1 10
+#.TEMPLATE 9 : *1
+#.TEMPLATE 10 : *1
+#.TEMPLATE 11 : 18*1
+#.TEMPLATE 12 : 
+#.TEMPLATE 19 : 
+#.TEMPLATE 16 : 
+#.TEMPLATE 18 : 
+#.TEMPLATE 1 : 11*2 3 13 8 5 19 18 6*3 15
+#.BUILD "fdManager.o" : "/net/csr/csr/epics/R3.13.1/support/base/3-13-3/src/libCom/O.solaris" "../fdManager.cc"
+#.TEMPLATE 15 : 
+#.TEMPLATE 13 : 
+#.TEMPLATE 3 : 
+#.TEMPLATE 20 : 23 22 24 25
+#.BUILD "osiTimer.o" : "/net/csr/csr/epics/R3.13.1/support/base/3-13-3/src/libCom/O.solaris" "../osiTimer.cc"
+#.TEMPLATE 25 : 
+#.TEMPLATE 24 : 
+#.TEMPLATE 23 : 
+#.TEMPLATE 22 : 
+#.PROGRAM "libCom.a"
