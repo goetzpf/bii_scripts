@@ -123,14 +123,22 @@ sub tk_login
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
     $FrTop->Label(-text => 'password:'
                  )->grid(-row=>$row++, -column=>0, -sticky=> "w");
+
     $row=0;
-    $FrTop->Entry(-textvariable => \$r_glbl->{db_name}
-                 )->grid(-row=>$row++, -column=>1, -sticky=> "w");
-    $FrTop->Entry(-textvariable => \$r_glbl->{user}
-                 )->grid(-row=>$row++, -column=>1, -sticky=> "w");
-    $FrTop->Entry(-textvariable => \$r_glbl->{password},
-                  -show => '*',
-                 )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+    my $e1= $FrTop->Entry(-textvariable => \$r_glbl->{db_name}
+                         )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+    my $e2= $FrTop->Entry(-textvariable => \$r_glbl->{user}
+                         )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+    my $e3= $FrTop->Entry(-textvariable => \$r_glbl->{password},
+                          -show => '*',
+                         )->grid(-row=>$row++, -column=>1, -sticky=> "w");
+
+    $e1->focus();
+    
+    $e1->bind('<Return>', sub { $e2->focus() } );
+    $e2->bind('<Return>', sub { $e3->focus() } );
+    $e3->bind('<Return>', sub { tk_login_finish($r_glbl); } );
+    # [\&tk_login_finish, $r_glbl ] doesn't work!
 
     $FrDn->Button(-text => 'Login',
                   %std_button_options,
@@ -145,7 +153,6 @@ sub tk_login
 
 sub tk_login_finish
   { my($r_glbl)= @_;
-
 
     my $db_handle;
     if (!$sim_oracle_access)
@@ -266,28 +273,37 @@ sub tk_main_window
 	
 	$r_glbl->{table_browse_widget}= 
 	
-                        $DlgEnt->BrowseEntry(
-					       -label=>'please enter the table-name:',
-					       -labelPack=>=>[-side=>"left", anchor=>"w"],
-					       -width=>34,
-					       -validate=> 'key',
-					       
-					       #-textvariable=>$r_glbl->{browse_val},
-					       
-					       -validatecommand=> [ \&tk_handle_table_browse_entry,
-					       			    $r_glbl]
-					       
-					      )->pack( %dlg_def_labentry);
+            $DlgEnt->BrowseEntry(
+		       -label=>'please enter the table-name:',
+		       -labelPack=>=>[-side=>"left", anchor=>"w"],
+		       -width=>34,
+		       -validate=> 'key',
 
-	$r_glbl->{table_browse_widget}->insert('end', @{$r_glbl->{table_browse_objs}});
+		       #-textvariable=>$r_glbl->{browse_val},
 
-	$r_glbl->{table_browse_button}= $DlgEnt->Button( -state=>"disabled",
-							 -text=>"Show",
-							 -underline=>0,
-							 -justify=>"center",
-							 -command => [\&tk_open_new_table_finish, 
-							               $r_glbl ],
-	)->pack( %dlg_def_okbutton,);
+		       -validatecommand=> [ \&tk_handle_table_browse_entry,
+					    $r_glbl]
+				)->pack( %dlg_def_labentry);
+
+         $r_glbl->{table_browse_widget}->bind(
+	                    '<Return>',
+			    sub { my $b= $r_glbl->{table_browse_button};
+			          return if ($b->cget('-state') eq "disabled");
+				  tk_open_new_table_finish($r_glbl);
+			        } 
+			                     );
+
+	$r_glbl->{table_browse_widget}->insert(
+	                     'end',@{$r_glbl->{table_browse_objs}});
+
+	$r_glbl->{table_browse_button}= 
+	         $DlgEnt->Button( -state=>"disabled",
+				  -text=>"Show",
+				  -underline=>0,
+				  -justify=>"center",
+				  -command => [\&tk_open_new_table_finish, 
+						$r_glbl ],
+	                        )->pack( %dlg_def_okbutton,);
 	
 
 	# dialog tables
@@ -437,8 +453,14 @@ sub tk_handle_table_browse_entry
   { my($r_glbl, $proposed, $chars_added, 
        $value_before, $index, $action)= @_;
     
-    my $returnval= 1;   
+    my $rewrite_value;
+     
     my $r_all_objects= $r_glbl->{accessible_objects};  
+    
+    if (uc($proposed) ne $proposed)
+      { $proposed= uc($proposed);
+        $rewrite_value= 1;
+      };
     
     # print join(",",$proposed, $chars_added,$value_before, $index, $action),"\n";
 
@@ -446,7 +468,8 @@ sub tk_handle_table_browse_entry
 
     if (!@matches)
       { # the table doesn't exist
-        return(0); 
+        $r_glbl->{table_browse_widget}->bell();
+	return(0); 
       };
     
     if ($#matches != $#{$r_glbl->{table_browse_objs}})
@@ -460,13 +483,8 @@ sub tk_handle_table_browse_entry
     if ((defined $completion) && ($action==1)) # action=1: insert
       {
 	if (length($completion)>length($proposed))
-	  { 
-	    my $Entry= $r_glbl->{table_browse_widget}->Subwidget('entry');
-	    my $r_var= ($Entry->configure('-textvariable'))[4];
-	    $$r_var= $completion;
-	    $Entry->icursor('end');
-	    $returnval=0; # must return 0 since the value changed
-	    $proposed= $completion; 
+	  { $proposed= $completion;
+	    $rewrite_value= 1;
 	  };
       };
 
@@ -482,7 +500,16 @@ my $x= $proposed; $x=~ s/^\w+\.//;
 	
 	$r_glbl->{new_table_name}= $x;
       };
-    return($returnval);
+      
+    if ($rewrite_value)
+      { my $Entry= $r_glbl->{table_browse_widget}->Subwidget('entry');
+	my $r_var= ($Entry->configure('-textvariable'))[4];
+	$$r_var= $proposed;
+	$Entry->icursor('end');
+	return(0);
+      };
+      
+    return(1);
   }
 
 sub tk_open_new_table
@@ -2542,3 +2569,5 @@ Verbesserungsvorschläge:
 
 * shortcut-anzeige (Meta-...) stimmt nicht
   (vielleicht nur auf HP-UX...)
+
+* entry-felder: return soll was aktivieren 
