@@ -195,7 +195,9 @@ sub file2db
       { $ld_options{mode}="add"; };
       
     $tab->load(%ld_options);
-    $tab->store();
+    # since there cannot be any preliminary primary keys,
+    # it is correct here to leave the primary keys untouched
+    $tab->store(primary_key=>"preserve");
     dbitable::disconnect_database();
   }
 
