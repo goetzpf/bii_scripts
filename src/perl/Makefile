@@ -41,18 +41,8 @@ all: $(modules_pm)
 
 install: $(modules_inst_man)
 
-clean: 
-	for dir in $(modules); do \
-	  $(MAKE) -C $$dir clean; \
-	done
-
-#	for dir in $(modules); do \
-#	  { if test ! -e $$dir/Makefile; \
-#	    then cd $*; perl Makefile.PL ; \
-#	    fi; };
-#	  $(MAKE) -C $$dir clean; \
-#	done
-
+clean:
+	@$(foreach m,$(modules),'$(MAKE) -C $m clean;')
 
 # global install, taken from the man-page
 $(mandir)/man3/%.3: %/pm_to_blib 
@@ -71,5 +61,4 @@ $(mandir)/man3/%.3: %/pm_to_blib
 	   INSTALLMAN3DIR=$(mandir)/man3 \
 	   INSTALLBIN=$(bindir) \
 	   PREFIX=$(perlinstdir)
-
 
