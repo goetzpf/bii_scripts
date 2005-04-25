@@ -3,6 +3,20 @@ This is the BESSY-scripts bundle.
 You find here modules for perl and scripts that hopefully
 will make your work easier.
 
+How to make and install
+=======================
+
+Automatic build and installation under /opt/csr is performed by executing
+
+	./install.sh
+
+on the command line. If you want to install to a different location, use the
+command line in install.sh and change the 'prefix' and 'SHARE_DIR' parameters
+to suit your needs.
+
+Documentation
+=============
+
 You can find further Documentation here:
 
 doc/txt/CONTENTS 
@@ -23,7 +37,11 @@ doc/txt/USE_PERL
 LICENSE
 	the text of the software license 
 
-Licensing:
-	these scripts currently are for bessy internal use only.
-	If not stated otherwise, they are copyrighted by BESSY mbh,
-	the original license text can be found in "LICENSE"
+README
+	The file you reading at the moment
+
+Licensing
+=========
+
+Currently BESSY internal use only. If not stated otherwise, copyrighted by
+BESSY mbh. The original license text can be found in "LICENSE".
