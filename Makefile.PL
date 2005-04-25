@@ -46,9 +46,6 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm create_subst.pm
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm);
 
-#my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
-#            cfgfile.pm dbdrv.pm canlink.pm);
-                
 
 my %pm;
 foreach my $m (@modules)
