@@ -19,7 +19,7 @@ our @EXPORT = qw(
   write_template
   write_template_sql
 );
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.3 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.4 $ =~ /(\d+)/g;
 
 use strict;
 use Carp;
@@ -126,9 +126,9 @@ sub perform_query {
   # 1st arg: database handle to perform query on
   # 2nd arg: sql query
   # 3rd arg: reference to a row handler routine that takes
-  #   (1) a reference to an array of column names, and
-  #   (2) a reference to a hash containing name/value pairs
-  #       (such as returned by DBI::fetchrow_hashref)
+  #   (1) a reference to a hash containing name/value pairs
+  #       (such as returned by DBI::fetchrow_hashref), and
+  #   (2) a reference to an array of column names
   # 4th arg [optional]: reference to a colname handler routine that takes
   #   a reference to an array of column names
   my ($dbh,$query,$row_handler,$colname_handler) = @_;
@@ -139,7 +139,7 @@ sub perform_query {
   $colname_handler->($colnames) if defined $colname_handler;
 
   while (my $row = $sth->fetchrow_hashref) {
-    $row_handler->($colnames,$row);
+    $row_handler->($row,$colnames);
   }
 }
 
@@ -171,8 +171,9 @@ sub write_template_sql {
   # 3rd arg: database handle to perform query on
   # 4th arg: sql query
   # 5th arg [optional]: reference to a row patch routine that takes
-  #   a reference to a hash containing name/value pairs
-  #   (such as returned by DBI::fetchrow_hashref)
+  #   (1) a reference to a hash containing name/value pairs
+  #       (such as returned by DBI::fetchrow_hashref), and
+  #   (2) a reference to an array of column names
   # 6th arg [optional]: reference to a colnames patch routine that takes
   #   a reference to an array of colnames
   my ($fh,$template,$dbh,$query,$patch_row,$patch_colnames) = @_;
@@ -181,8 +182,8 @@ sub write_template_sql {
       my $fh = shift;
       perform_query($dbh,$query,
         sub {
-          my ($colnames,$row) = @_;
-          $patch_row->($row) if defined $patch_row;
+          my ($row,$colnames) = @_;
+          $patch_row->($row,$colnames) if defined $patch_row;
           write_subst_line($fh, join(",", map("$_=\"$row->{$_}\"", @$colnames)));
         },
         $patch_colnames
