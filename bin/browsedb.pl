@@ -45,7 +45,7 @@ use Tk::Balloon;
 use Tk::TableMatrix;
 #use Tk::TableMatrix::Spreadsheet;
 use Tk::ProgressBar;
-use Tk::Date;
+# use Tk::Date; 
 use Tk::NumEntry;
 
 use Text::ParseWords;
@@ -238,8 +238,9 @@ $global_data{theme}->{text}= { '-background' => "gray81",
                              };
                              
 $global_data{theme}->{shell}= { #'-background' => "black",
+                                '-background' => "gray90",
                                 '-font'       => "{courier} 10",
-                                '-foreground' => "white",
+                                '-foreground' => "black",
 #                               '-selection'  => "{courier} 10 bold",
 #                               '-cursor'     => "yellow",
 #                               '-commit'     => "green",
@@ -1104,7 +1105,6 @@ sub tk_main_window
         $r_glbl->{MainWindow}->{script_listbox_widget}=$DlgScrListbox;
 
         # dialog sequel
-        my $DlgSQLCommand;
         $DlgSQL->Label(
                 -text=>"History :",
         )->pack( %dlg_def_labentry, );
@@ -1119,6 +1119,25 @@ sub tk_main_window
                  -side=>"top",
                  -expand=> 1,
         );
+
+        my $DlgSQLCommand = $DlgSQL->Scrolled(
+                "TextUndo",
+                -height=> 10,
+                -wrap=> "word",
+                -scrollbars=> "osoe",
+                -exportselection=> "true",
+                theme_parameters($r_glbl,'shell',
+                                 '-background','-foreground','-font')
+#                -width=>80,
+#                -validate=>cb_sqlcommand_validate(),
+        )->pack( -anchor=> "s",
+                 -padx=>2, -pady=>2,
+                 -ipadx=>1, -ipady=>1,
+                 -fill=>"both",
+                 -side=>"bottom",
+                 -expand=> 0, );
+                 
+
         BrowseDB::TkUtils::clear_undef_keys($DlgSQLHistory);
         $r_glbl->{MainWindow}->{sql_history_widget}=$DlgSQLHistory;
         $DlgSQL->Label( -text=> "Statement :",
@@ -1131,32 +1150,13 @@ sub tk_main_window
                             -command=>
                               sub {
                                     my $query_command =
-                                         $DlgSQLCommand->getSelected();
-                                    if (length ($query_command) <= 2)
-                                      {
-                                        $query_command =
-                                           $DlgSQLCommand->get('1.0', 'end');
-                                      }
+                                         $DlgSQLCommand->get('@1,0','end');
                                     tk_execute_new_query($r_glbl,
                                                          $query_command);
                                   }
            )->pack(%dlg_def_okbutton,
                 -side=>"bottom");
-        $DlgSQLCommand = $DlgSQL->Scrolled(
-                "TextUndo",
-                -height=> 10,
-                -wrap=> "word",
-                -scrollbars=> "osoe",
-                theme_parameters($r_glbl,'shell',
-                                 '-background','-foreground','-font')
-#                -width=>80,
-#                -validate=>cb_sqlcommand_validate(),
-        )->pack( -anchor=> "s",
-                 -padx=>2, -pady=>2,
-                 -ipadx=>1, -ipady=>1,
-                 -fill=>"both",
-                 -side=>"bottom",
-                 -expand=> 0, );
+
 
         $r_glbl->{MainWindow}->{sql_command_widget} = $DlgSQLCommand;
         BrowseDB::TkUtils::clear_undef_keys($DlgSQLCommand);
@@ -1168,21 +1168,12 @@ sub tk_main_window
 
         $DlgSQLCommand->
             bind('<Control-Return>' =>
-                 sub {  my $query_command;
-                        my $failure_selection = $DlgSQLCommand->getSelected();
-                        if (length($failure_selection) > 0)
-                        {
-                            $DlgSQLCommand->insert("insert",
-                                                   $failure_selection);
-                        }
-
-
-                        $DlgSQLCommand->delete('insert - 1 char');
-                        $query_command = $DlgSQLCommand->get('1.0', 'end');
-                        $DlgSQLCommand->tagAdd('selection', '1.0', 'end');
-                        tk_execute_new_query($r_glbl, $query_command);
-
-                     }
+                              sub {
+                                    my $query_command =
+                                         $DlgSQLCommand->get('@1,0','end');
+                                    tk_execute_new_query($r_glbl,
+                                                         $query_command);
+                                  }
                 );
         $DlgSQLCommand->tagConfigure("string",
              theme_parameters($r_glbl,'shell:string','-foreground')
@@ -1635,9 +1626,17 @@ sub tk_execute_new_query
         BrowseDB::TkUtils::Progress($r_glbl, ($counter/($size+1))*100);
         if (! defined ($r_glbl->{dbh}->err))
         {
-            $sql_command_widget->delete('sel.first', 'sel.last');
+#warn "sqlquery: $sqlquery"; @@@@
+#            $sql_command_widget->delete('sel.first', 'sel.last');
+            $sql_command_widget->delete('@1,0','end');
+
             $sql_history_widget->insert('end', "\n");
-            $sql_history_widget->insert('end', "$sqlquery;", "green");
+            
+            # @@@ "green" must be a defined tag for that widget, otherwise
+            # it won't work:
+            #$sql_history_widget->insert('end', "$sqlquery;", "green");
+            
+            $sql_history_widget->insert('end', "$sqlquery;");
             $sql_history_widget->insert('end', "\n");
             print $fh "\n".$sqlquery.";\n";
 
