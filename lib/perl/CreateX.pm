@@ -19,7 +19,7 @@ our @EXPORT = qw(
   write_template
   write_template_sql
 );
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.4 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.5 $ =~ /(\d+)/g;
 
 use strict;
 use Carp;
@@ -31,7 +31,7 @@ use DBI;
 sub app_ioc {
   my $arg = shift;
   my @app_ioc = split /\./, $arg;
-  @app_ioc == 2 or confess "Bad argument '$arg'!";
+  @app_ioc == 2 or @app_ioc == 1 or confess "Bad argument '$arg'!";
   return @app_ioc;
 }
 
@@ -39,9 +39,10 @@ sub app_ioc {
 # Also prints a message to indicate what is going to be done.
 sub std_open_target {
   my ($app,$ioc,$suffix) = @_;
-  my $filename = "$app.$ioc.$suffix";
+  my $filename = (defined $ioc) ? "$app.$ioc.$suffix" : "$app.$suffix";
   open my $filehandle, ">", $filename or confess "Can't open $filename: $!\n";
-  print "Creating $suffix file for $app on $ioc\n";
+  my $onioc = " on $ioc" if defined $ioc;
+  print "Creating $suffix file for $app$onioc\n";
   return $filehandle;
 }
 
