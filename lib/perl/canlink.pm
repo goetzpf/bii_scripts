@@ -6,7 +6,6 @@ package canlink;
 # ===========================================================
 
 use strict;
-
 BEGIN {
 
 use Exporter   ();
@@ -265,7 +264,7 @@ sub interview
 
     $p{port}   = num_question(0,255,1,"please enter the port number:");
 
-    $sel==question( 'specify in-cob,out-cob',
+    $sel=question( 'specify in-cob,out-cob',
                     'specify sob, nid',
                     'specify cid, nid');
 
