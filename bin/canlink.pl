@@ -11,7 +11,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 use strict;
 #activate perl-extensions:
 #use lib "$ENV{HOME}/pmodules";
-use perl_site;
+#use perl_site;
 
 use Getopt::Long;
 use FindBin;
