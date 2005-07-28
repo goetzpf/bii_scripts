@@ -23,16 +23,17 @@ use File::Find;
 use File::Spec;
 
 use vars qw($opt_help $opt_summary
-           $opt_text $opt_ccode $opt_make $opt_perl 
+           $opt_text $opt_ccode $opt_headers $opt_make $opt_perl 
             $opt_progress
             $opt_perl_ex
+	    $opt_ignore_case
             $opt_blank $opt_no_filenames $opt_list $opt_list_nomatch 
 	    $opt_stdin_list
 	    $opt_mult
 	    );
 
 
-my $version= "1.3";
+my $version= "1.4";
 
 my $file_assist=1;
 # sometimes, when "file" scans a binary file, it recognizes a
@@ -43,8 +44,9 @@ my $file_assist=1;
 
 Getopt::Long::config(qw(no_ignore_case));
 if (!GetOptions("help|h","summary",
-                "text|t", "ccode|c", "make|m", "perl|p", 
+                "text|t", "ccode|c", "headers|H", "make|m", "perl|p", 
                 "perl_ex|P",
+		"ignore_case|i",
 		"progress",
                 "list|l", 
 		"list_nomatch|L",
@@ -97,8 +99,12 @@ if (!defined $opt_stdin_list) # search recursively for files
 
 if ($s_regex !~ /^\//)
   { $s_regex= "/$s_regex/"; };
+
+if (defined $opt_ignore_case)
+  { $s_regex.= "i"; };
       
-# print "****|$s_regex|\n";
+#print "****|$s_regex|\n";
+#die;
 
 if (defined $opt_mult) # multi-line mode
   { $s_regex=~ /^\/(.*)\/(\w*)$/;
@@ -126,7 +132,7 @@ eval( "sub line_filter " .
 if ($@)
   { die "error: eval() failed, error-message:\n" . $@ . " "  };
       
-my $option_filter= ($opt_ccode || $opt_perl || $opt_make);
+my $option_filter= ($opt_ccode || $opt_headers || $opt_perl || $opt_make);
 my $text_filter  = ($opt_perl_ex || $opt_text);
 
 if (!defined $opt_stdin_list) # search recursively for files 
@@ -173,7 +179,10 @@ sub wanted
 
     if ($option_filter)
       { for(;;)
-          { if ($opt_ccode)
+          { if ($opt_headers)
+              { last if ($file =~ /\.h$/); };
+
+            if ($opt_ccode)
               { last if ($file =~ /\.(c|cc|CC|cpp|h)$/); };
 
             if ($opt_perl)
@@ -385,9 +394,11 @@ Syntax:
   
   options:
     -h: help
+    -i: ignore case in search-regular expression
     -t: use the "file" command to search only text-files
     -c: only check c and c++ files, this means all files matching
         *.c, *.cc. *.CC. *.cpp. *.h 
+    -H: only check c-headers, this means all files matching *.h 
     -p: search only for perl-files: *.p *.pl *.pm
     -P: extended perl search, find perl-files by analysing their content
         should only be used together with '-p', since recognizing a
