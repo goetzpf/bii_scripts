@@ -38,10 +38,11 @@ our $opt_action;
 our $opt_tag;
 our $opt_filter;
 our $opt_order_by;
+our $opt_new_name;
 our $opt_summary;
 our $opt_no_auto_pk;
 
-my $version="1.2";
+my $version="1.3";
 
 my %known_actions= (file2file=> 1,
                     db2file=>1, 
@@ -58,7 +59,8 @@ if (!GetOptions("help|h", "summary",
                 "database|d=s", "user|u=s", "password|p=s",
 	        "table|t=s", "file|f=s", "outfile|o=s",
 		"tag|T=s","action|a=s",
-		"filter|F=s","order_by=s",
+		"filter|F=s","order_by:s",
+		"new_name|n=s",
 		"delete|D", "no_auto_pk"
 		
                 ))
@@ -149,8 +151,14 @@ if (defined $opt_filter)
   }; 
  
 if (defined $opt_order_by)
-  { $parameters{order_by}=[ split(",",$opt_order_by) ]; }; 
+  { if (!$opt_order_by)
+      { $parameters{order_by}= ""; }
+    else
+      { $parameters{order_by}=[ split(",",$opt_order_by) ]; };
+  }; 
 
+if (defined $opt_new_name)
+  { $parameters{new_name}= $opt_new_name; };
 
 if    ($opt_action eq 'file2file')
   { file2file(%parameters); }
@@ -175,7 +183,15 @@ sub db2screen
 
     my $tab= dbitable->new('table',$dbh,
                            $options{table},
-			   $options{pk})->load(%ld_options);
+			   $options{pk});
+			   
+    if (!defined $tab)
+      { die "error: table not readable, $dbitable::last_error\n"; };
+    
+    if ($options{order_by}=="")
+      { $options{order_by}= [$tab->primary_key_columns()]; };
+    
+    $tab->load(%ld_options);
 
     dbitable::disconnect_database($dbh);
 
@@ -190,13 +206,21 @@ sub db2file
     my $dbh= get_dbh(\%options);
 
     my %ld_options;
-    copy_hash_entries(\%options,\%ld_options,"filter");
+    copy_hash_entries(\%options,\%ld_options,"filter","new_name");
 
 
     my $tab= dbitable->new('table',$dbh,
                            $options{table},
-			   $options{pk})->load(%ld_options);
+			   $options{pk});
 
+    if (!defined $tab)
+      { die "error: assertion, last error: $dbitable::last_error"; };
+
+    if ($options{order_by}=="")
+      { $options{order_by}= [$tab->primary_key_columns()]; };
+    
+    $tab->load(%ld_options);
+    
     dbitable::disconnect_database($dbh);
 
     my %st_options= (pretty=> 1);
@@ -219,9 +243,19 @@ sub file2db
       { $ftab_options{primary_key}="preserve"; };
 
     my $ftab= dbitable->new('file',$options{file},$options{tag},
-                           )->load(%ftab_options);
+                           );
+			   
+    if (!defined $ftab)
+      { die "error: table not readable, $dbitable::last_error\n"; };
 
+    copy_hash_entries(\%options,\%ftab_options,"new_name");
+
+    $ftab->load(%ftab_options);
+    
     my $tab = $ftab->new('table',"",'','');
+
+    if (!defined $tab)
+      { die "error: assertion, last error: $dbitable::last_error"; };
  
     my %ld_options;
     copy_hash_entries(\%options,\%ld_options,"filter","mode");
@@ -229,6 +263,8 @@ sub file2db
     if (!exists $ld_options{mode})
       { $ld_options{mode}="add"; };
       
+warn "ld_options: " . join(",",%ld_options);
+
     $tab->load(%ld_options);
     # since there cannot be any preliminary primary keys,
     # it is correct here to leave the primary keys untouched
@@ -242,6 +278,9 @@ sub file2screen
     my $ftab= dbitable->new('file',$options{file},$options{tag},
                            )->load(pretty=>1,primary_key=>"generate");
 
+    if ($options{order_by}=="")
+      { $options{order_by}= [$ftab->primary_key_columns()]; };
+    
     my %pp_options;
     copy_hash_entries(\%options,\%pp_options,"order_by");
     
@@ -251,9 +290,15 @@ sub file2screen
 sub file2file
   { my(%options)= @_;
 
+    my %ld_options=(pretty=>1,primary_key=>"generate");
+    copy_hash_entries(\%options,\%ld_options,"new_name");
+    
     my $ftab= dbitable->new('file',$options{file},$options{tag},
-                           )->load(pretty=>1,primary_key=>"generate");
+                           )->load(%ld_options);
 
+    
+    if ($options{order_by}=="")
+      { $options{order_by}= [$ftab->primary_key_columns()]; };
     
     my %st_options= (pretty=>1);
     copy_hash_entries(\%options,\%st_options,"order_by");
@@ -305,6 +350,11 @@ options:
   -t [table-name,primary_key]: this is mandatory for all actions db2...
      The primary_key may be omitted, in this case it is determined
      by a special SQL query
+     
+  -n [new table name]
+     change the table-name to the new given name. This may be useful 
+     when a table is copied to another table with a different name but 
+     the same structure    
 
   -f [filename]
      This is mandatory for all actions file2...
@@ -323,6 +373,8 @@ options:
 
   --order_by [column-name1,column-name2...] : 
      this is only relevant for "...2file and ...2screen"
+     if no columns are given ordering is made according to
+     primary keys
      
   -D deletion mode (only for file2db). In this case, lines
      that are not found in the file but only the database are
