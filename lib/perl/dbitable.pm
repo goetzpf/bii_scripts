@@ -1690,6 +1690,10 @@ sub load_from_db
 
         $self->{_native_pk_list}= \@new_list;
       };
+      
+    # change table name if the user wants it:
+    if (exists $options{new_name})
+      { $self->{_table}= $options{new_name}; };
 
     return($self);
   }
@@ -2103,6 +2107,8 @@ sub load_from_file
 #       needed for files that were created with the pretty-option
 # primary_key=> 'generate', 'preserve',
 #           generate: only done where pk==0 !!!!
+# new_name=> $name
+#       change $self->{_table} to the new name   
   { my $self= shift;
     my %options= @_;
 
@@ -2347,6 +2353,11 @@ sub load_from_file
         $r_aliases->{ $pk }= $pk;
       };
     $self->{_lines}= \%lines_hash;
+    
+    # change table name if the user wants it:
+    if (exists $options{new_name})
+      { $self->{_table}= $options{new_name}; };
+
     return($self);
   }
 
@@ -3207,6 +3218,16 @@ either "0" or "1". With "0", the file is just read as it is, this is the
 default, when "pretty" is not defined. With "1", spaces at the end of fields
 are removed. This option is needed, when the file was created (via C<store>)
 with the "pretty" option also active (see C<store>).
+
+=item *
+
+"new_name"
+
+  $table->load(new_name=>"my_new_table_name")
+
+By this option, the internal table name is changed to the new given
+name. This may be useful when a table is loaded and shall then be stored
+under a different name.
 
 =back
 
