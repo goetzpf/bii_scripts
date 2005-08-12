@@ -35,7 +35,8 @@ my $ldir= "lib/perl/";
 my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl 
                 grab_xkeys.pl browsedb.pl paths2.pl 
                 dbcount pfind.pl dbdiff Sch2db.pl
-                dbscan.pl set_ioc_tsrv.pl hgen.pl canlink.pl);
+                dbscan.pl set_ioc_tsrv.pl hgen.pl 
+                canlink.pl filter_can_links.pl);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
