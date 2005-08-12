@@ -272,13 +272,26 @@ sub interview
 
     if (!$p{multi})
       { if    ($p{access} eq 'r')
-          { $w_needed=0; } # outgoing cob is not needed
+          { 
+	    if (!$p{server})
+	      { $w_needed=0; } # outgoing cob is not needed
+	    else
+	      { $r_needed=0; } # incoming cob is not needed
+	  }
         elsif ($p{access} eq 'w')
-          { $r_needed=0; } # incoming cob is not needed
+          { if (!$p{server})
+	      { $r_needed=0; } # incoming cob is not needed
+	    else  
+	      { $w_needed=0; } # outgoing cob is not needed
+	  } 
       }
     else
       { if    ($p{access} eq 'w')
-          { $r_needed=0; } # incoming cob is not needed
+          { if (!$p{server})
+	      { $r_needed=0; } # incoming cob is not needed 
+            else
+	      { $w_needed=0; } # outgoing cob is not needed 
+	  } 
       };
 
     if   ($sel==0)
