@@ -1114,14 +1114,27 @@ sub value
     my $column= shift; $column= uc($column);
     my $newval= shift;
 
-    my $pk= $self->{_aliases}->{$key};
+    my $pk;
+    if (!exists $self->{_aliases})
+      { $pk= $key; }
+    else
+      { $pk= $self->{_aliases}->{$key}; };
+      
     return if (!defined $pk);
 
     my $line= $self->{_lines}->{$pk};
     return if (!defined $line);
 
     if (!defined $newval)
-      { return $line->[ $self->{_columns}->{$column} ]; }
+      { my $i= $self->{_columns}->{$column};
+        if (!defined $i)
+          { dbdrv::dberror($mod,'value',__LINE__,
+                           "error: unknown column: $column");
+            return;
+          };
+
+        return $line->[ $i ]; 
+      }
     else
       { my $i= $self->{_columns}->{$column};
         if (!defined $i)
