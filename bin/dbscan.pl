@@ -645,12 +645,10 @@ sub check_dangling_links
 			if ($temp =~ /\:/ ) {      # detect and extract PV
 				$temp =~ /\,\"/;
 				$field = $`;
-				if ($field eq 'CALC') {
-					next;
-				}
-				if ($field eq 'DESC') {
-					next;
-				}
+				next if $field eq 'CALC';
+				next if $field eq 'OCAL';
+				next if $field eq 'DESC';
+				next if $field eq 'TST';
 				$link = $';
 				if ($link =~ / PP/) {     # strip off PP, NPP, MS, NMS
 					$link = $`;
