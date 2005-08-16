@@ -1,5 +1,5 @@
-eval 'exec /opt/perl5/bin/perl -w -S $0 ${1+"$@"}'
-    if 0; # not running under some shell
+eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
+    if 0;
 
 use strict;
 
