@@ -2898,6 +2898,15 @@ sub cb_show_contenttable
                             }
                 );
     $MnColMap->add('command',
+                -label=> 'Reload',
+                -command =>
+                        sub { set_column_map($r_glbl, $r_tbh,undef,
+                                             $column_popup{current_col}
+                                            );
+
+                            }
+                );
+    $MnColMap->add('command',
                 -label=> 'Toggle map usage',
                 -command =>
                         sub { my $col= $column_popup{current_col};
@@ -6476,22 +6485,33 @@ sub find_next_col
 #_______________________________________________________
 
 sub set_column_map
+# if sql_command is <undef>, try to reload the existing column-map
   { my($r_glbl,$r_tbh,$sql_command,$column_name)= @_;
+    my $r_col_map;
+    my $force_reload;
 
-
+    if (!defined $sql_command)
+      { $r_col_map= $r_tbh->{col_maps}->{$column_name};
+        return if (!defined $r_col_map);
+        $sql_command= $r_col_map->{sql_command};
+        return if (!defined $sql_command);
+        $force_reload= 1;
+      }
+    else
+      { $r_col_map= {}; }; # create a new column-map hash 
+    
     my($key_to_str,$r_str_to_key)=
-            get_column_map($r_glbl,$sql_command,$column_name);
+            get_column_map($r_glbl,$sql_command,$column_name,$force_reload);
 
     return if (!defined $r_str_to_key);
 
-    my %col_map;
-    $col_map{key_to_str} = $key_to_str;
-    $col_map{str_to_key} = $r_str_to_key;
-    $col_map{sql_command}= dbdrv::format_sql_command($sql_command);
+    $r_col_map->{key_to_str} = $key_to_str;
+    $r_col_map->{str_to_key} = $r_str_to_key;
+    $r_col_map->{sql_command}= dbdrv::format_sql_command($sql_command);
 
     $r_tbh->{col_map_flags}->{$column_name}= 'M';
 
-    $r_tbh->{col_maps}->{$column_name}= \%col_map;
+    $r_tbh->{col_maps}->{$column_name}= $r_col_map;
 
     return(1);
   }
@@ -6503,7 +6523,7 @@ sub column_has_a_map
   }
 
 sub get_column_map
-  { my($r_glbl,$sql_command,$column_name)= @_;
+  { my($r_glbl,$sql_command,$column_name,$force_reload)= @_;
 
     $sql_command= dbdrv::format_sql_command($sql_command);
 
@@ -6514,12 +6534,15 @@ sub get_column_map
         $r_map_hash= \%h;
       };
 
-    if (exists $r_map_hash->{$sql_command})
-      { return($r_map_hash->{$sql_command}->{key_to_str},
-               $r_map_hash->{$sql_command}->{str_to_key}
-              );
+    if (!$force_reload)
+      { 
+        if (exists $r_map_hash->{$sql_command})
+          { return($r_map_hash->{$sql_command}->{key_to_str},
+                   $r_map_hash->{$sql_command}->{str_to_key}
+                  );
+          };
       };
-
+      
     my $ntab= dbitable->new('view',$r_glbl->{dbh},
                              'col_map_query',"",$sql_command
                            );
@@ -7186,6 +7209,7 @@ Relogin funktioniert nicht, browsedb crashed !!!!!
 evtl Store bei jeder Änderung (nur bei Autocommit off)
 -----------------------------------
 Save Preferences Dialog einbauen!
+----------------------------------------
 
 Doppelclick auf Feld sollte Edit Fenster fuer das Feld oeffnen
 
