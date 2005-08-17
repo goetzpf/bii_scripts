@@ -210,14 +210,41 @@ sub canonify_name
     if (!defined $r_list)
       { return($name); };
 
+    my($public_syn,$user_syn,$other_syn);
+    # scan the list of synonyms:
     foreach my $n (@$r_list)
       { my($owner,$obj)= split(/\./,$n);
         if ($owner eq 'PUBLIC')
-          { return($obj); };
+          { $public_syn= $obj; 
+            # for PUBLIC synonyms, we can omit 
+            # the "owner" part in the name
+            next;
+          };
         if ($owner eq $user_name)
-          { return($obj); };
-        return($n);  
+          { $user_syn= $obj; 
+            # for user-synonyms, we can omit 
+            # the "owner" part in the name
+            next;
+          };
+        if (!defined $other_syn)
+          { $other_syn= $n;
+            # we just remember the first synonym that
+            # is neither PUBLIC nor user 
+            next;
+          };  
+        if ((defined $public_syn) && (defined $user_syn) && 
+            (defined $other_syn))
+          { # if all 3 types of synonyms were found, leave
+            # the loop
+            last; 
+          };    
       };
+    # a kind of priority here: return public-synonym when
+    # it was found, else try user-synonym if it was found,
+    # else return other-synonym (if found)  
+    return $public_syn if (defined $public_syn);  
+    return $user_syn   if (defined $user_syn);  
+    return $other_syn  if (defined $other_syn);  
     return($name);
   }
 
