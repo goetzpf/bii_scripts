@@ -25,15 +25,20 @@ use strict;
 use Data::Dumper;
 
 use FindBin;
+
+# enable this if you want to search modules like dbitable.pm
+# relative to the location of THIS script:
+# ------------------------------------------------------------
+# use lib "$FindBin::RealBin/../lib/perl";
+
 use Getopt::Long;
 
-use lib ".";
 use expander;
 
 use vars qw($opt_help $opt_summary $opt_file $opt_lazy $opt_arrays);
 
 
-my $sc_version= "0.9";
+my $sc_version= "1.0";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "performs expansion of macros in a file"; 
