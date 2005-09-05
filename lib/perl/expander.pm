@@ -8,7 +8,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.1;
+    $VERSION     = 1.2;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -24,6 +24,9 @@ use vars      @EXPORT_OK;
 our %m;
 our $is_lazy=0;
 our $use_arrays=0;
+our $debug=0;
+
+our $silent=0;
 
 my $callback;
 
@@ -39,7 +42,15 @@ my %is_bracket= ( '(' => 1,
                   '}' => 1);
 		  
 my %keywords= map{ $_ => 1 } 
-              qw (set eval if else endif include for endfor comment);		  
+              qw (set eval if else endif include for endfor 
+	          comment silent loud);		  
+
+
+my $err_pre;
+my $err_post;
+my $err_module="expander.pm";
+my $err_line;
+my $err_file;
 
 
 # used modules
@@ -98,6 +109,7 @@ sub parse_file
       { open(F, $filename) or die "unable to open $filename";
         $var= <F>;
         close(F);
+	$err_file= $filename;
       };	
     parse_scalar(\$var,$fh);
   }    
@@ -108,32 +120,49 @@ sub parse_scalar
     my(@ifcond)=(1);
     my @forstack;
   
+    my $pre;
+    my $post;
+    
     for(pos($$r_line)= 0, $p=0;
-        $$r_line=~ /\G(.*?)(\\\$|\$|\\$|\\\\n|\\n)/gsm;
+        $$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$|\s+|$)/gsm;
+        #$$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$)/gsm;
 	$p= pos($$r_line))
       {
+        $pre= $1;
+	$post= $2;
         
-	
-	if ($1 ne "")
-	  { print $fh $1 if ($ifcond[-1]>0); };
+	if ($pre ne "")
+	  { print $fh $pre if ($ifcond[-1]>0); };
 	  
+        if ($post=~ /\s+/)
+	  { next if ($silent);
+	    print $fh $post;
+	    next;
+	  };
+	  
+	if ($post eq "")
+	  { 
+	    next if ($silent);
+	    print $fh "\n";
+	    next;
+	  };
 
-	if ($2 eq "\\\\n") # backslash-backslash-n
+	if ($post eq "\\\\n") # backslash-backslash-n
 	  { print $fh "\\n" if ($ifcond[-1]>0);
 	    next; 
 	  };
 
-	if ($2 eq "\\n") # backslash-n
+	if ($post eq "\\n") # backslash-n
 	  { print $fh "\n" if ($ifcond[-1]>0);
 	    next; 
 	  };
 
-	if ($2 eq "\\\$") # backslashed dollar
+	if ($post eq "\\\$") # backslashed dollar
 	  { print $fh '$' if ($ifcond[-1]>0);
 	    next; 
 	  };
 	  
-	if ($2 eq "\\") # backslash at end of line
+	if ($post eq "\\") # backslash at end of line
 	  { $$r_line=~ /\G(.*?)^/gsm;
 	    next;  
 	  }
@@ -144,17 +173,26 @@ sub parse_scalar
 	  { print $fh $ex; 
 	    next;
 	  };
-	
+
+
 	if ($$r_line=~ /\G(set|eval|if|include|for|comment)\s*\(/gs)
-	  { if (($1 eq 'eval') || ($1 eq 'set'))
+	  { 
+	    if ($debug)
+	      { warn "--- \"$1\" recognized,\n"; };
+
+	    if (($1 eq 'eval') || ($1 eq 'set'))
 	      {	my $word= $1;
 	      
 	        if ($ifcond[-1]<=0)
-	          { next; };
+	          { $err_line= __LINE__;
+		    my $end= skip_bracket_block($r_line,pos($$r_line)-1);
+		    pos($$r_line)= $end+1;    
+		    next; 
+		  };
 
+		$err_line= __LINE__;
 		my($res,$end)= 
-		   eval_bracket_block($r_line,pos($$r_line)-1,__LINE__);
-		
+		   eval_bracket_block($r_line,pos($$r_line)-1);
 		print $fh $res if ($word eq 'eval');
 		pos($$r_line)= $end+1;
 		next;
@@ -163,14 +201,25 @@ sub parse_scalar
 	      { 
 		# if command
 
+		$err_line= __LINE__;
 		my($res,$end)= 
-		   eval_bracket_block($r_line,pos($$r_line)-1,__LINE__);
+		   eval_bracket_block($r_line,pos($$r_line)-1);
 
 	        if ($ifcond[-1]<=0) # already within an ignore-part
-	          { push @ifcond, 0;  # 0: ignore from IF to ENDIF !! 
+	          { if ($debug)
+		      { warn "--- skip complete if-block\n"; };
+		    push @ifcond, 0;  # 0: ignore from IF to ENDIF !! 
 		  } 
                 else
-		  { push @ifcond, ($res) ? 1 : -1; };
+		  { if ($debug)
+		      { if ($res)
+		          { warn "--- evaluated TRUE, continue\n"; }
+			else
+		          { warn "--- evaluated FALSE, skip 1st if-part\n"; }
+		      };
+		    push @ifcond, ($res) ? 1 : -1; 
+		  
+		  };
 		pos($$r_line)= $end+1;
 		next;
 	      }
@@ -180,18 +229,21 @@ sub parse_scalar
                 my($start,$end)= match($r_line,pos($$r_line)-1);
 #warn "matched at: $start,$end";
 		if (!defined $start)
-		  { fatal_parse_error($r_line,$p,
-		                      __LINE__,"malformed for-block"); 
+		  { $err_pre= "malformed for-block";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p,); 
 		  };
 		my $sub= substr($$r_line,$start+1,$end-$start-1);
 #warn "substr: |$sub|";
 		my($pre,$cond,$loop)= split(/;/,$sub);
 		if (!defined $loop)
-		  { fatal_parse_error($r_line,$p,
-		                      __LINE__,"malformed for-block"); 
+		  { $err_pre= "malformed for-block";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
 		  };
 		
-		eval_part($pre,$r_line,$p,__LINE__);
+		$err_line= __LINE__;
+		eval_part($pre,$r_line,$p);
 		push @forstack, [$end+1,$cond,$loop];
 		pos($$r_line)= $end+1;
 	        next;	
@@ -201,57 +253,97 @@ sub parse_scalar
                 my($start,$end)= match($r_line,pos($$r_line)-1);
 #warn "matched at: $start,$end";
 		if (!defined $start)
-		  { fatal_parse_error($r_line,$p,
-		                      __LINE__,"malformed for-block"); 
+		  { 
+		    $err_pre= "malformed for-block";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
 		  };
 		pos($$r_line)= $end+1;
 		next;
 	      }
 	    elsif  ($1 eq 'include')
 	      {
-
+#die "include encountered\n";
+		$err_line= __LINE__;
 		my($res,$end)= 
-		   eval_bracket_block($r_line,pos($$r_line)-1,__LINE__);
+		   eval_bracket_block($r_line,pos($$r_line)-1);
 
 	        if (!-r $res)
-		  { fatal_parse_error($r_line,$p,
-		                      __LINE__,"unable to open file $res"); 
+		  { $err_pre= "unable to open file $res";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
 		  };
+#die "res: $res\n";
 		parse_file($res,$fh);  
+		pos($$r_line)= $end+1;
+		next;
 	      }
 	    else
 	      { die "internal error"; }  
 	   }      
 	
 	pos($$r_line)= $p;
-	if ($$r_line=~ /\G(else|endif|endfor)/gs)
-          { if   ($1 eq 'else')
+	if ($$r_line=~ /\G(else|endif|endfor|silent|loud)/gs)
+          { 
+	    if ($debug)
+	      { warn "--- \"$1\" recognized,\n"; };
+	  
+	    if ($1 eq 'silent')
+	      { $silent=1; 
+	        next;
+	      };
+	    
+	    if ($1 eq 'loud')
+	      { $silent=0; 
+	        next;
+	      };
+	    
+	    if   ($1 eq 'else')
 	      { 
 	        if ($#ifcond<1)
-	          { fatal_parse_error($r_line,$p,
-		                      __LINE__,"else without if"); 
+	          { $err_pre= "else without if";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
 	          };
     	        $ifcond[-1]= -$ifcond[-1]; # 1 --> -1, -1-->1, 0-->0
-                next;
+                
+		if ($debug)
+		  { if ($ifcond[-1]<=0)
+		      { warn "--- skipping\n"; }
+		    else
+		      { warn "--- parse this block\n"; };
+		  };
+		next;
 	      }
 
 	    elsif  ($1 eq 'endif')
               { if ($#ifcond<1)
-	          { fatal_parse_error($r_line,$p,
-		                      __LINE__,"endif without if"); 
+	          { $err_pre= "endif without if";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
 		  };
 	        pop @ifcond; 
 	        next; 
               }
 	    elsif  ($1 eq 'endfor')
 	      { if ($#forstack<0)
-	          { fatal_parse_error($r_line,$p,
-		                      __LINE__,"endfor without for"); 
+	          { $err_pre= "endfor without for";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
 		  };
 		my($pos1,$cond,$loop)= @{$forstack[-1]};
 		
-		eval_part($loop,$r_line,$pos1,__LINE__);
-                my $res= eval_part($cond,$r_line,$pos1,__LINE__);
+		$err_line= __LINE__;
+		eval_part($loop,$r_line,$pos1);
+                $err_line= __LINE__;
+		my $res= eval_part($cond,$r_line,$pos1);
+		
+		if ($debug)
+		  { if ($res)
+		      { warn "--- looping\n"; }
+		    else
+		      { warn "--- leaving loop\n"; };
+		  };
 		if ($res)
 		  { pos($$r_line)= $pos1; }
 		else
@@ -270,36 +362,62 @@ sub parse_scalar
       } # for 
     
     if ($#ifcond !=0 )
-      {  fatal_parse_error($r_line,$p,
-                           __LINE__,"unfinished if-blocks"); 
+      {  
+        $err_pre= "unfinished if-blocks";
+	$err_line= __LINE__;
+        fatal_parse_error($r_line,$p); 
       };
       
     print $fh substr($$r_line,$p);
   }
 
 sub eval_part
-  { my($sub,$r_line,$pos,$lineno)= @_;
+  { my($sub,$r_line,$pos)= @_;
   
-    my $res= eval(mk_perl_varnames($sub));
+#warn "before:|" . $sub . "|\n";
+#warn "after:|" . mk_perl_varnames($sub,$comment) . "|\n";
+
+    my $subst= mk_perl_varnames($sub);
+    
+    if ($debug)
+      { warn "--- evaluate \"$sub\",\n--- after perlify: \"$subst\"\n"; };
+    
+    my $res= eval($subst);
     if ((!defined ($res)) && ($@ ne ""))
-      { fatal_parse_error($r_line,$pos,
-		          $lineno,"eval-error:$@"); 
+      { 
+	$err_pre= "eval-error:$@";
+	fatal_parse_error($r_line,$pos); 
       };
     return($res);
   }
 
-sub eval_bracket_block
-  { my($r_line,$start_at,$line)= @_;
+sub skip_bracket_block
+  { my($r_line,$start_at)= @_;
   
     my($start,$end)= match($r_line,$start_at);
+
     if (!defined $start)
-      { fatal_parse_error($r_line,$start_at,
-		          $line,"eval-block is malformed"); 
+      { 
+        $err_pre= "bracketed-block is malformed";
+	fatal_parse_error($r_line,$start_at); 
+      };
+    return($end);
+  }
+
+sub eval_bracket_block
+  { my($r_line,$start_at)= @_;
+  
+    my($start,$end)= match($r_line,$start_at);
+
+    if (!defined $start)
+      { 
+        $err_pre= "eval-block is malformed";
+	fatal_parse_error($r_line,$start_at); 
       };
     my $sub= substr($$r_line, $start+1, $end-$start-1);
 #warn "evaluate: $sub";
 
-    my $res= eval_part($sub,$r_line,$start_at,$line); 
+    my $res= eval_part($sub,$r_line,$start_at); 
 
     return($res,$end);
   }
@@ -352,8 +470,16 @@ sub fatal_parse_error
   { my($r_str,$position,$pline,$message)= @_; 
   
     my($line,$column)= find_position_in_string($r_str,$position);
-    die "fatal error detected at program line $pline, position in file:\n" .
-        "line $line, column $column:\n$message";
+    
+    my $err= "fatal error\n" .
+             "module: $err_module";
+    $err.= " line: $err_line" if (defined $err_line);
+    $err.= "\n$err_pre\n" if (defined $err_pre);    
+    $err.= "position in file";
+    $err.= " $err_file" if (defined $err_file);
+    $err.= ": line $line, column $column\n";
+    $err.= "\n$err_post\n" if (defined $err_post);    
+    die $err;
   }
 
 sub find_position_in_string
@@ -383,20 +509,23 @@ sub find_position_in_string
 sub variable_expand
   { my($r_line, $p)= @_;
   
-
     pos($$r_line)= $p;
     
     if ($use_arrays)
       { 
 	if ($$r_line=~ /\G\{(\w+)\[(\d+)\]\}/gs)
 	  { # a variable is to expand
+	    
 	    if (defined $callback)
 	      { &$callback($1,$2); };
 	    if (!exists $m{$1})
 	      { 
-		fatal_parse_error($r_line,$p,
-	                	  __LINE__,"macro is not defined")
+		$err_pre= "macro \$\{$1\} is not defined";
+		fatal_parse_error($r_line,$p)
 	      };
+	    if ($debug)
+	      { warn "--- expand \$\{$1\[$2\]\} to " . $m{$1}->[$2] . "\n"; };
+
 	    return($m{$1}->[$2]);
 	  };
         pos($$r_line)= $p;
@@ -409,9 +538,11 @@ sub variable_expand
 	if (!exists $m{$1})
 	  { 
 #warn "parsed: |$1|";
-	    fatal_parse_error($r_line,$p,
-	                      __LINE__,"macro is not defined")
+	    $err_pre= "macro \$\{$1\} is not defined";
+	    fatal_parse_error($r_line,$p)
 	  };
+	if ($debug)
+	  { warn "--- expand \$.\{$1\} to " . $m{$1} . "\n"; };
 	return($m{$1});
       };
 
@@ -429,9 +560,11 @@ sub variable_expand
 		      { &$callback($1,$2); };
 		    if (!exists $m{$1})
 		      { 
-			fatal_parse_error($r_line,$p,
-		                	  __LINE__,"macro is not defined"); 
+			$err_pre= "macro  \$$1 is not defined";
+			fatal_parse_error($r_line,$p); 
 		      };
+	            if ($debug)
+	              { warn "--- expand \$$1\[$2\] to " . $m{$1}->[$2] . "\n"; };
 		    return($m{$1}->[$2]);
 		  }
 	      };
@@ -446,10 +579,11 @@ sub variable_expand
 		if (defined $callback)
 		  { &$callback($1); };
 		if (!exists $m{$1})
-		  { 
-		    fatal_parse_error($r_line,$p,
-		                      __LINE__,"macro is not defined"); 
+		  { $err_pre= "macro  \$$1 is not defined";
+		    fatal_parse_error($r_line,$p); 
 		  };
+	        if ($debug)
+	          { warn "--- expand \$$1 to " . $m{$1} . "\n"; };
 		return($m{$1});
 	      }
 	  };
@@ -672,7 +806,22 @@ up or down.
   
 This ends a for-expression
 
+=item I<silent>
+  
+  $silent
+  
+This option changes to mode to silent-mode. In this mode, 
+spaces and line-feeds are not printed. This mode is useful
+if large parts of the input only consist of variable definitions.
+Usually, each empty line that is often used to separate definitions,
+would be printed.
 
+=item I<loud>
+  
+  $loud
+  
+This switches back from silent-mode to the normal mode of operation.  
+  
 =back
 
 =head2 Implemented Switches:
