@@ -1,6 +1,12 @@
 ----------------------------------------------------------------------
 Scripts:
 ----------------------------------------------------------------------
+
+Sch2db.pl
+	a perl sch to db converter. Converts capfast(*.sch) files
+	to the db file format as it is used in EPICS. This is faster
+	and more flexible that the combination of sch2edif and e2db...
+
 SetPerms
 	a semi-automatic shell-script for setting file and 
 	directory permissions in the CVS repository, in 
@@ -12,15 +18,10 @@ browsedb.pl
 	and change data in the database as well as show relations 
 	between the tables.
 
-pfind.pl
-	a perl-script for recursive file pattern search, like
-	a recursive grep, but better...
+canlink.pl
+	encode and decode the BESSY lowcal can-bus link as it is 
+	used in the lowCAL device-support (EPICS)
 
-Sch2db.pl
-	a perl sch to db converter. Converts capfast(*.sch) files
-	to the db file format as it is used in EPICS. This is faster
-	and more flexible that the combination of sch2edif and e2db...
-	
 dbscan.pl
 	This script is from Rolf Keitel <rolf@triumf.ca>. It scans
 	db and sch files and has lots of options, the most interesting
@@ -29,17 +30,63 @@ dbscan.pl
         given db file (along with the target record). Unfortunately
         does not tell which link field and which target field.
 
+dbutil.p
+	A tool that can export database-tables to ASCII files and 
+	re-import these files. Useful if you want to change many parts
+	of a database-table with your favorite text-editor...
+
+expander.pl
+	a script to perform macro-replacements in text files. Features
+	if-statements, complex expressions and for-loops among others.
+	This script is a simple application of the expander.pm module.
+
+
 hgen.pl a header-generator for c and c++
+
+paths.pl
+	prints commands to set your perl-environment in order to use
+	the perl-modules and scripts of bii_scripts 
+
+pfind.pl
+	a perl-script for recursive file pattern search, like
+	a recursive grep, but better...
+
+Currently undocumented:
+
+
+bdns_import.pl     
+cvsGuru                     
+set_ioc_tsrv.pl
+bdns_lookup.pl     
+dbcount              
+lockGuru        
+dbdiff               
+tkSQL
+oracle_request  
+unlockGuru
+dbsort               
+paths2.pl       
+vdct
+buds_lookup.pl     
+filter_can_links.pl  
+grab_xkeys.pl        
 
 ----------------------------------------------------------------------
 Libraries and Modules:
 ----------------------------------------------------------------------
+
+BrowseDB/TkUtils.pm 
+	Tk-utilities for browsedb.pl
 
 Pezca	
 	a perl-module that implements the channel-access protocol
 	and gives access to EPICS variables (1)
 	
 	
+browsedb_conf.PL  
+	this file is only needed for "make install" in order to 
+	patch browsedb.pl. It hat no use, once bii_scripts is installed
+
 canlink 
 	a perl-module that can be used to encode or decode the
 	"cryptic can link" as it is used in the BESSY CAN Bus
@@ -48,6 +95,13 @@ canlink
 dbdrv_oci
 	low level routines for the ORACLE database. Needed by dbdrv.
 
+dbdrv_pg.pm   
+	low level routines for a PostgreSQL database. Needed by dbdrv.
+
+
+dbdrv_test.pl  
+	test-script for dbdrv. This shouldn't be in the repository!      
+
 dbdrv	low level utilities for SQL database access, needed by
 	dbitable
 
@@ -55,12 +109,25 @@ dbitable
 	an object-oriented Perl module for handling single tables
         from an SQL database
 
+expander.pm
+	a module to perform macro-replacements in text files. Features
+	if-statements, complex expressions and for-loops among others
+
 parse_db
 	a perl-module for parsing EPICS db-files
 	
 parse_subst
 	a perl-module for parsing EPICS substitution-files
 	
+
+Currently undocumented:
+
+BDNS.pm           
+CreateX.pm    
+ODB.pm
+Options.pm
+cfgfile.pm        
+
 
 -----------------------------------------------------------------------
 (1)	This is a CPAN-like module which has to be installed via
