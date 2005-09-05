@@ -96,7 +96,7 @@ $l1
 $l2
 
 Syntax:
-  $sc_name {options} [arg1] [arg2]
+  $sc_name {options}
 
   options:
     -h: help
