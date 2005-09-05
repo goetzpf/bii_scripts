@@ -36,16 +36,18 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
                 grab_xkeys.pl browsedb.pl paths2.pl 
                 dbcount pfind.pl dbdiff Sch2db.pl
                 dbscan.pl set_ioc_tsrv.pl hgen.pl 
-                canlink.pl filter_can_links.pl);
+                canlink.pl filter_can_links.pl
+		expander.pl);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
+		expander.pm
                 Options.pm cfgfile.pm  dbdrv.pm parse_db.pm 
                 BrowseDB/TkUtils.pm
 		);
                 
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
-             cfgfile.pm dbdrv.pm canlink.pm);
+             cfgfile.pm dbdrv.pm canlink.pm expander.pm);
 
 
 my %pm;
