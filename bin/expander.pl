@@ -67,6 +67,9 @@ if ($opt_summary)
     exit;
   };
 
+if (!defined $opt_file)
+  { die "-f option is mandatory\n"; };
+
 # ------------------------------------------------
 
 expander::parse_file($opt_file,\*STDOUT);
