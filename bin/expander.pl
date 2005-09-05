@@ -26,7 +26,7 @@ use Getopt::Long;
 
 use expander;
 
-use vars qw($opt_help $opt_summary $opt_file $opt_lazy $opt_arrays);
+use vars qw($opt_help $opt_summary @opt_file $opt_lazy $opt_arrays);
 
 
 my $sc_version= "1.0";
@@ -42,8 +42,11 @@ my $debug= 0; # global debug-switch
                   
 #Getopt::Long::config(qw(no_ignore_case));
 
+my @files;
+
 if (!GetOptions("help|h","summary",
-		"file|f", "lazy|l", "arrays|a",
+		"lazy|l", "arrays|a",
+		"file|f=s" => \@files, 
                 ))
   { die "parameter error!\n"; };
 
@@ -63,12 +66,16 @@ if ($opt_summary)
     exit;
   };
 
-if (!defined $opt_file)
+if (!@files)
   { die "-f option is mandatory\n"; };
 
 # ------------------------------------------------
 
-expander::parse_file($opt_file,\*STDOUT);
+foreach my $f (@files)
+  { 
+    expander::parse_file($f,\*STDOUT); 
+  
+  };
 
 
 # ------------------------------------------------
@@ -99,7 +106,7 @@ Usage:
     --summary: give a summary of the script
     -l : lazy syntax, allow \$name instead of \${name}
     -a : allow arrays
-    -f [file]: process file
+    -f [file]: process file(s)
 
 Short syntax description (provided that -l and -a options are given,
 see also manpage of expander.pm)
