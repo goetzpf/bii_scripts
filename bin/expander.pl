@@ -8,18 +8,9 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 # @CATEGORY: search
 
 
-# [scriptname] -- describe the function here
-
-# syntax:
-# expands ${name} to the content of <name>
-# expressions:
-# $if (expression)
-# $else
-# $endif
-# $eval(expression) : evaluate expression
-# quoting:
-# '\$' expands to '$', no special replacements are made
-
+# for the format of the macros, see the documentation of expander.pm
+# (e.g. man expander or 
+#  perldoc expander.pm)
 
 use strict;
 use Data::Dumper;
@@ -100,7 +91,7 @@ sub help
 $l1
 $l2
 
-Syntax:
+Usage:
   $sc_name {options}
 
   options:
@@ -109,6 +100,34 @@ Syntax:
     -l : lazy syntax, allow \$name instead of \${name}
     -a : allow arrays
     -f [file]: process file
+
+Short syntax description (provided that -l and -a options are given,
+see also manpage of expander.pm)
+
+\$name			-> macro replacement
+\$name[index]		-> indexed macro replacement
+\$set(<expression>)	-> evaluate without printing
+
+\$set(\$name1= "value1";
+     \$name2= "value2")  -> macro definition
+
+\$eval(<expression>)	-> evaluate with printing
+
+\$if (<expression>)
+\$else
+\$endif			-> conditional parsing
+		
+\$for(<init-expr>;<condition-expression>;<loop-expr)
+\$endfor			
+			-> parsing-loop
+
+\$comment (comment)	-> comment
+
+\$include (<expression>) -> include the specified file
+
+<expression>: many simple expressions that are valid in perl
+can be used here 
+
 END
   }
 

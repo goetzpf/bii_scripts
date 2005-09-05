@@ -643,6 +643,12 @@ else and endif is parsed.
 
 This finishes an if-statement. 
 
+=item I<include>
+
+  $include(<expression>)
+  
+This command includes and parses the file specified by <expression>  
+  
 =item I<comment>
 
   $comment(<comment>)
