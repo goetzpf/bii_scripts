@@ -8,7 +8,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.2;
+    $VERSION     = 1.3;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -42,7 +42,7 @@ my %is_bracket= ( '(' => 1,
                   '}' => 1);
 		  
 my %keywords= map{ $_ => 1 } 
-              qw (set eval if else endif include for endfor 
+              qw (set eval perl if else endif include for endfor 
 	          comment silent loud);		  
 
 
@@ -175,12 +175,12 @@ sub parse_scalar
 	  };
 
 
-	if ($$r_line=~ /\G(set|eval|if|include|for|comment)\s*\(/gs)
+	if ($$r_line=~ /\G(set|eval|perl|if|include|for|comment)\s*\(/gs)
 	  { 
 	    if ($debug)
 	      { warn "--- \"$1\" recognized,\n"; };
 
-	    if (($1 eq 'eval') || ($1 eq 'set'))
+	    if (($1 eq 'eval') || ($1 eq 'set') || ($1 eq 'perl'))
 	      {	my $word= $1;
 	      
 	        if ($ifcond[-1]<=0)
@@ -192,7 +192,7 @@ sub parse_scalar
 
 		$err_line= __LINE__;
 		my($res,$end)= 
-		   eval_bracket_block($r_line,pos($$r_line)-1);
+		   eval_bracket_block($r_line,pos($$r_line)-1,($word eq 'perl'));
 		print $fh $res if ($word eq 'eval');
 		pos($$r_line)= $end+1;
 		next;
@@ -372,15 +372,23 @@ sub parse_scalar
   }
 
 sub eval_part
-  { my($sub,$r_line,$pos)= @_;
+  { my($sub,$r_line,$pos,$do_not_replace)= @_;
   
 #warn "before:|" . $sub . "|\n";
 #warn "after:|" . mk_perl_varnames($sub,$comment) . "|\n";
 
-    my $subst= mk_perl_varnames($sub);
+    my $subst;
     
-    if ($debug)
-      { warn "--- evaluate \"$sub\",\n--- after perlify: \"$subst\"\n"; };
+    if (!$do_not_replace)
+      { $subst= mk_perl_varnames($sub); 
+        if ($debug)
+          { warn "--- evaluate \"$sub\",\n--- after perlify: \"$subst\"\n"; };
+      }
+    else
+      { $subst= $sub; 
+        if ($debug)
+          { warn "--- evaluate \"$subst\"\n"; };
+      };    
     
     my $res= eval($subst);
     if ((!defined ($res)) && ($@ ne ""))
@@ -405,7 +413,7 @@ sub skip_bracket_block
   }
 
 sub eval_bracket_block
-  { my($r_line,$start_at)= @_;
+  { my($r_line,$start_at,$do_not_replace)= @_;
   
     my($start,$end)= match($r_line,$start_at);
 
@@ -417,7 +425,7 @@ sub eval_bracket_block
     my $sub= substr($$r_line, $start+1, $end-$start-1);
 #warn "evaluate: $sub";
 
-    my $res= eval_part($sub,$r_line,$start_at); 
+    my $res= eval_part($sub,$r_line,$start_at,$do_not_replace); 
 
     return($res,$end);
   }
@@ -754,6 +762,26 @@ The expression is evaluated, but the result is not printed.
   $eval(<expression>)
   
 The expression is evaluated and the result is printed.
+
+=item I<perl>
+
+  $perl(<statements>)
+  
+The given statements are evaluated without further changes
+by the perl-interpreter. This can be used to include perl-modules
+
+  $perl(require modulename;) 
+  
+or to define functions
+  
+  $perl(sub myfunc { print "$_[0]\n"; })
+  
+Note that variables of expander cannot be used here, since they 
+are represented internally in a perl-hash. In principle you could
+access the variables here by directly accessing the hash, but that
+would not be portable and bad style. If you define new functions here,
+the functions should take parameters instead of trying to access the
+expander-variables directly.  
 
 =item I<if>
 
