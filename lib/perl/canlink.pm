@@ -6,6 +6,7 @@ package canlink;
 # ===========================================================
 
 use strict;
+
 BEGIN {
 
 use Exporter   ();
@@ -82,6 +83,8 @@ use vars qw (%char_list %type_list
               'G' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 0 },
               'h' => { type => 'mid' ,   raw=> 1, signed=> 1, array=> 1 },
               'H' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 1 },
+	     
+	      'Z' => { type => 'zero',   raw=> 0, signed=> 0, array=> 0 },
 
             );
 
@@ -102,8 +105,9 @@ use vars qw (%char_list %type_list
 
 
     type => "the basic data type of the CAL variable. Known types are:\n" .
-            "string, char, short, mid, long. Note that \"mid\" is a \n" .
-            "24-bit integer\n",
+            "zero, string, char, short, mid, long. Note that \"mid\" is a \n" .
+            "24-bit integer and \"zero\" is a datatype with a length\n" .
+	    "of 0 bytes\n",
 
     raw  => "This field defines wether the data is processed before\n" .
             "it is sent to the CAN bus. For numbers (all non-strings)\n" .
@@ -228,7 +232,7 @@ sub interview
       { $p{multi}=1; };
 
 
-    $sel= question( qw(string char short mid long) );
+    $sel= question( qw(string char short mid long zero) );
     if    ($sel==0)
       { $p{type}= 'string'; }
     elsif ($sel==1)
@@ -237,8 +241,10 @@ sub interview
       { $p{type}= 'short'; }
     elsif ($sel==3)
       { $p{type}= 'mid'; }
+    elsif ($sel==4)
+      { $p{type}= 'long'; }
     else
-      { $p{type}= 'long'; };
+      { $p{type}= 'zero'; };
 
     if ( $p{type} ne 'string')
       { if (0==question( 'signed', 'unsigned' ))
@@ -544,6 +550,7 @@ sub decode
 
     my $r_datatype= $type_list{$f[1]};
 
+
     %result= (%{$char_list{$ch}}, %{$type_list{$f[1]}});
 
     for(my $i=2; $i<= 9; $i++)
@@ -584,7 +591,7 @@ sub complete
 
     return if (!check_exists(\%p,'type','data type','complete()'));
 
-    if ($p{type} !~ /^(string|short|long|char|mid)$/)
+    if ($p{type} !~ /^(string|short|long|char|mid|zero)$/)
       { warn "complete(): unknown data type!\n";
         return;
       };
@@ -834,6 +841,8 @@ sub maxlen
       { $l=3; }
     elsif  ($type eq 'long')
       { $l=4; }
+    elsif  ($type eq 'zero')
+      { $l=0; }
     else
       { return; };
 
@@ -1072,8 +1081,9 @@ to "rw" for a read-write variable.
 =item B<type>
 
 This specifies the basic data-type of the CAL variable. Known types
-are "string", "char", "short", "mid" and "long". "mid" is a
-special, 24-bit integer.
+are "zero", "string", "char", "short", "mid" and "long". "mid" is a
+special, 24-bit integer, "zero" is a datatyoe with a length of 
+0 bytes.
 
 =item B<raw>
 
