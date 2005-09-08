@@ -3831,6 +3831,76 @@ sub resize_table
 # utilities for table windows:
 #=======================================================
 
+sub tk_show_scroll_relations
+  { my($r_glbl,$r_tbh)= @_;
+    my $myname= $r_tbh->{table_name};
+    my $found;
+    my @text;
+    my $tb=" " x 8;
+
+    my $r_foreign= conn_r_find($r_glbl,$r_tbh);
+    if (defined $r_foreign)
+      { $found=1;
+        push @text, "$myname triggers scrolling in:";
+        foreach my $tab (sort keys %$r_foreign)
+          { push @text, "$tab :";
+            my $r_f= $r_foreign->{$tab};
+            if ($#$r_f<=1)
+              { push @text, "${tb}field-relation:";
+                push @text, "${tb}" . $r_f->[1] . " -> " .  "$tab:" . $r_f->[0];
+              }
+            else
+              { push @text, "${tb}field-relations:";
+                for(my $i=1; $i<$#$r_f; $i++)
+                  { push @text, "${tb}" . $r_f->[1] . " -> " .  "$tab:" . $r_f->[0]; 
+                  };
+              };  
+          };
+      };
+      
+    my $r_resident= conn_f_find($r_glbl,$r_tbh);
+    if (defined $r_resident)
+      { if ($found)
+          { push @text,""; };
+        $found=1;
+        push @text, "scrolling in $myname is triggered by:\n";
+        foreach my $tab (sort keys %$r_foreign)
+          { push @text, "$tab :";
+            my $r_f= $r_foreign->{$tab};
+            if ($#$r_f<=1)
+              { push @text, "${tb}related field:";
+                push @text, "${tb}" . $r_f->[1];
+              }
+            else
+              { push @text, "${tb}related fields:";
+                for(my $i=1; $i<$#$r_f; $i++)
+                  { push @text, "${tb}" . $r_f->[1]; 
+                  };
+              };  
+          };
+      };
+    if (!$found)
+      { push @text, "this table has no scroll-relations"; };
+    
+    my $lines;
+    my $width=0;
+    my $l;
+    for($lines=0; $lines<=$#text; $lines++)
+      { $l= length($text[$lines]);
+        $width= $l if ($width<$l);
+      };
+    $lines++;
+    $width= int($width*1.1); # 10 % more
+    my $text= join("\n",@text);
+#warn "$width $lines";
+      
+    BrowseDB::TkUtils::MakeTextWidget($r_glbl,"$myname:scroll-relations",
+                                      \$text, 
+                                      #popover=>1,
+                                      -width=> $width, -height=>$lines);
+
+  }
+
 # add scroll relation:
 #_______________________________________________________
 
@@ -7035,10 +7105,14 @@ sub conn_f_find
   { my($r_glbl,$f_tbh,$f_col)= @_;
     my $f_table= $f_tbh->{table_name};
 
-    my $r_residents= $r_glbl->{residents}->{$f_table}->{$f_col};
-
+    my $r_res= $r_glbl->{residents};
+    return if (!defined $r_res);
+    
+    my $r_res_tab= $r_res->{$f_table};
+    return if (!defined $r_res_tab);
+    
     # return a hash-ref: res-table-name => [res_col1,res_col2...]
-    return($r_residents);
+    return($r_res_tab->{$f_col});
   }
 
 # beautify a file-path
