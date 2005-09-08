@@ -1,0 +1,110 @@
+%save = (
+  'foreigners' => {
+    'TBL_SIMPLE' => {
+      'TBL_SIMPLE_TYPE' => [
+        'SIMPLE_TYPE_KEY',
+        'SIMPLE_TYPE_KEY'
+      ]
+    }
+  },
+  'open_tables' => {
+    'TBL_SIMPLE' => {
+      'displayed_cols' => {
+        'IOC_KEY' => '1',
+        'SIMPLE_TYPE_KEY' => '1',
+        'SIMPLE_KEY' => '1',
+        'SIGNAL' => '1',
+        'DESCRIPTION' => '1',
+        'NAME_KEY' => '1'
+      },
+      'sql' => 'select * from TBL_SIMPLE ',
+      'table_type' => 'table',
+      'geometry' => '815x137+238+337',
+      'sort_columns' => [
+        'SIMPLE_KEY',
+        'NAME_KEY',
+        'SIMPLE_TYPE_KEY',
+        'SIGNAL',
+        'DESCRIPTION',
+        'IOC_KEY'
+      ]
+    },
+    'TBL_SIMPLE_TYPE' => {
+      'displayed_cols' => {
+        'SIMPLE_TYPE_KEY' => '1',
+        'TYPE_NAME' => '1',
+        'DESCRIPTION' => '1'
+      },
+      'sql' => 'select * from TBL_SIMPLE_TYPE ',
+      'table_type' => 'table',
+      'geometry' => '425x117+238+709',
+      'sort_columns' => [
+        'SIMPLE_TYPE_KEY',
+        'TYPE_NAME',
+        'DESCRIPTION'
+      ]
+    },
+    'V_SIMPLE_DEVICES' => {
+      'displayed_cols' => {
+        'LINK_KEY' => '1',
+        'EPICS_NAME' => '1',
+        'NODE_KEY' => '1',
+        'SIMPLE_KEY' => '1',
+        'NAME' => '1',
+        'EPICS_DESC' => '1',
+        'SIGNAL_DESC' => '1',
+        'TYPE_NAME' => '1',
+        'ACTIVE' => '1',
+        'SIGNAL' => '1',
+        'EPICS_VALUE' => '1',
+        'SIMPLE_EPICS_KEY' => '1'
+      },
+      'sql' => 'select * from V_SIMPLE_DEVICES ',
+      'table_type' => 'view',
+      'geometry' => '827x117+646+93',
+      'sort_columns' => [
+        'SIMPLE_KEY',
+        'NAME',
+        'TYPE_NAME',
+        'SIGNAL',
+        'SIGNAL_DESC',
+        'EPICS_NAME',
+        'EPICS_VALUE',
+        'LINK_KEY',
+        'NODE_KEY',
+        'ACTIVE',
+        'SIMPLE_EPICS_KEY',
+        'EPICS_DESC'
+      ]
+    },
+    'TBL_SIMPLE_EPICS' => {
+      'displayed_cols' => {
+        'LINK_KEY' => '1',
+        'EPICS_NAME' => '1',
+        'NODE_KEY' => '1',
+        'SIMPLE_KEY' => '1',
+        'SIMPLE_EPICS_TYPE_KEY' => '1',
+        'ACTIVE' => '1',
+        'EPICS_VALUE' => '1',
+        'SIMPLE_AUTH_EPICS_KEY' => '1',
+        'SIMPLE_EPICS_KEY' => '1',
+        'DESCRIPTION' => '1'
+      },
+      'sql' => 'select * from TBL_SIMPLE_EPICS ',
+      'table_type' => 'table',
+      'geometry' => '1144x117+238+533',
+      'sort_columns' => [
+        'SIMPLE_EPICS_KEY',
+        'SIMPLE_KEY',
+        'ACTIVE',
+        'EPICS_NAME',
+        'EPICS_VALUE',
+        'LINK_KEY',
+        'DESCRIPTION',
+        'NODE_KEY',
+        'SIMPLE_EPICS_TYPE_KEY',
+        'SIMPLE_AUTH_EPICS_KEY'
+      ]
+    }
+  }
+);
