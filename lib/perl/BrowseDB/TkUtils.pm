@@ -179,7 +179,16 @@ sub MakeTextWidget
   { my($r_glbl,$title,$r_content,%tk_options)= @_;
 
     my %text;
-
+    my %text_options;
+    
+    # -height and -width are passed to the text-widget instead of
+    # the Top-widget
+    foreach my $opt ('-height', '-width') 
+      { next if (!exists $tk_options{$opt});
+        $text_options{$opt}= $tk_options{$opt};
+	delete $tk_options{$opt};
+      };
+ 
     # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{background});
     my $Top= MakeToplevel($r_glbl,
                          title=>$r_glbl->{title},
@@ -248,6 +257,7 @@ sub MakeTextWidget
 
     my $text_widget=  $Top->Scrolled('Text',
                                      -scrollbars=>"ose",
+				     %text_options
                                     );
 
     # ----------------------------------------------------
