@@ -49,8 +49,19 @@ sub module_cmd
               join(" ",@args) . " && printenv";
 
     #warn "$cmd\n";
-    my @lines=  `zsh -c \"$cmd\"`;
+    my $old= $ENV{'PATH'};
+    $ENV{'PATH'}= '';
+    
+    # fool perl's taint-check:
+    $cmd=~ /^(.*)$/;
+    my $ncmd= $1;
+    # now $ncmd is untainted!
+
+    my @lines=  `/usr/bin/zsh -c \"$ncmd\"`;
+#    my @lines=  `/usr/bin/zsh -c abc`;
     die "command failed" if $?;
+    
+    $ENV{'PATH'}= $old;
     return(\@lines);
   }  
 
@@ -70,6 +81,7 @@ sub set_env
   }
     
 1;
+__END__
 
 # Below is the short of documentation of the module.
 
@@ -126,6 +138,3 @@ perl-documentation
 
 =cut
   
-  
-
-This functions creates a CAN link definition by asking the user
