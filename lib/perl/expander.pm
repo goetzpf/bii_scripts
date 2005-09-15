@@ -499,9 +499,11 @@ sub find_position_in_string
     my $cnt=0;
     my $lineno=1;
     
+
     pos($$r_str)=0;
     my $oldpos=-1;
-    while($$r_str=~ /\G.*?^.*?$/gms)
+#    while($$r_str=~ /\G.*?^(.*?)$/gms)
+    while($$r_str=~ /\G(.*?)\r?\n/gms)
       { 
         if (pos($$r_str)<$position)
 	  { 
@@ -509,9 +511,9 @@ sub find_position_in_string
 	    $lineno++;
 	    next;
 	  };
-	return($lineno,$position-$oldpos-2);
+	return($lineno,$position-$oldpos);
       };
-    return($lineno,$position-$oldpos-2);
+    return($lineno,$position-$oldpos);
   }      
 
 sub variable_expand
@@ -539,6 +541,38 @@ sub variable_expand
         pos($$r_line)= $p;
       }	  
     
+    pos($$r_line)= $p;
+
+    if ($$r_line=~ /\G\{\$(eval|perl)(\s*)\(/gs)
+      { my $startpos= pos($$r_line)-4-length($2)-3;
+        
+#warn "at startpos:" . substr($$r_line,$startpos);	
+	my $st_pos= pos($$r_line);
+        my $word= $1;
+        my($name,$end)= 
+	   eval_bracket_block($r_line,$st_pos-1,($word eq 'perl'));
+        # a variable is to expand
+	if (defined $callback)
+	  { &$callback($name); };
+	if (!exists $m{$name})
+	  { 
+            #warn "parsed: |$1|";
+	    $err_pre= "macro \$\{$name\} is not defined";
+	    fatal_parse_error($r_line,$p)
+	  };
+	if ($debug)
+	  { warn "--- expand \$\{\$$word" . 
+	         substr($$r_line, $st_pos-1,$end-$st_pos+1) .
+		 "\} to " . $m{$name} . "\n"; };
+	$end= skip_bracket_block($r_line,$startpos);
+	pos($$r_line)= $end+1;    
+		    
+	return($m{$name});
+      };
+
+    pos($$r_line)= $p;		
+
+
     if ($$r_line=~ /\G\{(\w+)\}/gs)
       { # a variable is to expand
 	if (defined $callback)
@@ -550,7 +584,7 @@ sub variable_expand
 	    fatal_parse_error($r_line,$p)
 	  };
 	if ($debug)
-	  { warn "--- expand \$.\{$1\} to " . $m{$1} . "\n"; };
+	  { warn "--- expand \$\{$1\} to " . $m{$1} . "\n"; };
 	return($m{$1});
       };
 
@@ -762,6 +796,10 @@ The expression is evaluated, but the result is not printed.
   $eval(<expression>)
   
 The expression is evaluated and the result is printed.
+Note that is can also be used to calculate the name of a 
+variable and expand it:
+
+  ${$eval(<expression>)}
 
 =item I<perl>
 
@@ -782,6 +820,11 @@ access the variables here by directly accessing the hash, but that
 would not be portable and bad style. If you define new functions here,
 the functions should take parameters instead of trying to access the
 expander-variables directly.  
+
+Note that is can also be used to calculate the name of a 
+variable and expand it:
+
+  ${$perl(<expression>)}
 
 =item I<if>
 
