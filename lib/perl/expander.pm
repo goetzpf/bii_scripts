@@ -22,11 +22,11 @@ BEGIN {
 use vars      @EXPORT_OK;
 
 our %m;
-our $is_lazy=0;
-our $use_arrays=0;
+my $is_lazy=0;
+my $use_arrays=0;
 our $debug=0;
 
-our $silent=0;
+my $silent=0;
 
 my $callback;
 
@@ -43,7 +43,7 @@ my %is_bracket= ( '(' => 1,
 		  
 my %keywords= map{ $_ => 1 } 
               qw (set eval perl if else endif include for endfor 
-	          comment silent loud);		  
+	          comment debug silent loud);		  
 
 
 my $err_pre;
@@ -90,14 +90,8 @@ sub set_var
     $m{$name}->[$index]= $value;
   }
 
-sub set_callback
-  { my($r_cb)= @_;
-  
-    $callback= $r_cb;
-  }
-
 sub parse_file
-  { my($filename, $fh)= @_;
+  { my($filename, %options)= @_;
     local($/);
     local(*F);
     undef $/;
@@ -111,11 +105,12 @@ sub parse_file
         close(F);
 	$err_file= $filename;
       };	
-    parse_scalar(\$var,$fh);
+    parse_scalar(\$var,%options);
   }    
 
 sub parse_scalar
-  { my($r_line,$fh)= @_;
+  { my($r_line,%options)= @_;
+    local(*F);
     my $p;
     my(@ifcond)=(1);
     my @forstack;
@@ -123,11 +118,32 @@ sub parse_scalar
     my $pre;
     my $post;
     
+    my $fh= $options{filehandle};
+    if (!defined $fh)
+      { my $filename= $options{filename};
+        if (!defined $filename)
+	  { $fh= \*STDOUT; }
+	else
+	  { open(F, ">$filename") or die "unable to create $filename";
+	    $fh= \*F;
+	  }
+      };
+      
+    if (exists $options{lazy})
+      { $is_lazy= $options{lazy}; };
+      
+    if (exists $options{arrays})  
+      { $use_arrays= $options{arrays}; };
+    
+    if (exists $options{callback}) 
+      { $callback= $options{callback}; }; 
+    
     for(pos($$r_line)= 0, $p=0;
         $$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$|\s+|$)/gsm;
         #$$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$)/gsm;
 	$p= pos($$r_line))
       {
+
         $pre= $1;
 	$post= $2;
         
@@ -136,7 +152,7 @@ sub parse_scalar
 	  
         if ($post=~ /\s+/)
 	  { next if ($silent);
-	    print $fh $post;
+	    print $fh $post if ($ifcond[-1]>0);
 	    next;
 	  };
 	  
@@ -163,19 +179,21 @@ sub parse_scalar
 	  };
 	  
 	if ($post eq "\\") # backslash at end of line
-	  { $$r_line=~ /\G(.*?)^/gsm;
+	  { 
+            $p= pos($$r_line);
+	    if ($$r_line!~ /\G(.*?)^/gsm)
+	      { pos($$r_line)= $p; };
 	    next;  
 	  }
 	
 	$p= pos($$r_line); # pos after "$"
 	my $ex= variable_expand($r_line, $p);
 	if (defined $ex)
-	  { print $fh $ex; 
+	  { print $fh $ex if ($ifcond[-1]>0);
 	    next;
 	  };
 
-
-	if ($$r_line=~ /\G(set|eval|perl|if|include|for|comment)\s*\(/gs)
+	if ($$r_line=~ /\G(set|eval|perl|if|include|for|comment|debug)\s*\(/gs)
 	  { 
 	    if ($debug)
 	      { warn "--- \"$1\" recognized,\n"; };
@@ -200,7 +218,6 @@ sub parse_scalar
 	    elsif  ($1 eq 'if')
 	      { 
 		# if command
-
 		$err_line= __LINE__;
 		my($res,$end)= 
 		   eval_bracket_block($r_line,pos($$r_line)-1);
@@ -248,8 +265,9 @@ sub parse_scalar
 		pos($$r_line)= $end+1;
 	        next;	
 	      }
-	    elsif  ($1 eq 'comment')
+	    elsif  (($1 eq 'comment') || ($1 eq 'debug'))
 	      { 
+	        my $word= $1;
                 my($start,$end)= match($r_line,pos($$r_line)-1);
 #warn "matched at: $start,$end";
 		if (!defined $start)
@@ -258,6 +276,11 @@ sub parse_scalar
 		    $err_line= __LINE__;
 		    fatal_parse_error($r_line,$p); 
 		  };
+		if ($word eq 'debug')
+		  { 
+		    my $str= substr($$r_line,$start+1,$end-$start-1);
+		    print $fh $str;
+		  }; 
 		pos($$r_line)= $end+1;
 		next;
 	      }
@@ -274,7 +297,9 @@ sub parse_scalar
 		    fatal_parse_error($r_line,$p); 
 		  };
 #die "res: $res\n";
-		parse_file($res,$fh);  
+		my %local_options= %options;
+		$local_options{filehandle}= $fh;
+		parse_file($res,%local_options);  
 		pos($$r_line)= $end+1;
 		next;
 	      }
@@ -354,11 +379,7 @@ sub parse_scalar
 	      { die "internal error"; }  
 	  };
 
-	
 	pos($$r_line)= $p;
-	
-	
-	
       } # for 
     
     if ($#ifcond !=0 )
@@ -369,6 +390,9 @@ sub parse_scalar
       };
       
     print $fh substr($$r_line,$p);
+
+    if (exists $options{filename})
+      { close(F); };
   }
 
 sub eval_part
@@ -697,7 +721,7 @@ expander - a Perl module to perform macro expansions in ascii-files
 
   my $st= <>;
 
-  parse_scalar($st,\*STDOUT);
+  parse_scalar($st,lazy=>1);
 
 =head1 DESCRIPTION
 
@@ -895,21 +919,50 @@ This switches back from silent-mode to the normal mode of operation.
   
 =back
 
-=head2 Implemented Switches:
+=head2 The option hash
+
+parse_scalar and parse_file take an option-hash as optional
+second parameter. For this hash the following keys are defined:
 
 =over 4
 
-=item I<is_lazy>
+=item I<filehandle>
 
-  $is_lazy= 1
+  parse_scalar($myvar, filehandle=>\*MYFILE)
+
+If this hash key is provided, the output is printed to the
+given filehandle.
+
+=item I<filename>
+
+  parse_scalar($myvar, filename=>"output.txt")
+
+If this hash key is provided, a file with the given name is 
+created and the output is printed to that file. If neither "filehandle"
+nor "filename" is given, all ouput is printed to STDOUT.
+
+=item I<lazy>
+
+  parse_scalar($myvar, lazy=>1)
   
-If is_lazy is set, the extended lazy syntax is also accepted
+If lazy is not zero or undefined, the extended lazy syntax is also accepted
 
-=item I<use_arrays>
+=item I<arrays>
 
-  $use_arrays= 1
+  parse_scalar($myvar, arrays=>1)
 
-If use_arrays is set, the arrays are also accepted
+If arrays is not zero or undefined, arrays are also accepted
+
+=item I<callback>
+
+  parse_scalar($myvar, callback=> \&mycallback)
+
+With this option, a user-defined callback function is defined
+that is called every time a variable is to be expanded. The callback
+function is given the name of the variable and (optional) the 
+array-index. If the variable does not yet exist, the callback function
+must take care of setting this variable with set_var(), otherwise
+a run-time error is raised.
 
 =back
 
@@ -921,19 +974,19 @@ If use_arrays is set, the arrays are also accepted
 
 B<parse_scalar()>
 
-  parse_scalar($st,$fh)
+  parse_scalar($st,%options)
   
-This function parses a (multi-line) scalar and prints the results
-to the given filehandle.
+This function parses a (multi-line) scalar and prints the results.
+See also the description of the option-hash further up.
 
 =item *
 
 B<parse_file()>
 
-  parse_file($filename,$fh)
+  parse_file($filename,%options)
   
-This function parses given file and prints the results
-to the given filehandle.
+This function parses given file and prints the results.
+See also the description of the option-hash further up.
 
 =item *
 
@@ -963,19 +1016,6 @@ B<test_var()>
 
 This function returns 1 if the variable (and optional with this index)
 is defined, otherwise it returns undef.
-
-=item *
-
-B<set_callback()>
-
-  set_callback(\&mycallback)
-
-With this function a user-defined callback function is defined
-that is called every time a variable is to be expanded. The callback
-function is given the name of the variable and (optional) the 
-array-index. If the variable does not yet exist, the callback function
-must take care of setting this variable with set_var(), otherwise
-a run-time error is raised.
 
 =back
 
