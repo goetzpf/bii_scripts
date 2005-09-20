@@ -22,6 +22,17 @@ use FindBin;
 # ------------------------------------------------------------
 # use lib "$FindBin::RealBin/../lib/perl";
 
+BEGIN
+  { # search the arguments for the "--locallibs"
+    # option. If it is found, remove the option
+    # and add $FindBin::Bin to the head of the
+    # module search-path.
+    if (exists $ENV{MYPERLLIBS})
+      { my @dirs=split(/:/,$ENV{MYPERLLIBS});
+        unshift @INC,split(/:/,$ENV{MYPERLLIBS});
+      };
+  };
+
 use Getopt::Long;
 
 use expander;
@@ -55,11 +66,13 @@ if ($opt_help)
     exit;
   };
 
+my %expand_options;
+
 if ($opt_lazy)
-  { $expander::is_lazy=1; };
+  { $expand_options{lazy}= 1; };
 
 if ($opt_arrays)
-  { $expander::use_arrays=1; };
+  { $expand_options{arrays}= 1; };
 
 if ($opt_summary)
   { print_summary();
@@ -73,7 +86,7 @@ if (!@files)
 
 foreach my $f (@files)
   { 
-    expander::parse_file($f,\*STDOUT); 
+    expander::parse_file($f,%expand_options); 
   
   };
 
