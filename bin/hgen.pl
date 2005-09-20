@@ -12,9 +12,20 @@ use strict;
 use FindBin;
 use Getopt::Long;
 
+BEGIN
+  { # search the arguments for the "--locallibs"
+    # option. If it is found, remove the option
+    # and add $FindBin::Bin to the head of the
+    # module search-path.
+    if (exists $ENV{MYPERLLIBS})
+      { my @dirs=split(/:/,$ENV{MYPERLLIBS});
+        unshift @INC,split(/:/,$ENV{MYPERLLIBS});
+      };
+  };
+
 use vars qw($opt_help $opt_quiet $opt_multiple $opt_header $opt_part $opt_check);
 
-my $version = "1.5p";
+my $version = "1.6p";
 
 
 # debugging:
