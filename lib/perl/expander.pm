@@ -43,7 +43,7 @@ my %is_bracket= ( '(' => 1,
 		  
 my %keywords= map{ $_ => 1 } 
               qw (set eval perl if else endif include for endfor 
-	          comment debug silent loud);		  
+	          comment debug silent loud leave);		  
 
 
 my $err_pre;
@@ -105,6 +105,9 @@ sub parse_file
         close(F);
 	$err_file= $filename;
       };	
+    # perl seems to add a linefeed ("\n") at the
+    # end of the scalar even if the file didn't contain one
+
     parse_scalar(\$var,%options);
   }    
 
@@ -112,6 +115,7 @@ sub parse_scalar
   { my($r_line,%options)= @_;
     local(*F);
     my $p;
+    my $was_left;
     my(@ifcond)=(1);
     my @forstack;
   
@@ -138,8 +142,11 @@ sub parse_scalar
     if (exists $options{callback}) 
       { $callback= $options{callback}; }; 
     
+
+    my $max= length($$r_line);
+
     for(pos($$r_line)= 0, $p=0;
-        $$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$|\s+|$)/gsm;
+        $$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\\\$|\\$|\s+|$)/gsm;
         #$$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$)/gsm;
 	$p= pos($$r_line))
       {
@@ -158,8 +165,8 @@ sub parse_scalar
 	  
 	if ($post eq "")
 	  { 
-	    next if ($silent);
-	    print $fh "\n";
+#	    next if ($silent);
+#	    print $fh "\n";
 	    next;
 	  };
 
@@ -178,11 +185,17 @@ sub parse_scalar
 	    next; 
 	  };
 	  
+	if ($post eq "\\\\") # backslash-backslash at end of line
+          { print $fh "\\" if ($ifcond[-1]>0);
+	    next;
+	  };
+
 	if ($post eq "\\") # backslash at end of line
 	  { 
             $p= pos($$r_line);
 	    if ($$r_line!~ /\G(.*?)^/gsm)
-	      { pos($$r_line)= $p; };
+	      { pos($$r_line)= $p; 
+	      };
 	    next;  
 	  }
 	
@@ -308,11 +321,16 @@ sub parse_scalar
 	   }      
 	
 	pos($$r_line)= $p;
-	if ($$r_line=~ /\G(else|endif|endfor|silent|loud)/gs)
+	if ($$r_line=~ /\G(else|endif|endfor|silent|loud|leave)/gs)
           { 
 	    if ($debug)
 	      { warn "--- \"$1\" recognized,\n"; };
 	  
+	    if ($1 eq 'leave')
+	      { $was_left=1; 
+	        last; 
+	      };
+	    
 	    if ($1 eq 'silent')
 	      { $silent=1; 
 	        next;
@@ -389,7 +407,7 @@ sub parse_scalar
         fatal_parse_error($r_line,$p); 
       };
       
-    print $fh substr($$r_line,$p);
+    print $fh substr($$r_line,$p) if (!$was_left);
 
     if (exists $options{filename})
       { close(F); };
@@ -916,6 +934,18 @@ would be printed.
   $loud
   
 This switches back from silent-mode to the normal mode of operation.  
+
+=item I<leave>
+  
+  $leave
+ 
+This immediately leaves the parse-function producing no more output. 
+
+=item I<debug>
+  
+  $debug(<text>)
+  
+This statement emits arbitrary text to the output-channel. 
   
 =back
 
