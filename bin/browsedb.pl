@@ -61,6 +61,10 @@ use BrowseDB::TkUtils 1.0;
 
 use Data::Dumper;
 
+use Getopt::Long;
+
+use vars qw($opt_help $opt_bigfonts);
+
 # warn "TK Version: " . $Tk::VERSION;
 
 # Configurational global data
@@ -84,6 +88,16 @@ $global_data{about} =
 $global_data{license}= [ "BESSY License"];
 
 $global_data{os} = $Config{osname};
+
+
+if (!GetOptions("help|h", "bigfonts|b"))
+  { die "parameter error, use \"$0 -h\" to display the online-help\n"; };
+
+if ($opt_help)
+  { print_help();
+    exit;
+  };
+  
 $global_data{formats}{date}{string} = "%4y-%2m-%2d";
 $global_data{formats}{date}{weekdays} = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Son'];
 $global_data{formats}{date}{firstday} = 0;
@@ -151,10 +165,10 @@ else
   { $db_table_name= shift; };
 
 $global_data{database}{db_driver}     = "Oracle";
-$global_data{database}{db_server}     = "ocean.acc.bessy.de";
-$global_data{database}{db_source}     = "bii_par";
-$global_data{database}{user}          = "guest";
-$global_data{database}{password}      = "bessyguest";
+#$global_data{database}{db_server}     = "ocean.acc.bessy.de";
+$global_data{database}{db_source}     = "devices";
+$global_data{database}{user}          = (getpwuid($>))[0];
+$global_data{database}{password}      = "";
 
 $global_data{autocommit}    = 0;
 
@@ -169,31 +183,83 @@ $global_data{database}{dbproxy_port}        = "12109";
 my $db_proxy     = $global_data{database}{dbproxy_server};
 my $db_proxy_port= $global_data{database}{dbproxy_port};
 
+my $f_10="10";
+my $f_9="9";
+
+if ($opt_bigfonts)
+  { $f_10="15";
+    $f_9="12";
+  };
+  
 $global_data{theme}->{main}= { '-background' => "gray81",
-#                              '-font'       => "{helvetica} 10",
+#                              '-font'       => "{helvetica} $f_10",
+                               '-foreground' => 'black',
                              };
 
 $global_data{theme}->{login}= { '-background'         => "gray90",
-                                '-font'               => "{helvetica} 10",
+                                '-font'               => "{helvetica} $f_10",
+                                '-foreground' => 'black',
                               };
+
+$global_data{theme}->{topmenu}= { '-background'         => "gray90",
+                                  '-font'               => "{helvetica} $f_10 bold",
+                                  '-foreground' => 'black',
+                                };
+
+$global_data{theme}->{top_status}= { '-background'         => "gray90",
+                                  '-foreground' => 'black',
+                                };
+
+$global_data{theme}->{'top_status:fontelm'}= 
+                               {'-font'       => "{helvetica} $f_9",
+                                };
 
 $global_data{theme}->{'login:entry'}= 
                               { '-background'         => "gray87",
                                 '-disabledbackground' => "gray87",
+                                '-inactivebackground' => "gray87",
+                                '-foreground' => 'black',
                               };
                              
 $global_data{theme}->{'login:button'}= 
                                { '-activebackground'=> "gray90",
                                };
 
+$global_data{theme}->{notebook}= { '-background' => "gray90",
+                                   '-foreground' => 'black',
+                                 };
+
+$global_data{theme}->{'notebook:main'}= { '-backpagecolor' => "gray90",
+                                        };
+
+$global_data{theme}->{'notebook:fontelmB'}=
+                                 { '-background' => "gray90",
+                                   '-foreground' => 'black',
+                                   '-font'       => "{helvetica} $f_10",
+                                 };
+                                 
+$global_data{theme}->{'notebook:fontelm'}=
+                                 { '-background' => "gray90",
+                                   '-foreground' => 'black',
+                                   '-font'       => "{helvetica} $f_9",
+                                 };
+
+$global_data{theme}->{'notebook:fontelmBt'}=
+                                 { '-background' => "gray90",
+                                   '-activebackground'=> "gray90",
+                                   '-activeforeground'=> 'black',
+                                   '-font'       => "{helvetica} $f_9",
+                                 };  
+
 $global_data{theme}->{table}=   { '-background' => "gray90",
-                                  '-font'       => "{helvetica} 9",
+                                  '-foreground' => 'black',
+                                  '-font'       => "{helvetica} $f_9",
                                 };
 
 $global_data{theme}->{'table:menubar'}= 
                                 { '-background'       => "gray90",
                                   '-activebackground' => "gray90",
-                                  '-font'             => "{helvetica} 9 bold",
+                                  '-font'             => "{helvetica} $f_9 bold",
                                   '-foreground'       => 'black',
                                   '-activeforeground' => 'black'
                                 };
@@ -228,20 +294,20 @@ $global_data{theme}->{'table:colmap_off'}=
 
 
 $global_data{theme}->{button}= { '-background'      => "gray81",
-                                 '-font'            => "{helvetica} 10",
+                                 '-font'            => "{helvetica} $f_10",
                                  '-activebackground'=>"gray81",
                                };
 
 $global_data{theme}->{text}= { '-background' => "gray81",
-                               #'-foreground' => "black",
-                               '-font'       => "{helvetica} 10"
+                               '-foreground' => "black",
+                               '-font'       => "{helvetica} $f_10"
                              };
                              
 $global_data{theme}->{shell}= { #'-background' => "black",
                                 '-background' => "gray90",
-                                '-font'       => "{courier} 10",
+                                '-font'       => "{courier} $f_10",
                                 '-foreground' => "black",
-#                               '-selection'  => "{courier} 10 bold",
+#                               '-selection'  => "{courier} $f_10 bold",
 #                               '-cursor'     => "yellow",
 #                               '-commit'     => "green",
 #                               '-error'      => "red",
@@ -250,7 +316,7 @@ $global_data{theme}->{shell}= { #'-background' => "black",
 $global_data{theme}->{'shell:selection'}= 
                               { 
 #                               '-background' => "black";
-                                '-font'       => "{courier} 10 bold",
+                                '-font'       => "{courier} $f_10 bold",
 #                               '-foreground' => "white",
 #                               '-cursor'     => "yellow",
 #                               '-commit'     => "green",
@@ -260,7 +326,7 @@ $global_data{theme}->{'shell:selection'}=
 $global_data{theme}->{'shell:string'}= 
                               { 
 #                               '-background' => "black";
-#                               '-font'       => "{courier} 10 bold",
+#                               '-font'       => "{courier} $f_10 bold",
                                 '-foreground' => "white",
 #                               '-cursor'     => "yellow",
 #                               '-commit'     => "green",
@@ -270,7 +336,7 @@ $global_data{theme}->{'shell:string'}=
 $global_data{theme}->{'shell:error'}= 
                               { 
 #                               '-background' => "black";
-#                               '-font'       => "{courier} 10 bold",
+#                               '-font'       => "{courier} $f_10 bold",
                                 '-foreground' => "red",
 #                               '-cursor'     => "yellow",
 #                               '-commit'     => "green",
@@ -278,7 +344,7 @@ $global_data{theme}->{'shell:error'}=
 
 #$global_data{theme}->{sql}-> { '-background'  => "gray81";
 #                              '-color'       => "black",
-#                              '-font'        => "{helvetica} 10",
+#                              '-font'        => "{helvetica} $f_10",
 #                              '-foreign_key' => "green",
 #                              '-primary_key' => "blue",
 #                              '-changes'     => "red",
@@ -482,7 +548,12 @@ sub tk_login_finish
     BrowseDB::TkUtils::Progress($r_glbl,10);
 
     if (!$r_glbl->{use_proxy})
-      { if ($r_glbl->{db_driver} eq "Pg")
+      { if ($r_glbl->{db_driver} eq "SQLite")
+          { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} .
+                                  ":dbname=" . $r_glbl->{db_source};
+            $dbitable::default_dbdrv="SQLite";
+          }
+        elsif ($r_glbl->{db_driver} eq "Pg")
           { $r_glbl->{db_name} = "DBI:" . $r_glbl->{db_driver} .
                                   ":dbname=" . $r_glbl->{db_source};
             $dbitable::default_dbdrv="Postgresql";
@@ -569,6 +640,8 @@ sub tk_main_window
 
     my $MnTop= $Top->Menu();
     $Top->configure(-menu => $MnTop );
+    
+    $MnTop->configure(theme_parameters($r_glbl,'topmenu'));
 
 
     my $MnFile   = $MnTop->Menu();
@@ -796,7 +869,8 @@ sub tk_main_window
 
     # statusbar
     my $MnStatus = $Top->Frame(-relief=>"groove",
-                               -height=>14
+                               -height=>14,
+                               theme_parameters($r_glbl,'top_status')
                               )->pack(-side=> "bottom",
                                       -fill=> "x",
                                       -anchor=> "sw",
@@ -806,6 +880,7 @@ sub tk_main_window
 
     $r_glbl->{MainWindow}->{login_info}=
         $MnStatus->Label(-text=>" ",
+                         theme_parameters($r_glbl,'top_status:fontelm')
                         )->pack(
                                 -side=>"left",
                                 -expand=>1,
@@ -813,7 +888,8 @@ sub tk_main_window
                                 );
 
     $MnStatus->Label(
-               -text=>'%'
+               -text=>'%',
+               theme_parameters($r_glbl,'top_status:fontelm')
        )->pack(
                -padx=> 2,
                -pady=> 2,
@@ -842,20 +918,32 @@ sub tk_main_window
 #        $Top->update();
 
     # prepareing mainwindow with dialog
-    my $DlgTop = $Top->NoteBook()->pack(
+
+    my $DlgTop = $Top->NoteBook(
+                                 theme_parameters($r_glbl,'notebook:fontelmB')
+                               )->pack(
             -fill=>'both',
             -side=>'top',
             -expand=>1,
-            -anchor=>'nw'
+            -anchor=>'nw',
             );
     $r_glbl->{MainWindow}->{notebook} = $DlgTop;
 
-    my $DlgEnt = $DlgTop->add("DlgEnt", -label=>"Short Exec", -underline=>0);
-    my $DlgTbl = $DlgTop->add("DlgTbl", -label=>"Tables", -underline=>0, -state=>"disabled");
-    my $DlgVw  = $DlgTop->add("DlgVw", -label=>"Views", -underline=>0, -state=>"disabled");
-    my $DlgScr = $DlgTop->add("DlgScr", -label=>"Scripts", -underline=>0, -state=>"disabled");
-    my $DlgSQL = $DlgTop->add("DlgSQL", -label=>"Command", -underline=>0);
-    my $DlgHlp = $DlgTop->add("DlgHlp", -label=>"Help", -underline=>0);
+    my $DlgEnt = $DlgTop->add("DlgEnt",
+                              -label=>"Short Exec", -underline=>0);
+
+    $DlgEnt->configure(theme_parameters($r_glbl,'notebook'));
+
+    my $DlgTbl = $DlgTop->add("DlgTbl", 
+                              -label=>"Tables", -underline=>0, -state=>"disabled");
+    my $DlgVw  = $DlgTop->add("DlgVw", 
+                             -label=>"Views", -underline=>0, -state=>"disabled");
+    my $DlgScr = $DlgTop->add("DlgScr", 
+                              -label=>"Scripts", -underline=>0, -state=>"disabled");
+    my $DlgSQL = $DlgTop->add("DlgSQL", 
+                              -label=>"Command", -underline=>0);
+    my $DlgHlp = $DlgTop->add("DlgHlp", 
+                              -label=>"Help", -underline=>0);
     my %dlg_def_labentry = (
             -padx=>2, -pady=>2,
             -ipadx=>1, -ipady=>1,
@@ -876,7 +964,8 @@ sub tk_main_window
 
     $r_glbl->{new_table_name}= "";
 
-    $DlgEnt->Label(-text => 'Open table/view:'
+    $DlgEnt->Label(-text => 'Open table/view:',
+                   theme_parameters($r_glbl,'notebook:fontelmB')
                   )->grid(-row=>0, -column=>0, -sticky=> "nsw");
 
     $r_glbl->{MainWindow}->{table_browse_widget}=
@@ -884,7 +973,8 @@ sub tk_main_window
                       -validate=> 'key',
                       #-textvariable=>$r_glbl->{browse_val},
                       -validatecommand=> [ \&tk_handle_table_browse_entry,
-                                           $r_glbl]
+                                           $r_glbl],
+                      theme_parameters($r_glbl,'notebook:fontelm')
                                )->grid(-row=>0, -column=>1,-sticky=> "ew");
 
     $r_glbl->{MainWindow}->{table_browse_widget}->
@@ -903,6 +993,7 @@ sub tk_main_window
                               -justify=>"center",
                               -command => [\&tk_open_new_object,
                                             $r_glbl, 'table_or_view' ],
+                              theme_parameters($r_glbl,'notebook:fontelmBt')
                             )->grid(-row=>0,-column=>2,-sticky=> "ew");
 
 
@@ -915,7 +1006,8 @@ sub tk_main_window
                            -pady=>10,
                            -columnspan=>3,-sticky=> "ew");
 
-    $DlgEnt->Label(-text => "Load your Collection :"
+    $DlgEnt->Label(-text => "Load your Collection :",
+                   theme_parameters($r_glbl,'notebook:fontelmB')
                   )->grid(-row=>2, -column=>0,-sticky=> "nw");
 
     my $DlgCollListbox =
@@ -925,6 +1017,7 @@ sub tk_main_window
                              -scrollbars=>"osoe",
                              -width=>48,
                              -selectmode=>"browse",
+                             theme_parameters($r_glbl,'notebook:fontelm')
                            )->grid(-row=>2,-column=>1,-sticky=> "nsew");
 
     $DlgEnt->gridRowconfigure   (2,-weight=>1); # make it stretchable
@@ -943,6 +1036,7 @@ sub tk_main_window
                                            $DlgCollListbox->curselection);
                                      tk_load_collection($Top, $r_glbl, $entry);
                                    },
+                             theme_parameters($r_glbl,'notebook:fontelmBt')
                           )->grid( -row=>0, -column=>0,-sticky=> "ew");
     my $DlgCollRefresh =
            $DlgEntBF->Button( -state=>"normal",
@@ -957,6 +1051,7 @@ sub tk_main_window
                                                        $r_glbl->{dir}
                                                       )     );
                                    },
+                              theme_parameters($r_glbl,'notebook:fontelmBt')
                           )->grid( -row=>1, -column=>0,-sticky=> "ew");
 
         $DlgCollListbox->insert("end",
@@ -1326,10 +1421,13 @@ sub tk_main_window_finish
              insert("end",  @{  $r_glbl->{MainWindow}->{accessible_objects_all} } );
 
     # opens or create a new history file
+    my $mydbsrc= $r_glbl->{db_source};
+    $mydbsrc=~ s/\//_/g; # in case it's a file-path
+    
     $r_glbl->{filename_sql_history} =
                    $r_glbl->{dir} . join("_","/history",
                                   $r_glbl->{db_driver},
-                                  $r_glbl->{db_source},
+                                  $mydbsrc,
                                   $r_glbl->{user});
 #@@@@@@@@@@@@@ change here!
 
@@ -2736,9 +2834,7 @@ sub cb_show_contenttable
                                 -selectmode=> 'extended',
                                 #-flashmode=> 1,
                                 #-width => $dbi_column_no,
-                                theme_parameters($r_glbl,'table',
-                                                 '-background',
-                                                 '-font')
+                                theme_parameters($r_glbl,'table')
                                 
                                 );
 
@@ -7237,6 +7333,19 @@ sub rdump
       };
     $$r_buf.=  " " x $indent if ($is_newline);
     $$r_buf.=  "REF TO: \'$r\'$comma\n";
+  }
+
+sub print_help
+  { my $p= $0;
+    $p=~ s/.*?([^\/]+)$/$1/;
+    my $version= $global_data{version};
+    print <<END
+************* $p $version *****************
+usage: $p {options}
+options:
+  -h : this help
+  -b --bigfonts: use bigger fonts
+END
   }
 
 
