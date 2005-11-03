@@ -74,7 +74,8 @@ use Text::ParseWords;
 # initialize package globals
 
 our %drivers= ( Oracle => 'dbdrv_oci.pm',
-                Postgresql => 'dbdrv_pg.pm' 
+                Postgresql => 'dbdrv_pg.pm',
+		SQLite => 'dbdrv_lite.pm'
               );
 our $std_dbh;      # internal standard database-handle
 our $std_username; # internal standard username
