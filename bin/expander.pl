@@ -54,10 +54,12 @@ my $debug= 0; # global debug-switch
 #Getopt::Long::config(qw(no_ignore_case));
 
 my @files;
+my @macros;
 
 if (!GetOptions("help|h","summary",
 		"lazy|l", "arrays|a",
 		"file|f=s" => \@files, 
+		"macros|m=s" => \@macros,
                 ))
   { die "parameter error!\n"; };
 
@@ -82,6 +84,16 @@ if ($opt_summary)
 if (!@files)
   { die "-f option is mandatory\n"; };
 
+if (@macros)
+  { foreach my $mac (@macros)
+      { my @items= split(/,/,$mac);
+        foreach my $m (@items)
+          { my($name,$val)= split(/=/,$m);
+            die "not recognized: $m" if (!defined $val);
+	    expander::set_var($name,$val);
+	  };  
+      };
+  }
 # ------------------------------------------------
 
 foreach my $f (@files)
@@ -120,6 +132,8 @@ Usage:
     -l : lazy syntax, allow \$name instead of \${name}
     -a : allow arrays
     -f [file]: process file(s)
+    -m [name=value] define a macros 
+      more than one -m option is allowed
 
 Short syntax description (provided that -l and -a options are given,
 see also manpage of expander.pm)
