@@ -50,7 +50,12 @@ sub module_cmd
 
     #warn "$cmd\n";
     my $old= $ENV{'PATH'};
-    $ENV{'PATH'}= '';
+    
+    # a minimalistic path is needed for the 
+    # zsh module-scripts to run. These remaining directories
+    # must be absolute and must not be writable for the user
+    # (see also "man perlsec")
+    $ENV{'PATH'}= '/usr/bin:/usr/bin/X11';
     
     # fool perl's taint-check:
     $cmd=~ /^(.*)$/;
