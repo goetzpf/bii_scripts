@@ -56,11 +56,18 @@ BEGIN {
     # as well as any optionally exported functions
     @EXPORT_OK   = qw();
 
+    #warn "********environment bef. calling dbdrv: \n" . join(",",%ENV);
+
     #use DBI;
     if (!$ENV{DBITABLE_NO_DBI})
       { require DBI;
+        #warn "************* DBI LOADED **************";
         import DBI;
-      };
+      }
+#    else
+#      {
+#        warn "************* DBI NOT LOADED **************";
+#      };
 
 }
 use vars      @EXPORT_OK;
