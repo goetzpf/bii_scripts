@@ -37,7 +37,8 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
                 dbcount pfind.pl dbdiff Sch2db.pl
                 dbscan.pl set_ioc_tsrv.pl hgen.pl 
                 canlink.pl filter_can_links.pl
-		expander.pl);
+		expander.pl
+		sch_cvs_diff);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
