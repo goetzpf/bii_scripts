@@ -51,6 +51,13 @@ pfind.pl
 	a perl-script for recursive file pattern search, like
 	a recursive grep, but better...
 
+sch_cvs_diff
+	shows the difference between a modified capfast (*.sch) file
+	and it's version on the top-trunk in the cvs repository.
+	The difference of the resulting *.db files is shown, which
+	is much clearer when you want to find out what was really 
+	changed.
+
 Currently undocumented:
 
 
