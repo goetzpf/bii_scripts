@@ -2,6 +2,79 @@
 
 CreateX - Routines that help to write CreateX.pl scripts
 
+=head1 SYNOPSIS
+
+  use CreateX;
+
+  ($app,$ioc) = app_ioc(ARGV[0]);
+
+  $fh = std_open_target $app, $ioc, "substitutions";
+
+  with_target_file {
+    my $fh = shift;
+    #...use $fh for writing...
+  } $app, $ioc, "substitutions";
+
+  with_dbi_handle {
+    my $dbh = shift;
+  } std_dbi_connect_args;
+
+  use DBI; $dbh = DBI->connect(std_dbi_connect_args);
+
+  std_create_subst_and_req(ARGV[0],
+    sub {
+      my ($app,$ioc,$fh,$dbh) = @_;
+      #...write stuff obtained using db handle $dbh into subst file $fh
+    }
+    sub {
+      my ($app,$ioc,$fh,$dbh) = @_;
+      #...write stuff obtained using db handle $dbh into req file $fh
+    }
+  }
+
+  std_create_subst(ARGV[0],
+    sub {
+      my ($app,$ioc,$fh,$dbh) = @_;
+      #...write stuff obtained using db handle $dbh into subst file $fh
+    }
+  }
+
+  write_subst_line($fh, "NAME=\"VALUE\"");
+
+  write_template($fh,"xyz.template",
+    sub {
+      my $fh = shift;
+      print $fh " { NAME=DEVICE1, ADDR=0 }\n"
+      print $fh " { NAME=DEVICE2, ADDR=1 }\n"
+    }
+  );
+
+  perform_query($dbh,$query,
+    sub {
+      my ($row,$colnames) = @_;
+      $row->{MY_NEW_COLUMN} = "a value for my new column";
+      print $fh join(",", map("$_=\"$row->{$_}\"", @$colnames));
+    },
+    sub {
+      my ($colnames) = @_;
+      push(@$colnames, "MY_NEW_COLUMN");
+    }
+  )
+
+  write_template_sql($fh,$template,$dbh,$query,
+    sub {
+      my ($row,$colnames) = @_;
+      $row->{MY_NEW_COLUMN} = "a value for my new column";
+      print $fh join(",", map("$_=\"$row->{$_}\"", @$colnames));
+    },
+    sub {
+      my ($colnames) = @_;
+      push(@$colnames, "MY_NEW_COLUMN");
+    }
+  }
+
+=head1 DESCRIPTION
+
 =cut
 
 require Exporter;
@@ -18,16 +91,23 @@ our @EXPORT = qw(
   write_subst_line
   write_template
   write_template_sql
+  perform_query
 );
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.5 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.6 $ =~ /(\d+)/g;
 
 use strict;
 use Carp;
 use DBI;
 
-## Initialization helpers
+=over
 
-# Split argument into exactly two '.'-separated parts
+=item app_ioc EXPR
+
+Split argument string into exactly two '.'-separated parts. Useful for
+CreateSubst scipts, where the first argument is often "appname.iocname".
+
+=cut
+
 sub app_ioc {
   my $arg = shift;
   my @app_ioc = split /\./, $arg;
@@ -35,8 +115,18 @@ sub app_ioc {
   return @app_ioc;
 }
 
-# Open a target file (i.e. writeable), given app name, ioc name, and suffix.
-# Also prints a message to indicate what is going to be done.
+=item std_open_target STRING STRING STRING
+
+Open a target file for writing and return the file handle. The rest of the
+arguments are (1) an application name (2) an optional IOC name, and (3) the file
+name suffix. The file name to be opened is constructed by joining these parts
+with dots in between. If an IOC name is not part of teh file name, an undefined
+value must be given instead. The routine also prints a message indicating that
+the a file of the given type (=suffix) is created for the given application name
+and IOC name.
+
+=cut
+
 sub std_open_target {
   my ($app,$ioc,$suffix) = @_;
   my $filename = (defined $ioc) ? "$app.$ioc.$suffix" : "$app.$suffix";
@@ -46,11 +136,15 @@ sub std_open_target {
   return $filehandle;
 }
 
-# Execute the first argument (a code block) with an open file handle
-# as first argument.
-# The handle is opened using the remaining arguments as parameters
-# to std_open_target.
-# The handle is closed after the code has been executed.
+=item with_target_file BLOCK ARGS
+
+Execute the first argument (a code block) with an open file handle as first
+argument. The handle is opened using the remaining arguments as parameters to
+L</std_open_target>. The handle is closed after the code block has been
+executed.
+
+=cut
+
 sub with_target_file (&@) {
   my $code = shift;
   my $fh = &std_open_target;
@@ -58,11 +152,14 @@ sub with_target_file (&@) {
   close $fh;
 }
 
-# Execute the first argument (a code block) with an open dbi handle
-# as first argument.
-# The handle is opened using the remaining arguments as parameters
-# to DBI->connect.
-# The handle is closed after the code has been executed.
+=item with_dbi_handle BLOCK LIST
+
+Execute the first argument (a code block) with an open dbi handle as first
+argument. The handle is opened using the remaining arguments as parameters to
+DBI->connect. The handle is closed after the code has been executed.
+
+=cut
+
 sub with_dbi_handle (&@) {
   my $code = shift;
   my $dbh = DBI->connect(@_);
@@ -70,7 +167,17 @@ sub with_dbi_handle (&@) {
   $dbh->disconnect;
 }
 
-# The usual BESSY-II standard arguments for DBI->connect
+=item std_dbi_connect_args
+
+Standard arguments for DBI->connect, i.e.
+
+    ("dbi:Oracle:$ENV{ORACLE_SID}",
+    "guest",
+    "bessyguest",
+    {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0})
+
+=cut
+
 use constant std_dbi_connect_args => (
     "dbi:Oracle:$ENV{ORACLE_SID}",
     "guest",
@@ -78,16 +185,24 @@ use constant std_dbi_connect_args => (
     {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0}
   );
 
-# Standard 'main' routine to create a substitution and a request file
+=item std_create_subst_and_req STRING SUB SUB
+
+Standard 'main' routine to create a substitution and optionally a request file.
+The first argument is a string of the form "application.ioc", usually $ARGV[0].
+The second and third arguments must be subroutines that perform the actual work
+of writing some stuff to the substition (2nd arg) resp. request file (3rd arg,
+optional).
+
+The passed subroutines in turn both get passed the following four arguments:
+
+   1. application name
+   2. ioc name
+   3. file handle, opened via L</with_target_file>
+   4. database handle, opened via L</with_dbi_handle>
+
+=cut
+
 sub std_create_subst_and_req {
-  # 1st arg: string of the form "application.ioc"; usually $ARGV[0]
-  # 2nd arg: routine that actually writes stuff to the subst file
-  # 3rd arg: optional routine that actually writes stuff to the req file
-  # The routines passed as 2nd and 3rd arg should take as arguments
-  #   1) the application name
-  #   2) the ioc name
-  #   3) a file handle
-  #   4) a database handle
   my ($arg,$write_subst,$write_req) = @_;
 
   my ($app,$ioc) = app_ioc($arg);
@@ -105,33 +220,38 @@ sub std_create_subst_and_req {
   } std_dbi_connect_args;
 }
 
-# Standard 'main' routine to create a substitution file. This is just a special
-# instance of std_create_subst_and_req.
+=item std_create_subst STRING SUB
+
+Standard 'main' routine to create a substitution file. This is just calls
+L</std_create_subst_and_req> with the given two arguments.
+
+=cut
+
 sub std_create_subst {
-  # 1st arg: a string of the form "application.ioc"; usually $ARGV[0]
-  # 2nd arg: a routine that actually writes stuff to the file
-  # The routines passed as 2nd arg should take as arguments
-  # 1) a database handle
-  # 2) a file handle
-  # 3) the application name
-  # 4) the ioc name
   my ($arg,$write_subst) = @_;
   std_create_subst_and_req($arg,$write_subst);
 }
 
-# Generic routine to handle a single row returned by a
-# SQL query on a database handle. It is parameterized on
-# database handle, SQL query, and row/colname handler routines,
-# that perform the real work.
+=item perform_query DB_HANDLE QUERY ROW_HANDLER COLNAME_HANDLER
+
+Generic routine to handle a single row returned by a SQL query on a database
+handle. It is parameterized on database handle, SQL query, and row/colname
+handler routines, that perform the real work. The arguments to perform_query
+are:
+
+   1. database handle to perform query on
+   2. sql query (a string)
+   3. a row handler routine that takes
+      1. a reference to a hash containing name/value pairs
+         (such as returned by DBI::fetchrow_hashref), and
+      2. a reference to an array of column names
+
+   4. a colname handler routine that takes a reference to an
+      array of column names
+
+=cut
+
 sub perform_query {
-  # 1st arg: database handle to perform query on
-  # 2nd arg: sql query
-  # 3rd arg: reference to a row handler routine that takes
-  #   (1) a reference to a hash containing name/value pairs
-  #       (such as returned by DBI::fetchrow_hashref), and
-  #   (2) a reference to an array of column names
-  # 4th arg [optional]: reference to a colname handler routine that takes
-  #   a reference to an array of column names
   my ($dbh,$query,$row_handler,$colname_handler) = @_;
 
   my $sth = $dbh->prepare($query);
@@ -144,9 +264,12 @@ sub perform_query {
   }
 }
 
-## Routines to generate (parts of) a substitution file
+=item write_subst_line FILE STRING
 
-# Write one instantiation line inside some file-section of a substitution file.
+Write one instantiation line inside some file-section of a substitution file.
+
+=cut
+
 sub write_subst_line {
   # 1st arg: file handle to write to
   # 2nd arg: a string consisting of comma-separated NAME=VALUE definitions
@@ -154,29 +277,42 @@ sub write_subst_line {
   print $fh " {" . $line . "}\n";
 }
 
-# Write a complete file-section in a substitution file.
+=item write_template FILE STRING SUB
+
+Write a complete file-section in a substitution file. The arguments are:
+
+   1. file handle to write to
+   2. name of the template file to instantiate
+   3. procedure that writes the substitution lines
+
+=cut
+
 sub write_template {
-  # 1st arg: file handle to write to
-  # 2nd arg: name of the template file to instantiate
-  # 3rd arg: procedure that writes the substitution lines
   my ($fh,$template,$write_subst_lines) = @_;
   print $fh "file $template {\n";
   $write_subst_lines->($fh);
   print $fh "}\n";
 }
 
-# Write a complete file-section in a substitution file, based on sql query.
+=item write_template_sql
+
+Write a complete file-section in a substitution file, based on sql query. The
+arguments are:
+
+   1: file handle to write to
+   2: name of the template file to instantiate
+   3: database handle to perform query on
+   4: sql query
+   5: [optional] reference to a row patch routine that takes
+      1: a reference to a hash containing name/value pairs
+         (such as returned by DBI::fetchrow_hashref), and
+      2: a reference to an array of column names
+   6: [optional] reference to a colnames patch routine that takes
+      a reference to an array of colnames
+
+=cut
+
 sub write_template_sql {
-  # 1st arg: file handle to write to
-  # 2nd arg: name of the template file to instantiate
-  # 3rd arg: database handle to perform query on
-  # 4th arg: sql query
-  # 5th arg [optional]: reference to a row patch routine that takes
-  #   (1) a reference to a hash containing name/value pairs
-  #       (such as returned by DBI::fetchrow_hashref), and
-  #   (2) a reference to an array of column names
-  # 6th arg [optional]: reference to a colnames patch routine that takes
-  #   a reference to an array of colnames
   my ($fh,$template,$dbh,$query,$patch_row,$patch_colnames) = @_;
   write_template($fh,$template,
     sub {
@@ -194,3 +330,7 @@ sub write_template_sql {
 }
 
 1;
+
+=back
+
+=cut

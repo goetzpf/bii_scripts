@@ -48,7 +48,7 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
 		);
                 
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
-             cfgfile.pm dbdrv.pm canlink.pm expander.pm);
+             cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm);
 
 
 my %pm;
