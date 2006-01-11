@@ -8,7 +8,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.3;
+    $VERSION     = 1.4;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -92,15 +92,18 @@ sub set_var
 
 sub parse_file
   { my($filename, %options)= @_;
-    local($/);
-    local(*F);
-    undef $/;
     my $var;
     
     if (!defined $filename)
-      { $var= <>; }
+      { local($/);
+        undef $/;
+        $var= <>; 
+      }
     else
-      { open(F, $filename) or die "unable to open $filename";
+      { local($/);
+        local(*F);
+        undef $/;
+        open(F, $filename) or die "unable to open $filename";
         $var= <F>;
         close(F);
 	$err_file= $filename;
