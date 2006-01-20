@@ -8,7 +8,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.4;
+    $VERSION     = 1.5;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -22,8 +22,6 @@ BEGIN {
 use vars      @EXPORT_OK;
 
 our %m;
-my $is_lazy=0;
-my $use_arrays=0;
 our $debug=0;
 
 my $silent=0;
@@ -136,12 +134,6 @@ sub parse_scalar
 	  }
       };
       
-    if (exists $options{lazy})
-      { $is_lazy= $options{lazy}; };
-      
-    if (exists $options{arrays})  
-      { $use_arrays= $options{arrays}; };
-    
     if (exists $options{callback}) 
       { $callback= $options{callback}; }; 
     
@@ -264,7 +256,7 @@ sub parse_scalar
 		if (!defined $start)
 		  { $err_pre= "malformed for-block";
 		    $err_line= __LINE__;
-		    fatal_parse_error($r_line,$p,); 
+		    fatal_parse_error($r_line,$p); 
 		  };
 		my $sub= substr($$r_line,$start+1,$end-$start-1);
 #warn "substr: |$sub|";
@@ -561,149 +553,115 @@ sub find_position_in_string
     return($lineno,$position-$oldpos);
   }      
 
+sub simple_match
+# match a single variable or array-element
+# returns: start of var (pointing at '$' char) and end of var
+# (the last character of the variable), name of the var, index-expression
+  { my($r_line, $p)= @_;
+
+    pos($$r_line)= $p;
+    
+    if ($$r_line=~ /\G(\w+)\[([^\]]+)\]/gs)
+      { return($p-1, pos($$r_line)-1, $1,$2); }; #name, key
+
+    pos($$r_line)= $p;
+    
+    if ($$r_line=~ /\G(\w+)/gs)
+      { return($p-1, pos($$r_line)-1, $1); };    #name
+
+    pos($$r_line)= $p;
+
+    if ($$r_line=~ /\G\{(\w+)\[([^\]]+)\]\}/gs)
+      { return($p-1, pos($$r_line)-1, $1,$2); }; #name, key
+      
+    pos($$r_line)= $p;
+
+    if ($$r_line=~ /\G\{(\w+)\}/gs)
+      { return($p-1, pos($$r_line)-1, $1); };    #name
+      
+    pos($$r_line)= $p;
+
+      
+    return;  
+  }  
+
 sub variable_expand
   { my($r_line, $p)= @_;
   
-    pos($$r_line)= $p;
+    my($start,$end,$var,$index)= simple_match($r_line, $p);
     
-    if ($use_arrays)
-      { 
-	if ($$r_line=~ /\G\{(\w+)\[(\d+)\]\}/gs)
-	  { # a variable is to expand
-	    
-	    if (defined $callback)
-	      { &$callback($1,$2); };
-	    if (!exists $m{$1})
-	      { 
-		$err_pre= "macro \$\{$1\} is not defined";
-		fatal_parse_error($r_line,$p)
-	      };
-	    if ($debug)
-	      { warn "--- expand \$\{$1\[$2\]\} to " . $m{$1}->[$2] . "\n"; };
-
-	    return($m{$1}->[$2]);
-	  };
+    # ^^^returns start of var (pointing at '$' char) and end of var
+    # (the last character of the variable), name of the var, index-expression
+    if (!defined $var)
+      { # could not find a variable expression
         pos($$r_line)= $p;
-      }	  
-    
-    pos($$r_line)= $p;
-
-    if ($$r_line=~ /\G\{\$(eval|perl)(\s*)\(/gs)
-      { my $startpos= pos($$r_line)-4-length($2)-3;
-        
-#warn "at startpos:" . substr($$r_line,$startpos);	
-	my $st_pos= pos($$r_line);
-        my $word= $1;
-        my($name,$end)= 
-	   eval_bracket_block($r_line,$st_pos-1,($word eq 'perl'));
-        # a variable is to expand
-	if (defined $callback)
-	  { &$callback($name); };
-	if (!exists $m{$name})
-	  { 
-            #warn "parsed: |$1|";
-	    $err_pre= "macro \$\{$name\} is not defined";
-	    fatal_parse_error($r_line,$p)
-	  };
-	if ($debug)
-	  { warn "--- expand \$\{\$$word" . 
-	         substr($$r_line, $st_pos-1,$end-$st_pos+1) .
-		 "\} to " . $m{$name} . "\n"; };
-	$end= skip_bracket_block($r_line,$startpos);
-	pos($$r_line)= $end+1;    
-		    
-	return($m{$name});
+        return;  
       };
-
-    pos($$r_line)= $p;		
-
-
-    if ($$r_line=~ /\G\{(\w+)\}/gs)
-      { # a variable is to expand
-	if (defined $callback)
-	  { &$callback($1); };
-	if (!exists $m{$1})
-	  { 
-#warn "parsed: |$1|";
-	    $err_pre= "macro \$\{$1\} is not defined";
-	    fatal_parse_error($r_line,$p)
-	  };
-	if ($debug)
-	  { warn "--- expand \$\{$1\} to " . $m{$1} . "\n"; };
-	return($m{$1});
-      };
-
-    pos($$r_line)= $p;
-
-    if ($is_lazy)
-      { if ($use_arrays)
-          {
-            if ($$r_line=~ /\G(\w+)\[(\d+)\]/gs)
-	      { 
-		# a variable is to expand
-		if (!exists $keywords{$1})
-		  { 
-		    if (defined $callback)
-		      { &$callback($1,$2); };
-		    if (!exists $m{$1})
-		      { 
-			$err_pre= "macro  \$$1 is not defined";
-			fatal_parse_error($r_line,$p); 
-		      };
-	            if ($debug)
-	              { warn "--- expand \$$1\[$2\] to " . $m{$1}->[$2] . "\n"; };
-		    return($m{$1}->[$2]);
-		  }
-	      };
-	    pos($$r_line)= $p;
-	  };
       
-        if ($$r_line=~ /\G(\w+)/gs)
-	  { 
-	    # a variable is to expand
-	    if (!exists $keywords{$1})
-	      { 
-		if (defined $callback)
-		  { &$callback($1); };
-		if (!exists $m{$1})
-		  { $err_pre= "macro  \$$1 is not defined";
-		    fatal_parse_error($r_line,$p); 
-		  };
-	        if ($debug)
-	          { warn "--- expand \$$1 to " . $m{$1} . "\n"; };
-		return($m{$1});
-	      }
-	  };
-	pos($$r_line)= $p;
+    if (exists $keywords{$var})
+      { # its a keyword, not a variable
+        pos($$r_line)= $p;
+        return;  
       };
+  
+    if (!defined $index)
+      { # not an array expression
+        &$callback($var) if (defined $callback);
+	if (!exists $m{$var})
+	  { 
+#warn "parsed: |$var|";
+	    $err_pre= "macro \$\{$var\} is not defined";
+	    fatal_parse_error($r_line,$p)
+	  };
+	if ($debug)
+	  { warn "--- expand \$\{$var\} to " . $m{$var} . "\n"; };
+        pos($$r_line)= $end+1;
+	return($m{$var});
+      };
+      
+    # from here: it's an index expression
+    if ($index=~/\$/)
+      { # a "complicated" expression
+        $index= eval_part($index, $r_line, $p);
+      };
+ 
+    
+    &$callback($var,$index) if (defined $callback);
+	
+    if (!exists $m{$var})
+      { 
+	$err_pre= "macro \$\{$var\} is not defined";
+	fatal_parse_error($r_line,$p)
+      };
+    if ($debug)
+      { warn "--- expand \$\{$var\[$index\]\} to " . $m{$var}->[$index] . "\n"; };
 
-    pos($$r_line)= $p;
-    return;  
+    pos($$r_line)= $end+1;
+    return($m{$var}->[$index]);
   }
-          
+ 
 
 sub mk_perl_varnames
 # internal
   { my($line)= @_;
-  
+
 #print "in: |$line|\n";
-    if ($use_arrays)
-      { # replace ${a[n]} with \$m{a}->[n]
-        $line=~ s/(?<!\\)\$\{(\w+)\[(\d+)\]\}/\\\$m\{$1\}->\[$2\]/gs;
-      };
+    # replace ${a[n]} with \$m{a}->[n]
+    $line=~ s/(?<!\\)\$\{(\w+)\[(\d+)\]\}/\\\$m\{$1\}->\[$2\]/gs;
+
+    #replace @{a} with \@{\$m{a}}
+    $line=~ s/(?<!\\)\@\{(\w+)\}/\@\{\\\$m\{$1\}\}/gs;
     
     # replace ${a} with \$m{a}
     $line=~ s/(?<!\\)\$(\{\w+\})/\\\$m$1/gs;
   
-    if ($is_lazy)
-      { if ($use_arrays)
-          { 
 #warn;	  
-	    $line=~ s/(?<!\\)\$(\w+)\[(\d+)\]/\\\$m\{$1\}->\[$2\]/gs; 
-	  }; 
-	  
-        $line=~ s/(?<!\\)\$(\w+)/\\\$m\{$1\}/gs; 
-      };
+    $line=~ s/(?<!\\)\$(\w+)\[(\d+)\]/\\\$m\{$1\}->\[$2\]/gs; 
+
+    #replace @a with \@{\$m{a}}
+    $line=~ s/(?<!\\)\@(\w+)/\@\{\\\$m\{$1\}\}/gs;
+
+    $line=~ s/(?<!\\)\$(\w+)/\\\$m\{$1\}/gs; 
 
     # replace \$ with $
     $line=~ s/\\\$/\$/gs;
@@ -712,11 +670,9 @@ sub mk_perl_varnames
       { pos($line)=0;
         while ($line=~/\G.*?\$m\{(\w+)\}/g) 
 	  { &$callback($1); };
-        if ($use_arrays)
-	  { pos($line)=0;
-            while ($line=~/\G.*?\$m\{(\w+)\}->\[(\d+)\]/g) 
-	      { &$callback($1,$2); };
-	  };
+        pos($line)=0;
+        while ($line=~/\G.*?\$m\{(\w+)\}->\[(\d+)\]/g) 
+	  { &$callback($1,$2); };
       };
 
 #print "out: |$line|\n";
@@ -742,7 +698,7 @@ expander - a Perl module to perform macro expansions in ascii-files
 
   my $st= <>;
 
-  parse_scalar($st,lazy=>1);
+  parse_scalar($st,%options);
 
 =head1 DESCRIPTION
 
@@ -750,12 +706,13 @@ expander - a Perl module to perform macro expansions in ascii-files
 
 This package provides functions in order to perform macro
 substitutions in ascii files. Aside from simple substitution,
-calculations of complex expressions are also possible. 
+the calculation of complex expressions is also possible. 
 
 =head2 Basic concepts
 
 The module provides two parse-functions that take either a 
-scalar variable the filename of the file that contain the text to 
+scalar variable that contains a reference to the text or 
+the filename of the file that contains the text to 
 parse.
 
 Both functions scan for variables, expressions or keywords in the
@@ -771,15 +728,15 @@ Variables have the following form:
   ${name}
   ${name[index]}
   
-If lazy mode is active, this form is recognized too:
+or
 
   $name
   $name[index]
   
-This first lines in the examples are simple variables. A variable
+The first lines in the examples are simple variables. A variable
 of this type can hold numbers or strings. The second lines are the
 array form. In this case the variable is an array of values, each value 
-can be accessed by an index.
+can be accessed by an index. The index can be (almost) any perl expression. 
 
 =item I<expressions>
 
@@ -789,9 +746,13 @@ this expression defines and sets a variable
 
   $myvar=1
   
-This expression does a simple calculation
+This expression does a simple calculation:
 
   $myvar*2
+  
+This expression initializes an array:
+
+  @my_array=("X", "Y", "Z")
   
 =item I<keywords>
 
@@ -849,9 +810,12 @@ variable and expand it:
 =item I<perl>
 
   $perl(<statements>)
-  
-The given statements are evaluated without further changes
-by the perl-interpreter. This can be used to include perl-modules
+
+The given statements are evaluated directly by the 
+perl-interpreter. This is a significant difference to
+$set or $eval since with these certain replacements are
+done in the given expression before it is evaluated.
+This can be used to include perl-modules
 
   $perl(require modulename;) 
   
@@ -916,6 +880,19 @@ The text between for end endfor is printed several times.
 The init and loop-expression can be used to count a counter-variable
 up or down.
 
+Here is an example:
+
+  $for($i=0; $i<5; $i++)
+    NAME= "Axle$i"
+  $endfor
+  
+Here is another example with arrays:
+
+  $set(@chars=qw(X Y Z))
+  $for($i=0; $i<@a; $i++)
+    NAME= "element: $chars[$i]"
+  $endfor
+
 =item I<endfor>
   
   $endfor
@@ -973,18 +950,6 @@ given filehandle.
 If this hash key is provided, a file with the given name is 
 created and the output is printed to that file. If neither "filehandle"
 nor "filename" is given, all ouput is printed to STDOUT.
-
-=item I<lazy>
-
-  parse_scalar($myvar, lazy=>1)
-  
-If lazy is not zero or undefined, the extended lazy syntax is also accepted
-
-=item I<arrays>
-
-  parse_scalar($myvar, arrays=>1)
-
-If arrays is not zero or undefined, arrays are also accepted
 
 =item I<callback>
 
