@@ -4,8 +4,8 @@
 #
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
-# Time-stamp: <24 Jan 06 12:31:36 Ralph Lange>
-# $Id: SetPerms,v 1.7 2006-01-24 13:31:29 lange Exp $
+# Time-stamp: <24 Jan 06 14:35:59 Ralph Lange>
+# $Id: SetPerms,v 1.8 2006-01-24 13:36:20 lange Exp $
 #
 PROG=`basename $0`
 
@@ -193,7 +193,7 @@ do
   
 ###############################################################################
 
-    */vw/* | */epics/*/support* | */epics/base* | */epics/*/base* | */epics/extensions* |
+    */vw/* | */epics/*/support* | */epics/base* | */epics/*/base* | */epics/extensions* |\
     */vxworks/* | */Epics/*/support* | */Epics/base* | */Epics/*/base* | */Epics/extensions* )
 
 # Set everything to group epics and ???r-X---
