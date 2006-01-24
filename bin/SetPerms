@@ -4,8 +4,8 @@
 #
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
-# Time-stamp: <14 Jan 04 12:40:23 Thomas Birke>
-# $Id: SetPerms,v 1.6 2006-01-24 11:13:08 franksen Exp $
+# Time-stamp: <24 Jan 06 12:31:36 Ralph Lange>
+# $Id: SetPerms,v 1.7 2006-01-24 13:31:29 lange Exp $
 #
 PROG=`basename $0`
 
@@ -193,7 +193,8 @@ do
   
 ###############################################################################
 
-    */vw/* | */epics/*/support* | */epics/base* | */epics/*/base* | */epics/extensions* )
+    */vw/* | */epics/*/support* | */epics/base* | */epics/*/base* | */epics/extensions* |
+    */vxworks/* | */Epics/*/support* | */Epics/base* | */Epics/*/base* | */Epics/extensions* )
 
 # Set everything to group epics and ???r-X---
 
@@ -201,7 +202,7 @@ do
 	echo Setting everything to group epics and mode ???r-Xr-X ...
 		       
 	chgrp -R epics $f > /dev/null 2>&1
-	chmod -R g=rX,o=rX $f > /dev/null 2>&1
+	chmod -R go=rX $f > /dev/null 2>&1
 		       
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
@@ -209,7 +210,7 @@ do
 
 	files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
 	if [ -n "$files" ]; then
-	    echo $files | xargs chmod u=rwx,g=rwx,o=rx
+	    echo $files | xargs chmod ug=rwx,o=rx
 	    echo $files | xargs chgrp epima
 	fi
         find -type d -exec chmod g+s {} \;
