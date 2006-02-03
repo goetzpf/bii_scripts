@@ -8,7 +8,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.5;
+    $VERSION     = 1.6;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -195,9 +195,18 @@ sub parse_scalar
 	  }
 	
 	$p= pos($$r_line); # pos after "$"
-	my $ex= variable_expand($r_line, $p);
+	
+	
+	
+	my $ex;
+        # no variable expansion in a skipped part:
+	if ($ifcond[-1]>0)
+	  { $ex= variable_expand($r_line, $p, $ifcond[-1]<=0); 
+	  };
 	if (defined $ex)
-	  { print $fh $ex if ($ifcond[-1]>0);
+	  { 
+	    print $fh $ex; # not needed here: if ($ifcond[-1]>0);
+	                   # since variable_expand's 3rd parameter...
 	    next;
 	  };
 
@@ -581,14 +590,48 @@ sub simple_match
       
     pos($$r_line)= $p;
 
+
+#return;  
+    if ($$r_line=~ /\G\{\$eval\(/gs)
+      { my $pi= pos($$r_line)-1; # pos of 1st round bracket
+	my($start,$end)= match($r_line,pos($$r_line)-1);
+
+       if (!defined $start)
+	 { $err_pre= "malformed eval";
+	   $err_line= __LINE__;
+	   fatal_parse_error($r_line,$p); 
+	 };
+       pos($$r_line)= $end+1; 
+
+       if ($$r_line!~ /\G\}/gs)
+	 { $err_pre= "malformed var-block";
+	   $err_line= __LINE__;
+	   fatal_parse_error($r_line,$p); 
+	 };
+         	 
+       my $e= pos($$r_line)-1;
+
+       return($p-1, $e, substr($$r_line,$pi+1,$end-$pi-1), undef, "eval");
+      };
       
+    pos($$r_line)= $p;
     return;  
   }  
 
 sub variable_expand
   { my($r_line, $p)= @_;
   
-    my($start,$end,$var,$index)= simple_match($r_line, $p);
+    my($start,$end,$var,$index,$special)= simple_match($r_line, $p);
+    
+    if ($special eq 'eval')
+      {
+        $var= eval_part($var,$r_line,$start); 
+        pos($$r_line)= $end+1;
+#pos($$r_line)= $p;
+#return;  
+	# this is now the name of the variable
+	
+      };
     
     # ^^^returns start of var (pointing at '$' char) and end of var
     # (the last character of the variable), name of the var, index-expression
@@ -633,6 +676,7 @@ sub variable_expand
 	$err_pre= "macro \$\{$var\} is not defined";
 	fatal_parse_error($r_line,$p)
       };
+
     if ($debug)
       { warn "--- expand \$\{$var\[$index\]\} to " . $m{$var}->[$index] . "\n"; };
 
@@ -680,6 +724,16 @@ sub mk_perl_varnames
     return($line); 
   }
   
+sub strdump
+  { my($r_line, $p, $len, $prefix)= @_;
+  
+    $len= 20 if (!defined $len);
+
+    my $x= substr($$r_line,$p,$len);
+    $x=~ s/\n/\\n/g;
+    print "$prefix DUMP AT POS $p:$x\n";
+  }
+    
 
 
 1;
