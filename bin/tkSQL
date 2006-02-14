@@ -22,8 +22,8 @@ package require BWidget
 # 
 #  Author(s):  Thomas Birke
 # 
-#  $Revision: 1.1 $
-#  $Date: 2005-01-12 13:11:48 $
+#  $Revision: 1.2 $
+#  $Date: 2006-02-14 11:18:32 $
 # 
 #  $Author: birke $
 # 
@@ -37,8 +37,8 @@ package require BWidget
 set Revision ""
 set Date ""
 set Author ""
-set CVS(Revision) "$Revision: 1.1 $"
-set CVS(Date) "$Date: 2005-01-12 13:11:48 $"
+set CVS(Revision) "$Revision: 1.2 $"
+set CVS(Date) "$Date: 2006-02-14 11:18:32 $"
 set CVS(Author) "$Author: birke $"
 
 regsub ": (.*) \\$" $CVS(Revision) "\\1" CVS(Revision)
@@ -401,10 +401,10 @@ proc Exec {sql {mode plain}} {
       set $var [string tolower $val]
       set Sql ""
     }
-    ### perform expression-evaluation
-    while {[regexp "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql all xpr]} {
-      regsub "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql [uplevel $xpr] Sql
-    }
+#    ### perform expression-evaluation
+#    while {[regexp "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql all xpr]} {
+#      regsub "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql [uplevel $xpr] Sql
+#    }
     ### ignore command completely
     if [regexp "^\#" $Sql] {
       set Sql ""

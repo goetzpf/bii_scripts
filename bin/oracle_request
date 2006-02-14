@@ -1,6 +1,6 @@
 #!/bin/sh
 # -*-tcl-*- \
-    if [ -d /opt/oracle/product/9.2.0 ]; \
+    if [ `uname` = "HP-UX" -a -d /opt/oracle/product/9.2.0 ]; \
     then ORACLE_HOME=/opt/oracle/product/9.2.0; \
          PATH=/opt/TclTk/ActiveTcl/bin:$PATH; \
          exec oratclsh $0 ${1+"$@"}; \
