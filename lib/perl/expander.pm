@@ -411,6 +411,12 @@ sub parse_scalar
         fatal_parse_error($r_line,$p); 
       };
       
+    if ($#forstack>=0)
+      { $err_pre= "unfinished for-blocks";
+	$err_line= __LINE__;
+        fatal_parse_error($r_line,$p); 
+      };
+      
     print $fh substr($$r_line,$p) if (!$was_left);
 
     if (exists $options{filename})
