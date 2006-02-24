@@ -798,6 +798,12 @@ of this type can hold numbers or strings. The second lines are the
 array form. In this case the variable is an array of values, each value 
 can be accessed by an index. The index can be (almost) any perl expression. 
 
+CAUTION: In opposition to ordinary perl-programs, scalar and array
+variables are in the same namespace. You cannot have for example
+a variable 
+  $var and @var
+at the same time !
+
 =item I<expressions>
 
 An expression consists of variables and operators or functions. 
