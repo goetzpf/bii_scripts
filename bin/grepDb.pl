@@ -8,15 +8,15 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
 # search in an EPICS db file. 
 #
-#  *  USAGE: grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename
+#  *  USAGE:  grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename
 #
-#  Trigger options may be set al gusto, ar processed as regular expressions 
+#  Trigger options may be set al gusto, they are processed as regular expressions 
 #  concatenated with AND:
 #
 #      -tt <recType>: record type
 #      -tr <recName>: record name
 #      -tf <fieldType>: field type
-#      -tc <cont>:    field as defined with -f contains <cont>
+#      -tc <cont>:    field contains <cont>
 #
 #  Print options: default: all: record and fields
 #
@@ -30,22 +30,21 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
     use strict;
     use Getopt::Long;
-    use parse_db;
-    use Data::Dumper;
 
-    $usage ="USAGE: grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
-            "Trigger options may be set al gusto, ar processed as regular expressions \n".
-            "concatenated with AND:\n\n".
+    my $usage ="\n*  USAGE:  grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
+            "* Trigger options\n".
+            "  may be set al gusto, they are processed as regular expressions concatenated with AND:\n\n".
             "    -tt <recType>: record type\n".
             "    -tr <recName>: record name\n".
             "    -tf <fieldType>: field type\n".
-            "    -tc <cont>:    field as defined with -f contains <cont>\n\n".
-            "Print options: default: all: record and fields\n".
+            "    -tc <cont>:    field contains <cont>\n\n".
+            "* Print options: \n\n".
+            "    default: print triggered records with all fields that match the trigger options\n".
             "    -pf <fieldType>: print this field/s\n".
             "    -pt <recType>:   print records of this type\n".
             "    -pr <recName>:   print records tha match that name\n\n".
             "*  Example  :\n".
-            "      grepDb.pl -t bo -r PHA1R -f DTYP -c lowcal -pf '(DTYP|OUT)' filename\n";
+            "      grepDb.pl -t bo -r PHA1R -f DTYP -c lowcal -pf '(DTYP|OUT)' filename\n\n";
     
     my $trigRecType = ".";
     my $trigRecName = ".";
@@ -55,7 +54,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $prRecName = ".";
     my $prFieldName = ".";
 
-    die unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tc=s"=>\$trigFieldValue,
+    die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tc=s"=>\$trigFieldValue,
                            "pt"=>\$prRecType, "pn=s"=>\$prRecName, "pf=s"=>\$prFieldName);
 
     my( $filename ) = shift @ARGV;  # may be a filename OR a commandline gadget!
@@ -115,7 +114,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
                 if( $field =~ /$trigFieldName/ && $fVal =~ /$trigFieldValue/ )
                 {
 # process print options
-                    unless( defined $recordFlag && $record =~ /$prRecName/ && $recT =~ /$prRecType/ )
+                    if( (not defined $recordFlag) && ($record =~ /$prRecName/) && ($recT =~ /$prRecType/) && ($field =~ /$prFieldName/) )
                     {
                         print "record($recT,\"$record\")  {\n";
                         $recordFlag = 1;
