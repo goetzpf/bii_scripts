@@ -4,6 +4,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 ## grepDb.pl:
 # *****************
 #
+# *  Author  : Kuner
+#
 # search in an EPICS db file. 
 #
 #  *  USAGE: grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename
@@ -31,6 +33,20 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     use parse_db;
     use Data::Dumper;
 
+    $usage ="USAGE: grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
+            "Trigger options may be set al gusto, ar processed as regular expressions \n".
+            "concatenated with AND:\n\n".
+            "    -tt <recType>: record type\n".
+            "    -tr <recName>: record name\n".
+            "    -tf <fieldType>: field type\n".
+            "    -tc <cont>:    field as defined with -f contains <cont>\n\n".
+            "Print options: default: all: record and fields\n".
+            "    -pf <fieldType>: print this field/s\n".
+            "    -pt <recType>:   print records of this type\n".
+            "    -pr <recName>:   print records tha match that name\n\n".
+            "*  Example  :\n".
+            "      grepDb.pl -t bo -r PHA1R -f DTYP -c lowcal -pf '(DTYP|OUT)' filename\n";
+    
     my $trigRecType = ".";
     my $trigRecName = ".";
     my $trigFieldName = ".";
@@ -43,6 +59,9 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
                            "pt"=>\$prRecType, "pn=s"=>\$prRecName, "pf=s"=>\$prFieldName);
 
     my( $filename ) = shift @ARGV;  # may be a filename OR a commandline gadget!
+
+    die $usage unless defined $filename;
+
     my $file;
     open(IN_FILE, "<$filename") or die "can't open input file: $filename";
     { local $/;
@@ -59,7 +78,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     {
         $file = $';
 
-#print "$1,$2 is\n$3\n\n";
         my $recordType = $1;
         my $recordName = $2;
         $rH_recName2recType->{$recordName} = $recordType;
@@ -81,9 +99,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	}
         $rH_records->{$recordName} = $rH_thisFields;
     }
-#    print Dumper($rH_records);
-#    print Dumper($rH_recName2recType);
-#    print Dumper($rH_recType2recName);
 
 # process trigger options
     foreach my $record (keys(%$rH_records))
@@ -111,6 +126,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
                     }
                 }
             }
-        print "}\n" if defined $recordFlag ;
+            print "}\n" if defined $recordFlag ;
         }
     }
