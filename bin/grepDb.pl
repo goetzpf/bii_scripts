@@ -31,19 +31,23 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     use strict;
     use Getopt::Long;
 
-    my $usage ="\n*  USAGE:  grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
-            "* Trigger options\n".
-            "  may be set al gusto, they are processed as regular expressions concatenated with AND:\n\n".
-            "    -tt <recType>: record type\n".
-            "    -tr <recName>: record name\n".
+    my $usage ="\n*  USAGE:\n\n".
+            "      grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
+            "* Trigger options\n\n".
+            "    * options not set match allways\n".
+            "    * options are processed as regular expressions concatenated with AND:\n\n".
+            "    -tt <recType>:   record type\n".
+            "    -tr <recName>:   record name\n".
             "    -tf <fieldType>: field type\n".
-            "    -tc <cont>:    field contains <cont>\n\n".
-            "* Print options: \n\n".
-            "    default: print triggered records with all fields that match the trigger options\n".
+            "    -tc <cont>:      field contains <cont>\n\n".
+            "* Print options:\n\n".
+            "    * options not set match allways, but\n".
+            "    * no option set means print records with fields that match the trigger\n".
+            "    * options are processed as regular expressions concatenated with AND:\n\n".
             "    -pf <fieldType>: print this field/s\n".
             "    -pt <recType>:   print records of this type\n".
             "    -pr <recName>:   print records tha match that name\n\n".
-            "*  Example  :\n".
+            "*  Example  :\n\n".
             "      grepDb.pl -t bo -r PHA1R -f DTYP -c lowcal -pf '(DTYP|OUT)' filename\n\n";
     
     my $trigRecType = ".";
@@ -61,6 +65,14 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
     die $usage unless defined $filename;
 
+# default if NO print options are set: the trigger options!
+    if( ($prRecType eq ".") && ($prRecName eq ".") && ($prFieldName eq ".") )
+    {
+        $prRecType  = $trigRecType;
+        $prRecName  = $trigRecName;
+        $prFieldName= $trigFieldName ;
+    }
+    
     my $file;
     open(IN_FILE, "<$filename") or die "can't open input file: $filename";
     { local $/;
@@ -104,7 +116,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     {
         my $recT = $rH_recName2recType->{$record} ;
 
-        my $recordFlag;
         if( $record =~ /$trigRecName/ && $recT =~ /$trigRecType/ )
         {
             foreach my $field ( keys( %{$rH_records->{$record}} ) )
@@ -113,18 +124,32 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
                 if( $field =~ /$trigFieldName/ && $fVal =~ /$trigFieldValue/ )
                 {
-# process print options
-                    if( (not defined $recordFlag) && ($record =~ /$prRecName/) && ($recT =~ /$prRecType/) && ($field =~ /$prFieldName/) )
-                    {
-                        print "record($recT,\"$record\")  {\n";
-                        $recordFlag = 1;
-                    }
-                    if( $field =~ /$prFieldName/ )
-                    {   
-                        print "\tfield($field,\"$fVal\")\n";
-                    }
+                    printRecord($record);
                 }
             }
-            print "}\n" if defined $recordFlag ;
         }
     }
+
+# process print options
+sub printRecord
+{   my ($record) = @_;
+
+    my $recT = $rH_recName2recType->{$record} ;
+
+    my $recordFlag;
+    foreach my $field ( keys( %{$rH_records->{$record}} ) )
+    {
+        my $fVal = $rH_records->{$record}->{$field};
+
+        if( (not defined $recordFlag) && ($record =~ /$prRecName/) && ($recT =~ /$prRecType/) && ($field =~ /$prFieldName/) )
+        {
+            print "record($recT,\"$record\")  {\n";
+            $recordFlag = 1;
+        }
+        if( (defined $recordFlag) && ($field =~ /$prFieldName/) )
+        {   
+            print "\tfield($field,\"$fVal\")\n";
+        }
+    }
+    print "}\n" if defined $recordFlag ;
+}
