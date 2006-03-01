@@ -16,7 +16,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #      -tt <recType>: record type
 #      -tr <recName>: record name
 #      -tf <fieldType>: field type
-#      -tc <cont>:    field contains <cont>
+#      -tv <value>:    field contains <value>
 #
 #  Print options: default: all: record and fields
 #
@@ -39,7 +39,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
             "    -tt <recType>:   record type\n".
             "    -tr <recName>:   record name\n".
             "    -tf <fieldType>: field type\n".
-            "    -tc <cont>:      field contains <cont>\n\n".
+            "    -tv <value>:      field contains <value>\n\n".
             "* Print options:\n\n".
             "    * options not set match allways, but\n".
             "    * no option set means print records with fields that match the trigger\n".
@@ -58,12 +58,12 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $prRecName = ".";
     my $prFieldName = ".";
 
-    die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tc=s"=>\$trigFieldValue,
+    die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
                            "pt"=>\$prRecType, "pn=s"=>\$prRecName, "pf=s"=>\$prFieldName);
 
-    my( $filename ) = shift @ARGV;  # may be a filename OR a commandline gadget!
-
+    my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
+
 
 # default if NO print options are set: the trigger options!
     if( ($prRecType eq ".") && ($prRecName eq ".") && ($prFieldName eq ".") )
@@ -73,17 +73,50 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         $prFieldName= $trigFieldName ;
     }
     
-    my $file;
-    open(IN_FILE, "<$filename") or die "can't open input file: $filename";
-    { local $/;
-      undef $/; # ignoriere /n in der Datei als Trenner
-      $file = <IN_FILE>;
-    }  
-    close IN_FILE;
+    do
+    {
+        my $file;
+        open(IN_FILE, "<$filename") or die "can't open input file: $filename";
+        { local $/;
+          undef $/; # ignoriere /n in der Datei als Trenner
+          $file = <IN_FILE>;
+        }  
+        close IN_FILE;
+
+        my ($rH_records,$rH_recName2recType) = parseDb($file);
+
+        # process trigger options
+        foreach my $record (keys(%$rH_records))
+        {
+            my $recT = $rH_recName2recType->{$record} ;
+
+            if( $record =~ /$trigRecName/ && $recT =~ /$trigRecType/ )
+            {
+                foreach my $field ( keys( %{$rH_records->{$record}} ) )
+                {
+                    my $fVal = $rH_records->{$record}->{$field};
+
+                    if( (defined $filename) && ($field =~ /$trigFieldName/) && ($fVal =~ /$trigFieldValue/) )
+                    {
+                        print "\nFile: \"$filename\"\n";
+                        $filename = undef;
+                    }
+                    if( ($field =~ /$trigFieldName/) && ($fVal =~ /$trigFieldValue/) )
+                    {
+                        printRecord($record,$rH_records,$rH_recName2recType);
+                    }
+                }
+            }
+        }
+        $filename = shift @ARGV;
+    }
+    while defined $filename;
 
 # parse db
+sub parseDb
+{   my ($file) = @_;
+
     my $rH_recName2recType;
-    my $rH_recType2recName;
     my $rH_records;
     while($file =~ /\G\s*record\s*\((\w*)\s*,\s*\"([^\"]*)\"\)[\s\r\n]*\{\n(.*?)\}/gsc)
     {
@@ -92,7 +125,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         my $recordType = $1;
         my $recordName = $2;
         $rH_recName2recType->{$recordName} = $recordType;
-        $rH_recType2recName->{$recordType}->{$recordName} = 1;
         
         my @allFields = split("\n",$3);
         my $rH_thisFields;
@@ -110,29 +142,12 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	}
         $rH_records->{$recordName} = $rH_thisFields;
     }
-
-# process trigger options
-    foreach my $record (keys(%$rH_records))
-    {
-        my $recT = $rH_recName2recType->{$record} ;
-
-        if( $record =~ /$trigRecName/ && $recT =~ /$trigRecType/ )
-        {
-            foreach my $field ( keys( %{$rH_records->{$record}} ) )
-            {
-                my $fVal = $rH_records->{$record}->{$field};
-
-                if( $field =~ /$trigFieldName/ && $fVal =~ /$trigFieldValue/ )
-                {
-                    printRecord($record);
-                }
-            }
-        }
-    }
+    return ($rH_records,$rH_recName2recType);
+}
 
 # process print options
 sub printRecord
-{   my ($record) = @_;
+{   my ($record,$rH_records,$rH_recName2recType) = @_;
 
     my $recT = $rH_recName2recType->{$record} ;
 
