@@ -30,6 +30,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
     use strict;
     use Getopt::Long;
+    use Data::Dumper;
 
     my $usage ="\n*  USAGE:\n\n".
             "      grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
@@ -59,7 +60,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $prFieldName = ".";
 
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
-                           "pt"=>\$prRecType, "pn=s"=>\$prRecName, "pf=s"=>\$prFieldName);
+                           "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -73,6 +74,9 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         $prFieldName= $trigFieldName ;
     }
     
+#print "Trigger:\n\tType:\'$trigRecType\',\tname \'$trigRecName\',\tfield \'$trigFieldName\',\t value: \'$trigFieldValue\'\n";
+#print "Print:\n\tType: \'$prRecType\',\tname \'$prRecName\',\tfield \'$prFieldName\'\n";
+
     do
     {
         my $file;
@@ -103,6 +107,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
                     }
                     if( ($field =~ /$trigFieldName/) && ($fVal =~ /$trigFieldValue/) )
                     {
+#print "tr: $record.$field\n";
                         printRecord($record,$rH_records,$rH_recName2recType);
                     }
                 }
@@ -118,33 +123,39 @@ sub parseDb
 
     my $rH_recName2recType;
     my $rH_records;
-    while($file =~ /\G\s*record\s*\((\w*)\s*,\s*\"([^\"]*)\"\)[\s\r\n]*\{\n(.*?)\}/gsc)
+    while(1)
     {
-        $file = $';
-
-        my $recordType = $1;
-        my $recordName = $2;
-        $rH_recName2recType->{$recordName} = $recordType;
-        
-        my @allFields = split("\n",$3);
-        my $rH_thisFields;
-        foreach my $fieldLine (@allFields)
+        if($file =~ /\G\s*record\s*\((\w*)\s*,\s*\"([^\"]*)\"\)[\s\r\n]*\{\s*\n(.*?)\}/gsc)
         {
-            if( $fieldLine =~ /\G[\s\r\n]*field\s*\(\s*(\w*)\s*,\s*\"([^\"]*)\"\)/gsc )
+            my $recordType = $1;
+            my $recordName = $2;
+            $rH_recName2recType->{$recordName} = $recordType;
+            my @allFields = split("\n",$3);
+            my $rH_thisFields;
+            foreach my $fieldLine (@allFields)
             {
-                my($field,$value)= ($1,$2);
-                $rH_thisFields->{$field} = $value;
-            }
-            elsif( $fieldLine =~ /^\s*#/ || $fieldLine =~ /^\s*$/)
-            {
-                # skip comments and empty lines
-            }
-            else
-            {
-                warn "illegal Field definition in file:\'$filename\' Record: \'$recordName\' Field: \'$fieldLine\'";
-            }
-	}
-        $rH_records->{$recordName} = $rH_thisFields;
+                if( $fieldLine =~ /\G[\s\r\n]*field\s*\(\s*(\w*)\s*,\s*\"([^\"]*)\"\)/gsc )
+                {
+                    my($field,$value)= ($1,$2);
+                    $rH_thisFields->{$field} = $value;
+                }
+                elsif( $fieldLine =~ /^\s*#/ || $fieldLine =~ /^\s*$/)
+                {
+                    # skip comments and empty lines
+                }
+                else
+                {
+                    warn "illegal Field definition in file:\'$filename\' Record: \'$recordName\' Field: \'$fieldLine\'";
+                }
+	    }
+            $rH_records->{$recordName} = $rH_thisFields;
+        }
+        elsif( $file =~ /\s*#.*?\n/ )
+        {
+            #skip comments
+        }
+        $file = $';
+        last unless length($file) > 1;
     }
     return ($rH_records,$rH_recName2recType);
 }
