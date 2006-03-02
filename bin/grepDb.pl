@@ -83,7 +83,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         }  
         close IN_FILE;
 
-        my ($rH_records,$rH_recName2recType) = parseDb($file);
+        my ($rH_records,$rH_recName2recType) = parseDb($file,$filename);
 
         # process trigger options
         foreach my $record (keys(%$rH_records))
@@ -114,7 +114,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
 # parse db
 sub parseDb
-{   my ($file) = @_;
+{   my ($file,$filename) = @_;
 
     my $rH_recName2recType;
     my $rH_records;
@@ -135,9 +135,13 @@ sub parseDb
                 my($field,$value)= ($1,$2);
                 $rH_thisFields->{$field} = $value;
             }
+            elsif( $fieldLine =~ /^\s*#/ || $fieldLine =~ /^\s*$/)
+            {
+                # skip comments and empty lines
+            }
             else
             {
-                warn "illegal Field definition \'$fieldLine\' in record \'$recordName\'";
+                warn "illegal Field definition in file:\'$filename\' Record: \'$recordName\' Field: \'$fieldLine\'";
             }
 	}
         $rH_records->{$recordName} = $rH_thisFields;
