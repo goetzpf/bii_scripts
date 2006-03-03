@@ -24,6 +24,11 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #      -pt <recType>:   print records of this type
 #      -pr <recName>:   print records tha match that name
 #
+#  Common options:
+#
+#       -i ignore case
+#       -v verbose
+#
 #  *  Example  :
 #
 #       grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP$|OUT|DTYP|NOBT)' *.db
@@ -58,13 +63,24 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $prRecType = ".";
     my $prRecName = ".";
     my $prFieldName = ".";
+    my $ignore;
+    my $verbose;
 
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
-                           "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName);
+                           "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
+                           "i"=>\$ignore,"v"=>\$verbose);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
 
+    if( defined $ignore )
+    {
+        eval( "sub match { return( scalar (\$_[0]=~/\$_[1]/i) ); }" );
+    }
+    else
+    {
+        eval( "sub match { return( scalar (\$_[0]=~/\$_[1]/) ); }" );
+    }
 
 # default if NO print options are set: the trigger options!
     if( ($prRecType eq ".") && ($prRecName eq ".") && ($prFieldName eq ".") )
@@ -87,6 +103,12 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         }  
         close IN_FILE;
 
+        if( (defined $filename) && defined $verbose )
+        {
+            print "File: \"$filename\"\n";
+            $filename = undef;
+        }
+
         my ($rH_records,$rH_recName2recType) = parseDb($file,$filename);
 
         # process trigger options
@@ -94,18 +116,19 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         {
             my $recT = $rH_recName2recType->{$record} ;
 
-            if( $record =~ /$trigRecName/ && $recT =~ /$trigRecType/ )
+            if( match($record,$trigRecName) && match($recT,$trigRecType) )
+#            if( $record =~ /$trigRecName/ && $recT =~ /$trigRecType/ )
             {
                 foreach my $field ( keys( %{$rH_records->{$record}} ) )
                 {
                     my $fVal = $rH_records->{$record}->{$field};
 
-                    if( (defined $filename) && ($field =~ /$trigFieldName/) && ($fVal =~ /$trigFieldValue/) )
+                    if( (defined $filename) && match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
                         print "\nFile: \"$filename\"\n";
                         $filename = undef;
                     }
-                    if( ($field =~ /$trigFieldName/) && ($fVal =~ /$trigFieldValue/) )
+                    if( match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
 #print "tr: $record.$field\n";
                         printRecord($record,$rH_records,$rH_recName2recType);
@@ -170,12 +193,12 @@ sub printRecord
     {
         my $fVal = $rH_records->{$record}->{$field};
 
-        if( (not defined $recordFlag) && ($record =~ /$prRecName/) && ($recT =~ /$prRecType/) && ($field =~ /$prFieldName/) )
+        if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
         {
             print "record($recT,\"$record\")  {\n";
             $recordFlag = 1;
         }
-        if( (defined $recordFlag) && ($field =~ /$prFieldName/) )
+        if( (defined $recordFlag) && match($field,$prFieldName) )
         {   
             print "\tfield($field,\"$fVal\")\n";
         }
