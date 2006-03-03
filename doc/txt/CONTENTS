@@ -58,6 +58,14 @@ sch_cvs_diff
 	is much clearer when you want to find out what was really 
 	changed.
 
+grepDb.pl
+       A tool to search in EPICS-db files. It allows to define regular
+       expressions as triggers in its commandline options for record-name, 
+       record-type, field-name and field value if a record or a field matches 
+       the trigger, it causes a print of the record. To control the printed 
+       output there are options to define the record names, record types or 
+       field types that have to be printed.
+
 Currently undocumented:
 
 
