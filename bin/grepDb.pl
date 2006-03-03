@@ -26,7 +26,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
 #  *  Example  :
 #
-#        grepDb.pl -t bo -r PHA1R -f DTYP -c lowcal -pr '' -pf '(DTYP|OUT)' filename
+#       grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP$|OUT|DTYP|NOBT)' *.db
 #
     use strict;
     use Getopt::Long;
@@ -150,9 +150,8 @@ sub parseDb
 	    }
             $rH_records->{$recordName} = $rH_thisFields;
         }
-        elsif( $file =~ /\s*#.*?\n/ )
-        {
-            #skip comments
+        elsif( $file =~ /\s*#.*?\n/ )   # check for comments after check for records 
+        {                               # otherwise '#' characters in fields will match!
         }
         $file = $';
         last unless length($file) > 1;
