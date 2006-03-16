@@ -49,11 +49,6 @@ if (!GetOptions("help|h","summary","file|f=s",
                 ))
   { die "parameter error!\n"; };
 
-if (!@ARGV)
-  { help();
-    exit;
-  };
-
 if ($opt_help)
   { help();
     exit;
