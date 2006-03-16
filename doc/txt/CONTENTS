@@ -51,6 +51,11 @@ pfind.pl
 	a perl-script for recursive file pattern search, like
 	a recursive grep, but better...
 
+dbfilter.pl
+	A tool to filter db files or to find information in db 
+	files. Regular expression matches can be done on 
+	record names, record types or values of record-fields.
+
 sch_cvs_diff
 	shows the difference between a modified capfast (*.sch) file
 	and it's version on the top-trunk in the cvs repository.
