@@ -20,7 +20,7 @@ use parse_db;
 
 use vars qw($opt_help $opt_summary $opt_file 
             $opt_dump_internal $opt_recreate
-	    $opt_val_regexp @opt_filter 
+	    $opt_val_regexp @opt_field 
 	    $opt_name $opt_type
 	    $opt_value
 	    $opt_DTYP
@@ -47,7 +47,7 @@ if (!@ARGV)
 
 if (!GetOptions("help|h","summary","file|f=s",
                 "dump_internal|i", "recreate|r", "val_regexp|v=s",
-		"filter=s@", "name|NAME|n=s", "value=s",
+		"field=s@", "name|NAME|n=s", "value=s",
 		"DTYP=s",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s"
@@ -82,8 +82,8 @@ if ($opt_DTYP)
   { filter_records($recs,"DTYP",$opt_DTYP);
   };
 
-if (@opt_filter)
-  { foreach my $fil (@opt_filter)
+if (@opt_field)
+  { foreach my $fil (@opt_field)
       { my($field,$regexp)= split(",",$fil);
       
         filter_records($recs,$field,$regexp);
@@ -197,20 +197,56 @@ sub filter_fields
       { filter_rec_fields($r_rec->{$rec}, \%h); };
   }
     
+sub match_fields
+# return all fields of a record that
+# match a given regexp, note: 
+# this function calls "field_matcher"
+  { my($rec,$r_fields)= @_;
+    my @matched;
+
+    my $r_values= $rec->{FIELDS};
+    foreach my $v (sort keys %$r_values)
+      { if (field_matcher($v))
+          { push @matched, $v; };
+      };
+    return(@matched);  
+  }  
 
 sub filter_records
 # remove all records where a field does not
 # match a given regular expression
   { my($r_rec,$field,$regexp)= @_;
     my @nomatch;
-  
+    my $field_is_regexp;
+    
+#die "$field,$regexp";
+    if ($field=~ /\//)
+      { # field is a regular expression
+        create_regexp_func("field_matcher",$field);
+	$field_is_regexp= 1;
+      };	
+    
     create_regexp_func("field_filter",$regexp);
 
     foreach my $rec (sort keys %$r_rec)
       {
-         if (!field_filter( $r_rec->{$rec}->{FIELDS}->{$field} ))
-          { push @nomatch, $rec ;
-	  };
+        if (!$field_is_regexp) 
+	  { if (!field_filter( $r_rec->{$rec}->{FIELDS}->{$field} ))
+              { push @nomatch, $rec ;
+	      };
+	  }
+	else
+	  { my @f= match_fields($r_rec->{$rec});
+#print "F: " . join("|",@f) . "\n";
+	    my $match;
+	    foreach my $f (@f)
+	      { if (field_filter( $r_rec->{$rec}->{FIELDS}->{$f}))
+	          { $match=1; last; };
+	      };
+	    if (!$match)
+              { push @nomatch, $rec ;
+	      };
+	  }    
       };
     foreach my $r (@nomatch)
       { 
@@ -347,9 +383,11 @@ Syntax:
        the field-value matches a regular expression, 
     -v [regexp] filter records where at least one field matches
        the given regular expression
-    --filter [field,regexp]|[field] : process only records where
+    --field [field,regexp]|[field] : process only records where
       field matches regexp  
       if regexp is omitted just test for the existence of that field
+      if field is a perl-regular expression starting enclosed in
+      '//' it is treated as a regular expression
     --NAME|--name|-n [regexp] filter records whose name match the given
       regular expression 
     --DTYP [regexp] : filter DTYP field
