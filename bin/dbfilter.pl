@@ -40,6 +40,11 @@ my $debug= 0; # global debug-switch
 
 #Getopt::Long::config(qw(no_ignore_case));
 
+if (!@ARGV)
+  { help();
+    exit;
+  };
+
 if (!GetOptions("help|h","summary","file|f=s",
                 "dump_internal|i", "recreate|r", "val_regexp|v=s",
 		"filter=s@", "name|NAME|n=s", "value=s",
@@ -48,6 +53,7 @@ if (!GetOptions("help|h","summary","file|f=s",
 		"fields|FIELDS=s"
                 ))
   { die "parameter error!\n"; };
+
 
 if ($opt_help)
   { help();
