@@ -18,13 +18,14 @@ use Data::Dumper;
 
 use parse_db;
 
-use vars qw($opt_help $opt_summary $opt_file 
+use vars qw($opt_help $opt_summary
             $opt_dump_internal $opt_recreate
 	    $opt_val_regexp @opt_field 
 	    $opt_name $opt_type
 	    $opt_value
 	    $opt_DTYP
 	    $opt_fields
+	    $opt_list
 	   );
 
 
@@ -45,12 +46,14 @@ if (!@ARGV)
     exit;
   };
 
-if (!GetOptions("help|h","summary","file|f=s",
+if (!GetOptions("help|h","summary",
                 "dump_internal|i", "recreate|r", "val_regexp|v=s",
 		"field=s@", "name|NAME|n=s", "value=s",
 		"DTYP=s",
 		"type|TYPE|t=s", 
-		"fields|FIELDS=s"
+		"fields|FIELDS=s",
+		"list|l"
+		
                 ))
   { die "parameter error!\n"; };
 
@@ -65,62 +68,79 @@ if ($opt_summary)
     exit;
   };
 
-# ------------------------------------------------
+my @files= @ARGV;
+my $single_file= ($#ARGV==0);
 
-if (!defined $opt_file)
-  { die "-f is mandatory!\n"; };
-
-my $recs= parse_file($opt_file);
-
-if (defined $opt_name)
-  { filter_name($recs,$opt_name); };
-
-if (defined $opt_type)
-  { filter_type($recs,$opt_type); };
-
-if ($opt_DTYP)
-  { filter_records($recs,"DTYP",$opt_DTYP);
-  };
-
-if (@opt_field)
-  { foreach my $fil (@opt_field)
-      { my($field,$regexp)= split(",",$fil);
+foreach my $file (@files)
+  { my $filename;
+    if (!$single_file)
+      { $filename= $file; };
       
-        filter_records($recs,$field,$regexp);
-      };	
+    my $recs= parse_file($file);
+
+    if (defined $opt_name)
+      { filter_name($recs,$opt_name); };
+
+    if (defined $opt_type)
+      { filter_type($recs,$opt_type); };
+
+    if ($opt_DTYP)
+      { filter_records($recs,"DTYP",$opt_DTYP);
+      };
+
+    if (@opt_field)
+      { foreach my $fil (@opt_field)
+	  { my($field,$regexp)= split(",",$fil);
+
+            filter_records($recs,$field,$regexp);
+	  };	
+      };
+
+    if (defined $opt_val_regexp)
+      { find_val($filename,$recs,$opt_val_regexp,0);
+      };
+
+    if (defined $opt_fields)
+      { my @fields= split(",",$opt_fields);
+	filter_fields($recs,\@fields);
+      };
+
+    if ((!defined $opt_dump_internal) && 
+	(!defined $opt_recreate) &&
+	(!defined $opt_value) &&
+	(!defined $opt_list)
+       )
+      { $opt_recreate=1; };
+
+    if (defined $opt_value)
+      { find_val($filename,$recs,$opt_val_regexp,1);
+	next;
+      };
+
+    if (defined $opt_list)
+      { foreach my $r (sort keys %$recs)
+	  { if (defined $filename)
+	      { print "\nFILE $filename:\n";
+	        $filename= undef; 
+	      };
+	    print $r,"\n"; 
+	  };
+	next;
+      };
+
+    if (defined $opt_dump_internal)
+      { dump_recs($filename,$recs);
+	next;
+      };
+
+    if (defined $opt_recreate)
+      { if ((defined $filename) && (%$recs))
+          { print "\nFILE $filename:\n"; };
+	parse_db::create($recs);
+	next;
+      };
   };
 
-if (defined $opt_val_regexp)
-  { find_val($recs,$opt_val_regexp,0);
-  };
-
-if (defined $opt_fields)
-  { my @fields= split(",",$opt_fields);
-    filter_fields($recs,\@fields);
-  };
-
-if ((!defined $opt_dump_internal) && 
-    (!defined $opt_recreate) &&
-    (!defined $opt_value)
-   )
-  { $opt_recreate=1; };
-
-if (defined $opt_value)
-  { find_val($recs,$opt_val_regexp,1);
-    exit(0);
-  };
-
-if (defined $opt_dump_internal)
-  { dump_recs($recs);
-    exit(0);
-  };
-
-if (defined $opt_recreate)
-  { parse_db::create($recs);
-    exit(0);
-  };
-
-  
 
 exit(0);
 
@@ -143,7 +163,9 @@ sub parse_file
 
 sub dump_recs
 # dump the internal record-hash structure
-  { my($r_rec)= @_;
+  { my($filename,$r_rec)= @_;
+    
+    print "\nFILE $filename:\n" if (defined $filename);
     parse_db::dump($r_rec);
   }
 
@@ -297,7 +319,7 @@ sub filter_name
 sub find_val
 # remove all records where not one of the
 # fields matches a given regular expression
-  { my($r_rec,$regexp,$do_print)= @_;
+  { my($filename,$r_rec,$regexp,$do_print)= @_;
     my @fields;
     my @delete;
   
@@ -309,7 +331,11 @@ sub find_val
         if (!@fields)
 	  { push @delete, $rec; };
 	if ($do_print)
-	  { print "\"$rec\": \n";
+	  { if (defined $filename)
+	      { print "\nFILE $filename:\n";
+	        $filename= undef;
+	      };
+	    print "\"$rec\": \n";
 	    dump_rec_fields($r_rec->{$rec}, \@fields);
 	  };  
       };
@@ -371,14 +397,15 @@ $l1
 $l2
 
 Syntax:
-  $sc_name {options} [arg1] [arg2]
+  $sc_name {options} [file1] [file2...]
 
   options:
     -h: help
     --summary: give a summary of the script
-    -f [file]: file to parse
     -i dump internal hash structure
     -r print results in db-file format (default)
+    -l just list the names of the matching records
+    
     --value [regexp] : print a list of all fields in records where
        the field-value matches a regular expression, 
     -v [regexp] filter records where at least one field matches
