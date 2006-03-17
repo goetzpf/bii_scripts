@@ -199,17 +199,9 @@ print Dumper( $rH_recName2recType); die;
 
 # parse db
 sub parseDb2
-{   my ($file,$filename) = @_;
-    local(*F);
-    local($/);
-    my $st;
+{   my ($st,$filename) = @_;
     
-    undef $/;
-    open(F,$filename) or die "unable to open $filename";
-    $st= <F>;
-    close(F);
-    
-    my $r_h= parse_db::parse($st);
+    my $r_h= parse_db::parse($st,$filename);
     
     my $rH_records;
     my $rH_recName2recType;
