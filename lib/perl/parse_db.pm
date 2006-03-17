@@ -26,7 +26,7 @@ use Text::ParseWords;
 use Carp;
 
 sub parse
-  { my($db)= @_;
+  { my($db,$filename)= @_;
   
     my $level= 0;
 
@@ -83,7 +83,7 @@ sub parse
 		$level=1;
 		next;
 	      };
-	    parse_error(__LINE__,\$db,pos($db));
+	    parse_error(__LINE__,\$db,pos($db),$filename);
 	  };
 	  
 	if ($level==1)
@@ -116,7 +116,7 @@ sub parse
 		$r_this_record_fields->{$field}= $value;
 		next;
 	      };
-	    parse_error(__LINE__,\$db,pos($db));
+	    parse_error(__LINE__,\$db,pos($db),$filename);
 	  };
       };
     return(\%records);    
@@ -141,12 +141,14 @@ sub create
   }
 
 sub parse_error
-  { my($prg_line,$r_st,$pos)= @_;
+  { my($prg_line,$r_st,$pos,$filename)= @_;
   
 #    warn "short dump:\n" . substr($$r_st,$pos,40) . "\n";
     
     my($line,$column)= find_position_in_string($r_st,$pos);
-    my $err= "Parse error at line $prg_line of parse_db.pm,\n" .
+    if (defined $filename)
+      { $filename= "in file $filename "; };
+    my $err= "Parse error ${filename}at line $prg_line of parse_db.pm,\n" .
              "byte-position $pos\n" .
 	     "line $line, column $column in file\n ";
     croak $err;
@@ -222,11 +224,12 @@ can then be used for further evaluation.
 
 B<parse()>
 
-  my $r_records= parse_db::parse($st);
+  my $r_records= parse_db::parse($st,$filename);
   
 This function parses a given scalar variable that must contain a 
 complete db-file. It returns a reference to a hash, where the parsed data
-is stored. 
+is stored. The parameter $filename is optional and is just used for
+printing error messages in case of a parse-error.
 
 =item *
 
