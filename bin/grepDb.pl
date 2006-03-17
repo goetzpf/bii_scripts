@@ -36,6 +36,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     use strict;
     use Getopt::Long;
     use Data::Dumper;
+    use parse_db;
 
     my $usage ="\n*  USAGE:\n\n".
             "      grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
@@ -109,7 +110,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
             $filename = undef;
         }
 
-        my ($rH_records,$rH_recName2recType) = parseDb($file,$filename);
+        my ($rH_records,$rH_recName2recType) = parseDb2($file,$filename);
 
         # process trigger options
         foreach my $record (keys(%$rH_records))
@@ -179,6 +180,44 @@ sub parseDb
         $file = $';
         last unless length($file) > 1;
     }
+#print Dumper( $rH_records); die;   
+#$VAR1 = {
+#          'AICS5G:seg8' => {
+#                             'SIOL' => '',
+#                             'ZSV' => 'NO_ALARM',
+
+
+print Dumper( $rH_recName2recType); die;   
+#$VAR1 = {
+#          'AICS5G:seg8' => 'bi',
+#          'AICS5G:seg6' => 'bi',
+#          'AICS5G:seg4' => 'bi',
+    
+    return ($rH_records,$rH_recName2recType);
+}
+
+
+# parse db
+sub parseDb2
+{   my ($file,$filename) = @_;
+    local(*F);
+    local($/);
+    my $st;
+    
+    undef $/;
+    open(F,$filename) or die "unable to open $filename";
+    $st= <F>;
+    close(F);
+    
+    my $r_h= parse_db::parse($st);
+    
+    my $rH_records;
+    my $rH_recName2recType;
+    foreach my $recname (keys %$r_h)
+      { $rH_records->{$recname}= $r_h->{$recname}->{FIELDS};
+        $rH_recName2recType->{$recname}= $r_h->{$recname}->{TYPE};
+      };
+    
     return ($rH_records,$rH_recName2recType);
 }
 
