@@ -26,6 +26,7 @@ use vars qw($opt_help $opt_summary
 	    $opt_DTYP
 	    $opt_fields
 	    $opt_list
+	    $opt_percent
 	   );
 
 
@@ -52,7 +53,8 @@ if (!GetOptions("help|h","summary",
 		"DTYP=s",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
-		"list|l"
+		"list|l",
+		"percent=s"
 		
                 ))
   { die "parameter error!\n"; };
@@ -104,6 +106,9 @@ foreach my $file (@files)
       { my @fields= split(",",$opt_fields);
 	filter_fields($recs,\@fields);
       };
+
+    if (defined $opt_percent)
+      { filter_percent($recs,$opt_percent); };
 
     if ((!defined $opt_dump_internal) && 
 	(!defined $opt_recreate) &&
@@ -314,7 +319,27 @@ sub filter_name
         delete $r_rec->{$r}; 
       };
   }
-      
+
+sub filter_percent
+  { my($r_rec,$percent)= @_;
+  
+    my @rem_recs= (sort keys %$r_rec);
+    my $len= $#rem_recs+1;
+    
+    if ($percent>0) # remove last <no> percent
+      { my $n= int($percent/100*$len+0.5); # one more for safety reasons
+        @rem_recs= splice @rem_recs,$n+1,($len-$n);
+      }
+    else
+      { my $n= int((100+$percent)/100*$len+0.5);
+        @rem_recs= splice @rem_recs,0,$n+1;
+      };
+    foreach my $r (@rem_recs)
+      { 
+        delete $r_rec->{$r}; 
+      };
+  }
+         
     
 sub find_val
 # remove all records where not one of the
@@ -420,6 +445,10 @@ Syntax:
     --DTYP [regexp] : filter DTYP field
     --TYPE|-t [regexp] : filter record type
     --fields|--FIELDS [field1,field2...] print only these fields
+    --percent [+-number] keep the first or last n percent 
+      of all records
+      if number is negative, filter the LAST n percent of all
+      records, otherwise filter the FIRST n percent of all records
 END
   }
 
