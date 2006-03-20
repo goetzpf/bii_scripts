@@ -126,7 +126,7 @@ sub create_record
   { my($recname, $r_hash)= @_;
     my $r_fields= $r_hash->{FIELDS};
     
-    print "record ",$r_hash->{TYPE},",\"$recname\" {\n";
+    print "record(",$r_hash->{TYPE},",\"$recname\") {\n";
     foreach my $f (sort keys %$r_fields)
       { print "\tfield(",$f,",\"",$r_fields->{$f},"\")\n";
       };
