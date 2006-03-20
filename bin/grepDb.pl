@@ -110,7 +110,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
             $filename = undef;
         }
 
-        my ($rH_records,$rH_recName2recType) = parseDb2($file,$filename);
+        my ($rH_records,$rH_recName2recType) = parseDb($file,$filename);
 
         # process trigger options
         foreach my $record (keys(%$rH_records))
@@ -141,64 +141,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     }
     while defined $filename;
 
-# parse db
+
 sub parseDb
-{   my ($file,$filename) = @_;
-
-    my $rH_recName2recType;
-    my $rH_records;
-    while(1)
-    {
-        if($file =~ /\G\s*record\s*\((\w*)\s*,\s*\"([^\"]*)\"\)[\s\r\n]*\{\s*\n(.*?)\}/gsc)
-        {
-            my $recordType = $1;
-            my $recordName = $2;
-            $rH_recName2recType->{$recordName} = $recordType;
-            my @allFields = split("\n",$3);
-            my $rH_thisFields;
-            foreach my $fieldLine (@allFields)
-            {
-                if( $fieldLine =~ /\G[\s\r\n]*field\s*\(\s*(\w*)\s*,\s*\"([^\"]*)\"\)/gsc )
-                {
-                    my($field,$value)= ($1,$2);
-                    $rH_thisFields->{$field} = $value;
-                }
-                elsif( $fieldLine =~ /^\s*#/ || $fieldLine =~ /^\s*$/)
-                {
-                    # skip comments and empty lines
-                }
-                else
-                {
-                    warn "illegal Field definition in file:\'$filename\' Record: \'$recordName\' Field: \'$fieldLine\'";
-                }
-	    }
-            $rH_records->{$recordName} = $rH_thisFields;
-        }
-        elsif( $file =~ /\s*#.*?\n/ )   # check for comments after check for records 
-        {                               # otherwise '#' characters in fields will match!
-        }
-        $file = $';
-        last unless length($file) > 1;
-    }
-#print Dumper( $rH_records); die;   
-#$VAR1 = {
-#          'AICS5G:seg8' => {
-#                             'SIOL' => '',
-#                             'ZSV' => 'NO_ALARM',
-
-
-print Dumper( $rH_recName2recType); die;   
-#$VAR1 = {
-#          'AICS5G:seg8' => 'bi',
-#          'AICS5G:seg6' => 'bi',
-#          'AICS5G:seg4' => 'bi',
-    
-    return ($rH_records,$rH_recName2recType);
-}
-
-
-# parse db
-sub parseDb2
 {   my ($st,$filename) = @_;
     
     my $r_h= parse_db::parse($st,$filename);
@@ -213,9 +157,13 @@ sub parseDb2
     return ($rH_records,$rH_recName2recType);
 }
 
+my $formerRec;
 # process print options
 sub printRecord
 {   my ($record,$rH_records,$rH_recName2recType) = @_;
+
+    return if $formerRec eq $record;    # print each record just once
+    $formerRec = $record;
 
     my $recT = $rH_recName2recType->{$record} ;
 
