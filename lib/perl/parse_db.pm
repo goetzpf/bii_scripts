@@ -25,11 +25,46 @@ use Data::Dumper;
 use Text::ParseWords;
 use Carp;
 
-my $space_or_comment = '\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*';
-my $word = '\w+|\"\w+\"';
-my $quoted = '"(?:[^"]|\\\")*"';
-my $unquoted_rec_name = '[\w\-:\[\]<>;]+';
-my $unquoted_field_name = '[\w\-\+:\.\[\]<>;]+';
+my $space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
+
+my $quoted_word         = qr/\"(\w+)\"/;
+my $unquoted_word       = qr/(\w+)/;
+
+my $quoted              = qr/\"(.*?)(?<!\\)\"/;
+my $unquoted_rec_name   = qr/([\w\-:\[\]<>;]+)/;
+my $unquoted_field_name = qr/([\w\-\+:\.\[\]<>;]+)/;
+
+my $record_head= qr/\G
+	              $space_or_comment
+		      record
+		      $space_or_comment
+		               \(
+			           $space_or_comment
+		                   (?:$quoted_word|$unquoted_word)
+				   $space_or_comment
+		                   ,
+				   $space_or_comment
+			           (?:$quoted|$unquoted_rec_name)
+				   $space_or_comment
+			       \)
+		              $space_or_comment
+			      \{
+		      /x;
+
+my $field_def= qr/\G
+	              $space_or_comment
+		      field
+	              $space_or_comment
+		           \(
+			      $space_or_comment
+			      (?:$quoted_word|$unquoted_word)
+			      $space_or_comment
+			      ,
+			      $space_or_comment
+			      (?:$quoted|$unquoted_field_name)
+			      $space_or_comment
+			   \)
+		      /x;
 
 sub parse
   { my($db,$filename)= @_;
@@ -41,41 +76,18 @@ sub parse
     my $r_this_record;
     my $r_this_record_fields;
 
+    
     for(;;)
       { 
-    #print $i++, " ";  
-
-#print "scan at:---" . substr($db,pos($db),40) . "---\n";
-
 	if ($level==0)
 	  { 
-            if ($db=~/\G[\s\r\n]*$/gsc)
-              { 
-		last; 
-	      };
+            last if ($db=~/\G[\s\r\n]*$/gsc);
 	    
-            if ($db=~ /\G
-	              $space_or_comment
-		      record
-		      $space_or_comment
-		               \(
-			           $space_or_comment
-		                   ($word)
-				   $space_or_comment
-		                   ,
-				   $space_or_comment
-			           ($quoted|$unquoted_rec_name)
-				   $space_or_comment
-			       \)
-		              $space_or_comment
-			      \{
-		      /ogscx
-	       )
-              { my($type,$name)= ($1,$2);
-	      
-	        $type=~ s/^"(.*)"$/$1/;
-                $name=~ s/^"(.*)"$/$1/;
-	      
+            if ($db=~ /$record_head/ogscx)
+              { 
+	        my $type= ($2 eq "") ? $1 : $2;
+		my $name= ($4 eq "") ? $3 : $4;
+		
 		$r_this_record_fields= {};
 		$r_this_record= { TYPE => $type, 
 	                	  FIELDS => $r_this_record_fields };
@@ -90,30 +102,16 @@ sub parse
 	  { 
             if ($db=~ /\G
 	              $space_or_comment
-		      \}/gscx)
+		      \}/ogscx)
               { $level=0;
 		next;
 	      };
 
-            if ($db=~ /\G
-	              $space_or_comment
-		      field
-	              $space_or_comment
-		           \(
-			      $space_or_comment
-			      ($word)
-			      $space_or_comment
-			      ,
-			      $space_or_comment
-			      ($quoted|$unquoted_field_name)
-			      $space_or_comment
-			   \)
-		      /ogscx)
-              { my($field,$value)= ($1,$2);
-		$value= "" if (!defined $value);
-                $field=~ s/^"(.*)"$/$1/;
-		$value=~ s/^"(.*)"$/$1/;
-
+            if ($db=~ /$field_def/ogscx)
+              { 
+	        my $field= ($2 eq "") ? $1 : $2;
+		my $value= ($4 eq "") ? $3 : $4;
+		
 		$r_this_record_fields->{$field}= $value;
 		next;
 	      };
@@ -144,8 +142,6 @@ sub create
 sub parse_error
   { my($prg_line,$r_st,$pos,$filename)= @_;
   
-#    warn "short dump:\n" . substr($$r_st,$pos,40) . "\n";
-    
     my($line,$column)= find_position_in_string($r_st,$pos);
     if (defined $filename)
       { $filename= "in file $filename "; };
@@ -169,7 +165,7 @@ sub find_position_in_string
 
     pos($$r_str)=0;
     my $oldpos=-1;
-#    while($$r_str=~ /\G.*?^(.*?)$/gms)
+
     while($$r_str=~ /\G(.*?)\r?\n/gms)
       { 
         if (pos($$r_str)<$position)
