@@ -25,6 +25,12 @@ use Data::Dumper;
 use Text::ParseWords;
 use Carp;
 
+my $space_or_comment = '\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*';
+my $word = '\w+|\"\w+\"';
+my $quoted = '"(?:[^"]|\\\")*"';
+my $unquoted_rec_name = '[\w\-:\[\]<>;]+';
+my $unquoted_field_name = '[\w\-\+:\.\[\]<>;]+';
+
 sub parse
   { my($db,$filename)= @_;
   
@@ -48,33 +54,27 @@ sub parse
 		last; 
 	      };
 	    
-	    # note:
-	    # the regular expression 
-	    # \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s* 
-	    # matches any sequence of empty lines and comment-lines
-	      
             if ($db=~ /\G
-	              \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+	              $space_or_comment
 		      record
-		      \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+		      $space_or_comment
 		               \(
-			           \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
-		                   (\w*)
-				   \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+			           $space_or_comment
+		                   ($word)
+				   $space_or_comment
 		                   ,
-				   \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
-			           (\"[^\"]*\"|[^\)\r\n]*)
-				   \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+				   $space_or_comment
+			           ($quoted|$unquoted_rec_name)
+				   $space_or_comment
 			       \)
-		              \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+		              $space_or_comment
 			      \{
-		      /gscx
+		      /ogscx
 	       )
               { my($type,$name)= ($1,$2);
 	      
-	        $name=~ s/\s+$//;
-		if ($name=~ /\"([^\"]*)\"/)
-		  { $name= $1; };
+	        $type=~ s/^"(.*)"$/$1/;
+                $name=~ s/^"(.*)"$/$1/;
 	      
 		$r_this_record_fields= {};
 		$r_this_record= { TYPE => $type, 
@@ -89,29 +89,30 @@ sub parse
 	if ($level==1)
 	  { 
             if ($db=~ /\G
-	              \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+	              $space_or_comment
 		      \}/gscx)
               { $level=0;
 		next;
 	      };
 
             if ($db=~ /\G
-	              \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+	              $space_or_comment
 		      field
-	              \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+	              $space_or_comment
 		           \(
-			      \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
-			      (\w*)
-			      \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+			      $space_or_comment
+			      ($word)
+			      $space_or_comment
 			      ,
-			      \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
-			      (\"[^\"]*\"|[^\)\r\n]*)
-			      \s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*
+			      $space_or_comment
+			      ($quoted|$unquoted_field_name)
+			      $space_or_comment
 			   \)
-		      /gscx)
+		      /ogscx)
               { my($field,$value)= ($1,$2);
 		$value= "" if (!defined $value);
-		$value=~ s/\"//g;
+                $field=~ s/^"(.*)"$/$1/;
+		$value=~ s/^"(.*)"$/$1/;
 
 		$r_this_record_fields->{$field}= $value;
 		next;
