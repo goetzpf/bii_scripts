@@ -21,12 +21,15 @@ use parse_db;
 use vars qw($opt_help $opt_summary
             $opt_dump_internal $opt_recreate
 	    $opt_val_regexp @opt_field 
-	    $opt_name $opt_type
+	    $opt_name 
+	    $opt_notname 
+	    $opt_type
 	    $opt_value
 	    $opt_DTYP
 	    $opt_fields
 	    $opt_list
 	    $opt_percent
+	    $opt_list_unresolved
 	   );
 
 
@@ -49,12 +52,15 @@ if (!@ARGV)
 
 if (!GetOptions("help|h","summary",
                 "dump_internal|i", "recreate|r", "val_regexp|v=s",
-		"field=s@", "name|NAME|n=s", "value=s",
+		"field=s@", 
+		"name|NAME|n=s", "notname|NOTNAME=s", 
+		"value=s",
 		"DTYP=s",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
 		"list|l",
-		"percent=s"
+		"percent=s",
+		"list_unresolved"
 		
                 ))
   { die "parameter error!\n"; };
@@ -72,6 +78,11 @@ if ($opt_summary)
 
 my @files= @ARGV;
 my $single_file= ($#ARGV==0);
+if ($#ARGV<0)
+  { # no file given, read from STDIN
+    $single_file= 1;
+    @files= (undef); 
+  };
 
 foreach my $file (@files)
   { my $filename;
@@ -82,6 +93,9 @@ foreach my $file (@files)
 
     if (defined $opt_name)
       { filter_name($recs,$opt_name); };
+
+    if (defined $opt_notname)
+      { filter_name($recs,$opt_notname,1); };
 
     if (defined $opt_type)
       { filter_type($recs,$opt_type); };
@@ -122,6 +136,11 @@ foreach my $file (@files)
 	next;
       };
 
+    if (defined $opt_list_unresolved)
+      { list_unresolved($filename,$recs,1);
+        next;
+      };
+    
     if (defined $opt_list)
       { foreach my $r (sort keys %$recs)
 	  { if (defined $filename)
@@ -157,9 +176,14 @@ sub parse_file
     my $st;
     
     undef $/;
-    open(F,$filename) or die "unable to open $filename";
+    
+    if (!defined $filename) # read from STDIN
+      { *F=*STDIN; }
+    else
+      { open(F,$filename) or die "unable to open $filename"; };
     $st= <F>;
-    close(F);
+    
+    close(F) if (defined $filename);
     
     return(parse_db::parse($st));
     #parse_db::dump($r_records);
@@ -239,6 +263,46 @@ sub match_fields
     return(@matched);  
   }  
 
+sub list_unresolved
+  { my ($filename,$recs,$do_list)= @_;
+    my $res;
+    my %mac;
+    my %recs;
+    
+    foreach my $recname (keys %$recs)
+      { $res= add_macros(\%mac, $recname);
+        my $r_fields= $recs->{$recname}->{FIELDS};
+	foreach my $fieldname (keys %$r_fields)
+	  { $res|= add_macros(\%mac, $r_fields->{$fieldname}); };
+	if ($res && $do_list)
+	  { $recs{$recname}= 1; };
+      };
+    print "unresolved macros in these records:\n";
+    print "-" x 40,"\n";
+    print join("\n",sort keys %recs);
+    print "\n\nList of unresolved macros:\n";
+    print "-" x 40,"\n";
+    print join("\n",sort keys %mac),"\n";  
+  } 
+ 
+sub add_macros
+  { my($r_h, $st)= @_;
+    my @l= collect_macros($st);
+    return if (!@l);
+    foreach my $m (@l)
+      { $r_h->{$m}=1; };
+    return(1);  
+  }
+
+sub collect_macros
+  { my($st)= @_;
+    my @l;
+  
+    while ($st=~ /\$\(([^\)]*)\)/g) 
+      { push @l,$1; }; 
+    return(@l);  
+  }
+
 sub filter_records
 # remove all records where a field does not
 # match a given regular expression
@@ -304,10 +368,10 @@ sub filter_type
 sub filter_name 
 # remove all records whose name does not match a
 # given regular expression
-  { my($r_rec,$regexp)= @_;
+  { my($r_rec,$regexp,$invert)= @_;
     my @nomatch;
   
-    create_regexp_func("name_filter",$regexp);
+    create_regexp_func("name_filter",$regexp,$invert);
 
     foreach my $rec (sort keys %$r_rec)
       { if (!name_filter($rec))
@@ -374,7 +438,7 @@ sub find_val
 sub create_regexp_func
 # create a function for regular expression
 # matching
-  { my($funcname,$regexp)= @_;
+  { my($funcname,$regexp,$invert)= @_;
   
     if (!defined $regexp)
       { $regexp= '//'; };
@@ -391,8 +455,14 @@ sub create_regexp_func
            " { return( defined(\$_[0]) ); }" );
       }
     else
-      { eval( "sub $funcname " .
-           " { return( scalar (\$_[0]=~$regexp) ); }" );
+      { if (!defined $invert)
+          { eval( "sub $funcname " .
+                  " { return( scalar (\$_[0]=~$regexp) ); }" );
+	  }
+	else	  
+          { eval( "sub $funcname " .
+                  " { return( scalar (\$_[0]!~$regexp) ); }" );
+	  };
       };
     if ($@)
       { die "error: eval() failed, error-message:\n" . $@ . " "  };
@@ -442,6 +512,8 @@ Syntax:
       '//' it is treated as a regular expression
     --NAME|--name|-n [regexp] filter records whose name match the given
       regular expression 
+    --NOTNAME|--notname [regexp] : same as above but filter records whose names DO NOT
+      match the regular expression  
     --DTYP [regexp] : filter DTYP field
     --TYPE|-t [regexp] : filter record type
     --fields|--FIELDS [field1,field2...] print only these fields
@@ -449,6 +521,10 @@ Syntax:
       of all records
       if number is negative, filter the LAST n percent of all
       records, otherwise filter the FIRST n percent of all records
+    --list_unresolved list all unresolved variables like \$(VARNAME)
+      in the db file
+      
+    if no file is given $sc_name reads from standard-input  
 END
   }
 
