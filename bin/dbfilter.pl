@@ -27,13 +27,16 @@ use vars qw($opt_help $opt_summary
 	    $opt_value
 	    $opt_DTYP
 	    $opt_fields
+	    $opt_empty
 	    $opt_list
 	    $opt_percent
-	    $opt_list_unresolved
+	    $opt_unresolved_variables
+	    $opt_unresolved_links
+	    $opt_unresolved_links_plain
 	   );
 
 
-my $sc_version= "0.9";
+my $sc_version= "1.1";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files"; 
@@ -42,6 +45,34 @@ my $sc_year= "2005";
 
 my $debug= 0; # global debug-switch
 
+my @dtyp_link_fields= qw(INP OUT);
+
+my @link_fields= qw(
+DOL
+FLNK
+INP
+INPA
+INPB
+INPC
+INPD
+INPE
+INPF
+INPG
+INPH
+INPI
+INPJ
+INPK
+INPL
+LNK1
+LNK2
+LNK3
+LNK4
+LNK5
+LNK6
+LNK7
+OUT
+SDIS
+SELL);
 
 #Getopt::Long::config(qw(no_ignore_case));
 
@@ -58,9 +89,12 @@ if (!GetOptions("help|h","summary",
 		"DTYP=s",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
+		"empty|e",
 		"list|l",
 		"percent=s",
-		"list_unresolved"
+		"unresolved_variables",
+		"unresolved_links",
+		"unresolved_links_plain"
 		
                 ))
   { die "parameter error!\n"; };
@@ -121,6 +155,10 @@ foreach my $file (@files)
 	filter_fields($recs,\@fields);
       };
 
+    if (defined $opt_empty)
+      { remove_empty_fields($recs); 
+      };
+
     if (defined $opt_percent)
       { filter_percent($recs,$opt_percent); };
 
@@ -136,8 +174,18 @@ foreach my $file (@files)
 	next;
       };
 
-    if (defined $opt_list_unresolved)
-      { list_unresolved($filename,$recs,1);
+    if (defined $opt_unresolved_variables)
+      { list_unresolved_variables($filename,$recs,1);
+        next;
+      };
+    
+    if (defined $opt_unresolved_links)
+      { list_unresolved_links($filename,$recs,1);
+        next;
+      };
+    
+    if (defined $opt_unresolved_links_plain)
+      { list_unresolved_links($filename,$recs,1,1);
         next;
       };
     
@@ -247,6 +295,19 @@ sub filter_fields
     foreach my $rec (keys %$r_rec)
       { filter_rec_fields($r_rec->{$rec}, \%h); };
   }
+
+sub remove_empty_fields
+# remove empty fields in all records
+  { my($r_rec)= @_;
+  
+    foreach my $rec (keys %$r_rec)
+      { my $r_values= $r_rec->{$rec}->{FIELDS};
+        foreach my $f (keys %$r_values)
+	  { if ($r_values->{$f}=~ /^\s*$/)
+	      { delete $r_values->{$f}; };
+	  };
+      };
+  }
     
 sub match_fields
 # return all fields of a record that
@@ -263,11 +324,12 @@ sub match_fields
     return(@matched);  
   }  
 
-sub list_unresolved
+sub list_unresolved_variables
   { my ($filename,$recs,$do_list)= @_;
     my $res;
     my %mac;
     my %recs;
+    
     
     foreach my $recname (keys %$recs)
       { $res= add_macros(\%mac, $recname);
@@ -277,12 +339,80 @@ sub list_unresolved
 	if ($res && $do_list)
 	  { $recs{$recname}= 1; };
       };
-    print "unresolved macros in these records:\n";
-    print "-" x 40,"\n";
-    print join("\n",sort keys %recs);
+    if (defined $filename)
+      { print "\nFILE $filename:\n"; };
+    print "=" x 40,"\n";
+    if ($do_list)
+      { print "unresolved macros in these records:\n";
+        print "-" x 40,"\n";
+        print join("\n",sort keys %recs);
+      };
     print "\n\nList of unresolved macros:\n";
     print "-" x 40,"\n";
     print join("\n",sort keys %mac),"\n";  
+  } 
+ 
+sub list_unresolved_links
+  { my ($filename,$recs,$do_list,$plain_list)= @_;
+    my $res;
+    my %mac;
+    my %recs;
+    my %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields;
+    my %link_fields= map{ $_ => 1 } @link_fields;
+    
+    my %recs; 
+    
+    foreach my $recname (keys %$recs)
+      { 
+        my $r_fields= $recs->{$recname}->{FIELDS};
+	foreach my $fieldname (keys %$r_fields)
+	  { next if (!exists $link_fields{$fieldname});
+	    my $val= $r_fields->{$fieldname};
+	    # is it empty ?
+	    next if ($val =~ /^\s*$/);
+	    # is it a number ?
+	    next if ($val =~ /^\s*[+-]?\d+\.?\d*(|[eE][+-]?\d+)$/);
+	    if (exists ($dtyp_link_fields{$fieldname}))
+	      { # maybe a hardware link ?
+	        if ($r_fields->{DTYP} ne 'Soft Channel')
+	          { next; };
+	      };	  
+            $val=~ s/[\. ]?(CA|CPP|NPP|NMS|PP)\s*//g;	    
+	    $val=~ s/\s+$//;
+	    # remove field-names:
+	    $val=~ s/\.\w+$//;
+	    next if (exists $recs->{$val});
+	    
+	    $recs{$recname}->{$fieldname}= $val; #$r_fields->{$fieldname};
+	  };
+      };
+    if (defined $filename)
+      { print "\nFILE $filename:\n"; };
+    if ($plain_list)
+      { my %values;
+        foreach my $recname (keys %recs)
+	  { my $r_f= $recs{$recname};
+            foreach my $field (keys %$r_f)
+	      { $values{$r_f->{$field}}= 1; };
+	  };
+	print join("\n",sort keys %values),"\n";
+	return;
+      };
+    
+    print "=" x 40,"\n";
+    if ($do_list)
+      { print "unresolved links in these records:\n";
+        print "-" x 40,"\n";
+        print join("\n",sort keys %recs);
+      };
+    print "\n\nList of fields with unresolved links\n";
+    print "-" x 40,"\n";
+    foreach my $recname (sort keys %recs)
+      { my $r_f= $recs{$recname};
+        print "record: $recname\n";
+        foreach my $field (sort keys %$r_f)
+	  { print "\t$field : ",$r_f->{$field},"\n"; };
+      };
   } 
  
 sub add_macros
@@ -486,6 +616,9 @@ sub h_center
 sub help
   { my $l1= h_center("**** $sc_name $sc_version -- $sc_summary ****");
     my $l2= h_center("$sc_author $sc_year");
+    my $l= $#link_fields/2;
+    my $links1= join(",",@link_fields[0..$l]);
+    my $links2= join(",",@link_fields[($l+1)..$#link_fields]);
     print <<END;
 
 $l1
@@ -512,17 +645,28 @@ Syntax:
       '//' it is treated as a regular expression
     --NAME|--name|-n [regexp] filter records whose name match the given
       regular expression 
-    --NOTNAME|--notname [regexp] : same as above but filter records whose names DO NOT
-      match the regular expression  
+    --NOTNAME|--notname [regexp] : same as above but filter records 
+      whose names DO NOT match the regular expression  
     --DTYP [regexp] : filter DTYP field
     --TYPE|-t [regexp] : filter record type
     --fields|--FIELDS [field1,field2...] print only these fields
+    --empty|-e : remove empty fields
     --percent [+-number] keep the first or last n percent 
       of all records
       if number is negative, filter the LAST n percent of all
       records, otherwise filter the FIRST n percent of all records
-    --list_unresolved list all unresolved variables like \$(VARNAME)
+    --unresolved_variables list all unresolved variables like \$(VARNAME)
       in the db file
+    --unresolved_links 
+      try to find unresolved links in the db-file.
+      list all links that cannot be resolved within the
+      db file. Currently the followings list of fields is expected to
+      contain links:
+      $links1
+      $links2
+      All values that seem to be a number or an empty string are ignored
+    --unresolved_links_plain
+      like --unresolved_links but list only the values themselves, nothing else 
       
     if no file is given $sc_name reads from standard-input  
 END
