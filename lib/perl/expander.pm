@@ -1,6 +1,7 @@
 package expander;
 
 use strict;
+use Data::Dumper;
 #use Carp;
 
 
@@ -8,7 +9,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.6;
+    $VERSION     = 1.7;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -41,7 +42,7 @@ my %is_bracket= ( '(' => 1,
 		  
 my %keywords= map{ $_ => 1 } 
               qw (set eval perl if else endif include for endfor 
-	          comment debug silent loud leave);		  
+	          comment debug dumphash ifstack silent loud leave);		  
 
 
 my $err_pre;
@@ -226,6 +227,7 @@ sub parse_scalar
 		  };
 
 		$err_line= __LINE__;
+
 		my($res,$end)= 
 		   eval_bracket_block($r_line,pos($$r_line)-1,($word eq 'perl'));
 		print $fh $res if ($word eq 'eval');
@@ -276,8 +278,12 @@ sub parse_scalar
 		    fatal_parse_error($r_line,$p); 
 		  };
 		
-		$err_line= __LINE__;
-		eval_part($pre,$r_line,$p);
+		if ($ifcond[-1]>0) 
+		  { # do not evalutate the for-condition
+		    # when we are within an ignore-block
+		    $err_line= __LINE__;
+		    eval_part($pre,$r_line,$p);
+		  };
 		push @forstack, [$end+1,$cond,$loop];
 		pos($$r_line)= $end+1;
 	        next;	
@@ -296,7 +302,7 @@ sub parse_scalar
 		if ($word eq 'debug')
 		  { 
 		    my $str= substr($$r_line,$start+1,$end-$start-1);
-		    print $fh $str;
+		    print STDERR $str;
 		  }; 
 		pos($$r_line)= $end+1;
 		next;
@@ -325,11 +331,24 @@ sub parse_scalar
 	   }      
 	
 	pos($$r_line)= $p;
-	if ($$r_line=~ /\G(else|endif|endfor|silent|loud|leave)/gs)
+	if ($$r_line=~ /\G(else|endif|endfor|silent|loud|leave|dumphash|ifstack)/gs)
           { 
+
 	    if ($debug)
 	      { warn "--- \"$1\" recognized,\n"; };
 	  
+	    if ($1 eq 'dumphash')
+	      { 
+	        print STDERR "HASH-DUMP:\n",Data::Dumper->Dump([\%m], ['m']),"\n";
+	        next;
+	      };
+	    
+	    if ($1 eq 'ifstack')
+	      { 
+	        print STDERR "IF-STACK-DUMP:\n",join(",",@ifcond),"\n";
+	        next;
+	      };
+	    
 	    if ($1 eq 'leave')
 	      { $was_left=1; 
 	        last; 
@@ -378,6 +397,13 @@ sub parse_scalar
 		    $err_line= __LINE__;
 		    fatal_parse_error($r_line,$p); 
 		  };
+		
+		if ($ifcond[-1]<=0) 
+		  { # within ignore-block
+		    pop @forstack; 
+		    next;
+		  };
+		
 		my($pos1,$cond,$loop)= @{$forstack[-1]};
 		
 		$err_line= __LINE__;
@@ -445,7 +471,7 @@ sub eval_part
     my $res= eval($subst);
     if ((!defined ($res)) && ($@ ne ""))
       { 
-	$err_pre= "eval-error:$@";
+	$err_pre= "in expression \"$subst\":\neval-error:$@";
 	fatal_parse_error($r_line,$pos); 
       };
     return($res);
@@ -991,7 +1017,22 @@ This immediately leaves the parse-function producing no more output.
   
   $debug(<text>)
   
-This statement emits arbitrary text to the output-channel. 
+This statement emits arbitrary text to STDERR. 
+  
+=item I<dumphash>
+  
+  $dumphash
+  
+This dumps the internal hash %m that is used to hold all
+defined variables. This is only useful for debugging.
+  
+=item I<ifstack>
+  
+  $ifstack
+  
+This dumps the internal if-stack that is used to
+track if-else-endif blocks.
+This is only useful for debugging.
   
 =back
 
