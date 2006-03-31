@@ -35,7 +35,6 @@ my $unquoted_rec_name   = qr/([\w\-:\[\]<>;]+)/;
 my $unquoted_field_name = qr/([\w\-\+:\.\[\]<>;]+)/;
 
 my $record_head= qr/\G
-	              $space_or_comment
 		      record
 		      $space_or_comment
 		               \(
@@ -81,7 +80,10 @@ sub parse
       { 
 	if ($level==0)
 	  { 
-            last if ($db=~/\G[\s\r\n]*$/gsc);
+            # skip comment-lines at level 0:
+	    $db=~/\G$space_or_comment/ogscx;
+	    
+	    last if ($db=~/\G[\s\r\n]*$/gsc);
 	    
             if ($db=~ /$record_head/ogscx)
               { 
