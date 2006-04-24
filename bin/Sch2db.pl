@@ -8916,5 +8916,7 @@ options:
        this shows just the fields that are set by the capfast file
   --dump_symfile: scan and dump symbol files
   -S : use internal symbol data instead of reading symbol files
+  --name_to_desc -D : patch the DESC field in order to be equal 
+    to the record-name
 END
   }
