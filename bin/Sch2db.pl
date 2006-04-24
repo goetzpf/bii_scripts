@@ -47,12 +47,13 @@ use Data::Dumper;
 use vars qw($opt_help $opt_summary $opt_file $opt_out $opt_sympath 
            $opt_warn_miss $opt_warn_double $opt_no_defaults
 	   $opt_dump_symfile $opt_internal_syms
+	   $opt_name_to_desc
 	   );
 
 # ------------------------------------------------------------------------
 # constants
 
-my $version= "1.4";
+my $version= "1.5";
 
 $opt_sympath= "/home/controls/epics/R3.13.1/support/capfast/1-2/edif";
 
@@ -8000,7 +8001,9 @@ if (!GetOptions("help|h","summary","file|f=s","out|o=s",
                "warn_miss|m:s","warn_double|d",
                 "sympath|s=s", "no_defaults|n",
 		"dump_symfile",
-		"internal_syms|S"
+		"internal_syms|S",
+		"name_to_desc|D",
+		
 		))
   { die "parameter error, use \"$0 -h\" to display the online-help\n"; };
 
@@ -8070,7 +8073,7 @@ resolve_wires(\%wires, \%fields);
 resolve_connections(\%struc, \%fields);
 #       hdump("after resolve_connections():","struc",\%struc);  exit(1);
 
-db_prepare($opt_file,$opt_out,\%struc); 
+db_prepare($opt_file,$opt_out,\%struc, $opt_name_to_desc); 
 db_print($opt_out,\%struc); exit(0);
 
 # scanning ---------------------------------------
@@ -8458,7 +8461,7 @@ sub resolve_connections
 # printing ---------------------------------------
 
 sub db_prepare
-  { my($in_file,$filename, $r_h)= @_;
+  { my($in_file,$filename, $r_h, $name_to_desc)= @_;
     my($r_rec,$sym_type);
     
     my $prefix;
@@ -8511,7 +8514,9 @@ sub db_prepare
 		$r_rec->{name}= $recname;
 	      };
 	  };      	     
-	      
+	if ($name_to_desc)
+	  { $r_rec->{DESC}= $r_rec->{name};
+	  };      
 	
       };	
   }  
