@@ -35,35 +35,35 @@ my $unquoted_rec_name   = qr/([\w\-:\[\]<>;]+)/;
 my $unquoted_field_name = qr/([\w\-\+:\.\[\]<>;]+)/;
 
 my $record_head= qr/\G
-		      record
-		      $space_or_comment
-		               \(
-			           $space_or_comment
-		                   (?:$quoted_word|$unquoted_word)
-				   $space_or_comment
-		                   ,
-				   $space_or_comment
-			           (?:$quoted|$unquoted_rec_name)
-				   $space_or_comment
-			       \)
-		              $space_or_comment
-			      \{
-		      /x;
+                      record
+                      $space_or_comment
+                               \(
+                                   $space_or_comment
+                                   (?:$quoted_word|$unquoted_word)
+                                   $space_or_comment
+                                   ,
+                                   $space_or_comment
+                                   (?:$quoted|$unquoted_rec_name)
+                                   $space_or_comment
+                               \)
+                              $space_or_comment
+                              \{
+                      /x;
 
 my $field_def= qr/\G
-	              $space_or_comment
-		      field
-	              $space_or_comment
-		           \(
-			      $space_or_comment
-			      (?:$quoted_word|$unquoted_word)
-			      $space_or_comment
-			      ,
-			      $space_or_comment
-			      (?:$quoted|$unquoted_field_name)
-			      $space_or_comment
-			   \)
-		      /x;
+                      $space_or_comment
+                      field
+                      $space_or_comment
+                           \(
+                              $space_or_comment
+                              (?:$quoted_word|$unquoted_word)
+                              $space_or_comment
+                              ,
+                              $space_or_comment
+                              (?:$quoted|$unquoted_field_name)
+                              $space_or_comment
+                           \)
+                      /x;
 
 sub parse
   { my($db,$filename)= @_;
@@ -78,47 +78,49 @@ sub parse
     
     for(;;)
       { 
-	if ($level==0)
-	  { 
+        if ($level==0)
+          { 
             # skip comment-lines at level 0:
-	    $db=~/\G$space_or_comment/ogscx;
-	    
-	    last if ($db=~/\G[\s\r\n]*$/gsc);
-	    
+            $db=~/\G$space_or_comment/ogscx;
+            
+            last if ($db=~/\G[\s\r\n]*$/gsc);
+            
             if ($db=~ /$record_head/ogscx)
               { 
-	        my $type= ($2 eq "") ? $1 : $2;
-		my $name= ($4 eq "") ? $3 : $4;
-		
-		$r_this_record_fields= {};
-		$r_this_record= { TYPE => $type, 
-	                	  FIELDS => $r_this_record_fields };
-        	$records{$name}= $r_this_record; 
-		$level=1;
-		next;
-	      };
-	    parse_error(__LINE__,\$db,pos($db),$filename);
-	  };
-	  
-	if ($level==1)
-	  { 
+                my $type= ($2 eq "") ? $1 : $2;
+                my $name= ($4 eq "") ? $3 : $4;
+                
+                $r_this_record_fields= {};
+                $r_this_record= { TYPE => $type, 
+                                  FIELDS => $r_this_record_fields };
+                if (exists $records{$name})
+                  { warn "warning: record \"$name\" is at least defined twice\n "; };
+                $records{$name}= $r_this_record; 
+                $level=1;
+                next;
+              };
+            parse_error(__LINE__,\$db,pos($db),$filename);
+          };
+          
+        if ($level==1)
+          { 
             if ($db=~ /\G
-	              $space_or_comment
-		      \}/ogscx)
+                      $space_or_comment
+                      \}/ogscx)
               { $level=0;
-		next;
-	      };
+                next;
+              };
 
             if ($db=~ /$field_def/ogscx)
               { 
-	        my $field= ($2 eq "") ? $1 : $2;
-		my $value= ($4 eq "") ? $3 : $4;
-		
-		$r_this_record_fields->{$field}= $value;
-		next;
-	      };
-	    parse_error(__LINE__,\$db,pos($db),$filename);
-	  };
+                my $field= ($2 eq "") ? $1 : $2;
+                my $value= ($4 eq "") ? $3 : $4;
+                
+                $r_this_record_fields->{$field}= $value;
+                next;
+              };
+            parse_error(__LINE__,\$db,pos($db),$filename);
+          };
       };
     return(\%records);    
   }
@@ -149,10 +151,10 @@ sub parse_error
       { $filename= "in file $filename "; };
     my $err= "Parse error ${filename}at line $prg_line of parse_db.pm,\n" .
              "byte-position $pos\n" .
-	     "line $line, column $column in file\n ";
+             "line $line, column $column in file\n ";
     croak $err;
   }
-	     
+             
     
 
 sub find_position_in_string
@@ -171,12 +173,12 @@ sub find_position_in_string
     while($$r_str=~ /\G(.*?)\r?\n/gms)
       { 
         if (pos($$r_str)<$position)
-	  { 
-	    $oldpos= pos($$r_str); 
-	    $lineno++;
-	    next;
-	  };
-	return($lineno,$position-$oldpos);
+          { 
+            $oldpos= pos($$r_str); 
+            $lineno++;
+            next;
+          };
+        return($lineno,$position-$oldpos);
       };
     return($lineno,$position-$oldpos);
   }      
@@ -269,11 +271,11 @@ Example of a hash that parse() returns:
   $r_records= { 'UE52ID5R:BaseCmdHome' => 
                    { 'TYPE'  => 'sub',
                      'FIELDS'=> { 'PRIO' => 'LOW',
-		     		  'DESC' => 'subroutine',
-				  'HIGH' => ''
-			        }
+                                  'DESC' => 'subroutine',
+                                  'HIGH' => ''
+                                }
                    } 
-	      }
+              }
 
 =head1 AUTHOR
 
