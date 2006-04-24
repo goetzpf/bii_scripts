@@ -8516,6 +8516,9 @@ sub db_prepare
 	  };      	     
 	if ($name_to_desc)
 	  { $r_rec->{DESC}= $r_rec->{name};
+	    # quote dollar-signs in order to
+	    # leave them unchanged:
+	    $r_rec->{DESC}=~ s/\$/\\\$/g;
 	  };      
 	
       };	
