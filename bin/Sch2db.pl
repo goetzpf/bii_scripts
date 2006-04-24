@@ -8518,7 +8518,7 @@ sub db_prepare
 	  { $r_rec->{DESC}= $r_rec->{name};
 	    # quote dollar-signs in order to
 	    # leave them unchanged:
-	    $r_rec->{DESC}=~ s/\$/\\\$/g;
+	    $r_rec->{DESC}=~ s/\$/VAR/g;
 	  };      
 	
       };	
