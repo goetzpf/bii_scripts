@@ -33,10 +33,11 @@ use vars qw($opt_help $opt_summary
 	    $opt_unresolved_variables
 	    $opt_unresolved_links
 	    $opt_unresolved_links_plain
+	    $opt_record_references
 	   );
 
 
-my $sc_version= "1.1";
+my $sc_version= "1.2";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files"; 
@@ -74,12 +75,18 @@ OUT
 SDIS
 SELL);
 
+my %dtyp_link_fields; #initialized later
+my %link_fields;      #initialized later
+
+
 #Getopt::Long::config(qw(no_ignore_case));
 
 if (!@ARGV)
   { help();
     exit;
   };
+
+Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary",
                 "dump_internal|i", "recreate|r", "val_regexp|v=s",
@@ -94,11 +101,10 @@ if (!GetOptions("help|h","summary",
 		"percent=s",
 		"unresolved_variables",
 		"unresolved_links",
-		"unresolved_links_plain"
-		
+		"unresolved_links_plain",
+		"record_references|R=s",
                 ))
   { die "parameter error!\n"; };
-
 
 if ($opt_help)
   { help();
@@ -165,7 +171,11 @@ foreach my $file (@files)
     if ((!defined $opt_dump_internal) && 
 	(!defined $opt_recreate) &&
 	(!defined $opt_value) &&
-	(!defined $opt_list)
+	(!defined $opt_list) &&
+	(!defined $opt_unresolved_variables) &&
+	(!defined $opt_unresolved_links) &&
+	(!defined $opt_unresolved_links_plain) &&
+	(!defined $opt_record_references)
        )
       { $opt_recreate=1; };
 
@@ -188,6 +198,14 @@ foreach my $file (@files)
       { list_unresolved_links($filename,$recs,1,1);
         next;
       };
+      
+    if (defined $opt_record_references)
+      { 
+        list_record_references($filename,$recs,
+	                       $opt_record_references,
+			       $opt_recreate);
+        next;
+      };  
     
     if (defined $opt_list)
       { foreach my $r (sort keys %$recs)
@@ -351,47 +369,122 @@ sub list_unresolved_variables
     print "-" x 40,"\n";
     print join("\n",sort keys %mac),"\n";  
   } 
+
+sub list_record_references
+  { my ($filename,$recs,$record_name,$recreate)= @_;
+
+    my %references;
+    my %referenced_by;
+    my @reclist;
+    my %to_print;
+
+    foreach my $recname (keys %$recs)
+      { my @references   = find_referenced_records($recs,$recname);
+        next if (!@references);
+	$references{$recname}= { map { $_ => 1 } @references };
+        foreach my $r (@references)
+	  { $referenced_by{$r}->{$recname}= 1; }; 
+      };
+    
+    
+    if ($record_name !~ /^(all|\/\/)$/i)
+      { create_regexp_func("ref_name_filter",$record_name);
+        foreach my $rec (sort keys %$recs)
+          { 
+	    if (ref_name_filter($rec))
+	      {
+	        push @reclist,$rec; 
+	      };
+	  };
+	if (!@reclist)
+	  { die "no record-names match the given pattern: $record_name\n"; };  
+      }
+    else
+      { @reclist=(sort keys %$recs); };
+    
+    if (defined $filename)
+      { print "\nFILE $filename:\n"; 
+	print "=" x 40,"\n";
+      };
+
+    if ($recreate)
+      { %to_print= map { $_ => 1 } @reclist; };
+    
+    foreach my $recname (@reclist)
+      { my $r_references   = $references{$recname};
+        my $r_referenced_by= $referenced_by{$recname};
+      
+        if ((!defined $r_references) && (!defined $r_referenced_by))
+	  { next; };
+	
+	print "$recname\n";
+	if (defined $r_references)
+	  { if ($recreate)
+	      { foreach my $r (keys %$r_references)
+	          { $to_print{$r}= 1; };
+	      };	  
+	    print "  references:\n\t",join("\n\t",sort keys %$r_references),"\n"; 
+	  };
+	if (defined $r_referenced_by)
+	  { if ($recreate)
+	      { foreach my $r (keys %$r_referenced_by)
+	          { $to_print{$r}= 1; };
+	      };	  
+	    print "  referenced by:\n\t",join("\n\t",sort keys %$r_referenced_by),"\n"; 
+	  };
+      };
+    if ($recreate)
+      { print "=" x 40,"\nRecords:\n";
+        my %my_recs= map { $_ => $recs->{$_} } (keys %to_print);
+        parse_db::create(\%my_recs);
+      };  
+  } 
  
+sub find_record_references
+# find all records that do reference <$recname>  
+  { my($recs, $recname)= @_;
+    my %recs_found;
+  
+    foreach my $n_recname (keys %$recs)
+      { 
+        my $r_recs= rec_link_fields($recs->{$recname}->{FIELDS},'rechash');
+	if (exists $r_recs->{$recname})
+	  { $recs_found{$n_recname}= 1; };
+      };
+    return(sort keys %recs_found);
+  }	  
+	      
+sub find_referenced_records
+# give a list of all records that a given record references
+  { my($recs, $recname)= @_;
+    
+    return( rec_link_fields($recs->{$recname}->{FIELDS},'reclist') );
+  }
+
 sub list_unresolved_links
   { my ($filename,$recs,$do_list,$plain_list)= @_;
     my $res;
     my %mac;
-    my %recs;
-    my %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields;
-    my %link_fields= map{ $_ => 1 } @link_fields;
-    
-    my %recs; 
+    my %found_recs;
     
     foreach my $recname (keys %$recs)
       { 
-        my $r_fields= $recs->{$recname}->{FIELDS};
-	foreach my $fieldname (keys %$r_fields)
-	  { next if (!exists $link_fields{$fieldname});
-	    my $val= $r_fields->{$fieldname};
-	    # is it empty ?
-	    next if ($val =~ /^\s*$/);
-	    # is it a number ?
-	    next if ($val =~ /^\s*[+-]?\d+\.?\d*(|[eE][+-]?\d+)$/);
-	    if (exists ($dtyp_link_fields{$fieldname}))
-	      { # maybe a hardware link ?
-	        if ($r_fields->{DTYP} ne 'Soft Channel')
-	          { next; };
-	      };	  
-            $val=~ s/[\. ]?(CA|CPP|NPP|NMS|PP)\s*//g;	    
-	    $val=~ s/\s+$//;
-	    # remove field-names:
-	    $val=~ s/\.\w+$//;
-	    next if (exists $recs->{$val});
-	    
-	    $recs{$recname}->{$fieldname}= $val; #$r_fields->{$fieldname};
+        my $r_ref_fields= rec_link_fields($recs->{$recname}->{FIELDS},'hash');
+        foreach my $f (keys %$r_ref_fields)
+	  { if (exists $recs->{$r_ref_fields->{$f}})
+	      { delete $r_ref_fields->{$f}; };
 	  };
+	if (!%$r_ref_fields)
+	  { next; };
+	$found_recs{$recname}= $r_ref_fields;
       };
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
     if ($plain_list)
-      { my %values;
-        foreach my $recname (keys %recs)
-	  { my $r_f= $recs{$recname};
+      { # just list all items (values) that are missing
+        my %values;
+        foreach my $recname (keys %found_recs)
+	  { my $r_f= $found_recs{$recname};
             foreach my $field (keys %$r_f)
 	      { $values{$r_f->{$field}}= 1; };
 	  };
@@ -403,17 +496,64 @@ sub list_unresolved_links
     if ($do_list)
       { print "unresolved links in these records:\n";
         print "-" x 40,"\n";
-        print join("\n",sort keys %recs);
+        print join("\n",sort keys %found_recs);
       };
     print "\n\nList of fields with unresolved links\n";
     print "-" x 40,"\n";
-    foreach my $recname (sort keys %recs)
-      { my $r_f= $recs{$recname};
+    foreach my $recname (sort keys %found_recs)
+      { my $r_f= $found_recs{$recname};
         print "record: $recname\n";
         foreach my $field (sort keys %$r_f)
 	  { print "\t$field : ",$r_f->{$field},"\n"; };
       };
   } 
+
+sub rec_link_fields
+# return a hash-reference of field->value pairs 
+# where the values
+# are the names of referenced other records 
+  { my($r_fields,$mode)= @_;
+  
+    if (!%dtyp_link_fields)
+      { %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields; };
+    if (!%link_fields)
+      { %link_fields= map{ $_ => 1 } @link_fields; };
+  
+    my %h;
+    
+    foreach my $fieldname (keys %$r_fields)
+      { next if (!exists $link_fields{$fieldname});
+	my $val= $r_fields->{$fieldname};
+	# is it empty ?
+	next if ($val =~ /^\s*$/);
+	# is it a number ?
+	next if ($val =~ /^\s*[+-]?\d+\.?\d*(|[eE][+-]?\d+)$/);
+	if (exists ($dtyp_link_fields{$fieldname}))
+	  { # maybe a hardware link ?
+	    if ($r_fields->{DTYP} ne 'Soft Channel')
+	      { next; };
+	  };	  
+        $val=~ s/[\. ]?(CA|CPP|NPP|NMS|PP)\s*//g;	    
+	$val=~ s/\s+$//;
+	# remove field-names:
+	$val=~ s/\.\w+$//;
+	if    ($mode eq 'hash')
+	  { $h{$fieldname}= $val; }
+	else
+	  { $h{$val}= 1; };
+      };
+    if    ($mode eq 'hash')
+      { return(\%h); }
+    elsif ($mode eq 'reclist')
+      { return(sort keys %h); }
+    elsif ($mode eq 'rechash') 
+      { return(\%h); }
+    else
+      { die; };
+  }
+
+ 
+
  
 sub add_macros
   { my($r_h, $st)= @_;
@@ -569,6 +709,7 @@ sub create_regexp_func
 # create a function for regular expression
 # matching
   { my($funcname,$regexp,$invert)= @_;
+    my $str;
   
     if (!defined $regexp)
       { $regexp= '//'; };
@@ -576,24 +717,26 @@ sub create_regexp_func
     if ($regexp !~ /\//)
       { $regexp= "/$regexp/"; };
     
-#    warn "func created:\n" . 
-#          "sub $funcname " .
-#          " { return( scalar (\$_[0]=~$regexp) ); }";
-	  
     if ($regexp eq '//')
-      { eval( "sub $funcname " .
-           " { return( defined(\$_[0]) ); }" );
+      { $str= "sub $funcname " .
+           " { return( defined(\$_[0]) ); }";
+        eval( $str );
       }
     else
-      { if (!defined $invert)
-          { eval( "sub $funcname " .
-                  " { return( scalar (\$_[0]=~$regexp) ); }" );
+      { if (!$invert)
+          { $str= "sub $funcname " .
+                  " { return( scalar (\$_[0]=~$regexp) ); }";
+	    eval( $str );
 	  }
 	else	  
-          { eval( "sub $funcname " .
-                  " { return( scalar (\$_[0]!~$regexp) ); }" );
+          { $str= "sub $funcname " .
+                  " { return( scalar (\$_[0]!~$regexp) ); }"; 
+	    eval( $str );
 	  };
       };
+
+    #warn "func created:\n$str\n"; 
+
     if ($@)
       { die "error: eval() failed, error-message:\n" . $@ . " "  };
   }
@@ -666,7 +809,15 @@ Syntax:
       $links2
       All values that seem to be a number or an empty string are ignored
     --unresolved_links_plain
-      like --unresolved_links but list only the values themselves, nothing else 
+      like --unresolved_links but list only the values themselves, 
+      nothing else 
+    --record_references -R [regexp]
+      list which record (whose name matches regexp) is connected 
+      to which other record. regexp may be "all" or "//" in which 
+      case all records that are connected to other records are
+      shown. This option can be combined with "-r", in this case
+      all the contents of the shown records are printed in 
+      db-file format       
       
     if no file is given $sc_name reads from standard-input  
 END
