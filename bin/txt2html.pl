@@ -9,7 +9,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #  
 #    txtFileName: the input file
 #    $(TOP)	: the path to the documentation top, something like  '../..'
-#    outFileName: optional, name and path where to write the output, defaulT. ./txtFileName.html
+#    outFileName: optional, name and path where to write the output, default: './txtFileName.html'
 #
 
   use strict;
@@ -48,9 +48,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #    $outFileName =~ s/(\w+)\.(\w+$)/$1.html/;  # omit path
     $outFileName =~ s/(.*)\.\w+$/$1.html/;     # with path
   } 
-#  print "write $outFileName\n";
-
-  open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
 
 #print header
   my $index;	# index of all headlines
@@ -73,8 +70,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
   while( getParagraph(\$parse, \$paragraph) )
   {
-    print "p next\t|$parse|\n";
-    
 # is PRE (code) ?
     if( $paragraph =~ /^\s\s/i )
     { #print "is Preformated\n";
@@ -238,8 +233,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #    $paragraph =~ s|  (.*?)  | <B>$1</B> |g;	# bold-text quoted with double spaces 
 #    $paragraph =~ s|\s\'(.*?)\'\s| <I>$1</I> |g;	# italic-text quoted with sinlge quotes
     $paragraph = substParagraph($paragraph,'  (.*?)  ',"B>");	    # bold-text quoted with double spaces 
-    $paragraph = substParagraph($paragraph,' \'(.*?)\' ',"I>");   # italic-text quoted with sinlge quotes
-    print "para\t|$paragraph|\n";
+    $paragraph = substParagraph($paragraph,'\W\'(.*?)\'\W',"I>","s");   # italic-text quoted with sinlge quotes
+#    print "para\t|$paragraph|\n";
     
 # reformate tables html
     $paragraph =~ s|\n<TH|\n    <TH|g;
@@ -288,13 +283,15 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     "	</STYLE>\n</HEAD>\n<BODY>\n".
 #    "<H1 ALIGN=\"center\">$title</H1>\n".
     "<TABLE style=\"background-color:#FFFFFF\" WIDTH=\"100%\"><TR>\n".
-    "<TD><FONT SIZE=\"+2\"><B>$title</FONT></B></TD>\n".
-    "<TD WIDTH=200><IMG WIDTH=200 SRC=\"$top/DocumentationApp/BESSYLogo_sw_rgb300.jpg\"></TD>".
+    "<TD><FONT><H1>$title</FONT></H1></TD>\n".
+    "<TD WIDTH=200><IMG WIDTH=200 SRC=\"/images/BESSYLogo_sw_rgb300.jpg\"></TD>".
     "</TR></TABLE>\n".
     "<P ALIGN=\"right\"><FONT SIZE=\"-1\" >last Modified: by $ENV{'USER'} $filetime </FONT></P>\n";
 
   my $fileFooter = "</BODY>\n</HTML>\n";
 
+#  print "write $outFileName\n";
+  open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
   print OUT_FILE $fileHeader;
 
   if( length($index) > 0)
@@ -310,7 +307,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 # Create external idx file
 #  $outFileName = $inFileName;
 #  $outFileName =~ s/(.*)\.\w+$/$1.idx.html/;     # with path
-#  open(IDX_FILE, ">$outFileName") or die "can't open idx file: $outFileName: $!";
+#  (IDX_FILE, ">$outFileName") or die "can't open idx file: $outFileName: $!";
 #  print IDX_FILE "<HTML>\n<HEAD>\n".
 #    "<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html; charset=iso-8859-1\">\n".
 #    "<link rel=stylesheet type=\"text/css\" href=\"../Windex.css\">\n".
@@ -342,21 +339,21 @@ sub   getParagraph
 
 # check for all occurencies of the pattern $searchPat in $value and enclose with html tags.
 sub   substParagraph
-{   my ($value,$searchPat,$htmlTag) = @_;
+{   my ($value,$searchPat,$htmlTag,$mod) = @_;
 
     my $parseVal = $value;
 
     my $parsed;
     
-print "substParagraph parse: ($*)\'$value'\n";
-    while( $parseVal =~ /$searchPat/s ) # check for all occuring variables: $(VARNAME)
+#print "substParagraph parse: ($*)\'$value'\n";
+    while( $parseVal =~ /$searchPat/) # check for all occuring variables: $(VARNAME)
     {
-print "\tbefore:\t\'$`\'\n\tmatch\t\'$1\'\n\tremain\t\'$'\'\n";
+#print "\tbefore:\t\'$`\'\n\tmatch\t\'$1\'\n\tremain\t\'$'\'\n";
         $parsed .= "$` <${htmlTag}$1</${htmlTag} ";
         $parseVal = $';
     }
     $parsed .= $parseVal; # add the not matching remainder
 
-print "return: \'$parsed'\n";
+#print "return: \'$parsed'\n";
     return $parsed;
 }
