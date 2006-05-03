@@ -24,7 +24,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime(time()); $mon +=1; $year+=1900;
   my $filetime ="$mday.$mon.$year $hour:$min\'$sec";
   my $files =  `find $installPath -name *html`;
-  $files .=  `find $installPath -name *pdf`;
+#  $files .=  `find $installPath -name *pdf`;
   my @files = split(/\n/,$files);
 
   my $docContens = "<UL>\n";
