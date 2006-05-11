@@ -14,8 +14,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
   use strict;
   my $inFileName = shift @ARGV;
-  my $top =  shift @ARGV;
-  $top =~ s/^\.\.\///;
+#  my $top =  shift @ARGV;
+#  $top =~ s/^\.\.\///;
   my $outFileName;
   if( @ARGV ){ $outFileName = shift @ARGV;}
   
@@ -23,8 +23,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #  my $installPath=".";
 #  if( @ARGV ){ $installPath = shift @ARGV;}
 
-  print "Create html from: $inFileName \n";
   chomp $inFileName;
+  print "Create html from: \'$inFileName\'\n";
   my $file;
   open(IN_FILE, "<$inFileName") or die "can't open input file $inFileName: $!";
   { local $/;
