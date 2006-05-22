@@ -9,7 +9,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.7;
+    $VERSION     = 1.8;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -41,9 +41,11 @@ my %is_bracket= ( '(' => 1,
                   '}' => 1);
 		  
 my %keywords= map{ $_ => 1 } 
-              qw (set eval perl if else endif include for endfor 
+              qw (set eval perl func if else endif include for endfor 
 	          comment debug dumphash ifstack silent loud leave);		  
 
+
+my %functions;
 
 my $err_pre;
 my $err_post;
@@ -211,13 +213,28 @@ sub parse_scalar
 	    next;
 	  };
 
-	if ($$r_line=~ /\G(set|eval|perl|if|include|for|comment|debug)\s*\(/gs)
+        my $f_word;
+	if ($$r_line=~ /\G(\w+)\s*\(/gs)
+	  { $f_word= $1; };
+
+	if (is_user_func($f_word))
 	  { 
 	    if ($debug)
-	      { warn "--- \"$1\" recognized,\n"; };
+	      { warn "--- \"$f_word\" recognized,\n"; };
+	    my($res,$end)= eval_func_block($f_word,$r_line,pos($$r_line)-1);
+	    print $fh $res;
+	    pos($$r_line)= $end+1;
+	    next;
+	  };
 
-	    if (($1 eq 'eval') || ($1 eq 'set') || ($1 eq 'perl'))
-	      {	my $word= $1;
+	if ($f_word=~ /(set|eval|perl|if|include|for|comment|debug|func)/)
+	  { 
+	    if ($debug)
+	      { warn "--- \"$f_word\" recognized,\n"; };
+
+	    if (($f_word eq 'eval') || ($f_word eq 'set') || ($f_word eq 'perl') || 
+	        ($f_word eq 'func'))
+	      {	my $word= $f_word;
 	      
 	        if ($ifcond[-1]<=0)
 	          { $err_line= __LINE__;
@@ -228,13 +245,23 @@ sub parse_scalar
 
 		$err_line= __LINE__;
 
-		my($res,$end)= 
-		   eval_bracket_block($r_line,pos($$r_line)-1,($word eq 'perl'));
+		my($res,$end);
+		if ($word eq 'func')
+		  { ($res,$end)=
+		       eval_funcdef_block($r_line,pos($$r_line)-1);
+		  }
+		else
+		  { 
+		    ($res,$end)=
+		       eval_bracket_block($r_line,pos($$r_line)-1,
+		                         ($word eq 'perl') );
+		  };
+		
 		print $fh $res if ($word eq 'eval');
 		pos($$r_line)= $end+1;
 		next;
               }
-	    elsif  ($1 eq 'if')
+	    elsif  ($f_word eq 'if')
 	      { 
 		# if command
 		$err_line= __LINE__;
@@ -259,7 +286,7 @@ sub parse_scalar
 		pos($$r_line)= $end+1;
 		next;
 	      }
-	    elsif  ($1 eq 'for')
+	    elsif  ($f_word eq 'for')
 	      { 
 #warn "start matching at: " . (pos($$r_line)-1);
                 my($start,$end)= match($r_line,pos($$r_line)-1);
@@ -288,9 +315,9 @@ sub parse_scalar
 		pos($$r_line)= $end+1;
 	        next;	
 	      }
-	    elsif  (($1 eq 'comment') || ($1 eq 'debug'))
+	    elsif  (($f_word eq 'comment') || ($f_word eq 'debug'))
 	      { 
-	        my $word= $1;
+	        my $word= $f_word;
                 my($start,$end)= match($r_line,pos($$r_line)-1);
 #warn "matched at: $start,$end";
 		if (!defined $start)
@@ -307,7 +334,7 @@ sub parse_scalar
 		pos($$r_line)= $end+1;
 		next;
 	      }
-	    elsif  ($1 eq 'include')
+	    elsif  ($f_word eq 'include')
 	      {
 #die "include encountered\n";
 		$err_line= __LINE__;
@@ -317,7 +344,7 @@ sub parse_scalar
 	        if (!-r $res)
 		  { $err_pre= "unable to open file $res";
 		    $err_line= __LINE__;
-		    fatal_parse_error($r_line,$p); 
+   		    fatal_parse_error($r_line,$p); 
 		  };
 #die "res: $res\n";
 		my %local_options= %options;
@@ -508,6 +535,62 @@ sub eval_bracket_block
     return($res,$end);
   }
 
+sub is_user_func
+  { my($funcname)= @_;
+    return(exists $functions{"m_" . $funcname});
+  }
+
+sub eval_func_block
+  { my($funcname,$r_line,$start_at)= @_;
+  
+    my($start,$end)= match($r_line,$start_at);
+
+    if (!defined $start)
+      { 
+        $err_pre= "eval-block is malformed";
+	fatal_parse_error($r_line,$start_at); 
+      };
+    my $sub= substr($$r_line, $start+1, $end-$start-1);
+#warn "evaluate: $sub";
+    
+    $sub= "m_" . $funcname . "($sub)";
+
+    my $res= eval_part($sub,$r_line,$start_at); 
+
+    return($res,$end);
+  }
+
+sub eval_funcdef_block
+  { my($r_line,$start_at)= @_;
+  
+    my($start,$end)= match($r_line,$start_at);
+
+    if (!defined $start)
+      { 
+        $err_pre= "func-block is malformed";
+	fatal_parse_error($r_line,$start_at); 
+      };
+    my $sub= substr($$r_line, $start+1, $end-$start-1);
+#warn "evaluate: $sub";
+
+    $sub=~ s/^\s+//;
+    $sub= "m_" . $sub; # patch function name
+    
+    my($funcname)= ($sub=~ /^(\w+)/);
+    if (!defined $funcname)
+      { 
+        $err_pre= "func-block is malformed";
+	fatal_parse_error($r_line,$start_at); 
+      };
+      
+    my $res= eval_part("sub " . $sub,$r_line,$start_at,1); 
+                                                    #  ^do not replace
+
+    $functions{$funcname}= 1;
+
+    return($res,$end);
+  }
+
 sub match
 # starts at str[pos], tries to find the end of a bracket-block
 # or a string. All special characters may be escaped with a 
@@ -672,13 +755,12 @@ sub variable_expand
         pos($$r_line)= $p;
         return;  
       };
-      
-    if (exists $keywords{$var})
+
+    if ((exists $keywords{$var}) || (is_user_func($var)))
       { # its a keyword, not a variable
         pos($$r_line)= $p;
         return;  
       };
-  
     if (!defined $index)
       { # not an array expression
         &$callback($var) if (defined $callback);
@@ -926,6 +1008,17 @@ Note that is can also be used to calculate the name of a
 variable and expand it:
 
   ${$perl(<expression>)}
+
+=item I<func>
+
+  $func(myfunc { my($a,$b)= @; return($a+$b); })
+  
+This is a definition of a function. It is actually a shortcut for
+$perl(myfunc { my($a,$b)= @; return($a+$b); }). The advantage of
+this construct is, however, that such a function is evaluated 
+without the need to use $eval(). Whenever "$myfunc(..)" is found in
+the source, it is evaluated, e.g. "$myfunc(1,2)" would return "3" in
+the example above. 
 
 =item I<if>
 
