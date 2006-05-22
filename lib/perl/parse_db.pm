@@ -25,6 +25,8 @@ use Data::Dumper;
 use Text::ParseWords;
 use Carp;
 
+our $treat_double_records=0;
+
 my $space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
 
 my $quoted_word         = qr/\"(\w+)\"/;
@@ -65,6 +67,9 @@ my $field_def= qr/\G
                            \)
                       /x;
 
+sub handle_double_names
+  { $treat_double_records= 1; }
+
 sub parse
   { my($db,$filename)= @_;
   
@@ -94,7 +99,17 @@ sub parse
                 $r_this_record= { TYPE => $type, 
                                   FIELDS => $r_this_record_fields };
                 if (exists $records{$name})
-                  { warn "warning: record \"$name\" is at least defined twice\n "; };
+                  { 
+		    if ($treat_double_records)
+		      { my $c=1; 
+			while (exists $records{"$name:$c"})
+			  { $c++; };
+			$name.= ":$c";
+		      }
+		    else
+		      { warn "warning: record \"$name\" is at least defined twice\n "; 
+		      };
+		  };
                 $records{$name}= $r_this_record; 
                 $level=1;
                 next;
@@ -250,7 +265,17 @@ B<create()>
 Print the contents of all records in the standard db format to the
 screen.
   
+=item *
+
+B<handle_double_names()>
+
+  parse_db::handle_double_names()
   
+Switch the parse-module into a mode that it can handle double 
+record-names by appending a number of each double name that 
+is encountered. A database defined that way is illegal, but
+this feature may be used to track down errors in databases that
+were generated.
 
 =back
 
