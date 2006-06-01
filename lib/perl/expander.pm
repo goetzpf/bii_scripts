@@ -2,6 +2,7 @@ package expander;
 
 use strict;
 use Data::Dumper;
+use IO::Scalar;
 #use Carp;
 
 
@@ -9,7 +10,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.8;
+    $VERSION     = 1.9;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -126,15 +127,22 @@ sub parse_scalar
     my $pre;
     my $post;
     
-    my $fh= $options{filehandle};
-    if (!defined $fh)
-      { my $filename= $options{filename};
-        if (!defined $filename)
-	  { $fh= \*STDOUT; }
-	else
-	  { open(F, ">$filename") or die "unable to create $filename";
-	    $fh= \*F;
-	  }
+    my $fh;
+    
+    my $scalar_ref= $options{scalarref};
+    if (defined $scalar_ref)
+      { $fh= new IO::Scalar $scalar_ref; }
+    else
+      { $fh= $options{filehandle};
+	if (!defined $fh)
+	  { my $filename= $options{filename};
+            if (!defined $filename)
+	      { $fh= \*STDOUT; }
+	    else
+	      { open(F, ">$filename") or die "unable to create $filename";
+		$fh= \*F;
+	      }
+	  };
       };
       
     if (exists $options{callback}) 
@@ -472,7 +480,7 @@ sub parse_scalar
       
     print $fh substr($$r_line,$p) if (!$was_left);
 
-    if (exists $options{filename})
+    if ((exists $options{filename}) || (exists $options{scalarref}))
       { close(F); };
   }
 
@@ -1135,6 +1143,13 @@ parse_scalar and parse_file take an option-hash as optional
 second parameter. For this hash the following keys are defined:
 
 =over 4
+
+=item I<scalarref>
+
+  parse_scalar($myvar, scalarref=>\$result)
+
+If this hash key is provided, the output written (appended) to
+the given scalar variable.
 
 =item I<filehandle>
 
