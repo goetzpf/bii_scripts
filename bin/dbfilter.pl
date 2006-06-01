@@ -25,7 +25,7 @@ use vars qw($opt_help $opt_summary
 	    $opt_notname 
 	    $opt_type
 	    $opt_value
-	    $opt_DTYP
+	    $opt_dtyp
 	    $opt_fields
 	    $opt_empty
 	    $opt_list
@@ -34,10 +34,11 @@ use vars qw($opt_help $opt_summary
 	    $opt_unresolved_links
 	    $opt_unresolved_links_plain
 	    $opt_record_references
+	    $opt_allow_double
 	   );
 
 
-my $sc_version= "1.2";
+my $sc_version= "1.3";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files"; 
@@ -93,7 +94,7 @@ if (!GetOptions("help|h","summary",
 		"field=s@", 
 		"name|NAME|n=s", "notname|NOTNAME=s", 
 		"value=s",
-		"DTYP=s",
+		"dtyp|DTYP=s",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
 		"empty|e",
@@ -103,6 +104,7 @@ if (!GetOptions("help|h","summary",
 		"unresolved_links",
 		"unresolved_links_plain",
 		"record_references|R=s",
+		"allow_double|A"
                 ))
   { die "parameter error!\n"; };
 
@@ -115,6 +117,9 @@ if ($opt_summary)
   { print_summary();
     exit;
   };
+
+if ($opt_allow_double)
+  { parse_db::handle_double_names(); };
 
 my @files= @ARGV;
 my $single_file= ($#ARGV==0);
@@ -140,8 +145,8 @@ foreach my $file (@files)
     if (defined $opt_type)
       { filter_type($recs,$opt_type); };
 
-    if ($opt_DTYP)
-      { filter_records($recs,"DTYP",$opt_DTYP);
+    if ($opt_dtyp)
+      { filter_records($recs,"DTYP",$opt_dtyp);
       };
 
     if (@opt_field)
@@ -819,6 +824,9 @@ Syntax:
       all the contents of the shown records are printed in 
       db-file format       
       
+    --allow_double -A : allow double record names 
+      (for debugging faulty databases)
+    
     if no file is given $sc_name reads from standard-input  
 END
   }
