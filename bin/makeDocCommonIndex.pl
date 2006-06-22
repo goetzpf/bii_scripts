@@ -14,7 +14,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
   use strict;
   use Data::Dumper;
-  my $installPath =      shift @ARGV;
+  my $installPath = shift @ARGV;
   my $indexTitle =  shift @ARGV;
 
   chomp $installPath;
@@ -23,10 +23,10 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   print "Create index for path: \'$installPath\'\n";
   my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime(time()); $mon +=1; $year+=1900;
   my $filetime ="$mday.$mon.$year $hour:$min\'$sec";
-  my $files =  `find $installPath -name *html`;
+  my $files =  `find $installPath -name '*html'`;
 #  $files .=  `find $installPath -name *pdf`;
   my @files = split(/\n/,$files);
-
+print "FILES find $installPath -name *html: $files\n";
   my $docContens = "<UL>\n";
   my $isInApplication;
   my $firstone=1;
@@ -97,27 +97,31 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     "	<TITLE>$indexTitle</TITLE>\n".
     "	<META NAME=\"AUTHOR\" CONTENT=\"$ENV{USER}\">\n".
     "	<META NAME=\"CREATED\" CONTENT=\"$filetime\">\n".
-    "	<STYLE>\n".
-    "	<!--\n".
-#    " body{background-color:#FFFFF4;margin-left:60px;}\n".
-#    " pre, table {background-color:#F4F4F0;}\n".
-    " pre, table {background-color:#F0F0F0;}\n".
-    " body{background-color:#FFFFFF;margin-left:60px;}\n".
-    " hr{margin-left:-60px;}\n".
-    " h1, h2, h3, h4, h5, h6 { font-family:Tahoma, Arial; margin-left:-50px;}\n".
-    " a:visited { text-decoration:none; color:#000088; }\n".
-    " a:link    { text-decoration:none; color:#000088;}\n".
-    " a:active  { text-decoration:none; color:#000088; }\n".
-    " a:hover   { text-decoration:underline; color:#000088;}\n".
-    "	-->\n".
-    "	</STYLE>\n</HEAD>\n<BODY>\n".
-    "<TABLE style=\"background-color:#FFFFFF\" WIDTH=\"100%\"><TR>\n".
-    "<TD><FONT SIZE=\"+2\"><B>$indexTitle</FONT></B></TD>\n".
-    "<TD WIDTH=200><IMG WIDTH=200 SRC=\"/images/BESSYLogo_sw_rgb300.jpg\"></TD>".
-    "</TR></TABLE>\n".
-    "<P ALIGN=\"right\"><FONT SIZE=\"-1\" >created: by $ENV{'USER'} $filetime </FONT></P>\n";
+# old style
+#    "	<STYLE>\n".
+#    "	<!--\n".
+#    " pre, table {background-color:#F0F0F0;}\n".
+#    " body{background-color:#FFFFFF;margin-left:60px;}\n".
+#    " hr{margin-left:-60px;}\n".
+#    " h1, h2, h3, h4, h5, h6 { font-family:Tahoma, Arial; margin-left:-50px;}\n".
+#    " a:visited { text-decoration:none; color:#000088; }\n".
+#    " a:link    { text-decoration:none; color:#000088;}\n".
+#    " a:active  { text-decoration:none; color:#000088; }\n".
+#    " a:hover   { text-decoration:underline; color:#000088;}\n".
+#    "	-->\n".
+#    "	</STYLE>\n".
+# Now: take twiki style
+    "  <style type=\"text/css\" media=\"all\">\n".
+    "	\@import url(\"http://twiki.bessy.de/pub/TWiki/PatternSkin/layout.css\");\n".
+    "	\@import url(\"http://twiki.bessy.de/pub/TWiki/PatternSkin/style.css\");\n".
+    "	\@import url(\"http://www-csr.bessy.de/control/Docs/MLT/kuner/autoDocs/DocumentationApp/overwrite.css\");\n".
+    "  </style>\n".
+    "</HEAD>\n<BODY style=\"color: rgb(0, 0, 0);\" class=\"twikiViewPage\" alink=\"#ee0000\" link=\"#0000ee\" vlink=\"#551a8b\">\n".
+    "<H1>$indexTitle</H1>\n".
+    "<P ><FONT SIZE=\"-1\" >created: by $ENV{'USER'} $filetime </FONT></P>\n".
+    "<DIV CLASS=\"twikiMain\">\n";
 
-  my $fileFooter = "</BODY>\n</HTML>\n";
+  my $fileFooter = "<\DIV></BODY>\n</HTML>\n";
 
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
 
