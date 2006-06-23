@@ -14,6 +14,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
   use strict;
   use Data::Dumper;
+  use makeDocStyle;
   my $installPath = shift @ARGV;
   my $indexTitle =  shift @ARGV;
 
@@ -91,37 +92,7 @@ print "FILES find $installPath -name *html: $files\n";
     $indexTitle = "Documentation Index of $pwd";
   }
   
-  my $fileHeader = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2//EN\">\n".
-    "<HTML>\n".
-    "<HEAD>\n".
-    "	<TITLE>$indexTitle</TITLE>\n".
-    "	<META NAME=\"AUTHOR\" CONTENT=\"$ENV{USER}\">\n".
-    "	<META NAME=\"CREATED\" CONTENT=\"$filetime\">\n".
-# old style
-#    "	<STYLE>\n".
-#    "	<!--\n".
-#    " pre, table {background-color:#F0F0F0;}\n".
-#    " body{background-color:#FFFFFF;margin-left:60px;}\n".
-#    " hr{margin-left:-60px;}\n".
-#    " h1, h2, h3, h4, h5, h6 { font-family:Tahoma, Arial; margin-left:-50px;}\n".
-#    " a:visited { text-decoration:none; color:#000088; }\n".
-#    " a:link    { text-decoration:none; color:#000088;}\n".
-#    " a:active  { text-decoration:none; color:#000088; }\n".
-#    " a:hover   { text-decoration:underline; color:#000088;}\n".
-#    "	-->\n".
-#    "	</STYLE>\n".
-# Now: take twiki style
-    "  <style type=\"text/css\" media=\"all\">\n".
-    "	\@import url(\"http://twiki.bessy.de/pub/TWiki/PatternSkin/layout.css\");\n".
-    "	\@import url(\"http://twiki.bessy.de/pub/TWiki/PatternSkin/style.css\");\n".
-    "	\@import url(\"http://www-csr.bessy.de/control/Docs/MLT/kuner/autoDocs/DocumentationApp/overwrite.css\");\n".
-    "  </style>\n".
-    "</HEAD>\n<BODY style=\"color: rgb(0, 0, 0);\" class=\"twikiViewPage\" alink=\"#ee0000\" link=\"#0000ee\" vlink=\"#551a8b\">\n".
-    "<H1>$indexTitle</H1>\n".
-    "<P ><FONT SIZE=\"-1\" >created: by $ENV{'USER'} $filetime </FONT></P>\n".
-    "<DIV CLASS=\"twikiMain\">\n";
-
-  my $fileFooter = "<\DIV></BODY>\n</HTML>\n";
+  my ($fileHeader,$fileFooter) = makeDocStyle::blabla($indexTitle,$filetime,$ENV{USER});
 
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
 

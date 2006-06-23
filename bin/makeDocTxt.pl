@@ -13,6 +13,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
 
   use strict;
+  use makeDocStyle;
+
   my $inFileName = shift @ARGV;
   my $top =  shift @ARGV;
 #  $top =~ s/^\.\.\///;
@@ -58,8 +60,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   my $title = $outFileName;
   $title =~ s/.*\/(.*)$/$1/;
   
-  my $createTime = $filetime;#sprintf ("%4d%2d%2d;%2d%2d%2d",$year,$mon,$mday,$hour,$min,$sec);
-
   my $parse=$file;
   my $setImgToEnd = 0;
   my $firstLIne=1;
@@ -261,51 +261,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     $docContens .= "$paragraphBefore\n";
   }
 
-  my $fileHeader = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2//EN\">\n".
-    "<HTML>\n".
-    "<HEAD>\n".
-    "	<TITLE>$title</TITLE>\n".
-    "	<META NAME=\"AUTHOR\" CONTENT=\"$ENV{USER}\">\n".
-    "	<META NAME=\"CREATED\" CONTENT=\"$createTime\">\n".
-# OLD Style
-#    "	<STYLE>\n".
-#    "	<!--\n".
-#    " pre, table {background-color:#F0F0F0;}\n".
-#    " body{background-color:#FFFFFF;margin-left:60px;}\n".
-#    " hr{margin-left:-60px;}\n".
-#    " h1, h2, h3, h4, h5, h6 { font-family:Tahoma, Arial; margin-left:-50px;}\n".
-#    " a:visited { text-decoration:none; color:#000088; }\n".
-#    " a:link    { text-decoration:none; color:#000088;}\n".
-#    " a:active  { text-decoration:none; color:#000088; }\n".
-#    " a:hover   { text-decoration:underline; color:#000088;}\n".
-#    "	-->\n".
-#    "	</STYLE>\n</HEAD>\n<BODY>\n".
-#    "<TABLE style=\"background-color:#FFFFFF\" WIDTH=\"100%\"><TR>\n".
-#    "<TD><FONT><H1>$title</FONT></H1></TD>\n".
-#    "<TD WIDTH=200><IMG WIDTH=200 SRC=\"/images/BESSYLogo_sw_rgb300.jpg\"></TD>".
-#    "</TR></TABLE>\n".
-#    "<P ALIGN=\"right\"><FONT SIZE=\"-1\" >last Modified: by $ENV{'USER'} $filetime </FONT></P>\n";
-#
-#  my $fileFooter = "</BODY>\n</HTML>\n";
-
-# Now: take twiki style
-    "  <style type=\"text/css\" media=\"all\">\n".
-    "	\@import url(\"http://twiki.bessy.de/pub/TWiki/PatternSkin/layout.css\");\n".
-    "	\@import url(\"http://twiki.bessy.de/pub/TWiki/PatternSkin/style.css\");\n".
-    "	\@import url(\"http://www-csr.bessy.de/control/Docs/MLT/kuner/autoDocs/DocumentationApp/overwrite.css\");\n".
-    "  </style>\n".
-    "</HEAD>\n<BODY style=\"color: rgb(0, 0, 0);\" class=\"twikiViewPage\" alink=\"#ee0000\" link=\"#0000ee\" vlink=\"#551a8b\">\n".
-    "<H1>$title</H1>\n".
-    "<span class=\"twikiGrayText\"><P ><FONT SIZE=\"-1\" >created: by $ENV{'USER'} $filetime</FONT></P></span>\n".
-    "<DIV CLASS=\"twikiMain\">\n";
-
-  my $fileFooter = "<\DIV><span class=\"twikiRight twikiPageNav twikiGrayText\"></span>\n".
-    "<br class=\"twikiClear\"></div><div class=\"twikiHidden\">\n".
-    "<hr>End of topic<br><hr></div></div></div><div class=\"twikiBottomBar\">\n".
-    "<div class=\"twikiBottomBarContents\"><span class=\"twikiGrayText\">\n".
-    "<P><font size\"-1\">Bessy. System Documentation for</font><font size=\"+1\">$title</font>\n".
-    "</span></div></div>\n".
-    "</BODY>\n</HTML>\n";
+  my ($fileHeader,$fileFooter) = makeDocStyle::blabla($title,$filetime,$ENV{USER});
 
 #  print "write $outFileName\n";
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
