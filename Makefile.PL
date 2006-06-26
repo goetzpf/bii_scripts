@@ -45,7 +45,7 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
 		expander.pm
                 Options.pm cfgfile.pm  dbdrv.pm parse_db.pm 
-                BrowseDB/TkUtils.pm
+                BrowseDB/TkUtils.pm makeDocStyle.pm
 		);
                 
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
