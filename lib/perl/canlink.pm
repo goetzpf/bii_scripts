@@ -489,6 +489,50 @@ sub pretty_print
     return($st);
   }
 
+sub tab_print
+  { my(%p)= @_;
+    
+    if (!@_)
+      { my $st= sprintf "%-7s %3s %2s %-4s %s %-6s %3s %3s %4s %4s %4s %6s %4s %3s",
+               "srv/cln",
+	       "mul",
+	       "rw",
+	       "arr",
+	       "s",
+	       "type",
+	       "len",
+	       "prt",
+	       "in",
+	       "out",
+	       "mplx",
+	       "inh",
+	       "tmo",
+	       "asz";
+        return($st);
+      };
+    
+    my $st= sprintf "%-7s %3s %2s %-4s %s %-6s %3d %3d %4d %4d %4d %6.1f %4d %3d",
+               $p{server} ? "server" : "client",
+	       $p{multi}  ? "mlt" : "bas",
+               ($p{access} eq 'r') ? "r" :
+	           ( ($p{access} eq 'w') ? "w" : "rw" ),
+	       $p{array} ? "arr" : "sing",   
+	       $p{signed} ? "s" : "u",
+	       $p{type},
+	       $p{maxlength}, 
+	       $p{port},
+	       $p{in_cob},
+	       $p{out_cob},
+	       $p{multi} ? $p{multiplexor} : -1,
+	       $p{inhibit},
+	       $p{timeout},
+	       $p{arraysize};
+    return($st);
+  }	       
+	       
+	       
+      
+
 sub encode
   { my(%p)= @_;
 
@@ -966,6 +1010,19 @@ B<pretty_print>
 
 This function returns a string that can be used to print the contents
 of the link-definition in a human-readable form.
+
+=item *
+
+B<tab_print>
+
+  print canlink::tab_print(%link_definition)
+
+This function is similar to pretty_print. It returns a string that 
+can be used to print the contents of the link-definition 
+in a human-readable form, but in a single line. So this function can be used
+to print tables. If called without any parameter, it returns the 
+table-heading. Note that strings returned by tab_print are NOT terminated
+with a linefeed ("\n").
 
 =item *
 
