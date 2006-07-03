@@ -17,9 +17,11 @@ use Getopt::Long;
 use Data::Dumper;
 
 use parse_db;
+use canlink;
 
 use vars qw($opt_help $opt_summary
             $opt_dump_internal $opt_recreate
+	    $opt_short
 	    $opt_val_regexp @opt_field 
 	    $opt_name 
 	    $opt_notname 
@@ -28,6 +30,7 @@ use vars qw($opt_help $opt_summary
 	    $opt_dtyp
 	    $opt_fields
 	    $opt_empty
+	    $opt_skip_empty_records
 	    $opt_list
 	    $opt_percent
 	    $opt_unresolved_variables
@@ -35,6 +38,8 @@ use vars qw($opt_help $opt_summary
 	    $opt_unresolved_links_plain
 	    $opt_record_references
 	    $opt_allow_double
+	    $opt_lowcal
+	    $opt_Lowcal
 	   );
 
 
@@ -91,6 +96,7 @@ Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary",
                 "dump_internal|i", "recreate|r", "val_regexp|v=s",
+		"short|s",
 		"field=s@", 
 		"name|NAME|n=s", "notname|NOTNAME=s", 
 		"value=s",
@@ -98,13 +104,15 @@ if (!GetOptions("help|h","summary",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
 		"empty|e",
+		"skip_empty_records|E",
 		"list|l",
 		"percent=s",
 		"unresolved_variables",
 		"unresolved_links",
 		"unresolved_links_plain",
 		"record_references|R=s",
-		"allow_double|A"
+		"allow_double|A",
+		"lowcal", "Lowcal",
                 ))
   { die "parameter error!\n"; };
 
@@ -174,6 +182,9 @@ foreach my $file (@files)
       { filter_percent($recs,$opt_percent); };
 
     if ((!defined $opt_dump_internal) && 
+	(!defined $opt_lowcal) &&
+	(!defined $opt_Lowcal) &&
+	(!defined $opt_short) &&
 	(!defined $opt_recreate) &&
 	(!defined $opt_value) &&
 	(!defined $opt_list) &&
@@ -223,8 +234,21 @@ foreach my $file (@files)
 	next;
       };
 
+    if ((defined $opt_lowcal) || (defined $opt_Lowcal))
+      { lowcal($filename,$recs,(defined $opt_Lowcal));
+	next;
+      };
+
+    if (defined $opt_skip_empty_records)
+      { rem_empty_records($recs); };
+
     if (defined $opt_dump_internal)
       { dump_recs($filename,$recs);
+	next;
+      };
+
+    if (defined $opt_short)
+      { one_line_dump_recs($filename,$recs);
 	next;
       };
 
@@ -261,6 +285,36 @@ sub parse_file
     #parse_db::create($r_records);
   }
 
+sub rem_empty_records
+  { my($r_rec)= @_;
+    
+    foreach my $recname (keys %$r_rec)
+      { my $r_f= $r_rec->{$recname}->{FIELDS};
+	if (!%$r_f)
+	  { delete $r_rec->{$recname}; };
+      };
+  }
+
+sub one_line_dump_recs
+# dump all records, one record per line
+  { my($filename,$r_rec)= @_;
+    
+    print "\nFILE $filename:\n" if (defined $filename);
+    
+    foreach my $recname (sort keys %$r_rec)
+      { print "$recname";
+        my $r_f= $r_rec->{$recname};
+	print ",",$r_f->{TYPE},",";
+	my $r= $r_f->{FIELDS};
+	my $comma;
+	foreach my $f (sort keys %$r)
+	  { print $comma,$f,"=",$r->{$f}; 
+	    $comma= ",";
+	  }
+        print "\n";  
+      };
+  }
+
 sub dump_recs
 # dump the internal record-hash structure
   { my($filename,$r_rec)= @_;
@@ -277,7 +331,6 @@ sub dump_rec_fields
     foreach my $v (@$r_fields)
       { print "\t",$v," -> \"",$r_values->{$v},"\"\n"; };
   }
-  
 
 sub find_val_in_rec
 # return all fields in a record that match a 
@@ -708,7 +761,35 @@ sub find_val
         delete $r_rec->{$r}; 
       };
   }	
+ 
+sub lowcal
+  { my($filename,$r_rec,$reverse)= @_;
+  
+    filter_records($r_rec,"DTYP","lowcal"); 
+    filter_fields($r_rec,['INP','OUT']);
     
+    if (!$reverse)
+      { printf "%-25s%-3s %s\n","recordname","dir",canlink::tab_print(); }
+    else
+      { printf "%s %-3s %-25s\n",canlink::tab_print(),"dir","recordname"; }
+    
+    foreach my $recname (sort keys %$r_rec)
+      { my $r= $r_rec->{$recname}->{FIELDS};
+        my $link= $r->{OUT};
+	my $dir= "OUT";
+	if (!defined $link)
+	  { $link= $r->{INP}; 
+	    $dir="INP";
+	  };
+
+        my %h= canlink::decode($link);
+      
+        if (!$reverse)
+          { printf "%-25s%-3s %s\n",$recname,$dir,canlink::tab_print(%h); }
+	else
+          { printf "%s %-3s %-25s\n",canlink::tab_print(%h),$dir,$recname; }
+      };
+  }
  
 sub create_regexp_func
 # create a function for regular expression
@@ -776,35 +857,37 @@ Syntax:
   $sc_name {options} [file1] [file2...]
 
   options:
+  
     -h: help
     --summary: give a summary of the script
+
+  specify the type of output:
+  
     -i dump internal hash structure
     -r print results in db-file format (default)
+    -s print results, one line per record
     -l just list the names of the matching records
+   
+  remove/filter records: 
+    -E|--skip_empty_records: records that have no fields (due to
+       filtering options that remove fields) are not printed
     
-    --value [regexp] : print a list of all fields in records where
-       the field-value matches a regular expression, 
-    -v [regexp] filter records where at least one field matches
-       the given regular expression
-    --field [field,regexp]|[field] : process only records where
-      field matches regexp  
-      if regexp is omitted just test for the existence of that field
-      if field is a perl-regular expression starting enclosed in
-      '//' it is treated as a regular expression
-    --NAME|--name|-n [regexp] filter records whose name match the given
-      regular expression 
-    --NOTNAME|--notname [regexp] : same as above but filter records 
-      whose names DO NOT match the regular expression  
-    --DTYP [regexp] : filter DTYP field
-    --TYPE|-t [regexp] : filter record type
-    --fields|--FIELDS [field1,field2...] print only these fields
-    --empty|-e : remove empty fields
-    --percent [+-number] keep the first or last n percent 
-      of all records
+  remove/filter fields: 
+    --fields --FIELDS [field1,field2...] 
+      print only these fields
+
+    -e --empty remove empty fields
+   
+  special options:
+  
+    --percent [+-number] 
+      keep the first or last n percent of all records
       if number is negative, filter the LAST n percent of all
       records, otherwise filter the FIRST n percent of all records
-    --unresolved_variables list all unresolved variables like \$(VARNAME)
-      in the db file
+
+    --unresolved_variables 
+      list all unresolved variables like \$(VARNAME) in the db file
+
     --unresolved_links 
       try to find unresolved links in the db-file.
       list all links that cannot be resolved within the
@@ -813,9 +896,11 @@ Syntax:
       $links1
       $links2
       All values that seem to be a number or an empty string are ignored
+
     --unresolved_links_plain
       like --unresolved_links but list only the values themselves, 
       nothing else 
+
     --record_references -R [regexp]
       list which record (whose name matches regexp) is connected 
       to which other record. regexp may be "all" or "//" in which 
@@ -823,9 +908,41 @@ Syntax:
       shown. This option can be combined with "-r", in this case
       all the contents of the shown records are printed in 
       db-file format       
-      
+
     --allow_double -A : allow double record names 
       (for debugging faulty databases)
+
+    --lowcal: print records with DTYP=lowcal and decode
+      the CAN link. Record names and can-link properties are
+      printed in a table format 
+
+    --Lowcal: identical to --lowcal except that the record
+      names are in the last, not in the first column  
+
+   filter field values:
+    
+    --value [regexp] 
+       print a list of all fields in records where
+       the field-value matches a regular expression, 
+
+    -v [regexp] filter records where at least one field matches
+       the given regular expression
+    
+    --field [field,regexp]|[field] : process only records where
+      field matches regexp  
+      if regexp is omitted just test for the existence of that field
+      if field is a perl-regular expression starting enclosed in
+      '//' it is treated as a regular expression
+
+    --NAME|--name|-n [regexp] filter records whose name match the given
+      regular expression 
+
+    --NOTNAME|--notname [regexp] : same as above but filter records 
+      whose names DO NOT match the regular expression  
+
+    --DTYP [regexp] : filter DTYP field
+
+    --TYPE|-t [regexp] : filter record type
     
     if no file is given $sc_name reads from standard-input  
 END
