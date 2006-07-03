@@ -18,12 +18,13 @@ use FindBin;
 
 use canlink;
 
-use vars qw($opt_help $opt_decode $opt_encode);
+use vars qw($opt_help $opt_decode $opt_encode $opt_short $opt_tab);
 
 my $version= "1.0";
 
 
-if (!GetOptions("help|h", "decode|d=s", "encode|e"))
+if (!GetOptions("help|h", "decode|d=s", "encode|e", 
+                "short|s", "tab|t"))
   { die "parameter error!\n"; };		
 
 
@@ -32,15 +33,45 @@ if ($opt_help)
     exit;
   };  
 
+if ((!$opt_decode) && (!$opt_encode) && $opt_tab)
+  { print canlink::tab_print(),"\n";
+    exit(0);
+  }    
+
 if ($opt_decode)
   { while ($#ARGV>=0)
       { $opt_decode.= ' ' . shift(@ARGV); };
     
     my %h= canlink::decode($opt_decode);
     die if (!%h);
-    print canlink::pretty_print(%h),"\n";
+    
+    if ($opt_tab)
+      { print canlink::tab_print(%h),"\n";
+      }
+    else
+      { my $st= canlink::pretty_print(%h);
+	if ($opt_short)
+	  { $st=~ s/\n/|/g;
+            $st=~ s/\s+/ /g;
+	  }
+	print $st,"\n";
+      }
     exit(0);
   };
+
+#variable-type: client multiplex read-write |
+#data-type : signed long|
+#length : 5 bytes|
+#port : 0|
+#out-cob : 724|
+#in-cob : 660|
+#node-id : 20|
+#channel-id : 5|
+#in-sob : 10|
+#out-sob : 11|
+#multiplexor : 7|
+#inhibit : 10.0 [ms]|
+#timeout : 500 [ms]|
 
 if ($opt_encode)
   {
@@ -64,5 +95,10 @@ Syntax: $FindBin::Script {options}
     -d [link-string]: decode a link-string
     -e: encode a link string, you have to specify the string
         interactively
+    -s (together with -d): print result in a single line
+    -t (together with -d): print result in a single line suitable 
+       for printing a table
+       -t alone prints the table-heading   
+    
 END
   }
