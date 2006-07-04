@@ -12,23 +12,26 @@ my $pmem = "[A-Z]{1,6}";
 my $pind = "([0-9]{1,3})(-([0-9]{1,2}))?";
 
 our %pfam;
-$pfam{B} = "BCFGHIKLMNOPQRVWYZ";
-$pfam{F} = "BCFGHIKLMNOPQRSTVWYZ";
-$pfam{P} = "BCFGHIKLMNOPQRVWYZ";
+$pfam{global} = "BCFGHIKLMNOPQRVWYZ";
+$pfam{B} = $pfam{global};
+$pfam{F} = $pfam{global} . "ST";
+$pfam{P} = $pfam{global};
 
 my $pcnt = "[0-9]{0,2}";
 
 our %psdom;
-$psdom{B} = "DSTX";
-$psdom{F} = "LCEGMSUX";
-$psdom{P} = "KLSX";
+$psdom{global} = "X";
+$psdom{B} = $psdom{global} . "DST";
+$psdom{F} = $psdom{global} . "LCEGMSU";
+$psdom{P} = $psdom{global} . "KLS";
 
 my $psdnum = "[0-9]{0,3}";
 
 our %pdom;
-$pdom{B} = "BIMRTCGLV";
-$pdom{F} = "ACDEFGLSV";
-$pdom{P} = "BIMRTCGLV";
+$pdom{global} = "CGLV";
+$pdom{B} = $pdom{global} . "BIMRT";
+$pdom{F} = $pdom{global} . "ADEFS";
+$pdom{P} = $pdom{global} . "IMR";
 
 my $re = "\\A($pmem)"
     . "($pind)?"

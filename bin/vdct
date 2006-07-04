@@ -2,4 +2,4 @@
 
 PATH=$PATH:/opt/java1.4/bin
 
-exec java -jar /home/controls/epics/VisualDCT/2.4.1250/VisualDCT.jar "$@"
+exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -jar /opt/epics/VisualDCT/2.5.1271/VisualDCT.jar "$@"
