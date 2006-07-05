@@ -10,7 +10,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.9;
+    $VERSION     = 2.0;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -54,6 +54,7 @@ my $err_module="expander.pm";
 my $err_line;
 my $err_file;
 
+my $gbl_err_pre;
 
 # used modules
 
@@ -92,6 +93,11 @@ sub set_var
     $m{$name}->[$index]= $value;
   }
 
+sub declare_func
+  { my($identifier,$funcname)= @_;
+    $functions{$identifier}= $funcname;
+  }
+
 sub parse_file
   { my($filename, %options)= @_;
     my $var;
@@ -105,7 +111,7 @@ sub parse_file
       { local($/);
         local(*F);
         undef $/;
-        open(F, $filename) or die "unable to open $filename";
+        open(F, $filename) or die "unable to open \"$filename\"";
         $var= <F>;
         close(F);
 	$err_file= $filename;
@@ -113,10 +119,15 @@ sub parse_file
     # perl seems to add a linefeed ("\n") at the
     # end of the scalar even if the file didn't contain one
 
-    parse_scalar(\$var,%options);
+    parse_scalar_i(\$var,%options);
   }    
 
 sub parse_scalar
+  { $err_file= undef;
+    parse_scalar_i(@_);
+  }
+
+sub parse_scalar_i
   { my($r_line,%options)= @_;
     local(*F);
     my $p;
@@ -128,6 +139,8 @@ sub parse_scalar
     my $post;
     
     my $fh;
+    
+    $gbl_err_pre= $options{errmsg};
     
     my $scalar_ref= $options{scalarref};
     if (defined $scalar_ref)
@@ -157,7 +170,9 @@ sub parse_scalar
 	$p= pos($$r_line))
       {
 
-        $pre= $1;
+        $err_line= -1;
+		    
+	$pre= $1;
 	$post= $2;
         
 	if ($pre ne "")
@@ -229,7 +244,8 @@ sub parse_scalar
 	  { 
 	    if ($debug)
 	      { warn "--- \"$f_word\" recognized,\n"; };
-	    my($res,$end)= eval_func_block($f_word,$r_line,pos($$r_line)-1);
+	    $err_line= __LINE__;
+            my($res,$end)= eval_func_block($f_word,$r_line,pos($$r_line)-1);
 	    print $fh $res;
 	    pos($$r_line)= $end+1;
 	    next;
@@ -252,10 +268,10 @@ sub parse_scalar
 		  };
 
 		$err_line= __LINE__;
-
 		my($res,$end);
 		if ($word eq 'func')
-		  { ($res,$end)=
+		  { 
+		    ($res,$end)=
 		       eval_funcdef_block($r_line,pos($$r_line)-1);
 		  }
 		else
@@ -350,7 +366,7 @@ sub parse_scalar
 		   eval_bracket_block($r_line,pos($$r_line)-1);
 
 	        if (!-r $res)
-		  { $err_pre= "unable to open file $res";
+		  { $err_pre= "unable to open file \"$res\"";
 		    $err_line= __LINE__;
    		    fatal_parse_error($r_line,$p); 
 		  };
@@ -545,12 +561,12 @@ sub eval_bracket_block
 
 sub is_user_func
   { my($funcname)= @_;
-    return(exists $functions{"m_" . $funcname});
+    return(exists $functions{$funcname});
   }
 
 sub eval_func_block
   { my($funcname,$r_line,$start_at)= @_;
-  
+
     my($start,$end)= match($r_line,$start_at);
 
     if (!defined $start)
@@ -561,7 +577,7 @@ sub eval_func_block
     my $sub= substr($$r_line, $start+1, $end-$start-1);
 #warn "evaluate: $sub";
     
-    $sub= "m_" . $funcname . "($sub)";
+    $sub= $functions{$funcname} . "($sub)";
 
     my $res= eval_part($sub,$r_line,$start_at); 
 
@@ -582,7 +598,6 @@ sub eval_funcdef_block
 #warn "evaluate: $sub";
 
     $sub=~ s/^\s+//;
-    $sub= "m_" . $sub; # patch function name
     
     my($funcname)= ($sub=~ /^(\w+)/);
     if (!defined $funcname)
@@ -591,10 +606,11 @@ sub eval_funcdef_block
 	fatal_parse_error($r_line,$start_at); 
       };
       
-    my $res= eval_part("sub " . $sub,$r_line,$start_at,1); 
+    my $res= eval_part("sub m_" . $sub,$r_line,$start_at,1); 
                                                     #  ^do not replace
 
-    $functions{$funcname}= 1;
+    $functions{$funcname}= "m_" . $funcname;
+    # hash maps function-name to real-function-name
 
     return($res,$end);
   }
@@ -640,7 +656,7 @@ sub match
 	return if (!defined $start);
 	pos($$r_str)= $end+1;
       };
-    return;
+    return; 
   }
       
 sub fatal_parse_error
@@ -648,8 +664,11 @@ sub fatal_parse_error
   
     my($line,$column)= find_position_in_string($r_str,$position);
     
-    my $err= "fatal error\n" .
-             "module: $err_module";
+    my $err;
+    $err= $gbl_err_pre if ($gbl_err_pre);
+    
+    $err.= "fatal error\n" .
+           "module: $err_module";
     $err.= " line: $err_line" if (defined $err_line);
     $err.= "\n$err_pre\n" if (defined $err_pre);    
     $err.= "position in file";
@@ -853,7 +872,7 @@ sub strdump
 
     my $x= substr($$r_line,$p,$len);
     $x=~ s/\n/\\n/g;
-    print "$prefix DUMP AT POS $p:$x\n";
+    warn "$prefix DUMP AT POS $p:$x\n";
   }
     
 
@@ -1144,6 +1163,13 @@ second parameter. For this hash the following keys are defined:
 
 =over 4
 
+=item I<errmsg>
+
+  parse_scalar($myvar, errmsg=> "my_message")
+
+In case of a fatal parse error, this message is printed
+just before the error message of the module.
+
 =item I<scalarref>
 
   parse_scalar($myvar, scalarref=>\$result)
@@ -1229,6 +1255,17 @@ B<test_var()>
 
 This function returns 1 if the variable (and optional with this index)
 is defined, otherwise it returns undef.
+
+=item *
+
+B<declare_func()>
+
+  declare_func($identifier,$funcname)
+
+Declare (make known) a function to the parser. $identifier is the 
+name of the function in the parsed text, $funcname is the 
+perl-name of the function that is called. The function declared this
+way works similar to a function defined with "$func" in the text.
 
 =back
 
