@@ -140,6 +140,9 @@ sub parse_scalar_i
     
     my $fh;
     
+    if (exists $options{silent})
+      { $silent= $options{silent}; };
+    
     $gbl_err_pre= $options{errmsg};
     
     my $scalar_ref= $options{scalarref};
@@ -1202,6 +1205,13 @@ function is given the name of the variable and (optional) the
 array-index. If the variable does not yet exist, the callback function
 must take care of setting this variable with set_var(), otherwise
 a run-time error is raised.
+
+=item I<silent>
+
+  parse_scalar($myvar, silent=> 1)
+
+With this option, the parser can be started in "silent" mode.
+See also description of the $silent command.
 
 =back
 
