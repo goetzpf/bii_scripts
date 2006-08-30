@@ -10,7 +10,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 2.0;
+    $VERSION     = 2.1;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -25,8 +25,10 @@ use vars      @EXPORT_OK;
 
 our %m;
 our $debug=0;
+our $allow_round_brackets= 0;
 
 my $silent=0;
+
 
 my $callback;
 
@@ -139,6 +141,9 @@ sub parse_scalar_i
     my $post;
     
     my $fh;
+    
+    if ($options{roundbrackets})
+      { $allow_round_brackets= 1; };
     
     if (exists $options{silent})
       { $silent= $options{silent}; };
@@ -736,6 +741,20 @@ sub simple_match
     pos($$r_line)= $p;
 
 
+    if ($allow_round_brackets)
+      {
+	if ($$r_line=~ /\G\((\w+)\[([^\]]+)\]\)/gs)
+	  { return($p-1, pos($$r_line)-1, $1,$2); }; #name, key
+
+	pos($$r_line)= $p;
+
+	if ($$r_line=~ /\G\((\w+)\)/gs)
+	  { return($p-1, pos($$r_line)-1, $1); };    #name
+
+	pos($$r_line)= $p;
+      }
+
+
 #return;  
     if ($$r_line=~ /\G\{\$eval\(/gs)
       { my $pi= pos($$r_line)-1; # pos of 1st round bracket
@@ -1212,6 +1231,13 @@ a run-time error is raised.
 
 With this option, the parser can be started in "silent" mode.
 See also description of the $silent command.
+
+=item I<roundbrackets>
+
+  parse_scalar($myvar, roundbrackets=> 1)
+
+With this option, the parser allows round brackets for
+variables, so $(myvar) is treated like ${myvar}.
 
 =back
 
