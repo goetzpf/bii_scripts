@@ -37,7 +37,7 @@ use Getopt::Long;
 
 use expander;
 
-use vars qw($opt_help $opt_summary @opt_file $opt_lazy $opt_arrays);
+use vars qw($opt_help $opt_summary @opt_file $opt_roundbrackets);
 
 
 my $sc_version= "1.0";
@@ -57,9 +57,9 @@ my @files;
 my @macros;
 
 if (!GetOptions("help|h","summary",
-		"lazy|l", "arrays|a",
 		"file|f=s" => \@files, 
 		"macros|m=s" => \@macros,
+		"roundbrackets|b",
                 ))
   { die "parameter error!\n"; };
 
@@ -70,11 +70,8 @@ if ($opt_help)
 
 my %expand_options;
 
-if ($opt_lazy)
-  { $expand_options{lazy}= 1; };
-
-if ($opt_arrays)
-  { $expand_options{arrays}= 1; };
+if ($opt_roundbrackets)
+  { $expand_options{roundbrackets}= 1; }
 
 if ($opt_summary)
   { print_summary();
@@ -128,10 +125,9 @@ Usage:
 
   options:
     -h: help
-    --summary: give a summary of the script
-    -l : lazy syntax, allow \$name instead of \${name}
-    -a : allow arrays
     -f [file]: process file(s)
+    -b: allow round brackets for variables like in \$(myvar)
+    --summary: give a summary of the script
     -m [name=value] define a macros 
       more than one -m option is allowed
 
