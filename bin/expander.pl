@@ -131,8 +131,7 @@ Usage:
     -m [name=value] define a macros 
       more than one -m option is allowed
 
-Short syntax description (provided that -l and -a options are given,
-see also manpage of expander.pm)
+Short (incomplete) syntax description (see also manpage of expander.pm)
 
 \$name			-> macro replacement
 \$name[index]		-> indexed macro replacement
@@ -142,6 +141,12 @@ see also manpage of expander.pm)
      \$name2= "value2")  -> macro definition
 
 \$eval(<expression>)	-> evaluate with printing
+
+\$perl(<expression>)    -> evaluate a plain perl-expression. Access
+			   to variables is only possible with 
+			   get_var() and set_var() but this construct
+			   can be used import perl-modules or define
+			   functions. 
 
 \$if (<expression>)
 \$else
