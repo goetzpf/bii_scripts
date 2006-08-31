@@ -27,8 +27,9 @@ our %m;
 our $debug=0;
 our $allow_round_brackets= 0;
 
-my $silent=0;
+my @m_stack;
 
+my $silent=0;
 
 my $callback;
 
@@ -45,7 +46,8 @@ my %is_bracket= ( '(' => 1,
 		  
 my %keywords= map{ $_ => 1 } 
               qw (set eval perl func if else endif include for endfor 
-	          comment debug dumphash ifstack silent loud leave);		  
+	          comment debug dumphash ifstack silent loud leave
+		  begin end export);		  
 
 
 my %functions;
@@ -259,7 +261,8 @@ sub parse_scalar_i
 	    next;
 	  };
 
-	if ($f_word=~ /(set|eval|perl|if|include|for|comment|debug|func)/)
+	if ($f_word=~ /(set|eval|perl|if|include|
+	                for|comment|debug|func|export)/x)
 	  { 
 	    if ($debug)
 	      { warn "--- \"$f_word\" recognized,\n"; };
@@ -293,6 +296,44 @@ sub parse_scalar_i
 		pos($$r_line)= $end+1;
 		next;
               }
+	    elsif  ($f_word eq 'export')
+	      { 
+                my($start,$end)= match($r_line,pos($$r_line)-1);
+		if (!defined $start)
+		  { $err_pre= "malformed export-command";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
+		  };
+		my $sub= substr($$r_line,$start+1,$end-$start-1);
+		my @symbols= split(/\s*,\s*/,$sub);
+		if (!@symbols)
+		  { $err_pre= "malformed export-command";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
+		  };
+                if ($#m_stack<0)
+		  { $err_pre= "export is not within begin..end";
+		    $err_line= __LINE__;
+		    fatal_parse_error($r_line,$p); 
+		  };
+		my $r_backup= $m_stack[-1];
+		foreach my $sym (@symbols)
+		  { if ($sym!~/^[\$\@](\w+)$/)
+		      { $err_pre= "symbol \"$sym\" is not a valid symbol";
+			$err_line= __LINE__;
+			fatal_parse_error($r_line,$p); 
+		      };
+		    my $s= $1;
+		    if (!exists $m{$s})
+		      { $err_pre= "symbol \"$sym\" is not defined here";
+			$err_line= __LINE__;
+			fatal_parse_error($r_line,$p); 
+		      };
+		    $r_backup->{$s}= $m{$s};
+		  };	 
+		pos($$r_line)= $end+1;
+		next;
+	      }  
 	    elsif  ($f_word eq 'if')
 	      { 
 		# if command
@@ -324,7 +365,7 @@ sub parse_scalar_i
                 my($start,$end)= match($r_line,pos($$r_line)-1);
 #warn "matched at: $start,$end";
 		if (!defined $start)
-		  { $err_pre= "malformed for-block";
+		  { $err_pre= "malformed for-command";
 		    $err_line= __LINE__;
 		    fatal_parse_error($r_line,$p); 
 		  };
@@ -332,7 +373,7 @@ sub parse_scalar_i
 #warn "substr: |$sub|";
 		my($pre,$cond,$loop)= split(/;/,$sub);
 		if (!defined $loop)
-		  { $err_pre= "malformed for-block";
+		  { $err_pre= "malformed for-command";
 		    $err_line= __LINE__;
 		    fatal_parse_error($r_line,$p); 
 		  };
@@ -341,6 +382,9 @@ sub parse_scalar_i
 		  { # do not evalutate the for-condition
 		    # when we are within an ignore-block
 		    $err_line= __LINE__;
+		    # do a backup of all variables, like "$begin" does:
+	            my %backup= %m;
+	            push @m_stack, \%backup;
 		    eval_part($pre,$r_line,$p);
 		  };
 		push @forstack, [$end+1,$cond,$loop];
@@ -390,12 +434,39 @@ sub parse_scalar_i
 	   }      
 	
 	pos($$r_line)= $p;
-	if ($$r_line=~ /\G(else|endif|endfor|silent|loud|leave|dumphash|ifstack)/gs)
+	if ($$r_line=~ /\G(else|endif|endfor|silent|loud|
+	                   leave|dumphash|ifstack|begin|end)/gsx)
           { 
 
 	    if ($debug)
 	      { warn "--- \"$1\" recognized,\n"; };
 	  
+
+            if ($1 eq 'begin')
+	      { if ($ifcond[-1]>0) 
+	          { # make a backup of variables only if 
+		    # not within an ignore-block
+	            my %backup= %m;
+	            push @m_stack, \%backup;
+		  }
+		next;
+	      }
+
+            if ($1 eq 'end')
+	      { if ($ifcond[-1]>0) 
+	          { # restore the backup of variables only if 
+		    # not within an ignore-block
+	            if ($#m_stack<0)
+	              { $err_pre= "end without begin";
+			$err_line= __LINE__;
+			fatal_parse_error($r_line,$p);  
+	              };
+		    my $r_back= pop @m_stack;
+		    %m= %$r_back;
+		  }  
+		next;
+	      }
+
 	    if ($1 eq 'dumphash')
 	      { 
 	        print STDERR "HASH-DUMP:\n",Data::Dumper->Dump([\%m], ['m']),"\n";
@@ -479,7 +550,16 @@ sub parse_scalar_i
 		if ($res)
 		  { pos($$r_line)= $pos1; }
 		else
-		  { pop @forstack; };
+		  { # leave for-loop:
+		    pop @forstack; 
+	            if ($#m_stack<0)
+	              { $err_pre= "single \"end\" within for-block";
+			$err_line= __LINE__;
+			fatal_parse_error($r_line,$p);  
+	              };
+		    my $r_back= pop @m_stack;
+		    %m= %$r_back;
+		  };
 		next;
 	      }
 	    else
@@ -498,6 +578,12 @@ sub parse_scalar_i
       
     if ($#forstack>=0)
       { $err_pre= "unfinished for-blocks";
+	$err_line= __LINE__;
+        fatal_parse_error($r_line,$p); 
+      };
+  
+    if ($#m_stack>=0)
+      { $err_pre= "unfinished begin-blocks";
 	$err_line= __LINE__;
         fatal_parse_error($r_line,$p); 
       };
@@ -1112,7 +1198,10 @@ must be matching, nested pairs.
 This starts a loop very similar to the loop in c or perl.
 The text between for end endfor is printed several times.
 The init and loop-expression can be used to count a counter-variable
-up or down.
+up or down. The for-block implicitly contains a $begin statement
+so all variable definitions within $for..$endfor are local to
+this block. This is also the case for the variable defined and
+used in the init-expression, condition and loop-statement.
 
 Here is an example:
 
@@ -1131,7 +1220,32 @@ Here is another example with arrays:
   
   $endfor
   
-This ends a for-expression
+This ends a for-expression. This statement contains also an implicit 
+$end which ends restores all variables to the state they had before
+the block started. 
+
+=item I<begin>
+  
+  $begin
+
+This statement opens a new block. All variable definitions and changes
+within a block are reversed when the block ends with $end
+
+=item I<end>
+  
+  $end
+  
+This statement ends a block. All variable definitions are restored
+to the state they had before the block started.  
+
+=item I<export>
+  
+  $export($var1,$var2)
+  
+This statement can be used within a block (see $begin). It exports
+the local variables (given as a comma-separated list) to
+the variable-settiing outside the block.  
+  
 
 =item I<silent>
   
