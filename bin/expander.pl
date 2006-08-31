@@ -40,7 +40,7 @@ use expander;
 use vars qw($opt_help $opt_summary @opt_file $opt_roundbrackets);
 
 
-my $sc_version= "1.0";
+my $sc_version= "1.1";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "performs expansion of macros in a file"; 
@@ -155,6 +155,12 @@ Short (incomplete) syntax description (see also manpage of expander.pm)
 \$for(<init-expr>;<condition-expression>;<loop-expr)
 \$endfor			
 			-> parsing-loop
+
+\$begin
+\$end			-> define a block with local variables
+
+\$export(<var-list>)    -> export local variables to enclosing (outer)
+ 			   block
 
 \$comment (comment)	-> comment
 
