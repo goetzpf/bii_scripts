@@ -43,7 +43,7 @@ epicsShareFunc const char * epicsShareAPI getLastWSAErrorAsString();
 epicsShareFunc unsigned epicsShareAPI wsaMajorVersion();
 #endif
 
-#ifndef linux
+#if (!defined linux) && (!defined HPUX11)
 typedef int socklen_t;
 #endif
 

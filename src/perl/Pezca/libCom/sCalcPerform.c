@@ -76,7 +76,7 @@
 
 static double	local_random();
 
-#ifndef linux
+#if (!defined linux) && (!defined HPUX11)
 static int isnan(double d)
 {
 	union { long l[2]; double d; } u;

@@ -4,19 +4,24 @@ use Config; # access information about the platform we're running
 
 %defines= ( 
                 'hpux'      => '-DUNIX -D_HPUX_SOURCE -DHP_UX -D__hpux',
-			    'solaris'   => '-DUNIX -DSOLARIS',
+                'hpux-11'   => '-DUNIX -D_HPUX_SOURCE -DHP_UX -D__hpux ' .
+		               '-DHPUX11',
+		'solaris'   => '-DUNIX -DSOLARIS',
                 'linux-i386'=> '-DUNIX -D_X86_ -Dlinux',
 		'win32-msc' => '/nologo /D__STDC__=0 /W3 /MD ' .
 		               '-D_NO_PROTO /D_WIN32 /D_X86_' 
           );
 %includes=(
                 'hpux'      => ['include/os/hp700','include/O.hp700'],
+                'hpux-11'   => ['include/os/hp700','include/O.hp700'],
                 'solaris'   => ['include/os/solaris','include/O.solaris'],
                 'linux-i386'=> ['include/os/Linux','include/O.Linux'],
                 'win32-msc' => ['include/os/WIN32','include/O.WIN32'] 
           );
 
 %objects= ( 'hpux'      => ['libCom/O.hp700/envData.o',
+                            'libCom/O.hp700/errSymTbl.o' ],
+            'hpux-11'   => ['libCom/O.hp700/envData.o',
                             'libCom/O.hp700/errSymTbl.o' ],
             'solaris'   => ['libCom/O.solaris/envData.o',
                             'libCom/O.solaris/errSymTbl.o' ],
@@ -38,6 +43,7 @@ use Config; # access information about the platform we're running
 
 # the following is only used in libCom/Makefile.PL: 
 %lc_dirs= ( 'hpux'      => ["os/generic","O.hp700"],
+            'hpux-11'   => ["os/generic","O.hp700"],
             'solaris'   => ["os/generic","O.solaris"],
 	    'linux-i386'=> ["os/generic","O.Linux"],
 	    'win32-msc' => ["O.Linux","os\\WIN32"],
@@ -46,13 +52,18 @@ use Config; # access information about the platform we're running
 $platform;
 
 my($osname)  = $Config{'osname'};
+my($osvers)  = $Config{'osvers'};
 my($archname)= $Config{'archname'};
 
 
 
 # detect the platform, where Pezca is to be installed:
 if    ($osname=~ /hp.?ux/i)
-  { $platform= 'hpux'; };
+  { if ($osvers >=11)
+      { $platform= 'hpux-11'; }
+    else 
+      { $platform= 'hpux'; }
+  };
 if    ($osname=~ /solaris/i)
   { $platform= 'solaris'; }
 if (($osname=~ /linux/i) && ($archname=~ /i[3-9]86/i))
