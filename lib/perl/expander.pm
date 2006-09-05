@@ -645,13 +645,16 @@ sub eval_part
 sub rec_eval
   { my($sub,$r_line,$pos)= @_;
     
-    for(;;)
+    for(my $cnt=0; $cnt<100; $cnt++)
       { 
 #warn "rec_eval:\"$sub\"";
         if ($sub!~ /(?<!\\)\$/)
           { return($sub); };
         $sub= eval_part('"' . $sub . '"',$r_line,$pos);
       };
+ 
+    $err_pre= "recursion error in expression";
+    fatal_parse_error($r_line,$pos); 
   }     
 
 sub skip_bracket_block
