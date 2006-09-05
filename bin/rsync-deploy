@@ -1,5 +1,6 @@
 #!/usr/bin/zsh -f
 
+# bold and normal for xterm/vt100 
 B=""
 b=""
 if [[ $TERM == "xterm" ]]; then
@@ -33,7 +34,7 @@ ${B}VARIABLES:${b} the following variables can be set by environment-variables o
 
 ${B}DEPLOYMENT:${b}
 
-    ${B}rsync-deploy [-deploy] [-v] [-c] dirs [var=value ...]${b}
+    ${B}rsync-deploy [deploy] [-v] [-c] dirs [var=value ...]${b}
 
 	1. DEST=\$RSYNC_TARGETS/\$RSYNC_TOP_NAME
 	2. unless -c : copy* version \$DEST/\$RSYNC_HEAD to \$DEST/YYYYmmdd-HHMMSS
@@ -45,7 +46,7 @@ ${B}DEPLOYMENT:${b}
 
 ${B}TAGS:${b}
 
-    ${B}rsync-deploy -tag tagname [version] [var=value ...]${b}
+    ${B}rsync-deploy tag tagname [version] [var=value ...]${b}
 
 	version is optional and may be a specific verion YYYYmmdd-HHMMSS 
 	or an existing tag. Defaults to HEAD if HEAD exists or the latest 
@@ -54,15 +55,15 @@ ${B}TAGS:${b}
 	create a tag \$RSYNC_HEAD to point to 
 	    \$RSYNC_TARGETS/\$RSYNC_TOP_NAME/version
 
-    ${B}rsync-deploy -untag tagname [tagname ...] [var=value ...]${b}
+    ${B}rsync-deploy untag tagname [tagname ...] [var=value ...]${b}
 
 	remove all tags "tagname" from \$RSYNC_TARGETS/\$RSYNC_TOP_NAME
 
-    ${B}rsync-deploy -listtags [var=value ...]${b}
+    ${B}rsync-deploy listtags [var=value ...]${b}
 
 	lists all available tags (sym-links) in the target-location
 
-    ${B}rsync-deploy -listversions [var=value ...]${b}
+    ${B}rsync-deploy listversions [var=value ...]${b}
 
 	lists all available versions (directories) in the target-location
 
@@ -79,35 +80,35 @@ if [[ $# = 0 ]] ; then
 fi
 
 cmd=deploy
-if [[ $1 = "-tag" ]]; then
+if [[ $1 = "tag" ]]; then
     # tag-command - create a tag
     # usage:
     #     rsync-deploy -tag tagname [version]
     cmd=movetag
     shift
 
-elif [[ $1 = "-untag" ]]; then
+elif [[ $1 = "untag" ]]; then
     # untag-command - remove some tags
     # usage:
     #     rsync-deploy -untag tagname [tagname ...]
     cmd=untag
     shift
 
-elif [[ $1 = "-deploy" ]]; then
+elif [[ $1 = "deploy" ]]; then
     # deploy-command - rdist files/directories to target-locations
     # usage:
     #     rsync-deploy [-v] [-tag version_to_update] dir [dir ...]
     cmd=deploy
     shift
 
-elif [[ $1 = "-listtags" ]]; then
+elif [[ $1 = "listtags" ]]; then
     # list available tags (sym-links) at target-location
     # usage:
     #     rsync-deploy -listtags
     cmd=listtags
     shift
 
-elif [[ $1 = "-listversions" ]]; then
+elif [[ $1 = "listversions" ]]; then
     # list available versions (directories) at target-location
     # usage:
     #     rsync-deploy -listversions
