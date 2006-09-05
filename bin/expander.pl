@@ -37,10 +37,11 @@ use Getopt::Long;
 
 use expander;
 
-use vars qw($opt_help $opt_summary @opt_file $opt_roundbrackets);
+use vars qw($opt_help $opt_summary @opt_file 
+            $opt_roundbrackets $opt_recursive);
 
 
-my $sc_version= "1.1";
+my $sc_version= "1.2";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "performs expansion of macros in a file"; 
@@ -51,15 +52,19 @@ my $debug= 0; # global debug-switch
 
 # global parameter hash:
                   
-#Getopt::Long::config(qw(no_ignore_case));
 
 my @files;
 my @macros;
+my @ipaths;
+
+Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary",
 		"file|f=s" => \@files, 
 		"macros|m=s" => \@macros,
+		"include|I=s" => \@ipaths,
 		"roundbrackets|b",
+		"recursive|r",
                 ))
   { die "parameter error!\n"; };
 
@@ -70,8 +75,14 @@ if ($opt_help)
 
 my %expand_options;
 
+if ($opt_recursive)
+  { $expand_options{recursive}= 1; }
+
 if ($opt_roundbrackets)
   { $expand_options{roundbrackets}= 1; }
+
+if (@ipaths)
+  { $expand_options{includepaths}= \@ipaths; }
 
 if ($opt_summary)
   { print_summary();
@@ -130,6 +141,9 @@ Usage:
     --summary: give a summary of the script
     -m [name=value] define a macros 
       more than one -m option is allowed
+    -I [path] -I [path2]
+      specify paths were to find the include-files (statement \$include())  
+    -r allow recursive variable expansion
 
 Short (incomplete) syntax description (see also manpage of expander.pm)
 
