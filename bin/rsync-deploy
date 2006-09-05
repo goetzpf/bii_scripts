@@ -74,6 +74,10 @@ EOF
     exit 0
 }
 
+if [[ $# = 0 ]] ; then
+    help
+fi
+
 cmd=deploy
 if [[ $1 = "-tag" ]]; then
     # tag-command - create a tag
