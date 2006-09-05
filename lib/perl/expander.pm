@@ -10,7 +10,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 2.1;
+    $VERSION     = 2.2;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -31,7 +31,11 @@ my @m_stack;
 
 my $silent=0;
 
+my $recursive=0;
+
 my $callback;
+
+my @include_paths;
 
 my %match_h= ( '(' => ')',
 	       '[' => ']',
@@ -105,7 +109,8 @@ sub declare_func
 sub parse_file
   { my($filename, %options)= @_;
     my $var;
-    
+    my $old_err_file= $err_file;
+
     if (!defined $filename)
       { local($/);
         undef $/;
@@ -124,6 +129,7 @@ sub parse_file
     # end of the scalar even if the file didn't contain one
 
     parse_scalar_i(\$var,%options);
+    $err_file= $old_err_file;
   }    
 
 sub parse_scalar
@@ -146,6 +152,12 @@ sub parse_scalar_i
     
     if ($options{roundbrackets})
       { $allow_round_brackets= 1; };
+    
+    if ($options{recursive})
+      { $recursive= 1; };
+    
+    if (exists $options{includepaths})
+      { @include_paths= @{$options{includepaths}}; };
     
     if (exists $options{silent})
       { $silent= $options{silent}; };
@@ -277,6 +289,8 @@ sub parse_scalar_i
 		    pos($$r_line)= $end+1;    
 		    next; 
 		  };
+
+#strdump($r_line, pos($$r_line), 40, "TRACE"); # 
 
 		$err_line= __LINE__;
 		my($res,$end);
@@ -417,15 +431,21 @@ sub parse_scalar_i
 		my($res,$end)= 
 		   eval_bracket_block($r_line,pos($$r_line)-1);
 
-	        if (!-r $res)
-		  { $err_pre= "unable to open file \"$res\"";
-		    $err_line= __LINE__;
-   		    fatal_parse_error($r_line,$p); 
-		  };
+		if ($ifcond[-1]>0) 
+		  { # do not actually do the include 
+		    # when we are within an ignore-block
+		    my $f= find_file($res,@include_paths);
+		    
+		    if (!defined $f)
+		      { $err_pre= "unable to open file \"$res\"";
+			$err_line= __LINE__;
+   			fatal_parse_error($r_line,$p); 
+		      };
 #die "res: $res\n";
-		my %local_options= %options;
-		$local_options{filehandle}= $fh;
-		parse_file($res,%local_options);  
+		    my %local_options= %options;
+		    $local_options{filehandle}= $fh;
+		    parse_file($res,%local_options); 
+		  } 
 		pos($$r_line)= $end+1;
 		next;
 	      }
@@ -621,6 +641,18 @@ sub eval_part
       };
     return($res);
   }
+
+sub rec_eval
+  { my($sub,$r_line,$pos)= @_;
+    
+    for(;;)
+      { 
+#warn "rec_eval:\"$sub\"";
+        if ($sub!~ /(?<!\\)\$/)
+          { return($sub); };
+        $sub= eval_part('"' . $sub . '"',$r_line,$pos);
+      };
+  }     
 
 sub skip_bracket_block
   { my($r_line,$start_at)= @_;
@@ -908,7 +940,10 @@ sub variable_expand
 	if ($debug)
 	  { warn "--- expand \$\{$var\} to " . $m{$var} . "\n"; };
         pos($$r_line)= $end+1;
-	return($m{$var});
+	if (!$recursive)
+	  { return($m{$var}); }
+	else
+	  { return(rec_eval($m{$var},$r_line,$p)); };
       };
       
     # from here: it's an index expression
@@ -930,7 +965,10 @@ sub variable_expand
       { warn "--- expand \$\{$var\[$index\]\} to " . $m{$var}->[$index] . "\n"; };
 
     pos($$r_line)= $end+1;
-    return($m{$var}->[$index]);
+    if (!$recursive)
+      { return($m{$var}->[$index]); }
+    else
+      { return(rec_eval($m{$var}->[$index],$r_line,$p)); };
   }
  
 
@@ -983,8 +1021,22 @@ sub strdump
     warn "$prefix DUMP AT POS $p:$x\n";
   }
     
+sub find_file
+  { my($file,@paths)= @_;
+    my $r;
+    
+    return($file) if (-r $file);
 
-
+    return if (!@paths);
+    
+    foreach my $p (@paths)
+      { $r= File::Spec->catfile($p,$file);
+        if (-r $r)
+	  { return($r); };
+      };
+    return;
+  }  
+    
 1;
 
 __END__
@@ -1346,12 +1398,27 @@ a run-time error is raised.
 With this option, the parser can be started in "silent" mode.
 See also description of the $silent command.
 
+=item I<includepaths>
+
+  parse_scalar($myvar, includepaths=> [$dir1,$dir2])
+
+With this option, search-paths for the $include() command
+can be specified.
+
 =item I<roundbrackets>
 
   parse_scalar($myvar, roundbrackets=> 1)
 
 With this option, the parser allows round brackets for
 variables, so $(myvar) is treated like ${myvar}.
+
+=item I<recursive>
+
+  parse_scalar($myvar, recursive=> 1)
+
+Allow recursive variable expansion. Each variable that contains
+a non-quoted '$' sign is evaluated again until that condition
+is no longer true.
 
 =back
 
