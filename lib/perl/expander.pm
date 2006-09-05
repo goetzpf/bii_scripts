@@ -1,6 +1,7 @@
 package expander;
 
 use strict;
+use Cwd;
 use Data::Dumper;
 use IO::Scalar;
 #use Carp;
@@ -447,7 +448,7 @@ sub parse_scalar_i
 #die "res: $res\n";
 		    my %local_options= %options;
 		    $local_options{filehandle}= $fh;
-		    parse_file($res,%local_options); 
+		    parse_file($f,%local_options); 
 		  } 
 		pos($$r_line)= $end+1;
 		next;
@@ -1029,17 +1030,23 @@ sub strdump
     
 sub find_file
   { my($file,@paths)= @_;
-    my $r;
-    
+ 
     return($file) if (-r $file);
 
     return if (!@paths);
     
+    my $old= cwd();
     foreach my $p (@paths)
-      { $r= File::Spec->catfile($p,$file);
-        if (-r $r)
-	  { return($r); };
+      { if (!chdir($p))
+          { warn "warning: path \"$p\" is not valid"; 
+	    next;
+	  };
+	if (-r $file)
+	  { chdir($old) or die "unable to chdir to \"$old\"";
+	    return(File::Spec->catfile($p,$file)); 
+	  };
       };
+    chdir($old) or die "unable to chdir to \"$old\"";
     return;
   }  
     
