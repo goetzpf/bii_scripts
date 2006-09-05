@@ -144,6 +144,8 @@ sub parse_scalar_i
     my $was_left;
     my(@ifcond)=(1);
     my @forstack;
+    
+    my $m_stack_init= $#m_stack;
   
     my $pre;
     my $post;
@@ -158,6 +160,7 @@ sub parse_scalar_i
     
     if (exists $options{includepaths})
       { @include_paths= @{$options{includepaths}}; };
+# die "I:" . join("|",@include_paths);
     
     if (exists $options{silent})
       { $silent= $options{silent}; };
@@ -602,7 +605,7 @@ sub parse_scalar_i
         fatal_parse_error($r_line,$p); 
       };
   
-    if ($#m_stack>=0)
+    if ($#m_stack>$m_stack_init)
       { $err_pre= "unfinished begin-blocks";
 	$err_line= __LINE__;
         fatal_parse_error($r_line,$p); 
