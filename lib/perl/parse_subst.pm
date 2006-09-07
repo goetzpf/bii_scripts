@@ -7,7 +7,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 2.0;
+    $VERSION     = 2.1;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -109,7 +109,7 @@ sub get_or_mk_hash
   }
 
 sub parse
-  { my($arg)= @_;
+  { my($arg, $mode)= @_;
   
     my $r_db;
     my $ref = ref($arg);
@@ -122,10 +122,23 @@ sub parse
               "a reference to a scalar"; 
       };
   
+    $mode= "templateHash" if (!defined $mode);
+    
+    if (($mode ne 'templateHash') && ($mode ne 'templateList'))
+      { die "unknown mode: \"$mode\""; };
+   
+    my $quirks= ($mode eq 'templateList') ? 1 : 0;
+    
+    if ($old_parser && $quirks)
+      { die "error: old_parser and 'templateList' are mutual exclusive"; };
+    
     my $level= 'top';
 
 # mode: default 
     my %templates;
+    
+    my @templates;
+    my $lastfilename;
     
     my $r_file;
     # a ref to a list containing all
@@ -159,10 +172,23 @@ sub parse
             if ($$r_db=~ /$RX_file_head/ogscx)
 	      { my $filename= ($2 eq "") ? $1 : $2;
 
-                if ($old_parser)
+                if    ($old_parser)
 		  { $r_file = get_or_mk_hash ($filename, \%templates); }
+		elsif ($quirks)
+		  { if ($lastfilename ne $filename)
+		      { my @l= ($filename);
+		        push @templates, \@l;
+			$r_file= \@l;
+			$lastfilename= $filename;
+		      };
+		  }       
 		else
-		  { $r_file = get_or_mk_array($filename, \%templates); }
+		  { $r_file = get_or_mk_array($filename, \%templates); 
+		    if ($quirks)
+		      { if (!@$r_file)
+		          { @$r_file= ($filename); };
+		      };	  
+		  }
                 
 		
 		$instance_no= 0;
@@ -258,6 +284,9 @@ sub parse
 	
       };
 
+    if ($quirks)
+      { return(\@templates); };
+      
     return(\%templates);;
   }
 
@@ -465,5 +494,3 @@ Goetz Pfeiffer,  goetzp@gmx.net
 perl-documentation
 
 =cut
-
-
