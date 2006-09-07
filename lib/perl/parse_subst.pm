@@ -1,4 +1,4 @@
-package parse_subst2;
+package parse_subst;
 
 use strict;
 
