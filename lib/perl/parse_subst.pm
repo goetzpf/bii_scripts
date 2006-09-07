@@ -1,4 +1,4 @@
-package parse_subst;
+package parse_subst2;
 
 use strict;
 
@@ -7,7 +7,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.1;
+    $VERSION     = 2.0;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -22,185 +22,345 @@ use vars      @EXPORT_OK;
 
 # used modules
 use Data::Dumper;
+use Text::ParseWords;
 use Carp;
 
 our $old_parser=0;
 
-sub parse
-  { my($db, $mode)= @_;
+
+my $RX_space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
+
+my $RX_quoted_word         = qr/\"(\w+)\"/;
+my $RX_unquoted_word       = qr/(\w+)/;
+
+my $RX_quoted              = qr/\"(.*?)(?<!\\)\"/;
+my $RX_unquoted_filename   = qr/([^\/\s\{\}]+)/;
+
+my $RX_unquoted_value      = qr/([^\s\{\},]+)/;
+
+
+my $RX_comma               = qr/,?/;
+
+my $RX_file_head= 
+            qr/\G
+               file
+               $RX_space_or_comment
+
+		 (?:$RX_quoted|$RX_unquoted_filename)
+
+                 $RX_space_or_comment
+                       \{
+               /x;
+
+my $RX_pattern  = 
+            qr/\G  
+	       $RX_space_or_comment
+	       pattern
+	       $RX_space_or_comment
+	       \{ 
+	       /x;
+		      
+my $RX_var= 
+            qr/\G  
+               $RX_space_or_comment	
+	       (?:$RX_quoted_word|$RX_unquoted_word)	      
+               $RX_space_or_comment
+	       $RX_comma
+	       /x;
+	    
+my $RX_val= qr/\G  
+               $RX_space_or_comment	
+	       (?:$RX_quoted|$RX_unquoted_value)	      
+               $RX_space_or_comment
+	       $RX_comma
+	       /x;
+	    
+
+my $RX_definition = 
+            qr/\G
+               $RX_space_or_comment	
+	       (?:$RX_quoted_word|$RX_unquoted_word)	      
+               $RX_space_or_comment
+               = 	    	
+               $RX_space_or_comment
+	       (?:$RX_quoted|$RX_unquoted_value)	      
+               $RX_space_or_comment
+	       $RX_comma
+	       /x;
+ 
+sub get_or_mk_array
+  { my($key,$r_hash)= @_;
   
-    $mode= "templateHash" if (!defined $mode);
+    my $r= $r_hash->{$key};
+    return $r if (defined $r);
+    my @l;
+    $r_hash->{$key}= \@l;
+    return(\@l);
+  }
+
+sub get_or_mk_hash
+  { my($key,$r_hash)= @_;
+  
+    my $r= $r_hash->{$key};
+    return $r if (defined $r);
+    my %l;
+    $r_hash->{$key}= \%l;
+    return(\%l);
+  }
+
+sub parse
+  { my($arg)= @_;
+  
+    my $r_db;
+    my $ref = ref($arg);
+    if    ($ref eq 'SCALAR')
+      { $r_db= $arg; }
+    elsif ($ref eq "")
+      { $r_db= \$arg; }
+    else
+      { croak "parse: argument is neither a scalar nor " .
+              "a reference to a scalar"; 
+      };
   
     my $level= 'top';
 
 # mode: default 
     my %templates;
-# mode: templateList
-    my @templateList;
-    my $templateIdx;
     
-    my $r_this_template_instance;
-    my $r_this_instance_no; # old mechanism
-    my $r_this_instance_fields;
+    my $r_file;
+    # a ref to a list containing all
+    # instances for a certain *.template file
+
+    my $r_instance;
+    # a ref to a hash containing all definitions
+    # for a certain instance
+
+    my $sub_block_type;
+    
+    my $field_index;
+    # index within a pattern-field
     
     my @column_names;
+    # names of columns within a pattern-field
+    
+    my $instance_no; 
+    # only needed for $old_parser= 1
 
     for(;;)
       { 
-    #print $i++, " ";  
-
-	# comments
-	if ($db=~/\G\s*#[^\r\n]*/gsc) # end of file
+#print "level:$level at\n", 
+#      "  ---",substr($$r_db, pos($$r_db),20),"---\n";
+        if ($level eq 'top')
           { 
-	    next; 
-	  };
+            # skip comment-lines at level 0:
+            $$r_db=~/\G$RX_space_or_comment/ogscx;
+            last if ($$r_db=~/\G[\s\r\n]*$/gsc);
 
-	if ($level eq 'top')
-	  { 
-            if ($db=~/\G[\s\r\n]*$/gsc) # end of file
-              { 
-		last; 
-	      };
-            if ($db=~ /\G\s*file\s+([\w\.]+)[\s\r\n]*\{/gsc)
-              { my($name)= ($1);
+            if ($$r_db=~ /$RX_file_head/ogscx)
+	      { my $filename= ($2 eq "") ? $1 : $2;
 
-		if( $mode eq "templateHash" )
-		{
-		  $r_this_template_instance = $templates{$name};
-		  if (!defined $r_this_template_instance)
-		    { if ($old_parser)
-			{ $r_this_template_instance= {};
-			  $r_this_instance_no= 0; # old mechanism
-			}
-		      else
-			{ $r_this_template_instance= []; }; 
-		      $templates{$name}= $r_this_template_instance;
-		    };
-		}
-		elsif( $mode eq 'templateList' )
-		{ 
-		  $r_this_template_instance= [$name]; 
-	          $templateList[$templateIdx] = $r_this_template_instance;
-                  $templateIdx++;
-		}
+                if ($old_parser)
+		  { $r_file = get_or_mk_hash ($filename, \%templates); }
 		else
-		  { die "unknown mode $mode (assertion)"; };
-
+		  { $r_file = get_or_mk_array($filename, \%templates); }
+                
+		
+		$instance_no= 0;
 		
 		$level='file';
 		next;
 	      };
-	    croak "parse error 1 at byte ",pos($db)," of input stream";   
+           parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
 	  };
+	  
 	if ($level eq 'file')
 	  { 
-            if ($db=~ /\G[\s\r\n]*\}/gsc)
-              { 
-	        $level='top';
-		next;
-	      };
-	      
-	    if ($db=~ /\G[\s\r\n]*pattern[\s\r\n]*\{/gsc)
-	      { @column_names= ();
-	        while ($db=~ /\G[,\s\r\n]*\"?([^\s\r\n\=\",\{\}]+)\"?/gsc)
-	          { push @column_names,$1; };
-		if ($db!~/\G[\s\r\n]*\}/gsc)
-		  { croak "parse error 2 at byte ",pos($db),
-		          " of input stream";   
-                  };
-	        $level='pattern_instance';
-		next;
+            if ($$r_db=~ /\G
+                      $RX_space_or_comment
+                      \}/ogscx)
+              { $level= 'top';
+                next;
               };
 	      
-            if ($db=~ /\G[\s\r\n]*\{/gsc)
-              { $level='file_instance';
-	        $r_this_instance_fields= {};
-		
-		# old mechanism
-		if ($old_parser)
-		  { $r_this_template_instance->{$r_this_instance_no++}=
-		       $r_this_instance_fields;
-		  }
-		else
-		  { push @$r_this_template_instance,
-		            $r_this_instance_fields
-		  };	    
-		next;
-	      };
-	    croak "parse error 1a at byte ",pos($db)," of input stream";   
-	  }; 
-	  
-	if ($level eq 'pattern_instance')
-	  { 
-            if ($db=~ /\G[\s\r\n]*\}/gsc)
-              { 
-	        $level='top';
-		next;
-	      };
-	    if ($db=~ /\G[\s\r\n]*\{/gsc)
-	      { $r_this_instance_fields= {};
+	    if ($$r_db=~ /$RX_pattern/ogscx)
+	      { $level= 'pattern_cols';
+	        @column_names= ();
+	        next;
+	      }
 	      
-	        # old mechanism
-		if ($old_parser)
-		  { $r_this_template_instance->{$r_this_instance_no++}=
-		       $r_this_instance_fields;
-		  }
+	    if ($$r_db=~ /\G
+                      $RX_space_or_comment
+                      \{/ogscx)
+              { my %h;
+	        if ($old_parser)
+		  { $r_file->{$instance_no++}= \%h; }
 		else
-		  { push @$r_this_template_instance,
-		            $r_this_instance_fields
-		  };	    
-		     
-	        my $cnt=0;
-		while ($db=~ /\G[,\s\r\n]*\"([^\"]*)\"/gsc)
-	          { my $value= $1;
-		    $value= "" if (!defined $value);
-		    my $field= $column_names[$cnt++];
-		    if (!defined $field)
-		      { croak "parse 3 error at byte ",pos($db),
-		              " of input stream";   
-                      };
-		    $r_this_instance_fields->{$field}= $value;
-                  }; 
-                if ($db!~ /\G[\s\r\n]*\}/gsc)
-		  { croak "parse 4 error at byte ",pos($db),
-		          " of input stream";   
-                  };
-                next;
-               };       
-          };
-	  
-	if ($level eq 'file_instance')
-	  { 
-            if ($db=~ /\G[\s\r\n]*\}/gsc)
-              { $level='file';
-		next;
-	      };
+		  { push @$r_file, \%h; };
+		  
+		$r_instance= \%h;
+	        $level= 'sub-block';
+		$sub_block_type= undef;
+                $field_index= 0;
+	        next;
+              };
+           parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
+	  }   
 
-            if ($db=~ /\G[\s\r\n]*(\"?[^\s\r\n\=\",\{\}]+)\"?\s*=\s*\"([^\"]*)\"\s*,?/gsc)
-              { my($field,$value)= ($1,$2);
-		$value= "" if (!defined $value);
-		$r_this_instance_fields->{$field}= $value;
+	if ($level eq 'pattern_cols')
+          { if ($$r_db=~ /\G
+                      $RX_space_or_comment
+                      \}/ogscx)
+              { $level= 'file';
+                next;
+              };
+
+	    if ($$r_db=~ /$RX_var/ogscx)
+	      { my $var= ($2 eq "") ? $1 : $2;
+	        push @column_names, $var;
 		next;
+	      }
+           parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
+	  } 
+
+	if ($level eq 'sub-block')
+	  { if ($$r_db=~ /\G
+                      $RX_space_or_comment
+                      \}/ogscx)
+	      { $level= 'file';	     
+	        next;
+              } 
+            
+	    if ($sub_block_type ne 'pattern')
+	      { if ($$r_db=~ /$RX_definition/ogscx)
+		  { my $var= ($2 eq "") ? $1 : $2;
+	            my $val= ($4 eq "") ? $3 : $4;
+	            $r_instance->{$var}= $val;
+		    $sub_block_type= 'regular' if (!defined $sub_block_type);
+		    next;
+	          }
 	      };
-	    carp "ERROR: string: \"" . substr($db,pos($db)) . "\"\n";
-	    croak "parse error 5 at byte ",pos($db)," of input stream";   
-	  };
+	      
+	    if ($sub_block_type ne 'regular')
+	      { if ($$r_db=~ /$RX_val/ogscx)
+		  { my $value= ($2 eq "") ? $1 : $2;
+		    my $colname= $column_names[$field_index++];
+		    if (!defined $colname)
+		      { parse_error(__LINE__,\$$r_db,pos($$r_db),"not enough columns"); 
+		      };
+		    $r_instance->{$colname}= $value;
+		    $sub_block_type= 'pattern' if (!defined $sub_block_type);
+                    next;
+		  };
+              };
+
+           parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
+	  }; # for   
+	
       };
 
-#warn "am  ende der liste ist ein leerer Eintrag, h‰ﬂlich, warum ???\n";
-    if( $mode eq "templateHash" )
-      { return(\%templates); };
-    if( $mode eq 'templateList' )
-      { return(\@templateList); };
-    die "unknown mode $mode (assertion)";        
+    return(\%templates);;
+  }
 
+
+sub parse_error
+  { my($prg_line,$r_st,$pos,$filename)= @_;
+  
+    my($line,$column)= find_position_in_string($r_st,$pos);
+    if (defined $filename)
+      { $filename= "in file $filename "; };
+    my $err= "Parse error ${filename} at line $prg_line of parse_subst.pm,\n" .
+             "byte-position $pos\n" .
+             "line $line, column $column in file\n ";
+    croak $err;
+  }
+             
+    
+
+sub find_position_in_string
+# gets a position as returned by pos(..) in a
+# multi-line strings and returns a pair (row,column)
+# the first row is 1, the first column is 0
+  { my($r_str,$position)= @_;
+
+    my $cnt=0;
+    my $lineno=1;
+    
+
+    pos($$r_str)=0;
+    my $oldpos=-1;
+
+    while($$r_str=~ /\G(.*?)\r?\n/gms)
+      { 
+        if (pos($$r_str)<$position)
+          { 
+            $oldpos= pos($$r_str); 
+            $lineno++;
+            next;
+          };
+        return($lineno,$position-$oldpos);
+      };
+    return($lineno,$position-$oldpos);
+  }      
+
+
+sub rdump
+#internal
+  { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
+
+    $comma= '' if (!defined $comma);
+
+    my $r= ref($val);
+    if (!$r)
+      { $val= "<undef>" if (!defined $val);
+        $$r_buf.= " " x $indent if ($is_newline);
+
+#       if (length($val)>50)
+#         { $val= trysplit($val,40,$indent); };
+
+        $$r_buf.= "\'$val\'$comma\n";
+        return;
+      };
+    if ($r eq 'ARRAY')
+      { $$r_buf.= "\n" . " " x $indent if ($is_newline);
+        $$r_buf.= "[ \n"; $indent+=2;
+        for(my $i=0; $i<= $#$val; $i++)
+          { rdump($r_buf,$val->[$i],$indent,1,($i==$#$val) ? "" : ",");
+          };
+        $indent-=2; $$r_buf.= " " x $indent ."]$comma\n";
+        return;
+      };
+    if ($r eq 'HASH')
+      { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
+        $$r_buf.=  "{ \n"; $indent+=2;
+        my @k= sort keys %$val;
+        for(my $i=0; $i<= $#k; $i++)
+          { my $k= $k[$i];
+            my $st= (" " x $indent) . $k . " => ";
+            my $nindent= length($st);
+            if ($nindent-$indent > 20)
+              { $nindent= $indent+20;
+                $st.= "\n" . (" " x $nindent)
+              };
+
+            $$r_buf.= ($st);
+            rdump($r_buf,$val->{$k},$nindent,0,($i==$#k) ? "" : ",");
+          };
+        $indent-=2; $$r_buf.= " " x $indent . "}$comma\n";
+        return;
+      };
+    $$r_buf.=  " " x $indent if ($is_newline);
+    $$r_buf.=  "REF TO: \'$r\'$comma\n";
   }
 
 sub dump
   { my($r_templates)= @_;
  
-    print Data::Dumper->Dump([$r_templates], [qw(templates)]);
+    my $r;
+    
+    rdump(\$r,$r_templates,0);
+    print $r,"\n";
   }
+
 
 1;
 
@@ -237,11 +397,23 @@ can then be used for further evaluation.
 
 B<parse()>
 
-  my $r_templates= parse_subst::parse($st);
+  my $r_templates= parse_subst::parse($st); 
+    or
+  my $r_templates= parse_subst::parse(\$st); 
 
 This function parses a given scalar variable that must contain a 
 complete substitution-file. It returns a reference to a hash, where 
-the parsed datais stored. 
+the parsed datais stored. The parameter may either be 
+a scalar variable containing the data or a reference to a 
+scalar variable.
+
+B<dump()>
+
+  my $r_templates= parse_subst::parse($st);
+  parse_subst::dump($r_templates);
+  
+This function prints a dump of the created structure 
+to the screen. 
 
 =back
 
