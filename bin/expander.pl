@@ -38,10 +38,11 @@ use Getopt::Long;
 use expander;
 
 use vars qw($opt_help $opt_summary @opt_file 
-            $opt_roundbrackets $opt_recursive);
+            $opt_roundbrackets $opt_force_brackets $opt_allow_not_defined
+	    $opt_recursive);
 
 
-my $sc_version= "1.2";
+my $sc_version= "1.3";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "performs expansion of macros in a file"; 
@@ -64,6 +65,8 @@ if (!GetOptions("help|h","summary",
 		"macros|m=s" => \@macros,
 		"include|I=s" => \@ipaths,
 		"roundbrackets|b",
+		"force_brackets|F",
+		"allow_not_defined|n",
 		"recursive|r",
                 ))
   { die "parameter error!\n"; };
@@ -78,8 +81,14 @@ my %expand_options;
 if ($opt_recursive)
   { $expand_options{recursive}= 1; }
 
+if ($opt_allow_not_defined)
+  { $expand_options{allow_not_defined_vars}= 1; }
+
 if ($opt_roundbrackets)
   { $expand_options{roundbrackets}= 1; }
+
+if ($opt_force_brackets)
+  { $expand_options{forbit_nobrackets} = 1; }
 
 if (@ipaths)
   { $expand_options{includepaths}= \@ipaths; }
@@ -89,8 +98,8 @@ if ($opt_summary)
     exit;
   };
 
-if (!@files)
-  { die "-f option is mandatory\n"; };
+#if (!@files)
+#  { die "-f option is mandatory\n"; };
 
 if (@macros)
   { foreach my $mac (@macros)
@@ -104,10 +113,17 @@ if (@macros)
   }
 # ------------------------------------------------
 
+if (!@files)
+  { local $/;
+    undef $/;
+    my $data=<>;
+    expander::parse_scalar(\$data,%expand_options);
+    exit(0);
+  } 
+
 foreach my $f (@files)
   { 
     expander::parse_file($f,%expand_options); 
-  
   };
 
 
@@ -137,13 +153,20 @@ Usage:
   options:
     -h: help
     -f [file]: process file(s)
-    -b: allow round brackets for variables like in \$(myvar)
+      if the option is not defined, the input is 
+      read from standard-input
     --summary: give a summary of the script
     -m [name=value] define a macros 
       more than one -m option is allowed
     -I [path] -I [path2]
       specify paths were to find the include-files (statement \$include())  
+    -b allow round brackets for variables like in \$(myvar)
+    -F all variables must be bracketed, so things like \$abc are
+       no longer recognized
     -r allow recursive variable expansion
+    -n allow that variables are not defined
+       (usually this aborts the script, but then only an
+        error message is printed to stdout)
 
 Short (incomplete) syntax description (see also manpage of expander.pm)
 
