@@ -37,7 +37,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
                 dbcount pfind.pl dbdiff Sch2db.pl
                 dbscan.pl set_ioc_tsrv.pl hgen.pl
                 canlink.pl filter_can_links.pl
-		expander.pl grepDb.pl
+		expander.pl subst2exp.pl grepDb.pl
 		dbfilter.pl
 		sch_cvs_diff.pl SetPerms vdct);
 
