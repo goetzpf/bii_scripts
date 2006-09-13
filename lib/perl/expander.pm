@@ -258,7 +258,6 @@ sub parse_scalar_i
         #$$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$)/gsm;
         $p= pos($$r_line))
       {
-
         $err_line= -1;
                     
         $pre= $1;
@@ -311,15 +310,9 @@ sub parse_scalar_i
         
         $p= pos($$r_line); # pos after "$"
 
-        if ($ifcond[-1]<=0)
-          { print $fh $post; # not needed here: if ($ifcond[-1]>0);
-                             # since variable_expand's 3rd parameter...
-            next;
-          };
-        
         # no variable expansion in a skipped part:
         my ($tp,$ex, $st, $en)= variable_expand($r_line, $p); 
-        
+
         if ($tp == VE_NO)
           { 
             print $fh $post; # not needed here: if ($ifcond[-1]>0);
@@ -403,14 +396,15 @@ sub parse_scalar_i
                 $err_line= __LINE__;
                 my $res= 
                    eval_bracket_block($r_line,$st,$en,KY_REPLACE);
-
                 if ($ifcond[-1]<=0) # already within an ignore-part
-                  { if ($debug)
+                  { 
+		    if ($debug)
                       { warn "--- skip complete if-block\n"; };
                     push @ifcond, 0;  # 0: ignore from IF to ENDIF !! 
                   } 
                 else
-                  { if ($debug)
+                  { 
+		    if ($debug)
                       { if ($res)
                           { warn "--- evaluated TRUE, continue\n"; }
                         else
@@ -565,7 +559,8 @@ sub parse_scalar_i
               }
 
             elsif  ($ex eq 'endif')
-              { if ($#ifcond<1)
+              { 
+	        if ($#ifcond<1)
                   { $err_pre= "endif without if";
                     $err_line= __LINE__;
                     fatal_parse_error($r_line,$p); 
@@ -1000,7 +995,8 @@ sub variable_expand
       { # not an array expression
         
         if (defined $callback)
-          { chback();
+          { 
+	    chback();
             &$callback($var); 
           }
         if (!exists $m{$var})
@@ -1034,7 +1030,8 @@ sub variable_expand
  
     
         if (defined $callback)
-          { chback();
+          { 
+	    chback();
             &$callback($var,$index); 
           }
         
@@ -1091,13 +1088,15 @@ sub mk_perl_varnames
     if (defined $callback)
       { pos($line)=0;
         while ($line=~/\G.*?\$m\{(\w+)\}/g) 
-          { chback();
+          { 
+	    chback();
             &$callback($1); 
           
           };
         pos($line)=0;
         while ($line=~/\G.*?\$m\{(\w+)\}->\[(\d+)\]/g) 
-          { chback();
+          { 
+	    chback();
             &$callback($1,$2); 
           };
       };
