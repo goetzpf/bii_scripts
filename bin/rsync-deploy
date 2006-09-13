@@ -246,9 +246,10 @@ deploy () {
     rsync $RSYNC_ARGS --link-dest=$RTOP/$RSYNC_HEAD $RSYNC_DIRS $RHOST:$RTOP/$RSYNC_DATETIME/; : $[ rc += $? ]
     ssh $RHOST "cd $RTOP;
 		echo $VDATE $USER@$HOST:$PWD $cmd $@ >>.deploy-history; 
-                cd $RSYNC_DATETIME;
-	        find . -links 1 >/tmp/$$.txt && mv /tmp/$$.txt updated-files.txt;
-		ln -s ../`readlink ../$RSYNC_HEAD` previous-release"; : $[ rc += $? ]
+                cd $RSYNC_DATETIME; 
+		find . -links 1 >/tmp/$$.txt && mv /tmp/$$.txt updated-files.txt;
+		rm -f .prev;
+	        ln -s ../\`readlink ../$RSYNC_HEAD\` .prev"; : $[ rc += $? ]
     movetag $RHOST $RTOP $RSYNC_HEAD $RSYNC_DATETIME
 }
 
