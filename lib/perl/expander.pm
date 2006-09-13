@@ -71,7 +71,6 @@ use constant {
              };
 
 use constant {
-  VE_NO  => 0,
   VE_FUNC => 1,
   VE_KEYWORD => 2,
   VE_ARGKEYWORD => 3,
@@ -255,6 +254,7 @@ sub parse_scalar_i
 
     for(pos($$r_line)= 0, $p=0;
         $$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\\\$|\\$|\s+|$)/gsm;
+        #                    \$  $   \\n   \n  \\eol  \eol
         #$$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$)/gsm;
         $p= pos($$r_line))
       {
@@ -279,6 +279,11 @@ sub parse_scalar_i
             next;
           };
 
+        if ($post eq "\\\$") # backslashed dollar
+          { print $fh '$' if ($ifcond[-1]>0);
+            next; 
+          };
+          
         if ($post eq "\\\\n") # backslash-backslash-n
           { print $fh "\\n" if ($ifcond[-1]>0);
             next; 
@@ -289,11 +294,6 @@ sub parse_scalar_i
             next; 
           };
 
-        if ($post eq "\\\$") # backslashed dollar
-          { print $fh '$' if ($ifcond[-1]>0);
-            next; 
-          };
-          
         if ($post eq "\\\\") # backslash-backslash at end of line
           { print $fh "\\" if ($ifcond[-1]>0);
             next;
@@ -308,19 +308,17 @@ sub parse_scalar_i
             next;  
           }
         
+        # from here, $pos must be '$'
+        die "internal error" if ($post ne '$'); # assertion
+        
         $p= pos($$r_line); # pos after "$"
 
         # no variable expansion in a skipped part:
-        my ($tp,$ex, $st, $en)= variable_expand($r_line, $p); 
+        my ($tp,$ex, $st, $en)= variable_expand($r_line, $p, $ifcond[-1]<=0); 
 
-        if ($tp == VE_NO)
-          { 
-            print $fh $post; # not needed here: if ($ifcond[-1]>0);
-                             # since variable_expand's 3rd parameter...
-            next;
-          };
-        if ($tp == VE_DONE)
-          { print $fh $ex;   # not needed here: if ($ifcond[-1]>0);
+        if ($tp == VE_DONE) 
+          { print $fh $ex if ($ifcond[-1]>0);   
+                             # not needed here: if ($ifcond[-1]>0);
                              # since variable_expand's 3rd parameter...
             next;
           };
@@ -398,13 +396,13 @@ sub parse_scalar_i
                    eval_bracket_block($r_line,$st,$en,KY_REPLACE);
                 if ($ifcond[-1]<=0) # already within an ignore-part
                   { 
-		    if ($debug)
+                    if ($debug)
                       { warn "--- skip complete if-block\n"; };
                     push @ifcond, 0;  # 0: ignore from IF to ENDIF !! 
                   } 
                 else
                   { 
-		    if ($debug)
+                    if ($debug)
                       { if ($res)
                           { warn "--- evaluated TRUE, continue\n"; }
                         else
@@ -560,7 +558,7 @@ sub parse_scalar_i
 
             elsif  ($ex eq 'endif')
               { 
-	        if ($#ifcond<1)
+                if ($#ifcond<1)
                   { $err_pre= "endif without if";
                     $err_line= __LINE__;
                     fatal_parse_error($r_line,$p); 
@@ -935,7 +933,7 @@ sub simple_match
   }  
 
 sub variable_expand
-  { my($r_line, $p)= @_;
+  { my($r_line, $p, $in_ignore_part)= @_;
   
     my($type,$start,$end,$var,$index)= simple_match($r_line, $p);
 
@@ -956,14 +954,16 @@ sub variable_expand
 
     if ($type == SM_NO)
       { # could not find a variable expression
+        
         pos($$r_line)= $p;
-        return(VE_NO); 
+        return(VE_DONE,'$'); 
       }
     
-    if ($type == SM_EVAL)
-      {
-        $var= eval_part($var,$r_line,$start); 
-        pos($$r_line)= $end+1;
+    if ($type == SM_EVAL) 
+      { if (!$in_ignore_part)
+          { $var= eval_part($var,$r_line,$start); 
+            pos($$r_line)= $end+1;
+          };  
 #pos($$r_line)= $p;
 #return;  
         # this is now the name of the variable
@@ -973,14 +973,14 @@ sub variable_expand
     if (!$allow_round_brackets)
       { if (($type & SM_SUBTYPE)==SM_ROUND_SCALAR)
           { pos($$r_line)= $p;
-            return(VE_NO); 
+            return(VE_DONE,'$'); 
           }
       }
        
     if ($forbid_nobracket_vars)
       { if (($type & SM_SUBTYPE)==SM_SIMPLE_SCALAR)
           { pos($$r_line)= $p;
-            return(VE_NO); 
+            return(VE_DONE,'$'); 
           }
       }
     
@@ -991,12 +991,19 @@ sub variable_expand
           { return(VE_KEYWORD, $var); }; 
       }   
           
+    # from here it's an variable that is to expand
+ 
+    if ($in_ignore_part)
+      { pos($$r_line)= $p;
+        return(VE_DONE,''); 
+      }
+
     if (!($type & SM_INDEXED))
       { # not an array expression
         
         if (defined $callback)
           { 
-	    chback();
+            chback();
             &$callback($var); 
           }
         if (!exists $m{$var})
@@ -1021,7 +1028,7 @@ sub variable_expand
         else
           { return(VE_DONE,rec_eval($m{$var},$r_line,$p)); };
       };
-      
+    
     # from here: it's an index expression
     if ($index=~/\$/)
       { # a "complicated" expression
@@ -1031,7 +1038,7 @@ sub variable_expand
     
         if (defined $callback)
           { 
-	    chback();
+            chback();
             &$callback($var,$index); 
           }
         
@@ -1089,14 +1096,14 @@ sub mk_perl_varnames
       { pos($line)=0;
         while ($line=~/\G.*?\$m\{(\w+)\}/g) 
           { 
-	    chback();
+            chback();
             &$callback($1); 
           
           };
         pos($line)=0;
         while ($line=~/\G.*?\$m\{(\w+)\}->\[(\d+)\]/g) 
           { 
-	    chback();
+            chback();
             &$callback($1,$2); 
           };
       };
