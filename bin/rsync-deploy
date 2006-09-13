@@ -1,13 +1,5 @@
 #!/usr/bin/zsh -f
 
-# bold and normal for xterm/vt100 
-B=""
-b=""
-if [[ $TERM == "xterm" ]]; then
-    B="[1m"
-    b="[0m"
-fi
-
 help () {
     cat << EOF
 
@@ -37,9 +29,9 @@ ${B}DEPLOYMENT:${b}
     ${B}rsync-deploy [deploy] [-v] [-c] dirs [var=value ...]${b}
 
 	1. DEST=\$RSYNC_TARGETS/\$RSYNC_TOP_NAME
-	2. unless -c : copy* version \$DEST/\$RSYNC_HEAD to \$DEST/YYYYmmdd-HHMMSS
-	3. rsync  --link-dest=\$DEST/\$RSYNC_HEAD "dirs" \$DEST/YYYYmmdd-HHMMSS
-	4. create a tag \$RSYNC_HEAD to point to \$DEST/YYYYmmdd-HHMMSS
+	2. unless -c : copy* version \$DEST/\$RSYNC_HEAD to \$DEST/$RSYNC_DATETIME
+	3. rsync  --link-dest=\$DEST/\$RSYNC_HEAD "dirs" \$DEST/$RSYNC_DATETIME
+	4. create a tag \$RSYNC_HEAD to point to \$DEST/$RSYNC_DATETIME
 
 	the optional "-v" is passed to the cp and rsync commands
 	*) copy in step 2. means: "cp -al" - hard-link files instead of copying
@@ -68,12 +60,20 @@ ${B}TAGS:${b}
 	lists all available versions (directories) in the target-location
 
 ${B}SEE ALSO:${b}
-    man rsync   - for -rclptDHEIR --link-dest=... options
+    man rsync   - for -rclptDHIR --link-dest=... options
     man cp      - for -l option
 
 EOF
     exit 0
 }
+
+# bold and normal for xterm/vt100 
+B=""
+b=""
+if [[ $TERM == "xterm" ]]; then
+    B="[1m"
+    b="[0m"
+fi
 
 if [[ $# = 0 ]] ; then
     help
@@ -140,12 +140,13 @@ done
 # RSYNC_TOP_NAME is the name of the TOP-Directory, defaults to the name of the current-directory
 RSYNC_TOP_NAME=${RSYNC_TOP_NAME:-$PWD:t}
 # where to deploy files/directories to
-#DEFAULT_TARGETS=(aragon:/projects/ctl/$USER/target-area snow:rsynctest/target)
+#DEFAULT_TARGETS=(aragon:/projects/ctl/birke/target-area snow:rsynctest/target)
 RSYNC_TARGETS=(${RSYNC_TARGETS:-$DEFAULT_TARGETS})
+RSYNC_FILES=(${RSYNC_FILES:-})
 RSYNC_HEAD=(${RSYNC_HEAD:-HEAD})
 
 export RSYNC_RSH=${RSYNC_SSH:-ssh}
-RSYNC_ARGS=(-rclptDHEIR)
+RSYNC_ARGS=(-rclptDHIR)
 
 if $verbose; then
     RSYNC_ARGS=($RSYNC_ARGS -v)
@@ -243,7 +244,11 @@ deploy () {
     if $verbose; then cparg=-alv; else cparg=-al; fi
     if $copy; then ssh $RHOST "cd $RTOP; cp $cparg $RSYNC_HEAD/ $RSYNC_DATETIME"; : $[ rc += $? ]; fi
     rsync $RSYNC_ARGS --link-dest=$RTOP/$RSYNC_HEAD $RSYNC_DIRS $RHOST:$RTOP/$RSYNC_DATETIME/; : $[ rc += $? ]
-    ssh $RHOST "cd $RTOP; echo $VDATE $USER@$HOST:$PWD $cmd $@ >>.deploy-history"; : $[ rc += $? ]
+    ssh $RHOST "cd $RTOP;
+		echo $VDATE $USER@$HOST:$PWD $cmd $@ >>.deploy-history; 
+                cd $RSYNC_DATETIME;
+	        find . -links 1 >/tmp/$$.txt && mv /tmp/$$.txt updated-files.txt;
+		ln -s ../`readlink ../$RSYNC_HEAD` previous-release"; : $[ rc += $? ]
     movetag $RHOST $RTOP $RSYNC_HEAD $RSYNC_DATETIME
 }
 
