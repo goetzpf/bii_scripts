@@ -40,7 +40,8 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		expander.pl subst2exp.pl grepDb.pl
 		dbfilter.pl
 		cvs_diff.pl cvs_log_diff.pl
-		sch_cvs_diff.pl SetPerms vdct);
+		sch_cvs_diff.pl SetPerms vdct
+		rsync-deploy);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
