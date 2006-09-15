@@ -11,7 +11,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 2.3;
+    $VERSION     = 2.4;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -106,9 +106,12 @@ my %arg_keywords= (set     => KY_STD|KY_BLOCK|KY_REPLACE,
                    if      => KY_STD,
                    include => KY_STD,
                    for     => KY_STD,
+                   for_noblock => KY_STD,
                    comment => KY_STD,
                    debug   => KY_STD,
                    export  => KY_STD,
+                   list    => KY_STD,
+                   list_new=> KY_STD,
                    );
 
 my %functions;
@@ -414,7 +417,7 @@ sub parse_scalar_i
                 pos($$r_line)= $en+1;
                 next;
               }
-            elsif  ($ex eq 'for')
+            elsif  (($ex eq 'for') || ($ex eq 'for_noblock'))
               { 
 #warn "start matching at: " . (pos($$r_line)-1);
                 my $sub= substr($$r_line,$st+1,$en-$st-1);
@@ -426,16 +429,20 @@ sub parse_scalar_i
                     fatal_parse_error($r_line,$p); 
                   };
                 
+                my $m_stacked;
                 if ($ifcond[-1]>0) 
                   { # do not evalutate the for-condition
                     # when we are within an ignore-block
                     $err_line= __LINE__;
                     # do a backup of all variables, like "$begin" does:
-                    my %backup= %m;
-                    push @m_stack, \%backup;
+                    if ($ex eq 'for')
+                      { my %backup= %m;
+                        push @m_stack, \%backup;
+                        $m_stacked= 1;
+                      };
                     eval_part($pre,$r_line,$p);
                   };
-                push @forstack, [$en+1,$cond,$loop];
+                push @forstack, [$en+1,$cond,$loop,$m_stacked];
                 pos($$r_line)= $en+1;
                 next;   
               }
@@ -474,6 +481,55 @@ sub parse_scalar_i
                   } 
                 pos($$r_line)= $en+1;
                 next;
+              }
+            elsif  (($ex eq 'list') || ($ex eq 'list_new')) 
+              { 
+                if ($ifcond[-1]>0) 
+                  {
+                    my $sub= substr($$r_line,$st+1,$en-$st-1);
+
+                    if ($sub!~ /^\s*(\d*)\s*(?:,\s*"(.+)"|)\s*(?:,\s*(.+)|)$/) 
+                      { $err_pre= "argument error in \$list: \"$sub\""; 
+                        $err_line= __LINE__;
+                        fatal_parse_error($r_line,$p); 
+                      };
+
+                    my $len= $1;
+                    my $sep= $2;
+                    my $rest= $3;
+                    my %keep;
+                    if (defined $rest)
+                      { my @elms= split(/\s*,\s*/,$rest);
+                        foreach my $elm (@elms)
+                          { 
+                            if ($elm!~/[\$\@](\w+)/)
+                              { $err_pre= "argument error in \$list: \"$sub\""; 
+                                $err_line= __LINE__;
+                                fatal_parse_error($r_line,$p); 
+                              };
+                            $keep{$1}= 1;
+                          };
+                      };  
+                    
+
+                    my $format= "%-${len}s=\"%s\"$sep\n";
+
+                    my @l= sort keys %m;
+                    if (($ex eq 'list_new') && ($#m_stack>=0))
+                      { my $r_backup= $m_stack[-1];
+                        @l= grep { (!exists($r_backup->{$_})) ||
+                                   (exists $keep{$_}) 
+                                 } @l;
+                      };   
+
+                    my $last= pop @l;
+                    foreach my $k (@l)
+                      { printf $format, $k, $m{$k}; };
+                    printf "%-${len}s=\"%s\"\n", $last, $m{$last};
+
+                  };
+                pos($$r_line)= $en+1;
+                next; 
               }
             else
               { die "internal error"; }  
@@ -579,7 +635,7 @@ sub parse_scalar_i
                     next;
                   };
                 
-                my($pos1,$cond,$loop)= @{$forstack[-1]};
+                my($pos1,$cond,$loop,$m_stacked)= @{$forstack[-1]};
                 
                 $err_line= __LINE__;
                 eval_part($loop,$r_line,$pos1);
@@ -597,13 +653,16 @@ sub parse_scalar_i
                 else
                   { # leave for-loop:
                     pop @forstack; 
-                    if ($#m_stack<0)
-                      { $err_pre= "single \"end\" within for-block";
-                        $err_line= __LINE__;
-                        fatal_parse_error($r_line,$p);  
+                    if ($m_stacked)
+                      { 
+                        if ($#m_stack<0)
+                          { $err_pre= "single \"end\" within for-block";
+                            $err_line= __LINE__;
+                            fatal_parse_error($r_line,$p);  
+                          };
+                        my $r_back= pop @m_stack;
+                        %m= %$r_back;
                       };
-                    my $r_back= pop @m_stack;
-                    %m= %$r_back;
                   };
                 next;
               }
@@ -642,6 +701,7 @@ sub parse_scalar_i
 
     if ((exists $options{filename}) || (exists $options{scalarref}))
       { close(F); };
+    chback();  
   }
 
 sub eval_part
@@ -1159,7 +1219,7 @@ sub find_file
   }  
 
 sub chback
-  { return if (!$in_first_searchpath);
+  { return if (!defined $orig_dir);
     chdir($orig_dir) or die "unable to chdir to \"$orig_dir\""; 
     $in_first_searchpath= 0;
   }
@@ -1396,6 +1456,13 @@ Here is another example with arrays:
     NAME= "element: $chars[$i]"
   $endfor
 
+=item I<for_noblock>
+
+  $for_noblock(<init expression>;<condition>;<loop statement>)
+  
+This command is similar to $for except that it doesn not implicitly
+start a new $begin-$end block.
+
 =item I<endfor>
   
   $endfor
@@ -1425,7 +1492,27 @@ to the state they had before the block started.
 This statement can be used within a block (see $begin). It exports
 the local variables (given as a comma-separated list) to
 the variable-settiing outside the block.  
+
+=item I<list>
   
+  $list(10,",")
+  
+Prints a list of all defined variables in the form of key=value 
+pairs. The first parameter is the width of the key column, 
+the second parameter is the separator string that separates
+each key-value pair.
+
+=item I<list_new>
+  
+  $list_new(10,",",$var1,$var2)
+
+This command is similar to $list except that it prints only 
+variables that have been new defined in the current block
+(see $begin and $end). The parameters after the 2nd parameter
+are an optional list of variables, which will also be printed
+although they were already defined in the previous block. This
+is useful, when the current block has re-defined a variable 
+that already existed, and this variable shall be printed, too.
 
 =item I<silent>
   
