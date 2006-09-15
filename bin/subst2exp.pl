@@ -14,12 +14,13 @@ use strict;
 
 use FindBin;
 use Getopt::Long;
+use Text::ParseWords;
 use parse_subst;
 
-use vars qw($opt_help $opt_summary $opt_global);
+use vars qw($opt_help $opt_summary $opt_global $opt_simple $opt_reverse);
 
 
-my $sc_version= "1.0";
+my $sc_version= "1.1";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "convert substitution-files to expander format"; 
@@ -31,7 +32,7 @@ my $debug= 0; # global debug-switch
 
 #Getopt::Long::config(qw(no_ignore_case));
 
-if (!GetOptions("help|h","summary","global|g",
+if (!GetOptions("help|h","summary","global|g","simple|s","reverse|r"
                 ))
   { die "parameter error!\n"; };
 
@@ -50,7 +51,13 @@ if ($opt_summary)
 undef $/;
 my $st= <>;
 
-my $r_templates= parse_subst::parse($st);
+if (defined $opt_simple)
+  { my $r_h= parse_simple(\$st); 
+    print_hash($r_h);
+    exit(0);
+  }
+
+my $r_templates= parse_subst::parse(\$st);
 
 
 foreach my $k (sort keys %$r_templates)
@@ -65,19 +72,53 @@ foreach my $k (sort keys %$r_templates)
 	print "\$begin\\\n" if (!$opt_global);
 
 #    parse_subst::dump($r_h); die;
+        print_hash($r_h); 
 
-	print "\$set(\n";
-	foreach my $n (sort keys %$r_h)
-	  { my $val= $r_h->{$n};
-	    $val=~ s/([\$\@])/\\\\$1/g;
-	    printf "     \$%-15s = \"%s\";\n",$n,$val; 
-	  }
-	print "    )\\\n";
 	print "\$include(\"$k\")\\\n";
 	print "\$end\\\n" if (!$opt_global);
       }    
   }
 # fit in program text here
+
+sub print_hash
+  { my($r_h)= @_;
+  
+    if (!$opt_reverse)
+      { print "\$set(\n";
+        my $val;
+	foreach my $n (sort keys %$r_h)
+	  { $val= $r_h->{$n};
+	    $val=~ s/([\$\@])/\\\\$1/g;
+	    printf "     \$%-15s = \"%s\";\n",$n,$val; 
+	  }
+        print "    )\\\n";
+      }
+    else
+      {	print "\\\$set(\n";
+        foreach my $n (sort keys %$r_h)
+	  { printf "     \\\$%-15s = \"%s\";\n",$n,$r_h->{$n}; 
+	  }
+        print "    )\\\n";
+      }
+  }    
+
+sub parse_simple
+  { my($r_st)= @_;
+    my @words;
+    my %words;
+  
+    my @l= split(/\s*,\s*[\r\n]+/,$$r_st); 
+    
+    foreach my $l (@l) 
+      { push @words, quotewords(q([\s\r\n]*[=,][\s\r\n]*),0,$l); }; 
+      
+    if ((($#words+1) & 1) == 1)
+      { die "file cannot be parsed (odd number of words)"; };
+    
+    %words= @words;  
+    
+    return(\%words);
+  }    
 
 # ------------------------------------------------
 
@@ -106,6 +147,12 @@ Syntax:
     -h: help
     --summary: give a summary of the script
     -g use only global variables (no \$begin or \$end)
+    -s --simple : the input is not a regular substitution-file 
+      but a file containing name-value pairs, each one in a single line
+      like in 
+        MYVAR="MYCONTENT"
+    -r : quote the dollar-signs in the variable names instead of 
+         dollar-sings in the contents	
     
   example of usage:
   1. with global variables (more msi-compatible), searches template files
