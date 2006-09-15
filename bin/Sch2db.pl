@@ -8521,7 +8521,7 @@ sub db_prepare
 	    $r_rec->{DESC}=~ s/\$/VAR/g;
 	  };
 	if ($var_to_desc)        
-	  { $r_rec->{DESC}= '$(DESCNAME)'; }
+	  { $r_rec->{DESC}= '$(DESCVAR)'; }
 	
       };	
   }  
