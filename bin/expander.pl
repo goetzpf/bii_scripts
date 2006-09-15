@@ -14,6 +14,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 
 use strict;
 use Data::Dumper;
+use Cwd;
 
 use FindBin;
 
@@ -42,7 +43,7 @@ use vars qw($opt_help $opt_summary @opt_file
 	    $opt_recursive);
 
 
-my $sc_version= "1.3";
+my $sc_version= "1.4";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "performs expansion of macros in a file"; 
@@ -121,13 +122,39 @@ if (!@files)
     exit(0);
   } 
 
+
 foreach my $f (@files)
   { 
-    expander::parse_file($f,%expand_options); 
+    expander::parse_file(find_file($f,@ipaths),%expand_options); 
   };
 
 
 # ------------------------------------------------
+
+sub find_file
+  { my($file,@paths)= @_;
+ 
+    return($file) if (-r $file);
+
+    return if (!@paths);
+    
+    my $orig_dir= cwd();
+
+    for(my $i=0; $i<= $#paths; $i++)
+      { 
+        if (!chdir($paths[$i]))
+          { warn "warning: path \"$paths[$i]\" is not valid"; 
+            next;
+          };
+              
+        if (-r $file)
+          { # move the matching path to front :
+            chdir($orig_dir) or die "unable to chdir to \"$orig_dir\"";
+            return(File::Spec->catfile($paths[$i],$file)); 
+          };
+      };
+    return;
+  }  
 
 sub print_summary
   { printf("%-20s: $sc_summary\n",
