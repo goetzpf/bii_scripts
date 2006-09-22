@@ -114,6 +114,9 @@ if (@macros)
   }
 # ------------------------------------------------
 
+if (@ARGV)
+  { push @files, @ARGV; };
+
 if (!@files)
   { local $/;
     undef $/;
@@ -182,6 +185,8 @@ Usage:
     -f [file]: process file(s)
       if the option is not defined, the input is 
       read from standard-input
+      NOTE: -f can be omitted when the files are the last
+      arguments given to $sc_name
     --summary: give a summary of the script
     -m [name=value] define a macros 
       more than one -m option is allowed
