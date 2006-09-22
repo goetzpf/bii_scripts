@@ -14,11 +14,12 @@ use strict;
 
 use FindBin;
 use Getopt::Long;
+use IO::Handle;
 
 use vars qw($opt_help $opt_summary
             $opt_file $opt_name
 	    $opt_time $opt_val
-	    $opt_regexp);
+	    $opt_regexp $opt_progress);
 
 
 my $sc_version= "0.9";
@@ -35,7 +36,7 @@ my $debug= 0; # global debug-switch
 
 if (!GetOptions("help|h","summary", "file|f=s", 
                 "name|n=s", "time|t=s", "val|v=s",
-		"regexp|r=s"
+		"regexp|r=s", "progress|p"
                 ))
   { die "parameter error!\n"; };
 
@@ -48,6 +49,8 @@ if ($opt_summary)
   { print_summary();
     exit;
   };
+  
+STDERR->autoflush(1);  
 
 mk_regexp("n_regexp",$opt_name);
 mk_regexp("t_regexp",$opt_time);
@@ -55,7 +58,8 @@ mk_regexp("v_regexp",$opt_val);
 mk_regexp("r_regexp",$opt_regexp);
 
 my $r_lines= slurp($opt_file);
-my $r_h= mk_hash($r_lines,$opt_name,$opt_time,$opt_val,$opt_regexp);
+my $r_h= mk_hash($r_lines,
+                 $opt_name,$opt_time,$opt_val,$opt_regexp);
 print_sorted($r_h);
 exit(0);
 
@@ -87,50 +91,66 @@ sub slurp
 #    undef $/;
     local(*F);
     my @lines;
+    my $cnt=100;
     
     if (defined $file)
       { open(F,$file) || die "unable to open $file"; }
     else
       { *F= *STDIN; };
-    
+
     while(my $st=<F>)
-      { chomp($st);
+      { if ($opt_progress)
+          { if (--$cnt==0)
+	      { print STDERR '.';
+	        $cnt= 100;
+	      }; 
+	  };    
+        chomp($st);
         push @lines,$st;
       };
 
     if (defined $file)
       { close(F); }; 	
     
+    print STDERR "\n" if ($opt_progress);
+        
     return(\@lines);
   }
 
 sub mk_hash
-  { my($r_lines,$regexp,$t_regexp,$v_regexp,$regexp)= @_;
+  { my($r_lines,$n_regexp,$t_regexp,$v_regexp,$r_regexp)= @_;
     my %h;
+    my $cnt=100;
     
     for(my $i=0; $i<=$#$r_lines; $i++)
-      {
+      { if ($opt_progress)
+          { if (--$cnt==0)
+	      { print STDERR ':';
+	        $cnt= 100;
+	      }; 
+          };
         my $line= $r_lines->[$i];
         my @a= split(/\s+/,$line);
         
-	if (defined $regexp)
-	  {
-	    next if (!n_regexp($a[0])); 
-	  };
+	if (defined $n_regexp)
+	  { next if (!n_regexp($a[0]));  };
 	  
+	next if ($a[1] eq '<undefined>');
+	
 	if (defined $t_regexp)
 	  { next if (!t_regexp($a[1] . " " . $a[2])); };  
 
 	if (defined $v_regexp)
 	  { next if (!v_regexp($a[3])); };  
 
-	if (defined $v_regexp)
+	if (defined $r_regexp)
 	  { next if (!r_regexp($line)); };  
 	
 	my $key= $a[1] . "," . $a[2] . "," . $a[0];
 #print "$key->",$line,"\n";
 	$h{$key}= $line;
       };
+    print STDERR "\n" if ($opt_progress);
     return(\%h);
   }
   
@@ -182,7 +202,8 @@ Syntax:
 	  print only records where the value is an integer
 	-v '(enabled|disabled)'
 	  print only records where the value is "enabled" or "disabled"  
-    -r [regexp] print only lines where the LINE matches the regexp	     
+    -r [regexp] print only lines where the LINE matches the regexp
+    -p show progress on STDERR
 END
   }
 
