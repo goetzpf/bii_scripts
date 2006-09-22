@@ -16,7 +16,7 @@ use FindBin;
 use Getopt::Long;
 
 use vars qw($opt_help $opt_summary
-            $opt_file $opt_regexp
+            $opt_file $opt_name
 	    $opt_time $opt_val);
 
 
@@ -33,7 +33,7 @@ my $debug= 0; # global debug-switch
 #Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary", "file|f=s", 
-                "regexp|r=s", "time|t=s", "val|v=s"
+                "name|n=s", "time|t=s", "val|v=s"
                 ))
   { die "parameter error!\n"; };
 
@@ -47,12 +47,12 @@ if ($opt_summary)
     exit;
   };
 
-mk_regexp("n_regexp",$opt_regexp);
+mk_regexp("n_regexp",$opt_name);
 mk_regexp("t_regexp",$opt_time);
 mk_regexp("v_regexp",$opt_val);
 
 my $r_lines= slurp($opt_file);
-my $r_h= mk_hash($r_lines,$opt_regexp,$opt_time,$opt_val);
+my $r_h= mk_hash($r_lines,$opt_name,$opt_time,$opt_val);
 print_sorted($r_h);
 exit(0);
 
@@ -161,7 +161,7 @@ Syntax:
     -h: help
     --summary: give a summary of the script
     -f [file]: read that file, otherwise read STDIN
-    -r [regexp]: filter record names (records must match this)
+    -n [regexp]: filter record names (records must match this)
     -t [regexp]: filter times (times must match this)
       examples:
         -t 2006-09-14
