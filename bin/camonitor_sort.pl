@@ -17,7 +17,8 @@ use Getopt::Long;
 
 use vars qw($opt_help $opt_summary
             $opt_file $opt_name
-	    $opt_time $opt_val);
+	    $opt_time $opt_val
+	    $opt_regexp);
 
 
 my $sc_version= "0.9";
@@ -33,7 +34,8 @@ my $debug= 0; # global debug-switch
 #Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary", "file|f=s", 
-                "name|n=s", "time|t=s", "val|v=s"
+                "name|n=s", "time|t=s", "val|v=s",
+		"regexp|r=s"
                 ))
   { die "parameter error!\n"; };
 
@@ -50,9 +52,10 @@ if ($opt_summary)
 mk_regexp("n_regexp",$opt_name);
 mk_regexp("t_regexp",$opt_time);
 mk_regexp("v_regexp",$opt_val);
+mk_regexp("r_regexp",$opt_regexp);
 
 my $r_lines= slurp($opt_file);
-my $r_h= mk_hash($r_lines,$opt_name,$opt_time,$opt_val);
+my $r_h= mk_hash($r_lines,$opt_name,$opt_time,$opt_val,$opt_regexp);
 print_sorted($r_h);
 exit(0);
 
@@ -102,7 +105,7 @@ sub slurp
   }
 
 sub mk_hash
-  { my($r_lines,$regexp,$t_regexp,$v_regexp)= @_;
+  { my($r_lines,$regexp,$t_regexp,$v_regexp,$regexp)= @_;
     my %h;
     
     for(my $i=0; $i<=$#$r_lines; $i++)
@@ -120,6 +123,9 @@ sub mk_hash
 
 	if (defined $v_regexp)
 	  { next if (!v_regexp($a[3])); };  
+
+	if (defined $v_regexp)
+	  { next if (!r_regexp($line)); };  
 	
 	my $key= $a[1] . "," . $a[2] . "," . $a[0];
 #print "$key->",$line,"\n";
@@ -175,7 +181,8 @@ Syntax:
         -v '\d+'
 	  print only records where the value is an integer
 	-v '(enabled|disabled)'
-	  print only records where the value is "enabled" or "disabled"     
+	  print only records where the value is "enabled" or "disabled"  
+    -r [regexp] print only lines where the LINE matches the regexp	     
 END
   }
 
