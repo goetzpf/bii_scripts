@@ -1,11 +1,358 @@
-#/bin/sh
-if [[ ! -e ~/tmp ]]; then
-  mkdir ~/tmp
-fi
-f1=`basename $1`
-f2=`basename $2`
-dbsort $1 > ~/tmp/$f1.sorted.1
-dbsort $2 > ~/tmp/$f2.sorted.2
-tkdiff ~/tmp/$f1.sorted.1 ~/tmp/$f2.sorted.2
-rm ~/tmp/$f1.sorted.1
-rm ~/tmp/$f2.sorted.2
+eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
+    if 0;
+# the above is a more portable way to find perl
+# ! /usr/bin/perl
+
+# @STATUS: release
+# @PLATFORM: home bessy
+# @CATEGORY: search
+
+
+# [scriptname] -- describe the function here
+
+use strict;
+
+use FindBin;
+use File::Spec;
+use Getopt::Long;
+
+use parse_db;
+
+use vars qw($opt_help $opt_summary $opt_textmode 
+            $opt_parse $opt_parse_table
+	    $opt_name_regexp);
+
+my $sc_version= "1.0";
+
+my $sc_name= $FindBin::Script;
+my $sc_summary= "compares two db files";
+my $sc_author= "Benjamin Franksen/Goetz Pfeiffer";
+my $sc_year= "2006";
+
+my $debug= 0; # global debug-switch
+
+my $tmpdir= "$ENV{HOME}/tmp";
+
+
+Getopt::Long::config(qw(no_ignore_case));
+
+if (!GetOptions("help|h","summary","textmode|t", 
+                "parse|p", "parse_table|P", 
+		"name_regexp|n=s"
+                ))
+  { die "parameter error!\n"; };
+
+if ($opt_help)
+  { help();
+    exit;
+  };
+
+if ($opt_summary)
+  { print_summary();
+    exit;
+  };
+
+
+my $f1= shift @ARGV;
+die "filenames are missing" if (!defined $f1);
+my $f2= shift @ARGV;
+die "second filename is missing" if (!defined $f2);
+
+if ((defined $opt_parse) || defined ($opt_parse_table))
+  { 
+    parse_diff($opt_parse_table, $opt_name_regexp, $f1,$f2); 
+  }
+else
+  { diff($f1,$f2); };
+
+exit(0);
+# ------------------------------------------------
+
+# M RECORD-name - +  (missing in file 1)
+# T RECORD-name <type1> <type2>  (type differs)
+# F RECORD-name <field-name> <val1> <val2> (value differs)
+# "-" for value means: field not present
+
+sub mk_n_regexp
+  { my($regexp)= @_;
+  
+    return if (!defined $regexp);
+    
+    if ($regexp !~ /^\//)
+      { $regexp= '/' . $regexp . '/'; };
+
+    eval("sub n_regexp { my(\$x)=\@_; \$x=~ s$regexp; return(\$x); }");
+    if ($@)
+      { die "error: eval() failed, error-message:\n" . $@ . " "  };
+  }
+
+sub apply_name_regexp
+  { my($regexp, $f1)= @_;
+  
+    return($f1) if (!defined $regexp);
+    
+    my %new;
+    foreach my $k (keys %$f1)
+      { $new{n_regexp($k)}= $f1->{$k}; };
+    return(\%new);  
+  };
+
+
+sub parse_diff
+  { my($table_format, $n_regexp, $f1,$f2)= @_;
+  
+    my $r1= parse_db($f1);
+    my $r2= parse_db($f2);
+
+
+    mk_n_regexp($n_regexp);
+    $r1= apply_name_regexp($n_regexp, $r1);
+    $r2= apply_name_regexp($n_regexp, $r2);
+
+    #parse_db::dump($r1); die; 
+ 
+    my($r_only_in_1,$r_only_in_2,$r_in_both)=
+      cmp_hashkeys($r1, $r2);
+
+    if (@$r_only_in_1)
+      { if ($table_format)
+          { foreach my $k (@$r_only_in_1)
+	      { printf "M %-28s + -\n", $k; };
+	  }
+	else
+	  { print "records only present in $f1:\n";
+            foreach my $k (@$r_only_in_1)
+	      { print "    ",$k,"\n"; };
+          };
+      };
+    if (@$r_only_in_2)
+      { if ($table_format)
+          { foreach my $k (@$r_only_in_2)
+	      { printf "M %-28s - +\n", $k; };
+	  }
+	else
+	  { 
+            print "records only present in $f2:\n";
+            foreach my $k (@$r_only_in_2)
+	      { print "    ",$k,"\n"; };
+          }
+      };
+      
+    foreach my $r (@$r_in_both)
+      { cmp_hashes($table_format,
+                   $r,
+                   "    ",
+		   $r1->{$r}, $r2->{$r});
+      }; 
+  }
+
+
+sub cmp_hashes
+  { my($table_format, $recordname, $indent, $r1, $r2)= @_;
+    my $heading_printed;
+    my $heading= "fields in record $recordname differ in both files\n";
+
+    my $r_h1= $r1->{FIELDS};
+    my $r_h2 = $r2->{FIELDS};
+    
+    my $tp1= $r1->{TYPE};
+    my $tp2= $r2->{TYPE};
+    if ($tp1 ne $tp2)
+      { if ($table_format)
+      	  { printf "T %-20s %-10s %s\n", $recordname,$tp1,$tp2; }
+        else
+	  { $heading_printed= 1;
+	    print "type of record $recordname differs in both files\n";
+	    print $indent,"    ",$r1->{TYPE}," <--> ",$r2->{TYPE},"\n";
+	  };
+	return;  
+      };      
+    
+    my($r_only_in_1,$r_only_in_2,$r_in_both)=
+      cmp_hashkeys($r_h1, $r_h2);
+ 
+    if (@$r_only_in_1)
+      { if ($table_format)
+          { foreach my $k (@$r_only_in_1)
+	      { printf "F %-28s %-10s %-25s %s\n",
+	                $recordname, $k, $r_h1->{$k}, "-";
+	      }	       
+           }
+	else 
+	  { if (!$heading_printed)
+	      { print $heading;
+		$heading_printed= 1;
+	      };
+            print $indent,"only present in file 1:\n";
+            foreach my $k (@$r_only_in_1)
+	      { print $indent,"    ",$k,"\n"; };
+	  }
+      };
+      
+    if (@$r_only_in_2)
+      { if ($table_format)
+          { foreach my $k (@$r_only_in_2)
+	      { printf "F %-28s %-10s %-25s %s\n",
+	                $recordname, $k, "-", $r_h2->{$k};
+	      }	       
+           }
+	else 
+	  { if (!$heading_printed)
+	      { print $heading;
+		$heading_printed= 1;
+	      };
+            print $indent,"only present in file 2:\n";
+            foreach my $k (@$r_only_in_2)
+	      { print $indent,"    ",$k,"\n"; };
+	  }
+      };
+      
+
+    if ($table_format)
+      { foreach my $k (@$r_in_both)
+          { next if ($r_h1->{$k} eq $r_h2->{$k});
+	    printf "F %-28s %-10s %-25s %s\n",
+	                    $recordname, $k, $r_h1->{$k}, $r_h2->{$k};  
+          }
+      }
+    else
+      { 
+	my $head= $indent . "different in file 1 and file 2:\n";
+	foreach my $k (@$r_in_both)
+	  { next if ($r_h1->{$k} eq $r_h2->{$k});
+            if (!$heading_printed)
+	      { print $heading;
+		$heading_printed= 1;
+	      };
+            if (defined $head)
+	      { print $head;
+		$head= undef;
+	      };
+	    printf "$indent    %-10s: %-20s <--> %-20s\n",
+	            $k,$r_h1->{$k},$r_h2->{$k};
+    #	print $indent,"    ","$k: ",$r_h1->{$k}," <--> ",$r_h2->{$k},"\n";
+	  } 
+      }      
+  }
+
+	
+	
+sub cmp_hashkeys
+  { my($r_h1, $r_h2)= @_;
+    my %keys;
+    my @only_in_1;
+    my @only_in_2;
+    my @in_both;
+    
+    foreach my $k (sort keys %$r_h1)  
+      { $keys{$k}++; };  
+    foreach my $k (sort keys %$r_h2)  
+      { $keys{$k}++; }; 
+      
+    my $v;
+    foreach my $k (sort keys %keys)
+      { $v= $keys{$k};
+        if ($v==2)
+	  { push @in_both, $k; 
+	    next;
+	  };
+	if (exists $r_h1->{$k})
+	  { push @only_in_1, $k; }
+	else
+	  { push @only_in_2, $k; }
+      };  
+    return(\@only_in_1,\@only_in_2,\@in_both);
+  }	 
+ 
+sub parse_db
+  { my($f)= @_;
+    local $/;
+    local *F;
+    
+    open(F, $f) or die "unable to open $f";
+    my $st= <F>;
+
+    my $r= parse_db::parse($st,$f);
+    close(F);
+    return($r);
+  }  
+
+sub diff
+  { my($f1,$f2)= @_;
+
+    if (!-e $tmpdir)
+      { mkdir($tmpdir) or die "unable to create $tmpdir"; };
+
+    my $t1= mkpath($tmpdir, basename($f1) . 'sorted.1');
+    my $t2= mkpath($tmpdir, basename($f2) . 'sorted.2');
+
+    sys("dbsort $f1 > $t1"); 
+    sys("dbsort $f2 > $t2"); 
+
+    my $diff= (defined $opt_textmode) ? "diff" : "tkdiff";
+
+    sys("$diff $t1 $t2");
+
+    rm($t1);
+    rm($t2);
+  
+  }
+
+sub basename
+  { return( (File::Spec->splitpath($_[0]))[2] ); }
+
+sub mkpath
+  { return( File::Spec->catfile(@_)); }
+
+sub sys
+  { my($cmd)= @_;
+    return if (0==system($cmd));
+    return if ($?==256);
+    die "\"$cmd\" failed: $?";
+  }
+
+sub rm
+  { return if (1==unlink($_[0]));
+    warn "warning: file \"$_[0]\" could not be removed";
+  }
+
+
+# fit in program text here
+
+# ------------------------------------------------
+
+sub print_summary
+  { printf("%-20s: $sc_summary\n",
+           $sc_name);
+  }
+
+sub h_center
+  { my($st)= @_;
+    return( (' ' x (38 - length($st)/2)) . $st );
+  }
+
+sub help
+  { my $l1= h_center("**** $sc_name $sc_version -- $sc_summary ****");
+    my $l2= h_center("$sc_author $sc_year");
+    print <<END;
+
+$l1
+$l2
+
+Syntax:
+  $sc_name {options} [arg1] [arg2]
+
+  options:
+    -h: help
+    --summary: give a summary of the script
+    -t --textmode: use "diff" instead of "tkdiff"
+    -p --parse
+    -P --parse_table: the same as above but in
+      table format
+    -n [regexp]: apply this regexp to 
+      all record names before comparing them
+      (only with -p or -P)
+      
+END
+  }
+
