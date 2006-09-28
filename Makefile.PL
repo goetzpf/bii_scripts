@@ -38,7 +38,8 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
                 dbscan.pl set_ioc_tsrv.pl hgen.pl
                 canlink.pl filter_can_links.pl
 		expander.pl subst2exp.pl grepDb.pl
-		dbfilter.pl
+		dbfilter.pl makeDocCommonIndex.pl
+		makeDocPerl.pl makeDocTxt.pl
 		cvs_diff.pl cvs_log_diff.pl camonitor_sort.pl 
 		sch_cvs_diff.pl SetPerms vdct tkSQL
 		rsync-deploy);
