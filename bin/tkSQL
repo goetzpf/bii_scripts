@@ -22,8 +22,8 @@ package require BWidget
 # 
 #  Author(s):  Thomas Birke
 # 
-#  $Revision: 1.2 $
-#  $Date: 2006-02-14 11:18:32 $
+#  $Revision: 1.3 $
+#  $Date: 2006-09-28 08:36:45 $
 # 
 #  $Author: birke $
 # 
@@ -37,8 +37,8 @@ package require BWidget
 set Revision ""
 set Date ""
 set Author ""
-set CVS(Revision) "$Revision: 1.2 $"
-set CVS(Date) "$Date: 2006-02-14 11:18:32 $"
+set CVS(Revision) "$Revision: 1.3 $"
+set CVS(Date) "$Date: 2006-09-28 08:36:45 $"
 set CVS(Author) "$Author: birke $"
 
 regsub ": (.*) \\$" $CVS(Revision) "\\1" CVS(Revision)
@@ -81,6 +81,30 @@ array set recentlyLoadedModules {}
 array set autoloadModule {}
 
 set writeEnable 1
+
+proc getDelay {ms} {
+  set d -1
+  while {$d < 0} {
+    if {$ms < 0} {
+      set a [clock clicks]; set b [clock clicks]
+    } else {
+      set a [clock clicks]; after $ms; set b [clock clicks]
+    }
+    set d [expr $b - $a]
+  }
+  return $d
+}
+
+set d0 [getDelay 0]
+set d1 [getDelay 1]
+set offset [expr $d1 - $d0]
+set d1s [getDelay 1001]
+set msTick [expr ( $d1s - $offset ) / 1000]
+set msStmt 0
+
+set a [clock clicks]; set b [clock clicks]
+set d0 [expr $b - $a]
+set a [clock clicks]; after 1; set b [clock clicks]
 
 proc Split {str} {
   set s [split $str ";"]
@@ -155,7 +179,8 @@ proc DidIt {fmt sql} {
     "delete" {set msg "deleted"}
     ".*" {set fmt Done.\n\n}
   }
-  return [format $fmt $msg]
+  tmend
+  return [format $fmt "$msg ([expr 0.001 * $::msStmt]s oracle, [expr 0.001 * $::msAll]s total)"]
 }
 
 set OutputBufferSize 512
@@ -416,6 +441,7 @@ proc Exec {sql {mode plain}} {
 	set output {}
 	if {[message $GOSH sqltype] == 1} {
 	  fetchData  $GOSH ::res {lappend output $::res}
+	  tmend
 	  set x [oracols $GOSH]
 	  for {set i 0} {$i < [llength $x]} {incr i} {
 	    set ResultArr${ntables}(0,$i) [lindex $x $i]
@@ -865,6 +891,22 @@ proc basicHelp {{force 0}} {
   }
 }
 
+proc tmsql {GOSH sql} {
+  set ::a [clock clicks]
+  set ::b 0
+  orasql $GOSH $sql
+}
+
+proc tmend {} {
+  if {$::b == 0} {
+    set ::b [clock clicks]
+    set ::msStmt [expr ( $::b - $::a ) / $::msTick]
+  } else {
+    set ::b [clock clicks]
+    set ::msAll [expr ( $::b - $::a ) / $::msTick]
+  }
+}
+
 proc Orasql {sql} {
   global GOLH GOSH
 
@@ -879,7 +921,7 @@ proc Orasql {sql} {
     }
     return 0
   } else {
-    if [catch {orasql $GOSH $sql} result] {
+    if [catch {tmsql $GOSH $sql} result] {
       Print [message $GOSH error] largebold red
       return 0
     }
