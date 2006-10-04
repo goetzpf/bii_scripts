@@ -591,7 +591,7 @@ sub rec_link_fields
 	    if ($r_fields->{DTYP} ne 'Soft Channel')
 	      { next; };
 	  };	  
-        $val=~ s/[\. ]?(CA|CPP|NPP|NMS|PP)\s*//g;	    
+        $val=~ s/[\. ]?(CA|CPP|NPP|NMS|MS|PP)\s*//g;	    
 	$val=~ s/\s+$//;
 	# remove field-names:
 	$val=~ s/\.\w+$//;
