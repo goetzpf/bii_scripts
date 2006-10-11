@@ -159,16 +159,45 @@ proc parse_requests {} {
   }
 }
 
+proc tty_gets_no_echo {{prompt {}}} {
+  if {$prompt!=""} {
+    puts -nonewline stderr $prompt
+  }
+  flush stdout
+  global _tty_input _tty_wait tcl_platform
+  set _tty_input {}
+  set _tty_wait 0
+  fileevent stdin readable _tty_read_one_character
+  exec /bin/stty raw -echo <@stdin
+  set ::doEcho true
+  vwait ::_tty_wait
+  fileevent stdin readable {}
+  return $_tty_input
+}
+proc _tty_read_one_character {} {
+  set c [read stdin 1]
+  if {$c=="\n" || $c=="\003"} {
+    exec /bin/stty -raw echo <@stdin
+    puts stderr ""
+    if {$c=="\003"} exit
+    incr ::_tty_wait
+  } else {
+    if {$c == "@"} {set ::doEcho true}
+    if {$::doEcho} {
+      puts -nonewline stderr "$c"
+    } else {
+      puts -nonewline stderr "*"
+    }
+    flush stdout
+    if {$c == "/"} {set ::doEcho false}
+    append ::_tty_input $c
+  }
+}
+
 if [catch {set handle [oralogon $phrase]}] {
-  puts stderr "Couldn't connect to database without password!"
-  puts stderr "KEEP IN MIND, THAT THE PASSWORD APPEARS ON THE SCREEN AND STAYS VISIBLE!!!"
-  puts -nonewline stderr "Enter <username>/<password>@<database>: "
-  flush stderr
-  gets stdin phrase
-  if [catch {set handle [oralogon $phrase]}] {
-    puts stderr "Couldn't connect to database!"
-    puts stderr "ErrNo: [message $handle rc]"
-    puts stderr "[message $handle error]"
+  set phrase [tty_gets_no_echo "Enter <username>/<password>@<database> (your password will NOT be echoed!): "]
+  if {[catch {oralogon $phrase} handle]} {
+    puts stderr "$handle"
     exit 1
   }
 }
