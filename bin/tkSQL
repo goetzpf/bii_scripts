@@ -1,8 +1,7 @@
 #! /bin/sh
 # -*- tcl -*- \
-    if [ -d /opt/oracle/product/9.2.0 ]; \
-    then ORACLE_HOME=/opt/oracle/product/9.2.0; \
-         PATH=/opt/TclTk/ActiveTcl/bin:$PATH; \
+    if [ -d /opt/TclTk/ActiveTcl/bin ]; \
+    then PATH=/opt/TclTk/ActiveTcl/bin:$PATH; \
          exec oratclsh $0 ${1+"$@"}; \
     else exec wish $0 ${1+"$@"}; \
     fi
@@ -22,8 +21,8 @@ package require BWidget
 # 
 #  Author(s):  Thomas Birke
 # 
-#  $Revision: 1.3 $
-#  $Date: 2006-09-28 08:36:45 $
+#  $Revision: 1.4 $
+#  $Date: 2006-10-11 07:31:50 $
 # 
 #  $Author: birke $
 # 
@@ -37,8 +36,8 @@ package require BWidget
 set Revision ""
 set Date ""
 set Author ""
-set CVS(Revision) "$Revision: 1.3 $"
-set CVS(Date) "$Date: 2006-09-28 08:36:45 $"
+set CVS(Revision) "$Revision: 1.4 $"
+set CVS(Date) "$Date: 2006-10-11 07:31:50 $"
 set CVS(Author) "$Author: birke $"
 
 regsub ": (.*) \\$" $CVS(Revision) "\\1" CVS(Revision)
