@@ -30,6 +30,7 @@ my %add_args= (SHARE_DIR=> undef,
               );
 
 
+my $bdir= "bin/";
 my $ldir= "lib/perl/";
 
 my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl 
@@ -52,15 +53,23 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
 		scan_makefile.pm
 		);
                 
+my @script_pods= qw(rsync-dist.pl);
+
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm
-             scan_makefile.pm rsync-dist.pl);
+             scan_makefile.pm);
 
 
 my %pm;
 foreach my $m (@modules)
   { $pm{$ldir . $m}= '$(INST_LIB)/' . $m; }; 
 
+my %mp1;
+foreach my $p (@script_pods)
+  { my($body)= ($p=~ /^([^\.]+)/);
+    $mp1{$bdir . $p}= '$(INST_MAN1DIR)/' . $body . '.$(MAN1EXT)'; 
+  }; 
+  
 my %mp;
 foreach my $p (@pods)
   { my($body)= ($p=~ /^([^\.]+)/);
@@ -104,7 +113,7 @@ WriteMakefile(
                            }, # e.g., Module::Name => 1.1
     'EXE_FILES'         => [ map {"bin/$_"} @scripts ],
     'PM'                => \%pm,
-    'MAN1PODS'          => { },
+    'MAN1PODS'          => \%mp1,
     'MAN3PODS'          => \%mp,
     'PL_FILES'          => {'lib/perl/browsedb_conf.PL' => 
                             '$(INST_SCRIPT)/dummy'
