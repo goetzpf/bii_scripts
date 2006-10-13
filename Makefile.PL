@@ -49,10 +49,12 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
 		expander.pm
                 Options.pm cfgfile.pm  dbdrv.pm parse_db.pm 
                 BrowseDB/TkUtils.pm makeDocStyle.pm
+		scan_makefile.pm
 		);
                 
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
-             cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm);
+             cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm
+             scan_makefile.pm);
 
 
 my %pm;
