@@ -608,7 +608,7 @@ sub empty
   
     if (ref($st))
       { die "assertion" if (ref($st) ne 'ARRAY');
-        $st= $st[1]; 
+        $st= $st->[0]; 
       };
     return(1) if (!defined $st);
     return(1) if ($st eq "");
