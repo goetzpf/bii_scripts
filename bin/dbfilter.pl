@@ -38,12 +38,13 @@ use vars qw($opt_help $opt_summary
 	    $opt_unresolved_links_plain
 	    $opt_record_references
 	    $opt_allow_double
+	    $opt_single
 	    $opt_lowcal
 	    $opt_Lowcal
 	   );
 
 
-my $sc_version= "1.3";
+my $sc_version= "1.4";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files"; 
@@ -112,6 +113,7 @@ if (!GetOptions("help|h","summary",
 		"unresolved_links_plain",
 		"record_references|R=s",
 		"allow_double|A",
+		"single|S",
 		"lowcal", "Lowcal",
                 ))
   { die "parameter error!\n"; };
@@ -126,8 +128,14 @@ if ($opt_summary)
     exit;
   };
 
-if ($opt_allow_double)
-  { parse_db::handle_double_names(); };
+if    (defined $opt_allow_double)
+  { parse_db::handle_double_names(2); }
+elsif (defined $opt_allow_single)
+  { parse_db::handle_double_names(0); }
+else
+  { # merging of double record-names is the default
+    parse_db::handle_double_names(1); 
+  }
 
 my @files= @ARGV;
 my $single_file= ($#ARGV==0);
@@ -910,6 +918,9 @@ Syntax:
       db-file format       
 
     --allow_double -A : allow double record names 
+      (for debugging faulty databases)
+
+    --single -S : forbid double record names 
       (for debugging faulty databases)
 
     --lowcal: print records with DTYP=lowcal and decode
