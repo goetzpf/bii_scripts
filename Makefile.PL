@@ -54,7 +54,7 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm
-             scan_makefile.pm ../../bin/rsync-dist.pl);
+             scan_makefile.pm rsync-dist.pl);
 
 
 my %pm;
