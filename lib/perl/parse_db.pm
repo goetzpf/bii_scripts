@@ -7,7 +7,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.1;
+    $VERSION     = 1.2;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -25,7 +25,7 @@ use Data::Dumper;
 use Text::ParseWords;
 use Carp;
 
-our $treat_double_records=0;
+our $treat_double_records=1;
 
 my $space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
 
@@ -68,7 +68,13 @@ my $field_def= qr/\G
                       /x;
 
 sub handle_double_names
-  { $treat_double_records= 1; }
+  { my($mode)= @_;
+
+    if (($mode!=0) && ($mode!=1) && ($mode!=2))
+      { croak "invalid mode \"$mode\" in call to handle_double_names"; };
+
+    $treat_double_records= $mode; 
+  }
 
 sub parse
   { my($db,$filename)= @_;
@@ -99,16 +105,27 @@ sub parse
                 $r_this_record= { TYPE => $type, 
                                   FIELDS => $r_this_record_fields };
                 if (exists $records{$name})
-                  { 
-		    if ($treat_double_records)
+                  { if    ($treat_double_records==0)
+		      { warn "warning: record \"$name\" is at least defined " .
+		              "twice\n " .
+			      "re-definitions are ignored\n"; 
+                        $level=1;
+			next;
+		      }
+		    elsif ($treat_double_records==1)
+		      { $r_this_record= $records{$name};
+		        $r_this_record_fields= $r_this_record->{FIELDS};
+                        $level=1;
+			next;
+		      }
+		    elsif ($treat_double_records==2)
 		      { my $c=1; 
 			while (exists $records{"$name:$c"})
 			  { $c++; };
 			$name.= ":$c";
 		      }
 		    else
-		      { warn "warning: record \"$name\" is at least defined twice\n "; 
-		      };
+		      { die "assertion (treat_double_records)"; };
 		  };
                 $records{$name}= $r_this_record; 
                 $level=1;
@@ -269,13 +286,34 @@ screen.
 
 B<handle_double_names()>
 
-  parse_db::handle_double_names()
+  parse_db::handle_double_names($mode)
   
-Switch the parse-module into a mode that it can handle double 
-record-names by appending a number of each double name that 
-is encountered. A database defined that way is illegal, but
-this feature may be used to track down errors in databases that
-were generated.
+Determine how double record names are treated. The following
+modes are known:
+
+=over 4
+
+=item 0
+
+With $mode=0, a warning is printed and the
+second definition of the record is ignored.
+
+=item 1
+
+With $mode=1 (the default), the second record definition is merged with the
+first definition. Definitions of the same fields that come later
+in the file overwrite earlier definitions. This is the standard
+behaviour when the IOC loads a database file.
+
+=item 2
+
+With $mode=2, the parse-module handles double record-names by 
+appending a number of each double name that 
+is encountered. This feature may be used to track down errors 
+in databases that were generated with double record names without
+the intention to do so.
+
+=back
 
 =back
 
