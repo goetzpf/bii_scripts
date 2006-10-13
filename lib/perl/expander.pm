@@ -11,7 +11,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 2.4;
+    $VERSION     = 2.5;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -899,7 +899,7 @@ sub find_position_in_string
   }      
 
 sub simple_match
-# match a single variable or array-element
+# match a single variable or array-element or keyword or function
 # returns: 
 #   <type> 
 #   <start of var (pointing at '$' char)>, <end of var>, 
@@ -995,6 +995,7 @@ sub simple_match
 sub variable_expand
   { my($r_line, $p, $in_ignore_part)= @_;
   
+    # match a single variable or array-element or keyword or function
     my($type,$start,$end,$var,$index)= simple_match($r_line, $p);
 
     if ($type == SM_KEYWORD)
@@ -1008,7 +1009,14 @@ sub variable_expand
             fatal_parse_error($r_line,$p); 
           }
           
-        return(($type == SM_ARGKEYWORD) ? VE_ARGKEYWORD : VE_FUNC, 
+        # user functions within an ignore-part are:
+	#  ignored ;-)
+	if (($in_ignore_part) && ($type == SM_FUNC))
+	  { pos($$r_line)= $p;
+            return(VE_DONE,'$'); 
+          }; 
+	
+	return(($type == SM_ARGKEYWORD) ? VE_ARGKEYWORD : VE_FUNC, 
                $var, $m_start, $m_end); 
        }
 
@@ -1020,7 +1028,10 @@ sub variable_expand
       }
     
     if ($type == SM_EVAL) 
-      { if (!$in_ignore_part)
+      { # SM_EVAL: the name of the variable has to be evalutated,
+        # don't do this within an ignore-part
+        # (e.g. an if--then block that is to be skipped)
+        if (!$in_ignore_part)
           { $var= eval_part($var,$r_line,$start); 
             pos($$r_line)= $end+1;
           };  
@@ -1054,7 +1065,9 @@ sub variable_expand
     # from here it's an variable that is to expand
  
     if ($in_ignore_part)
-      { pos($$r_line)= $p;
+      { # do not lookup variables when within an ignore-part
+        # (e.g. an if--then block that is to be skipped)
+        pos($$r_line)= $p;
         return(VE_DONE,''); 
       }
 
@@ -1086,7 +1099,10 @@ sub variable_expand
         if (!$recursive)
           { return(VE_DONE,$m{$var}); }
         else
-          { return(VE_DONE,rec_eval($m{$var},$r_line,$p)); };
+          { # recursive evaluation: evaluate until there is 
+	    # no more macro to expand:
+	    return(VE_DONE,rec_eval($m{$var},$r_line,$p)); 
+	  };
       };
     
     # from here: it's an index expression
