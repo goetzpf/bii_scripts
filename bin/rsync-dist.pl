@@ -225,7 +225,7 @@ sub dist
        $remote_path, $r_local_paths,
        $logmessage, $tag, $world_readable)= @_;
 
-    die "remote_host missing" if (empty(\$r_remote_hosts));
+    die "remote_host missing" if (empty($r_remote_hosts));
     die "remote_path missing" if (empty($remote_path));
     die "log-message missing" if (empty($logmessage));
     die "local-path missing"  if (empty($r_local_paths));
@@ -607,7 +607,7 @@ sub empty
   { my($st)= @_;
   
     if (ref($st))
-      { die "assertion" if (ref($st) ne 'ARRAY');
+      { die "assertion:" . ref($st) if (ref($st) ne 'ARRAY');
         $st= $st->[0]; 
       };
     return(1) if (!defined $st);
