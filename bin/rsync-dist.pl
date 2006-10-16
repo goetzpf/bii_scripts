@@ -201,8 +201,7 @@ if (defined $opt_change_links)
   { my @files= split(/,/,$opt_change_links);
     my $source= shift @files;
     die "source missing" if (!defined $source);
-    if ($source=~ /local:(.*)/)
-      { $source= ver_from_file($1); };
+    $source= check_file_opt($source);
     change_link(0, $hosts[0],$opt_user,$path,$opt_message,$source,@files);
     exit(0);
   }
@@ -211,8 +210,7 @@ if (defined $opt_add_links)
   { my @files= split(/,/,$opt_add_links);
     my $source= shift @files;
     die "source missing" if (!defined $source);
-    if ($source=~ /local:(.*)/)
-      { $source= ver_from_file($1); };
+    $source= check_file_opt($source);
     change_link(1, $hosts[0],$opt_user,$path,$opt_message,$source,@files);
     exit(0);
   }
@@ -640,12 +638,24 @@ sub sh_rebuld_LAST
     return($str);
   }
 
+sub check_file_opt
+# when a path contains "<filename>", replace that
+# part of the string with the first line of the 
+# file (basically, see also ver_from_file() 
+  { my($source)= @_;
+    return($source) if ($source!~ /<([^>]+)>/);
+    my $ver= ver_from_file($1); 
+    $source=~ s/<[^>]+>/$ver/;
+    return($source);
+  }
+  
+
 sub ver_from_file
   { my($filename)= @_;
     local(*F);
     open(F, "$filename") or die "unable to open $filename\n";
     my $line=<F>;
-    $line=~ s/\s+was\s+created\s+$//;
+    $line=~ s/\s+.*$//;
     close(F);
     return($line);
   } 
@@ -862,13 +872,13 @@ Syntax:
 
     --change-links -C [source,filemask/files]
                 change symbolic links on the remote server
-		if source is "local:<filename>" take the source-directory
-		from the first line in file <filename>
+		if source is contains the string "<filename>", replace that part
+		with the first word in the first line from that file 
 
     --add-links [source,files]
                 add links on the remote server
-		if source is "local:<filename>" take the source-directory
-		from the first line in file <filename>
+		if source is contains the string "<filename>", replace that part
+		with the first word in the first first line from that file 
 
     --rm-lock 
                 remove the lockfile in case is
