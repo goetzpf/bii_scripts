@@ -276,7 +276,7 @@ sub dist
   
     my $rcmd= sh_mklock($from) .
 	      ' && ' .
-              sh_handle_attic() .
+              sh_handle_attic($log,$chg) .
 	      ' && ' .
 	      'date +%Y-%m-%dT%H:%M:%S > STAMP && ' .
 	      'if test -e LAST ; ' .
@@ -354,7 +354,7 @@ sub move_file
     my $rcmd= 
         	sh_mklock($from) .
 	        ' && ' .
-                sh_handle_attic() .
+                sh_handle_attic($log,$chg) .
 	        ' && ' .
 		'if test -e LINKS-*;' .
 		"then grep $dir LINKS-*;" .
@@ -501,7 +501,7 @@ sub change_link
 	      'else ' .
 	        sh_mklock($from) .
 	        ' && ' .
-                sh_handle_attic();
+                sh_handle_attic($log);
 		
     if ($do_add)
       { $rcmd.= ' && ' . sh_must_all_not_exist(@files)  . ' && ';
@@ -576,12 +576,14 @@ sub sh_mklock
   }	   
 
 sub sh_handle_attic
-  { return( 'if ! test -d attic;' .
+  { my(@files)= @_;
+    my $files= join(" ",@files);
+  
+    return( 'if ! test -d attic;' .
             'then mkdir attic &&' .
-	         "touch $dist_log && " .
-		 "touch $dist_changes;" .
+	         "touch $files;" .
             'fi && ' .
-	    'cp LOG-* CHANGES-* attic'
+	    "cp $files attic"
 	    );
   }	    
 	    
@@ -655,6 +657,7 @@ sub ver_from_file
     local(*F);
     open(F, "$filename") or die "unable to open $filename\n";
     my $line=<F>;
+    chomp($line);
     $line=~ s/\s+.*$//;
     close(F);
     return($line);
