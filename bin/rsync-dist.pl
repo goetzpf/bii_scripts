@@ -25,7 +25,9 @@ use vars qw($opt_help $opt_summary $opt_debug
 	    $opt_cat_log $opt_cat_changes
 	    $opt_tail_log $opt_tail_changes
 	    $opt_tag
-	    $opt_ls $opt_rm_lock
+	    $opt_ls 
+	    $opt_rm_lock
+	    $opt_mk_lock
 	    $opt_add_links
 	    $opt_change_links
 	    $opt_ls_tag 
@@ -38,10 +40,11 @@ use vars qw($opt_help $opt_summary $opt_debug
 	    $opt_to_attic
 	    $opt_from_attic
 	    $opt_world_readable
+	    $opt_show_env
             );
 
 
-my $sc_version= "0.9";
+my $sc_version= "1.0";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "rsync-deploy in perl"; 
@@ -59,13 +62,13 @@ my $link_log= 'LOG-LINKS';
 my $dist_changes= 'CHANGES-DIST';
 my $link_changes= 'CHANGES-LINKS';
 
-my %env_opts= (RSYNC_DIST_HOST      => \@hosts,
-               RSYNC_DIST_USER      => \$opt_user,
-	       RSYNC_DIST_PATH      => \$opt_path,
-	       RSYNC_DIST_LINKPATH  => \$opt_linkpath,
-	       RSYNC_DIST_LOCALPATH => \@localpaths,
-	       RSYNC_DIST_MESSAGE   => \$opt_message,
-	       RSYNC_DIST_TAG       => \$opt_tag,
+my %env_opts= (RSYNC_DIST_HOST      => [\@hosts, '--host'],
+               RSYNC_DIST_USER      => [\$opt_user, '--user'],
+	       RSYNC_DIST_PATH      => [\$opt_path, '--path'],
+	       RSYNC_DIST_LINKPATH  => [\$opt_linkpath, '--linkpath'],
+	       RSYNC_DIST_LOCALPATH => [\@localpaths, '--localpath'],
+	       RSYNC_DIST_MESSAGE   => [\$opt_message, '--message'],
+	       RSYNC_DIST_TAG       => [\$opt_tag, '--tag']
 	      );
 
 if (!@ARGV)
@@ -74,8 +77,6 @@ if (!@ARGV)
 # catch things like "-ls", Getopt::Long would otherwise
 # take this as "-l s" ...
 
-process_environment(\%env_opts);
-
 foreach my $opt (@ARGV)
   { die "unknown option: $opt" if ($opt=~ /^-[^-]{2,}/); };
   
@@ -83,16 +84,18 @@ Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary","host|H=s" => \@hosts,
                 "debug",
-		"dist|d", "user|u=s", 
+		"dist|d:s", "user|u=s", 
 		"path|p=s",
-		"linkpath=s",
+		"linkpath|P=s",
 		"localpath|l=s" => \@localpaths,
 		"message|m=s",
 		"cat_log|cat-log|c",
 		"tail_log|tail-log:i",
 		"cat_changes|cat-changes",
 		"tail_changes|tail-changes:i",
-		"ls","rm_lock|rm-lock",
+		"ls",
+		"rm_lock|rm-lock",
+		"mk_lock|mk-lock",
 		"change_links|change-links|C=s",
 		"add_links|add-links=s",
 		"tag|t=s",
@@ -105,6 +108,7 @@ if (!GetOptions("help|h","summary","host|H=s" => \@hosts,
 		"to_attic|to-attic=s",
 		"from_attic|from-attic=s",
 		"world_readable|world-readable|w",
+		"show_env|show-env"
                 ))
   { die "parameter error!\n"; };
 
@@ -119,6 +123,14 @@ if ($opt_man)
 @hosts = split(/[,\s:]+/,join(',',@hosts));
 
 @localpaths = split(/[,\s:]+/,join(',',@localpaths));
+
+if ($opt_show_env)
+  { process_environment(\%env_opts, 1); 
+    exit(0);
+  }
+else 
+  { process_environment(\%env_opts);
+  };
 
 if ($opt_summary)
   { print_summary();
@@ -176,7 +188,12 @@ if (defined $opt_ls_version)
   }
 
 if (defined $opt_rm_lock)
-  { rm_lock($hosts[0],$opt_user,$path);
+  { rm_lock($hosts[0],$opt_user,$path,'remove');
+    exit(0);
+  }
+
+if (defined $opt_mk_lock)
+  { rm_lock($hosts[0],$opt_user,$path,'create');
     exit(0);
   }
 
@@ -184,6 +201,8 @@ if (defined $opt_change_links)
   { my @files= split(/,/,$opt_change_links);
     my $source= shift @files;
     die "source missing" if (!defined $source);
+    if ($source=~ /local:(.*)/)
+      { $source= ver_from_file($1); };
     change_link(0, $hosts[0],$opt_user,$path,$opt_message,$source,@files);
     exit(0);
   }
@@ -192,6 +211,8 @@ if (defined $opt_add_links)
   { my @files= split(/,/,$opt_add_links);
     my $source= shift @files;
     die "source missing" if (!defined $source);
+    if ($source=~ /local:(.*)/)
+      { $source= ver_from_file($1); };
     change_link(1, $hosts[0],$opt_user,$path,$opt_message,$source,@files);
     exit(0);
   }
@@ -199,7 +220,8 @@ if (defined $opt_add_links)
 if (defined $opt_dist)
   { dist(\@hosts,$opt_user,$path,\@localpaths, 
          $opt_message, $opt_tag,
-  	 $opt_world_readable);
+  	 $opt_world_readable,
+	 $opt_dist);
     exit(0);
   }
          
@@ -223,7 +245,8 @@ die "error: no command given!";
 sub dist
   { my($r_remote_hosts, $remote_user, 
        $remote_path, $r_local_paths,
-       $logmessage, $tag, $world_readable)= @_;
+       $logmessage, $tag, $world_readable,
+       $locallog)= @_;
 
     die "remote_host missing" if (empty($r_remote_hosts));
     die "remote_path missing" if (empty($remote_path));
@@ -298,9 +321,11 @@ sub dist
 	      'echo `cat STAMP` was created && ' .
 	      'rm -f STAMP LOCK';
 
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+    my $r_l= ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd, 1);
     
-    
+    if ($locallog ne "")
+      { to_file($locallog, $r_l); };
+    #print join("\n",@$r_l); 
   }    
 
 sub move_file
@@ -390,12 +415,23 @@ sub ls
   
 sub rm_lock
   { my($remote_host, $remote_user, 
-       $remote_path) = @_;
+       $remote_path, $action) = @_;
    
     die "remote_host missing" if (empty($remote_host));
     die "remote_path missing" if (empty($remote_path));
 
-    my $rcmd= "rm -f LOCK";
+    my $rcmd;
+    if    ($action eq 'remove')
+      { $rcmd= "rm -f LOCK"; }
+    elsif ($action eq 'create')
+      { my $local_host= my_hostname();
+        my $local_user= username();
+        my $from= $local_user . '@' . $local_host;
+        $rcmd= sh_mklock($from)
+      }
+    else
+      { die "assertion: unknown action: \"$action\""; };
+      
     ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
   }
 
@@ -480,7 +516,13 @@ sub change_link
       };
     
     
+    # determine where to place the linklog-file:
     my $source_base= (File::Spec->splitpath($remote_source))[1];
+    
+    if ($source_base eq "")
+      { # was a directory relative to remote user's home
+        $source_base= '$HOME';
+      };
     
     my $path_conv= $remote_path;
     $path_conv=~ s/\//-/g; # replace "/" with "-"
@@ -488,7 +530,6 @@ sub change_link
     my $linklog= File::Spec->catfile($source_base,"LINKS" . $path_conv); 
 
 #die "linklog:$linklog";
-    
     
     $rcmd.= 	
 		"for l in $files ; " .
@@ -537,16 +578,12 @@ sub sh_mklock
   }	   
 
 sub sh_handle_attic
-  { 
-    return( 'if ! test -d attic;' .
-            'then mkdir attic;' . 
+  { return( 'if ! test -d attic;' .
+            'then mkdir attic &&' .
+	         "touch $dist_log && " .
+		 "touch $dist_changes;" .
             'fi && ' .
-	    'if test -e LOG-* ;' .
-	    'then cp LOG-* attic;' .
-	    'fi && ' .
-	    'if test -e CHANGES-*;' .
-	    'then cp CHANGES-* attic;' .
-	    'fi' 
+	    'cp LOG-* CHANGES-* attic'
 	    );
   }	    
 	    
@@ -603,6 +640,30 @@ sub sh_rebuld_LAST
     return($str);
   }
 
+sub ver_from_file
+  { my($filename)= @_;
+    local(*F);
+    open(F, "$filename") or die "unable to open $filename\n";
+    my $line=<F>;
+    $line=~ s/\s+was\s+created\s+$//;
+    close(F);
+    return($line);
+  } 
+
+sub to_file
+  { my($filename, $r_lines)= @_;
+    local(*F);
+    if (!open(F, ">$filename"))
+      { warn "error: file $filename couldn't be created\n" . 
+             "this would have been written into this file:\n" .
+	     join("\n",@$r_lines) . "\n";
+        return;
+      };
+    foreach my $l (@$r_lines)
+      { print F $l,"\n"; };
+    close(F);
+  }
+
 sub empty
   { my($st)= @_;
   
@@ -622,7 +683,7 @@ sub my_hostname
   { return((gethostbyname(hostname()))[0]); }
 
 sub ssh_cmd
-  { my($host, $user, $path, $cmd)= @_;
+  { my($host, $user, $path, $cmd, $do_catch)= @_;
 
     if ($path!~ /^\//)
       { $path= '$HOME/' . $path; };
@@ -639,7 +700,32 @@ sub ssh_cmd
     if ($opt_dry_run)
       { print $ssh_cmd,"\n"; }
     else
-      { sys($ssh_cmd); }
+      { if (!$do_catch)
+          { sys($ssh_cmd); }
+	else
+	  { return(sys_catch($ssh_cmd)); } 
+      }
+  }
+
+sub sys_catch
+  { my($cmd)= @_;
+    local(*F);
+    my @lines;
+  
+    print "$cmd\n" if ($debug);
+    
+    $cmd.= " 2>&1 |";
+    # -e: environment overrides make
+    open(F, $cmd) || die "can\'t fork: $!";
+    while (my $line=<F>)
+      {
+#print $line;
+       print $line;
+       chomp($line);
+       push @lines,$line;
+      }
+    close(F) || die "bad netstat: $! $?\n";
+    return(\@lines);
   }
 
 sub sys
@@ -651,7 +737,7 @@ sub sys
   }
 
 sub process_environment
-  { my($r_env_opts)= @_;
+  { my($r_env_opts,$show)= @_;
     my $env_val;
   
     foreach my $e (keys %$r_env_opts)
@@ -659,18 +745,31 @@ sub process_environment
         next if (!defined $env_val);
 	$env_val=~ s/^\s+//;
 	$env_val=~ s/[\s\r\n]+$//;
-        my $ref= $r_env_opts->{$e};
+        my($ref,$str)= @{$r_env_opts->{$e}};
 	if    (ref($ref) eq 'SCALAR')
-	  { $$ref= $env_val;
+	  { if ($show)
+	      { my $v= (defined $$ref) ? $$ref : $env_val;
+	        print $str," ",$v," "; 
+	        next;
+	      }
+	    next if (defined $$ref);
+	    $$ref= $env_val;
 	    next;
 	  }
 	elsif (ref($ref) eq 'ARRAY')
-	  { @$ref= split(/[,\s:]+/,$env_val);
+	  { if ($show)
+	      { my $v= (@$ref) ? join(",",@$ref) : $env_val;
+	        print $str," ",$v," "; 
+	        next;
+	      };
+	    next if (@$ref);
+	    @$ref= split(/[,\s:]+/,$env_val);
 	    next;
           }
 	else
 	  { die "assertion!"; };
       };
+    print "\n" if ($show);  
   }
 
 sub print_summary
@@ -696,10 +795,13 @@ Syntax:
 
   options:
     -h: this help
-    --man: show manpage
     
-    --summary: 
-                give a summary of the script
+    --man: show embedded manpage
+    
+    --summary:  give a summary of the script
+
+  specify remote host and user:
+
     --host -H [remote-host[,remote-host2...]]
                 specify the remote host. A list of secondary 
 		remote-hosts can be added separated by a commas or
@@ -710,60 +812,112 @@ Syntax:
                 specify the user for login on the remote host
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_USER"	
-    --dist -d 
-                distribute files to remote host
-    --to-attic [dir] 
-                move a directory (aka version) to the "attic" directory
-    --from-attic [dir] 
-                move a directory (aka version) from the "attic" directory
-		back to the main directory (which is given by -p)
-    --cat-log -c 
-                show the logfile (for distribution or links)
-    --tail-log [n]
-                show the last n lines of the logfile (for distribution or links)
-    --cat-changes 
-                show the changes-file
-    --tail-changes [n]
-                show the last n lines of the changes-file
-    --ls 
-                show the remote directory
-    --path -p [remote-path] 
+
+  specify directories:
+
+    --path -p [remote-path/dist-path/link-path] 
                 specify the remote directory
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_PATH" or 
 		from "RSYNC_DIST_LINKPATH" (for link commands)	
 
+    --linkpath -P [remote link-path]
+                specify the remote directory
+		if this option is not given the script tries to read from
+		the environment variable "RSYNC_DIST_LINKPATH" 	
+    
     --localpath -l [local-path,local-path2...] 
                 specify the local path
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_LOCALPATH"	
 		Several paths can be specified with either a comma-separated list
 		or several -l options
+
+  specify tags and log-messages:
+
     --message -m [logmessage] 
                 specify a log message
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_MESSAGE"	
-    --rm-lock 
-                remove the lockfile in case is
-		was left behind due to an error in the script
-    --change-links -C [source,filemask/files]
-                change symbolic links on the remote server
-    --add-links [source,files]
-                add links on the remote server
+
     --tag -t [tag]
                 specify a tag for the distribution
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_TAG"	
+
+  commands:
+
+    --dist -d {filename}
+                distribute files to remote host
+		if {filename} is given, the name of the created directory
+		is written to <filename>. Note that the file is overwritten
+		if it exists before.
+
+    --to-attic [dir] 
+                move a directory (aka version) to the "attic" directory
+
+    --from-attic [dir] 
+                move a directory (aka version) from the "attic" directory
+		back to the main directory (which is given by -p)
+
+    --change-links -C [source,filemask/files]
+                change symbolic links on the remote server
+		if source is "local:<filename>" take the source-directory
+		from the first line in file <filename>
+
+    --add-links [source,files]
+                add links on the remote server
+		if source is "local:<filename>" take the source-directory
+		from the first line in file <filename>
+
+    --rm-lock 
+                remove the lockfile in case is
+		was left behind due to an error in the script
+
+    --mk-lock 
+                create the lockfile in the remote directory. This is
+		useful in order to lock the directory for other users
+		that run rsync-dist.pl when you want to modify files on
+		the remote-host manually.
+
+  inspect the remote directory:
+
+    --ls 
+                show the remote directory
+
+    --cat-log -c 
+                show the logfile (for distribution or links)
+
+    --tail-log [n]
+                show the last n lines of the logfile (for distribution or links)
+
     --ls-tag -T [tag/regexp]
                 search for a tag in the log file
+
     --ls-version [version/regexp]
                 search for a version  in the log file
+
+    --cat-changes 
+                show the changes-file
+
+    --tail-changes [n]
+                show the last n lines of the changes-file
+
+  miscellanious:
+
     --ls-bug    suppress 
                 "ls: ignoring invalid width in environment variable COLUMNS: 0"
                 warning that comes on some systems		
+
     --checksum  use checksums instead of date-comparisons when deciding wether a
                 file should be transferred
+
+    --show-env  show the settings the program takes from environment
+    	        variables (if not specified differently on the 
+		command-line)
+
     --dry-run   just show the command that would be executed	
+
     --world-readable -w
                 make all files world-readable	
 END
@@ -786,36 +940,37 @@ rsync-dist.pl - a Perl script for managing distributions of binary files
 
 This script can be used to copy files (usually binary distributions
 of programs) to a remote server while preserving all the old versions
-of that distributions. Among the programs feature list are:
+of that distributions. It can also create and change symbolic links
+that point to certain distributions. Among the programs features are:
 
 =over 4
 
 =item *
 
-Every distribution is placed in a directory named after the current time.
-Each directory is unique. 
+Every distribution is placed in a directory named after the current time 
+and date complying with ISO 8601. By this, each directory is unique. 
 
 =item *
 
 Files that didn't change with respect to the last version are saved as
-hard-link, this occupies much less disk space than a simple copy.
+a hard-link, occupying almost no additional disk space.
 
 =item *
 
 Files are transferred via rsync and ssh. Rsync only copies files that
-have changed with respect to the last version
+have changed with respect to the last version. Changes are detected
+either by comparing file-creation times or a MD5 sum.
 
 =item *
 
-from the central server the files can be transferred to secondary
-servers that mirror all the files. This can be done together with
-distributing files to the central server in one call to this script
+During distribution, files can be transferred from the central server 
+to secondary servers which mirror all the files from the central server. 
 
 =item *
 
-a log file is created before critical actions on the server, so
+a lock file is created before critical actions on the server, so
 several instances of this script can be started at the same sime
-by different people without interfering each other
+by different people without interfering with each other
 
 =item *
 
@@ -834,6 +989,12 @@ logfile.
 
 =item *
 
+Versions can be moved to an "attic" directory. By this,
+the main distribution directory can be cleared of obsolete and
+non-working versions. 
+
+=item *
+
 symbolic links can be created that point to the version-directories. 
 Manipulation of these links is also logged. This can be used to manage
 a list of symbolic links, each pointing to a version a corresponding IOC
@@ -847,13 +1008,15 @@ has to boot.
 
 =item *
 
-The rsync program must be installed on the server and the client machine.
+The rsync program has to be installed on the server and the client machine.
 
 =item *
 
 The user of the client machine must have an account on the server machine
 where he can log in via ssh without the need to enter a password or
-a passphrase (requires proper setup of the ssh-agent)
+a passphrase (requires proper setup of the ssh-agent). He must also be 
+capable to log from the remote host as remote user back to the local host
+as local user by ssh.
 
 =item *
 
@@ -917,11 +1080,13 @@ On the remote directory you see the following files and directories:
 
 =item version directories
 
-These directories are named like: "2006-10-04T13:57:35" or "2006-10-04T14:03:12".
-This is actually an ISO format for timestamps. The numbers within the string are
+These directories are named like: "2006-10-04T13:57:35" or 
+"2006-10-04T14:03:12".
+This is an ISO 8601 format for timestamps. The numbers within the string are
 (in this order) the year, month, day, hour, minute, seconds. The letter "T" 
-separates the date from the time. Your distributed files are within these 
-directories. Files that are equal among several directories are store with
+separates the date from the time. Your distributed files are placed 
+within these 
+directories. Files that are equal among several directories are stored with
 hard-links in order to preserve disk space.
 
 =item the file LAST
@@ -929,7 +1094,9 @@ hard-links in order to preserve disk space.
 This file contains the name of the directory that was most recently 
 created. This file is always present after you call this script for
 the first time. It is modified each time you distribute files to the 
-server.
+server. When a new version is distributed, the directory mentioned in
+"LAST" is copied by hard-link copy, then rsync is called to transmit
+all changed/added or removed files.
 
 =item the file CHANGES-DIST
 
@@ -938,17 +1105,17 @@ the previous version. All files that were changed or added are listed.
 Note that files that were delete ARE NOT listed. This is an example of
 the contents of this file:
 
-  2006-10-05T11:39:06
-  CHANGED/ADDED FILES:
+  VERSION: 2006-10-05T11:39:06
+  CHANGED/ADDED FILES relative to 2006-10-05T10:10:06:
   2006-10-05T11:39:06/local/idcp/C
 
-  2006-10-05T12:22:16
-  CHANGED/ADDED FILES:
+  VERSION: 2006-10-05T12:22:16
+  CHANGED/ADDED FILES relative to 2006-10-05T11:39:06:
   2006-10-05T11:39:06/local/idcp/B
   2006-10-05T11:39:06/local/idcp/A
 
-The first line of each block is the name of the directory 
-and also the date and time when it was created
+The first line of each block is the name of the directory which is 
+also the date and time when it was created
 
 =item the file LOG-DIST
 
@@ -957,18 +1124,22 @@ It contains the information when and by whom the distribution was done.
 It also contains a log-message and, optionally, a tag for each version.
 This is an example of the log-file:
 
-  2006-10-05T11:28:56
+  VERSION: 2006-10-05T11:28:56
+  ACTION: added
   FROM: pfeiffer@tarn.acc.bessy.de
   TAG: TAG1
   LOG: test
 
-  2006-10-05T11:39:06
+  VERSION: 2006-10-05T11:39:06
+  ACTION: added
   FROM: pfeiffer@tarn.acc.bessy.de
   TAG: TAG2
   LOG: test
 
 The first line in each block is the name of the directory, and by this,
-the date and time when the action took place. The part after
+the date and time when the action took place. After "ACTION:" you find
+the action that took place, "added" or "moved to attic" or "moved from attic".
+The part after
 "FROM:" is the person who started the command together with the name
 of the client-host. After "TAG:" you find the optional tag, after "LOG:"
 the optional log message with may span several lines.
@@ -1002,12 +1173,14 @@ A real-world example:
 
 The output of this command looks like this:
 
-  2006-10-05T11:27:51
+  VERSION: 2006-10-05T11:27:51
+  ACTION: added
   FROM: pfeiffer@tarn.acc.bessy.de
   TAG: TAG1
   LOG: test
   --
-  2006-10-05T11:28:56
+  VERSION: 2006-10-05T11:28:56
+  ACTION: added
   FROM: pfeiffer@tarn.acc.bessy.de
   TAG: TAG2
   LOG: test
@@ -1024,13 +1197,38 @@ determines which version of its application the IOC will boot. By letting the
 IOC boot via a symbolic link to a script, there is an easy way to change the 
 active version of the IOC's software without logging onto the IOC itself.
 
+=head2 the log-file in the source directory
+
+
+Note that there is a file created in the "<remote-sourcepath>/.."
+directory that contains a list of all links that point to a certain
+version. The name of that file is created after the <remote-path> that
+contains the symbolic links. Example:
+
+  LINKS-opt-IOC-Releases-idcp-links
+  
+contains information on symbolic links in the directory 
+"opt/IOC/Releases/idcp/links". Example on the contents of this file:
+
+  2006-10-09T10:28:13 idcp12
+  2006-10-09T10:28:13 idcp15
+  2006-10-09T10:28:13 idcp3
+  2006-10-09T10:28:13 idcp7
+  2006-10-09T10:28:13 idcp9
+  2006-10-09T10:33:09 idcp13
+
+The first line means for example, that in directory 
+"opt/IOC/Releases/idcp/links" there is a symblic link
+named "idcp12" that references the distribution-directory 
+"2006-10-09T10:28:13"-
+
 =head2 adding symbolic links
 
 Symbolic links are added like this:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path>
                   -m <log-message> 
-		  --add-links <remote-path>,<link1>,<link2>...
+		  --add-links <remote-sourcepath>,<link1>,<link2>...
   
 Note that if at least one the given links already exists, the command fails.
 Note too, that the given remote-path must exist. The log-file is updated 
@@ -1042,7 +1240,7 @@ Symbolic links are changed like this:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path>
                   -m <log-message> 
-		  --change-links <remote-path>,<link1>,<link2>...
+		  --change-links <remote-sourcepath>,<link1>,<link2>...
 
 or
 
@@ -1084,7 +1282,7 @@ It also contains an optional log-message for each change and a directory
 listing of the links before and after the change. 
 This is an example of the log-file:
 
-  2006-10-05T14:09:07
+  VERSION: 2006-10-05T14:09:07
   FROM: pfeiffer@tarn.acc.bessy.de
   OLD:
   lrwxr-xr-x 1 usr exp 22 Oct 5 14:07 ioc1 -> ../2006-10-05T13:02:44
@@ -1093,7 +1291,7 @@ This is an example of the log-file:
   lrwxr-xr-x 1 usr exp 22 Oct 5 14:09 ioc1 -> ../2006-10-05T14:02:44
   lrwxr-xr-x 1 usr exp 22 Oct 5 14:09 ioc2 -> ../2006-10-05T14:02:44
 
-  2006-10-05T14:11:58
+  VERSION: 2006-10-05T14:11:58
   FROM: pfeiffer@tarn.acc.bessy.de
   LOG: changed nothing
   OLD:
@@ -1127,9 +1325,6 @@ Goetz Pfeiffer,  goetzp@gmx.net
 rsync-documentation
 
 =cut
-
-
-
 
 
 
