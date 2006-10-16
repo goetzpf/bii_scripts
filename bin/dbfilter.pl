@@ -130,7 +130,7 @@ if ($opt_summary)
 
 if    (defined $opt_allow_double)
   { parse_db::handle_double_names(2); }
-elsif (defined $opt_allow_single)
+elsif (defined $opt_single)
   { parse_db::handle_double_names(0); }
 else
   { # merging of double record-names is the default
