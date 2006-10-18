@@ -202,7 +202,7 @@ if (defined $opt_change_links)
     my $source= shift @files;
     die "source missing" if (!defined $source);
     $source= check_file_opt($source);
-    change_link(0, $hosts[0],$opt_user,$path,$opt_message,$source,@files);
+    change_link(0, \@hosts,$opt_user,$path,$opt_message,$source,@files);
     exit(0);
   }
 
@@ -211,7 +211,7 @@ if (defined $opt_add_links)
     my $source= shift @files;
     die "source missing" if (!defined $source);
     $source= check_file_opt($source);
-    change_link(1, $hosts[0],$opt_user,$path,$opt_message,$source,@files);
+    change_link(1, \@hosts,$opt_user,$path,$opt_message,$source,@files);
     exit(0);
   }
 
@@ -309,7 +309,11 @@ sub dist
     if (@hosts)
       { # distribute the binary-store to other hosts
         # while the lockfile is still present
-        $rcmd.= "for h in $hosts; " . 
+        # rsync -a: recursive, preserve permissions, 
+	# copy symlinks as symlinks, preserve times,
+	# preserve group, preserve owner
+	# -H: preserve hard-links  
+	$rcmd.= "for h in $hosts; " . 
 	        'do rsync -a -u -z -H --delete ' .
 		  "-e \"ssh \" . \$h:$remote_path; " .
 	        'done && ';
@@ -478,10 +482,10 @@ sub ls_tag
  
   
 sub change_link
-  { my($do_add, $remote_host, $remote_user, $remote_path, $logmessage,
+  { my($do_add, $r_remote_hosts, $remote_user, $remote_path, $logmessage,
        $remote_source, @files )= @_;
    
-    die "remote_host missing" if (empty($remote_host));
+    die "remote_host missing" if (empty($r_remote_hosts));
     die "remote_path missing" if (empty($remote_path));
     die "remote source missing" if (empty($remote_source));
     die "error: no files specified" if (empty(\@files));
@@ -494,6 +498,11 @@ sub change_link
     if (!@files)
       { die "error: no files specified"; }
     
+    my @hosts= @$r_remote_hosts;
+
+    my $remote_host= shift @hosts; 
+    my $hosts= join(" ",@hosts);
+
     my $files= join(" ",@files);
     my $rcmd= 
               "if ! test -e $remote_source; " .
@@ -541,7 +550,28 @@ sub change_link
 		
 		'find . -type l -printf "%l %f\n" ' .
 		"| sort | grep \"^$source_base\" | sed -e \"s/^.*\\///\" " .
-		"> $linklog && " .
+		"> $linklog && " ;
+		
+    if (@hosts)
+      { # distribute the binary-store to other hosts
+        # while the lockfile is still present
+        # rsync -a: recursive, preserve permissions, 
+	# copy symlinks as symlinks, preserve times,
+	# preserve group, preserve owner
+	# -H: preserve hard-links  
+	$rcmd.= "for h in $hosts; " . 
+	        'do rsync -a -u -z -H --delete ' .
+		  "-e \"ssh \" . \$h:$remote_path; " .
+	        'done && ' .	
+		"rdp=`(cd $source_base && pwd)`; " .	
+		"for h in $hosts; " . 
+	        'do rsync -a -u -z -H --delete ' .
+		  "-e \"ssh \" $linklog \$h:\$rdp; " .
+	        'done && ';
+      };	
+
+    $rcmd.=		
+		
 		'rm -f STAMP LOCK; ' .
 	       'fi';
     ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
