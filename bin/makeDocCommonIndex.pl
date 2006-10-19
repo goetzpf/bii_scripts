@@ -27,7 +27,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   my $files =  `find $installPath -name '*html'`;
 #  $files .=  `find $installPath -name *pdf`;
   my @files = split(/\n/,$files);
-print "FILES find $installPath -name *html: $files\n";
+#print "FILES find $installPath -name *html: $files\n";
   my $docContens = "<UL>\n";
   my $isInApplication;
   my $firstone=1;
