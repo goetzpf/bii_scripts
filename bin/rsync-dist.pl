@@ -286,7 +286,7 @@ sub dist
 	      "for l in $local_paths;" .
 	      "do rsync $rsync_opts " .
 	         "-e \"ssh -l $local_user \" " .
-	         "$local_host:\$l" .' `cat STAMP`;' .
+	         "$local_host:\$l" .' ./`cat STAMP`;' .
 	      'done';
     if ($world_readable)
       { $rcmd.= ' && chmod -R a+rX `cat STAMP`'; };
