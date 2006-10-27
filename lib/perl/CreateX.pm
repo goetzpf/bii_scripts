@@ -84,16 +84,19 @@ our @EXPORT = qw(
   std_create_subst_and_req
   std_create_subst
   std_open_target
+  std_open_target_with_path
   std_dbi_connect_args
   with_dbi_handle
   with_target_file
+  with_target_file_with_path
   app_ioc
+  path_app_ioc
   write_subst_line
   write_template
   write_template_sql
   perform_query
 );
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.6 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.7 $ =~ /(\d+)/g;
 
 use strict;
 use Carp;
@@ -113,6 +116,12 @@ sub app_ioc {
   my @app_ioc = split /\./, $arg;
   @app_ioc == 2 or @app_ioc == 1 or confess "Bad argument '$arg'!";
   return @app_ioc;
+}
+
+sub path_app_ioc {
+  my $arg = shift;
+  my @path_app_ioc = ($arg =~ m/^(.*\/)?([^.\/]+)(?:.([^.\/]+))?$/);
+  return @path_app_ioc;
 }
 
 =item std_open_target STRING STRING STRING
@@ -136,6 +145,16 @@ sub std_open_target {
   return $filehandle;
 }
 
+sub std_open_target_with_path {
+  my ($path,$app,$ioc,$suffix) = @_;
+  my $filename = (defined $ioc) ? "$path$app.$ioc.$suffix" : "$path$app.$suffix";
+  print "filename = $filename\n";
+  open my $filehandle, ">", $filename or confess "Can't open $filename: $!\n";
+  my $onioc = " on $ioc" if defined $ioc;
+  print "Creating $suffix file for $app$onioc\n";
+  return $filehandle;
+}
+
 =item with_target_file BLOCK ARGS
 
 Execute the first argument (a code block) with an open file handle as first
@@ -148,6 +167,13 @@ executed.
 sub with_target_file (&@) {
   my $code = shift;
   my $fh = &std_open_target;
+  $code->($fh);
+  close $fh;
+}
+
+sub with_target_file_with_path (&@) {
+  my $code = shift;
+  my $fh = &std_open_target_with_path;
   $code->($fh);
   close $fh;
 }
