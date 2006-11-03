@@ -17,37 +17,43 @@ use Getopt::Long;
 use Sys::Hostname;
 use File::Spec;
 
-use vars qw($opt_help $opt_summary $opt_debug 
-            $opt_dist $opt_user 
+use vars qw($opt_help 
+	    $opt_man
+            $opt_summary 
+	    $opt_user 
 	    $opt_path
 	    $opt_linkpath
 	    $opt_message 
-	    $opt_cat_log $opt_cat_changes
-	    $opt_tail_log $opt_tail_changes
 	    $opt_tag
-	    $opt_ls 
-	    $opt_rm_lock
-	    $opt_mk_lock
-	    $opt_add_links
-	    $opt_change_links
-	    $opt_ls_tag 
-	    $opt_ls_version
-	    $opt_links
-	    $opt_man
-	    $opt_dry_run
-	    $opt_ls_bug
-	    $opt_checksum
+            $opt_dist 
 	    $opt_to_attic
 	    $opt_from_attic
-	    $opt_world_readable
+	    $opt_change_links
+	    $opt_add_links
+	    $opt_rm_lock
+	    $opt_mk_lock
+	    $opt_rebuild_last
+	    $opt_ls 
+	    $opt_cat_log
+	    $opt_tail_log
+	    $opt_ls_tag 
+	    $opt_ls_version
+	    $opt_cat_changes
+            $opt_tail_changes
+	    $opt_ls_bug
+	    $opt_checksum
 	    $opt_show_env
+	    $opt_dry_run
+	    $opt_world_readable
+	    $opt_links
+	    $opt_debug 
             );
 
 
-my $sc_version= "1.0";
+my $sc_version= "1.1";
 
 my $sc_name= $FindBin::Script;
-my $sc_summary= "rsync-deploy in perl"; 
+my $sc_summary= "manages binary distributions to remote servers"; 
 my $sc_author= "Goetz Pfeiffer";
 my $sc_year= "2006";
 
@@ -55,12 +61,15 @@ my $debug= 0; # global debug-switch
 
 my @hosts;
 my @localpaths;
+my @mirrorhosts;
 
 my $dist_log= 'LOG-DIST';
 my $link_log= 'LOG-LINKS';
 
 my $dist_changes= 'CHANGES-DIST';
 my $link_changes= 'CHANGES-LINKS';
+
+my $gbl_rsync_opts="-a -u -z --delete";
 
 my %env_opts= (RSYNC_DIST_HOST      => [\@hosts, '--host'],
                RSYNC_DIST_USER      => [\$opt_user, '--user'],
@@ -82,33 +91,47 @@ foreach my $opt (@ARGV)
   
 Getopt::Long::config(qw(no_ignore_case));
 
-if (!GetOptions("help|h","summary","host|H=s" => \@hosts,
-                "debug",
-		"dist|d:s", "user|u=s", 
+if (!GetOptions("help|h",
+                "man", 
+		"summary",
+		
+		"host|H=s" => \@hosts,
+		"user|u=s", 
+		
 		"path|p=s",
 		"linkpath|P=s",
 		"localpath|l=s" => \@localpaths,
+
 		"message|m=s",
-		"cat_log|cat-log|c",
-		"tail_log|tail-log:i",
-		"cat_changes|cat-changes",
-		"tail_changes|tail-changes:i",
-		"ls",
-		"rm_lock|rm-lock",
-		"mk_lock|mk-lock",
-		"change_links|change-links|C=s",
-		"add_links|add-links=s",
 		"tag|t=s",
-		"ls_tag|ls-tag|T=s",
-		"ls_version|ls-version=s",
-		"links",
-		"man", "dry_run|dry-run",
-		"ls_bug|ls-bug",
-		"checksum",
+
+		"dist|d:s", 
 		"to_attic|to-attic=s",
 		"from_attic|from-attic=s",
+		"change_links|change-links|C=s",
+		"add_links|add-links|A=s",
+		"mirror=s" => \@mirrorhosts,
+		"rm_lock|rm-lock",
+		"mk_lock|mk-lock",
+		"rebuild_last|rebuild-last",
+
+		"ls",
+		"cat_log|cat-log|c",
+		"tail_log|tail-log:i",
+		"ls_tag|ls-tag|T=s",
+		"ls_version|ls-version=s",
+		"cat_changes|cat-changes",
+		"tail_changes|tail-changes:i",
+
+		"ls_bug|ls-bug",
+		"checksum",
+		"show_env|show-env",
+		"dry_run|dry-run",
 		"world_readable|world-readable|w",
-		"show_env|show-env"
+
+# undocumented:
+		"links",
+                "debug",
                 ))
   { die "parameter error!\n"; };
 
@@ -123,6 +146,8 @@ if ($opt_man)
 @hosts = split(/[,\s:]+/,join(',',@hosts));
 
 @localpaths = split(/[,\s:]+/,join(',',@localpaths));
+
+@mirrorhosts = split(/[,\s:]+/,join(',',@mirrorhosts));
 
 if ($opt_show_env)
   { process_environment(\%env_opts, 1); 
@@ -194,6 +219,16 @@ if (defined $opt_rm_lock)
 
 if (defined $opt_mk_lock)
   { rm_lock($hosts[0],$opt_user,$path,'create');
+    exit(0);
+  }
+
+if (defined $opt_rebuild_last)
+  { rebuild_last($hosts[0],$opt_user,$path);
+    exit(0);
+  }
+
+if (@mirrorhosts)
+  { mirror($opt_user,$path,$hosts[0],\@mirrorhosts);
     exit(0);
   }
 
@@ -271,7 +306,7 @@ sub dist
     my $local_user= username();
     my $from= $local_user . '@' . $local_host;
 
-    my $rsync_opts= "-a -u -z --copy-unsafe-links --delete";
+    my $rsync_opts= $gbl_rsync_opts . " --copy-unsafe-links";
     $rsync_opts.= " -c" if ($opt_checksum);
   
     my $rcmd= sh_mklock($from) .
@@ -313,10 +348,7 @@ sub dist
 	# copy symlinks as symlinks, preserve times,
 	# preserve group, preserve owner
 	# -H: preserve hard-links  
-	$rcmd.= "for h in $hosts; " . 
-	        'do rsync -a -u -z -H --delete ' .
-		  "-e \"ssh \" . \$h:$remote_path; " .
-	        'done && ';
+	$rcmd.= sh_copy_to_hosts($remote_path,@hosts) . " && ";
       };	
 	
     $rcmd.=	      
@@ -437,6 +469,28 @@ sub rm_lock
     ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
   }
 
+sub rebuild_last
+  { my($remote_host, $remote_user, 
+       $remote_path) = @_;
+
+    die "remote_host missing" if (empty($remote_host));
+    die "remote_path missing" if (empty($remote_path));
+
+    my $rcmd= sh_rebuld_LAST();
+    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+  }
+
+sub mirror
+  { my($remote_user,$remote_path,$remote_host,$r_hosts)= @_;
+  
+    die "remote_host missing"  if (empty($remote_host));
+    die "remote_path missing"  if (empty($remote_path));
+    die "mirror hosts missing" if (empty($r_hosts));
+
+    my $rcmd= sh_copy_to_hosts($remote_path,@$r_hosts);
+    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+  }
+
 sub ls_version
   { my($remote_host, $remote_user, 
        $remote_path, $version) = @_;
@@ -449,14 +503,13 @@ sub ls_version
                 "echo file $log not found ;" .
               'else ' .
 	        "grep -B 3 -A 1 TAG $log | " .
-		"grep -A 4 ^$version ; " . 
+		"grep -A 4 \"VERSION: $version\" ; " . 
 		'if test $? -eq 1; ' .
 		'then echo not found;' .
 		'fi; ' .
 	      'fi';
     
     ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-    
   }
  
 sub ls_tag
@@ -544,7 +597,7 @@ sub change_link
 	          "ln -s $remote_source \$l; " .
 		'done && ' .
 		"echo \"\" >> $log && " .
-		"date +\"VERSION: %Y-%m-%dT%H:%M:%S\" >> $log && " .
+		"date +\"DATE: %Y-%m-%dT%H:%M:%S\" >> $log && " .
 	        sh_add_log($log,$from,$logmessage,undef) . ' && ' .
                 sh_add_symlink_log($log,$do_add,@files) . ' && ' .
 		
@@ -558,16 +611,11 @@ sub change_link
         # rsync -a: recursive, preserve permissions, 
 	# copy symlinks as symlinks, preserve times,
 	# preserve group, preserve owner
-	# -H: preserve hard-links  
-	$rcmd.= "for h in $hosts; " . 
-	        'do rsync -a -u -z -H --delete ' .
-		  "-e \"ssh \" . \$h:$remote_path; " .
-	        'done && ' .	
-		"rdp=`(cd $source_base && pwd)`; " .	
-		"for h in $hosts; " . 
-	        'do rsync -a -u -z -H --delete ' .
-		  "-e \"ssh \" $linklog \$h:\$rdp; " .
-	        'done && ';
+	# -H: preserve hard-links 
+	
+	$rcmd.= sh_copy_to_hosts($remote_path,@hosts) . " && " .
+	        "rdp=`(cd $source_base && pwd)`; " .
+		sh_copy_to_hosts('$rdp',@hosts) . " && "; 
       };	
 
     $rcmd.=		
@@ -576,6 +624,17 @@ sub change_link
 	       'fi';
     ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
   }
+
+sub sh_copy_to_hosts
+  { my($remote_path,@hosts)= @_;
+    my $hosts= join(" ",@hosts);
+  
+    return( "for h in $hosts; " . 
+	    "do rsync $gbl_rsync_opts -H " .
+	      "-e \"ssh \" . \$h:$remote_path; " .
+	    'done' );	
+  }   
+    
  
 sub sh_add_log
   { my($logfile,$from,$message,$tag)= @_;
@@ -908,10 +967,14 @@ Syntax:
 		if source is contains the string "<filename>", replace that part
 		with the first word in the first line from that file 
 
-    --add-links [source,files]
+    --add-links -A [source,files]
                 add links on the remote server
 		if source is contains the string "<filename>", replace that part
 		with the first word in the first first line from that file 
+
+    --mirror [remote-hosts]
+    		mirror the specified directory to the specified
+		hosts 
 
     --rm-lock 
                 remove the lockfile in case is
@@ -922,6 +985,16 @@ Syntax:
 		useful in order to lock the directory for other users
 		that run rsync-dist.pl when you want to modify files on
 		the remote-host manually.
+
+    --rebuild-last
+    		rebuild the "LAST" file on the remote server. This
+		file contains the name of the latest distribution
+		directory. When a new distribution is made, the
+		files are compared against the files of this directory.
+		When a file has not changed, a hard-link to this
+		directory is created. Note that this command creates
+		no lock-file on the remote host. You have to do this
+		yourself with the "--mk-lock" command before.
 
   inspect the remote directory:
 
@@ -1325,7 +1398,7 @@ It also contains an optional log-message for each change and a directory
 listing of the links before and after the change. 
 This is an example of the log-file:
 
-  VERSION: 2006-10-05T14:09:07
+  DATE: 2006-10-05T14:09:07
   FROM: pfeiffer@tarn.acc.bessy.de
   OLD:
   lrwxr-xr-x 1 usr exp 22 Oct 5 14:07 ioc1 -> ../2006-10-05T13:02:44
@@ -1334,7 +1407,7 @@ This is an example of the log-file:
   lrwxr-xr-x 1 usr exp 22 Oct 5 14:09 ioc1 -> ../2006-10-05T14:02:44
   lrwxr-xr-x 1 usr exp 22 Oct 5 14:09 ioc2 -> ../2006-10-05T14:02:44
 
-  VERSION: 2006-10-05T14:11:58
+  DATE: 2006-10-05T14:11:58
   FROM: pfeiffer@tarn.acc.bessy.de
   LOG: changed nothing
   OLD:
@@ -1358,6 +1431,47 @@ The file LOG-LINKS, as it is described above, can be listed with this command:
                   --links --cat_log
 
 Note that without the --links option, the script lists LOG-DIST instead.
+
+=head2 tips and tricks (logging onto the server required)
+
+=over 4
+
+=item show all distribution directories
+
+  for i in 2[0-9][0-9][0-9]*; do echo $i; done
+
+=item list all existing distribution directories mentioned in LOG-DIST
+
+  for i in 2[0-9][0-9][0-9]*; do grep $i LOG-DIST; done | \
+  	sed -e 's/VERSION: //'
+  
+=item list directories mentioned in LOG-DIST that do no longer exist
+
+  for i in 2[0-9][0-9][0-9]*; do grep $i LOG-DIST; done | \
+  	sed -e 's/VERSION: //' > TMP
+  grep VERSION LOG-DIST |sort|uniq| sed -e 's/VERSION: //' | \
+  	diff - TMP
+
+=item compare existing directories with the ones mentioned in LOG-DIST
+
+  for i in 2[0-9][0-9][0-9]*; do echo $i; done > TMP
+  grep VERSION LOG-DIST |sort|uniq| sed -e 's/VERSION: //' | \
+  	diff - TMP
+
+=item list directories used in LOG-LINKS
+
+  grep -- '->' LOG-LINKS | \
+  	sed -e 's/^.*->.*\(2[0-9][0-9][0-9]\)/\1/'|sort|uniq
+
+=item compare directories used in LOG-LINKS with existing ones
+
+  (cd ../dist && for i in 2[0-9][0-9][0-9]*; \
+  	do echo $i; done) > TMP
+  grep -- '->' LOG-LINKS | \
+  	sed -e 's/^.*->.*\(2[0-9][0-9][0-9]\)/\1/'|\
+	sort|uniq|diff - ../dist/TMP  | grep '<'
+  
+=back
 
 =head1 AUTHOR
 
