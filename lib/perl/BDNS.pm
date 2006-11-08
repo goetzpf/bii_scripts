@@ -36,7 +36,7 @@ $pdom{P} = $pdom{global} . "IMR";
 my $re = "\\A($pmem)"
     . "($pind)?"
     . "((([$pfam{B}])($pcnt)([$psdom{B}]$psdnum)?([$pdom{B}]))|"
-    .  "(([$pfam{F}])($pcnt)([$psdom{F}]$psdnum)([$pdom{F}])F?)|"
+    .  "(([$pfam{F}])($pcnt)([$psdom{F}]$psdnum)([$pdom{F}])F)|"
     .  "(([$pfam{P}])($pcnt)([$psdom{P}]$psdnum)?([$pdom{P}])P))\\Z";
 
 sub parse {
