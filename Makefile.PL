@@ -43,6 +43,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		makeDocPerl.pl makeDocTxt.pl
 		cvs_diff.pl cvs_log_diff.pl camonitor_sort.pl 
 		sch_cvs_diff.pl SetPerms vdct tkSQL
+		accLaunch
 		rsync-deploy rsync-dist.pl);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
