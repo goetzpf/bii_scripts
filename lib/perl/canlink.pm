@@ -577,20 +577,32 @@ sub decode
     my(@f)= split(/\s+/,$str);
 
     if ($#f!=9)
-      { warn "decode(): unknown can link format!\n"; return; };
+      { warn "decode(): unknown can link format (element no)\n" .
+             "\"$str\"\n"; 
+	return; 
+      };
 
     if ($f[0] !~ /^\@\w$/)
-      { warn "decode(): unknown can link format!\n"; return; };
+      { warn "decode(): unknown can link format (at-sign not found)\n" .
+             "\"$str\"\n"; 
+	return; 
+      };
 
     my $ch= substr($f[0],1,1);
 
     if (!exists $char_list{$ch})
-      { warn "decode(): unknown variable-type char: $ch \n"; return; };
+      { warn "decode(): unknown variable-type char $ch in this link:\n" .
+             "\"$str\"\n"; 
+        return; 
+      };
 
     my %result = %{$char_list{$ch}};
 
     if (!exists $type_list{$f[1]})
-      { warn "decode(): unknown data-type char: $f[1] \n"; return; };
+      { warn "decode(): unknown data-type char: $f[1] in this link:\n" .
+             "\"$str\"\n"; 
+        return; 
+      };
 
     my $r_datatype= $type_list{$f[1]};
 
@@ -599,7 +611,8 @@ sub decode
 
     for(my $i=2; $i<= 9; $i++)
       { if ($f[$i] !~ /^[0-9a-fA-F]+/)
-          { warn "decode(): error in field no $i, not a hex-number !\n";
+          { warn "decode(): error in field no $i, not a hex-number, link:\n" .
+                 "\"$str\"\n"; 
             return;
           };
       };
