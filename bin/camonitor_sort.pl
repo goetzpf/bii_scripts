@@ -19,10 +19,12 @@ use IO::Handle;
 use vars qw($opt_help $opt_summary
             $opt_file $opt_name
 	    $opt_time $opt_val
-	    $opt_regexp $opt_progress);
+	    $opt_regexp $opt_progress
+	    $opt_rm_tmstamp
+	    );
 
 
-my $sc_version= "0.9";
+my $sc_version= "1.0";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "sorts a log-file created by camonitor by timestamp"; 
@@ -36,7 +38,7 @@ my $debug= 0; # global debug-switch
 
 if (!GetOptions("help|h","summary", "file|f=s", 
                 "name|n=s", "time|t=s", "val|v=s",
-		"regexp|r=s", "progress|p"
+		"regexp|r=s", "progress|p", "rm_tmstamp|rm-tmstamp",
                 ))
   { die "parameter error!\n"; };
 
@@ -148,6 +150,10 @@ sub mk_hash
 	
 	my $key= $a[1] . "," . $a[2] . "," . $a[0];
 #print "$key->",$line,"\n";
+	
+	if ($opt_rm_tmstamp)
+	  { $line= sprintf "%-40s %s",$a[0],$a[3]; };
+	
 	$h{$key}= $line;
       };
     print STDERR "\n" if ($opt_progress);
@@ -204,6 +210,7 @@ Syntax:
 	  print only records where the value is "enabled" or "disabled"  
     -r [regexp] print only lines where the LINE matches the regexp
     -p show progress on STDERR
+    --rm-tmstamp remove timestamps in output
 END
   }
 
