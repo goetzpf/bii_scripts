@@ -16,6 +16,14 @@ use FindBin;
 use Getopt::Long;
 use Sys::Hostname;
 use File::Spec;
+use File::Temp;
+use Cwd;
+
+use Data::Dumper;
+
+use simpleconf;
+use container;
+use maillike;
 
 use vars qw($opt_help 
 	    $opt_man
@@ -23,6 +31,7 @@ use vars qw($opt_help
 	    $opt_user 
 	    $opt_path
 	    $opt_linkpath
+	    $opt_localprefix
 	    $opt_message 
 	    $opt_tag
             $opt_dist 
@@ -36,21 +45,27 @@ use vars qw($opt_help
 	    $opt_ls 
 	    $opt_cat_log
 	    $opt_tail_log
+	    $opt_perl_log
 	    $opt_ls_tag 
 	    $opt_ls_version
 	    $opt_cat_changes
             $opt_tail_changes
+	    $opt_config
+	    $opt_show_config
+	    $opt_write_config
+	    $opt_show_config_from_log
+	    $opt_write_config_from_log
+	    $opt_env
+	    $opt_last_dist
 	    $opt_ls_bug
 	    $opt_checksum
-	    $opt_show_env
 	    $opt_dry_run
 	    $opt_world_readable
-	    $opt_links
 	    $opt_debug 
             );
 
 
-my $sc_version= "1.1";
+my $sc_version= "1.2";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
@@ -59,26 +74,146 @@ my $sc_year= "2006";
 
 my $debug= 0; # global debug-switch
 
-my @hosts;
-my @localpaths;
-my @mirrorhosts;
+my $opt_editor= "vi";
 
-my $dist_log= 'LOG-DIST';
-my $link_log= 'LOG-LINKS';
+my @opt_hosts;
+my @opt_localpaths;
+my @opt_mirrorhosts;
 
-my $dist_changes= 'CHANGES-DIST';
-my $link_changes= 'CHANGES-LINKS';
+my $gbl_local_log= "$ENV{HOME}/.rsync-dist-log";
+
+my @gbl_local_log_order= 
+                  qw(ACTION 
+		     STATUS
+		     LOCALDATE 
+		     LOCALHOST 
+		     LOCALPATHS 
+		     LOCALCWD 
+		     FILES
+		     REMOTEHOSTS 
+		     REMOTEHOST
+		     MIRRORHOSTS 
+		     REMOTEUSER
+		     REMOTEPATH 
+		     WORLDREADABLE
+		     SOURCEDIR
+		     VERSION
+ 		     TAG
+		     LOGMESSAGE 
+		    );
+
+my %gbl_local_log_actionmap= 
+     ( 'change links'    => 'links',
+       'add links'       => 'links',
+       'move to attic'   => 'move',
+       'move from attic' => 'move',
+       );
+
+my %gbl_edit_texts= 
+  ( REMOTEHOSTS => "Please enter name of the remote host.\n" .
+	           "Note that the first in the (possible) list is the \n" .
+		   "primary server.\n",
+
+    REMOTEPATH  => "Please enter the path on the remote host.\n",
+
+    LOGMESSAGE  => "Please enter your log-message. If you see a default \n" .
+                   "here, it is STRONGLY recommended that you change this.\n",
+    
+    TAG=>          "Please specify a tag (only a single line) for this\n" .
+                   "version. If you see a default here, it is STRONGLY\n" .
+		   "recommended that you change this.\n",
+
+    DIST_LOCALPATHS  => "Please enter the directory/directories you want to\n" .
+	                "distribute. \n",
+
+    REMOTEHOST =>
+                  "Please enter name of the remote host.\n",
+    
+    MOVE_DIR   => "Please enter the version-directory that is to be\n" .
+                  "moved to or from the attic directory\n",
+    MIRROR_HOSTS =>
+                  "Please enter the hosts that the directory shall be\n" .
+		  "mirrored to.\n",
+    SOURCE_DIR => "Please enter the source the symbolic link shall refer\n" .
+                  "to.\n",
+    FILEMASK =>   "Please enter the files (or a filemask) for the \n" .
+                  "symbolic links that are to be changed\n",	  		  		  		   
+  );		   
+
+use constant
+  { DIST_LOG     => 'LOG-DIST',
+    LINK_LOG     => 'LOG-LINKS',
+
+    DIST_CHANGES => 'CHANGES-DIST',
+#    LINK_CHANGES => 'CHANGES-LINKS',
+    
+  };
+
+my $my_errcode= 67;
+# errcode returned by ssh command when a test 
+# for certain preconditions fails. In this case,
+# the whole ssh command is not dumped since the 
+# ssh-command already did print a sensible error message
+# to the screen
 
 my $gbl_rsync_opts="-a -u -z --delete";
 
-my %env_opts= (RSYNC_DIST_HOST      => [\@hosts, '--host'],
-               RSYNC_DIST_USER      => [\$opt_user, '--user'],
-	       RSYNC_DIST_PATH      => [\$opt_path, '--path'],
-	       RSYNC_DIST_LINKPATH  => [\$opt_linkpath, '--linkpath'],
-	       RSYNC_DIST_LOCALPATH => [\@localpaths, '--localpath'],
-	       RSYNC_DIST_MESSAGE   => [\$opt_message, '--message'],
-	       RSYNC_DIST_TAG       => [\$opt_tag, '--tag']
+my %gbl_map_hash= 
+              (RSYNC_DIST_HOST      => \@opt_hosts,
+               RSYNC_DIST_USER      => \$opt_user,
+	       RSYNC_DIST_PATH      => \$opt_path,
+	       RSYNC_DIST_LINKPATH  => \$opt_linkpath, 
+	       RSYNC_DIST_LOCALPATH => \@opt_localpaths,
+	       RSYNC_DIST_LOCALPREFIX =>
+	                               \$opt_localprefix,
+	       RSYNC_DIST_WORLDREADABLE => \$opt_world_readable,
+	       RSYNC_DIST_CHECKSUM  => \$opt_checksum,
+	       RSYNC_DIST_EDITOR => \$opt_editor,
 	      );
+
+my %gbl_config_comments=
+              (RSYNC_DIST_HOST => "name of the remote host(s)",
+	       RSYNC_DIST_USER => "name of the remote user",
+	       RSYNC_DIST_PATH => "remote distribution directory",
+	       RSYNC_DIST_LINKPATH =>
+	                          "remote link directory",
+	       RSYNC_DIST_LOCALPATH =>
+	                          "local distribution directories",
+	       RSYNC_DIST_LOCALPREFIX =>
+	                          "prefix prepended to all localpaths",		  
+	       
+	       RSYNC_DIST_WORLDREADABLE	=>
+	                          "make all dirs on server world-readable",	  
+	       RSYNC_DIST_CHECKSUM =>
+	                          "use checksum to detect file changes",
+               RSYNC_DIST_EDITOR =>
+	                          "editor for log-messages and tags",
+              );
+	      
+my @gbl_config_order=qw(
+RSYNC_DIST_HOST
+RSYNC_DIST_USER
+RSYNC_DIST_PATH  
+RSYNC_DIST_LINKPATH
+RSYNC_DIST_LOCALPATH
+RSYNC_DIST_LOCALPREFIX
+RSYNC_DIST_WORLDREADABLE 
+RSYNC_DIST_CHECKSUM
+RSYNC_DIST_EDITOR );
+
+
+# type-list, only array need to be listed here:
+my %gbl_config_types=
+              (RSYNC_DIST_HOST      => 'ARRAY',
+	       RSYNC_DIST_LOCALPATH => 'ARRAY');
+
+my %gbl_known_dirnames= (dist =>'dist', 
+			 d    =>'dist',
+			 links=>'links',
+			 l    =>'links',
+			);
+
+my $gbl_last_locallog_entries;
 
 if (!@ARGV)
   { $opt_man= 1; };
@@ -95,42 +230,51 @@ if (!GetOptions("help|h",
                 "man", 
 		"summary",
 		
-		"host|H=s" => \@hosts,
+		"host|H=s" => \@opt_hosts,
 		"user|u=s", 
 		
 		"path|p=s",
 		"linkpath|P=s",
-		"localpath|l=s" => \@localpaths,
+		"localpath|l=s" => \@opt_localpaths,
+		"localprefix=s",
 
 		"message|m=s",
 		"tag|t=s",
 
 		"dist|d:s", 
-		"to_attic|to-attic=s",
-		"from_attic|from-attic=s",
-		"change_links|change-links|C=s",
-		"add_links|add-links|A=s",
-		"mirror=s" => \@mirrorhosts,
-		"rm_lock|rm-lock",
-		"mk_lock|mk-lock",
+		"to_attic|to-attic:s",
+		"from_attic|from-attic:s",
+		"change_links|change-links|C:s",
+		"add_links|add-links|A:s",
+		"mirror=s" => \@opt_mirrorhosts,
+		"rm_lock|rm-lock=s",
+		"mk_lock|mk-lock=s",
 		"rebuild_last|rebuild-last",
 
-		"ls",
-		"cat_log|cat-log|c",
-		"tail_log|tail-log:i",
+		"ls=s",
+		"cat_log|cat-log|c=s",
+		"tail_log|tail-log=s",
+		"perl_log|perl-log|c=s",
 		"ls_tag|ls-tag|T=s",
 		"ls_version|ls-version=s",
-		"cat_changes|cat-changes",
-		"tail_changes|tail-changes:i",
+		"cat_changes|cat-changes:s",
+		"tail_changes|tail-changes=s",
 
+		"config=s",
+		"show_config|show-config",
+		"write_config|write-config=s",
+		"show_config_from_log|show-config-from-log",
+		"write_config_from_log|write-config-from-log=s",
+		"env",
+		
+		"editor=s" => \$opt_editor,		
+		"last_dist|last-dist",
 		"ls_bug|ls-bug",
 		"checksum",
-		"show_env|show-env",
 		"dry_run|dry-run",
 		"world_readable|world-readable|w",
 
 # undocumented:
-		"links",
                 "debug",
                 ))
   { die "parameter error!\n"; };
@@ -143,115 +287,145 @@ if ($opt_help)
 if ($opt_man)
   { exec("perldoc $0"); };
 
-@hosts = split(/[,\s:]+/,join(',',@hosts));
-
-@localpaths = split(/[,\s:]+/,join(',',@localpaths));
-
-@mirrorhosts = split(/[,\s:]+/,join(',',@mirrorhosts));
-
-if ($opt_show_env)
-  { process_environment(\%env_opts, 1); 
-    exit(0);
-  }
-else 
-  { process_environment(\%env_opts);
-  };
-
 if ($opt_summary)
   { print_summary();
     exit;
   };
+  
+@opt_hosts = split(/[,\s:]+/,join(',',@opt_hosts));
+
+@opt_localpaths = split(/[,\s:]+/,join(',',@opt_localpaths));
+
+@opt_mirrorhosts = split(/[,\s:]+/,join(',',@opt_mirrorhosts));
+
+
+if ($opt_env)
+  { read_env(); }
+
+if ($opt_config)
+  { read_config($opt_config); }
+
+if ((defined $opt_show_config) || (defined $opt_write_config))
+  { show_config($opt_write_config);
+    exit(0);
+  } 
+
+if ((defined $opt_show_config_from_log) || 
+    (defined $opt_write_config_from_log)) 
+  { show_config_from_log($opt_write_config_from_log);
+    exit(0);
+  } 
+
+if ($opt_localprefix)
+  { @opt_localpaths= map{ File::Spec->catfile($opt_localprefix,$_) }
+                          @opt_localpaths;
+  }  
 
 if ($opt_debug)
   { $debug= $opt_debug; }
 
 # ------------------------------------------------
 
-my $log = $dist_log;
-my $chg = $dist_changes;
-my $path= $opt_path;
-
-if ((defined $opt_links) || (defined $opt_change_links) || (defined $opt_add_links))
-  { $log = $link_log; 
-    $chg = $link_changes; 
-    $path= $opt_linkpath if (defined $opt_linkpath);
-  }
-
 if (defined $opt_ls)
-  { ls($hosts[0],$opt_user,$path);
+  { my($arg,$rpath,$log,$chg)= dir_dependant($opt_ls);
+    ls($opt_hosts[0],$opt_user,$rpath);
     exit(0);
   }
 
-if (defined $opt_cat_log)
-  { cat_file($hosts[0],$opt_user,$path,$log);
+if ((defined $opt_cat_log) || (defined $opt_perl_log))
+  { my $dump_perl= (defined $opt_perl_log);
+    my $dirname= ($dump_perl) ? $opt_perl_log : $opt_cat_log;
+    my($arg,$rpath,$log,$chg)= dir_dependant($dirname);
+    
+    my($rc,$r_lines)= cat_file($opt_hosts[0],$opt_user,$rpath,
+                               $log,undef,$dump_perl);
+    exit(1) if (!$rc);
+    
+    if ($dump_perl)
+      { my $r_h= maillike::parse($r_lines,recordseparator=>"%%");
+        my $name= $log;
+	$name=~ s/-/_/g;
+	print Data::Dumper->Dump([$r_h],[$name]);
+      };
+    
     exit(0);
   }
 
 if (defined $opt_cat_changes)
-  { cat_file($hosts[0],$opt_user,$path,$chg);
+  { $opt_cat_changes= 'd' if ($opt_cat_changes eq "");
+    my($arg,$rpath,$log,$chg)= dir_dependant($opt_cat_changes);
+    cat_file($opt_hosts[0],$opt_user,$rpath,$chg);
     exit(0);
   }
 
 if (defined $opt_tail_log)
-  { cat_file($hosts[0],$opt_user,$path,$log,$opt_tail_log);
+  { my($arg,$rpath,$log,$chg)= dir_dependant($opt_tail_log);
+    cat_file($opt_hosts[0],$opt_user,$rpath,$log,$arg);
     exit(0);
   }
 
 if (defined $opt_tail_changes)
-  { cat_file($hosts[0],$opt_user,$path,$chg,$opt_tail_changes);
+  { my($arg,$rpath,$log,$chg)= dir_dependant($opt_tail_changes);
+    cat_file($opt_hosts[0],$opt_user,$rpath,$chg,$arg);
     exit(0);
   }
 
 if (defined $opt_ls_tag)
-  { ls_tag($hosts[0],$opt_user,$path,$opt_ls_tag);
+  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+    ls_tag($opt_hosts[0],$opt_user,$rpath,$opt_ls_tag);
     exit(0);
   }
 
 if (defined $opt_ls_version)
-  { ls_version($hosts[0],$opt_user,$path,$opt_ls_version);
+  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+    ls_version($opt_hosts[0],$opt_user,$rpath,$opt_ls_version);
     exit(0);
   }
 
 if (defined $opt_rm_lock)
-  { rm_lock($hosts[0],$opt_user,$path,'remove');
+  { my($arg,$rpath,$log,$chg)= dir_dependant($opt_rm_lock);
+    rm_lock($opt_hosts[0],$opt_user,$rpath,'remove');
     exit(0);
   }
 
 if (defined $opt_mk_lock)
-  { rm_lock($hosts[0],$opt_user,$path,'create');
+  { my($arg,$rpath,$log,$chg)= dir_dependant($opt_mk_lock);
+    rm_lock($opt_hosts[0],$opt_user,$rpath,'create');
     exit(0);
   }
 
 if (defined $opt_rebuild_last)
-  { rebuild_last($hosts[0],$opt_user,$path);
+  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+    rebuild_last($opt_hosts[0],$opt_user,$rpath);
     exit(0);
   }
 
-if (@mirrorhosts)
-  { mirror($opt_user,$path,$hosts[0],\@mirrorhosts);
+if (@opt_mirrorhosts)
+  { my $dirtype= shift @opt_mirrorhosts;
+    my($arg,$rpath,$log,$chg)= dir_dependant($dirtype);
+    mirror($opt_user,$rpath,$opt_hosts[0],\@opt_mirrorhosts);
     exit(0);
   }
 
 if (defined $opt_change_links)
-  { my @files= split(/,/,$opt_change_links);
-    my $source= shift @files;
-    die "source missing" if (!defined $source);
-    $source= check_file_opt($source);
-    change_link(0, \@hosts,$opt_user,$path,$opt_message,$source,@files);
+  { my($arg,$rpath,$log,$chg)= dir_dependant('links');
+
+    change_link(0, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_change_links);
     exit(0);
   }
 
 if (defined $opt_add_links)
-  { my @files= split(/,/,$opt_add_links);
-    my $source= shift @files;
-    die "source missing" if (!defined $source);
-    $source= check_file_opt($source);
-    change_link(1, \@hosts,$opt_user,$path,$opt_message,$source,@files);
+  { my($arg,$rpath,$log,$chg)= dir_dependant('links');
+    my @files;
+    my $source;
+    
+    change_link(1, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_add_links);
     exit(0);
   }
 
 if (defined $opt_dist)
-  { dist(\@hosts,$opt_user,$path,\@localpaths, 
+  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+    dist(\@opt_hosts,$opt_user,$rpath,\@opt_localpaths, 
          $opt_message, $opt_tag,
   	 $opt_world_readable,
 	 $opt_dist);
@@ -259,12 +433,14 @@ if (defined $opt_dist)
   }
          
 if (defined $opt_to_attic)
-  { move_file($hosts[0],$opt_user,$path,$opt_to_attic, $opt_message, 1);
+  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+    move_file($opt_hosts[0],$opt_user,$rpath,$opt_to_attic, $opt_message, 1);
     exit(0);
   }
          
 if (defined $opt_from_attic)
-  { move_file($hosts[0],$opt_user,$path,$opt_from_attic, $opt_message, 0);
+  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+    move_file($opt_hosts[0],$opt_user,$rpath,$opt_from_attic, $opt_message, 0);
     exit(0);
   }
          
@@ -281,11 +457,42 @@ sub dist
        $logmessage, $tag, $world_readable,
        $locallog)= @_;
 
-    die "remote_host missing" if (empty($r_remote_hosts));
-    die "remote_path missing" if (empty($remote_path));
-    die "log-message missing" if (empty($logmessage));
-    die "local-path missing"  if (empty($r_local_paths));
+    if (empty($r_remote_hosts))
+      { ensure_var(\$r_remote_hosts, 'REMOTEHOSTS', 
+                   take_default('','distribute:REMOTEHOSTS',
+		                   'links:REMOTEHOSTS',
+				   'move:REMOTEHOST'));
+      };			   
 
+    if (empty($remote_path))
+      { ensure_var(\$remote_path   , 'REMOTEPATH' ,
+                   take_default('','distribute:REMOTEPATH',
+		                   'links:REMOTEPATH',
+				   'move:REMOTEPATH'));
+      };
+    if (empty($tag))
+      { ensure_var(\$tag          , 'TAG' , 
+                   take_default('','distribute:TAG'));
+      };
+    if (empty($logmessage))
+      { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
+                   take_default('','distribute:LOGMESSAGE'));
+      };
+
+    if (empty($r_local_paths))
+      { ensure_var(\$r_local_paths , 'DIST_LOCALPATHS' , 
+                   take_default('','distribute:LOCALPATHS'));
+      };
+
+    my($now,$local_host,$local_user,$from)= local_info();
+    
+    # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $r_remote_hosts,$remote_user,
+			    $remote_path,
+			    'distribute');
+    
     foreach my $l (@$r_local_paths)
       { if (!-d $l)
           { die "error: directory \"$l\" not found"; };
@@ -302,13 +509,12 @@ sub dist
     my $local_paths=  
        join(" ", (map { File::Spec->rel2abs($_,$pwd) } @$r_local_paths));
 
-    my $local_host= my_hostname();
-    my $local_user= username();
-    my $from= $local_user . '@' . $local_host;
-
     my $rsync_opts= $gbl_rsync_opts . " --copy-unsafe-links";
     $rsync_opts.= " -c" if ($opt_checksum);
   
+    my $log= DIST_LOG;
+    my $chg= DIST_CHANGES;
+    
     my $rcmd= sh_mklock($from) .
 	      ' && ' .
               sh_handle_attic($log,$chg) .
@@ -327,7 +533,7 @@ sub dist
       { $rcmd.= ' && chmod -R a+rX `cat STAMP`'; };
     $rcmd.=	      
 	      ' && ' .
-	      "echo \"\" >> $log && " .
+	      "echo \"%%\" >> $log && " .
 	      "echo VERSION: `cat STAMP` >> $log && " .
 	      "echo ACTION: added >> $log && " .
 	      sh_add_log($log,$from,$logmessage,$tag) . ' && ' .
@@ -355,25 +561,66 @@ sub dist
 	      'echo `cat STAMP` was created && ' .
 	      'rm -f STAMP LOCK';
 
-    my $r_l= ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd, 1);
+    my($rc,$r_l)= myssh_cmd($remote_host, $remote_user, $remote_path, 
+                            $rcmd, 1);
+    
+    return if (!$rc);
     
     if ($locallog ne "")
       { to_file($locallog, $r_l); };
     #print join("\n",@$r_l); 
+    
+    # update local log-file
+    $r_log->{LOCALPATHS}  = join(",",@$r_local_paths);
+    $r_log->{LOCALCWD}    = cwd();
+    $r_log->{LOGMESSAGE}  = $logmessage;
+    
+    if ($world_readable)
+      { $r_log->{WORLDREADABLE}= 1; };
+ 
+    if (defined $tag)
+      { $r_log->{TAG}= $tag; };
+    $r_log->{VERSION}= extract_date($r_l->[0]);
+    
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
   }    
 
 sub move_file
   { my($remote_host, $remote_user, 
        $remote_path, $dir, $logmessage, $to_attic)= @_;
 
-    die "remote_host missing" if (empty($remote_host));
-    die "remote_path missing" if (empty($remote_path));
-    die "the directory that is to move is missing" if (empty($dir));
+    if (empty($remote_host))
+      { ensure_var(\$remote_host, 'REMOTEHOST', 
+                   take_default('TO-SCALAR',
+		                'move:REMOTEHOST',
+				'distribute:REMOTEHOSTS',
+				'links:REMOTEHOSTS',
+				));
+      };			   
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('','move:REMOTEPATH' .
+		                   'distribute:REMOTEPATH',
+		                   'links:REMOTEPATH'));
+      };			   
+    if (empty($dir))
+      { ensure_var(\$dir        , 'MOVE_DIR'); };
 
-    my $local_host= my_hostname();
-    my $local_user= username();
-    my $from= $local_user . '@' . $local_host;
- 
+    if (empty($logmessage))
+      { ensure_var(\$logmessage    , 'LOGMESSAGE');
+      };
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $remote_host,$remote_user,
+			    $remote_path,
+			    $to_attic ? 'move to attic' :
+			                'move from attic'
+			    );
+
     my $dest;
     my $odir= $dir;
     my $action;
@@ -386,42 +633,62 @@ sub move_file
         $dest= '.'; 
         $action= "moved from attic";
       };
+
+    my $log= DIST_LOG;
+    my $chg= DIST_CHANGES;
    
     my $rcmd= 
         	sh_mklock($from) .
 	        ' && ' .
                 sh_handle_attic($log,$chg) .
 	        ' && ' .
-		'if test -e LINKS-*;' .
-		"then grep $dir LINKS-*;" .
-		     'if test $? -eq 0;' .
-		     "then echo \"error: $dir is still in use (symlinks)\" && ".
-		          'rm -f LOCK && exit 0;' .
-		     'fi;' .
-		'fi '.
+		"grep $dir /dev/null LINKS-* 2>/dev/null; " .
+		'if test $? -eq 0;' .
+		"then echo \"error: $dir is still in use (symlinks)\" && ".
+		     "rm -f LOCK && exit $my_errcode;" .
+		'fi' .
 	        ' && ' .
 		"if ! test -d $dir;" . 
 		"then echo $dir not found && " .
-        	     'rm -f LOCK && exit 0;' . 
+        	     "rm -f LOCK && exit $my_errcode;" . 
 		'fi && ' .
                 "mv $dir $dest && " . 
-		"echo \"\" >> $log && " .
+		"echo \"%%\" >> $log && " .
 		"echo VERSION: $odir >> $log && " .
 		"echo ACTION: $action >> $log && " .
 	        sh_add_log($log,$from,$logmessage,undef) . ' && ' .
 		sh_rebuld_LAST() . ' && ' .
 		'rm -f STAMP LOCK';
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
+
+    # update local log-file
+    $r_log->{LOGMESSAGE} = $logmessage;
+    $r_log->{VERSION}    = $odir;
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
   }
 	      
 
 sub cat_file
   { my($remote_host, $remote_user, 
-       $remote_path, $filename, $tailpar) = @_;
+       $remote_path, $filename, $tailpar, $catch) = @_;
    
-    die "remote_host missing" if (empty($remote_host));
-    die "remote_path missing" if (empty($remote_path));
- 
+    if (empty($remote_host))
+      { ensure_var(\$remote_host, 'REMOTEHOST', 
+                   take_default('TO-SCALAR',
+				'distribute:REMOTEHOSTS',
+				'links:REMOTEHOSTS',
+      				));
+      };  
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('','distribute:REMOTEPATH',
+		                   'links:REMOTEPATH'));
+      };			   
+    
     my $rcmd;
     if (!defined $tailpar)
       { $rcmd= "cat $filename"; }
@@ -430,65 +697,158 @@ sub cat_file
           { $tailpar= 10; };
         $rcmd= "tail -n $tailpar $filename";
       };
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-    
+
+    my($rc,$r_lines)= myssh_cmd($remote_host, $remote_user, $remote_path, 
+                                $rcmd, $catch, $catch);
+
+    return($rc,$r_lines);
   }
   
 sub ls
   { my($remote_host, $remote_user, 
        $remote_path) = @_;
    
-    die "remote_host missing" if (empty($remote_host));
-    die "remote_path missing" if (empty($remote_path));
+    if (empty($remote_host))
+      { ensure_var(\$remote_host, 'REMOTEHOST', 
+                   take_default('TO-SCALAR',
+				'distribute:REMOTEHOSTS',
+				'links:REMOTEHOSTS',
+      				));
+      };  
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('','distribute:REMOTEPATH',
+		                   'links:REMOTEPATH'));
+      };			   
 
     my $rcmd= "ls -l";
     $rcmd.= " 2>/dev/null" if ($opt_ls_bug);
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-    
+
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
   }
   
 sub rm_lock
   { my($remote_host, $remote_user, 
        $remote_path, $action) = @_;
    
-    die "remote_host missing" if (empty($remote_host));
-    die "remote_path missing" if (empty($remote_path));
+    if (empty($remote_host))
+      { ensure_var(\$remote_host, 'REMOTEHOST', 
+                   take_default('TO-SCALAR',
+				'distribute:REMOTEHOSTS',
+				'links:REMOTEHOSTS',
+      				));
+      };  
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('','distribute:REMOTEPATH',
+		                   'links:REMOTEPATH'));
+      };			   
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+   # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $remote_host,$remote_user,
+			    $remote_path,
+			    "$action lockfile");
 
     my $rcmd;
     if    ($action eq 'remove')
       { $rcmd= "rm -f LOCK"; }
     elsif ($action eq 'create')
-      { my $local_host= my_hostname();
-        my $local_user= username();
+      { 
+        
         my $from= $local_user . '@' . $local_host;
         $rcmd= sh_mklock($from)
       }
     else
       { die "assertion: unknown action: \"$action\""; };
       
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
+    
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    
   }
 
 sub rebuild_last
   { my($remote_host, $remote_user, 
        $remote_path) = @_;
 
-    die "remote_host missing" if (empty($remote_host));
-    die "remote_path missing" if (empty($remote_path));
+    if (empty($remote_host))
+      { ensure_var(\$remote_host, 'REMOTEHOST', 
+                   take_default('TO-SCALAR',
+				'distribute:REMOTEHOSTS',
+				'links:REMOTEHOSTS',
+      				));
+      };  
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('','distribute:REMOTEPATH',
+		                   'links:REMOTEPATH'));
+      };			   
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $remote_host,$remote_user,
+			    $remote_path,
+			    'rebuild LAST');
 
     my $rcmd= sh_rebuld_LAST();
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
   }
 
 sub mirror
   { my($remote_user,$remote_path,$remote_host,$r_hosts)= @_;
   
-    die "remote_host missing"  if (empty($remote_host));
-    die "remote_path missing"  if (empty($remote_path));
-    die "mirror hosts missing" if (empty($r_hosts));
+    if (empty($remote_host))
+      { ensure_var(\$remote_host, 'REMOTEHOST', 
+                   take_default('TO-SCALAR',
+				'distribute:REMOTEHOSTS',
+				'links:REMOTEHOSTS',
+      				));
+      };  
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('','distribute:REMOTEPATH',
+		                   'links:REMOTEPATH'));
+      };			   
+    if (empty($r_hosts))
+      { ensure_var(\$r_hosts    , 'MIRRORHOSTS',
+                   take_default('','mirror:MIRRORHOSTS'));
+      };			   
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $remote_host,$remote_user,
+			    $remote_path,
+			    'mirror');
 
     my $rcmd= sh_copy_to_hosts($remote_path,@$r_hosts);
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
+
+    $r_log->{MIRRORHOSTS}= join(" ",@$r_hosts);
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+
   }
 
 sub ls_version
@@ -498,6 +858,8 @@ sub ls_version
     die "remote_host missing" if (empty($remote_host));
     die "remote_path missing" if (empty($remote_path));
     die "tag missing" if (empty($version));
+
+    my $log= DIST_LOG;
 
     my $rcmd= "if ! test -e $log; then ".
                 "echo file $log not found ;" .
@@ -509,7 +871,9 @@ sub ls_version
 		'fi; ' .
 	      'fi';
     
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
   }
  
 sub ls_tag
@@ -520,6 +884,8 @@ sub ls_tag
     die "remote_path missing" if (empty($remote_path));
     die "tag missing" if (empty($tag));
 
+    my $log= DIST_LOG;
+
     my $rcmd= "if ! test -e $log; then ".
                 "echo file $log not found ;" .
               'else ' .
@@ -529,47 +895,102 @@ sub ls_tag
 		'fi; ' .
 	      'fi';
     
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-    
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
   }
  
   
 sub change_link
   { my($do_add, $r_remote_hosts, $remote_user, $remote_path, $logmessage,
-       $remote_source, @files )= @_;
-   
-    die "remote_host missing" if (empty($r_remote_hosts));
-    die "remote_path missing" if (empty($remote_path));
-    die "remote source missing" if (empty($remote_source));
-    die "error: no files specified" if (empty(\@files));
+       $linkparam )= @_;
 
+    my @files;
+    my $remote_source;
+    
+    if (defined $linkparam)
+      { if ($linkparam !~ /^([^,]*),(.*)/)
+          { $remote_source= $linkparam; }
+	else
+	  { if ($1 ne "")
+	      { $remote_source= $1; };
+	    if ($2 ne "")
+	      { my $x= $2;
+	        @files= split(/,/,$x);
+	      };	
+          };
+	if (($opt_last_dist) && (defined $remote_source))
+	  { if ($remote_source eq "")
+	      { $remote_source= last_ver(); }
+	    else
+	      { $remote_source= File::Spec->catfile($remote_source,
+	                                            last_ver()); 
+	      };
+	  }
+      };	  
 
-    my $local_host= my_hostname();
-    my $local_user= username();
-    my $from= $local_user . '@' . $local_host;
+    if (empty($r_remote_hosts))
+      { ensure_var(\$r_remote_hosts, 'REMOTEHOSTS', 
+                   take_default('','distribute:REMOTEHOSTS',
+		                   'links:REMOTEHOSTS',
+				   'move:REMOTEHOST'));
+      };			   
 
-    if (!@files)
-      { die "error: no files specified"; }
+    if (empty($remote_path))
+      { ensure_var(\$remote_path   , 'REMOTEPATH' ,
+                   take_default('','distribute:REMOTEPATH',
+		                   'links:REMOTEPATH',
+				   'move:REMOTEPATH'));
+      };
+
+    if (empty($remote_source))
+      { ensure_var(\$remote_source  , 'SOURCE_DIR' ,
+                   take_default('','links:SOURCEDIR'));
+      };
+
+    my $r_files= \@files;
+    if (empty($r_files))
+      { ensure_var(\$r_files      , 'FILEMASK' ,
+                   take_default('','links:FILES'));
+      };
+
+    if (empty($logmessage))
+      { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
+                   take_default('','links:LOGMESSAGE'));
+      };
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $r_remote_hosts,$remote_user,
+			    $remote_path,
+			    $do_add ? 'add links' : 'change links');
+
+    
+    my $log= LINK_LOG;
     
     my @hosts= @$r_remote_hosts;
 
     my $remote_host= shift @hosts; 
     my $hosts= join(" ",@hosts);
 
-    my $files= join(" ",@files);
+    my $files= join(" ",@$r_files);
     my $rcmd= 
               "if ! test -e $remote_source; " .
-	      "then echo error: \"$remote_source does not exist\"; " .
+	      "then echo error: \"$remote_source does not exist\" && " .
+	            "exit $my_errcode; " .
 	      'else ' .
 	        sh_mklock($from) .
 	        ' && ' .
                 sh_handle_attic($log);
 		
     if ($do_add)
-      { $rcmd.= ' && ' . sh_must_all_not_exist(@files)  . ' && ';
+      { $rcmd.= ' && ' . sh_must_all_not_exist(@$r_files)  . ' && ';
       }
     else	
-      { $rcmd.= ' && ' . sh_must_all_be_symlinks(@files) . ' && ' .
+      { $rcmd.= ' && ' . sh_must_all_be_symlinks(@$r_files) . ' && ' .
                 'ls -l ' . $files;
         $rcmd.= " 2>/dev/null" if ($opt_ls_bug);
 	$rcmd.= ' > OLD && ' 
@@ -596,10 +1017,10 @@ sub change_link
         	'do rm -f $l && ' .
 	          "ln -s $remote_source \$l; " .
 		'done && ' .
-		"echo \"\" >> $log && " .
+		"echo \"%%\" >> $log && " .
 		"date +\"DATE: %Y-%m-%dT%H:%M:%S\" >> $log && " .
 	        sh_add_log($log,$from,$logmessage,undef) . ' && ' .
-                sh_add_symlink_log($log,$do_add,@files) . ' && ' .
+                sh_add_symlink_log($log,$do_add,@$r_files) . ' && ' .
 		
 		'find . -type l -printf "%l %f\n" ' .
 		"| sort | grep \"^$source_base\" | sed -e \"s/^.*\\///\" " .
@@ -622,7 +1043,17 @@ sub change_link
 		
 		'rm -f STAMP LOCK; ' .
 	       'fi';
-    ssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    return if (!$rc);
+
+    $r_log->{FILES}       = join(",",@$r_files);
+    $r_log->{LOGMESSAGE}  = $logmessage;
+    $r_log->{SOURCEDIR}   = $remote_source;
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+
   }
 
 sub sh_copy_to_hosts
@@ -684,7 +1115,7 @@ sub sh_must_all_be_symlinks
     return( "for l in $files; " .
               'do if ! test -h $l; ' .
 	          'then echo error: $l does not exist or is not a symlink && ' .
-		  'rm -f LOCK && exit 0; ' .
+		  "rm -f LOCK && exit $my_errcode; " .
 	          'fi; ' .
               'done' ); 
   }
@@ -697,7 +1128,7 @@ sub sh_must_all_not_exist
     return( "for l in $files; " .
                'do if test -e $l; ' .
 	          'then echo error: $l already exists && ' .
-		  'rm -f LOCK && exit 0; ' .
+		  "rm -f LOCK && exit $my_errcode; " .
 	          'fi; ' .
                'done' ); 
   }
@@ -729,17 +1160,134 @@ sub sh_rebuld_LAST
     return($str);
   }
 
-sub check_file_opt
-# when a path contains "<filename>", replace that
-# part of the string with the first line of the 
-# file (basically, see also ver_from_file() 
-  { my($source)= @_;
-    return($source) if ($source!~ /<([^>]+)>/);
-    my $ver= ver_from_file($1); 
-    $source=~ s/<[^>]+>/$ver/;
-    return($source);
+sub read_locallog
+# read the local logfile
+# and return a hash
+  { return if (!-e $gbl_local_log);
+ 
+    my $r_h= maillike::parse($gbl_local_log,recordseparator=>"%%");
+ 
+    return($r_h);
   }
+
+sub last_ver
+  { # take the last distributed version from the
+    # local log-file
+
+    get_last_log_entries(\$gbl_last_locallog_entries);
+
+    if (!defined $gbl_last_locallog_entries)
+      { die "error: local log-file \"$gbl_local_log\" not found\n" .
+            "or no last distribution info found in this file";
+      };
+ 
+    return($gbl_last_locallog_entries->{distribute}->{VERSION});
+  }    
+
+sub write_file
+  { my($filename,$r_var)= @_;
+    local(*F);
+    open(F,">$filename") or die "unable to create \"$filename\"";
+    print F $$r_var;
+    close(F);
+  }
+
+sub rename_to_bak
+  { my($filename)= @_;
   
+    my $file= $filename;
+    my $ext= ".bak";
+    my $no;
+    
+    return if (!-e $filename);
+    while (-e ($file . $ext))
+      { $ext= sprintf ".bak%d",(++$no); };
+    if (!rename($filename, $file . $ext))
+      { die "error: renaming $file to $file$ext failed"; };
+  }
+
+sub show_config_from_log
+  { my($filename)= @_;
+  
+    my %extracted;
+    my %log_map= ( 'distribute:REMOTEHOSTS' => 'RSYNC_DIST_HOST',
+                   'distribute:REMOTEUSER'  => 'RSYNC_DIST_USER',
+		   'distribute:REMOTEPATH'  => 'RSYNC_DIST_PATH',
+		   'links:REMOTEPATH'       => 'RSYNC_DIST_LINKPATH');
+    my %array_type= (RSYNC_DIST_HOST=>1);
+
+	
+    get_last_log_entries(\$gbl_last_locallog_entries);
+    return if (!defined $gbl_last_locallog_entries);
+
+    foreach my $key (keys %log_map)
+      { my($action,$tag)= split(/:/,$key);
+        my $entry= $gbl_last_locallog_entries->{$action};
+	next if (!defined $entry);
+	my $val= $entry->{$tag};
+	next if (!defined $val);
+	my $config_tag= $log_map{$key};
+	if (exists $array_type{$config_tag})
+	  { my @a= split(/[\s,\n]+/,$val);
+	    $val= \@a;
+	  };
+	$extracted{$config_tag}= $val;
+      };
+    container::Import(\%gbl_map_hash,\%extracted,
+                      overwrite=>1, 
+		      skip_empty=> 1);
+    my $var;
+    simpleconf::create(\$var,\%extracted,
+                       lineseparator=>"\n\n",
+		       comments=>\%gbl_config_comments,
+		       order=> \@gbl_config_order
+		      );
+    $var.= "\n";
+    if (defined $filename)
+      { rename_to_bak($filename);
+        write_file($filename,\$var);
+      }
+    else
+      { print $var; };
+  }
+
+sub get_last_log_entries
+# build a collection(hash) of all the last l
+# local-log entries of one type
+  { my($rr_h)= @_;
+  
+    return if (defined($$rr_h));
+     
+    my %h; 
+  
+    my $r_a= read_locallog();
+
+    if (!defined $r_a)
+      { return };
+      
+    foreach my $entry (@$r_a)
+      { my $action= $entry->{ACTION};
+        if (!defined $action)
+	  { warn "assertion"; next; };
+	$h{$action}= $entry;
+	# by the following lines we can collect
+	# "similar actions" under a single action-label
+	# see also the definition of %gbl_local_log_actionmap
+	$action= $gbl_local_log_actionmap{$action};
+	if (defined $action)
+	  { $h{$action}= $entry; };
+	
+      };
+    
+    $$rr_h= \%h;
+  }      
+
+sub extract_date
+  { my($str)= @_;
+    chomp($str);
+    $str=~ s/\s+.*$//;
+    return($str);
+  }  
 
 sub ver_from_file
   { my($filename)= @_;
@@ -747,9 +1295,8 @@ sub ver_from_file
     open(F, "$filename") or die "unable to open $filename\n";
     my $line=<F>;
     chomp($line);
-    $line=~ s/\s+.*$//;
     close(F);
-    return($line);
+    return(extract_date($line));
   } 
 
 sub to_file
@@ -768,24 +1315,58 @@ sub to_file
 
 sub empty
   { my($st)= @_;
+    my $reftype= ref($st);
   
-    if (ref($st))
-      { die "assertion:" . ref($st) if (ref($st) ne 'ARRAY');
-        $st= $st->[0]; 
-      };
+    if    ($reftype eq 'ARRAY')
+      { $st= $st->[0]; }
+    elsif ($reftype eq 'SCALAR')
+      { $st= $$st; }
+    elsif ($reftype ne '')
+      { die "assertion: reftype:\"$reftype\""; };
+       
     return(1) if (!defined $st);
     return(1) if ($st eq "");
     return;
   }
 
+sub local_info
+# returns a list consisting of:
+# current date and time,
+# localhost
+# localuser
+# from, a string consisting of "localuser@localhost"
+  { my $now= datestring();
+    my $local_host= my_hostname();
+    my $local_user= username();
+    my $from= $local_user . '@' . $local_host;
+    return($now,$local_host,$local_user,$from);
+  }
+
 sub username
+# returns the username of the local user
   { return((getpwuid($>))[0]); }
 
 sub my_hostname
+# returns the full qualified name of the localhost
   { return((gethostbyname(hostname()))[0]); }
 
-sub ssh_cmd
-  { my($host, $user, $path, $cmd, $do_catch)= @_;
+sub myssh_cmd
+# make a system call on a remote host
+# global variables used:
+#  $opt_dry_run: when 1, just print the command, do not execute
+# parameters:
+#  $host: the remote host
+#  $user: user on the remote host the command uses
+#  $path: path on the remote host from where the command is executed
+#  $cmd:  the command
+#  $do_catch: when 1, catch output from the system call 
+# returns: ($rc,$r_lines)
+#   $rc: 1 when everything was ok
+#        0 when return code was 256*$my_errcode
+#   $r_lines: ref to an array of lines, if $do_catch was 1
+# dies when the command fails with a return-code different 
+# from 256*$my_errcode
+  { my($host, $user, $path, $cmd, $do_catch, $silent)= @_;
 
     if ($path!~ /^\//)
       { $path= '$HOME/' . $path; };
@@ -802,89 +1383,378 @@ sub ssh_cmd
     if ($opt_dry_run)
       { print $ssh_cmd,"\n"; }
     else
-      { if (!$do_catch)
-          { sys($ssh_cmd); }
-	else
-	  { return(sys_catch($ssh_cmd)); } 
-      }
-  }
+      { return(mysys($ssh_cmd, $do_catch, $silent)); }
+      
+   }
 
-sub sys_catch
-  { my($cmd)= @_;
+sub mysys
+# make a system call
+# parameters:
+#   $cmd: the command to execute
+#   $do_catch: when 1, catch output from the system call 
+#   $silent: do not print to the screen (only with $do_catch==1)
+# returns: ($rc,$r_lines)
+#   $rc: 1 when everything was ok
+#        0 when return code was 256*$my_errcode
+#   $r_lines: ref to an array of lines, if $do_catch was 1
+# dies when the command fails with a return-code different 
+# from 256*$my_errcode
+  { my($cmd,$do_catch, $silent)= @_;
+    my $rc;
     local(*F);
-    my @lines;
-  
-    print "$cmd\n" if ($debug);
-    
-    $cmd.= " 2>&1 |";
-    # -e: environment overrides make
-    open(F, $cmd) || die "can\'t fork: $!";
-    while (my $line=<F>)
-      {
-#print $line;
-       print $line;
-       chomp($line);
-       push @lines,$line;
-      }
-    close(F) || die "bad netstat: $! $?\n";
-    return(\@lines);
-  }
+    my $r_lines;
 
-sub sys
-  { my($cmd)= @_;
     print "$cmd\n" if ($debug);
-    return if (0==system($cmd));
-    #return if ($?==256);
-    die "\"$cmd\" failed: $?";
-  }
 
-sub process_environment
-  { my($r_env_opts,$show)= @_;
-    my $env_val;
-  
-    foreach my $e (keys %$r_env_opts)
-      { $env_val= $ENV{$e};
-        next if (!defined $env_val);
-	$env_val=~ s/^\s+//;
-	$env_val=~ s/[\s\r\n]+$//;
-        my($ref,$str)= @{$r_env_opts->{$e}};
-	if    (ref($ref) eq 'SCALAR')
-	  { if ($show)
-	      { my $v= (defined $$ref) ? $$ref : $env_val;
-	        print $str," ",$v," "; 
-	        next;
-	      }
-	    next if (defined $$ref);
-	    $$ref= $env_val;
-	    next;
+    if ($do_catch)
+      { my @lines;
+        $r_lines= \@lines;
+        $cmd.= " 2>&1 |";
+	open(F, $cmd) || die "can\'t fork: $!";
+	while (my $line=<F>)
+	  { print $line if (!$silent);
+	    chomp($line);
+	    push @lines,$line;
 	  }
-	elsif (ref($ref) eq 'ARRAY')
-	  { if ($show)
-	      { my $v= (@$ref) ? join(",",@$ref) : $env_val;
-	        print $str," ",$v," "; 
-	        next;
-	      };
-	    next if (@$ref);
-	    @$ref= split(/[,\s:]+/,$env_val);
-	    next;
-          }
+	if (!close(F))
+	  { # an error code was returned:
+	    $rc= $?;
+	  };
+      }
+    else
+      { $rc= system($cmd); };
+      
+    return(1,$r_lines) if ($rc==0);
+
+    return(0,$r_lines) if ($rc==$my_errcode*256);
+    
+    die "\"$cmd\" \nfailed, msg:$! errcode: $?";
+  }
+
+sub read_config
+# read variables from the config-file but do
+# not overwrite variables that are already set
+  { my($filename)= @_;
+    
+    if (!-r $filename)
+      { die "error: file \"$filename\" cannot be read"; };
+      
+    my $r_cnf= simpleconf::parse($filename,types=>\%gbl_config_types);
+    
+    container::Export(\%gbl_map_hash,$r_cnf,overwrite=>0,skip_empty=>1);
+  }  
+ 
+sub read_env
+# read global variables from the environment
+# lists must be represented as strings containing
+# comma separated values
+  { 
+    my %env;
+    foreach my $key (keys %gbl_map_hash)
+      { my $val= $ENV{$key};
+        $val=~ s/^\s+//;
+        $val=~ s/\s+$//;
+        my $ref= ref($gbl_map_hash{$key});
+        if    ($ref eq '')
+	  { $env{$key}= $val; }
+	elsif ($ref eq 'SCALAR')
+	  { $env{$key}= $val; }
+	elsif ($ref eq 'ARRAY')
+	  { $env{$key}= [split(",",$val)]; }
 	else
-	  { die "assertion!"; };
+	  { die "unsupported reftype, key: $key reftype: $ref"; }; 
       };
-    print "\n" if ($show);  
+    container::Export(\%gbl_map_hash,\%env,overwrite=>0,skip_empty=>1);
+  }
+  
+sub show_config
+# uses the global map hash (%gbl_map_hash)
+# to print an example of a config file
+# (only defined global variables are taken into account)
+  { my($filename)= @_;
+    my $var;
+    my %container;
+    
+    container::Import(\%gbl_map_hash,\%container,skip_empty=>1,deep_copy=>1);
+    
+    simpleconf::create(\$var,\%container,
+                       lineseparator=>"\n\n",
+		       comments=>\%gbl_config_comments,
+		       order=> \@gbl_config_order
+		      );
+    $var.= "\n";
+    if (defined $filename)
+      { rename_to_bak($filename);
+        write_file($filename,\$var);
+      }
+    else
+      { print $var; };
+  }
+
+sub ask_char
+# ask the user to enter one from a given
+# list of characters and returns that character.
+  { my(@chars)= @_;
+    my %known= map { $_=> 1 } @chars;
+  
+    for(;;)
+      { my $var= <>;
+        $var= lc($var);
+	$var=~ s/^\s+//;
+	$var=~ s/\s+$//;
+	if (exists $known{$var})
+	  { return($var); };
+	print "please enter one of these characters:\n",
+	      join(" ",@chars),"\n";
+      }  
+  }
+
+sub consume_file
+# read the lines of a given file until a 
+# given regular expression matches. Returns
+# the found text as a single scalar variable
+  { my($stop_regexp,$filename,$r_var)= @_;
+    local(*F);
+    my $text;
+    my @lines;
+    
+    open(F,$filename) or die "unable to open \"$filename\"";
+    while(my $line=<F>)
+      { last if ($line=~ /$stop_regexp/o);
+        chomp($line);
+	push @lines, $line;
+      };
+    close(F);
+    $$r_var= join("\n",@lines);
+  }
+
+sub ask_editor
+# use an editor to obtain a value from the user.
+# prints an initial message below the first line.
+# fills the first line(s) with an optional default value
+# returns the value
+  { my($initial_message, $default, $r_var)= @_;
+  
+    return if (defined $$r_var);
+    my $str= "-" x 20;
+    
+    for(;;)
+      { 
+	my $tmp = new File::Temp(UNLINK => 0,
+                        	 TEMPLATE => 'rsync-dist-tempXXXXX',
+                        	 DIR => '/tmp');
+
+	print $tmp $default if (defined $default);
+	print $tmp "\n",$str,"\n";
+	print $tmp $initial_message;
+	close($tmp);
+
+	system("$opt_editor " . $tmp->filename);
+	my $text= consume_file($str,$tmp->filename,$r_var); 
+	unlink($tmp->filename);
+
+	if ($$r_var=~ /^\s*$/)
+	  { print "empty text is not allowed here, re-enter or quit ?\n" .
+        	  "(E/Q)";
+	    my $ch= ask_char(qw(e q));
+	    if ($ch eq 'q')
+	      { exit 0; };
+	  }
+	else
+	  { last; };     
+      };      
+  }
+
+sub take_default
+# extract default values for usage with ensure_var()
+# from the local log-file.
+# $conversion:
+#  if "TO-SCALAR" then convert a found value
+#  of a comma-separated list to the first elememt
+#  of that list
+# @list:
+#  a list of strings "action:tag" (separated by a ':')
+#  searches in the local logfile for the last occurence
+#  of the given action and extract the tag. The program
+#  searches the whole @list until it finds something 
+  { my($conversion,@list)= @_;
+    my $val;
+  
+    get_last_log_entries(\$gbl_last_locallog_entries);
+    
+    foreach my $l (@list)
+      { my($action,$tag)= split(/:/,$l);
+        
+	my $r_entry= $gbl_last_locallog_entries->{$action};
+	next if (!defined $r_entry);
+	$val= $r_entry->{$tag};
+	if (defined $val)
+	  { if ($conversion eq 'TO-SCALAR')
+	      { my(@a) = split(/[,\s\n]+/,$val);
+	        $val= $a[0];
+	      };
+	    last;
+	  };    
+      };
+    return($val);
+  }
+    
+sub ensure_var
+# ensures that a given variable has a non-empty
+# value by calling an external editor.
+# takes a reference to that variable, a tag specifying
+# a short help text (see also %gbl_edit_texts)
+# and a (optional) default value
+  { my($r_ref,$tag,$default)= @_;
+    
+    my $ref= $$r_ref;
+    
+    my $reftype= ref($ref);
+ 
+    die "assertion" if ($reftype eq 'HASH');
+    
+    return if (!empty($ref));
+
+    my $message= $gbl_edit_texts{$tag};
+    
+    die "assertion" if (!defined $message);
+    
+    if ($reftype eq 'ARRAY')
+      { $message.= "To enter more than one item separate them by\n" .
+                   "spaces, commas or by putting them into new lines\n";
+      };		   
+    
+    if (defined $default)
+      { $message.=  "(above you see the text you entered last time)\n"; };
+
+    my $str;
+    ask_editor($message, $default, \$str);
+
+    if    ($reftype eq '')
+      { $$r_ref= $str; }
+    elsif ($reftype eq 'SCALAR')
+      { $$r_ref= \$str; }
+    elsif ($reftype eq 'ARRAY')
+      { my @array= split(/[\n ,]+/,$str);
+        $$r_ref= \@array;
+      }
+    else
+      { die "assertion"; };   
+  }
+    
+sub new_log_hash
+# creates a hash for later usage with append_single_log().
+# the hash is filled with these fields:
+# LOCALDATE,LOCALHOST,REMOTEUSER,ACTION,
+# REMOTEHOST or REMOTEHOSTS and
+# REMOTEPATH
+  { my($now,
+       $local_host,$local_user,
+       $r_remote_hosts,$remote_user,
+       $remote_path,
+       $action)= @_;
+  
+    my $rhosts_tag= 'REMOTEHOST';
+    my $rhosts;
+    my $ref= ref($r_remote_hosts);
+    
+    if    ($ref eq '')
+      { $rhosts= $r_remote_hosts; }
+    elsif ($ref eq 'SCALAR')
+      { $rhosts= $$r_remote_hosts; }
+    elsif ($ref eq 'ARRAY')
+      { $rhosts= join(",",@$r_remote_hosts);
+        $rhosts_tag= 'REMOTEHOSTS';
+      };	
+    
+    my %h= (LOCALDATE=> $now,
+	    LOCALHOST=>$local_host,
+	    REMOTEUSER=> (defined $remote_user) ? $remote_user : $local_user,
+	    ACTION=> $action,
+	    $rhosts_tag=> $rhosts,
+	    REMOTEPATH=> $remote_path,
+	    );
+    return(\%h);
+  }           
+
+sub append_single_log
+# append a single entry to a logfile. The Entry
+# is given as a hash-reference. The field-order is given
+# as a list-reference
+  { my($logfile,$r_log_hash,$r_order)= @_;
+  
+    if (!-e $logfile)
+      { warn "creating \"$logfile\"...\n";
+      };
+    maillike::create($logfile,[$r_log_hash],
+                     mode=> '>>', order=> $r_order,
+		     recordseparator=>"%%");
+  }
+
+sub dir_dependant
+# used to recognize command-line options that contain
+# a dirname like "dist,16" where "dist" is the dirname and
+# "15" is the actual command line argument.
+# returns the argument, the path for the dirname,
+# the log-file for the dirname and the changes-file for
+# the dirname
+  { my($option,$strict)= @_;
+    my $arg;
+  
+    if ($option=~ /^([^,]*),(.*)/)
+      { $arg= $2;
+	$option= $1;
+      };
+    $option= dirname($option); 
+      
+    if ($option eq 'dist')
+      { return($arg, $opt_path    ,DIST_LOG,DIST_CHANGES); }
+    else 
+      { return($arg, $opt_linkpath,LINK_LOG); }
+  }
+
+sub dirname 
+# recognizes a dirname given by the user. Dirnames may be
+# "dist","d","links" or "l"
+# returns "dist" or "links"
+# dies when the given dirname is not known
+  { my($str,$strict)= @_;
+    
+    my $dir= $gbl_known_dirnames{$str};
+    if (!defined $dir)
+      { if ($strict)
+          { die "unknown dirname \"$str\"\n" .
+        	"the following dirnames are known:\n" .
+        	join(" ",(sort keys %gbl_known_dirnames)) .
+		"\n";
+	    return;	
+	  };	
+      };
+    return($dir);
+  }	    
+
+sub datestring
+# create a datestring the same way "date +%Y-%m-%dT%H:%M:%S" does
+  { my @a=localtime(time()); 
+    return(sprintf("%04d-%02d-%02dT%02d:%02d:%02d", 
+                    1900+$a[5], 1+$a[4], $a[3], 
+		    $a[2], $a[1], $a[0]));
   }
 
 sub print_summary
+# print a summary of the script
   { printf("%-20s: $sc_summary\n",
            $sc_name);
   }
 
 sub h_center
+# center a text by adding spaces on both sides
   { my($st)= @_;
     return( (' ' x (38 - length($st)/2)) . $st );
   }
 
 sub help
+# prints the program help, called when "-h" option is used
   { my $l1= h_center("**** $sc_name $sc_version -- $sc_summary ****");
     my $l2= h_center("$sc_author $sc_year");
     print <<END;
@@ -932,8 +1802,14 @@ Syntax:
                 specify the local path
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_LOCALPATH"	
-		Several paths can be specified with either a comma-separated list
-		or several -l options
+		Several paths can be specified with either a comma-separated 
+		list or several -l options
+
+    --localprefix [prefix]
+                this prefix is prepended to all paths given to
+		the localpath option
+		if this option is not given the script tries to read from
+		the environment variable "RSYNC_DIST_LOCALPREFIX"	
 
   specify tags and log-messages:
 
@@ -972,19 +1848,25 @@ Syntax:
 		if source is contains the string "<filename>", replace that part
 		with the first word in the first first line from that file 
 
-    --mirror [remote-hosts]
+    --mirror [dist|d|links|l,remote-host{,remote-host...}]
     		mirror the specified directory to the specified
 		hosts 
+		(for distribution or links)
 
-    --rm-lock 
-                remove the lockfile in case is
-		was left behind due to an error in the script
+    --rm-lock [dist|d|links|l]
+    
+                remove the lockfile in the "dist" or "links"
+		directory in case it was left behind due to an 
+		error in the script
+		(for distribution or links)
 
-    --mk-lock 
+    --mk-lock [dist|d|links|l]
+     
                 create the lockfile in the remote directory. This is
 		useful in order to lock the directory for other users
 		that run rsync-dist.pl when you want to modify files on
 		the remote-host manually.
+		(for distribution or links)
 
     --rebuild-last
     		rebuild the "LAST" file on the remote server. This
@@ -995,42 +1877,118 @@ Syntax:
 		directory is created. Note that this command creates
 		no lock-file on the remote host. You have to do this
 		yourself with the "--mk-lock" command before.
+		only for distribution directories
 
   inspect the remote directory:
 
-    --ls 
-                show the remote directory
+    --ls        [dist|d|links|l]
+                show the remote directory (for distribution or links)
 
-    --cat-log -c 
+    --cat-log -c [dist|d|links|l]
                 show the logfile (for distribution or links)
 
-    --tail-log [n]
-                show the last n lines of the logfile (for distribution or links)
+    --tail-log  [dist|d|links|l,n]
+                show the last n lines of the logfile 
+		(for distribution or links)
+
+    --perl-log  [dist|d|links|l]
+    	        similar to --cat-log, but dump the logfile as a 
+		perl-structure to the screen.
 
     --ls-tag -T [tag/regexp]
                 search for a tag in the log file
+		only for distribution directories
 
     --ls-version [version/regexp]
                 search for a version  in the log file
+		only for distribution directories
 
-    --cat-changes 
-                show the changes-file
+    --cat-changes [dist|d|links|l] 
+                show the changes-file (for distribution or links)
 
-    --tail-changes [n]
+    --tail-changes [dist|d|links|l,n]
                 show the last n lines of the changes-file
+		(for distribution or links)
 
+  management of pre-defined parameters:
+
+    --config [filename]
+                read variables from a configuration file. The format
+		is simple <name>=<value>
+		Empty lines and lines starting with "#" are ignored.
+		Spaces around the "=" sign are also ignored. Array values
+		are specifed as comma-separated lists.
+		The following variables are recognized
+                RSYNC_DIST_HOST
+		  name of the distribution host or hosts. 
+		  More than one host can be specified as a
+		  comma-separated list. Note that the first one in the
+		  list is always the primary host. See also --hosts
+		RSYNC_DIST_USER
+		  the username $sc_name uses to log on to the remote
+		  host. See also --user
+		RSYNC_DIST_PATH
+		  the remote distribution directory. See also
+		  --path
+		RSYNC_DIST_LINKPATH
+		  the remote link directory, see also
+		  --linkpath
+		RSYNC_DIST_LOCALPATH 
+		  the local directory or directories. More than one
+		  directory can be specified in a comma-separated list.
+		  See also --localpath. 
+		RSYNC_DIST_LOCALPREFIX
+		  the prefix that is prepended to local paths (see above)
+		  see also --localprefix  
+		RSYNC_DIST_WORLDREADABLE
+		  when set to 1, make all distributed files world-readable
+		  see also --world-readable
+		RSYNC_DIST_CHECKSUM
+		  when set to 1, use checksums to detect changes in files.
+		  see also --checksum 
+		RSYNC_DIST_EDITOR
+		  the default editor to enter options that the used didn't
+		  specify on the command lines. The default is "vi".
+		  See also --editor   
+		Note that command-line arguments always override 
+		values taken from the config-file.   
+
+    --show-config
+    	        Print the contents of a valid configuration file to the
+		screen. You can for example create a configuration file
+		by supplying --hosts, --user, --path, --linkpath and
+		--localpath on the command-line and additionally
+		--show-config. The program will then print a generated
+		configuration-file to the console. If you redirect this
+		to a file you have your configuration file.
+    
+    --write-config [filename]
+                like --show-config but write to a file
+    
+    --show-config-from-log
+    		similar to --show-config, but in this case the program
+		also reads the local log-file to get information on
+		the remote-host, the remote-user and the remote paths.
+
+    --write-config-from-log [filename]
+                like --show-config-from-log but write to a file
+
+    --env	By supplying this option, the program can take all
+                variables mentioned above (see --config) from the 
+		unix-shell environment.  
+    
   miscellanious:
 
+    --last-dist add the name of the last distribution that was
+                made to the "source" part of the --add-links or
+		--change-links command		
+   
     --ls-bug    suppress 
                 "ls: ignoring invalid width in environment variable COLUMNS: 0"
                 warning that comes on some systems		
 
-    --checksum  use checksums instead of date-comparisons when deciding wether a
-                file should be transferred
-
-    --show-env  show the settings the program takes from environment
-    	        variables (if not specified differently on the 
-		command-line)
+    --checksum  use checksums instead of date-comparisons when deciding 
+                wether a file should be transferred
 
     --dry-run   just show the command that would be executed	
 
@@ -1056,7 +2014,7 @@ rsync-dist.pl - a Perl script for managing distributions of binary files
 
 This script can be used to copy files (usually binary distributions
 of programs) to a remote server while preserving all the old versions
-of that distributions. It can also create and change symbolic links
+of these distributions. It can also create and change symbolic links
 that point to certain distributions. Among the programs features are:
 
 =over 4
@@ -1090,7 +2048,13 @@ by different people without interfering with each other
 
 =item *
 
-log-files are created that show when and by whom things were changed
+log-files on the server are created that show when and by whom things 
+were changed
+
+=item *
+
+a local log-file in the users home tracks all actions that were performed
+that changed something on the server.
 
 =item *
 
@@ -1179,7 +2143,7 @@ or search for the current distribution of files.
 The remote directly can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --ls
+                  --ls d
 		  
 Note that you can optionally specify the remote user. All other
 options are ignored. Since the command has a higher priority that the
@@ -1188,7 +2152,11 @@ appended at the end of the parameter list. So this works too:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
                   -l <log-message> -m <log-message> -u <remote-user>
-		  -t <tag> -d --ls
+		  -t <tag> -d --ls d
+
+The "d" after "--ls" means that the distribution directory is listed.
+In order to see the link directory, you have to specify "l" after
+"--ls".
 
 On the remote directory you see the following files and directories:
 
@@ -1245,7 +2213,7 @@ This is an example of the log-file:
   FROM: pfeiffer@tarn.acc.bessy.de
   TAG: TAG1
   LOG: test
-
+  %%
   VERSION: 2006-10-05T11:39:06
   ACTION: added
   FROM: pfeiffer@tarn.acc.bessy.de
@@ -1258,7 +2226,8 @@ the action that took place, "added" or "moved to attic" or "moved from attic".
 The part after
 "FROM:" is the person who started the command together with the name
 of the client-host. After "TAG:" you find the optional tag, after "LOG:"
-the optional log message with may span several lines.
+the optional log message with may span several lines. A "%%" seperates
+entries in the log-file.
 
 =back
 
@@ -1267,14 +2236,17 @@ the optional log message with may span several lines.
 The file CHANGES-DIST, as it is described above, can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --cat-changes
+                  --cat-changes 
 
 =head2 listing the LOG-DIST file
 
 The file LOG-DIST, as it is described above, can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --cat-log
+                  --cat-log d
+
+The "d" after "--cat-log" means that logfile of the distribution directory 
+is listed.
 
 =head2 searching for tags
 
@@ -1374,7 +2346,7 @@ when this command is run.
 The remote directly can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --ls
+                  --ls l
 		  
 Note that you can optionally specify the remote user. All other
 options are ignored. Since the command has a higher priority that the
@@ -1383,9 +2355,10 @@ appended at the end of the parameter list. So this works too:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path>
                   -m <log-message> 
-		  --change-links <remote-path>,<filemask> --ls
+		  --change-links <remote-path>,<filemask> --ls l
 
 On the remote directory you see the following files and directories:
+The "l" after "--ls" means that the link directory is listed.
 
 =over 4
 
@@ -1428,9 +2401,40 @@ of the client-host. After "LOG:" is the optional log message with may span sever
 The file LOG-LINKS, as it is described above, can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --links --cat_log
+                  --links --cat_log l
 
-Note that without the --links option, the script lists LOG-DIST instead.
+The "l" after "--cat_log" means that the logfile of the link directory
+is listed.
+
+=head2 using a configuration file
+
+Certain values like the name of the remote host or the 
+directory on the remote-host can be stored in a configuation file. 
+The program can then read that configuration file in order to obtain
+these values. Such a file is easy to create. Example:
+
+  rsync-dist.pl -H myhost -u myuser -p /dist-dir -P /link-dir\
+      --checksum --show-config
+      
+This command prints the contents of such a file to the screen where
+all settings match the ones given as commandline parameters. Here is how
+you create that file directly:
+
+  rsync-dist.pl -H myhost -u myuser -p /dist-dir -P /link-dir\
+      --checksum --write-config MYCONFIG
+   
+You can easily extend this file. Here is for example, how you
+add the "world-readable" option:
+
+  rsync-dist.pl --config MYCONFIG --world-readable --write-config MYCONFIG
+ 
+Later on, you can start a distribution command like this:
+
+  rsync-dist.pl --config MYCONFIG --dist
+  
+The program takes all parameter from "MYCONFIG". Parameters it needs but
+that are still not specified (like the local path) are requested from
+the user interactively by starting an editor (default: vi).  
 
 =head2 tips and tricks (logging onto the server required)
 
