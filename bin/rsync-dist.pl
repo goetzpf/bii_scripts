@@ -29,7 +29,7 @@ use vars qw($opt_help
 	    $opt_man
             $opt_summary 
 	    $opt_user 
-	    $opt_path
+	    $opt_distpath
 	    $opt_linkpath
 	    $opt_localprefix
 	    $opt_message 
@@ -114,7 +114,7 @@ my %gbl_edit_texts=
 	           "Note that the first in the (possible) list is the \n" .
 		   "primary server.\n",
 
-    REMOTEPATH  => "Please enter the path on the remote host.\n",
+    REMOTEPATH  => "Please enter the distribution path on the remote host.\n",
 
     LOGMESSAGE  => "Please enter your log-message. If you see a default \n" .
                    "here, it is STRONGLY recommended that you change this.\n",
@@ -161,7 +161,7 @@ my $gbl_rsync_opts="-a -u -z --delete";
 my %gbl_map_hash= 
               (RSYNC_DIST_HOST      => \@opt_hosts,
                RSYNC_DIST_USER      => \$opt_user,
-	       RSYNC_DIST_PATH      => \$opt_path,
+	       RSYNC_DIST_PATH      => \$opt_distpath,
 	       RSYNC_DIST_LINKPATH  => \$opt_linkpath, 
 	       RSYNC_DIST_LOCALPATH => \@opt_localpaths,
 	       RSYNC_DIST_LOCALPREFIX =>
@@ -233,7 +233,7 @@ if (!GetOptions("help|h",
 		"host|H=s" => \@opt_hosts,
 		"user|u=s", 
 		
-		"path|p=s",
+		"distpath|p=s",
 		"linkpath|P=s",
 		"localpath|l=s" => \@opt_localpaths,
 		"localprefix=s",
@@ -1708,7 +1708,7 @@ sub dir_dependant
     $option= dirname($option); 
       
     if ($option eq 'dist')
-      { return($arg, $opt_path    ,DIST_LOG,DIST_CHANGES); }
+      { return($arg, $opt_distpath    ,DIST_LOG,DIST_CHANGES); }
     else 
       { return($arg, $opt_linkpath,LINK_LOG); }
   }
@@ -1763,7 +1763,7 @@ $l1
 $l2
 
 Syntax:
-  $sc_name {options} [arg1] [arg2]
+  $sc_name {options}
 
   options:
     -h: this help
@@ -1787,7 +1787,7 @@ Syntax:
 
   specify directories:
 
-    --path -p [remote-path/dist-path/link-path] 
+    --distpath -p [remote-path/dist-path/link-path] 
                 specify the remote directory
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_PATH" or 
@@ -1929,7 +1929,7 @@ Syntax:
 		  host. See also --user
 		RSYNC_DIST_PATH
 		  the remote distribution directory. See also
-		  --path
+		  --distpath
 		RSYNC_DIST_LINKPATH
 		  the remote link directory, see also
 		  --linkpath
@@ -1956,7 +1956,7 @@ Syntax:
     --show-config
     	        Print the contents of a valid configuration file to the
 		screen. You can for example create a configuration file
-		by supplying --hosts, --user, --path, --linkpath and
+		by supplying --hosts, --user, --distpath, --linkpath and
 		--localpath on the command-line and additionally
 		--show-config. The program will then print a generated
 		configuration-file to the console. If you redirect this
