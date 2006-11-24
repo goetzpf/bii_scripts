@@ -1787,11 +1787,10 @@ Syntax:
 
   specify directories:
 
-    --distpath -p [remote-path/dist-path/link-path] 
+    --distpath -p [remote-dist-path] 
                 specify the remote directory
 		if this option is not given the script tries to read from
-		the environment variable "RSYNC_DIST_PATH" or 
-		from "RSYNC_DIST_LINKPATH" (for link commands)	
+		the environment variable "RSYNC_DIST_PATH" 	
 
     --linkpath -P [remote link-path]
                 specify the remote directory
@@ -1845,8 +1844,6 @@ Syntax:
 
     --add-links -A [source,files]
                 add links on the remote server
-		if source is contains the string "<filename>", replace that part
-		with the first word in the first first line from that file 
 
     --mirror [dist|d|links|l,remote-host{,remote-host...}]
     		mirror the specified directory to the specified
