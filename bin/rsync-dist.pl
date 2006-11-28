@@ -56,6 +56,7 @@ use vars qw($opt_help
 	    $opt_show_config_from_log
 	    $opt_write_config_from_log
 	    $opt_env
+	    $opt_editor
 	    $opt_last_dist
 	    $opt_ls_bug
 	    $opt_checksum
@@ -74,12 +75,35 @@ my $sc_year= "2006";
 
 my $debug= 0; # global debug-switch
 
-my $opt_editor= "vi";
+my $default_editor= "vi";
 
 my @opt_hosts;
 my @opt_localpaths;
 my @opt_mirrorhosts;
 
+my @gbl_arg_lst= ('--dist',
+		  '--to-attic',
+		  '--from-attic',
+		  '--change-links',
+		  '--add-links',
+		  '--mirror',
+		  '--rm-lock',
+		  '--mk-lock',
+		  '--rebuild-last',
+		  '--ls',
+		  '--cat-log',
+		  '--tail-log',
+		  '--perl-log',
+		  '--ls-tag',
+		  '--ls-version',
+		  '--cat-changes',
+		  '--tail-changes',
+		  '--show-config',
+		  '--write-config',
+		  '--show-config-from-log',
+		  '--write-config-from-log',
+		  );
+		 
 my $gbl_local_log= "$ENV{HOME}/.rsync-dist-log";
 
 my @gbl_local_log_order= 
@@ -207,10 +231,12 @@ my %gbl_config_types=
               (RSYNC_DIST_HOST      => 'ARRAY',
 	       RSYNC_DIST_LOCALPATH => 'ARRAY');
 
-my %gbl_known_dirnames= (dist =>'dist', 
-			 d    =>'dist',
-			 links=>'links',
-			 l    =>'links',
+my %gbl_known_dirnames= ('--dist' =>'dist', 
+			 dist     =>'dist', 
+			 d        =>'dist',
+			 '--links'=>'links',
+			 links    =>'links',
+			 l        =>'links',
 			);
 
 my $gbl_last_locallog_entries;
@@ -220,6 +246,10 @@ if (!@ARGV)
   
 # catch things like "-ls", Getopt::Long would otherwise
 # take this as "-l s" ...
+
+preproc_args();
+
+#die "args: " . join("|",@ARGV);
 
 foreach my $opt (@ARGV)
   { die "unknown option: $opt" if ($opt=~ /^-[^-]{2,}/); };
@@ -267,7 +297,7 @@ if (!GetOptions("help|h",
 		"write_config_from_log|write-config-from-log=s",
 		"env",
 		
-		"editor=s" => \$opt_editor,		
+		"editor=s",		
 		"last_dist|last-dist",
 		"ls_bug|ls-bug",
 		"checksum",
@@ -304,6 +334,9 @@ if ($opt_env)
 
 if ($opt_config)
   { read_config($opt_config); }
+
+if (!defined $opt_editor)
+  { $opt_editor= $default_editor; }
 
 if ((defined $opt_show_config) || (defined $opt_write_config))
   { show_config($opt_write_config);
@@ -1431,6 +1464,21 @@ sub mysys
     die "\"$cmd\" \nfailed, msg:$! errcode: $?";
   }
 
+sub preproc_args
+  { my %map;
+
+    foreach my $e (@gbl_arg_lst)
+      { my $s= $e; $s=~ s/^--//;
+        $map{$s}= $e;
+	$s=~ s/-/_/g; 
+        $map{$s}= $e;
+      };
+    foreach my $arg (@ARGV)
+      { if (exists $map{$arg})
+          { $arg= $map{$arg}; };
+      };
+  }	
+
 sub read_config
 # read variables from the config-file but do
 # not overwrite variables that are already set
@@ -1440,6 +1488,7 @@ sub read_config
       { die "error: file \"$filename\" cannot be read"; };
       
     my $r_cnf= simpleconf::parse($filename,types=>\%gbl_config_types);
+
     
     container::Export(\%gbl_map_hash,$r_cnf,overwrite=>0,skip_empty=>1);
   }  
@@ -1763,16 +1812,124 @@ $l1
 $l2
 
 Syntax:
-  $sc_name {options}
+  $sc_name {options} [command]
+  
+  commands that do changes on the server:
 
-  options:
+    dist --dist -d {filename}
+                distribute files to remote host
+		if {filename} is given, the name of the created directory
+		is written to <filename>. Note that the file is overwritten
+		if it exists before.
+
+    to-attic --to-attic [dir] 
+                move a directory (aka version) to the "attic" directory
+
+    from-attic --from-attic [dir] 
+                move a directory (aka version) from the "attic" directory
+		back to the main directory (which is given by -p)
+
+    change-links --change-links -C [source,filemask/files]
+                change symbolic links on the remote server
+		if source is contains the string "<filename>", replace that part
+		with the first word in the first line from that file 
+
+    add-links --add-links -A [source,files]
+                add links on the remote server
+
+    mirror --mirror [dist|d|links|l,remote-host{,remote-host...}]
+    		mirror the specified directory to the specified
+		hosts 
+		(for distribution or links)
+
+    rm-lock --rm-lock [dist|d|links|l]
+    
+                remove the lockfile in the "dist" or "links"
+		directory in case it was left behind due to an 
+		error in the script
+		(for distribution or links)
+
+    mk-lock --mk-lock [dist|d|links|l]
+     
+                create the lockfile in the remote directory. This is
+		useful in order to lock the directory for other users
+		that run rsync-dist.pl when you want to modify files on
+		the remote-host manually.
+		(for distribution or links)
+
+    rebuild-last --rebuild-last
+    		rebuild the "LAST" file on the remote server. This
+		file contains the name of the latest distribution
+		directory. When a new distribution is made, the
+		files are compared against the files of this directory.
+		When a file has not changed, a hard-link to this
+		directory is created. Note that this command creates
+		no lock-file on the remote host. You have to do this
+		yourself with the "--mk-lock" command before.
+		only for distribution directories
+
+  commands to inspect the server:
+
+    ls --ls     [dist|d|links|l]
+                show the remote directory (for distribution or links)
+
+    cat-log --cat-log -c [dist|d|links|l]
+                show the logfile (for distribution or links)
+
+    tail-log --tail-log  [dist|d|links|l,n]
+                show the last n lines of the logfile 
+		(for distribution or links)
+
+    perl-log --perl-log  [dist|d|links|l]
+    	        similar to --cat-log, but dump the logfile as a 
+		perl-structure to the screen.
+
+    ls-tag --ls-tag -T [tag/regexp]
+                search for a tag in the log file
+		only for distribution directories
+
+    ls-version --ls-version [version/regexp]
+                search for a version  in the log file
+		only for distribution directories
+
+    cat-changes --cat-changes [dist|d|links|l] 
+                show the changes-file (for distribution or links)
+
+    tail-changes --tail-changes [dist|d|links|l,n]
+                show the last n lines of the changes-file
+		(for distribution or links)
+
+  commands for the config-file:
+
+    show-config --show-config
+    	        Print the contents of a valid configuration file to the
+		screen. You can for example create a configuration file
+		by supplying --hosts, --user, --distpath, --linkpath and
+		--localpath on the command-line and additionally
+		--show-config. The program will then print a generated
+		configuration-file to the console. If you redirect this
+		to a file you have your configuration file.
+    
+    write-config --write-config [filename]
+                like --show-config but write to a file
+    
+    show-config-from-log --show-config-from-log
+    		similar to --show-config, but in this case the program
+		also reads the local log-file to get information on
+		the remote-host, the remote-user and the remote paths.
+
+    write-config-from-log --write-config-from-log [filename]
+                like --show-config-from-log but write to a file
+
+
+  help options:
     -h: this help
     
     --man: show embedded manpage
     
     --summary:  give a summary of the script
 
-  specify remote host and user:
+  options to specify remote host and user:
 
     --host -H [remote-host[,remote-host2...]]
                 specify the remote host. A list of secondary 
@@ -1785,7 +1942,7 @@ Syntax:
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_USER"	
 
-  specify directories:
+  options to specify directories:
 
     --distpath -p [remote-dist-path] 
                 specify the remote directory
@@ -1810,7 +1967,7 @@ Syntax:
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_LOCALPREFIX"	
 
-  specify tags and log-messages:
+  options to specify tags and log-messages:
 
     --message -m [logmessage] 
                 specify a log message
@@ -1822,92 +1979,7 @@ Syntax:
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_TAG"	
 
-  commands:
-
-    --dist -d {filename}
-                distribute files to remote host
-		if {filename} is given, the name of the created directory
-		is written to <filename>. Note that the file is overwritten
-		if it exists before.
-
-    --to-attic [dir] 
-                move a directory (aka version) to the "attic" directory
-
-    --from-attic [dir] 
-                move a directory (aka version) from the "attic" directory
-		back to the main directory (which is given by -p)
-
-    --change-links -C [source,filemask/files]
-                change symbolic links on the remote server
-		if source is contains the string "<filename>", replace that part
-		with the first word in the first line from that file 
-
-    --add-links -A [source,files]
-                add links on the remote server
-
-    --mirror [dist|d|links|l,remote-host{,remote-host...}]
-    		mirror the specified directory to the specified
-		hosts 
-		(for distribution or links)
-
-    --rm-lock [dist|d|links|l]
-    
-                remove the lockfile in the "dist" or "links"
-		directory in case it was left behind due to an 
-		error in the script
-		(for distribution or links)
-
-    --mk-lock [dist|d|links|l]
-     
-                create the lockfile in the remote directory. This is
-		useful in order to lock the directory for other users
-		that run rsync-dist.pl when you want to modify files on
-		the remote-host manually.
-		(for distribution or links)
-
-    --rebuild-last
-    		rebuild the "LAST" file on the remote server. This
-		file contains the name of the latest distribution
-		directory. When a new distribution is made, the
-		files are compared against the files of this directory.
-		When a file has not changed, a hard-link to this
-		directory is created. Note that this command creates
-		no lock-file on the remote host. You have to do this
-		yourself with the "--mk-lock" command before.
-		only for distribution directories
-
-  inspect the remote directory:
-
-    --ls        [dist|d|links|l]
-                show the remote directory (for distribution or links)
-
-    --cat-log -c [dist|d|links|l]
-                show the logfile (for distribution or links)
-
-    --tail-log  [dist|d|links|l,n]
-                show the last n lines of the logfile 
-		(for distribution or links)
-
-    --perl-log  [dist|d|links|l]
-    	        similar to --cat-log, but dump the logfile as a 
-		perl-structure to the screen.
-
-    --ls-tag -T [tag/regexp]
-                search for a tag in the log file
-		only for distribution directories
-
-    --ls-version [version/regexp]
-                search for a version  in the log file
-		only for distribution directories
-
-    --cat-changes [dist|d|links|l] 
-                show the changes-file (for distribution or links)
-
-    --tail-changes [dist|d|links|l,n]
-                show the last n lines of the changes-file
-		(for distribution or links)
-
-  management of pre-defined parameters:
+  options for the management of pre-defined parameters:
 
     --config [filename]
                 read variables from a configuration file. The format
@@ -1945,36 +2017,16 @@ Syntax:
 		  see also --checksum 
 		RSYNC_DIST_EDITOR
 		  the default editor to enter options that the used didn't
-		  specify on the command lines. The default is "vi".
+		  specify on the command lines. The default is "$default_editor".
 		  See also --editor   
 		Note that command-line arguments always override 
 		values taken from the config-file.   
-
-    --show-config
-    	        Print the contents of a valid configuration file to the
-		screen. You can for example create a configuration file
-		by supplying --hosts, --user, --distpath, --linkpath and
-		--localpath on the command-line and additionally
-		--show-config. The program will then print a generated
-		configuration-file to the console. If you redirect this
-		to a file you have your configuration file.
-    
-    --write-config [filename]
-                like --show-config but write to a file
-    
-    --show-config-from-log
-    		similar to --show-config, but in this case the program
-		also reads the local log-file to get information on
-		the remote-host, the remote-user and the remote paths.
-
-    --write-config-from-log [filename]
-                like --show-config-from-log but write to a file
 
     --env	By supplying this option, the program can take all
                 variables mentioned above (see --config) from the 
 		unix-shell environment.  
     
-  miscellanious:
+  miscellanious options:
 
     --last-dist add the name of the last distribution that was
                 made to the "source" part of the --add-links or
@@ -2118,7 +2170,7 @@ remote-server-name, the remote-path, the local-path and a log-message a.
 Example:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  -l <local-path> -m <log-message> -d
+                  -l <local-path> -m <log-message> dist
 
 Note that the local and remote-path are relative to the user-home
 unless the paths start with a '/'.
@@ -2130,7 +2182,7 @@ and a tag. Example:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
                   -l <log-message> -m <log-message> -u <remote-user>
-		  -t <tag> -d
+		  -t <tag> dist
 
 The tag should be a one-line string that can later be used to identify
 or search for the current distribution of files. 
@@ -2140,20 +2192,20 @@ or search for the current distribution of files.
 The remote directly can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --ls d
+                  ls dist
 		  
 Note that you can optionally specify the remote user. All other
 options are ignored. Since the command has a higher priority that the
-distribution command "-d", it overrides the distribution command when
+distribution command "dist", it overrides the distribution command when
 appended at the end of the parameter list. So this works too: 
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
                   -l <log-message> -m <log-message> -u <remote-user>
-		  -t <tag> -d --ls d
+		  -t <tag> dist ls dist
 
-The "d" after "--ls" means that the distribution directory is listed.
-In order to see the link directory, you have to specify "l" after
-"--ls".
+The "dist" after "ls" means that the distribution directory is listed.
+In order to see the link directory, you have to specify "links" after
+"ls".
 
 On the remote directory you see the following files and directories:
 
@@ -2233,16 +2285,16 @@ entries in the log-file.
 The file CHANGES-DIST, as it is described above, can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --cat-changes 
+                  cat-changes 
 
 =head2 listing the LOG-DIST file
 
 The file LOG-DIST, as it is described above, can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --cat-log d
+                  cat-log dist
 
-The "d" after "--cat-log" means that logfile of the distribution directory 
+The "dist" after "cat-log" means that logfile of the distribution directory 
 is listed.
 
 =head2 searching for tags
@@ -2251,10 +2303,10 @@ The log-file can be searched for a given tag or a (grep compatible)
 regular expression that matches one or more tags. Example:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --ls-tag <tag or regexp>
+                  ls-tag <tag or regexp>
 
 A real-world example: 
-  rsync-dist.pl -H sioux.blc.bessy.de -u idadm -p z --ls_tag TAG
+  rsync-dist.pl -H sioux.blc.bessy.de -u idadm -p z ls_tag TAG
 
 The output of this command looks like this:
 
@@ -2313,7 +2365,7 @@ Symbolic links are added like this:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path>
                   -m <log-message> 
-		  --add-links <remote-sourcepath>,<link1>,<link2>...
+		  add-links <remote-sourcepath>,<link1>,<link2>...
   
 Note that if at least one the given links already exists, the command fails.
 Note too, that the given remote-path must exist. The log-file is updated 
@@ -2325,13 +2377,13 @@ Symbolic links are changed like this:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path>
                   -m <log-message> 
-		  --change-links <remote-sourcepath>,<link1>,<link2>...
+		  change-links <remote-sourcepath>,<link1>,<link2>...
 
 or
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path>
                   -m <log-message> 
-		  --change-links <remote-path>,<filemask>...
+		  change-links <remote-path>,<filemask>...
 
   
 Note that (especially in case one) all of the given link-names must
@@ -2343,7 +2395,7 @@ when this command is run.
 The remote directly can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --ls l
+                  ls links
 		  
 Note that you can optionally specify the remote user. All other
 options are ignored. Since the command has a higher priority that the
@@ -2352,10 +2404,10 @@ appended at the end of the parameter list. So this works too:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path>
                   -m <log-message> 
-		  --change-links <remote-path>,<filemask> --ls l
+		  change-links <remote-path>,<filemask> ls links
 
 On the remote directory you see the following files and directories:
-The "l" after "--ls" means that the link directory is listed.
+The "links" after "ls" means that the link directory is listed.
 
 =over 4
 
@@ -2398,9 +2450,9 @@ of the client-host. After "LOG:" is the optional log message with may span sever
 The file LOG-LINKS, as it is described above, can be listed with this command:
 
   rsync-dist.pl -H <remote-server-name> -p <remote-path> 
-                  --links --cat_log l
+                  cat_log links
 
-The "l" after "--cat_log" means that the logfile of the link directory
+The "links" after "cat_log" means that the logfile of the link directory
 is listed.
 
 =head2 using a configuration file
@@ -2411,23 +2463,23 @@ The program can then read that configuration file in order to obtain
 these values. Such a file is easy to create. Example:
 
   rsync-dist.pl -H myhost -u myuser -p /dist-dir -P /link-dir\
-      --checksum --show-config
+      --checksum show-config
       
 This command prints the contents of such a file to the screen where
 all settings match the ones given as commandline parameters. Here is how
 you create that file directly:
 
   rsync-dist.pl -H myhost -u myuser -p /dist-dir -P /link-dir\
-      --checksum --write-config MYCONFIG
+      --checksum write-config MYCONFIG
    
 You can easily extend this file. Here is for example, how you
 add the "world-readable" option:
 
-  rsync-dist.pl --config MYCONFIG --world-readable --write-config MYCONFIG
+  rsync-dist.pl --config MYCONFIG --world-readable write-config MYCONFIG
  
 Later on, you can start a distribution command like this:
 
-  rsync-dist.pl --config MYCONFIG --dist
+  rsync-dist.pl --config MYCONFIG dist
   
 The program takes all parameter from "MYCONFIG". Parameters it needs but
 that are still not specified (like the local path) are requested from
