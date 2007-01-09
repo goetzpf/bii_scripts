@@ -5,7 +5,7 @@
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
 # Time-stamp: <24 Jan 06 14:35:59 Ralph Lange>
-# $Id: SetPerms,v 1.8 2006-01-24 13:36:20 lange Exp $
+# $Id: SetPerms,v 1.9 2007-01-09 10:59:10 franksen Exp $
 #
 PROG=`basename $0`
 
@@ -213,7 +213,7 @@ do
 	    echo $files | xargs chmod ug=rwx,o=rx
 	    echo $files | xargs chgrp epima
 	fi
-        find -type d -exec chmod g+s {} \;
+        find -type d -user $USER -exec chmod g+s {} \;
 
 	;;
   
