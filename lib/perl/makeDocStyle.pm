@@ -47,16 +47,11 @@ sub blabla
     "	    margin-right:4%;\n".
     "}\n".
     "h1, h2, h3, h4, h5, h6 {\n".
-    "       color:#a00; /*T5*/\n".
-    "       background-color:#FDFAF1;\n".
-    "       border-color:#E9E4D2; /*BO5*/\n".
-    "	    border-width:0 0 2px 1px;\n".
+    "       color:#a00;\n".
+#    "       background-color:#FDFAF1;\n".
+    "       border-color:#E9E4D2;\n".
+    "	    border-width:0 0 1px 0;\n".
     "	    border-style:solid;\n".
-    "}\n".
-    "h1{\n".
-    "       line-height:200%;\n".
-    "	    font-size:120%;\n".
-    "	    text-align:center;\n".
     "}\n".
     "h1 a:link,\n".
     "h1 a:visited {\n".
@@ -66,7 +61,7 @@ sub blabla
     "       color:#FBF7E8; /*T3*/\n".
     "}\n".
     ".grayText {\n".
-    "	color:#8E9195; /*T8*/\n".
+    "	color:#6E7175; /*T8*/\n".
     "}\n".
     ".grayText a:link,\n".
     ".grayText a:visited {\n".
@@ -101,28 +96,26 @@ sub blabla
     "}\n".
     "ol li, ul li {\n".
     "	 line-height:1.4em; /*S1*/\n".
+    "h1{\n".
+    "       line-height:200%;\n".
+    "	    font-size:120%;\n".
+    "	    text-align:center;\n".
+    "}\n".
     "}\n".
     "\n".
-    ".twikiRight {\n".
-    "	 position:relative;\n".
-    "	 float:right;\n".
-    "	 display:inline;\n".
-    "	 margin:0;\n".
-    "}\n".
     "</STYLE>\n".
     "</HEAD>\n".
     "<BODY>\n".
     "<H1>$title</H1>\n".
-    "<P> last update: $filetime by $user</P>\n\n";
+    "<TABLE WIDTH=\"100%\"><TR><TD>&nbsp;</TD> <TD ALIGN=\"RIGHT\"> last update: $filetime by $user</TD></TR></TABLE>\n";
 
 
-  my $fileFooter = "<\DIV><span class=\"twikiRight twikiPageNav grayText\"></span>\n".
-    "<br class=\"twikiClear\"></div><div class=\"twikiHidden\">\n".
-    "<hr>End of topic<br><hr></div></div></div><div class=\"twikiBottomBar\">\n".
-    "<div class=\"twikiBottomBarContents\"><span class=\"grayText\">\n".
-    "<P><font size\"-1\">Bessy System Documentation for </font><font size=\"+1\">$title</font>\n".
-    "</span></div></div>\n".
-    "</BODY>\n</HTML>\n";
+  my $fileFooter = "<hr>\n".
+    "<span class=\"grayText\">\n".
+    "<TABLE WIDTH=\"100%\"><TR><TD><font size\"-1\">Bessy System Documentation for:</font></TD> <TD ALIGN=\"RIGHT\"> <font size=\"+1\">$title</font></TD></TR></TABLE>\n".
+    "</span>\n".
+    "</BODY>\n".
+    "</HTML>\n";
     return ($fileHeader,$fileFooter);
 }
 1;
