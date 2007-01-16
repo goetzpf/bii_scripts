@@ -17,17 +17,20 @@ use Getopt::Long;
 use Config;
 use File::Spec;
 
-use vars qw($opt_help $opt_summary $opt_revision $opt_revision2);
+use vars qw($opt_help 
+            $opt_summary 
+	    $opt_svn
+	    $opt_revision $opt_revision2);
 
 
-my $sc_version= "0.9";
+my $sc_version= "1.0";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "compare a capfast file against the repository"; 
 my $sc_author= "Goetz Pfeiffer";
 my $sc_year= "2006";
 
-my $debug= 1; # global debug-switch
+my $debug= 0; # global debug-switch
 
 my $tmpdir= "/tmp";
 my $sch2db= "Sch2db.pl";
@@ -35,7 +38,9 @@ my $sch2db= "Sch2db.pl";
 
 #Getopt::Long::config(qw(no_ignore_case));
 
-if (!GetOptions("help|h","summary","revision|r=s","revision2|s=s",
+if (!GetOptions("help|h","summary",
+                "svn",
+                "revision|r=s","revision2|s=s",
                 ))
   { die "parameter error!\n"; };
 
@@ -110,14 +115,15 @@ sub process
         return(local_process($filename,$no)); 
       }
     else
-      { my $opt;
-        if (!defined $rev)
+      { if (!defined $rev)
           { print "trunk"; }
 	else
 	  { print "revision $rev";
-	    $opt= "-r $rev"; 
 	  };
-        return(cvs_process($filename,$opt,$no)); 
+        if (!defined ($opt_svn))
+	  { return(cvs_process($filename,$rev,$no)); }
+	else
+	  { return(svn_process($filename,$rev,$no)); }
       }
   }
 
@@ -134,13 +140,35 @@ sub local_process
   }
     
 sub cvs_process
-  { my($filename,$cvs_options,$no)= @_;
+  { my($filename,$rev,$no)= @_;
     my $cmd;
   
+    my $cvs_options;
+    if (defined $rev)
+      { $cvs_options= "-r $rev"; 
+      };
+
     my $base= basename($filename) . ".$no.db";
     $base= File::Spec->catfile($tmpdir,$base);
     
     if (!sys("cvs update $cvs_options -p $filename 2> /dev/null | " .
+             "$sch2db -n -o $base"))
+      { return; };
+    return($base);
+  }
+ 
+sub svn_process
+  { my($filename,$rev,$no)= @_;
+    my $cmd;
+  
+    if (!defined $rev)
+      { $rev= 'HEAD'; }; 
+    # else: leave revision number 
+     
+    my $base= basename($filename) . ".$no.db";
+    $base= File::Spec->catfile($tmpdir,$base);
+    
+    if (!sys("svn cat -r $rev $filename 2> /dev/null | " .
              "$sch2db -n -o $base"))
       { return; };
     return($base);
@@ -156,7 +184,7 @@ sub show_diff
 sub sys
   { my($cmd)= @_;
   
-    print "$cmd\n" if ($debug);
+    print "\n$cmd\n" if ($debug);
     if (system($cmd))
       { warn "\"$cmd\" failed : $?"; 
         return;
@@ -190,6 +218,7 @@ Syntax:
   options:
     -h: help
     --summary: give a summary of the script
+    --svn: use subversion instead of cvs
     -r [cvs-revision] (mandatory)
     -s [2nd cvs revision] (optional)
 END
