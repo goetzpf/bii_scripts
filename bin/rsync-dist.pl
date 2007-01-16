@@ -32,8 +32,10 @@ use vars qw($opt_help
 	    $opt_distpath
 	    $opt_linkpath
 	    $opt_localprefix
-	    $opt_message 
+	    $opt_message
+	    $opt_automessage 
 	    $opt_tag
+	    $opt_autotag
             $opt_dist 
 	    $opt_to_attic
 	    $opt_from_attic
@@ -57,6 +59,7 @@ use vars qw($opt_help
 	    $opt_write_config_from_log
 	    $opt_env
 	    $opt_editor
+	    $opt_prefix_distdir
 	    $opt_last_dist
 	    $opt_ls_bug
 	    $opt_checksum
@@ -269,7 +272,9 @@ if (!GetOptions("help|h",
 		"localprefix=s",
 
 		"message|m=s",
+		"automessage",
 		"tag|t=s",
+		"autotag",
 
 		"dist|d:s", 
 		"to_attic|to-attic:s",
@@ -297,7 +302,8 @@ if (!GetOptions("help|h",
 		"write_config_from_log|write-config-from-log=s",
 		"env",
 		
-		"editor=s",		
+		"editor=s",
+		"prefix_distdir|prefix-distdir",		
 		"last_dist|last-dist",
 		"ls_bug|ls-bug",
 		"checksum",
@@ -459,7 +465,7 @@ if (defined $opt_add_links)
 if (defined $opt_dist)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
     dist(\@opt_hosts,$opt_user,$rpath,\@opt_localpaths, 
-         $opt_message, $opt_tag,
+         $opt_message, $opt_tag, 
   	 $opt_world_readable,
 	 $opt_dist);
     exit(0);
@@ -487,7 +493,8 @@ die "error: no command given!";
 sub dist
   { my($r_remote_hosts, $remote_user, 
        $remote_path, $r_local_paths,
-       $logmessage, $tag, $world_readable,
+       $logmessage, $tag,
+       $world_readable,
        $locallog)= @_;
 
     if (empty($r_remote_hosts))
@@ -504,8 +511,12 @@ sub dist
 				   'move:REMOTEPATH'));
       };
     if (empty($tag))
-      { ensure_var(\$tag          , 'TAG' , 
-                   take_default('','distribute:TAG'));
+      { if (defined $opt_autotag)
+          { $tag= incr_tag(last_tag()); }
+	else
+	  { ensure_var(\$tag          , 'TAG' , 
+                       take_default('','distribute:TAG'));
+          }
       };
     if (empty($logmessage))
       { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
@@ -941,26 +952,43 @@ sub change_link
     my @files;
     my $remote_source;
     
+    # read the link-parameter if it is defined
+    # it should be <source-dir>,<filemask>
     if (defined $linkparam)
       { if ($linkparam !~ /^([^,]*),(.*)/)
-          { $remote_source= $linkparam; }
+          { # link-parameter contains no comma:
+	    # <source-dir> is defined, <filemask> isn't
+	    $remote_source= $linkparam; 
+	  }
 	else
-	  { if ($1 ne "")
-	      { $remote_source= $1; };
+	  { # link-parameter contains a comma:
+	    if ($1 ne "")
+	      { # remote-source is defined:
+	        $remote_source= $1; 
+	      };
 	    if ($2 ne "")
-	      { my $x= $2;
+	      { # filemask is defined:
+	        my $x= $2;
 	        @files= split(/,/,$x);
 	      };	
           };
-	if (($opt_last_dist) && (defined $remote_source))
-	  { if ($remote_source eq "")
-	      { $remote_source= last_ver(); }
-	    else
-	      { $remote_source= File::Spec->catfile($remote_source,
-	                                            last_ver()); 
-	      };
-	  }
-      };	  
+	  
+      };
+      
+    if (($opt_prefix_distdir) && (defined $opt_distpath))
+      { $remote_source= File::Spec->catfile($opt_distpath,$remote_source); };   
+
+    # if $remote_source is defined and --last-dist is given:
+    if (($opt_last_dist) && (defined $remote_source))
+      { if ($remote_source eq "")
+	  { $remote_source= last_ver(); }
+	else
+	  { $remote_source= File::Spec->catfile($remote_source,
+	                                        last_ver()); 
+	  };
+      }
+
+    $remote_source=~ /\/$/; # remove trailing "/"  	  
 
     if (empty($r_remote_hosts))
       { ensure_var(\$r_remote_hosts, 'REMOTEHOSTS', 
@@ -988,8 +1016,18 @@ sub change_link
       };
 
     if (empty($logmessage))
-      { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
-                   take_default('','links:LOGMESSAGE'));
+      { my $take_from_user= 1;
+        if ((defined $opt_automessage) && (defined $opt_last_dist))
+          { my $last_tag= last_tag();
+	    if (!empty($last_tag))
+	      { $logmessage= "link to $last_tag"; 
+	        $take_from_user=0; 
+	      }; 
+          };
+	if ($take_from_user)
+	  { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
+                       take_default('','links:LOGMESSAGE'));
+          };
       };
 
     my($now,$local_host,$local_user,$from)= local_info();
@@ -1216,6 +1254,32 @@ sub last_ver
  
     return($gbl_last_locallog_entries->{distribute}->{VERSION});
   }    
+
+sub last_tag
+  { # take the last distributed version from the
+    # local log-file
+
+    get_last_log_entries(\$gbl_last_locallog_entries);
+
+    if (!defined $gbl_last_locallog_entries)
+      { die "error: local log-file \"$gbl_local_log\" not found\n" .
+            "or no last distribution info found in this file";
+      };
+ 
+    return($gbl_last_locallog_entries->{distribute}->{TAG});
+  }    
+
+sub incr_tag
+  { my($old_tag)= @_;
+  
+    if ($old_tag=~ /^(.*)\s+(\d+)\s*$/)
+      { my $txt= $1;
+        my $no= $2;
+	return($txt . " " . (++$no));
+      };
+    $old_tag=~ s/\s+$//;
+    return($old_tag . " 2");
+  }
 
 sub write_file
   { my($filename,$r_var)= @_;
@@ -1831,11 +1895,11 @@ Syntax:
 
     change-links --change-links -C [source,filemask/files]
                 change symbolic links on the remote server
-		if source is contains the string "<filename>", replace that part
-		with the first word in the first line from that file 
+		--> see also "--last-dist"
 
     add-links --add-links -A [source,files]
                 add links on the remote server
+		--> see also "--last-dist"
 
     mirror --mirror [dist|d|links|l,remote-host{,remote-host...}]
     		mirror the specified directory to the specified
@@ -1974,10 +2038,22 @@ Syntax:
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_MESSAGE"	
 
+    --automessage
+    		(only for the "add-links" or "change-links" commannds)
+		generate a message of the style 
+		"link to [tag]" where [tag] is the tag of the
+		last distributed version. This is an alternative 
+		to the "--message" option
+    
     --tag -t [tag]
                 specify a tag for the distribution
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_TAG"	
+
+    --autotag   (only for the "dist" commannd)
+                take the tag from the last distributed version and
+		increment the number at the end of this tag by one.
+		This is an alternative to the "--tag" option
 
   options for the management of pre-defined parameters:
 
@@ -2026,11 +2102,23 @@ Syntax:
                 variables mentioned above (see --config) from the 
 		unix-shell environment.  
     
-  miscellanious options:
+  miscellaneous options:
 
-    --last-dist add the name of the last distribution that was
-                made to the "source" part of the --add-links or
-		--change-links command		
+    --editor [editor]
+    		specifiy the interactive editor, default: "$default_editor"
+
+    --prefix-distdir
+                take the path of the dist-directory as prefix for the "source" part 
+		of the add-links or change-links command. You can for example do this:
+		rsync-dist.pl --config my_config --prefix-distdir --last-dist add-links ,idcp*
+		In this example the "source" part of the link-command is
+		<dist-directory>/<last-distribution-directory> 
+		Note that the comma "," is still needed in order to specify "idcp*" as
+		a filemask, not a source-part.
+
+    --last-dist append the name of the last distribution that was
+                made to the "source" part of the add-links or
+		change-links command		
    
     --ls-bug    suppress 
                 "ls: ignoring invalid width in environment variable COLUMNS: 0"
