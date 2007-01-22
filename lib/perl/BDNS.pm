@@ -3,13 +3,15 @@ package BDNS;
 require Exporter;
 
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(parse %pfam %psdom %pdom);
+our @EXPORT_OK = qw(parse $MAXLENGTH %pfam %psdom %pdom);
 our $VERSION = 1.00;
 
 use strict;
 
-my $pmem = "[A-Z]{1,6}";
-my $pind = "([0-9]{1,4})(-([0-9]{1,2}))?";
+our $MAXLENGTH = 22;
+
+my $pmem = "[A-Z]+";
+my $pind = "([0-9]+)(-([0-9]+))?";
 
 our %pfam;
 $pfam{global} = "BCFGHIKLMNOPQRVWYZ";
@@ -17,7 +19,7 @@ $pfam{B} = $pfam{global};
 $pfam{F} = $pfam{global} . "ST";
 $pfam{P} = $pfam{global};
 
-my $pcnt = "[0-9]{0,2}";
+my $pcnt = "[0-9]*";
 
 our %psdom;
 $psdom{global} = "X";
@@ -25,7 +27,7 @@ $psdom{B} = $psdom{global} . "DST";
 $psdom{F} = $psdom{global} . "LCEGMSU";
 $psdom{P} = $psdom{global} . "KLS";
 
-my $psdnum = "[0-9]{0,3}";
+my $psdnum = "[0-9]*";
 
 our %pdom;
 $pdom{global} = "CGLV";
@@ -41,6 +43,9 @@ my $re = "\\A($pmem)"
 
 sub parse {
   my $devname = shift;
+  if (length($devname) > $MAXLENGTH) {
+    return; # mismatch
+  }
   my ($facility,$family,$counter,$subdomain,$domain);
   $devname =~ tr/a-z/A-Z/;
   my (
