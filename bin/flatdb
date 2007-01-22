@@ -1,0 +1,5 @@
+#!/bin/sh
+
+PATH=$PATH:/opt/java1.4/bin
+
+exec java -cp /opt/epics/VisualDCT/current/VisualDCT.jar com.cosylab.vdct.GenerateFlatDatabase "$@"

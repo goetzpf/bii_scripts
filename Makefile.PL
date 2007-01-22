@@ -42,7 +42,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		dbfilter.pl makeDocCommonIndex.pl
 		makeDocPerl.pl makeDocTxt.pl
 		cvs_diff.pl cvs_log_diff.pl camonitor_sort.pl 
-		sch_cvs_diff.pl SetPerms vdct tkSQL
+		sch_cvs_diff.pl SetPerms vdct flatdb tkSQL
 		accLaunch
 		rsync-deploy rsync-dist.pl);
 
