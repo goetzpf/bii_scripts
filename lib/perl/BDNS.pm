@@ -9,7 +9,7 @@ our $VERSION = 1.00;
 use strict;
 
 my $pmem = "[A-Z]{1,6}";
-my $pind = "([0-9]{1,3})(-([0-9]{1,2}))?";
+my $pind = "([0-9]{1,4})(-([0-9]{1,2}))?";
 
 our %pfam;
 $pfam{global} = "BCFGHIKLMNOPQRVWYZ";
