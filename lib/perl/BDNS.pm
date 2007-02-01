@@ -33,7 +33,7 @@ our %pdom;
 $pdom{global} = "CGLV";
 $pdom{B} = $pdom{global} . "BIMRT";
 $pdom{F} = $pdom{global} . "ADEFS";
-$pdom{P} = $pdom{global} . "IMR";
+$pdom{P} = $pdom{global} . "TMR";
 
 my $re = "\\A($pmem)"
     . "($pind)?"
