@@ -53,7 +53,7 @@ fi
   # Durch ssh getunnelte X-Verbindung
   # Launch starten
   #ssh $compress acc@ash.acc.bessy.de "launch"
-  ssh $compress -Y acc@ash.acc.bessy.de "launch $@ $withMapper"
+  ssh -f -n $compress -Y acc@ash.acc.bessy.de "launch $@ $withMapper"
 
 #
 # Evtl. ssh-agent wieder abwerfen
