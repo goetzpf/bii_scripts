@@ -84,6 +84,8 @@ my @opt_hosts;
 my @opt_localpaths;
 my @opt_mirrorhosts;
 
+# the following options are also recognized without
+# a leading "--" since they are commands.
 my @gbl_arg_lst= ('--dist',
 		  '--to-attic',
 		  '--from-attic',
@@ -129,6 +131,10 @@ my @gbl_local_log_order=
 		     LOGMESSAGE 
 		    );
 
+# the following is a classification of commands. This is
+# used when the local log-file is searched for defaults 
+# of values like the last log-message that was entered
+# or the last tag that was entered.
 my %gbl_local_log_actionmap= 
      ( 'change links'    => 'links',
        'add links'       => 'links',
@@ -136,6 +142,9 @@ my %gbl_local_log_actionmap=
        'move from attic' => 'move',
        );
 
+# the following is used when an editor is started in order 
+# for the user to specify a missing option. The text below
+# is shown as a short help for the user.
 my %gbl_edit_texts= 
   ( REMOTEHOSTS => "Please enter name of the remote host.\n" .
 	           "Note that the first in the (possible) list is the \n" .
@@ -167,6 +176,8 @@ my %gbl_edit_texts=
                   "symbolic links that are to be changed\n",	  		  		  		   
   );		   
 
+# the following are names of log-files
+# that are created on the remote host
 use constant
   { DIST_LOG     => 'LOG-DIST',
     LINK_LOG     => 'LOG-LINKS',
@@ -185,11 +196,15 @@ my $my_errcode= 67;
 
 my $gbl_rsync_opts="-a -u -z --delete";
 
+# the following datastructure is used when the config-file
+# is parsed. It links entries in the log-file to global
+# variables in this program
 my %gbl_map_hash= 
               (RSYNC_DIST_HOST      => \@opt_hosts,
                RSYNC_DIST_USER      => \$opt_user,
 	       RSYNC_DIST_PATH      => \$opt_distpath,
 	       RSYNC_DIST_LINKPATH  => \$opt_linkpath, 
+	       RSYNC_DIST_PREFIX_DISTDIR => \$opt_prefix_distdir, 
 	       RSYNC_DIST_LOCALPATH => \@opt_localpaths,
 	       RSYNC_DIST_LOCALPREFIX =>
 	                               \$opt_localprefix,
@@ -198,12 +213,19 @@ my %gbl_map_hash=
 	       RSYNC_DIST_EDITOR => \$opt_editor,
 	      );
 
+# the following datastructure is used when the config-file
+# is created. It links entries in the log-file to comments
+# describing the entry and is used when a config-file is created
+# with show-config, write-config or write-config-from-log
 my %gbl_config_comments=
               (RSYNC_DIST_HOST => "name of the remote host(s)",
 	       RSYNC_DIST_USER => "name of the remote user",
 	       RSYNC_DIST_PATH => "remote distribution directory",
 	       RSYNC_DIST_LINKPATH =>
 	                          "remote link directory",
+	       RSYNC_DIST_PREFIX_DISTDIR => 
+	                          "prepend the distribution directory to the link-source path\n" .
+				  "(only for the commands \"add-links\" and \"change-links\")",
 	       RSYNC_DIST_LOCALPATH =>
 	                          "local distribution directories",
 	       RSYNC_DIST_LOCALPREFIX =>
@@ -217,11 +239,15 @@ my %gbl_config_comments=
 	                          "editor for log-messages and tags",
               );
 	      
+# the following datastructure is used when the config-file
+# is created. It specifies the order in which the entries
+# in the config-file are created.
 my @gbl_config_order=qw(
 RSYNC_DIST_HOST
 RSYNC_DIST_USER
 RSYNC_DIST_PATH  
 RSYNC_DIST_LINKPATH
+RSYNC_DIST_PREFIX_DISTDIR
 RSYNC_DIST_LOCALPATH
 RSYNC_DIST_LOCALPREFIX
 RSYNC_DIST_WORLDREADABLE 
@@ -229,11 +255,16 @@ RSYNC_DIST_CHECKSUM
 RSYNC_DIST_EDITOR );
 
 
-# type-list, only array need to be listed here:
+# the following datastructure lists only entries of the
+# config-file that are arrays. 
 my %gbl_config_types=
               (RSYNC_DIST_HOST      => 'ARRAY',
 	       RSYNC_DIST_LOCALPATH => 'ARRAY');
 
+# the following hash maps directory-specifiers. With some commands,
+# the user has to specify wether he operates on the "dist" directory
+# or on the "links" directory. The hash keys show the strings the
+# program recognizes.
 my %gbl_known_dirnames= ('--dist' =>'dist', 
 			 dist     =>'dist', 
 			 d        =>'dist',
@@ -242,6 +273,8 @@ my %gbl_known_dirnames= ('--dist' =>'dist',
 			 l        =>'links',
 			);
 
+# this is a cache variable. The local logfile is read only once and 
+# relevant data from this file is stored here
 my $gbl_last_locallog_entries;
 
 if (!@ARGV)
@@ -304,7 +337,7 @@ if (!GetOptions("help|h",
 		
 		"editor=s",
 		"prefix_distdir|prefix-distdir",		
-		"last_dist|last-dist",
+		"last_dist|last-dist|L",
 		"ls_bug|ls-bug",
 		"checksum",
 		"dry_run|dry-run",
@@ -624,7 +657,7 @@ sub dist
  
     if (defined $tag)
       { $r_log->{TAG}= $tag; };
-    $r_log->{VERSION}= extract_date($r_l->[0]);
+    $r_log->{VERSION}= extract_date($r_l);
     
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
   }    
@@ -956,9 +989,10 @@ sub change_link
     # it should be <source-dir>,<filemask>
     if (defined $linkparam)
       { if ($linkparam !~ /^([^,]*),(.*)/)
-          { # link-parameter contains no comma:
-	    # <source-dir> is defined, <filemask> isn't
-	    $remote_source= $linkparam; 
+          { # link-parameter contains no comma,
+	    # we assume that this is the <filemask> and
+	    # that <remote-source> is not defined
+	    $files[0]= $linkparam; 
 	  }
 	else
 	  { # link-parameter contains a comma:
@@ -1381,9 +1415,21 @@ sub get_last_log_entries
 
 sub extract_date
   { my($str)= @_;
-    chomp($str);
-    $str=~ s/\s+.*$//;
-    return($str);
+    
+    if (ref($str) eq 'SCALAR')
+      { $str= [$str]; }; # array-ref with one element
+    
+    foreach my $l (@$str)
+      { if ($l=~ /^\s*\d/) 
+	  { my $var= $l;
+	    chomp($var);
+            $var=~ s/\s+.*$//;
+ 	    return($var); 
+	  };
+      };    
+    
+    warn "date not regocnized in: " . join(" ",@$str);
+    return;
   }  
 
 sub ver_from_file
@@ -2078,6 +2124,9 @@ Syntax:
 		RSYNC_DIST_LINKPATH
 		  the remote link directory, see also
 		  --linkpath
+		RSYNC_DIST_PREFIX_DISTDIR
+		  when set to 1, prepend the distribution directory to the 
+		  link-source path (only for "add-links" and "change-links")
 		RSYNC_DIST_LOCALPATH 
 		  the local directory or directories. More than one
 		  directory can be specified in a comma-separated list.
@@ -2109,14 +2158,22 @@ Syntax:
 
     --prefix-distdir
                 take the path of the dist-directory as prefix for the "source" part 
-		of the add-links or change-links command. You can for example do this:
-		rsync-dist.pl --config my_config --prefix-distdir --last-dist add-links ,idcp*
-		In this example the "source" part of the link-command is
-		<dist-directory>/<last-distribution-directory> 
-		Note that the comma "," is still needed in order to specify "idcp*" as
-		a filemask, not a source-part.
+		of the add-links or change-links command. 
+		Together with --last-dist you can specify the "source" part completely
+		like it is shown here:		
+		  rsync-dist.pl --config my_config --prefix-distdir --last-dist change-links idcp*
 
-    --last-dist append the name of the last distribution that was
+		Note that in this example if you want to specify several links directly, 
+		you have to PREPEND a comma to the list like this:
+		  rsync-dist.pl --config my_config --prefix-distdir --last-dist change-links ,idcp1,idcp2
+		
+		otherwise the first link-name would be taken as a "source" part
+		
+		in this example e.g. ",idcp1,idcp2,idcp3" in order to specify an
+		empty <source> part.
+
+    --last-dist -L
+    	        append the name of the last distribution that was
                 made to the "source" part of the add-links or
 		change-links command		
    

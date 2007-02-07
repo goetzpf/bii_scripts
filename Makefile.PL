@@ -44,7 +44,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		cvs_diff.pl cvs_log_diff.pl camonitor_sort.pl 
 		sch_cvs_diff.pl SetPerms vdct flatdb tkSQL
 		accLaunch
-		rsync-deploy rsync-dist.pl);
+		rsync-deploy rsync-dist.pl multi-commit.pl);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
@@ -55,7 +55,7 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
 		simpleconf.pm
 		);
                 
-my @script_pods= qw(rsync-dist.pl);
+my @script_pods= qw(rsync-dist.pl multi-commit.pl);
 
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm

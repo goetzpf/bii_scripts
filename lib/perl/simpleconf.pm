@@ -223,7 +223,7 @@ sub mk_order
   }
 
 sub create
-# Note: keys not menationed in "order" are sorted
+# Note: keys not mentioned in "order" are sorted
 # alphabetically
   { my($ref, $r_l, %options)= @_;
     my %order;
@@ -273,8 +273,9 @@ sub create
 	if (defined $comments)
 	  { $str= $comments->{$k}; 
 	    if (defined $str)
-	      { if ($str!~/^\s*#/)
-		  { $str= '# ' . $str; };
+	      { $str=~ s/^(\s*)#?/$1#/mg;
+	        #if ($str!~/^\s*#/)
+		#  { $str= '# ' . $str; };
 		if ($str!~/\r?\n$/)
 		  { $str.= "\n"; };
 	      }	  
@@ -359,11 +360,29 @@ The corresponding "simpleconf" format may look like this
 
 Note that in the real case, the lines start right at the 
 first column, so there are no spaces left of "PATH","IGNORE_COMMENTS" and
-"OS". The defaults is that each fieldname is followed by a colon "="
+"OS". The defaults is that each fieldname is followed by a "="
 and a space. Fields are, by default, not separated by empty lines,
 but this can be specified. When the file is created, comments can
 be specified for each field.
 
+Here is another example:
+
+  use simpleconf; 
+
+  my %mydata= ( PATH => ["/sbin","/usr/local/bin"], 
+        	OS=>"linux", 
+		SUPPORTED=> {linux=>"yes", windows=>"no"}
+	      ); 
+
+  my $x; 
+  simpleconf::create(\$x,\%mydata); 
+  print "$x\n";'
+
+The output of this sample script is:
+ 
+  OS= linux
+  PATH= /sbin,/usr/local/bin
+  SUPPORTED= linux:yes,windows:no
 
 =head2 Implemented Functions:
 
@@ -598,6 +617,8 @@ after all fields mentioned in the list. Example:
 			               "IGNORE_COMMENTS"]);
 =back
 
+
+=back
 
 =back
 

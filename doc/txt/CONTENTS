@@ -2,25 +2,50 @@
 Scripts:
 ----------------------------------------------------------------------
 
-Sch2db.pl
-	a perl sch to db converter. Converts capfast(*.sch) files
-	to the db file format as it is used in EPICS. This is faster
-	and more flexible that the combination of sch2edif and e2db...
-
 SetPerms
 	a semi-automatic shell-script for setting file and 
 	directory permissions in the CVS repository, in 
 	epics, vxworks or development related directories.
+
+bdns_import.pl
+	import BESSY device names into the oracle database
+
+bdns_lookup.pl
+	lookup BESSY device names in the oracle database
 
 browsedb.pl
 	a perl-script with a graphical user interface to 
         browse the oracle database. The program can be used to view 
 	and change data in the database as well as show relations 
 	between the tables.
+     
+buds_lookup.pl
+	???
+
+camonitor_sort.pl
+	sort and filer files created by the EPICS camonitor command.
+	The filtering can be specified with regulat expressions.
+	This tool is especially useful when many different PV's 
+	are monitored at a time.
 
 canlink.pl
-	encode and decode the BESSY lowcal can-bus link as it is 
-	used in the lowCAL device-support (EPICS)
+	encode and decode the lowCAL hardware link as it is 
+	used in the BESSY MultiCAN device support for EPICS.
+
+cvs_diff.pl
+	compare versions of a file in a CVS repository. This tool
+	can remove emtpy lines and c-comments before comparing.
+
+cvs_log_diff.pl
+	compares the all log-messages between two revisions or tags
+	in a CVS repository. 
+
+dbfilter.pl
+	A tool to filter db files or to find information in db 
+	files. Regular expression matches can be done on 
+	record names, record types or values of record-fields.
+	Connections between records can be shown, lowCAL and
+	SDO CAN links can be decoded.
 
 dbscan.pl
 	This script is from Rolf Keitel <rolf@triumf.ca>. It scans
@@ -34,34 +59,24 @@ dbutil.p
 	A tool that can export database-tables to ASCII files and 
 	re-import these files. Useful if you want to change many parts
 	of a database-table with your favorite text-editor...
-
+	
 expander.pl
-	a script to perform macro-replacements in text files. Features
+	macro expander for text-files. Since this tool allows
+	the execution of arbitrary perl-expressions, it is 
+	quite powerful and (if you want this) a programming
+	language of its own. It features 
 	if-statements, complex expressions and for-loops among others.
 	This script is a simple application of the expander.pm module.
 
 
-hgen.pl a header-generator for c and c++
-
-paths.pl
-	prints commands to set your perl-environment in order to use
-	the perl-modules and scripts of bii_scripts 
-
-pfind.pl
-	a perl-script for recursive file pattern search, like
-	a recursive grep, but better...
-
-dbfilter.pl
-	A tool to filter db files or to find information in db 
-	files. Regular expression matches can be done on 
-	record names, record types or values of record-fields.
-
-sch_cvs_diff
-	shows the difference between a modified capfast (*.sch) file
-	and it's version on the top-trunk in the cvs repository.
-	The difference of the resulting *.db files is shown, which
-	is much clearer when you want to find out what was really 
-	changed.
+filter_can_links.pl
+	extract CAN links from a .db file (for the 
+	BESSY lowCAL protocol). Note that dbfilter.pl can
+	almost do the same with the "--lowcal" option.
+	
+	
+grab_xkeys.pl
+	???
 
 grepDb.pl
        A tool to search in EPICS-db files. It allows to define regular
@@ -70,39 +85,80 @@ grepDb.pl
        the trigger, it causes a print of the record. To control the printed 
        output there are options to define the record names, record types or 
        field types that have to be printed.
+	
+hgen.pl a header-generator for c and c++
 
-Currently undocumented:
+makeDocCommonIndex.pl
+	???
 
+makeDocPerl.pl
+	???
+	
+makeDocTxt.pl
+	???
+	
+multi-commit.pl
+	perform multiple commits (cvs|svn|darcs) with a prepared command-file 
 
-bdns_import.pl     
-cvsGuru                     
+paths.pl
+	prints commands to set your perl-environment in order to use
+	the perl-modules and scripts of bii_scripts 
+
+paths2.pl
+	like paths.pl but uses the global installation directories
+	of the bii_scripts project.
+
+pfind.pl
+	a perl-script for powerful recursive file pattern search, like
+	a recursive grep, but better. Features among other things
+        text-file search, c-file search, regular expressions that 
+	match across line-ends.
+
+rsync-dist.pl
+	manages binary distributions to remote servers. No old version
+	is ever lost. Uses hard-links to save storage space. Manages
+	also symbolic links that point to the distribution directories
+	on the server.
+
+Sch2db.pl
+	a perl sch to db converter. Converts capfast(*.sch) files
+	to the db file format as it is used in EPICS. This is faster
+	and more flexible that the combination of sch2edif and e2db...
+
+sch_cvs_diff
+	shows the difference between a modified capfast (*.sch) file
+	and it's version on the top-trunk in the cvs repository.
+	The difference of the resulting *.db files is shown, which
+	is much clearer when you want to find out what was really 
+	changed.
+	
 set_ioc_tsrv.pl
-bdns_lookup.pl     
-dbcount              
-lockGuru        
-dbdiff               
-tkSQL
-oracle_request  
-unlockGuru
-dbsort               
-paths2.pl       
-vdct
-buds_lookup.pl     
-filter_can_links.pl  
-grab_xkeys.pl        
+	???
+	
+subst2exp.pl
+	convert substitution-files to expander format for usage
+	with the expander.pl script. This can be used on the fly
+	as an alternative to EPICS msi, or to convert
+	substitution files to expander format in order to use
+	the much more powerful commands of the expander format
+	when replacing values in EPICS template files. 
+
 
 ----------------------------------------------------------------------
 Libraries and Modules:
 ----------------------------------------------------------------------
 
+BDNS.pm
+	???
+	
+bessy_module.pm
+	This performa a "module <command> <args...>" in the z-shell 
+	environment and re-imports the environment-variables to the 
+	perl-process, so they are available in the %ENV-hash
+	
 BrowseDB/TkUtils.pm 
 	Tk-utilities for browsedb.pl
 
-Pezca	
-	a perl-module that implements the channel-access protocol
-	and gives access to EPICS variables (1)
-	
-	
 browsedb_conf.PL  
 	this file is only needed for "make install" in order to 
 	patch browsedb.pl. It hat no use, once bii_scripts is installed
@@ -112,12 +168,29 @@ canlink
 	"cryptic can link" as it is used in the BESSY CAN Bus
 	device support for EPICS.
 
+cfgfile.pm
+	simple module to read or write a configuration file
+
+
+container.pm
+	This provides routines to import and export perl variables into 
+	a single hash. A map-hash defines what hash-key is connected
+	to what variable. Importing and exporting is performed by
+	copying scalars, arrays and hashes. This is not a simple copy
+	of references. Note that deeply nested structures are
+	deeply copied.  
+
+CreateX.pm
+	???
+
+dbdrv_lite.pm
+	low level routines for sqlite. Used by dbdrv.
+	
 dbdrv_oci
 	low level routines for the ORACLE database. Needed by dbdrv.
 
 dbdrv_pg.pm   
 	low level routines for a PostgreSQL database. Needed by dbdrv.
-
 
 dbdrv_test.pl  
 	test-script for dbdrv. This shouldn't be in the repository!      
@@ -133,21 +206,44 @@ expander.pm
 	a module to perform macro-replacements in text files. Features
 	if-statements, complex expressions and for-loops among others
 
+maillike.pm
+	This module is used to parse and create data files in a 
+	format similar to mail (RFC822). The data is organized in
+	records, each record has a number of fields and to each 
+	field of a record an certain content is associated.
+
+makeDocStyle.pm
+	???
+
+ODB.pm
+	???
+
+Options.pm
+	???
+
 parse_db
 	a perl-module for parsing EPICS db-files
-	
+
+
 parse_subst
 	a perl-module for parsing EPICS substitution-files
-	
 
-Currently undocumented:
+Pezca	
+	a perl-module that implements the channel-access protocol
+	and gives access to EPICS variables (1)
 
-BDNS.pm           
-CreateX.pm    
-ODB.pm
-Options.pm
-cfgfile.pm        
+scan_makefile.pm
+	This module scans one or more than one makefile and returns 
+	a hash reference containing all variables that are set within
+	the makefile together with all environment variables.
 
+
+simpleconf.pm
+	This module is used to parse and create configuration files
+	in a very simple format. The data is typically organized in
+	lines where each line contains a field-name and the contents
+	of the field. Empty lines and lines starting with a "#" character
+	(which are usually a comment) are ignored.
 
 -----------------------------------------------------------------------
 (1)	This is a CPAN-like module which has to be installed via
@@ -160,3 +256,4 @@ cfgfile.pm
 	contains embedded documenation, which is extracted to a 
 	man-page via "make". The documentation is in 
 	"bii_scipts/doc/man/man3/[module].3",
+

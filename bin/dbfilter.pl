@@ -41,10 +41,12 @@ use vars qw($opt_help $opt_summary
 	    $opt_single
 	    $opt_lowcal
 	    $opt_Lowcal
+	    $opt_sdo
+	    $opt_Sdo
 	   );
 
 
-my $sc_version= "1.4";
+my $sc_version= "1.5";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files"; 
@@ -115,6 +117,7 @@ if (!GetOptions("help|h","summary",
 		"allow_double|A",
 		"single|S",
 		"lowcal", "Lowcal",
+		"sdo", "Sdo",
                 ))
   { die "parameter error!\n"; };
 
@@ -192,6 +195,8 @@ foreach my $file (@files)
     if ((!defined $opt_dump_internal) && 
 	(!defined $opt_lowcal) &&
 	(!defined $opt_Lowcal) &&
+	(!defined $opt_sdo) &&
+	(!defined $opt_Sdo) &&
 	(!defined $opt_short) &&
 	(!defined $opt_recreate) &&
 	(!defined $opt_value) &&
@@ -244,6 +249,11 @@ foreach my $file (@files)
 
     if ((defined $opt_lowcal) || (defined $opt_Lowcal))
       { lowcal($filename,$recs,(defined $opt_Lowcal));
+	next;
+      };
+
+    if ((defined $opt_sdo) || (defined $opt_Sdo))
+      { sdo($filename,$recs,(defined $opt_Sdo));
 	next;
       };
 
@@ -799,6 +809,125 @@ sub lowcal
       };
   }
  
+sub sdo
+  { my($filename,$r_rec,$reverse)= @_;
+  
+    filter_records($r_rec,"DTYP","SDO"); 
+    filter_fields($r_rec,['INP','OUT']);
+    
+    if (!$reverse)
+      { printf "%-28s%-3s %s\n","recordname","dir",sdo_tab_print(); }
+    else
+      { printf "%s %-3s %-28s\n",sdo_tab_print(),"dir","recordname"; }
+    
+    foreach my $recname (sort keys %$r_rec)
+      { my $r= $r_rec->{$recname}->{FIELDS};
+        my $link= $r->{OUT};
+	my $dir= "OUT";
+	if (!defined $link)
+	  { $link= $r->{INP}; 
+	    $dir="INP";
+	  };
+
+        my %h= sdo_decode($link);
+      
+        if (!$reverse)
+          { printf "%-28s%-3s %s\n",$recname,$dir,sdo_tab_print(%h); }
+	else
+          { printf "%s %-3s %-28s\n",sdo_tab_print(%h),$dir,$recname; }
+      };
+  }
+
+sub sdo_decode
+  { my($str)= @_;
+    my($connection_char,$port,$node,$index,
+       $subindex,$datasize,$conversion_char,$timeout);
+    
+    my %h;
+    
+    if   ($str=~/^\@C:(.)\s+A:(\d+),(\d+),(\d+),(\d+)\s+
+                 V:(\d+),(.)\s+T:(\d+)\s*$/x)
+      { $connection_char= $1;
+        $port           = $2;
+	$node           = $3;
+	$index          = $4;
+	$subindex       = $5;
+	$datasize       = $6;
+	$conversion_char= $7;
+	$timeout        = $8;
+      }
+    elsif ($str=~/^\@C:(.)\s+
+                  X:([0-9A-Fa-f]+),([0-9A-Fa-f]+),
+		    ([0-9A-Fa-f]+),([0-9A-Fa-f]+)\s+
+                  V:(\d+),(.)\s+T:(\d+)\s*$/x)
+      { $connection_char= $1;
+        $port           = hex($2);
+	$node           = hex($3);
+	$index          = hex($4);
+	$subindex       = hex($5);
+	$datasize       = $6;
+	$conversion_char= $7;
+	$timeout        = $8;
+      } 
+    else
+      { die "link not parsable:\"$str\""; };
+
+    if    (lc($connection_char) eq 's') 
+      { $h{HOSTTYPE}= "SERVER"; }
+    elsif (lc($connection_char) eq 'c') 
+      { $h{HOSTTYPE}= "CLIENT"; }
+    else
+      { die "link tot parsable:\"$str\""; };
+      
+    if    (lc($conversion_char) eq 'r') 
+      { $h{DATATYPE}= "RAW"; }
+    elsif (lc($conversion_char) eq 'i') 
+      { $h{DATATYPE}= "INT"; }
+    else
+      { die "link not parsable (conv.char):\"$str\""; };
+    
+    if ($subindex>255)
+      { die "link not parsable (subindex range):\"$str\""; };
+      
+    $h{PORT}    = $port;
+    $h{NODE}    = $node;
+    $h{INDEX}   = $index;
+    $h{SUBINDEX}= $subindex;
+    $h{DATASIZE}= $datasize;
+    $h{TIMEOUT} = $timeout;
+    return(%h);
+  }
+ 
+sub sdo_tab_print
+  { my(%p)= @_;
+       
+    # HOSTTYPE, PORT, NODE, INDEX, SUBINDEX, DATASIZE, DATATYPE, TIMEOUT
+    if (!@_)
+      { my $st= sprintf "%-7s %3s %3s %5s %4s %3s %3s %5s", 
+                        "hosttp",
+			"prt",
+			"nod",
+			"idx",
+			"sidx",
+			"dsz",
+			"dtp",
+			"tmo";
+        return($st);
+      };
+ 
+    my $st= sprintf "%-7s %3d %3d %5d %4d %3d %3s %5d", 
+               lc($p{HOSTTYPE}),
+	       $p{PORT},
+	       $p{NODE},
+	       $p{INDEX}, 
+	       $p{SUBINDEX}, 
+	       $p{DATASIZE},
+	       lc($p{DATATYPE}),
+	       $p{TIMEOUT};
+ 
+    return($st);
+  }            
+   
 sub create_regexp_func
 # create a function for regular expression
 # matching
@@ -928,6 +1057,13 @@ Syntax:
       printed in a table format 
 
     --Lowcal: identical to --lowcal except that the record
+      names are in the last, not in the first column  
+
+    --sdo: print records with DTYP=SDO and decode
+      the CAN link. Record names and can-link properties are
+      printed in a table format 
+
+    --Sdo: identical to --sdo except that the record
       names are in the last, not in the first column  
 
    filter field values:
