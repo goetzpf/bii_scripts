@@ -436,7 +436,7 @@ all log-messages for all files and commits can be specified in a single file
 =item *
 
 the user can specify which files are committed within a single command.
-Such commits form an indivisable change in the repository if subversion
+Such commits form an indivisable change-set in the repository if subversion
 or darcs is used.
 
 =back
@@ -523,22 +523,22 @@ spaces:
   M ./MultiCAN/src/tool/src/pdbg.c +23
   some comments were changed here.
 
-This file defines two commit-sections. Commit-sections are
-separated by at least 4 '-' characters. Each commit sections 
-contains the original lines from the status-command but comments
-for the log-messages have been added. There are two kinds of comments,
-generic and file-specific comments. Comments at the start are generic,
-while comments below filenames are specific for that file. A generic
-comment should always be specified, while file-specific comments 
-are optional. In the above example, the file-names and flags 
-were created by darcs. The numbers at the line-ends like "-6 +1" 
-are ignored. 
+This file defines two commit-groups. Commit-groups are
+separated by lines with at least 4 '-' characters. Each commit group
+contains the original lines from the status-command and additional 
+text for the log-messages. There are two kinds of comments,
+generic and file-specific comments. Comments at the start of a group 
+are generic, while comments that follow filenames are specific for 
+that file. A generic comment should always be specified, while 
+file-specific comments are optional. In the above example, the 
+file-names and flags were created by darcs, but the numbers at the 
+line-ends like "-6 +1" are ignored. 
 
 =head2 example of a typical session
 
 We assume that you are in the top-directory of your working copy. 
 We also assume that you use subversion. Replace "--svn" with "--cvs"
-or "--darcs" for the other version control systems. 
+or "--darcs" for other version control systems. 
 
 =over 4
 
@@ -553,15 +553,16 @@ or "--darcs" for the other version control systems.
 Remove all lines marked with "?" here, these are files the repository
 doesn't know of. For each file mentioned, look what has changed
 (for example with "cvs diff <filename>", "svn diff <filename>"
-or "darcs diff <filename>") and append a comment below the filename.
-Leave the line with the filename itself unchanged.
+or "darcs diff <filename>" or your favorite graphical diff program) 
+and append a comment below the filename. Leave the line with the 
+filename itself unchanged.
 
 =item group log-messages in the message file:
 
 You should now look which commits belong logically together. When
 the log-messages for two files are identical, they belong together.
 Changes that depend on each other should also be grouped. 
-Groups must be separated with lines containing many (more that 4)
+Groups must be separated with lines consisting of many (more that 4)
 "-" characters. For each group, specify a generic log message that 
 appears directly below the line with "-" characters. For all files
 in that group where the generic log message suffices, remove the 
@@ -591,7 +592,7 @@ Goetz Pfeiffer,  goetzp@gmx.net
 
 =head1 SEE ALSO
 
-rsync-documentation
+cvs, subversion or darcs documentation
 
 =cut
 
