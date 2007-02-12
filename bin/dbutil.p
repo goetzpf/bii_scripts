@@ -17,6 +17,7 @@ use FindBin;
 # use lib "$FindBin::RealBin/../lib/perl";
 
 use Getopt::Long;
+use Net::Netrc;
 
 use dbitable;
 
@@ -42,7 +43,7 @@ our $opt_new_name;
 our $opt_summary;
 our $opt_no_auto_pk;
 
-my $version="1.3";
+my $version="1.4";
 
 my %known_actions= (file2file=> 1,
                     db2file=>1, 
@@ -85,9 +86,17 @@ $parameters{database}= $opt_database;
 if (!defined $opt_user)
   { ($opt_user,$opt_password)= ($default_user, $default_pass);
 
-     my $env= $ENV{DBUTIL};
-     if (defined $env)
-      { ($opt_user,$opt_password)= split(":",$env); };
+     #my $mach = Net::Netrc->lookup($opt_database);
+     my $mach = Net::Netrc->lookup($opt_database);
+     if (defined $mach)
+       { $opt_user= $mach->login();
+         $opt_password= $mach->password();
+       }
+     else
+       { my $env= $ENV{DBUTIL};
+	 if (defined $env)
+	  { ($opt_user,$opt_password)= split(":",$env); };
+       }
   };
 
 #warn $opt_user;  
@@ -340,8 +349,15 @@ options:
   -h : this help
   -d : database-name, default: $opt_database
   -u [user] , database-user, default: $default_user
-     when the environment variable DBUTIL is set to (user:password)
-     this user-password combination is taken instead
+     when this option is missing, the scripts first searches for
+     $HOME/.netrc
+     If this file exists and there is an entry in the form:
+     machine <database-name> login <user-name> password <password>
+     the user-name and password are taken from that file. If a matching
+     entry is not found, the script looks for the environment variable
+     DBUTIL. If it is set to (user:password)
+     this user-password combination is taken
+     
   -p [password], default: "bessyguest"
 
   -a [action]: mandatory, action is one of:
