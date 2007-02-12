@@ -297,7 +297,7 @@ preproc_args();
 # take this as "-l s" ...
 foreach my $opt (@ARGV)
   { die "unknown option: $opt" if ($opt=~ /^-[^-]{2,}/); };
-  
+
 Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h",
@@ -312,9 +312,9 @@ if (!GetOptions("help|h",
 		"localpath|l=s" => \@opt_localpaths,
 		"localprefix=s",
 
-		"message|m=s",
+		"message|m:s",
 		"automessage",
-		"tag|t=s",
+		"tag|t:s",
 		"autotag",
 
 		"dist|d:s", 
@@ -1605,7 +1605,7 @@ sub gbl_arg_lst_to_map
       };
     return(\%map);
   }
- 
+
 sub preproc_args
   { my $r_map= gbl_arg_lst_to_map();
   
