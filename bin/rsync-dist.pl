@@ -71,7 +71,7 @@ use vars qw($opt_help
             );
 
 
-my $sc_version= "1.3";
+my $sc_version= "1.4";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
@@ -468,58 +468,64 @@ if (defined $opt_ls_version)
 
 if (defined $opt_rm_lock)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_rm_lock);
-    rm_lock($opt_hosts[0],$opt_user,$rpath,'remove');
-    exit(0);
+    my $rc= 
+      rm_lock($opt_hosts[0],$opt_user,$rpath,'remove');
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_mk_lock)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_mk_lock);
-    rm_lock($opt_hosts[0],$opt_user,$rpath,'create');
-    exit(0);
+    my $rc= 
+      rm_lock($opt_hosts[0],$opt_user,$rpath,'create');
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_rebuild_last)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    rebuild_last($opt_hosts[0],$opt_user,$rpath);
-    exit(0);
+    my $rc=
+      rebuild_last($opt_hosts[0],$opt_user,$rpath);
+    exit($rc ? 0 : 1);
   }
 
 if (@opt_mirrorhosts)
   { my $dirtype= shift @opt_mirrorhosts;
     my($arg,$rpath,$log,$chg)= dir_dependant($dirtype);
-    mirror($opt_user,$rpath,$opt_hosts[0],\@opt_mirrorhosts);
-    exit(0);
+    my $rc=
+      mirror($opt_user,$rpath,$opt_hosts[0],\@opt_mirrorhosts);
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_change_links)
   { my($arg,$rpath,$log,$chg)= dir_dependant('links');
-
-    change_link(0, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_change_links);
-    exit(0);
+    my $rc=
+      change_link(0, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_change_links);
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_add_links)
   { my($arg,$rpath,$log,$chg)= dir_dependant('links');
     my @files;
     my $source;
-    
-    change_link(1, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_add_links);
-    exit(0);
+    my $rc=
+      change_link(1, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_add_links);
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_dist)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    dist(\@opt_hosts,$opt_user,$rpath,\@opt_localpaths, 
-         $opt_message, $opt_tag, 
-  	 $opt_world_readable,
-	 $opt_dist);
-    exit(0);
+    my $rc= 
+      dist(\@opt_hosts,$opt_user,$rpath,\@opt_localpaths, 
+           $opt_message, $opt_tag, 
+  	   $opt_world_readable,
+	   $opt_dist);
+    exit($rc ? 0 : 1);
   }
          
 if (defined $opt_to_attic)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    move_file($opt_hosts[0],$opt_user,$rpath,$opt_to_attic, $opt_message, 1);
-    exit(0);
+    my $rc= 
+      move_file($opt_hosts[0],$opt_user,$rpath,$opt_to_attic, $opt_message, 1);
+    exit($rc ? 0 : 1);
   }
          
 if (defined $opt_from_attic)
@@ -622,6 +628,9 @@ sub dist
 	         "-e \"ssh -l $local_user \" " .
 	         "$local_host:\$l" .' ./`cat STAMP`;' .
 	      'done';
+	      
+	      
+	      
     if ($world_readable)
       { $rcmd.= ' && chmod -R a+rX `cat STAMP`'; };
     $rcmd.=	      
@@ -657,7 +666,9 @@ sub dist
     my($rc,$r_l)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                             $rcmd, 1);
     
-    return if (!$rc);
+    return if (!$rc); #error
+    
+    return 1 if ($opt_dry_run); # OK
     
     if ($locallog ne "")
       { to_file($locallog, $r_l); };
@@ -676,6 +687,7 @@ sub dist
     $r_log->{VERSION}= extract_date($r_l);
     
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    return(1);
   }    
 
 sub move_file
@@ -757,12 +769,15 @@ sub move_file
     my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
 
     return if (!$rc);
+    
+    return 1 if ($opt_dry_run); # OK
 
     # update local log-file
     $r_log->{LOGMESSAGE} = $logmessage;
     $r_log->{VERSION}    = $odir;
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    return(1);
   }
 	      
 
@@ -865,8 +880,10 @@ sub rm_lock
 
     return if (!$rc);
     
+    return 1 if ($opt_dry_run); # OK
+
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
-    
+    return(1);
   }
 
 sub rebuild_last
@@ -900,8 +917,11 @@ sub rebuild_last
     my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
 
     return if (!$rc);
+   
+    return 1 if ($opt_dry_run); # OK
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    return(1);
   }
 
 sub mirror
@@ -939,10 +959,12 @@ sub mirror
 
     return if (!$rc);
 
+    return 1 if ($opt_dry_run); # OK
+
     $r_log->{MIRRORHOSTS}= join(" ",@$r_hosts);
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
-
+    return(1);
   }
 
 sub ls_version
@@ -1171,12 +1193,14 @@ sub change_link
 
     return if (!$rc);
 
+    return 1 if ($opt_dry_run); # OK
+
     $r_log->{FILES}       = join(",",@$r_files);
     $r_log->{LOGMESSAGE}  = $logmessage;
     $r_log->{SOURCEDIR}   = $remote_source;
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
-
+    return(1);
   }
 
 sub sh_copy_to_hosts
@@ -1446,7 +1470,7 @@ sub extract_date
 	  };
       };    
     
-    warn "date not regocnized in: " . join(" ",@$str);
+    warn "date not recognized in: " . join(" ",@$str);
     return;
   }  
 
