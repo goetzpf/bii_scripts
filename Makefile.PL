@@ -27,6 +27,8 @@ use Data::Dumper;
 my %add_args= (SHARE_DIR=> undef,
                USE_PERL5LIB=> undef,
                USE_GP_MODULES=> undef,
+	       INST_HTMLLIBDIR=> undef,
+	       INST_HTMLSCRIPTDIR=> undef,
               );
 
 
@@ -62,23 +64,6 @@ my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              scan_makefile.pm container.pm maillike.pm
 	     simpleconf.pm);
 
-
-my %pm;
-foreach my $m (@modules)
-  { $pm{$ldir . $m}= '$(INST_LIB)/' . $m; }; 
-
-my %mp1;
-foreach my $p (@script_pods)
-  { my($body)= ($p=~ /^([^\.]+)/);
-    $mp1{$bdir . $p}= '$(INST_MAN1DIR)/' . $body . '.$(MAN1EXT)'; 
-  }; 
-  
-my %mp;
-foreach my $p (@pods)
-  { my($body)= ($p=~ /^([^\.]+)/);
-    $mp{$ldir . $p}= '$(INST_MAN3DIR)/' . $body . '.$(MAN3EXT)'; 
-  }; 
-  
 my @args= @ARGV;
 @ARGV=();
 foreach my $a (@args)
@@ -89,6 +74,35 @@ foreach my $a (@args)
       };
     $add_args{$name}= $val;
   };      
+
+#die join("|",%add_args);
+
+my %pm;
+foreach my $m (@modules)
+  { $pm{$ldir . $m}= '$(INST_LIB)/' . $m; }; 
+
+my %mp1;
+my @hp1;
+foreach my $p (@script_pods)
+  { my($body)= ($p=~ /^([^\.]+)/);
+    $mp1{$bdir . $p}= '$(INST_MAN1DIR)/' . $body . '.$(MAN1EXT)'; 
+    
+    next if (!exists $add_args{INST_HTMLSCRIPTDIR});
+    my $x= $body; $x=~ s/\.[^\.]+$//;
+    push @hp1, '$(INST_HTMLSCRIPTDIR)/' . "$x.html"; 
+  }; 
+  
+my %mp;
+my @hp;
+foreach my $p (@pods)
+  { my($body)= ($p=~ /^([^\.]+)/);
+    $mp{$ldir . $p}= '$(INST_MAN3DIR)/' . $body . '.$(MAN3EXT)'; 
+
+    next if (!exists $add_args{INST_HTMLLIBDIR});
+    my $x= $body; $x=~ s/\.[^\.]+$//;
+    push @hp, '$(INST_HTMLLIBDIR)/' . "$x.html"; 
+  }; 
+
 
 if (exists $add_args{SHARE_DIR})
   { $add_args{BROWSEDB_SHARE_DIR}= 
@@ -137,12 +151,23 @@ WriteMakefile(
 # add another target, "share" to the makefile
 
 sub MY::postamble {
+    my $htmls= join(" ",@hp,@hp1);
     my $postamble = <<"END";
 .PHONY: share
 share:
 	echo \"installing to \" \$(BROWSEDB_SHARE_DIR)
 	install -m 755 -d share/browsedb \$(BROWSEDB_SHARE_DIR)
 	install -m 644 share/browsedb/[^C]* \$(BROWSEDB_SHARE_DIR)
+
+\$(INST_HTMLSCRIPTDIR)/%.html: $bdir%.pl
+	pod2html --infile=\$< --outfile=\$@ 
+
+\$(INST_HTMLLIBDIR)/%.html: $ldir%.pm
+	pod2html --infile=\$< --outfile=\$@ 
+
+.PHONY: html
+html: $htmls
+
 END
     $postamble;
 }
