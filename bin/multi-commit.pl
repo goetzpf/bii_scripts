@@ -26,6 +26,7 @@ use constant {
 use vars qw($opt_help $opt_summary $opt_man 
             $opt_commit
 	    $opt_generate
+	    $opt_svn_log_gen
             $opt_darcs $opt_cvs $opt_svn
 	    $opt_dry_run);
 
@@ -60,6 +61,7 @@ if (!@ARGV)
 preproc_args();
 
 if (!GetOptions("help|h","summary","man","commit=s","generate",
+                "svn_log_gen|svn-log-gen=s",
                 "dry_run|dry-run","darcs","cvs","svn"
                 ))
   { die "parameter error!\n"; };
@@ -99,7 +101,9 @@ if (!defined $vcs)
 if ((defined $opt_generate) && (defined $opt_commit))
   { die "contradicting options\n"; };
 
-if    (defined $opt_generate)
+if (defined $opt_svn_log_gen)
+  { scan_svn_log($opt_svn_log_gen); }
+elsif (defined $opt_generate)
   { generate_file($vcs); }
 elsif (defined $opt_commit)
   { 
@@ -149,6 +153,8 @@ sub scan_file
     my $last_file; 
     my $last_empty; 
     
+#die "vcs:$vcs";
+
     my $lineno=0;
     open(F,$filename) or die "unable to open \"$filename\"";
     while(my $line=<F>)
@@ -211,10 +217,96 @@ sub scan_file
       };
     if (@files)
       { build_comment(\$comment, \%file_comments, \@files);
-	commit($comment,@files);
+	commit($vcs,$comment,@files);
       };
     close(F);
   }
+
+sub print_msg
+  { my($r_files,$r_comments)= @_;
+  
+    for(my $i= $#$r_comments; $i>0; $i--)
+      { if ($r_comments->[$i]=~ /^\s*$/)
+	  { $r_comments->[$i]= undef; }
+	else
+	  { last; };
+      }; 
+    print "-" x 40,"\n";
+    print join("\n",@$r_comments),"\n\n";
+    print join("\n",@$r_files),"\n\n";
+  }
+   
+
+sub scan_svn_log
+  { my ($par)= @_;
+  
+    my $mode= "init";
+  
+    my @files;
+    my @comments;
+    my $lineno;
+    
+    my ($old, $new);
+
+    if ($par=~/(.*),(.*)/)
+      { $old= $1; $new= $2; }
+    else
+      { die "error: please specify \"old-path,new-path\"\n"; }; 
+  
+    while(my $line=<>)
+      { $lineno++;
+        chomp($line);
+	
+	if ($line=~ /^-{4,}/)
+	  { next if (!@files);
+	    print_msg(\@files,\@comments);
+	    @files=();
+	    @comments=();
+	    $mode= 'init';
+	    next;
+	  };
+
+	if ($mode eq 'init')
+	  { if ($line=~/^\s*Changed paths/i)
+	      { $mode= 'filelist';
+	        @files=();
+		@comments=();
+		next;
+	      };
+	    next;
+	  }
+	elsif ($mode eq 'filelist')
+	  { if ($line=~ /^\s*$/)
+	      { $mode= 'comment';
+	        next;
+	      };
+	    my $l= $line; 
+	    
+	    if ($l!~ /^\s*([A-Z]{1,2})\s+(.*)/)
+	      { die "file not parsable:\n\"$l\"\n"; }
+	    else
+	      { my $c= $1; 
+	        my $f= $2;
+		$f=~ s/$old/$new/;
+		push @files, "$c  $f"; 
+              };
+	    next;
+	  }
+	elsif ($mode eq 'comment')
+	  { if (!@comments)
+	      { next if ($line=~/^\s*$/); };
+	    push @comments, $line;
+	    next;
+	  }  
+      }
+      
+    if (@files)
+      { print_msg(\@files,\@comments); }     	        
+  }	
+	          
+	
+ 
+  
 
 sub build_comment
   { my($r_comment, $r_file_comments, $r_files)= @_;

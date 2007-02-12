@@ -59,17 +59,19 @@ use vars qw($opt_help
 	    $opt_write_config_from_log
 	    $opt_env
 	    $opt_editor
+	    $opt_no_editor_defaults
 	    $opt_prefix_distdir
 	    $opt_last_dist
 	    $opt_ls_bug
 	    $opt_checksum
+	    $opt_progress
 	    $opt_dry_run
 	    $opt_world_readable
 	    $opt_debug 
             );
 
 
-my $sc_version= "1.2";
+my $sc_version= "1.3";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
@@ -108,7 +110,7 @@ my @gbl_arg_lst= ('--dist',
 		  '--show-config-from-log',
 		  '--write-config-from-log',
 		  );
-		 
+
 my $gbl_local_log= "$ENV{HOME}/.rsync-dist-log";
 
 my @gbl_local_log_order= 
@@ -211,6 +213,7 @@ my %gbl_map_hash=
 	       RSYNC_DIST_WORLDREADABLE => \$opt_world_readable,
 	       RSYNC_DIST_CHECKSUM  => \$opt_checksum,
 	       RSYNC_DIST_EDITOR => \$opt_editor,
+	       RSYNC_DIST_EDITOR_NO_DEFAULTS => \$opt_no_editor_defaults,
 	      );
 
 # the following datastructure is used when the config-file
@@ -237,6 +240,9 @@ my %gbl_config_comments=
 	                          "use checksum to detect file changes",
                RSYNC_DIST_EDITOR =>
 	                          "editor for log-messages and tags",
+	       RSYNC_DIST_EDITOR_NO_DEFAULTS =>
+	                          "do not display defaults when the " .
+				  "editor is called",		  
               );
 	      
 # the following datastructure is used when the config-file
@@ -252,7 +258,9 @@ RSYNC_DIST_LOCALPATH
 RSYNC_DIST_LOCALPREFIX
 RSYNC_DIST_WORLDREADABLE 
 RSYNC_DIST_CHECKSUM
-RSYNC_DIST_EDITOR );
+RSYNC_DIST_EDITOR 
+RSYNC_DIST_EDITOR_NO_DEFAULTS
+);
 
 
 # the following datastructure lists only entries of the
@@ -280,13 +288,13 @@ my $gbl_last_locallog_entries;
 if (!@ARGV)
   { $opt_man= 1; };
   
-# catch things like "-ls", Getopt::Long would otherwise
-# take this as "-l s" ...
 
 preproc_args();
 
 #die "args: " . join("|",@ARGV);
 
+# catch things like "-ls", Getopt::Long would otherwise
+# take this as "-l s" ...
 foreach my $opt (@ARGV)
   { die "unknown option: $opt" if ($opt=~ /^-[^-]{2,}/); };
   
@@ -320,15 +328,15 @@ if (!GetOptions("help|h",
 		"rebuild_last|rebuild-last",
 
 		"ls=s",
-		"cat_log|cat-log|c=s",
+		"cat_log|cat-log=s",
 		"tail_log|tail-log=s",
-		"perl_log|perl-log|c=s",
+		"perl_log|perl-log=s",
 		"ls_tag|ls-tag|T=s",
 		"ls_version|ls-version=s",
 		"cat_changes|cat-changes:s",
 		"tail_changes|tail-changes=s",
 
-		"config=s",
+		"config|c=s",
 		"show_config|show-config",
 		"write_config|write-config=s",
 		"show_config_from_log|show-config-from-log",
@@ -336,10 +344,12 @@ if (!GetOptions("help|h",
 		"env",
 		
 		"editor=s",
+		"no_editor_defaults|no-editor-defaults|N",
 		"prefix_distdir|prefix-distdir",		
 		"last_dist|last-dist|L",
 		"ls_bug|ls-bug",
 		"checksum",
+		"progress",
 		"dry_run|dry-run",
 		"world_readable|world-readable|w",
 
@@ -367,6 +377,8 @@ if ($opt_summary)
 
 @opt_mirrorhosts = split(/[,\s:]+/,join(',',@opt_mirrorhosts));
 
+if (defined $opt_progress)
+  { $gbl_rsync_opts .= " --progress"; };
 
 if ($opt_env)
   { read_env(); }
@@ -543,7 +555,9 @@ sub dist
 		                   'links:REMOTEPATH',
 				   'move:REMOTEPATH'));
       };
-    if (empty($tag))
+    
+    # empty string as tag is now allowed:
+    if (!defined $tag)
       { if (defined $opt_autotag)
           { $tag= incr_tag(last_tag()); }
 	else
@@ -551,7 +565,9 @@ sub dist
                        take_default('','distribute:TAG'));
           }
       };
-    if (empty($logmessage))
+    
+    # empty string as logmessage is now allowed:
+    if (!defined $logmessage)
       { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
                    take_default('','distribute:LOGMESSAGE'));
       };
@@ -683,7 +699,8 @@ sub move_file
     if (empty($dir))
       { ensure_var(\$dir        , 'MOVE_DIR'); };
 
-    if (empty($logmessage))
+    # empty log-message is now allowed:
+    if (!defined $logmessage)
       { ensure_var(\$logmessage    , 'LOGMESSAGE');
       };
 
@@ -1049,7 +1066,8 @@ sub change_link
                    take_default('','links:FILES'));
       };
 
-    if (empty($logmessage))
+    # new: empty string as logmessage is allowed:
+    if (!defined $logmessage)
       { my $take_from_user= 1;
         if ((defined $opt_automessage) && (defined $opt_last_dist))
           { my $last_tag= last_tag();
@@ -1574,20 +1592,30 @@ sub mysys
     die "\"$cmd\" \nfailed, msg:$! errcode: $?";
   }
 
-sub preproc_args
+sub gbl_arg_lst_to_map
   { my %map;
-
+  
     foreach my $e (@gbl_arg_lst)
-      { my $s= $e; $s=~ s/^--//;
+      { # remove "--":
+        my $s= $e; $s=~ s/^--//;
         $map{$s}= $e;
+	# replace "-" with "_" and add this:
 	$s=~ s/-/_/g; 
         $map{$s}= $e;
       };
+    return(\%map);
+  }
+ 
+sub preproc_args
+  { my $r_map= gbl_arg_lst_to_map();
+  
+    # map commands to options e.g.
+    # "dist" to "--dist":
     foreach my $arg (@ARGV)
-      { if (exists $map{$arg})
-          { $arg= $map{$arg}; };
+      { if (exists $r_map->{$arg})
+          { $arg= $r_map->{$arg}; };
       };
-  }	
+   }	
 
 sub read_config
 # read variables from the config-file but do
@@ -1674,7 +1702,6 @@ sub consume_file
 # the found text as a single scalar variable
   { my($stop_regexp,$filename,$r_var)= @_;
     local(*F);
-    my $text;
     my @lines;
     
     open(F,$filename) or die "unable to open \"$filename\"";
@@ -1707,9 +1734,22 @@ sub ask_editor
 	print $tmp "\n",$str,"\n";
 	print $tmp $initial_message;
 	close($tmp);
+	
+	my $tmp_file_time= (stat($tmp))[9];
 
 	system("$opt_editor " . $tmp->filename);
-	my $text= consume_file($str,$tmp->filename,$r_var); 
+	
+	if ((stat($tmp))[9] == $tmp_file_time)
+	  { # file-date was not changed
+	    print "file was not changed, continue or quit ?\n" .
+	          "(C/Q)";
+            my $ch= ask_char(qw(c q));
+	    if ($ch eq 'q')
+	      { exit 0; };
+	  };
+
+	consume_file($str,$tmp->filename,$r_var);
+	
 	unlink($tmp->filename);
 
 	if ($$r_var=~ /^\s*$/)
@@ -1766,6 +1806,9 @@ sub ensure_var
 # and a (optional) default value
   { my($r_ref,$tag,$default)= @_;
     
+    if (defined $opt_no_editor_defaults)
+      { $default= undef; };
+   
     my $ref= $$r_ref;
     
     my $reftype= ref($ref);
@@ -1983,7 +2026,7 @@ Syntax:
     ls --ls     [dist|d|links|l]
                 show the remote directory (for distribution or links)
 
-    cat-log --cat-log -c [dist|d|links|l]
+    cat-log --cat-log [dist|d|links|l]
                 show the logfile (for distribution or links)
 
     tail-log --tail-log  [dist|d|links|l,n]
@@ -2079,10 +2122,12 @@ Syntax:
 
   options to specify tags and log-messages:
 
-    --message -m [logmessage] 
+    --message -m {logmessage} 
                 specify a log message
 		if this option is not given the script tries to read from
-		the environment variable "RSYNC_DIST_MESSAGE"	
+		the environment variable "RSYNC_DIST_MESSAGE"
+		if this option is given without being followed by a 
+		message, an empty log-message is used	
 
     --automessage
     		(only for the "add-links" or "change-links" commannds)
@@ -2095,6 +2140,8 @@ Syntax:
                 specify a tag for the distribution
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_TAG"	
+		if this option is given without being followed by a 
+		tag-string, an empty tag is used	
 
     --autotag   (only for the "dist" commannd)
                 take the tag from the last distributed version and
@@ -2103,7 +2150,7 @@ Syntax:
 
   options for the management of pre-defined parameters:
 
-    --config [filename]
+    --config -c [filename]
                 read variables from a configuration file. The format
 		is simple <name>=<value>
 		Empty lines and lines starting with "#" are ignored.
@@ -2144,8 +2191,13 @@ Syntax:
 		  the default editor to enter options that the used didn't
 		  specify on the command lines. The default is "$default_editor".
 		  See also --editor   
+                RSYNC_DIST_EDITOR_NO_DEFAULTS
+		  when set to 1, the editor does not show defaults,
+		  when called
+
 		Note that command-line arguments always override 
 		values taken from the config-file.   
+
 
     --env	By supplying this option, the program can take all
                 variables mentioned above (see --config) from the 
@@ -2155,6 +2207,11 @@ Syntax:
 
     --editor [editor]
     		specifiy the interactive editor, default: "$default_editor"
+    
+    --no-editor-defaults -N
+    		do not show defaults for the text-entries when the
+		editor is called
+
 
     --prefix-distdir
                 take the path of the dist-directory as prefix for the "source" part 
@@ -2184,6 +2241,9 @@ Syntax:
     --checksum  use checksums instead of date-comparisons when deciding 
                 wether a file should be transferred
 
+    --progress  use the rsync "progress" option to show the progress
+       	        of rsync on screen
+    
     --dry-run   just show the command that would be executed	
 
     --world-readable -w
