@@ -350,7 +350,7 @@ options:
   -d : database-name, default: $opt_database
   -u [user] , database-user, default: $default_user
      when this option is missing, the scripts first searches for
-     $HOME/.netrc
+     \$HOME/.netrc
      If this file exists and there is an entry in the form:
      machine <database-name> login <user-name> password <password>
      the user-name and password are taken from that file. If a matching
