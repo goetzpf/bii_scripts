@@ -106,9 +106,10 @@ print("Output formatted as ".$config->{'output'}."\n") if ($config->{"verbose"})
 
 $usage = $usage . $Options::help;
 
-die $usage if not $config or $config->{"help"};
+die $usage if not $config or $config->{"help"} or $#ARGV< 0;
 
 if ($config->{"force"}) {
+	$config->{'dbase'} = "devices";
 	$config->{'user'} = "anonymous";
 	$config->{'passwd'} = "bessyguest";
 }
@@ -192,7 +193,7 @@ foreach my $devname (@names) {
 			print "\n\t".sprintf("</entry>");
 # list
 		} elsif ($config->{'output'} eq 'dump') {
-			print "\n\t{".join(", ", map(sprintf("\'%s\'=\'%s\'",$_, $row->{$_}), @head))."},";
+			print "\n\t{".join(", ", map(sprintf("\'%s\'=>\'%s\'",$_, $row->{$_}), @head))."},";
 # dump
 		} else {
 # list oputput or unknown
@@ -259,7 +260,7 @@ sub getHeader {
 		} elsif ($config->{'output'} eq 'xmlset') {
 			$ret .=  "<?xml version=\"1.0\"?>\n<bdns>";
 		} elsif ($config->{'output'} eq 'dump') {
-			$ret = "\$BDNS = ("
+			$ret = "\@BDNS = ("
 		} else {
 			print join("\t", map(sprintf("%s", $_), @head));
 		}
