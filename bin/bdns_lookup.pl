@@ -1,10 +1,8 @@
 eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
-  if 0;
+if 0;
 
 use strict;
 
-eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
-    if 0;
 # the above is a more portable way to find perl
 # ! /usr/bin/perl
 
@@ -12,7 +10,7 @@ use strict;
 
 use FindBin;
 
-# enable this if you want to search modules like dbitable.pm 
+# enable this if you want to search modules like dbitable.pm
 # relative to the location of THIS script:
 # ------------------------------------------------------------
 # use lib "$FindBin::RealBin/../lib/perl";
@@ -23,205 +21,289 @@ use ODB;
 use Data::Dumper;
 
 Options::register(
-  ["dbase",  "d", "=s", "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
-  ["user",   "u", "=s", "User name",  "user",     "guest"],
-  ["passwd", "p", "=s", "Password",   "password", "bessyguest", 1],
-  ["index",  "i",   "", "write additionally an counting index"],
-  ["output", "o", "=s", "output format as a selection of table, list, set, csv, perl (table as default)"],
-  ["raw",    "r",   "", "set raw output without any descriptions and format lines or characters"],
-  ["groups", "g",   "", "extract all groups of device active for table, list, set and csv"],
-  ["force",  "f",   "", "use force query with the default database account"],
+	['dbase',  				'd', 	'=s', "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
+	['user',   					'u', 	'=s', "User name",  'user',     "anonymous"],
+	['passwd', 				'p', 	'=s', "Password",   "password", "bessyguest", 1],
+	['output', 					'o', 	'=s', "output format as a selection of list, table, htmltable, csvtable, set, htmlset, xmlset or dump"],
+	['outputbody',			'b', 	'', 	"removing to output header"],
+	['outputindex',			'i', 	'', 	"adding index to output"],
+	['extract', 				'x', 	'', 	"adding the extracted name parts"],
+	['description',			'd', 	'', 	"adding the descriptions"],
+	['groups', 				'g', 	'', 	"adding the grouping names"],
+	['lattice', 					'l', 	'', 	"adding the lattice values"],
+	['sort', 						's', 	'=s', "supported: key, name, family, domain, groups, lattice"],
+	['facility', 					'F', 	'=s', "filter facility, like  bii, mls, fel"],
+	['force', 					'f',   	'', 	"use force query with the default database account"],
+	['verbose',  				'v',   '', 	"print a lot more informations"],
 );
 
-my $usage = "parse bessy device name service for the given list of names or patterns (*, ?)
+my $usage = "parse bessy device name service for the given list of names or patterns (% as any and more, ? one unspecified character)
 usage: bdns_lookup [options] names...
 options:
 ";
 
 my $config = Options::parse($usage);
 
+ODB::verbose() == 1 if $config->{'verbose'};
+
+if (! defined $config->{'output'} or ! $config =~ /(table|csvtable|htmltable|list|set|htmlset|xmlset|dump)/) {
+	$config->{'output'} = 'list';
+}
+
+# main object string, will be completed iprportionally of arguments
+my $dbobject = 'DEVICE.V_NAMES vn';
+# array of the database columnnames
+my @columns = ('vn.KEY', 'vn.NAME');
+# array of the given names in the select statement
+my @head = ('KEY', 'NAME');
+# maybe the whereclause
+my $dbjoin = "vn.KEY > 0";
+# columnwidth maximal
+my $colmax = 12;
+
+if (defined $config->{'extract'}) {
+	push @columns, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
+	push @head, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
+}
+
+if (defined $config->{'description'}) {
+	$dbobject .= ", DEVICE.V_NAME_DESCRIPTIONS vnd";
+	push @columns, ('DESCRIPTION');
+	push @head, ('DESCRIPTION');
+	$dbjoin .= " AND vn.key = vnd.key(+)"
+}
+
+if (defined $config->{'lattice'}) {
+	$dbobject .= ", DEVICE.V_LATTICE vl";
+	push @columns, ('DS', 'LENGTH');
+	push @head, ('DS', 'LENGTH');
+	$dbjoin .= " AND vn.key = vl.key"
+}
+
+if (defined $config->{'facility'}) {
+	if (uc($config->{'facility'}) eq "MLS") {
+		if (defined $config->{"extract"}) {
+			$dbjoin .= " AND vn.facility = 'P'";
+		} else {
+			$dbjoin .= " AND vn.name LIKE '%P'";
+		}
+	} elsif (uc($config->{'facility'}) eq "FEL") {
+		if (defined $config->{"extract"}) {
+			$dbjoin .= " AND vn.facility = 'F'";
+		} else {
+		$dbjoin .= " AND vn.name LIKE '%F'";
+		}
+	} else {
+		if (defined $config->{"extract"}) {
+			$dbjoin .= " AND vn.facility = ' '";
+		} else {
+			$dbjoin .= " AND (vn.name NOT LIKE '%F' OR vn.name NOT LIKE '%F')";
+		}
+	}
+}
+
+print("Output formatted as ".$config->{'output'}."\n") if ($config->{"verbose"});
+
 $usage = $usage . $Options::help;
 
 die $usage if not $config or $config->{"help"};
 
-our $out = 1;
-if (defined ($config->{"output"})) {
-    if (lc($config->{"output"}) =~ /^list$/) {
-        $out = 0;
-    } elsif (lc($config->{"output"}) =~ /^set$/) {
-        $out = 2;
-    } elsif (lc($config->{"output"}) =~ /^csv$/) {
-        $out = 3;
-    } elsif (lc($config->{"output"}) =~ /^perl$/) {
-        $out = 4;
-    }
-}
-
 if ($config->{"force"}) {
-    $config->{"user"} = "guest";
-    $config->{"passwd"} = "bessyguest";
+	$config->{'user'} = "anonymous";
+	$config->{'passwd'} = "bessyguest";
 }
 
 my @names = @ARGV;
 
 my $handle = ODB::login($config);
 
-delete ($config->{"passwd"});
+delete ($config->{'passwd'});
 
-Options::print_out("connected as ".$config->{"user"}."@".$config->{"dbase"}."\n");
+Options::print_out("Connected as ".$config->{'user'}."@".$config->{'dbase'}."\n") if $config->{"verbose"};
 
 die $usage if not @names;
 
-#print Dumper $config;
+print &getHeader();
 
+# counter for rows
+my $indexed = 0;
+# getting the aliased colstring for select
+my $colstr = ODB::col_aliases(\@columns, \@head);
+# calculation linelength
+my $linelength = 80;
+
+#main part
 foreach my $devname (@names) {
-  $devname =~ s/\*/%/;
-  $devname =~ s/\?/_/;
-  my $result;
-  my $raw;
-  if ($config->{"raw"}) {
-    $result = ODB::sel("NAMES", "KEY, NAME, MEMBER, IND, FAMILY, COUNTER, SUBDOMAIN||DOMAIN DOMAIN", "NAME like '$devname'");
-  } else {
-    $result = ODB::sel("BASE.V_NAMES vn, BASE.V_NAME_DESCRIPTIONS vnd", "vn.KEY, vn.NAME, vnd.DESCRIPTION, vn.MEMBER, vn.IND, vn.SUBIND, vn.FAMILY, vn.COUNTER, vn.SUBDOMAIN, vn.DOMAIN", "vn.NAME like '$devname' AND vn.KEY=vnd.KEY");
-  }
-  if ($config->{"groups"}) {
-  }
-  my $indexed = 0;
-  if (! $config->{raw}) {
-    my $head = "";
-    if ($config->{index}) {
-        $head = sprintf ("|%6s ", "#");
-    }
-    if ($out == 1) {
-        $head .=  "|".join("|",map(sprintf(" %12s ",$_),
-            ('KEY', 'NAME', 'MEMBER', 'IND', 'FAMILY', 'COUNTER', 'SUBDOMAIN','DOMAIN')));
-        $head .= "|".join("|",map(sprintf(" %s ",$_),
-            ('DESCRIPTION')));
-        if ($config->{"groups"}) {
-            $head .= " & GROUPS";
-        }
-        for (my $index = 0; $index < length($head)+10; $index++) {
-            print "-";
-        }
-        print "\n".$head."\n";
-        for (my $index = 0; $index < length($head)+10; $index++) {
-            print "-";
-        }
-    } elsif ($out == 3) {
-        print join(",",map(sprintf("\"%s\"",$_),
-            ('KEY', 'NAME', 'MEMBER', 'IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN','DOMAIN', 'DESCRIPTION')));
-    }
-    print "\n";
-  }
-  foreach my $row (@$result) {
-    $indexed++;
-    my $grouplist;
-    if ($config->{"groups"}) {
-        my $gresult = ODB::sel("BASE.V_NAMES n, BASE.V_NAME_GROUPS vng", "GROUP_NAME||' ('||NAME_GROUP_KEY||'/'||OWNER||')' GROUPS", "n.NAME_KEY =".$row->{KEY}." AND n.KEY = vng.NAME_KEY");
-        my $gindexer = 0;
-        foreach my $grow (@$gresult) {
-            $gindexer++;
-            if ($gindexer  > 1) {
-                 $grouplist .= ", ";
-            }
-            $grouplist .=  join("/", map(sprintf("%s",$grow->{$_}), ('GROUPS')));
-        }
-    }
-    if ($out == 2) {
-        if ($config->{"raw"}) {
-            print "\n".join("\n",map(sprintf("%12s: %s",$_,$row->{$_}),
-                ('KEY', 'NAME', 'MEMBER', 'IND', 'FAMILY', 'COUNTER', 'SUBDOMAIN','DOMAIN')))."\n";
-        } else {
-            if ($config->{index}) {
-                printf ("%12s: #%u\n", "Entry", $indexed);
-                print "--------------------------------------------------------------------------------\n";
-            }
-            print join("\n",map(sprintf("%12s: %s",$_,$row->{$_}),
-                ('KEY', 'NAME', 'MEMBER', 'IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN','DOMAIN', 'DESCRIPTION')))."\n\n";
-            if ($config->{groups}) {
-                printf("%12s: %s", "GROUPS", $grouplist);
-            }
-            print "\n================================================================================\n";
-        }
-    } elsif ($out == 3) {
-        if ($config->{"raw"}) {
-            print join(",", map(sprintf("%u",$row->{$_}),
-                ('KEY'))).",";
-            print join(",", map(sprintf("\"%s\"",$row->{$_}),
-                ('NAME','MEMBER','IND','FAMILY'))).",";
-            print join(",", map(sprintf("%u",$row->{$_}),
-                ('COUNTER'))).",";
-            print join(",", map(sprintf("\"%s\"",$row->{$_}),
-                ('DOMAIN')))."\n";
-        } else {
-            print join(",", map(sprintf("%u",$row->{$_}),
-                ('KEY'))).",";
-            print join(",", map(sprintf("\"%s\"",$row->{$_}),
-                ('NAME','MEMBER'))).",";
-            print join(",", map(sprintf("%u",$row->{$_}),
-                ('IND', 'SUBIND'))).",";
-            print join(",", map(sprintf("\"%s\"",$row->{$_}),
-                ('FAMILY'))).",";
-            print join(",", map(sprintf("%u",$row->{$_}),
-                ('COUNTER'))).",";
-            print join(",", map(sprintf("\"%s\"",$row->{$_}),
-                ('DOMAIN', 'DESCRIPTION')))."\n";
-        }
+	$indexed ++;
+	my $where = "vn.NAME like \'$devname\'";
+	if (length($dbjoin) > 0) {
+		$where .= " AND ".$dbjoin;
+	}
+	my $result = ODB::sel($dbobject, $colstr, $where);
+	print "\nResult of statement has ".$#$result."entries." if ($config->{'verbose'});
+	my $out;
+	foreach my $row (@$result) {
+		$indexed++;
+		if ($config->{"index"}) {
+			printf ("%u", $indexed);
+		}
+		if ($config->{'output'} eq 'table') {
+# table
+			print "\n|".join(" |", map(sprintf("%".$colmax."s",$row->{$_}), @head))." |";
+			if ($config->{"groups"}) {
+				print sprintf("%s: %s", "GROUPS", &getGroups($row->{"KEY"}));
+			}
+# htmltable
+		} elsif ($config->{'output'} eq 'htmltable') {
+			print "\n\t".sprintf("<tr id=\"%u\">", $indexed);
+			print "\n\t\t".join("\n\t\t", map(sprintf("<td class=\"bdns\">%s</td>", $row->{$_}), @head));
+			if ($config->{'groups'}) {
+				print "\n\t\t".sprintf("<td class=\"bdns\">%s</td>", &getGroups($row->{'vn.KEY'}));
+			}
+			print "\n\t".sprintf("</tr>");
+# csvtable
+		} elsif ($config->{'output'} eq 'csvtable') {
+			print "\n".join(",",map(sprintf("\"%s\"",$row->{$_}), @head)).",";
+# set
+		} elsif ($config->{'output'} eq 'set') {
+			print &printLine("=")."\n";
+			if ($config->{'index'}) {
+				print &printLine();
+				print sprintf(" %12s: %s", "#", $indexed);
+			}
+			print join("\n",map(sprintf("%".$colmax."s: \"%s\"",$_,$row->{$_}), @head));
+			if ($config->{'groups'}) {
+				print "\n".sprintf("%".$colmax."s: %s", "GROUPS", &getGroups($row->{'KEY'}));
+			}
+			print "\n";
+# xmlset
+		} elsif ($config->{'output'} eq 'htmlset') {
+			print join("", map(sprintf("\n\t<tr class=\"bdns\" id =\"$indexed\"><th class=\"bdns\">%s</th><td class=\"bdns\">%s</td></tr>", $_, $row->{$_}), @head));
+			if ($config->{'groups'}) {
+				print sprintf("\n\t<tr class=\"bdns\" id =\"$indexed\"><th class=\"bdns\">GROUPS</th><td class=\"bdns\">%s</td></tr>", &getGroups($row->{'vn.KEY'}));
+			}
+			print "\n\t<tr class=\"bdns\" colspan=\"2\"><td><hr /></td>\n";
+		} elsif ($config->{'output'} eq 'xmlset') {
+			print "\n\t".sprintf("<entry index=\"%u\">", $indexed);
+			print "\n\t\t".join("\n\t\t", map(sprintf("<%s>%s</%s>", lc($_), $row->{$_}, lc($_)), @head));
+			if ($config->{'groups'}) {
+				print "\n\t\t".sprintf("<groups>%s</groups>", &getGroups($row->{'vn.KEY'}));
+			}
+			print "\n\t".sprintf("</entry>");
+# list
+		} elsif ($config->{'output'} eq 'dump') {
+			print "\n\t{".join(", ", map(sprintf("\'%s\'=\'%s\'",$_, $row->{$_}), @head))."},";
+# dump
+		} else {
+# list oputput or unknown
+			print "\n".join("\t", map(sprintf("%s", $row->{$_}), @head));
+		}
+	}
+}
 
-    } elsif ($out == 0) {
-        if ($config->{"raw"}) {
-            if ($indexed > 1) {
-                print ",";
-            }
-            print $row->{'NAME'};
-        } else {
-            print "\n";
-            if ($config->{index}) {
-                print "$indexed ";
-            }
-            print $row->{'NAME'};
-        }
-    } elsif ($out == 4) {
-        if ($config->{"raw"}) {
-            print Dumper $row;
-        } else {
-            print "#";
-            if ($config->{index}) {
-                print $indexed;
-            }
-            print "\t".$row->{'NAME'};
-            print "\n".join("\n",map(sprintf("\$bdns->{".$row->{'NAME'}."}->{%s}=\"%s\";",$_,$row->{$_}),
-                ('KEY', 'MEMBER', 'IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN','DOMAIN', 'DESCRIPTION')))."\n";
-        }
-    } else {
-        if ($config->{"raw"}) {
-            print join("\t", map(sprintf(" %s ",$row->{$_}),
-                ('KEY', 'NAME','MEMBER','IND','FAMILY','COUNTER','DOMAIN')))."\n";
-        } else {
-            if ($config->{index}) {
-                printf ("|%6s ", $indexed);
-            }
-            print "|".join("|",map(sprintf(" %12s ",$row->{$_}),
-                ('KEY', 'NAME', 'MEMBER', 'IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN','DOMAIN')));
-            print "|".join("|",map(sprintf(" %s ",$row->{$_}),
-                ('DESCRIPTION')))."\n";
-            if ($config->{groups}) {
-                print $grouplist;
-            }
-            print "\n";
-        }
-    }
-  }
-  if ($indexed > 0 && ! $config->{"raw"}) {
-    if ($out == 2) {
-        print "$indexed Entries found\n";
-        print "================================================================================\n";
-    } elsif ($out == 1) {
-        print "\n$indexed Entries found\n";
-    } elsif ($out == 0) {
-        print "\n";
-    }
-  }
+print &getFooter($indexed);
 
+sub getGroups {
+	my $key = shift @_;
+	my $gresult = ODB::sel("DEVICE.V_NAME_GROUPS vng", "GROUP_NAME||' ('||NAME_GROUP_KEY||')' GROUPS", "n.NAME_KEY =".$key);
+	my $gindexer = 0;
+	my $grouplist = "";
+	foreach my $grow (@$gresult) {
+		$gindexer++;
+		if ($gindexer  > 1) {
+			$grouplist .= ", ";
+		}
+		$grouplist .=  join("/", map(sprintf("%s",$grow->{$_}), ('GROUPS')));
+	}
+	return $grouplist;
+}
+
+# build header if not forbidden
+sub getHeader {
+	my $ret = "";
+	if (! $config->{"outputbody"}) {
+		if ($config->{'output'} eq 'table') {
+			$linelength = $colmax*@columns+2*@columns+1;
+			if ($config->{'index'}) {
+				$ret .=  sprintf(" %12s ", "#");
+				$linelength += 12;
+			}
+			print &printLine();
+			$ret .=   "\n|".join("|",map(sprintf("%".$colmax."s ",$_), @head))."|\n";
+			if ($config->{'groups'}) {
+				$ret .=   "|".sprintf(" %".$colmax."s ","GROUPS");
+			}
+			print &printLine();
+		} elsif ($config->{'output'} eq 'htmltable') {
+			print "\n<table class=\"bdns\">\n\t<tr>";
+			if ($config->{'index'}) {
+				$ret .=  "\n\t<th>#</th>";
+			}
+			$ret .=   "\n\t".join("\n\t",map(sprintf("<th class=\"bdns\">%".$colmax."s</th>",$_), @head));
+			if ($config->{'groups'}) {
+				$ret .=   "<th class=\"bdns\">GROUPS</th>";
+			}
+			print "\n\t</tr>";
+		} elsif ($config->{'output'} eq 'csvtable') {
+			if ($config->{'index'}) {
+				$ret .=  sprintf( "#");
+			}
+			$ret .=  join(",",map(sprintf("\"%s\"",$_),@head)).",";
+			if ($config->{'groups'}) {
+				$ret .=   ",".sprintf("%s","GROUPS");
+			}
+		}  elsif ($config->{'output'} eq 'set') {
+			print &printLine()."\n";
+		} elsif ($config->{'output'} eq 'htmlset') {
+			print "\n<table class=\"bdns\">";
+		} elsif ($config->{'output'} eq 'xmlset') {
+			$ret .=  "<?xml version=\"1.0\"?>\n<bdns>";
+		} elsif ($config->{'output'} eq 'dump') {
+			$ret = "\$BDNS = ("
+		} else {
+			print join("\t", map(sprintf("%s", $_), @head));
+		}
+	};
+	return $ret;
+}
+
+sub getFooter {
+	my $rowindex = shift;
+	my $ret = "";
+	if (! $config->{'outputbody'}) {
+		if ($config->{'output'} eq "table") {
+			$ret .= "\n";
+			print &printLine();
+			$ret .= "\n $rowindex Entries found";
+		} elsif ($config->{'output'} eq "htmltable") {
+			$ret .= "\n\t</table>";
+		} elsif ($config->{'output'} eq "set") {
+			$ret .= "\n";
+			print &printLine();
+			$ret .= "\n $rowindex Entries found";
+		} elsif ($config->{'output'} eq "htmlset") {
+			$ret .= "\n\t</table>";
+		}
+	}
+	if ($config->{'output'} eq "xmlset") {
+		$ret .= "\n</bdns>";
+	} elsif ($config->{'output'} eq "dump") {
+		$ret .= "\n);"
+	}
+	$ret .= "\n";
+}
+
+sub printLine {
+	my $printchar = shift;
+	my $ret = "";
+	if (length($printchar) != 1) {
+		$printchar = "-";
+	}
+	for (my $index = 0; $index < $linelength; $index++) {
+		$ret .= "-";
+	}
+	return $ret;
 }
 exit;
+
+
