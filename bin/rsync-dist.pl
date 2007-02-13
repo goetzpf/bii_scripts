@@ -869,7 +869,6 @@ sub rm_lock
       { $rcmd= "rm -f LOCK"; }
     elsif ($action eq 'create')
       { 
-        
         my $from= $local_user . '@' . $local_host;
         $rcmd= sh_mklock($from)
       }
@@ -1572,6 +1571,19 @@ sub myssh_cmd
       
    }
 
+sub filetime
+  { my($path)= @_;
+    my $time;
+  
+    my ($volume,$directories,$file) = File::Spec->splitpath( $path ); 
+    my $oldpwd= cwd();
+    
+    chdir($directories) or die "unable to chdir to \"$directories\"";
+    $time= (stat($file))[9];
+    chdir($oldpwd) or die "unable to chdir to \"$oldpwd\""; 
+    return($time);
+  }
+    
 sub mysys
 # make a system call
 # parameters:
@@ -1758,12 +1770,12 @@ sub ask_editor
 	print $tmp "\n",$str,"\n";
 	print $tmp $initial_message;
 	close($tmp);
-	
-	my $tmp_file_time= (stat($tmp))[9];
+
+	my $tmp_file_time= filetime($tmp);
 
 	system("$opt_editor " . $tmp->filename);
-	
-	if ((stat($tmp))[9] == $tmp_file_time)
+
+	if (filetime($tmp) == $tmp_file_time)
 	  { # file-date was not changed
 	    print "file was not changed, continue or quit ?\n" .
 	          "(C/Q)";
