@@ -41,13 +41,14 @@ sub help {
   return $help if defined $help;
   $help = join("\n",
     map(
-      sprintf("  %s, --%-24s %s", 
+      sprintf("  %s, --%-24s %s",
         $_->[1], "$_->[0]".$option_options->{$_->[2]}, $_->[3]),
       @options)) . "\n";
 }
 
 sub parse {
   my $usage = shift() . help();
+  my $quiet = shift();
   if (not $config) {
     Getopt::Long::Configure("bundling");
     $config = {};
@@ -55,6 +56,12 @@ sub parse {
       or die $usage;
     die $usage if $config->{"help"};
     # now ask the user for the interactive options
+  	&ask_out() if not $quiet;
+  }
+  return $config or die $usage;
+}
+
+sub ask_out {
     foreach my $opt (@options) {
       my $name = $opt->[0];
       my $prompt = $opt->[4];
@@ -69,8 +76,6 @@ sub parse {
         }
       }
     }
-  }
-  return $config or die $usage;
 }
 
 sub print_out {
@@ -93,7 +98,7 @@ sub get_stdin {
    }
    if ($_[1] ne "") {
       print " [$_[1]]";
-   } 
+   }
    print ": ";
    $input = <STDIN>;
    chomp ($input);

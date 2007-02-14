@@ -23,7 +23,7 @@ use Data::Dumper;
 Options::register(
 	['dbase',  				'd', 	'=s', "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
 	['user',   					'u', 	'=s', "User name",  'user',     "anonymous"],
-	['passwd', 				'p', 	'=s', "Password",   "password", "bessyguest", 1],
+	['passwd', 				'p', 	'=s', "Password",   "password", "", 1],
 	['output', 					'o', 	'=s', "output format as a selection of list, table, htmltable, csvtable, set, htmlset, xmlset or dump"],
 	['outputbody',			'b', 	'', 	"removing to output header"],
 	['outputindex',			'i', 	'', 	"adding index to output"],
@@ -42,7 +42,11 @@ usage: bdns_lookup [options] names...
 options:
 ";
 
-my $config = Options::parse($usage);
+my $config = Options::parse($usage, 1);
+
+$usage = $usage . $Options::help;
+
+die $usage if $#ARGV< 0;
 
 ODB::verbose() == 1 if $config->{'verbose'};
 
@@ -102,11 +106,9 @@ if (defined $config->{'facility'}) {
 	}
 }
 
-print("Output formatted as ".$config->{'output'}."\n") if ($config->{"verbose"});
+print "Output formatted as ".$config->{'output'}."\n" if ($config->{"verbose"});
 
-$usage = $usage . $Options::help;
-
-die $usage if not $config or $config->{"help"} or $#ARGV< 0;
+die $usage if not $config or $config->{"help"};
 
 if ($config->{"force"}) {
 	$config->{'dbase'} = "devices";
@@ -115,6 +117,8 @@ if ($config->{"force"}) {
 }
 
 my @names = @ARGV;
+
+Options::ask_out();
 
 my $handle = ODB::login($config);
 
