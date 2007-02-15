@@ -22,10 +22,16 @@ my $option_options = {
   ":f" => "[=FLOAT]",
 };
 
+#------------------------------------------------------------------------------
+# register
+#------------------------------------------------------------------------------
 sub register {
   push @options, @_;
 }
 
+#------------------------------------------------------------------------------
+# BEGIN
+#------------------------------------------------------------------------------
 BEGIN {
   register(
     ["help",   "h", "",   "display this help"],
@@ -37,6 +43,9 @@ BEGIN {
 
 our $help;
 
+#------------------------------------------------------------------------------
+# help
+#------------------------------------------------------------------------------
 sub help {
   return $help if defined $help;
   $help = join("\n",
@@ -46,6 +55,9 @@ sub help {
       @options)) . "\n";
 }
 
+#------------------------------------------------------------------------------
+# parse - main routine
+#------------------------------------------------------------------------------
 sub parse {
   my $usage = shift() . help();
   my $quiet = shift();
@@ -61,6 +73,9 @@ sub parse {
   return $config or die $usage;
 }
 
+#------------------------------------------------------------------------------
+# ask_out - for separate login
+#------------------------------------------------------------------------------
 sub ask_out {
     foreach my $opt (@options) {
       my $name = $opt->[0];
@@ -78,6 +93,9 @@ sub ask_out {
     }
 }
 
+#------------------------------------------------------------------------------
+# print_out
+#------------------------------------------------------------------------------
 sub print_out {
    if ($config->{"verbose"} > 0) {
       print $_[0];
@@ -89,6 +107,9 @@ sub print_out {
    }
 }
 
+#------------------------------------------------------------------------------
+# get_stdin - input per commandline
+#------------------------------------------------------------------------------
 sub get_stdin {
    my $input;
    if ($_[0] ne "") {
@@ -110,6 +131,9 @@ sub get_stdin {
    return $input;
 }
 
+#------------------------------------------------------------------------------
+# ask - asking on commandline
+#------------------------------------------------------------------------------
 sub ask {
   my ($name, $prompt, $default) = @_;
   if (length($config->{$name}) == 0) {
@@ -117,6 +141,9 @@ sub ask {
   }
 }
 
+#------------------------------------------------------------------------------
+# ask_secret - password like asking on commandline
+#------------------------------------------------------------------------------
 sub ask_secret {
   my ($name, $prompt, $default) = @_;
   if (length($config->{$name}) == 0) {
@@ -132,3 +159,111 @@ sub ask_secret {
 }
 
 1;
+# Below is the short of documentation of the module.
+
+=head1 NAME
+
+Options - a Perl module for handling programm arguments,
+commandline in and output inclusive login requests
+
+=head1 SYNOPSIS
+
+  use Options;
+
+=head1 DESCRIPTION
+
+=head2 Preface
+
+This module contains functions that are used to get and  set simply
+program arguments from commanline and small handling for
+commandline in and output.
+The following options are predefined for defining the argument types:
+
+  my $option_options = {
+    "" 			=> "",
+    "!"			=> "",
+    "=s"		=> "=STRING",
+  ":s" 		=> "[=STRING]",
+  "=i" 		=> "=INTEGER",
+  ":i" 			=> "[=INTEGER]",
+  "=f" 		=> "=FLOAT",
+  ":f" 			=> "[=FLOAT]",
+};
+
+And in addition the predefined arguments:
+
+  register(
+    ["help",   			"h", "",   "display this help"],
+    ["verbose",		"v", "",   "print verbose messages"],
+    ["log",    			"l", ":s", "print messages to file instead of stdout"],#, "log filename", "$0.log"],
+    ["not",    			"n", "",   "do not perform any actual work"],
+  );
+
+=head2 Implemented Functions:
+
+=over 4
+
+=item *
+
+B<interview>
+
+  $helpcontext = Options::help();
+
+This function returns a formattedt string containing the help description of the program
+including all the options defined by @options.
+
+=item *
+
+B<interview>
+
+  $config = Options::parse($usagedescrion, $quiet);
+
+This function parse all the options and setting the usagedescription for help. If the quiet
+option is set, there will be no asks for inputtting arguments is accessed.
+
+=item *
+
+B<interview>
+
+  Options::ask_out();
+
+After the quiet Optins::parse you will need to complete the inputs on commandline ? Thats this
+function is created for.
+
+=item *
+
+B<interview>
+
+  Options::print_out($outputstring);
+
+Prints the given string in dependency of verbosity and logging switches.
+
+=item *
+
+B<interview>
+
+  $value = Options::get_stdin($prompt, $default);
+
+For the completion of getting values this ask at stdin for the value with
+the prompt and the default value concatenate in [] after.
+the return is the well filtered value.
+
+=item *
+
+B<interview>
+
+  Options::ask($name, $prompt, $default);
+
+wrapper around get_stdin., which get value from stdin if in $config the value is not set.
+$config->{$name} is updated. $prompt and $default for the default value.
+
+=item *
+
+B<interview>
+
+  Options::ask_secret($name, $prompt, $default);
+
+wrapper around get_stdin., which get value from stdin if in $config the value is not set.
+$config->{$name} is updated. $prompt and $default for the default value. But the output
+is hidden for secret values like passwords.
+
