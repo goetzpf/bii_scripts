@@ -10,7 +10,7 @@ use strict;
 
 our $MAXLENGTH = 22;
 
-my $pmem = "[A-Z]+";
+my $pmem = "[A-Z]+?";
 my $pind = "([0-9]+)(-([0-9]+))?";
 
 our %pfam;
@@ -39,7 +39,7 @@ my $re = "\\A($pmem)"
     . "($pind)?"
     . "((([$pfam{B}])($pcnt)([$psdom{B}]$psdnum)?([$pdom{B}]))|"
     .  "(([$pfam{F}])($pcnt)([$psdom{F}]$psdnum)([$pdom{F}])F)|"
-    .  "(([$pfam{P}])($pcnt)([$psdom{P}]$psdnum)([$pdom{P}])P))\\Z";
+    .  "(([$pfam{P}])($pcnt)([$psdom{P}]$psdnum)?([$pdom{P}])P))\\Z";
 
 sub parse {
   my $devname = shift;
@@ -87,6 +87,13 @@ sub parse {
     return; # mismatch
   }
   my ($subdompre, $subdomnumber) = ($subdomain =~ /([A-Z])(.*)/);
+
+  # problem with fac=P and fam~[KL] or sdom~[KL]
+#  if ( ( $facility eq "P" ) &&
+#       ( ( ( $family =~ /[KL]/ ) && ( $subdomain eq "" ) ) ||
+#	 ( $subdomain =~ /[KL].*/ ) && ( $allindex eq "" ) ) ) {
+#    return;
+#  }
 
 #  if ("$subdomain$domain" =~ /^[RB]$/) {
 #    $subdomain = $counter;
