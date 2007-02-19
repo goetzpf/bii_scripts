@@ -1,5 +1,7 @@
 #!/bin/sh
 
+test -r ./O.Common/.vdct && . ./O.Common/.vdct
+
 PATH=$PATH:/opt/java1.4/bin
 
 exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -jar /opt/epics/VisualDCT/current/VisualDCT.jar "$@"
