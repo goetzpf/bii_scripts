@@ -2,4 +2,4 @@
 
 PATH=$PATH:/opt/java1.4/bin
 
-exec java -cp /opt/epics/VisualDCT/current/VisualDCT.jar com.cosylab.vdct.GenerateFlatDatabase "$@"
+exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH -cp /opt/epics/VisualDCT/current/VisualDCT.jar com.cosylab.vdct.GenerateFlatDatabase "$@"
