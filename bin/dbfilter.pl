@@ -46,7 +46,7 @@ use vars qw($opt_help $opt_summary
 	   );
 
 
-my $sc_version= "1.5";
+my $sc_version= "1.6";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files"; 
@@ -116,7 +116,7 @@ if (!GetOptions("help|h","summary",
 		"record_references|R=s",
 		"allow_double|A",
 		"single|S",
-		"lowcal", "Lowcal",
+		"lowcal:s", "Lowcal:s",
 		"sdo", "Sdo",
                 ))
   { die "parameter error!\n"; };
@@ -130,7 +130,21 @@ if ($opt_summary)
   { print_summary();
     exit;
   };
-
+  
+if (defined $opt_lowcal)
+  { if ($opt_lowcal!~/=/)
+      { push @ARGV,$opt_lowcal;
+        $opt_lowcal=""; 
+      }; 
+  };
+  
+if (defined $opt_Lowcal)
+  { if ($opt_Lowcal!~/=/)
+      { push @ARGV,$opt_Lowcal;
+        $opt_Lowcal=""; 
+      }; 
+  };
+  
 if    (defined $opt_allow_double)
   { parse_db::handle_double_names(2); }
 elsif (defined $opt_single)
@@ -248,7 +262,9 @@ foreach my $file (@files)
       };
 
     if ((defined $opt_lowcal) || (defined $opt_Lowcal))
-      { lowcal($filename,$recs,(defined $opt_Lowcal));
+      { my $par= $opt_lowcal;
+        $par= $opt_Lowcal if (!defined $par);
+        lowcal($filename,$recs,(defined $opt_Lowcal),$par);
 	next;
       };
 
@@ -781,8 +797,60 @@ sub find_val
   }	
  
 sub lowcal
-  { my($filename,$r_rec,$reverse)= @_;
-  
+  { my($filename,$r_rec,$reverse,$filters)= @_;
+    my %filter_hash;
+    
+    my %filter_map= 
+      ( srv=> 'server',
+	mul=>'multi',
+	rw => 'access',
+	arr=> 'array',
+	s => 'signed',
+        len => 'maxlength',length => 'maxlength',l => 'maxlength',
+        prt => 'port', p => 'port',
+	in => 'in_cob',
+	out => 'out_cob',
+	mplx=> 'multiplexor', mux=> 'multiplexor',
+	inh=> 'inhibit',
+	tmo=> 'timeout',
+	asz=> 'arraysize',
+      );
+    my %value_map=
+      ( server=> '^1', 
+	client=> '^0', 
+        mlt=> '^1', 
+        bas=> '^0',
+	arr=>  '^1', 
+	sing=>  '^0', 
+	s=>  '^1', 
+	u=>  '^0', 
+      );
+      
+
+    if (defined $filters)
+      { my @args= split(/\s*,\s*/,$filters);
+        foreach my $a (@args)
+	  { if ($a!~/^\s*(\w+)\s*=\s*(\S*)/)
+	      { warn "not understood: \"$a\"\n";
+	        next;
+	      };
+	    my $f= $1;
+	    my $v= $2;
+	    if (exists $filter_map{$f})
+	      { $f=$filter_map{$f}; }; 
+	    if (exists $value_map{$v})
+	      { $v=$value_map{$v}; }; 
+	    if    ($v=~/\/(.+)\/(.+)/) # regexp-flags present
+	      { $v= '(?' . $2 . ')' . $1; }
+	    elsif ($v=~/\/(.*)\//)
+	      { $v= $1; };
+#die "|$f|$v|\n";
+	    $filter_hash{$f}= qr($v);
+	  };
+      };
+
+#die "f:" . join("|",%filter_hash);
+    
     filter_records($r_rec,"DTYP","lowcal"); 
     filter_fields($r_rec,['INP','OUT']);
     
@@ -801,6 +869,17 @@ sub lowcal
 	  };
 
         my %h= canlink::decode($link);
+      
+        $h{dir}= $dir; # put 'dir' into the hash in order
+		       # to be able to filter it
+	
+	my $skip;
+	foreach my $field (keys %filter_hash)
+	  { 
+	    if ($h{$field}!~ $filter_hash{$field})
+	      { $skip=1; last; }; 
+	  };
+	next if ($skip);	  
       
         if (!$reverse)
           { printf "%-25s%-3s %s\n",$recname,$dir,canlink::tab_print(%h); }
@@ -1052,11 +1131,44 @@ Syntax:
     --single -S : forbid double record names 
       (for debugging faulty databases)
 
-    --lowcal: print records with DTYP=lowcal and decode
+    --lowcal {filters}
+      print records with DTYP=lowcal and decode
       the CAN link. Record names and can-link properties are
-      printed in a table format 
+      printed in a table format.
+      The optional <filters> parameter is comma-separated a 
+      list in the form
+        name=regexp
+      where name is a property of the CAN link and regexp is
+      a perl regular expression. Note that <name> is actually
+      the field-name of the canlink-hash as defined in 
+      the perl-module canlink.pm (see "man canlink").
+      Among others, the following field names are recognized:
+	dir          : either "INP" or "OUT", the type of the record
+	srv,server   : the server-type, "1" for server, "0" for client
+		       NOTE: you may match for "1" or "0" in your
+		       regexp or the string printed in the table.
+	mul, multi   : the multiplex type, "1" for multiplex vars, "0" else
+		       NOTE: you may match for "1" or "0" in your
+		       regexp or the string printed in the table.
+	rw,access    : the type of the CAL variable (r,w or rw)
+        arr,array    : array type, 1 for array variables, 0 else
+		       NOTE: you may match for "1" or "0" in your
+		       regexp or the string printed in the table.
+        s,signed     : the signed type, ("1" for signed, "0" for unsigend)
+		       NOTE: you may match for "1" or "0" in your
+		       regexp or the string printed in the table.
+	type         : the variable type (zero,string,char,short,mid,long)
+        len,length,l : the length of the CAN object
+	prt,port,p   : the port number
+	in,in_cob    : the CAN object ID of the IN-object
+	out,out_cob  : the CAN object ID of the OUT-object
+        mplx,mux,multiplexor: the value of the multiplexor
+	inh,inhibit  : the inhibit-time
+	tmo,timeout  : the timeout-value
+	asz,arraysize: the arraysize
 
-    --Lowcal: identical to --lowcal except that the record
+    --Lowcal {filters}
+      identical to --lowcal except that the record
       names are in the last, not in the first column  
 
     --sdo: print records with DTYP=SDO and decode
