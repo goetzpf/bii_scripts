@@ -130,21 +130,21 @@ if ($opt_summary)
   { print_summary();
     exit;
   };
-  
-if (defined $opt_lowcal)
+
+if ($opt_lowcal ne "")
   { if ($opt_lowcal!~/=/)
       { push @ARGV,$opt_lowcal;
         $opt_lowcal=""; 
       }; 
   };
   
-if (defined $opt_Lowcal)
+if ($opt_Lowcal ne "")
   { if ($opt_Lowcal!~/=/)
       { push @ARGV,$opt_Lowcal;
         $opt_Lowcal=""; 
       }; 
   };
-  
+
 if    (defined $opt_allow_double)
   { parse_db::handle_double_names(2); }
 elsif (defined $opt_single)
