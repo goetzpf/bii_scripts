@@ -655,7 +655,7 @@ sub dist
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
 
          my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                             $rcmd, 1);
@@ -741,12 +741,12 @@ sub move_file
 		"grep $dir /dev/null LINKS-* 2>/dev/null; " .
 		'if test $? -eq 0;' .
 		"then echo \"error: $dir is still in use (symlinks)\" && ".
-		     "rm -f LOCK && exit $my_errcode;" .
+		     "exit $my_errcode;" .
 		'fi' .
 	        ' && ' .
 		"if ! test -d $dir;" . 
 		"then echo $dir not found && " .
-        	     "rm -f LOCK && exit $my_errcode;" . 
+        	     "exit $my_errcode;" . 
 		'fi && ' .
                 "mv $dir $dest && " . 
 		"echo \"%%\" >> $log && " .
@@ -763,7 +763,7 @@ sub move_file
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
 	$all_rc&= $rc;
 	if (!$rc)
@@ -943,7 +943,7 @@ sub change_link
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
 	$all_rc&= $rc;
 	if (!$rc)
@@ -989,7 +989,7 @@ sub cat_file_
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
 
         my($rc,$r_lines)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                                     $rcmd, 1, 1);
@@ -1033,7 +1033,7 @@ sub ls
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
 	my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
        $all_rc&= $rc;
        if (!$rc)
@@ -1140,7 +1140,7 @@ sub rebuild_last
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
 	$all_rc&= $rc;
 	if (!$rc)
@@ -1233,7 +1233,7 @@ sub ls_version
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1270,7 +1270,7 @@ sub ls_tag
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         if ($#$r_hosts_users>0)
-	  { warn "\nHost:$remote_host:\n"; }
+	  { print "\nHost:$remote_host:\n"; }
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1343,7 +1343,7 @@ sub sh_must_all_be_symlinks
     return( "for l in $files; " .
               'do if ! test -h $l; ' .
 	          'then echo error: $l does not exist or is not a symlink && ' .
-		  "rm -f LOCK && exit $my_errcode; " .
+		  "exit $my_errcode; " .
 	          'fi; ' .
               'done' ); 
   }
@@ -1356,7 +1356,7 @@ sub sh_must_all_not_exist
     return( "for l in $files; " .
                'do if test -e $l; ' .
 	          'then echo error: $l already exists && ' .
-		  "rm -f LOCK && exit $my_errcode; " .
+		  "exit $my_errcode; " .
 	          'fi; ' .
                'done' ); 
   }
