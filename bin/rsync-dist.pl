@@ -28,7 +28,6 @@ use maillike;
 use vars qw($opt_help 
 	    $opt_man
             $opt_summary 
-	    $opt_user 
 	    $opt_distpath
 	    $opt_linkpath
 	    $opt_localprefix
@@ -41,6 +40,7 @@ use vars qw($opt_help
 	    $opt_from_attic
 	    $opt_change_links
 	    $opt_add_links
+	    $opt_mirror
 	    $opt_rm_lock
 	    $opt_mk_lock
 	    $opt_rebuild_last
@@ -59,8 +59,8 @@ use vars qw($opt_help
 	    $opt_write_config_from_log
 	    $opt_env
 	    $opt_editor
-	    $opt_no_editor_defaults
 	    $opt_prefix_distdir
+	    $opt_no_editor_defaults
 	    $opt_last_dist
 	    $opt_ls_bug
 	    $opt_checksum
@@ -68,23 +68,24 @@ use vars qw($opt_help
 	    $opt_dry_run
 	    $opt_world_readable
 	    $opt_debug 
+	    $opt_version
             );
 
 
-my $sc_version= "1.4";
+my $sc_version= "1.5";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
 my $sc_author= "Goetz Pfeiffer";
-my $sc_year= "2006";
+my $sc_year= "2007";
 
 my $debug= 0; # global debug-switch
 
 my $default_editor= "vi";
 
 my @opt_hosts;
+my @opt_users;
 my @opt_localpaths;
-my @opt_mirrorhosts;
 
 # the following options are also recognized without
 # a leading "--" since they are commands.
@@ -124,6 +125,7 @@ my @gbl_local_log_order=
 		     REMOTEHOSTS 
 		     REMOTEHOST
 		     MIRRORHOSTS 
+		     REMOTEUSERS
 		     REMOTEUSER
 		     REMOTEPATH 
 		     WORLDREADABLE
@@ -148,9 +150,11 @@ my %gbl_local_log_actionmap=
 # for the user to specify a missing option. The text below
 # is shown as a short help for the user.
 my %gbl_edit_texts= 
-  ( REMOTEHOSTS => "Please enter name of the remote host.\n" .
-	           "Note that the first in the (possible) list is the \n" .
-		   "primary server.\n",
+  ( REMOTEHOSTSUSERS =>
+                   "Please enter name of the remote host(s)\n" .
+	           "You may specify the remote user(s) as well by\n" .
+		   "providing a list in the form \"user\@hostname\"\n",
+    REMOTEHOSTS => "Please enter name of the remote host(s)\n",
 
     REMOTEPATH  => "Please enter the distribution path on the remote host.\n",
 
@@ -174,8 +178,8 @@ my %gbl_edit_texts=
 		  "mirrored to.\n",
     SOURCE_DIR => "Please enter the source the symbolic link shall refer\n" .
                   "to.\n",
-    FILEMASK =>   "Please enter the files (or a filemask) for the \n" .
-                  "symbolic links that are to be changed\n",	  		  		  		   
+    FILEMASK =>   "Please enter the files (or a filemask aka glob-pattern)\n" .
+                  "for the symbolic links that are to be changed\n",	  		  		  		   
   );		   
 
 # the following are names of log-files
@@ -203,7 +207,7 @@ my $gbl_rsync_opts="-a -u -z --delete";
 # variables in this program
 my %gbl_map_hash= 
               (RSYNC_DIST_HOST      => \@opt_hosts,
-               RSYNC_DIST_USER      => \$opt_user,
+               RSYNC_DIST_USER      => \@opt_users,
 	       RSYNC_DIST_PATH      => \$opt_distpath,
 	       RSYNC_DIST_LINKPATH  => \$opt_linkpath, 
 	       RSYNC_DIST_PREFIX_DISTDIR => \$opt_prefix_distdir, 
@@ -222,7 +226,7 @@ my %gbl_map_hash=
 # with show-config, write-config or write-config-from-log
 my %gbl_config_comments=
               (RSYNC_DIST_HOST => "name of the remote host(s)",
-	       RSYNC_DIST_USER => "name of the remote user",
+	       RSYNC_DIST_USER => "name of the remote user(s)",
 	       RSYNC_DIST_PATH => "remote distribution directory",
 	       RSYNC_DIST_LINKPATH =>
 	                          "remote link directory",
@@ -267,6 +271,7 @@ RSYNC_DIST_EDITOR_NO_DEFAULTS
 # config-file that are arrays. 
 my %gbl_config_types=
               (RSYNC_DIST_HOST      => 'ARRAY',
+	       RSYNC_DIST_USER      => 'ARRAY',
 	       RSYNC_DIST_LOCALPATH => 'ARRAY');
 
 # the following hash maps directory-specifiers. With some commands,
@@ -305,7 +310,7 @@ if (!GetOptions("help|h",
 		"summary",
 		
 		"host|H=s" => \@opt_hosts,
-		"user|u=s", 
+		"user|u=s" => \@opt_users, 
 		
 		"distpath|p=s",
 		"linkpath|P=s",
@@ -317,12 +322,12 @@ if (!GetOptions("help|h",
 		"tag|t:s",
 		"autotag",
 
-		"dist|d:s", 
+		"dist|d", 
 		"to_attic|to-attic:s",
 		"from_attic|from-attic:s",
 		"change_links|change-links|C:s",
 		"add_links|add-links|A:s",
-		"mirror=s" => \@opt_mirrorhosts,
+		"mirror",
 		"rm_lock|rm-lock=s",
 		"mk_lock|mk-lock=s",
 		"rebuild_last|rebuild-last",
@@ -344,8 +349,8 @@ if (!GetOptions("help|h",
 		"env",
 		
 		"editor=s",
-		"no_editor_defaults|no-editor-defaults|N",
-		"prefix_distdir|prefix-distdir",		
+		"no_editor_defaults|no-editor-defaults|N!",
+		"prefix_distdir|prefix-distdir!",		
 		"last_dist|last-dist|L",
 		"ls_bug|ls-bug",
 		"checksum",
@@ -355,8 +360,11 @@ if (!GetOptions("help|h",
 
 # undocumented:
                 "debug",
+		"version",
                 ))
   { die "parameter error!\n"; };
+
+#die "pref dd: $opt_prefix_distdir";
 
 if ($opt_help)
   { help();
@@ -366,6 +374,13 @@ if ($opt_help)
 if ($opt_man)
   { exec("perldoc $0"); };
 
+if ($opt_version)
+  { my $l1= h_center("**** $sc_name $sc_version -- $sc_summary ****");
+    my $l2= h_center("$sc_author $sc_year");
+    print $l1,"\n",$l2,"\n";
+    exit(0);
+  }    
+
 if ($opt_summary)
   { print_summary();
     exit;
@@ -373,9 +388,9 @@ if ($opt_summary)
   
 @opt_hosts = split(/[,\s:]+/,join(',',@opt_hosts));
 
-@opt_localpaths = split(/[,\s:]+/,join(',',@opt_localpaths));
+@opt_users = split(/[,\s:]+/,join(',',@opt_users));
 
-@opt_mirrorhosts = split(/[,\s:]+/,join(',',@opt_mirrorhosts));
+@opt_localpaths = split(/[,\s:]+/,join(',',@opt_localpaths));
 
 if (defined $opt_progress)
   { $gbl_rsync_opts .= " --progress"; };
@@ -412,7 +427,7 @@ if ($opt_debug)
 
 if (defined $opt_ls)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_ls);
-    ls($opt_hosts[0],$opt_user,$rpath);
+    ls(\@opt_hosts,\@opt_users,$rpath);
     exit(0);
   }
 
@@ -421,84 +436,74 @@ if ((defined $opt_cat_log) || (defined $opt_perl_log))
     my $dirname= ($dump_perl) ? $opt_perl_log : $opt_cat_log;
     my($arg,$rpath,$log,$chg)= dir_dependant($dirname);
     
-    my($rc,$r_lines)= cat_file($opt_hosts[0],$opt_user,$rpath,
-                               $log,undef,$dump_perl);
-    exit(1) if (!$rc);
-    
-    if ($dump_perl)
-      { my $r_h= maillike::parse($r_lines,recordseparator=>"%%");
-        my $name= $log;
-	$name=~ s/-/_/g;
-	print Data::Dumper->Dump([$r_h],[$name]);
-      };
-    
-    exit(0);
+    my $rc= cat_file_(\@opt_hosts,\@opt_users,$rpath,
+                                $log,undef,$dump_perl);
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_cat_changes)
   { $opt_cat_changes= 'd' if ($opt_cat_changes eq "");
     my($arg,$rpath,$log,$chg)= dir_dependant($opt_cat_changes);
-    cat_file($opt_hosts[0],$opt_user,$rpath,$chg);
-    exit(0);
+    my $rc= cat_file_(\@opt_hosts,\@opt_users,$rpath,$chg);
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_tail_log)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_tail_log);
-    cat_file($opt_hosts[0],$opt_user,$rpath,$log,$arg);
-    exit(0);
+    my $rc= cat_file_(\@opt_hosts,\@opt_users,$rpath,$log,$arg);
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_tail_changes)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_tail_changes);
-    cat_file($opt_hosts[0],$opt_user,$rpath,$chg,$arg);
-    exit(0);
+    my $rc= cat_file_(\@opt_hosts,\@opt_users,$rpath,$chg,$arg);
+    exit($rc ? 0 : 1);
   }
 
 if (defined $opt_ls_tag)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    ls_tag($opt_hosts[0],$opt_user,$rpath,$opt_ls_tag);
+    ls_tag(\@opt_hosts,\@opt_users,$rpath,$opt_ls_tag);
     exit(0);
   }
 
 if (defined $opt_ls_version)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    ls_version($opt_hosts[0],$opt_user,$rpath,$opt_ls_version);
+    ls_version(\@opt_hosts,\@opt_users,$rpath,$opt_ls_version);
     exit(0);
   }
 
 if (defined $opt_rm_lock)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_rm_lock);
     my $rc= 
-      rm_lock($opt_hosts[0],$opt_user,$rpath,'remove');
+      server_lock(\@opt_hosts,\@opt_users,$rpath,'remove');
     exit($rc ? 0 : 1);
   }
 
 if (defined $opt_mk_lock)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_mk_lock);
     my $rc= 
-      rm_lock($opt_hosts[0],$opt_user,$rpath,'create');
+      server_lock(\@opt_hosts,\@opt_users,$rpath,'create');
     exit($rc ? 0 : 1);
   }
 
 if (defined $opt_rebuild_last)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
     my $rc=
-      rebuild_last($opt_hosts[0],$opt_user,$rpath);
+      rebuild_last(\@opt_hosts,\@opt_users,$rpath);
     exit($rc ? 0 : 1);
   }
 
-if (@opt_mirrorhosts)
-  { my $dirtype= shift @opt_mirrorhosts;
-    my($arg,$rpath,$log,$chg)= dir_dependant($dirtype);
+if ($opt_mirror)
+  { my($arg,$rpath,$log,$chg)= dir_dependant($opt_mirror);
     my $rc=
-      mirror($opt_user,$rpath,$opt_hosts[0],\@opt_mirrorhosts);
+      mirror(\@opt_hosts,\@opt_users,$rpath);
     exit($rc ? 0 : 1);
   }
 
 if (defined $opt_change_links)
   { my($arg,$rpath,$log,$chg)= dir_dependant('links');
     my $rc=
-      change_link(0, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_change_links);
+      change_link(0, \@opt_hosts,\@opt_users,$rpath,$opt_message,$opt_change_links);
     exit($rc ? 0 : 1);
   }
 
@@ -507,31 +512,31 @@ if (defined $opt_add_links)
     my @files;
     my $source;
     my $rc=
-      change_link(1, \@opt_hosts,$opt_user,$rpath,$opt_message,$opt_add_links);
+      change_link(1, \@opt_hosts,\@opt_users,$rpath,$opt_message,$opt_add_links);
     exit($rc ? 0 : 1);
   }
 
 if (defined $opt_dist)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
     my $rc= 
-      dist(\@opt_hosts,$opt_user,$rpath,\@opt_localpaths, 
+      dist(\@opt_hosts,\@opt_users,$rpath,\@opt_localpaths, 
            $opt_message, $opt_tag, 
-  	   $opt_world_readable,
-	   $opt_dist);
+  	   $opt_world_readable);
     exit($rc ? 0 : 1);
   }
          
 if (defined $opt_to_attic)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
     my $rc= 
-      move_file($opt_hosts[0],$opt_user,$rpath,$opt_to_attic, $opt_message, 1);
+      move_file(\@opt_hosts,\@opt_users,$rpath,$opt_to_attic, $opt_message, 1);
     exit($rc ? 0 : 1);
   }
          
 if (defined $opt_from_attic)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    move_file($opt_hosts[0],$opt_user,$rpath,$opt_from_attic, $opt_message, 0);
-    exit(0);
+    my $rc= 
+      move_file(\@opt_hosts,\@opt_users,$rpath,$opt_from_attic, $opt_message, 0);
+    exit($rc ? 0 : 1);
   }
          
 
@@ -540,26 +545,22 @@ die "error: no command given!";
 # fit in program text here
 
 # ------------------------------------------------
+# commands
+# ------------------------------------------------
 
 sub dist
-  { my($r_remote_hosts, $remote_user, 
+  { my($r_hosts,$r_users,
        $remote_path, $r_local_paths,
        $logmessage, $tag,
-       $world_readable,
-       $locallog)= @_;
+       $world_readable)= @_;
 
-    if (empty($r_remote_hosts))
-      { ensure_var(\$r_remote_hosts, 'REMOTEHOSTS', 
-                   take_default('','distribute:REMOTEHOSTS',
-		                   'links:REMOTEHOSTS',
-				   'move:REMOTEHOST'));
-      };			   
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
 
     if (empty($remote_path))
       { ensure_var(\$remote_path   , 'REMOTEPATH' ,
-                   take_default('','distribute:REMOTEPATH',
-		                   'links:REMOTEPATH',
-				   'move:REMOTEPATH'));
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH',
+				'move:REMOTEPATH'));
       };
     
     # empty string as tag is now allowed:
@@ -568,19 +569,19 @@ sub dist
           { $tag= incr_tag(last_tag()); }
 	else
 	  { ensure_var(\$tag          , 'TAG' , 
-                       take_default('','distribute:TAG'));
+                       take_default('distribute:TAG'));
           }
       };
     
     # empty string as logmessage is now allowed:
     if (!defined $logmessage)
       { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
-                   take_default('','distribute:LOGMESSAGE'));
+                   take_default('distribute:LOGMESSAGE'));
       };
 
     if (empty($r_local_paths))
       { ensure_var(\$r_local_paths , 'DIST_LOCALPATHS' , 
-                   take_default('','distribute:LOCALPATHS'));
+                   take_default('distribute:LOCALPATHS'));
       };
 
     my($now,$local_host,$local_user,$from)= local_info();
@@ -588,7 +589,7 @@ sub dist
     # start to create hash for local logfile:
     my $r_log= new_log_hash($now,
                             $local_host,$local_user,
-			    $r_remote_hosts,$remote_user,
+			    $r_hosts_users,
 			    $remote_path,
 			    'distribute');
     
@@ -596,11 +597,6 @@ sub dist
       { if (!-d $l)
           { die "error: directory \"$l\" not found"; };
       };	  
-
-    my @hosts= @$r_remote_hosts;
-
-    my $remote_host= shift @hosts; 
-    my $hosts= join(" ",@hosts);
 
     # convert relative to absolute paths based on
     # the current value of the "PWD" environment variable:
@@ -613,12 +609,16 @@ sub dist
   
     my $log= DIST_LOG;
     my $chg= DIST_CHANGES;
-    
-    my $rcmd= sh_mklock($from) .
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
+      { die "ERROR: locking of the servers failed"; };
+      
+    my $datestr= datestring();
+    $r_log->{LOCALDATE}= $datestr;
+      
+    my $rcmd= sh_handle_attic($log,$chg) .
 	      ' && ' .
-              sh_handle_attic($log,$chg) .
-	      ' && ' .
-	      'date +%Y-%m-%dT%H:%M:%S > STAMP && ' .
+	      "echo $datestr > STAMP && " .
 	      'if test -e LAST ; ' .
 	      'then cp -a -l `cat LAST` `cat STAMP`; ' .
 	      'fi ' .         
@@ -628,8 +628,6 @@ sub dist
 	         "-e \"ssh -l $local_user \" " .
 	         "$local_host:\$l" .' ./`cat STAMP`;' .
 	      'done';
-	      
-	      
 	      
     if ($world_readable)
       { $rcmd.= ' && chmod -R a+rX `cat STAMP`'; };
@@ -649,29 +647,30 @@ sub dist
               'cp STAMP LAST && ' .
 	      'sleep 1 && ';
 #die $rcmd;
-    if (@hosts)
-      { # distribute the binary-store to other hosts
-        # while the lockfile is still present
-        # rsync -a: recursive, preserve permissions, 
-	# copy symlinks as symlinks, preserve times,
-	# preserve group, preserve owner
-	# -H: preserve hard-links  
-	$rcmd.= sh_copy_to_hosts($remote_path,@hosts) . " && ";
-      };	
-	
     $rcmd.=	      
 	      'echo `cat STAMP` was created && ' .
-	      'rm -f STAMP LOCK';
+	      'rm -f STAMP';
 
-    my($rc,$r_l)= myssh_cmd($remote_host, $remote_user, $remote_path, 
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+
+         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                             $rcmd, 1);
-    
-    return if (!$rc); #error
+	$all_rc&= $rc;
+	if (!$rc)
+	  { warn "(command failed)\n"; };
+      };
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'remove'))
+      { warn "WARNING: unlocking of the servers failed"; };
+      
+    return if (!$all_rc); #error
     
     return 1 if ($opt_dry_run); # OK
     
-    if ($locallog ne "")
-      { to_file($locallog, $r_l); };
     #print join("\n",@$r_l); 
     
     # update local log-file
@@ -684,29 +683,22 @@ sub dist
  
     if (defined $tag)
       { $r_log->{TAG}= $tag; };
-    $r_log->{VERSION}= extract_date($r_l);
+    $r_log->{VERSION}= $datestr;
     
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
     return(1);
   }    
 
 sub move_file
-  { my($remote_host, $remote_user, 
+  { my($r_hosts,$r_users,
        $remote_path, $dir, $logmessage, $to_attic)= @_;
 
-    if (empty($remote_host))
-      { ensure_var(\$remote_host, 'REMOTEHOST', 
-                   take_default('TO-SCALAR',
-		                'move:REMOTEHOST',
-				'distribute:REMOTEHOSTS',
-				'links:REMOTEHOSTS',
-				));
-      };			   
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
     if (empty($remote_path))
       { ensure_var(\$remote_path, 'REMOTEPATH',
-                   take_default('','move:REMOTEPATH' .
-		                   'distribute:REMOTEPATH',
-		                   'links:REMOTEPATH'));
+                   take_default('move:REMOTEPATH' .
+		                'distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
       };			   
     if (empty($dir))
       { ensure_var(\$dir        , 'MOVE_DIR'); };
@@ -721,7 +713,7 @@ sub move_file
     # start to create hash for local logfile:
     my $r_log= new_log_hash($now,
                             $local_host,$local_user,
-			    $remote_host,$remote_user,
+			    $r_hosts_users,
 			    $remote_path,
 			    $to_attic ? 'move to attic' :
 			                'move from attic'
@@ -744,8 +736,6 @@ sub move_file
     my $chg= DIST_CHANGES;
    
     my $rcmd= 
-        	sh_mklock($from) .
-	        ' && ' .
                 sh_handle_attic($log,$chg) .
 	        ' && ' .
 		"grep $dir /dev/null LINKS-* 2>/dev/null; " .
@@ -763,15 +753,30 @@ sub move_file
 		"echo VERSION: $odir >> $log && " .
 		"echo ACTION: $action >> $log && " .
 	        sh_add_log($log,$from,$logmessage,undef) . ' && ' .
-		sh_rebuld_LAST() . ' && ' .
-		'rm -f STAMP LOCK';
+		sh_rebuild_LAST() . ' && ' .
+		'rm -f STAMP';
 
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+    if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
+      { die "ERROR: locking of the servers failed"; };
 
-    return if (!$rc);
-    
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+	$all_rc&= $rc;
+	if (!$rc)
+	  { warn "(command failed)\n"; };
+      };
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'remove'))
+      { warn "WARNING: unlocking of the servers failed"; };
+
     return 1 if ($opt_dry_run); # OK
 
+    return if (!$all_rc);
+    
     # update local log-file
     $r_log->{LOGMESSAGE} = $logmessage;
     $r_log->{VERSION}    = $odir;
@@ -780,279 +785,49 @@ sub move_file
     return(1);
   }
 	      
-
-sub cat_file
-  { my($remote_host, $remote_user, 
-       $remote_path, $filename, $tailpar, $catch) = @_;
-   
-    if (empty($remote_host))
-      { ensure_var(\$remote_host, 'REMOTEHOST', 
-                   take_default('TO-SCALAR',
-				'distribute:REMOTEHOSTS',
-				'links:REMOTEHOSTS',
-      				));
-      };  
-    if (empty($remote_path))
-      { ensure_var(\$remote_path, 'REMOTEPATH',
-                   take_default('','distribute:REMOTEPATH',
-		                   'links:REMOTEPATH'));
-      };			   
-    
-    my $rcmd;
-    if (!defined $tailpar)
-      { $rcmd= "cat $filename"; }
-    else
-      { if ($tailpar<=0)
-          { $tailpar= 10; };
-        $rcmd= "tail -n $tailpar $filename";
-      };
-
-    my($rc,$r_lines)= myssh_cmd($remote_host, $remote_user, $remote_path, 
-                                $rcmd, $catch, $catch);
-
-    return($rc,$r_lines);
-  }
-  
-sub ls
-  { my($remote_host, $remote_user, 
-       $remote_path) = @_;
-   
-    if (empty($remote_host))
-      { ensure_var(\$remote_host, 'REMOTEHOST', 
-                   take_default('TO-SCALAR',
-				'distribute:REMOTEHOSTS',
-				'links:REMOTEHOSTS',
-      				));
-      };  
-    if (empty($remote_path))
-      { ensure_var(\$remote_path, 'REMOTEPATH',
-                   take_default('','distribute:REMOTEPATH',
-		                   'links:REMOTEPATH'));
-      };			   
-
-    my $rcmd= "ls -l";
-    $rcmd.= " 2>/dev/null" if ($opt_ls_bug);
-
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-
-    return if (!$rc);
-  }
-  
-sub rm_lock
-  { my($remote_host, $remote_user, 
-       $remote_path, $action) = @_;
-   
-    if (empty($remote_host))
-      { ensure_var(\$remote_host, 'REMOTEHOST', 
-                   take_default('TO-SCALAR',
-				'distribute:REMOTEHOSTS',
-				'links:REMOTEHOSTS',
-      				));
-      };  
-    if (empty($remote_path))
-      { ensure_var(\$remote_path, 'REMOTEPATH',
-                   take_default('','distribute:REMOTEPATH',
-		                   'links:REMOTEPATH'));
-      };			   
-
-    my($now,$local_host,$local_user,$from)= local_info();
-
-   # start to create hash for local logfile:
-    my $r_log= new_log_hash($now,
-                            $local_host,$local_user,
-			    $remote_host,$remote_user,
-			    $remote_path,
-			    "$action lockfile");
-
-    my $rcmd;
-    if    ($action eq 'remove')
-      { $rcmd= "rm -f LOCK"; }
-    elsif ($action eq 'create')
-      { 
-        my $from= $local_user . '@' . $local_host;
-        $rcmd= sh_mklock($from)
-      }
-    else
-      { die "assertion: unknown action: \"$action\""; };
-      
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-
-    return if (!$rc);
-    
-    return 1 if ($opt_dry_run); # OK
-
-    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
-    return(1);
-  }
-
-sub rebuild_last
-  { my($remote_host, $remote_user, 
-       $remote_path) = @_;
-
-    if (empty($remote_host))
-      { ensure_var(\$remote_host, 'REMOTEHOST', 
-                   take_default('TO-SCALAR',
-				'distribute:REMOTEHOSTS',
-				'links:REMOTEHOSTS',
-      				));
-      };  
-    if (empty($remote_path))
-      { ensure_var(\$remote_path, 'REMOTEPATH',
-                   take_default('','distribute:REMOTEPATH',
-		                   'links:REMOTEPATH'));
-      };			   
-
-    my($now,$local_host,$local_user,$from)= local_info();
-
-    # start to create hash for local logfile:
-    my $r_log= new_log_hash($now,
-                            $local_host,$local_user,
-			    $remote_host,$remote_user,
-			    $remote_path,
-			    'rebuild LAST');
-
-    my $rcmd= sh_rebuld_LAST();
-
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-
-    return if (!$rc);
-   
-    return 1 if ($opt_dry_run); # OK
-
-    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
-    return(1);
-  }
-
-sub mirror
-  { my($remote_user,$remote_path,$remote_host,$r_hosts)= @_;
-  
-    if (empty($remote_host))
-      { ensure_var(\$remote_host, 'REMOTEHOST', 
-                   take_default('TO-SCALAR',
-				'distribute:REMOTEHOSTS',
-				'links:REMOTEHOSTS',
-      				));
-      };  
-    if (empty($remote_path))
-      { ensure_var(\$remote_path, 'REMOTEPATH',
-                   take_default('','distribute:REMOTEPATH',
-		                   'links:REMOTEPATH'));
-      };			   
-    if (empty($r_hosts))
-      { ensure_var(\$r_hosts    , 'MIRRORHOSTS',
-                   take_default('','mirror:MIRRORHOSTS'));
-      };			   
-
-    my($now,$local_host,$local_user,$from)= local_info();
-
-    # start to create hash for local logfile:
-    my $r_log= new_log_hash($now,
-                            $local_host,$local_user,
-			    $remote_host,$remote_user,
-			    $remote_path,
-			    'mirror');
-
-    my $rcmd= sh_copy_to_hosts($remote_path,@$r_hosts);
-
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-
-    return if (!$rc);
-
-    return 1 if ($opt_dry_run); # OK
-
-    $r_log->{MIRRORHOSTS}= join(" ",@$r_hosts);
-
-    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
-    return(1);
-  }
-
-sub ls_version
-  { my($remote_host, $remote_user, 
-       $remote_path, $version) = @_;
-   
-    die "remote_host missing" if (empty($remote_host));
-    die "remote_path missing" if (empty($remote_path));
-    die "tag missing" if (empty($version));
-
-    my $log= DIST_LOG;
-
-    my $rcmd= "if ! test -e $log; then ".
-                "echo file $log not found ;" .
-              'else ' .
-	        "grep -B 3 -A 1 TAG $log | " .
-		"grep -A 4 \"VERSION: $version\" ; " . 
-		'if test $? -eq 1; ' .
-		'then echo not found;' .
-		'fi; ' .
-	      'fi';
-    
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-
-    return if (!$rc);
-  }
- 
-sub ls_tag
-  { my($remote_host, $remote_user, 
-       $remote_path, $tag) = @_;
-   
-    die "remote_host missing" if (empty($remote_host));
-    die "remote_path missing" if (empty($remote_path));
-    die "tag missing" if (empty($tag));
-
-    my $log= DIST_LOG;
-
-    my $rcmd= "if ! test -e $log; then ".
-                "echo file $log not found ;" .
-              'else ' .
-	        "grep '\"'\"'TAG:.*" . $tag . "'\"'\"' $log -B 3 -A 1 ;" .
-		'if test $? -eq 1; ' .
-		'then echo not found;' .
-		'fi; ' .
-	      'fi';
-    
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-
-    return if (!$rc);
-  }
- 
-  
 sub change_link
-  { my($do_add, $r_remote_hosts, $remote_user, $remote_path, $logmessage,
+  { my($do_add, $r_hosts,$r_users, $remote_path, $logmessage,
        $linkparam )= @_;
 
     my @files;
     my $remote_source;
-    
+
+    if (($opt_prefix_distdir) && (!defined $opt_distpath))
+      { warn "warning: dist-path not specified, --prefix-distdir ignored\n"; 
+        $opt_prefix_distdir= undef;
+      };
+
     # read the link-parameter if it is defined
     # it should be <source-dir>,<filemask>
     if (defined $linkparam)
-      { if ($linkparam !~ /^([^,]*),(.*)/)
-          { # link-parameter contains no comma,
-	    # we assume that this is the <filemask> and
-	    # that <remote-source> is not defined
-	    $files[0]= $linkparam; 
-	  }
-	else
-	  { # link-parameter contains a comma:
-	    if ($1 ne "")
-	      { # remote-source is defined:
-	        $remote_source= $1; 
+      { @files= split(/,/,$linkparam);
+        if ($#files>0) # more than one argument
+	  { if ($files[0] =~ /^\s*$/)
+	      { # first argument empty, discard it
+	        shift @files; 
+	      }
+	    else
+	      { # it may be a remote_source or a file. When 
+	        # --prefix-distdir and --last-dist were given,
+		# we assume that it is a file since the remote_source
+		# in this case is already completely defined
+	      
+	        if (!(($opt_prefix_distdir) && ($opt_last_dist)))
+	          { # take first argument as remote_source
+		    $remote_source= shift @files; 
+		  };
 	      };
-	    if ($2 ne "")
-	      { # filemask is defined:
-	        my $x= $2;
-	        @files= split(/,/,$x);
-	      };	
           };
-	  
-      };
+      }
       
-    if (($opt_prefix_distdir) && (defined $opt_distpath))
-      { $remote_source= File::Spec->catfile($opt_distpath,$remote_source); };   
+    if ($opt_prefix_distdir)
+      { # prepend distpath to remote_source:
+        $remote_source= File::Spec->catfile($opt_distpath,$remote_source); 
+      };   
 
     # if $remote_source is defined and --last-dist is given:
-    if (($opt_last_dist) && (defined $remote_source))
-      { if ($remote_source eq "")
+    if ($opt_last_dist)
+      { if ((!defined ($remote_source)) || ($remote_source eq ""))
 	  { $remote_source= last_ver(); }
 	else
 	  { $remote_source= File::Spec->catfile($remote_source,
@@ -1062,29 +837,24 @@ sub change_link
 
     $remote_source=~ /\/$/; # remove trailing "/"  	  
 
-    if (empty($r_remote_hosts))
-      { ensure_var(\$r_remote_hosts, 'REMOTEHOSTS', 
-                   take_default('','distribute:REMOTEHOSTS',
-		                   'links:REMOTEHOSTS',
-				   'move:REMOTEHOST'));
-      };			   
-
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    
     if (empty($remote_path))
       { ensure_var(\$remote_path   , 'REMOTEPATH' ,
-                   take_default('','distribute:REMOTEPATH',
-		                   'links:REMOTEPATH',
-				   'move:REMOTEPATH'));
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH',
+				'move:REMOTEPATH'));
       };
 
     if (empty($remote_source))
       { ensure_var(\$remote_source  , 'SOURCE_DIR' ,
-                   take_default('','links:SOURCEDIR'));
+                   take_default('links:SOURCEDIR'));
       };
 
     my $r_files= \@files;
     if (empty($r_files))
       { ensure_var(\$r_files      , 'FILEMASK' ,
-                   take_default('','links:FILES'));
+                   take_default('links:FILES'));
       };
 
     # new: empty string as logmessage is allowed:
@@ -1099,7 +869,7 @@ sub change_link
           };
 	if ($take_from_user)
 	  { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
-                       take_default('','links:LOGMESSAGE'));
+                       take_default('links:LOGMESSAGE'));
           };
       };
 
@@ -1108,27 +878,20 @@ sub change_link
     # start to create hash for local logfile:
     my $r_log= new_log_hash($now,
                             $local_host,$local_user,
-			    $r_remote_hosts,$remote_user,
+			    $r_hosts_users,
 			    $remote_path,
 			    $do_add ? 'add links' : 'change links');
 
     
     my $log= LINK_LOG;
     
-    my @hosts= @$r_remote_hosts;
-
-    my $remote_host= shift @hosts; 
-    my $hosts= join(" ",@hosts);
-
     my $files= join(" ",@$r_files);
     my $rcmd= 
               "if ! test -e $remote_source; " .
 	      "then echo error: \"$remote_source does not exist\" && " .
 	            "exit $my_errcode; " .
-	      'else ' .
-	        sh_mklock($from) .
-	        ' && ' .
-                sh_handle_attic($log);
+	      'fi && ' .
+              sh_handle_attic($log);
 		
     if ($do_add)
       { $rcmd.= ' && ' . sh_must_all_not_exist(@$r_files)  . ' && ';
@@ -1154,6 +917,12 @@ sub change_link
     
     my $linklog= File::Spec->catfile($source_base,"LINKS" . $path_conv); 
 
+    if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
+      { die "ERROR: locking of the servers failed"; };
+
+    my $datestr= datestring();
+    $r_log->{LOCALDATE}= $datestr;
+ 
 #die "linklog:$linklog";
     
     $rcmd.= 	
@@ -1162,37 +931,31 @@ sub change_link
 	          "ln -s $remote_source \$l; " .
 		'done && ' .
 		"echo \"%%\" >> $log && " .
-		"date +\"DATE: %Y-%m-%dT%H:%M:%S\" >> $log && " .
+		"echo DATE: $datestr >> $log && " .
 	        sh_add_log($log,$from,$logmessage,undef) . ' && ' .
                 sh_add_symlink_log($log,$do_add,@$r_files) . ' && ' .
 		
 		'find . -type l -printf "%l %f\n" ' .
 		"| sort | grep \"^$source_base\" | sed -e \"s/^.*\\///\" " .
-		"> $linklog && " ;
+		"> $linklog " ;
 		
-    if (@hosts)
-      { # distribute the binary-store to other hosts
-        # while the lockfile is still present
-        # rsync -a: recursive, preserve permissions, 
-	# copy symlinks as symlinks, preserve times,
-	# preserve group, preserve owner
-	# -H: preserve hard-links 
-	
-	$rcmd.= sh_copy_to_hosts($remote_path,@hosts) . " && " .
-	        "rdp=`(cd $source_base && pwd)`; " .
-		sh_copy_to_hosts('$rdp',@hosts) . " && "; 
-      };	
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+	$all_rc&= $rc;
+	if (!$rc)
+	  { warn "(command failed)\n"; };
+      };
 
-    $rcmd.=		
-		
-		'rm -f STAMP LOCK; ' .
-	       'fi';
-
-    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
-
-    return if (!$rc);
+    if (!internal_server_lock($r_hosts_users,$remote_path,'remove'))
+      { warn "WARNING: unlocking of the servers failed"; };
 
     return 1 if ($opt_dry_run); # OK
+
+    return if (!$all_rc);
 
     $r_log->{FILES}       = join(",",@$r_files);
     $r_log->{LOGMESSAGE}  = $logmessage;
@@ -1201,6 +964,325 @@ sub change_link
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
     return(1);
   }
+
+sub cat_file_
+  { my($r_hosts,$r_users,
+       $remote_path, $filename, $tailpar, $perlify) = @_;
+   
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
+      };			   
+    
+    my $rcmd;
+    if (!defined $tailpar)
+      { $rcmd= "cat $filename"; }
+    else
+      { if ($tailpar<=0)
+          { $tailpar= 10; };
+        $rcmd= "tail -n $tailpar $filename";
+      };
+
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+
+        my($rc,$r_lines)= myssh_cmd($remote_host, $remote_user, $remote_path, 
+                                    $rcmd, 1, 1);
+
+       $all_rc&= $rc;
+        if (!$rc)
+	  { warn "(command failed)\n"; 
+	    next;
+	  };
+	if ($perlify)
+	  { 
+            my $r_h= maillike::parse($r_lines,recordseparator=>"%%");
+            my $name= $filename;
+	    $name=~ s/-/_/g;
+	    print Data::Dumper->Dump([$r_h],[$name]);
+          }
+	else
+	  { 
+	    foreach my $l (@$r_lines)
+	      { print $l,"\n"; };
+	  };
+      };
+    return($all_rc);
+  }
+  
+sub ls
+  { my($r_hosts,$r_users,
+       $remote_path) = @_;
+   
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
+      };			   
+
+    my $rcmd= "ls -l";
+    $rcmd.= " 2>/dev/null" if ($opt_ls_bug);
+
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+	my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+       $all_rc&= $rc;
+       if (!$rc)
+	  { warn "(command failed)\n"; };
+      };
+    return($all_rc);
+  }
+  
+sub server_lock
+  { my($r_hosts,$r_users,
+       $remote_path, $action) = @_;
+
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
+      };			   
+    return(internal_server_lock($r_hosts_users,
+                                $remote_path, $action));
+  }
+
+sub internal_server_lock
+  { my($r_hosts_users,
+       $remote_path, $action, $recursion) = @_;
+   
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+   # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $r_hosts_users,
+			    $remote_path,
+			    "$action lockfile");
+
+    my $rcmd;
+    if    ($action eq 'remove')
+      { $rcmd= "rm -f LOCK"; }
+    elsif ($action eq 'create')
+      { 
+        my $from= $local_user . '@' . $local_host;
+        $rcmd= sh_mklock($from)
+      }
+    else
+      { die "assertion: unknown action: \"$action\""; };
+      
+    my @locked;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+
+        if ($recursion)
+	  { warn "trying to $action lock on $remote_host...\n"; };
+
+        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+	if (!$rc)
+	  { warn "error: locking on \"$remote_host\" path \"$remote_path\"" .
+	         "failed\n";
+	    if ($recursion)
+	      { warn "undoing failed, giving up...\n";
+	        return(0);
+	      };
+	    warn "trying to undo what already has been done...\n";
+	    internal_server_lock(\@locked,$remote_path, 
+	                         ($action eq 'create') ? 'remove' : 'create', 
+				1);
+	    return(0);
+	  }
+	else
+	  { push @locked, $r; };
+      }; 
+    return 1 if ($opt_dry_run); # OK
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    return(1);
+  }
+
+sub rebuild_last
+  { my($r_hosts,$r_users,
+       $remote_path) = @_;
+
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
+      };			   
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $r_hosts_users,
+			    $remote_path,
+			    'rebuild LAST');
+
+    my $rcmd= sh_rebuild_LAST();
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
+      { die "ERROR: locking of the servers failed"; };
+
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+	$all_rc&= $rc;
+	if (!$rc)
+	   { warn "(command failed)\n"; };
+      };
+      
+    if (!internal_server_lock($r_hosts_users,$remote_path,'remove'))
+      { warn "WARNING: unlocking of the servers failed"; };
+ 
+    return 1 if ($opt_dry_run); # OK
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    return($all_rc);
+  }
+
+sub mirror
+  { my($r_hosts,$r_users,,$remote_path)= @_;
+  
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
+      };
+    
+    if ($#$r_hosts_users <=0)
+      { die "error: you have to specify more than one server for this\n"; };  
+      			   
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # start to create hash for local logfile:
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+			    $r_hosts_users,
+			    $remote_path,
+			    'mirror');
+
+    my $remote_host= $r_hosts_users->[0]->[0];
+    my $remote_user= $r_hosts_users->[0]->[1];
+    my @m_hosts;
+    for(my $i=1; $i<=$#$r_hosts_users; $i++)
+      { push @m_hosts, $r_hosts_users->[$i]->[0]; };
+    
+    my $rcmd= sh_copy_to_hosts($remote_path,@m_hosts);
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
+      { die "ERROR: locking of the servers failed"; };
+
+    my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'remove'))
+      { warn "WARNING: unlocking of the servers failed"; };
+
+    return if (!$rc);
+
+    return 1 if ($opt_dry_run); # OK
+
+    $r_log->{MIRRORHOSTS}= join(" ",@m_hosts);
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    return(1);
+  }
+
+sub ls_version
+  { my($r_hosts,$r_users,
+       $remote_path, $version) = @_;
+   
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
+      };			   
+
+    die "tag missing" if (empty($version));
+
+    my $log= DIST_LOG;
+
+    my $rcmd= "if ! test -e $log; then ".
+                "echo file $log not found ;" .
+              'else ' .
+	        "grep -B 3 -A 1 TAG $log | " .
+		"grep -A 4 \"VERSION: $version\" ; " . 
+		'if test $? -eq 1; ' .
+		'then echo not found;' .
+		'fi; ' .
+	      'fi';
+    
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+        $all_rc&= $rc;
+        if (!$rc)
+	  { warn "(command failed)\n"; };
+      };
+    return($all_rc);
+  }
+ 
+sub ls_tag
+  { my($r_hosts,$r_users,
+       $remote_path, $tag) = @_;
+   
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+		                'links:REMOTEPATH'));
+      };			   
+
+    die "tag missing" if (empty($tag));
+
+    my $log= DIST_LOG;
+
+    my $rcmd= "if ! test -e $log; then ".
+                "echo file $log not found ;" .
+              'else ' .
+	        "grep '\"'\"'TAG:.*" . $tag . "'\"'\"' $log -B 3 -A 1 ;" .
+		'if test $? -eq 1; ' .
+		'then echo not found;' .
+		'fi; ' .
+	      'fi';
+    
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        if ($#$r_hosts_users>0)
+	  { warn "\nHost:$remote_host:\n"; }
+        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+        $all_rc&= $rc;
+        if (!$rc)
+	  { warn "(command failed)\n"; };
+      };
+    return($all_rc);
+  }
+ 
+  
+# ------------------------------------------------
+# ssh shell command snipplets
+# ------------------------------------------------
 
 sub sh_copy_to_hosts
   { my($remote_path,@hosts)= @_;
@@ -1234,11 +1316,12 @@ sub sh_mklock
     my $showlock= 'ls -l LOCK';
        $showlock.= ' 2>/dev/null' if ($opt_ls_bug);
        $showlock.= ' | sed -e "s/.*-> //"';
-    return("while ln -s $from LOCK " . '2>/dev/null; [ $? -ne 0 ]; ' .
-           'do ' .
-             'echo waiting for LOCK by `' . $showlock . '`; ' .
-             'sleep 1; ' .
-	   'done');
+
+    return("ln -s $from LOCK; " .
+           "if [ $? -ne 0 ]; " .
+	   'then echo LOCKED by`' . $showlock . '`; ' .
+	        "exit $my_errcode; " .
+	   'fi');
   }	   
 
 sub sh_handle_attic
@@ -1246,10 +1329,9 @@ sub sh_handle_attic
     my $files= join(" ",@files);
   
     return( 'if ! test -d attic;' .
-            'then mkdir attic &&' .
-	         "touch $files;" .
+            'then mkdir attic; ' .
             'fi && ' .
-	    "cp $files attic"
+	    "cp $files attic 2>/dev/null; true"
 	    );
   }	    
 	    
@@ -1299,12 +1381,16 @@ sub sh_add_symlink_log
     return($str);
   }    
 
-sub sh_rebuld_LAST
+sub sh_rebuild_LAST
   { my $str= 'ls --indicator-style=none -d [12]* ';
     $str.= ' 2>/dev/null' if ($opt_ls_bug);
     $str.= ' | sort | tail -n 1 > LAST';
     return($str);
   }
+
+# ------------------------------------------------
+# local logfile utilities
+# ------------------------------------------------
 
 sub read_locallog
 # read the local logfile
@@ -1314,113 +1400,6 @@ sub read_locallog
     my $r_h= maillike::parse($gbl_local_log,recordseparator=>"%%");
  
     return($r_h);
-  }
-
-sub last_ver
-  { # take the last distributed version from the
-    # local log-file
-
-    get_last_log_entries(\$gbl_last_locallog_entries);
-
-    if (!defined $gbl_last_locallog_entries)
-      { die "error: local log-file \"$gbl_local_log\" not found\n" .
-            "or no last distribution info found in this file";
-      };
- 
-    return($gbl_last_locallog_entries->{distribute}->{VERSION});
-  }    
-
-sub last_tag
-  { # take the last distributed version from the
-    # local log-file
-
-    get_last_log_entries(\$gbl_last_locallog_entries);
-
-    if (!defined $gbl_last_locallog_entries)
-      { die "error: local log-file \"$gbl_local_log\" not found\n" .
-            "or no last distribution info found in this file";
-      };
- 
-    return($gbl_last_locallog_entries->{distribute}->{TAG});
-  }    
-
-sub incr_tag
-  { my($old_tag)= @_;
-  
-    if ($old_tag=~ /^(.*)\s+(\d+)\s*$/)
-      { my $txt= $1;
-        my $no= $2;
-	return($txt . " " . (++$no));
-      };
-    $old_tag=~ s/\s+$//;
-    return($old_tag . " 2");
-  }
-
-sub write_file
-  { my($filename,$r_var)= @_;
-    local(*F);
-    open(F,">$filename") or die "unable to create \"$filename\"";
-    print F $$r_var;
-    close(F);
-  }
-
-sub rename_to_bak
-  { my($filename)= @_;
-  
-    my $file= $filename;
-    my $ext= ".bak";
-    my $no;
-    
-    return if (!-e $filename);
-    while (-e ($file . $ext))
-      { $ext= sprintf ".bak%d",(++$no); };
-    if (!rename($filename, $file . $ext))
-      { die "error: renaming $file to $file$ext failed"; };
-  }
-
-sub show_config_from_log
-  { my($filename)= @_;
-  
-    my %extracted;
-    my %log_map= ( 'distribute:REMOTEHOSTS' => 'RSYNC_DIST_HOST',
-                   'distribute:REMOTEUSER'  => 'RSYNC_DIST_USER',
-		   'distribute:REMOTEPATH'  => 'RSYNC_DIST_PATH',
-		   'links:REMOTEPATH'       => 'RSYNC_DIST_LINKPATH');
-    my %array_type= (RSYNC_DIST_HOST=>1);
-
-	
-    get_last_log_entries(\$gbl_last_locallog_entries);
-    return if (!defined $gbl_last_locallog_entries);
-
-    foreach my $key (keys %log_map)
-      { my($action,$tag)= split(/:/,$key);
-        my $entry= $gbl_last_locallog_entries->{$action};
-	next if (!defined $entry);
-	my $val= $entry->{$tag};
-	next if (!defined $val);
-	my $config_tag= $log_map{$key};
-	if (exists $array_type{$config_tag})
-	  { my @a= split(/[\s,\n]+/,$val);
-	    $val= \@a;
-	  };
-	$extracted{$config_tag}= $val;
-      };
-    container::Import(\%gbl_map_hash,\%extracted,
-                      overwrite=>1, 
-		      skip_empty=> 1);
-    my $var;
-    simpleconf::create(\$var,\%extracted,
-                       lineseparator=>"\n\n",
-		       comments=>\%gbl_config_comments,
-		       order=> \@gbl_config_order
-		      );
-    $var.= "\n";
-    if (defined $filename)
-      { rename_to_bak($filename);
-        write_file($filename,\$var);
-      }
-    else
-      { print $var; };
   }
 
 sub get_last_log_entries
@@ -1454,34 +1433,160 @@ sub get_last_log_entries
     $$rr_h= \%h;
   }      
 
-sub extract_date
-  { my($str)= @_;
-    
-    if (ref($str) eq 'SCALAR')
-      { $str= [$str]; }; # array-ref with one element
-    
-    foreach my $l (@$str)
-      { if ($l=~ /^\s*\d/) 
-	  { my $var= $l;
-	    chomp($var);
-            $var=~ s/\s+.*$//;
- 	    return($var); 
-	  };
-      };    
-    
-    warn "date not recognized in: " . join(" ",@$str);
-    return;
-  }  
+sub last_ver
+  { # take the last distributed version from the
+    # local log-file
 
-sub ver_from_file
+    get_last_log_entries(\$gbl_last_locallog_entries);
+
+    if (!defined $gbl_last_locallog_entries)
+      { die "error: local log-file \"$gbl_local_log\" not found\n" .
+            "or no last distribution info found in this file";
+      };
+ 
+    return($gbl_last_locallog_entries->{distribute}->{VERSION});
+  }    
+
+sub last_tag
+  { # take the last distributed version from the
+    # local log-file
+
+    get_last_log_entries(\$gbl_last_locallog_entries);
+
+    if (!defined $gbl_last_locallog_entries)
+      { die "error: local log-file \"$gbl_local_log\" not found\n" .
+            "or no last distribution info found in this file";
+      };
+ 
+    return($gbl_last_locallog_entries->{distribute}->{TAG});
+  }    
+
+sub show_config_from_log
   { my($filename)= @_;
+  
+    my %extracted;
+    my %log_map= ( '1:distribute:REMOTEHOSTS' => 'RSYNC_DIST_HOST',
+                   '2:distribute:REMOTEHOST'  => 'RSYNC_DIST_HOST',
+                   '3:distribute:REMOTEUSERS' => 'RSYNC_DIST_USER',
+                   '4:distribute:REMOTEUSER'  => 'RSYNC_DIST_USER',
+		   '5:distribute:REMOTEPATH'  => 'RSYNC_DIST_PATH',
+		   '6:links:REMOTEPATH'       => 'RSYNC_DIST_LINKPATH');
+    my %array_type= (RSYNC_DIST_HOST=>1,RSYNC_DIST_USER=>1);
+
+	
+    get_last_log_entries(\$gbl_last_locallog_entries);
+    return if (!defined $gbl_last_locallog_entries);
+
+    foreach my $key (keys %log_map)
+      { my($no,$action,$tag)= split(/:/,$key);
+        my $entry= $gbl_last_locallog_entries->{$action};
+	next if (!defined $entry);
+	my $val= $entry->{$tag};
+	next if (!defined $val);
+	my $config_tag= $log_map{$key};
+	if (exists $array_type{$config_tag})
+	  { my @a= split(/[\s,\n]+/,$val);
+	    $val= \@a;
+	  };
+	next if (exists $extracted{$config_tag});
+	$extracted{$config_tag}= $val;
+      };
+    container::Import(\%gbl_map_hash,\%extracted,
+                      overwrite=>1, 
+		      skip_empty=> 1);
+    my $var;
+    simpleconf::create(\$var,\%extracted,
+                       lineseparator=>"\n\n",
+		       comments=>\%gbl_config_comments,
+		       order=> \@gbl_config_order
+		      );
+    $var.= "\n";
+    if (defined $filename)
+      { rename_to_bak($filename);
+        write_file($filename,\$var);
+      }
+    else
+      { print $var; };
+  }
+
+sub prepare_val
+  { my($r_ref, $scalar_tag, $array_tag)=@_;
+    my $val;
+  
+    my $ref= ref($r_ref);
+    my $tag= $scalar_tag;
+    if    ($ref eq '')
+      { $val= $r_ref; }
+    elsif ($ref eq 'SCALAR')
+      { $val= $$r_ref; }
+    elsif ($ref eq 'ARRAY')
+      { $val= join(",",@$r_ref);
+        $tag= $array_tag;
+      };
+    return($val,$tag);
+  }	
+
+sub new_log_hash
+# creates a hash for later usage with append_single_log().
+# the hash is filled with these fields:
+# LOCALDATE,LOCALHOST,REMOTEUSER,ACTION,
+# REMOTEHOST or REMOTEHOSTS and
+# REMOTEPATH
+# NOTE: $remote_users is usually an array reference
+  { my($now,
+       $local_host,$local_user,
+       $r_hosts_users,
+       $remote_path,
+       $action)= @_;
+  
+    my @remote_hosts;
+    my @remote_users;
+    foreach my $r (@$r_hosts_users)
+      { push @remote_hosts, $r->[0];
+        push @remote_users, $r->[1]; 
+      };
+      
+    my($rhosts,$rhosts_tag)= prepare_val(\@remote_hosts,
+                                         'REMOTEHOST','REMOTEHOSTS');
+    my($rusers,$rusers_tag)= prepare_val(\@remote_users,
+                                         'REMOTEUSER','REMOTEUSERS');
+    
+    my %h= (LOCALDATE=> $now,
+	    LOCALHOST=>$local_host,
+	    ACTION=> $action,
+	    $rhosts_tag=> $rhosts,
+	    $rusers_tag=> $rusers,
+	    REMOTEPATH=> $remote_path,
+	    );
+    return(\%h);
+  }           
+
+sub append_single_log
+# append a single entry to a logfile. The Entry
+# is given as a hash-reference. The field-order is given
+# as a list-reference
+  { my($logfile,$r_log_hash,$r_order)= @_;
+  
+    if (!-e $logfile)
+      { warn "creating \"$logfile\"...\n";
+      };
+    maillike::create($logfile,[$r_log_hash],
+                     mode=> '>>', order=> $r_order,
+		     recordseparator=>"%%");
+  }
+
+
+# ------------------------------------------------
+# file utilities
+# ------------------------------------------------
+
+sub write_file
+  { my($filename,$r_var)= @_;
     local(*F);
-    open(F, "$filename") or die "unable to open $filename\n";
-    my $line=<F>;
-    chomp($line);
+    open(F,">$filename") or die "unable to create \"$filename\"";
+    print F $$r_var;
     close(F);
-    return(extract_date($line));
-  } 
+  }
 
 sub to_file
   { my($filename, $r_lines)= @_;
@@ -1497,21 +1602,36 @@ sub to_file
     close(F);
   }
 
-sub empty
-  { my($st)= @_;
-    my $reftype= ref($st);
+sub rename_to_bak
+  { my($filename)= @_;
   
-    if    ($reftype eq 'ARRAY')
-      { $st= $st->[0]; }
-    elsif ($reftype eq 'SCALAR')
-      { $st= $$st; }
-    elsif ($reftype ne '')
-      { die "assertion: reftype:\"$reftype\""; };
-       
-    return(1) if (!defined $st);
-    return(1) if ($st eq "");
-    return;
+    my $file= $filename;
+    my $ext= ".bak";
+    my $no;
+    
+    return if (!-e $filename);
+    while (-e ($file . $ext))
+      { $ext= sprintf ".bak%d",(++$no); };
+    if (!rename($filename, $file . $ext))
+      { die "error: renaming $file to $file$ext failed"; };
   }
+
+sub filetime
+  { my($path)= @_;
+    my $time;
+  
+    my ($volume,$directories,$file) = File::Spec->splitpath( $path ); 
+    my $oldpwd= cwd();
+    
+    chdir($directories) or die "unable to chdir to \"$directories\"";
+    $time= (stat($file))[9];
+    chdir($oldpwd) or die "unable to chdir to \"$oldpwd\""; 
+    return($time);
+  }
+
+# ------------------------------------------------
+# username/hostname/date utilities  
+# ------------------------------------------------
 
 sub local_info
 # returns a list consisting of:
@@ -1533,6 +1653,50 @@ sub username
 sub my_hostname
 # returns the full qualified name of the localhost
   { return((gethostbyname(hostname()))[0]); }
+
+sub datestring
+# create a datestring the same way "date +%Y-%m-%dT%H:%M:%S" does
+  { my @a=localtime(time()); 
+    return(sprintf("%04d-%02d-%02dT%02d:%02d:%02d", 
+                    1900+$a[5], 1+$a[4], $a[3], 
+		    $a[2], $a[1], $a[0]));
+  }
+
+# ------------------------------------------------
+# string utilities  
+# ------------------------------------------------
+
+sub incr_tag
+  { my($old_tag)= @_;
+  
+    if ($old_tag=~ /^(.*)\s+(\d+)\s*$/)
+      { my $txt= $1;
+        my $no= $2;
+	return($txt . " " . (++$no));
+      };
+    $old_tag=~ s/\s+$//;
+    return($old_tag . " 2");
+  }
+
+sub empty
+  { my($st)= @_;
+    my $reftype= ref($st);
+  
+    if    ($reftype eq 'ARRAY')
+      { $st= $st->[0]; }
+    elsif ($reftype eq 'SCALAR')
+      { $st= $$st; }
+    elsif ($reftype ne '')
+      { die "assertion: reftype:\"$reftype\""; };
+       
+    return(1) if (!defined $st);
+    return(1) if ($st eq "");
+    return;
+  }
+
+# ------------------------------------------------
+# ssh execution
+# ------------------------------------------------
 
 sub myssh_cmd
 # make a system call on a remote host
@@ -1565,25 +1729,18 @@ sub myssh_cmd
     my $ssh_cmd= "ssh -A $host '$cmd'";
     
     if ($opt_dry_run)
-      { print $ssh_cmd,"\n"; }
+      { print $ssh_cmd,"\n"; 
+        return(1);
+      }
     else
       { return(mysys($ssh_cmd, $do_catch, $silent)); }
       
    }
 
-sub filetime
-  { my($path)= @_;
-    my $time;
-  
-    my ($volume,$directories,$file) = File::Spec->splitpath( $path ); 
-    my $oldpwd= cwd();
-    
-    chdir($directories) or die "unable to chdir to \"$directories\"";
-    $time= (stat($file))[9];
-    chdir($oldpwd) or die "unable to chdir to \"$oldpwd\""; 
-    return($time);
-  }
-    
+# ------------------------------------------------
+# system call
+# ------------------------------------------------
+
 sub mysys
 # make a system call
 # parameters:
@@ -1628,6 +1785,10 @@ sub mysys
     die "\"$cmd\" \nfailed, msg:$! errcode: $?";
   }
 
+# ------------------------------------------------
+# command line preprocessing
+# ------------------------------------------------
+
 sub gbl_arg_lst_to_map
   { my %map;
   
@@ -1651,7 +1812,11 @@ sub preproc_args
       { if (exists $r_map->{$arg})
           { $arg= $r_map->{$arg}; };
       };
-   }	
+   }
+
+# ------------------------------------------------
+# config-file / environment handling
+# ------------------------------------------------
 
 sub read_config
 # read variables from the config-file but do
@@ -1698,6 +1863,16 @@ sub show_config
     my $var;
     my %container;
     
+    my $r_host_users= process_user_and_hostname(\@opt_hosts,\@opt_users);
+    if (ref $r_host_users ne '')
+      { @opt_hosts= ();
+        @opt_users= ();
+        for(my $i=0; $i<= $#$r_host_users; $i++)
+          { push @opt_hosts, $r_host_users->[$i]->[0];
+            push @opt_users, $r_host_users->[$i]->[1];
+	  };
+      };
+      
     container::Import(\%gbl_map_hash,\%container,skip_empty=>1,deep_copy=>1);
     
     simpleconf::create(\$var,\%container,
@@ -1713,6 +1888,11 @@ sub show_config
     else
       { print $var; };
   }
+
+
+# ------------------------------------------------
+# utilities for the user interface
+# ------------------------------------------------
 
 sub ask_char
 # ask the user to enter one from a given
@@ -1803,35 +1983,33 @@ sub ask_editor
 sub take_default
 # extract default values for usage with ensure_var()
 # from the local log-file.
-# $conversion:
-#  if "TO-SCALAR" then convert a found value
-#  of a comma-separated list to the first elememt
-#  of that list
 # @list:
-#  a list of strings "action:tag" (separated by a ':')
+#  a list of strings "action:tag{:tag2}" (separated by a ':')
 #  searches in the local logfile for the last occurence
-#  of the given action and extract the tag. The program
+#  of the given action and extract the tag(s). The program
 #  searches the whole @list until it finds something 
-  { my($conversion,@list)= @_;
-    my $val;
+  { my(@list)= @_;
+    my @vals;
   
     get_last_log_entries(\$gbl_last_locallog_entries);
     
     foreach my $l (@list)
-      { my($action,$tag)= split(/:/,$l);
+      { my($action,@tags)= split(/:/,$l);
         
+	# find a recent locallog entry for the given action:
 	my $r_entry= $gbl_last_locallog_entries->{$action};
 	next if (!defined $r_entry);
-	$val= $r_entry->{$tag};
-	if (defined $val)
-	  { if ($conversion eq 'TO-SCALAR')
-	      { my(@a) = split(/[,\s\n]+/,$val);
-	        $val= $a[0];
-	      };
-	    last;
-	  };    
+	
+	@vals=();
+	# find all values:
+	foreach my $t (@tags)
+	  { push @vals, $r_entry->{$t} if (defined $r_entry->{$t});
+	  };
+	  
+	if ($#vals == $#tags) # all values found
+	  { last; };
       };
-    return($val);
+    return(@vals);
   }
     
 sub ensure_var
@@ -1879,56 +2057,55 @@ sub ensure_var
     else
       { die "assertion"; };   
   }
-    
-sub new_log_hash
-# creates a hash for later usage with append_single_log().
-# the hash is filled with these fields:
-# LOCALDATE,LOCALHOST,REMOTEUSER,ACTION,
-# REMOTEHOST or REMOTEHOSTS and
-# REMOTEPATH
-  { my($now,
-       $local_host,$local_user,
-       $r_remote_hosts,$remote_user,
-       $remote_path,
-       $action)= @_;
-  
-    my $rhosts_tag= 'REMOTEHOST';
-    my $rhosts;
-    my $ref= ref($r_remote_hosts);
-    
-    if    ($ref eq '')
-      { $rhosts= $r_remote_hosts; }
-    elsif ($ref eq 'SCALAR')
-      { $rhosts= $$r_remote_hosts; }
-    elsif ($ref eq 'ARRAY')
-      { $rhosts= join(",",@$r_remote_hosts);
-        $rhosts_tag= 'REMOTEHOSTS';
-      };	
-    
-    my %h= (LOCALDATE=> $now,
-	    LOCALHOST=>$local_host,
-	    REMOTEUSER=> (defined $remote_user) ? $remote_user : $local_user,
-	    ACTION=> $action,
-	    $rhosts_tag=> $rhosts,
-	    REMOTEPATH=> $remote_path,
-	    );
-    return(\%h);
-  }           
 
-sub append_single_log
-# append a single entry to a logfile. The Entry
-# is given as a hash-reference. The field-order is given
-# as a list-reference
-  { my($logfile,$r_log_hash,$r_order)= @_;
+sub ensure_host_users
+  { my($r_hosts,$r_users)= @_;
   
-    if (!-e $logfile)
-      { warn "creating \"$logfile\"...\n";
-      };
-    maillike::create($logfile,[$r_log_hash],
-                     mode=> '>>', order=> $r_order,
-		     recordseparator=>"%%");
-  }
-
+    my @strs;
+    my $result;
+    my $io_done;
+    
+    for(;;)
+      { 
+        if    (($#$r_hosts<0) && ($#$r_users<0))
+          { ensure_var(\@strs, 'REMOTEHOSTSUSERS', 
+                       take_default('distribute:REMOTEHOSTS:REMOTEUSERS',
+		     	            'links:REMOTEHOSTS:REMOTEUSERS',
+      		                   )
+                      );
+	    $io_done= 1;    
+	    $result= process_user_and_hostname(\@strs);	      
+	  }
+	elsif ($#$r_hosts<0)	      
+          { # users are specified, ask only for the hosts
+	    ensure_var(\@strs, 'REMOTEHOSTS', 
+                       take_default('distribute:REMOTEHOSTS',
+		     	            'links:REMOTEHOSTS',
+      		                   )
+                      );
+	    $io_done= 1;    
+	    $result= process_user_and_hostname(\@strs);	      
+	  }
+	elsif ($#$r_users<0)
+	  { # no users may be ok, when they are supplied with the
+	    # hostnames in the form "user@hostname"
+	    $result= process_user_and_hostname($r_hosts);	      
+	    $r_hosts= [];
+	  }
+	else
+	  { $result= process_user_and_hostname($r_hosts,$r_users); };
+	  
+        return($result) if (ref($result) ne '');
+        if ($io_done)
+	  { print "$result, re-enter or quit (R/Q) ?\n";
+	    my $ch= ask_char(qw(r q));
+	    if ($ch eq 'q')
+	      { exit 0; };
+          };
+      };    
+  } 
+ 
+ 
 sub dir_dependant
 # used to recognize command-line options that contain
 # a dirname like "dist,16" where "dist" is the dirname and
@@ -1971,13 +2148,39 @@ sub dirname
     return($dir);
   }	    
 
-sub datestring
-# create a datestring the same way "date +%Y-%m-%dT%H:%M:%S" does
-  { my @a=localtime(time()); 
-    return(sprintf("%04d-%02d-%02dT%02d:%02d:%02d", 
-                    1900+$a[5], 1+$a[4], $a[3], 
-		    $a[2], $a[1], $a[0]));
+sub process_user_and_hostname
+# returns a list of [hostname,username] pairs
+# either hosts and users are arrays, where at least 
+# one hostname and one username is given or
+# hosts is a list of "user@hostname" strings
+  { my($r_hosts,$r_users)= @_;
+    my @l;
+    
+    if ($#$r_hosts<0)
+      { return("no hosts"); }; # no hostnames given
+    
+    for(my $i=0; $i<= $#$r_hosts; $i++)
+      { if ($r_hosts->[$i]=~ /^\s*(\S+)\@(\S+)\s*$/)
+          { # format: "user@hostname"
+	    push @l, [$2,$1];
+	    next;
+	  };
+	# here: simple hostname
+	my $user= $r_users->[$i];
+	if (!defined $user) # user-array shorter than hostname array
+	  { $user= $r_users->[-1]; # take last element of array
+	    if (!defined $user)
+	      { return("no users"); # error, username missing
+	      };
+	  };
+	push @l, [$r_hosts->[$i],$user];
+      };
+    return(\@l);
   }
+
+# ------------------------------------------------
+# online-help
+# ------------------------------------------------
 
 sub print_summary
 # print a summary of the script
@@ -2005,11 +2208,8 @@ Syntax:
   
   commands that do changes on the server:
 
-    dist --dist -d {filename}
+    dist --dist -d 
                 distribute files to remote host
-		if {filename} is given, the name of the created directory
-		is written to <filename>. Note that the file is overwritten
-		if it exists before.
 
     to-attic --to-attic [dir] 
                 move a directory (aka version) to the "attic" directory
@@ -2126,7 +2326,7 @@ Syntax:
 		spaces or colons
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_HOST"	
-    --user -u [remote-user]
+    --user -u [remote-user[,remote-user2...]]
                 specify the user for login on the remote host
 		if this option is not given the script tries to read from
 		the environment variable "RSYNC_DIST_USER"	
@@ -2248,22 +2448,30 @@ Syntax:
     		do not show defaults for the text-entries when the
 		editor is called
 
+    --no-no-editor-defaults 
+    	        set "--no-editor-defaults" (see above) to false
+		(use editor defaults). Since this is the default behaviour, 
+		this option is only needed in order to override a 
+		different setting taken from a config file  
 
-    --prefix-distdir
-                take the path of the dist-directory as prefix for the "source" part 
-		of the add-links or change-links command. 
-		Together with --last-dist you can specify the "source" part completely
-		like it is shown here:		
-		  rsync-dist.pl --config my_config --prefix-distdir --last-dist change-links idcp*
+    --prefix-distdir 
+		take the path of the dist-directory as prefix for the "source" 
+		part of the add-links or change-links command. 
+		Together with --last-dist you can specify the "source" part 
+		completely like it is shown here:		
+		  rsync-dist.pl --config my_config --prefix-distdir \
+		                --last-dist change-links idcp*
 
-		Note that in this example if you want to specify several links directly, 
-		you have to PREPEND a comma to the list like this:
-		  rsync-dist.pl --config my_config --prefix-distdir --last-dist change-links ,idcp1,idcp2
+		and here:
 		
-		otherwise the first link-name would be taken as a "source" part
+		  rsync-dist.pl --config my_config --prefix-distdir \
+		                --last-dist change-links idcp1,idcp2
 		
-		in this example e.g. ",idcp1,idcp2,idcp3" in order to specify an
-		empty <source> part.
+    --no-prefix-distdir 
+    	        set "--prefix-distdir" (see above) to false. Since
+		this is the default behaviour, this option is only needed
+		in order to override a different setting taken from
+		a config file  
 
     --last-dist -L
     	        append the name of the last distribution that was
