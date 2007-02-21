@@ -26,12 +26,13 @@ Options::register(
 	['passwd', 				'p', 	'=s', "Password",   "password", "", 1],
 	['output', 					'o', 	'=s', "output format as a selection of list, table, htmltable, csvtable, set, htmlset, xmlset or dump"],
 	['outputbody',			'b', 	'', 	"removing to output header"],
-	['outputindex',			'i', 	'', 	"adding index to output"],
-	['extract', 				'x', 	'', 	"adding the extracted name parts"],
-	['description',			'd', 	'', 	"adding the descriptions"],
-	['groups', 				'g', 	'', 	"adding the grouping names"],
-	['lattice', 					'l', 	'', 	"adding the lattice values"],
-	['sort', 						's', 	'=s', "supported: key, name, family, domain, groups, lattice"],
+	['outputindex',			'i', 	'', 	"insert indexcount to output"],
+	['extract', 				'x', 	'', 	"concat the extracted name parts"],
+	['description',			'd', 	'', 	"concat the descriptions"],
+	['groups', 				'g', 	'', 	"concat the grouping names"],
+	['lattice', 					'l', 	'', 	"concat the lattice values"],
+	['sort', 						's', 	'=s', "supported: key/revkey, \n\tnamerevname (default), \n\tfamily (only if -x option is set), \n\tdomain/revdomain (only if -x option is set), \n\tgroups(only if -g option is set)\n\tlattice sorted automatically"],
+	['revertsort', 			'', 	'', 	"revert/desc sort, without lattice order"],
 	['facility', 					'F', 	'=s', "filter facility, like  bii, mls, fel"],
 	['force', 					'f',   	'', 	"use force query with the default database account"],
 	['verbose',  				'v',   '', 	"print a lot more informations"],
@@ -50,7 +51,7 @@ die $usage if $#ARGV< 0;
 
 ODB::verbose() == 1 if $config->{'verbose'};
 
-if (! defined $config->{'output'} or ! $config =~ /(table|csvtable|htmltable|list|set|htmlset|xmlset|dump)/) {
+if (! defined $config->{'output'} or ! $config->{'output'} =~ /(table|csvtable|htmltable|list|set|htmlset|xmlset|dump)/) {
 	$config->{'output'} = 'list';
 }
 
@@ -60,28 +61,44 @@ my $dbobject = 'DEVICE.V_NAMES vn';
 my @columns = ('vn.KEY', 'vn.NAME');
 # array of the given names in the select statement
 my @head = ('KEY', 'NAME');
-# maybe the whereclause
+# maybe the whereclause and teh sortorder
 my $dbjoin = "vn.KEY > 0";
+my %dborder = ();
+if ($config->{'sort'}) {
+	$config->{'sort'} = lc($config->{'sort'});
+} else {
+	$config->{'sort'} = "name";
+}
+$dborder{"key"} = "vn.KEY";
+$dborder{"name"} = "vn.NAME";
+$dborder{"revkey"} = "vn.KEY DESC";
+$dborder{"revname"} = "vn.NAME DESC";
+
 # columnwidth maximal
 my $colmax = 12;
 
 if (defined $config->{'extract'}) {
 	push @columns, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
 	push @head, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
+	$dborder{"family"} = "FAMILY";
+	$dborder{"domain"} = "FACILITY, DOMAIN, SUBSTR(SUBDOMAIN, 1, 1), TO_NUMBER(SUBSTR(SUBDOMAIN, 2))";
+	$dborder{"revdomain"} = "FACILITY DESC, DOMAIN DESC, SUBSTR(SUBDOMAIN, 1, 1) DESC, TO_NUMBER(SUBSTR(SUBDOMAIN, 2)) DESC";
 }
 
 if (defined $config->{'description'}) {
 	$dbobject .= ", DEVICE.V_NAME_DESCRIPTIONS vnd";
 	push @columns, ('DESCRIPTION');
 	push @head, ('DESCRIPTION');
-	$dbjoin .= " AND vn.key = vnd.key(+)"
+	$dbjoin .= " AND vn.key = vnd.key(+)";
 }
 
 if (defined $config->{'lattice'}) {
 	$dbobject .= ", DEVICE.V_LATTICE vl";
 	push @columns, ('DS', 'LENGTH');
 	push @head, ('DS', 'LENGTH');
-	$dbjoin .= " AND vn.key = vl.key"
+	$dbjoin .= " AND vn.key = vl.key";
+	$config->{'sort'} = "lattice";
+	$dborder{"lattice"} = "TO_NUMBER(vl.DS)";
 }
 
 if (defined $config->{'facility'}) {
@@ -106,7 +123,12 @@ if (defined $config->{'facility'}) {
 	}
 }
 
-print "Output formatted as ".$config->{'output'}."\n" if ($config->{"verbose"});
+
+if (! $dborder{$config->{'sort'}}) {
+	$config->{'sort'} = "name";
+}
+
+print "Output formatted as ".$config->{'output'}.." and sorted by ".$config->{"sort"}."\n" if ($config->{"verbose"});
 
 die $usage if not $config or $config->{"help"};
 
@@ -144,6 +166,7 @@ foreach my $devname (@names) {
 	if (length($dbjoin) > 0) {
 		$where .= " AND ".$dbjoin;
 	}
+	$where .= " ORDER BY ".$dborder{$config->{"sort"}};
 	my $result = ODB::sel($dbobject, $colstr, $where);
 	print "\nResult of statement has ".$#$result."entries." if ($config->{'verbose'});
 	my $out;
@@ -154,10 +177,11 @@ foreach my $devname (@names) {
 		}
 		if ($config->{'output'} eq 'table') {
 # table
-			print "\n|".join(" |", map(sprintf("%".$colmax."s",$row->{$_}), @head))." |";
+			print "|".join(" |", map(sprintf("%".$colmax."s",$row->{$_}), @head))." |";
 			if ($config->{"groups"}) {
 				print sprintf("%s: %s", "GROUPS", &getGroups($row->{"KEY"}));
 			}
+			print "\n";
 # htmltable
 		} elsif ($config->{'output'} eq 'htmltable') {
 			print "\n\t".sprintf("<tr id=\"%u\">", $indexed);
@@ -228,21 +252,21 @@ sub getHeader {
 	my $ret = "";
 	if (! $config->{"outputbody"}) {
 		if ($config->{'output'} eq 'table') {
-			$linelength = $colmax*@columns+2*@columns+1;
+			$linelength = ($colmax+2)*@columns+1;
+			$ret .=  &printLine();
 			if ($config->{'index'}) {
 				$ret .=  sprintf(" %12s ", "#");
 				$linelength += 12;
 			}
-			print &printLine();
-			$ret .=   "\n|".join("|",map(sprintf("%".$colmax."s ",$_), @head))."|\n";
+			$ret .=  "\n|".join("|",map(sprintf("%".$colmax."s ",$_), @head))."|";
 			if ($config->{'groups'}) {
-				$ret .=   "|".sprintf(" %".$colmax."s ","GROUPS");
+				$ret .=   sprintf(" %".$colmax."s ","GROUPS")."|";
 			}
-			print &printLine();
+			$ret .=  "\n".&printLine()."\n";
 		} elsif ($config->{'output'} eq 'htmltable') {
 			print "\n<table class=\"bdns\">\n\t<tr>";
 			if ($config->{'index'}) {
-				$ret .=  "\n\t<th>#</th>";
+				print "\n\t<th>#</th>";
 			}
 			$ret .=   "\n\t".join("\n\t",map(sprintf("<th class=\"bdns\">%".$colmax."s</th>",$_), @head));
 			if ($config->{'groups'}) {
@@ -277,7 +301,7 @@ sub getFooter {
 	my $ret = "";
 	if (! $config->{'outputbody'}) {
 		if ($config->{'output'} eq "table") {
-			$ret .= "\n";
+			$linelength = ($colmax+2)*@columns+1;
 			print &printLine();
 			$ret .= "\n $rowindex Entries found";
 		} elsif ($config->{'output'} eq "htmltable") {
@@ -310,5 +334,3 @@ sub printLine {
 	return $ret;
 }
 exit;
-
-
