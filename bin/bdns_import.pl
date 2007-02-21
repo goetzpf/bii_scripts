@@ -68,7 +68,7 @@ foreach my $devname (@names) {
 }
 
 warn Dumper(%allnames);
-my $config = Options::ask_out();
+Options::ask_out($config);
 
 my $handle = ODB::login($config);
 Options::print_out("Connected as ".$config->{"user"}."@".$config->{"dbase"}."\n");
