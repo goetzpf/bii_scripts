@@ -17,7 +17,12 @@ my $config={'verbose'=>0};
 #------------------------------------------------------------------------------
 sub login {
   $config = shift;
+  
+  if (ref($config) ne 'HASH')
+    { die "error: \$config is not a hash or not set"; };
+  
   return $dbh if defined $dbh;
+
   $dbh = DBI->connect("dbi:Oracle:".$config->{"dbase"}, $config->{"user"}, $config->{"passwd"},
     {RaiseError => 1, PrintError => 0, AutoCommit => 0, ShowErrorStatement => $config->{'verbose'}});
   return $dbh;
