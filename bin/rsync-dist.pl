@@ -800,7 +800,7 @@ sub change_link
     # read the link-parameter if it is defined
     # it should be <source-dir>,<filemask>
     if (defined $linkparam)
-      { @files= split(/,/,$linkparam);
+      { @files= split(/[,\s:]+/,$linkparam);
         if ($#files>0) # more than one argument
 	  { if ($files[0] =~ /^\s*$/)
 	      { # first argument empty, discard it
@@ -1848,7 +1848,7 @@ sub read_env
 	elsif ($ref eq 'SCALAR')
 	  { $env{$key}= $val; }
 	elsif ($ref eq 'ARRAY')
-	  { $env{$key}= [split(",",$val)]; }
+	  { $env{$key}= [split(/[,\s:]+/,$val)]; }
 	else
 	  { die "unsupported reftype, key: $key reftype: $ref"; }; 
       };
