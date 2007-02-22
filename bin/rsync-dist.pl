@@ -218,6 +218,9 @@ my %gbl_map_hash=
 	       RSYNC_DIST_CHECKSUM  => \$opt_checksum,
 	       RSYNC_DIST_EDITOR => \$opt_editor,
 	       RSYNC_DIST_EDITOR_NO_DEFAULTS => \$opt_no_editor_defaults,
+	       RSYNC_DIST_SHOW_PROGRESS => \$opt_progress,
+	       RSYNC_DIST_TAG => \$opt_tag,
+	       RSYNC_DIST_MESSAGE => \$opt_message,
 	      );
 
 # the following datastructure is used when the config-file
@@ -246,7 +249,14 @@ my %gbl_config_comments=
 	                          "editor for log-messages and tags",
 	       RSYNC_DIST_EDITOR_NO_DEFAULTS =>
 	                          "do not display defaults when the " .
-				  "editor is called",		  
+				  "editor is called",	
+	       RSYNC_DIST_SHOW_PROGRESS =>	
+	                          "show progress of rsync on console",
+	       RSYNC_DIST_TAG =>
+	                          "fixed tag for all distributions",
+	       RSYNC_DIST_MESSAGE => 
+	       			  "fixed log-message for dist, add-links\n" .
+				  "and change-links commands" 		  		   	  
               );
 	      
 # the following datastructure is used when the config-file
@@ -264,6 +274,9 @@ RSYNC_DIST_WORLDREADABLE
 RSYNC_DIST_CHECKSUM
 RSYNC_DIST_EDITOR 
 RSYNC_DIST_EDITOR_NO_DEFAULTS
+RSYNC_DIST_SHOW_PROGRESS
+RSYNC_DIST_TAG
+RSYNC_DIST_MESSAGE
 );
 
 
@@ -392,14 +405,14 @@ if ($opt_summary)
 
 @opt_localpaths = split(/[,\s:]+/,join(',',@opt_localpaths));
 
-if (defined $opt_progress)
-  { $gbl_rsync_opts .= " --progress"; };
-
 if ($opt_env)
   { read_env(); }
 
 if ($opt_config)
   { read_config($opt_config); }
+
+if (defined $opt_progress)
+  { $gbl_rsync_opts .= " --progress"; };
 
 if (!defined $opt_editor)
   { $opt_editor= $default_editor; }
@@ -860,13 +873,19 @@ sub change_link
     # new: empty string as logmessage is allowed:
     if (!defined $logmessage)
       { my $take_from_user= 1;
-        if ((defined $opt_automessage) && (defined $opt_last_dist))
-          { my $last_tag= last_tag();
-	    if (!empty($last_tag))
-	      { $logmessage= "link to $last_tag"; 
-	        $take_from_user=0; 
-	      }; 
-          };
+        if (defined $opt_automessage)
+	  { if (!defined $opt_last_dist)
+	      { warn "warning: --automessage is without effect when " .
+	             "--last-dist is not used...\n"; 
+	      }
+	    else
+              { my $last_tag= last_tag();
+		if (!empty($last_tag))
+		  { $logmessage= "link to $last_tag"; 
+	            $take_from_user=0; 
+		  }; 
+              };
+          }
 	if ($take_from_user)
 	  { ensure_var(\$logmessage    , 'LOGMESSAGE' , 
                        take_default('links:LOGMESSAGE'));
@@ -2396,11 +2415,12 @@ Syntax:
                 RSYNC_DIST_HOST
 		  name of the distribution host or hosts. 
 		  More than one host can be specified as a
-		  comma-separated list. Note that the first one in the
-		  list is always the primary host. See also --hosts
+		  comma-separated list. See also --hosts
 		RSYNC_DIST_USER
-		  the username $sc_name uses to log on to the remote
-		  host. See also --user
+		  the username(s) $sc_name uses to log on to the remote
+		  hosts. See also --user. When several hosts (see above)
+		  are defined, you can define several (possibly different)
+		  users for the hosts
 		RSYNC_DIST_PATH
 		  the remote distribution directory. See also
 		  --distpath
@@ -2430,6 +2450,20 @@ Syntax:
                 RSYNC_DIST_EDITOR_NO_DEFAULTS
 		  when set to 1, the editor does not show defaults,
 		  when called
+                RSYNC_DIST_SHOW_PROGRESS
+		  when set to 1, show progress of rsync on console
+ 		RSYNC_DIST_TAG
+		  specify a default-tag, may also be empty in which
+		  case the program does not request a tag if no one
+		  is given on the command line
+		  NOTE: it is, however, questionable to specify a
+		  constant default tag
+ 		RSYNC_DIST_MESSAGE
+		  specify a default log-message, may also be empty in which
+		  case the program does not request a message if no one
+		  is given on the command line
+		  NOTE: it is, however, questionable to specify a
+		  constant default log message
 
 		Note that command-line arguments always override 
 		values taken from the config-file.   
