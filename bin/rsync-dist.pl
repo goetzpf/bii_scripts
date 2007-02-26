@@ -72,7 +72,7 @@ use vars qw($opt_help
             );
 
 
-my $sc_version= "1.5";
+my $sc_version= "1.6";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
@@ -396,6 +396,10 @@ if (!GetOptions("help|h",
   { die "parameter error!\n"; };
 
 #die "pref dd: $opt_prefix_distdir";
+
+if (@ARGV)
+  { warn "warning: additional arguments ignored:\"" . 
+          join(" ",@ARGV) . "\"\n"; };
 
 if ($opt_help)
   { help();
@@ -1943,7 +1947,7 @@ sub ask_char
     my %known= map { $_=> 1 } @chars;
   
     for(;;)
-      { my $var= <>;
+      { my $var= <STDIN>;
         $var= lc($var);
         $var=~ s/^\s+//;
         $var=~ s/\s+$//;
@@ -2060,15 +2064,13 @@ sub ensure_var
 # takes a reference to that variable, a tag specifying
 # a short help text (see also %gbl_edit_texts)
 # and a (optional) default value
-  { my($r_ref,$tag,$default)= @_;
+  { my($ref,$tag,$default)= @_;
     
     if (defined $opt_no_editor_defaults)
       { $default= undef; };
    
-    my $ref= $$r_ref;
-    
     my $reftype= ref($ref);
- 
+    die "assertion" if ($reftype eq '');
     die "assertion" if ($reftype eq 'HASH');
     
     return if (!empty($ref));
@@ -2088,13 +2090,10 @@ sub ensure_var
     my $str;
     ask_editor($message, $default, \$str);
 
-    if    ($reftype eq '')
-      { $$r_ref= $str; }
-    elsif ($reftype eq 'SCALAR')
-      { $$r_ref= \$str; }
+    if ($reftype eq 'SCALAR')
+      { $$ref= $str; }
     elsif ($reftype eq 'ARRAY')
-      { my @array= split(/[\n ,]+/,$str);
-        $$r_ref= \@array;
+      { @$ref= split(/[\n ,]+/,$str);
       }
     else
       { die "assertion"; };   
@@ -2110,7 +2109,8 @@ sub ensure_host_users
     for(;;)
       { 
         if    (($#$r_hosts<0) && ($#$r_users<0))
-          { ensure_var(\@strs, 'REMOTEHOSTSUSERS', 
+          { 
+	    ensure_var(\@strs, 'REMOTEHOSTSUSERS', 
                        take_default('distribute:REMOTEHOSTS:REMOTEUSERS',
                                     'links:REMOTEHOSTS:REMOTEUSERS',
                                    )
