@@ -1129,6 +1129,7 @@ sub internal_server_lock
           { warn "trying to $action lock on $remote_host...\n"; };
 
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+
         if (!$rc)
           { warn "error: locking on \"$remote_host\" path \"$remote_path\"" .
                  "failed\n";
@@ -1355,7 +1356,7 @@ sub sh_mklock
        $showlock.= ' | sed -e "s/.*-> //"';
 
     return("ln -s $from LOCK; " .
-           "if [ $? -ne 0 ]; " .
+           'if [ $? -ne 0 ]; ' .
            'then echo LOCKED by`' . $showlock . '`; ' .
                 "exit $my_errcode; " .
            'fi');
@@ -1760,7 +1761,7 @@ sub myssh_cmd
       { $host= $user . '@' . $host; };
     
     if (defined $path)
-      { $cmd= "(cd $path && $cmd)"; };
+      { $cmd= "(cd $path; if [ \$? -ne 0 ]; then exit $my_errcode; fi && $cmd)"; };
       
     # -A: turn agent forwarding on 
     my $ssh_cmd= "ssh -A $host '$cmd'";
@@ -1813,7 +1814,8 @@ sub mysys
           };
       }
     else
-      { $rc= system($cmd); };
+      { $rc= system($cmd); 
+      };
       
     return(1,$r_lines) if ($rc==0);
 
