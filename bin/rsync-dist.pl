@@ -693,8 +693,7 @@ sub dist
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n";
 
          my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                             $rcmd, 1);
@@ -801,8 +800,7 @@ sub move_file
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n"; 
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -987,8 +985,7 @@ sub change_link
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n";
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1033,8 +1030,7 @@ sub cat_file_
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n"; 
 
         my($rc,$r_lines)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                                     $rcmd, 1, 1);
@@ -1077,8 +1073,7 @@ sub ls
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n"; 
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
        $all_rc&= $rc;
        if (!$rc)
@@ -1184,8 +1179,7 @@ sub rebuild_last
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n";
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1277,8 +1271,7 @@ sub ls_version
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n";
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1314,8 +1307,7 @@ sub ls_tag
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        if ($#$r_hosts_users>0)
-          { print "\nHost:$remote_host:\n"; }
+        print "\nHost:$remote_host:\n";
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
