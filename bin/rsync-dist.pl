@@ -202,6 +202,24 @@ my $my_errcode= 67;
 
 my $gbl_rsync_opts="-a -u -z --delete";
 
+# the following datastructure is used to take data from
+# environment variables. This is done even when the "--env"
+# option is nit given.
+my %gbl_env_map_hash1=
+              (
+               RSYNC_DIST_EDITOR => \$opt_editor,
+              );
+
+# the following datastructure is used to take data from
+# environment variables. This is done even when the "--env"
+# option is nit given. This structure is evalued after the
+# structure above, so the variables here have a lower priority
+# than the ones listed above.
+my %gbl_env_map_hash2=
+              (
+               EDITOR => \$opt_editor,
+              );
+
 # the following datastructure is used when the config-file
 # is parsed. It links entries in the log-file to global
 # variables in this program
@@ -340,7 +358,7 @@ if (!GetOptions("help|h",
                 "from_attic|from-attic:s",
                 "change_links|change-links|C:s",
                 "add_links|add-links|A:s",
-                "mirror",
+                "mirror=s",
                 "rm_lock|rm-lock=s",
                 "mk_lock|mk-lock=s",
                 "rebuild_last|rebuild-last",
@@ -406,7 +424,7 @@ if ($opt_summary)
 @opt_localpaths = split(/[,\s:]+/,join(',',@opt_localpaths));
 
 if ($opt_env)
-  { read_env(); }
+  { read_env(\%gbl_map_hash); }
 
 if ($opt_config)
   { read_config($opt_config); }
@@ -414,8 +432,12 @@ if ($opt_config)
 if (defined $opt_progress)
   { $gbl_rsync_opts .= " --progress"; };
 
+# unconditionally read variables from the environment:
+read_env(\%gbl_env_map_hash1);
+read_env(\%gbl_env_map_hash2);
+
 if (!defined $opt_editor)
-  { $opt_editor= $default_editor; }
+  { $opt_editor= $default_editor; };
 
 if ((defined $opt_show_config) || (defined $opt_write_config))
   { show_config($opt_write_config);
@@ -1176,7 +1198,7 @@ sub rebuild_last
   }
 
 sub mirror
-  { my($r_hosts,$r_users,,$remote_path)= @_;
+  { my($r_hosts,$r_users,$remote_path)= @_;
   
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
     if (empty($remote_path))
@@ -1186,7 +1208,7 @@ sub mirror
       };
     
     if ($#$r_hosts_users <=0)
-      { die "error: you have to specify more than one server for this\n"; };  
+      { die "error: you have to specify at least two servers for this\n"; };  
                            
     my($now,$local_host,$local_user,$from)= local_info();
 
@@ -1855,9 +1877,10 @@ sub read_env
 # read global variables from the environment
 # lists must be represented as strings containing
 # comma separated values
-  { 
+  { my ($r_gbl_map_hash)= @_; 
+  
     my %env;
-    foreach my $key (keys %gbl_map_hash)
+    foreach my $key (keys %$r_gbl_map_hash)
       { my $val= $ENV{$key};
         $val=~ s/^\s+//;
         $val=~ s/\s+$//;
@@ -1871,7 +1894,7 @@ sub read_env
         else
           { die "unsupported reftype, key: $key reftype: $ref"; }; 
       };
-    container::Export(\%gbl_map_hash,\%env,overwrite=>0,skip_empty=>1);
+    container::Export($r_gbl_map_hash,\%env,overwrite=>0,skip_empty=>1);
   }
   
 sub show_config
@@ -2245,10 +2268,12 @@ Syntax:
                 add links on the remote server
                 --> see also "--last-dist"
 
-    mirror --mirror [dist|d|links|l,remote-host{,remote-host...}]
-                mirror the specified directory to the specified
-                hosts 
-                (for distribution or links)
+    mirror --mirror [dist|d|links|l]
+                mirror the specified directory from the first
+                given host to all following ones. 
+                Caution: you may delete data on the secondary
+                hosts that you wanted to keep, think twice before
+                running this command
 
     rm-lock --rm-lock [dist|d|links|l]
     
@@ -2476,7 +2501,13 @@ Syntax:
   miscellaneous options:
 
     --editor [editor]
-                specifiy the interactive editor, default: "$default_editor"
+                specifiy the interactive editor. 
+                if this option is not given the script tries to read from
+                the environment variable "RSYNC_DIST_EDITOR", if this
+                is not set from "EDITOR", if this is not set the
+                default is "$default_editor"
+                Note that these environment variables are 
+                even if "--env" (see above) is not given        
     
     --no-editor-defaults -N
                 do not show defaults for the text-entries when the
@@ -2569,8 +2600,8 @@ either by comparing file-creation times or a MD5 sum.
 
 =item *
 
-During distribution, files can be transferred from the central server 
-to secondary servers which mirror all the files from the central server. 
+During distribution, files can be transferred to several servers
+in one single command. 
 
 =item *
 
