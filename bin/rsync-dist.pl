@@ -62,15 +62,20 @@ use vars qw($opt_help
             $opt_prefix_distdir
             $opt_no_editor_defaults
             $opt_last_dist
-            $opt_ls_bug
             $opt_checksum
             $opt_progress
             $opt_dry_run
             $opt_world_readable
             $opt_debug 
             $opt_version
+            $opt_create_missing_links
             );
 
+use constant {
+  do_add           => 0,
+  do_change        => 1,
+  do_change_or_add => 2,
+};
 
 my $sc_version= "1.6";
 
@@ -383,11 +388,11 @@ if (!GetOptions("help|h",
                 "no_editor_defaults|no-editor-defaults|N!",
                 "prefix_distdir|prefix-distdir!",               
                 "last_dist|last-dist|L",
-                "ls_bug|ls-bug",
                 "checksum",
                 "progress",
                 "dry_run|dry-run",
                 "world_readable|world-readable|w",
+                "create_missing_links|create-missing-links",
 
 # undocumented:
                 "debug",
@@ -541,8 +546,9 @@ if ($opt_mirror)
 
 if (defined $opt_change_links)
   { my($arg,$rpath,$log,$chg)= dir_dependant('links');
+    my $link_action= $opt_create_missing_links ? do_change_or_add : do_change;
     my $rc=
-      change_link(0, \@opt_hosts,\@opt_users,$rpath,$opt_message,$opt_change_links);
+      change_link($link_action, \@opt_hosts,\@opt_users,$rpath,$opt_message,$opt_change_links);
     exit($rc ? 0 : 1);
   }
 
@@ -551,7 +557,7 @@ if (defined $opt_add_links)
     my @files;
     my $source;
     my $rc=
-      change_link(1, \@opt_hosts,\@opt_users,$rpath,$opt_message,$opt_add_links);
+      change_link(do_add, \@opt_hosts,\@opt_users,$rpath,$opt_message,$opt_add_links);
     exit($rc ? 0 : 1);
   }
 
@@ -823,7 +829,7 @@ sub move_file
   }
               
 sub change_link
-  { my($do_add, $r_hosts,$r_users, $remote_path, $logmessage,
+  { my($link_action, $r_hosts,$r_users, $remote_path, $logmessage,
        $linkparam )= @_;
 
     my @files;
@@ -919,12 +925,14 @@ sub change_link
     my($now,$local_host,$local_user,$from)= local_info();
 
     # start to create hash for local logfile:
+    my $action_name= ($link_action == do_add)    ? 'add links' :
+                     ($link_action == do_change) ? 'change links' :
+                                                   'change or add links';
     my $r_log= new_log_hash($now,
                             $local_host,$local_user,
                             $r_hosts_users,
                             $remote_path,
-                            $do_add ? 'add links' : 'change links');
-
+                            $action_name);
     
     my $log= LINK_LOG;
     
@@ -936,16 +944,23 @@ sub change_link
               'fi && ' .
               sh_handle_attic($log);
                 
-    if ($do_add)
+    if ($link_action==do_add)
       { $rcmd.= ' && ' . sh_must_all_not_exist(@$r_files)  . ' && ';
       }
-    else        
+    elsif ($link_action==do_change)
       { $rcmd.= ' && ' . sh_must_all_be_symlinks(@$r_files) . ' && ' .
-                'ls -l ' . $files;
-        $rcmd.= " 2>/dev/null" if ($opt_ls_bug);
+                '/bin/ls -l ' . $files;
         $rcmd.= ' > OLD && ' 
+      }
+    elsif ($link_action==do_change_or_add)
+      { $rcmd.= " && ".
+                "for l in $files ; do " .
+                  'if test -e $l; ' .
+                  'then /bin/ls -l $l >> OLD; echo $l >> CHANGED; ' .
+                  'else echo $l >> ADDED; ' .
+                  'fi; ';
+        $rcmd.= 'done && ';
       };
-    
     
     # determine where to place the linklog-file:
     my $source_base= (File::Spec->splitpath($remote_source))[1];
@@ -976,8 +991,7 @@ sub change_link
                 "echo \"%%\" >> $log && " .
                 "echo DATE: $datestr >> $log && " .
                 sh_add_log($log,$from,$logmessage,undef) . ' && ' .
-                sh_add_symlink_log($log,$do_add,@$r_files) . ' && ' .
-                
+                sh_add_symlink_log($log,$link_action,@$r_files) . ' && ' .
                 'find . -type l -printf "%l %f\n" ' .
                 "| sort | grep \"^$source_base\" | sed -e \"s/^.*\\///\" " .
                 "> $linklog " ;
@@ -1067,8 +1081,7 @@ sub ls
                                 'links:REMOTEPATH'));
       };                           
 
-    my $rcmd= "ls -l";
-    $rcmd.= " 2>/dev/null" if ($opt_ls_bug);
+    my $rcmd= "/bin/ls -l";
 
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
@@ -1351,8 +1364,7 @@ sub sh_add_log
 sub sh_mklock
   { my($from)=@_;
   
-    my $showlock= 'ls -l LOCK';
-       $showlock.= ' 2>/dev/null' if ($opt_ls_bug);
+    my $showlock= '/bin/ls -l LOCK';
        $showlock.= ' | sed -e "s/.*-> //"';
 
     return("ln -s $from LOCK; " .
@@ -1400,28 +1412,36 @@ sub sh_must_all_not_exist
   }
 
 sub sh_add_symlink_log
-  { my($log,$added,@files)= @_;
+  { my($log,$link_action,@files)= @_;
 
     my $files= join(" ",@files);
 
     my $str;
-    if ($added)
-      { $str= "echo \"ADDED:\" >> $log && ";
+    if ($link_action==do_change_or_add)
+      { $str= "if test -f ADDED; then echo \"ADDED:\" >> $log && " .
+              "/bin/ls -l `cat ADDED` | tee -a $log && rm -f ADDED; fi && " .
+              "if test -f OLD; then echo \"OLD:\" >> $log && " .
+              "cat OLD >> $log && rm -f OLD; fi && " .
+              "if test -f CHANGED; then echo \"NEW:\" >> $log && " .
+              "/bin/ls -l `cat CHANGED` | tee -a $log && rm -f CHANGED; fi ";
       }
     else
-      { $str= "echo \"OLD:\" >> $log && " .
-              "cat OLD >> $log && rm -f OLD && " .
-              "echo \"NEW:\" >> $log && ";     
-      };
-    $str.= 'ls -l ' . $files;
-    $str.= ' 2>/dev/null' if ($opt_ls_bug);
-    $str.= ' | tee -a ' . $log;
+      { if ($link_action==do_add)
+          { $str= "echo \"ADDED:\" >> $log && ";
+          }
+        elsif ($link_action==do_change)
+          { $str= "echo \"OLD:\" >> $log && " .
+                  "cat OLD >> $log && rm -f OLD && " .
+                  "echo \"NEW:\" >> $log && ";     
+          }
+        $str.= '/bin/ls -l ' . $files;
+        $str.= ' | tee -a ' . $log;
+      }
     return($str);
   }    
 
 sub sh_rebuild_LAST
-  { my $str= 'ls --indicator-style=none -d [12]* ';
-    $str.= ' 2>/dev/null' if ($opt_ls_bug);
+  { my $str= '/bin/ls --indicator-style=none -d [12]* ';
     $str.= ' | sort | tail -n 1 > LAST';
     return($str);
   }
@@ -2537,10 +2557,6 @@ Syntax:
                 made to the "source" part of the add-links or
                 change-links command            
    
-    --ls-bug    suppress 
-                "ls: ignoring invalid width in environment variable COLUMNS: 0"
-                warning that comes on some systems              
-
     --checksum  use checksums instead of date-comparisons when deciding 
                 wether a file should be transferred
 
@@ -2551,6 +2567,10 @@ Syntax:
 
     --world-readable -w
                 make all files world-readable   
+
+    --create_missing_links
+                for use with command "change-links": don't complain if links
+                dont exist, instead create them
 END
   }
 __END__
