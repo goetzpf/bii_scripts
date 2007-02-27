@@ -70,7 +70,11 @@ proc usage {} {
 }
 
 if {[lindex $argv 0] == "-g"} {
-  set phrase "guest/bessyguest@$env(ORACLE_SID)"
+  if {$env(ORACLE_SID) == "mirror"} {
+    set phrase "guest/bessyguest@$env(ORACLE_SID)"
+  } else {
+    set phrase "anonymous/bessyguest@$env(ORACLE_SID)"
+  }
   set argv [lreplace $argv 0 0]
   incr argc -1
 } else {
