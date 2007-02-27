@@ -21,18 +21,18 @@ use ODB;
 use Data::Dumper;
 
 Options::register(
-	['dbase',  				'd', 	'=s', "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
+	['dbase',  				'd', 	'=s', "Database instance (e.g. devices)", "database", $ENV{'ORACLE_SID'}],
 	['user',   					'u', 	'=s', "User name",  'user',     "anonymous"],
 	['passwd', 				'p', 	'=s', "Password",   "password", "", 1],
 	['output', 					'o', 	'=s', "output format as a selection of list, table, htmltable, csvtable, set, htmlset, xmlset or dump"],
 	['outputbody',			'b', 	'', 	"removing to output header"],
 	['outputindex',			'i', 	'', 	"insert indexcount to output"],
 	['extract', 				'x', 	'', 	"concat the extracted name parts"],
-	['description',			'd', 	'', 	"concat the descriptions"],
+	['description',			't', 	'', 	"concat the textual descriptions"],
 	['groups', 				'g', 	'', 	"concat the grouping names"],
 	['lattice', 					'l', 	'', 	"concat the lattice values"],
 	['sort', 						's', 	'=s', "supported: key/revkey, \n\tnamerevname (default), \n\tfamily (only if -x option is set), \n\tdomain/revdomain (only if -x option is set), \n\tgroups(only if -g option is set)\n\tlattice sorted automatically"],
-	['revertsort', 			'', 	'', 	"revert/desc sort, without lattice order"],
+	['revertsort', 			'S', 	'', 	"revert/desc sort, without lattice order"],
 	['facility', 					'F', 	'=s', "filter facility, like  bii, mls, fel"],
 	['force', 					'f',   	'', 	"use force query with the default database account"],
 	['verbose',  				'v',   '', 	"print a lot more informations"],
@@ -55,8 +55,30 @@ if (! defined $config->{'output'} or ! $config->{'output'} =~ /(table|csvtable|h
 	$config->{'output'} = 'list';
 }
 
+die $usage if not $config or $config->{"help"};
+
+if ($config->{"force"}) {
+	$config->{'dbase'} = "devices";
+	$config->{'user'} = "anonymous";
+	$config->{'passwd'} = "bessyguest";
+	if (lc ($config->{"dbase"}) eq "mirror") {
+		$config->{"user"} = "guest"
+	}
+}
+
+my @names = @ARGV;
+
+die $usage if not @names;
+
+Options::ask_out();
+
+my $dbschema = "";
+if ($config->{"dbase"} ne "mirror") {
+	$dbschema = "DEVICE.";
+}
+
 # main object string, will be completed iprportionally of arguments
-my $dbobject = 'DEVICE.V_NAMES vn';
+my $dbobject = $dbschema.'V_NAMES vn';
 # array of the database columnnames
 my @columns = ('vn.KEY', 'vn.NAME');
 # array of the given names in the select statement
@@ -86,14 +108,14 @@ if (defined $config->{'extract'}) {
 }
 
 if (defined $config->{'description'}) {
-	$dbobject .= ", DEVICE.V_NAME_DESCRIPTIONS vnd";
+	$dbobject .= ', '.$dbschema.'V_NAME_DESCRIPTIONS vnd';
 	push @columns, ('DESCRIPTION');
 	push @head, ('DESCRIPTION');
 	$dbjoin .= " AND vn.key = vnd.key(+)";
 }
 
 if (defined $config->{'lattice'}) {
-	$dbobject .= ", DEVICE.V_LATTICE vl";
+	$dbobject .= ', '.$dbschema.'V_LATTICE vl';
 	push @columns, ('DS', 'LENGTH');
 	push @head, ('DS', 'LENGTH');
 	$dbjoin .= " AND vn.key = vl.key";
@@ -123,32 +145,17 @@ if (defined $config->{'facility'}) {
 	}
 }
 
-
 if (! $dborder{$config->{'sort'}}) {
 	$config->{'sort'} = "name";
 }
 
 print "Output formatted as ".$config->{'output'}.." and sorted by ".$config->{"sort"}."\n" if ($config->{"verbose"});
 
-die $usage if not $config or $config->{"help"};
-
-if ($config->{"force"}) {
-	$config->{'dbase'} = "devices";
-	$config->{'user'} = "anonymous";
-	$config->{'passwd'} = "bessyguest";
-}
-
-my @names = @ARGV;
-
-Options::ask_out();
-
 my $handle = ODB::login($config);
 
 delete ($config->{'passwd'});
 
 Options::print_out("Connected as ".$config->{'user'}."@".$config->{'dbase'}."\n") if $config->{"verbose"};
-
-die $usage if not @names;
 
 print &getHeader();
 
@@ -234,7 +241,7 @@ print &getFooter($indexed);
 
 sub getGroups {
 	my $key = shift @_;
-	my $gresult = ODB::sel("DEVICE.V_NAME_GROUPS vng", "GROUP_NAME||' ('||NAME_GROUP_KEY||')' GROUPS", "n.NAME_KEY =".$key);
+	my $gresult = ODB::sel($dbschema.'V_NAME_GROUPS vng', "GROUP_NAME||' ('||NAME_GROUP_KEY||')' GROUPS", "n.NAME_KEY =".$key);
 	my $gindexer = 0;
 	my $grouplist = "";
 	foreach my $grow (@$gresult) {
