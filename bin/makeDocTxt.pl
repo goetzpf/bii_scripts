@@ -268,7 +268,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   print OUT_FILE $fileHeader;
 
   if( length($index) > 0)
-  { $index = "<H2>Contents</H2>\n$index<hr>\n";
+  { $index = "<H2>Contents</H2>\n<DL>$index</DL><hr>\n";
     print OUT_FILE $index;
   }
 
