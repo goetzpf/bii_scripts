@@ -90,7 +90,7 @@ foreach my $devname (@names) {
 	if (! defined $parts[3] or $parts[3] eq "" ) {
 		@parts[3]  = "NULL";
 	} else {
-		@parts[3]  = "'".@parts[3]."'";
+		@parts[3]  = "'".@parts[3]."'" if @parts[3] ne "NULL";
 	}
 	if (! defined $parts[5] or $parts[5] eq "" ) {
 		@parts[5]  = "NULL";
