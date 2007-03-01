@@ -51,7 +51,7 @@ if ($config->{"file"}) {
 	}
 	if ($config->{"primarykey"} < 0) {
 		delete ($config->{"primarykey"});
-		print "Description will be ignored.\n"
+		print "Primary key will be ignored and given automatically.\n"
 	}
 	while (my $line = <INPUT>) {
 		chop($line);
@@ -59,7 +59,7 @@ if ($config->{"file"}) {
 			my @lineparts = split ($config->{"separator"}, $line);
 			push @names, @lineparts[0];
 			if ($config->{"decription"} >= 0) {
-				push @descs, $lineparts[$config->{"decription"}];
+				push @descs, $lineparts[$config->{"description"}];
 			}
 			if ($config->{"primarykey"} >= 0) {
 				if ($lineparts[$config->{"primarykey"}] > 0) {
