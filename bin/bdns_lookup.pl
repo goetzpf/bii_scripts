@@ -24,6 +24,8 @@ Options::register(
 	['dbase',  				'd', 	'=s', "Database instance (e.g. devices)", "database", $ENV{'ORACLE_SID'}],
 	['user',   					'u', 	'=s', "User name",  'user',     "anonymous"],
 	['passwd', 				'p', 	'=s', "Password",   "password", "", 1],
+	['force', 					'f',   	'', 	"use force query with the default database account"],
+	['verbose',  				'v',   '', 	"print a lot more informations"],
 	['output', 					'o', 	'=s', "output format as a selection of list, table, htmltable, csvtable, set, htmlset, xmlset or dump"],
 	['outputbody',			'b', 	'', 	"removing to output header"],
 	['outputindex',			'i', 	'', 	"insert indexcount to output"],
@@ -34,8 +36,8 @@ Options::register(
 	['sort', 						's', 	'=s', "supported: key/revkey, \n\tnamerevname (default), \n\tfamily (only if -x option is set), \n\tdomain/revdomain (only if -x option is set), \n\tgroups(only if -g option is set)\n\tlattice sorted automatically"],
 	['revertsort', 			'S', 	'', 	"revert/desc sort, without lattice order"],
 	['facility', 					'F', 	'=s', "filter facility, like  bii, mls, fel"],
-	['force', 					'f',   	'', 	"use force query with the default database account"],
-	['verbose',  				'v',   '', 	"print a lot more informations"],
+	['family', 					'T', 	'=s', "type of device, better the family"],
+	['subdomain', 			'L', 	'=s', "location of the device or better the subdomain"],
 );
 
 my $usage = "parse bessy device name service for the given list of names or patterns (% as any and more, ? one unspecified character)
@@ -112,6 +114,14 @@ if (defined $config->{'description'}) {
 	push @columns, ('DESCRIPTION');
 	push @head, ('DESCRIPTION');
 	$dbjoin .= " AND vn.key = vnd.key(+)";
+}
+
+if (defined $config->{'family'}) {
+	$dbjoin .= " AND vn.family_key = device.pkg_bdns.get_family_key('".$config->{'family'}."')";
+}
+
+if (defined $config->{'subdomain'}) {
+	$dbjoin .= " AND vn.family_key = device.pkg_bdns.get_subdomain_key('".$config->{'subdomain'}."')";
 }
 
 if (defined $config->{'lattice'}) {
