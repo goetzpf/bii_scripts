@@ -73,7 +73,7 @@ sub parse {
     ) = ($devname =~ /$re/);
   if (defined $ring) {
     ($family,$counter,$subdomain,$domain) = ($rfamily,$rcounter,$rsubdomain,$rdomain);
-    $facility = "B";
+    $facility = "";
   }
   elsif (defined $fel) {
     ($family,$counter,$subdomain,$domain) = ($ffamily,$fcounter,$fsubdomain,$fdomain);
