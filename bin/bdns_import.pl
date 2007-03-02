@@ -103,7 +103,7 @@ foreach my $devname (@names) {
 		"PART_SUBINDEX" => @parts[3],
 		"FAMILY_KEY" => "device.pkg_bdns.get_family_key('".@parts[4]."')",
 		"PART_COUNTER" => @parts[5],
-		"SUBDOMAIN_KEY" => "device.pkg_bdns.get_subdomain_key('".@parts[6]."')",
+		"SUBDOMAIN_KEY" => "device.pkg_bdns.get_subdomain_key('".@parts[6].@parts[11]."')",
 	};
 	if ($config->{"description"} >= 0) {
 		$allnames{$devname}{"DESCRIPTION"} = @descs[$counter];
@@ -148,10 +148,10 @@ foreach my $devname (@names) {
 	print $verbose."\n" if ($config->{"verbose"});
 	if (! $config->{"dump"}) {
 		$handle->do($sql1.$sql2);
+		$handle->rollback if $config->{"not"};
 	} else {
 		print "$sql1 $sql2;\n";
 	}
-	$handle->rollback if $config->{"not"};
 }
 
 exit;
