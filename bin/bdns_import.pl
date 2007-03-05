@@ -24,6 +24,7 @@ Options::register(
   ["separator",  	"s", "=s",	"Otherfiledescriptior than a whitespace as a string"],
   ["description",  	"d", "=i", 	"Description in file on column-number to name"],
   ["primarykey",  	"k", "=i", 	"Predefiined primary key in file on column-number to name"],
+  ["yes",  				"y", "", 	"Ignore failure prompt, print them out"],
   ["commit",  		"c", "", 	"Wait at the end of inserting the names for the commit input"],
 );
 
@@ -80,7 +81,8 @@ my %allnames;
 my $counter = 0;
 foreach my $devname (@names) {
 	my @parts = BDNS::parse($devname);
-	die "Error: $devname is not a valid device name!\n" if (not defined @parts);
+	die "Error: $devname is not a valid device name!\n" if (not defined @parts or length(@parts[0]) < 1 or length(@parts[4]) != 1 or length(@parts[6].@parts[11]) < 1);
+	@parts[0] = "'".@parts[0]."'";
 	if (! defined @parts[2] or @parts[2] eq "" ) {
 		@parts[2]  = "NULL";
 		@parts[3]  = "NULL";
@@ -98,7 +100,7 @@ foreach my $devname (@names) {
 		@parts[5]  = "'".@parts[5]."'";
 	}
 	$allnames{$devname} = {
-		"PART_NAME" => "'".@parts[0]."'",
+		"PART_NAME" => @parts[0],
 		"PART_INDEX"  => @parts[2],
 		"PART_SUBINDEX" => @parts[3],
 		"FAMILY_KEY" => "device.pkg_bdns.get_family_key('".@parts[4]."')",
@@ -126,9 +128,10 @@ if (! $config->{"dump"}) {
 	Options::print_out("Connected as ".$config->{"user"}."@".$config->{"dbase"}."\n");
 }
 
+$handle->trace(2, "./bdns.import.log");
 foreach my $devname (@names) {
 	my $sql1 = "INSERT INTO device.tbl_name (",
-	my $sql2 = " values (";
+	my $sql2 = "VALUES (";
 	my $verbose = "NAME:$devname " ;
 	if ($config->{"primarykey"}) {
 		$sql1 .= "name_key, ";
@@ -138,20 +141,35 @@ foreach my $devname (@names) {
 	$sql1 .= "part_name, part_index, part_subindex, family_key, part_counter, subdomain_key";
 	$sql2 .= $allnames{$devname}{"PART_NAME"}.", ".$allnames{$devname}{"PART_INDEX"}.", ".$allnames{$devname}{"PART_SUBINDEX"}.", "
 		. $allnames{$devname}{"FAMILY_KEY"}.", ".$allnames{$devname}{"PART_COUNTER"}.", ".$allnames{$devname}{"SUBDOMAIN_KEY"};
-	if ($config->{"primarykey"}) {
+	if ($config->{"description"}) {
 		$sql1 .= ", description";
 		$sql2 .= ", '".$allnames{$devname}{"DESCRIPTION"}."'";
 		$verbose .= " DESCRIPTION:".$allnames{$devname}{"DESCRIPTION"};
 	}
-	$sql1 .= ")";
+	$sql1 .= ") ";
 	$sql2 .= ")";
 	print $verbose."\n" if ($config->{"verbose"});
 	if (! $config->{"dump"}) {
-		$handle->do($sql1.$sql2);
-		$handle->rollback if $config->{"not"};
+		eval {
+			$handle->do($sql1.$sql2);
+			$handle->commit;
+		};
+		#print $sql1.$sql2."\n" if $config->{"verbose"};
+		if ($config->{"not"}) {
+			$handle->rollback;
+		} elsif ($@) {
+			print $@."\n";
+			if ($config->{"yes"}) {
+				print "$devname failed\n";
+			} else {
+				$handle->rollback if (lc(Options::get_stdin($devname." fails. continue?", "yes")) ne "yes");
+			}
+		}
 	} else {
 		print "$sql1 $sql2;\n";
 	}
 }
+
+$dbh->close;
 
 exit;

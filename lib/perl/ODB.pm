@@ -17,10 +17,10 @@ my $config={'verbose'=>0};
 #------------------------------------------------------------------------------
 sub login {
   $config = shift;
-  
+
   if (ref($config) ne 'HASH')
     { die "error: \$config is not a hash or not set"; };
-  
+
   return $dbh if defined $dbh;
 
   $dbh = DBI->connect("dbi:Oracle:".$config->{"dbase"}, $config->{"user"}, $config->{"passwd"},
@@ -36,6 +36,22 @@ sub logoff {
     $dbh->rollback if $config->{"not"};
     $dbh->disconnect;
   }
+}
+
+#------------------------------------------------------------------------------
+# debug - trace and debug into /tmp/
+#------------------------------------------------------------------------------
+sub debug {
+ $dbh->trace(2, "/tmp/ODB-".$ENV{"USER"}.".log");
+ verbose();
+}
+
+#------------------------------------------------------------------------------
+# logoff - lessoutput/debug
+#------------------------------------------------------------------------------
+sub silent {
+ $config->{'verbose'} = 0;
+ $dbh->trace(0);
 }
 
 #------------------------------------------------------------------------------
@@ -215,9 +231,17 @@ This function abort the database connection. No rollback!
 
 B<interview>
 
+  ODB::debug();
+
+This function sets trace level to 2 and wrote a logfile to /tmp including the verbose option.
+
+=item *
+
+B<interview>
+
   ODB::verbose();
 
-Set debugging output on.
+Set info output on.
 
 =item *
 
