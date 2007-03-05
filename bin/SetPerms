@@ -5,7 +5,7 @@
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
 # Time-stamp: <24 Jan 06 14:35:59 Ralph Lange>
-# $Id: SetPerms,v 1.9 2007-01-09 10:59:10 franksen Exp $
+# $Id: SetPerms,v 1.10 2007-03-05 11:13:18 franksen Exp $
 #
 PROG=`basename $0`
 
@@ -193,8 +193,32 @@ do
   
 ###############################################################################
 
+    */Epics/*/support*)
+
+# Set everything to group epics-support and ???r-X---
+
+	echo Epics support tree: $f
+	echo Setting everything to group epics-support and mode ???r-Xr-X ...
+
+	chgrp -R epics-support $f > /dev/null 2>&1
+	chmod -R go=rX $f > /dev/null 2>&1
+		       
+# Set all directories and executables to mode rwxrwxr-x
+
+	echo Setting all directories and executables to mode rwxrwxr-x ...
+
+	files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
+	if [ -n "$files" ]; then
+	    echo $files | xargs chmod ug=rwx,o=rx
+	fi
+        find -type d -user $USER -exec chmod g+s {} \;
+
+	;;
+
+###############################################################################
+
     */vw/* | */epics/*/support* | */epics/base* | */epics/*/base* | */epics/extensions* |\
-    */vxworks/* | */Epics/*/support* | */Epics/base* | */Epics/*/base* | */Epics/extensions* )
+    */vxworks/* | */Epics/base* | */Epics/*/base* | */Epics/extensions* )
 
 # Set everything to group epics and ???r-X---
 
