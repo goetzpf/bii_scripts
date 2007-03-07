@@ -169,6 +169,4 @@ foreach my $devname (@names) {
 	}
 }
 
-$handle->close if ($handle);
-
 exit;
