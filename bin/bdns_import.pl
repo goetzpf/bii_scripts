@@ -128,7 +128,6 @@ if (! $config->{"dump"}) {
 	Options::print_out("Connected as ".$config->{"user"}."@".$config->{"dbase"}."\n");
 }
 
-$handle->trace(2, "./bdns.import.log");
 foreach my $devname (@names) {
 	my $sql1 = "INSERT INTO device.tbl_name (",
 	my $sql2 = "VALUES (";
@@ -170,6 +169,6 @@ foreach my $devname (@names) {
 	}
 }
 
-$dbh->close;
+$handle->close;
 
 exit;
