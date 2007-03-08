@@ -10,6 +10,48 @@ use strict;
 
 our $MAXLENGTH = 22;
 
+# Es gibt ein Problem, wenn facility=P und entweder die Subdomain mit K beginnt oder
+# die Subdomain leer ist, der letzte Buchstabe im Member einer gültigen Family
+# entspricht und die family K ist. In diesem Fall ist ein eindeutiges Parsen nicht möglich!
+#
+# Beispiele:
+#
+# 1.AICK3RP kann sowohl
+#   a. AI  AI                 - member im regexp hier "non-greedy"
+#      C   family control-system
+#      K3  subdomain K3
+#      R   Ring
+#      P   PTB
+#   als auch
+#   b. AIC AIC                - member im regexp hier "greedy"
+#      K   family kicker/septa
+#      3   counter 3
+#      R   Ring
+#      P   PTB
+#   bedeuten
+#
+# 2.KIK1RP kann sowohl 
+#   a. K   K                  - member im regexp hier "non-greedy"
+#      I   family insertion-device
+#      K1  subdomain K1
+#      R   Ring
+#      P   PTB
+#   als auch
+#   b. KI  KI                 - member im regexp hier "greedy"
+#      K   family kicker/septa
+#      1   counter 1
+#      R   Ring
+#      P   PTB
+#   bedeuten
+#
+# Im ersten Beispiel war der erste Fall gewünscht (1.a.), im zweiten der zweite (2.b.)!
+# Blödes Dilemma...
+#
+# Aktuell ist der Parser auf "non-greedy" gestellt, was zur Folge hat,
+# daß im Fall KIK1RP eine subdomain angegeben werden muss(!) - also KIK1L4RP
+# um den Namen korrekt aufzulösen. [sic]
+#
+
 my $pmem = "[A-Z]+?";
 my $pind = "([0-9]+)(-([0-9]+))?";
 
@@ -87,18 +129,6 @@ sub parse {
     return; # mismatch
   }
   my ($subdompre, $subdomnumber) = ($subdomain =~ /([A-Z])(.*)/);
-
-  # problem with fac=P and fam~[KL] or sdom~[KL]
-#  if ( ( $facility eq "P" ) &&
-#       ( ( ( $family =~ /[KL]/ ) && ( $subdomain eq "" ) ) ||
-#	 ( $subdomain =~ /[KL].*/ ) && ( $allindex eq "" ) ) ) {
-#    return;
-#  }
-
-#  if ("$subdomain$domain" =~ /^[RB]$/) {
-#    $subdomain = $counter;
-#    $counter = undef;
-#  }
 
   my $allsubdomain = $subdomain . $domain;
 
