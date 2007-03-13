@@ -203,7 +203,7 @@ my $my_errcode= 67;
 # for certain preconditions fails. In this case,
 # the whole ssh command is not dumped since the 
 # ssh-command already did print a sensible error message
-# to the screen
+# to the screen 
 
 my $gbl_rsync_opts="-a -u -z --delete";
 
@@ -843,7 +843,10 @@ sub change_link
     # read the link-parameter if it is defined
     # it should be <source-dir>,<filemask>
     if (defined $linkparam)
-      { @files= split(/[,\s:]+/,$linkparam);
+      { 
+        # NOTE: source-dir may contain a colon (':')
+	# so we MUST NOT split the string along a colon:
+        @files= split(/(?:,|\s+)/,$linkparam);
         if ($#files>0) # more than one argument
           { if ($files[0] =~ /^\s*$/)
               { # first argument empty, discard it
@@ -1908,7 +1911,7 @@ sub read_env
         elsif ($ref eq 'SCALAR')
           { $env{$key}= $val; }
         elsif ($ref eq 'ARRAY')
-          { $env{$key}= [split(/[,\s:]+/,$val)]; }
+          { $env{$key}= [split(/,/,$val)]; }
         else
           { die "unsupported reftype, key: $key reftype: $ref"; }; 
       };
