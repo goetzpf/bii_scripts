@@ -846,10 +846,10 @@ sub change_link
     if (defined $linkparam)
       { 
         # NOTE: source-dir may contain a colon (':')
-	# so we MUST NOT split the string along a colon:
+        # so we MUST NOT split the string along a colon:
         # remove leading spaces since this should not make
-	# any difference
-	$linkparam=~ s/^\s+//;
+        # any difference
+        $linkparam=~ s/^\s+//;
         @files= split(/(?:,|\s+)/,$linkparam);
         if ($#files>0) # more than one argument
           { if ($files[0] =~ /^\s*$/)
@@ -893,15 +893,18 @@ sub change_link
 
     # if $remote_source is not defined and --last-dist is given:
     if ($opt_last_dist)
-      { 
+      { my $lastver= last_ver($r_hosts,$remote_source);
         if ((!defined ($remote_source)) || ($remote_source eq ""))
-          { $remote_source= last_ver($r_hosts,$remote_path); }
+          { $remote_source= $lastver; }
         else
-          { $remote_source= File::Spec->catfile($remote_source,
-                                                last_ver($r_hosts,$remote_path)); 
+          { if (empty($lastver)) # must ask user for remote-source
+              { $remote_source= ""; }
+            else
+              { $remote_source= File::Spec->catfile($remote_source,
+                                                    $lastver); 
+              }
           };
       }
-
 
     if (empty($remote_source))
       { ensure_var(\$remote_source  , 'SOURCE_DIR' ,
@@ -1380,10 +1383,10 @@ sub sh_rmlock
   
     return("ls -l LOCK | grep $from >/dev/null 2>&1;" .
            'if test $? -eq 0; ' .
-	   "then rm -f LOCK; " .
-	   "else echo \"LOCK cannot be removed:\" " .
-	         "`ls -l LOCK| sed -e \"s/.*-> //\"`;" .
-	   "fi"); 
+           "then rm -f LOCK; " .
+           "else echo \"LOCK cannot be removed:\" " .
+                 "`ls -l LOCK| sed -e \"s/.*-> //\"`;" .
+           "fi"); 
   }
 
 sub sh_mklock
@@ -1505,18 +1508,20 @@ sub get_last_log_entries
           { warn "assertion"; next; };
         $h{$action}= $entry;
         
-	if ($action eq 'distribute')
-	  { # store more for "dist" actions:
-	    my $date= $entry->{LOCALDATE};
-	    if (datestring_is_today($date))
-	      { my $hosts= $entry->{REMOTEHOSTS};
-	        my $path = $entry->{REMOTEPATH};
-		$hosts=~ s/^\s*(\S+)\s*$/$1/; 
-	        $path =~ s/^\s*(\S+)\s*$/$1/; 
-	        $h{join("|",$action,$path,$hosts)}= $entry;
-	      };
-	  }; 
-	# by the following lines we can collect
+        if ($action eq 'distribute')
+          { # store more for "dist" actions:
+            my $date= $entry->{LOCALDATE};
+            if (datestring_is_today($date))
+              { my $hosts= $entry->{REMOTEHOSTS};
+                my $path = $entry->{REMOTEPATH};
+                $hosts=~ s/^\s*(\S+)\s*$/$1/; 
+                # use a sorted list of hosts:
+		$hosts= join(",",sort(split(",",$hosts)));
+                $path =~ s/^\s*(\S+)\s*$/$1/; 
+                $h{join("|",$action,$path,$hosts)}= $entry;
+              };
+          }; 
+        # by the following lines we can collect
         # "similar actions" under a single action-label
         # see also the definition of %gbl_local_log_actionmap
         $action= $gbl_local_log_actionmap{$action};
@@ -1534,7 +1539,7 @@ sub last_ver
 # returns only distributions that are not older than 24 hours.
   { my($r_hosts,$path)= @_;
     my $key;
-  
+
     # take the last distributed version from the
     # local log-file
 
@@ -1548,11 +1553,22 @@ sub last_ver
     if (!defined $r_hosts)
       { $key= 'distribute'; }
     else
-      { my $hosts= join(",",@$r_hosts);
-	$path =~ s/^\s*(\S+)\s*$/$1/; 
-	$key= join("|","distribute",$path,$hosts);
+      { # handle the form "user@hostname", extract
+        # just the hosts:
+        my @h;
+        foreach my $h (@$r_hosts)
+          { if ($h=~ /^[^\@]*\@(.*)$/)
+              { push @h, $1; }
+            else
+              { push @h, $h; };
+          }; 
+        my $hosts= join(",",sort(@h));
+        $path =~ s/^\s*(\S+)\s*$/$1/; 
+	# remove a trailing slash in the path:
+        $path =~ s/\/$//;
+        $key= join("|","distribute",$path,$hosts);
       };
-    
+
     return($gbl_last_locallog_entries->{$key}->{VERSION});
   }    
 
@@ -2198,7 +2214,7 @@ sub ensure_host_users
       { 
         if    (($#$r_hosts<0) && ($#$r_users<0))
           { 
-	    ensure_var(\@strs, 'REMOTEHOSTSUSERS', 
+            ensure_var(\@strs, 'REMOTEHOSTSUSERS', 
                        take_default('distribute:REMOTEHOSTS:REMOTEUSERS',
                                     'links:REMOTEHOSTS:REMOTEUSERS',
                                    )
