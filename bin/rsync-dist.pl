@@ -846,6 +846,7 @@ sub change_link
       { 
         # NOTE: source-dir may contain a colon (':')
 	# so we MUST NOT split the string along a colon:
+        $linkparam=~ s/^\s+//;
         @files= split(/(?:,|\s+)/,$linkparam);
         if ($#files>0) # more than one argument
           { if ($files[0] =~ /^\s*$/)
