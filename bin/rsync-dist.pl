@@ -43,6 +43,7 @@ use vars qw($opt_help
             $opt_add_links
             $opt_mirror
             $opt_rm_lock
+            $opt_force_rm_lock
             $opt_mk_lock
             $opt_rebuild_last
             $opt_ls 
@@ -102,6 +103,7 @@ my @gbl_arg_lst= ('--dist',
                   '--add-links',
                   '--mirror',
                   '--rm-lock',
+                  '--force-rm-lock',
                   '--mk-lock',
                   '--rebuild-last',
                   '--ls',
@@ -366,6 +368,7 @@ if (!GetOptions("help|h",
                 "add_links|add-links|A:s",
                 "mirror=s",
                 "rm_lock|rm-lock=s",
+                "force_rm_lock|force-rm-lock=s",
                 "mk_lock|mk-lock=s",
                 "rebuild_last|rebuild-last",
 
@@ -517,10 +520,12 @@ if (defined $opt_ls_version)
     exit(0);
   }
 
-if (defined $opt_rm_lock)
-  { my($arg,$rpath,$log,$chg)= dir_dependant($opt_rm_lock);
+if ((defined $opt_rm_lock) || (defined $opt_force_rm_lock))
+  { my $par= (defined $opt_force_rm_lock) ? $opt_force_rm_lock : $opt_rm_lock;
+    my($arg,$rpath,$log,$chg)= dir_dependant($par);
     my $rc= 
-      server_lock(\@opt_hosts,\@opt_users,$rpath,'remove');
+      server_lock(\@opt_hosts,\@opt_users,$rpath,
+                  (defined $opt_force_rm_lock) ? 'force-remove' : 'remove');
     exit($rc ? 0 : 1);
   }
 
@@ -671,7 +676,7 @@ sub dist
               ' && ' .
               "for l in $local_paths;" .
               "do rsync $rsync_opts " .
-                 "-e \"ssh -l $local_user \" " .
+                 "-e \"ssh -A -l $local_user \" " .
                  "$local_host:\$l" .' ./`cat STAMP`;' .
               'done';
 
@@ -894,7 +899,12 @@ sub change_link
     # if $remote_source is not defined and --last-dist is given:
     if ($opt_last_dist)
       { my $lastver= last_ver($r_hosts,$remote_source);
-        if ((!defined ($remote_source)) || ($remote_source eq ""))
+        if (empty($lastver))
+	  { die "error: no last dist-version for hosts " . 
+	        join(",",@$r_hosts) . " and path $remote_source\n";
+	  }	
+	
+	if ((!defined ($remote_source)) || ($remote_source eq ""))
           { $remote_source= $lastver; }
         else
           { if (empty($lastver)) # must ask user for remote-source
@@ -1124,6 +1134,7 @@ sub server_lock
   }
 
 sub internal_server_lock
+# action: 'create', 'remove' or 'force-remove'
   { my($r_hosts_users,
        $remote_path, $action, $recursion) = @_;
 
@@ -1138,7 +1149,12 @@ sub internal_server_lock
                             "$action lockfile");
 
     my $rcmd;
-    if    ($action eq 'remove')
+
+    if    ($action eq 'force-remove')
+      { my $from= $local_user . '@' . $local_host;
+        $rcmd= sh_rmlock($from,1);
+      }
+    elsif ($action eq 'remove')
       { my $from= $local_user . '@' . $local_host;
         $rcmd= sh_rmlock($from);
       }
@@ -1379,14 +1395,24 @@ sub sh_add_log
   }  
 
 sub sh_rmlock
-  { my($from)=@_;
+  { my($from,$force)=@_;
   
-    return("ls -l LOCK | grep $from >/dev/null 2>&1;" .
-           'if test $? -eq 0; ' .
-           "then rm -f LOCK; " .
-           "else echo \"LOCK cannot be removed:\" " .
-                 "`ls -l LOCK| sed -e \"s/.*-> //\"`;" .
-           "fi"); 
+    my $cmd= 
+        	"ls -l LOCK | grep $from >/dev/null 2>&1;" .
+        	'if test $? -eq 0; ' .
+        	"then rm -f LOCK; ";
+    if (!$force)
+      { $cmd.=  "else echo \"LOCK cannot be removed:\" " .
+                    "`ls -l LOCK| sed -e \"s/.*-> //\"`;";
+      }
+    else
+      { $cmd.=  "else echo \"warning: removing lock by:\" " .
+                    "`ls -l LOCK| sed -e \"s/.*-> //\"`;" .
+		    "rm -f LOCK; ";
+      };
+    $cmd.=      "fi";
+	      
+    return($cmd);	      
   }
 
 sub sh_mklock
