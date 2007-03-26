@@ -62,6 +62,7 @@ use vars qw($opt_help
             $opt_show_config_from_log
             $opt_write_config_from_log
             $opt_env
+            $opt_partial
             $opt_editor
             $opt_prefix_distdir
             $opt_no_editor_defaults
@@ -245,6 +246,7 @@ my %gbl_map_hash=
                                        \$opt_localprefix,
                RSYNC_DIST_WORLDREADABLE => \$opt_world_readable,
                RSYNC_DIST_CHECKSUM  => \$opt_checksum,
+               RSYNC_DIST_PARTIAL => \$opt_partial,
                RSYNC_DIST_EDITOR => \$opt_editor,
                RSYNC_DIST_EDITOR_NO_DEFAULTS => \$opt_no_editor_defaults,
                RSYNC_DIST_SHOW_PROGRESS => \$opt_progress,
@@ -274,6 +276,8 @@ my %gbl_config_comments=
                                   "make all dirs on server world-readable",       
                RSYNC_DIST_CHECKSUM =>
                                   "use checksum to detect file changes",
+               RSYNC_DIST_PARTIAL =>
+                                  "transfer only some files to the server",
                RSYNC_DIST_EDITOR =>
                                   "editor for log-messages and tags",
                RSYNC_DIST_EDITOR_NO_DEFAULTS =>
@@ -301,6 +305,7 @@ RSYNC_DIST_LOCALPATH
 RSYNC_DIST_LOCALPREFIX
 RSYNC_DIST_WORLDREADABLE 
 RSYNC_DIST_CHECKSUM
+RSYNC_DIST_PARTIAL 
 RSYNC_DIST_EDITOR 
 RSYNC_DIST_EDITOR_NO_DEFAULTS
 RSYNC_DIST_SHOW_PROGRESS
@@ -392,6 +397,7 @@ if (!GetOptions("help|h",
                 "write_config_from_log|write-config-from-log=s",
                 "env",
 
+                "partial",
                 "editor=s",
                 "no_editor_defaults|no-editor-defaults|N!",
                 "prefix_distdir|prefix-distdir!",               
@@ -644,25 +650,26 @@ sub dist
       
     my $filelist_file;
     my $local_paths;
-    if (has_glob(@$r_local_paths))
+    #if (has_glob(@$r_local_paths))
+    if ($opt_partial)
       { 
         $filelist_file= make_file_list($localprefix,0,@$r_local_paths); 
       }
     else
       { my @p;
         if ($localprefix)
-	  { @p= map{ File::Spec->catfile($localprefix,$_) } @$r_local_paths; }
-	else
-	  { @p= @$r_local_paths; }
-	
-	foreach my $l (@p)
-	  { if (!-d $l)
+          { @p= map{ File::Spec->catfile($localprefix,$_) } @$r_local_paths; }
+        else
+          { @p= @$r_local_paths; }
+        
+        foreach my $l (@p)
+          { if (!-d $l)
               { die "error: directory \"$l\" not found"; };
-	  };          
+          };          
 
-	# convert relative to absolute paths based on
-	# the current value of the "PWD" environment variable:
-	my $pwd= $ENV{PWD};
+        # convert relative to absolute paths based on
+        # the current value of the "PWD" environment variable:
+        my $pwd= $ENV{PWD};
         $local_paths= join(" ", (map { File::Spec->rel2abs($_,$pwd) } @p));
       }
 
@@ -695,9 +702,9 @@ sub dist
               'then cp -a -l `cat LAST` `cat STAMP`; ',
               'fi ',
               ' && ');
-	      
+              
     if (!defined $filelist_file)     
-      { $rcmd.= sh_indent_and_join(0,	      
+      { $rcmd.= sh_indent_and_join(0,         
               "for l in $local_paths;",
               "do rsync $rsync_opts -e \"ssh -A -l $local_user \" \\",
               "         $local_host:\$l ./`cat STAMP`;",
@@ -707,23 +714,23 @@ sub dist
       { my $lp= File::Spec->rel2abs($localprefix);
         $rcmd.= sh_indent_and_join(0,
               "rsync $rsync_opts -e \"ssh -A -l $local_user \" \\",
-	      "      --files-from=:$filelist_file \\", 
-	      "      $local_host:$lp ./`cat STAMP`"); 	      
+              "      --files-from=:$filelist_file \\", 
+              "      $local_host:$lp ./`cat STAMP`");         
       };
 
     if ($world_readable)
       { $rcmd.= sh_indent_and_join(0,
                 ' && ',
-		'chmod -R a+rX `cat STAMP`'); 
+                'chmod -R a+rX `cat STAMP`'); 
       };
     $rcmd.= sh_indent_and_join(0,          
               ' && ',
               "echo \"%%\" >> $log && ",
               "echo VERSION: `cat STAMP` >> $log && ",
               "echo ACTION: added >> $log && "
-	      );
+              );
     $rcmd.= sh_add_log_s(0,$log,$from,$logmessage,$tag);
-    	      
+              
     $rcmd.= sh_indent_and_join(0,
               ' && ',  
               "echo \"\" >> $chg && cat STAMP >> $chg && ",
@@ -942,11 +949,11 @@ sub change_link
     if ($opt_last_dist)
       { my $lastver= last_ver($r_hosts,$remote_source);
         if (empty($lastver))
-	  { die "error: no last dist-version for hosts " . 
-	        join(",",@$r_hosts) . " and path $remote_source\n";
-	  }	
-	
-	if ((!defined ($remote_source)) || ($remote_source eq ""))
+          { die "error: no last dist-version for hosts " . 
+                join(",",@$r_hosts) . " and path $remote_source\n";
+          }     
+        
+        if ((!defined ($remote_source)) || ($remote_source eq ""))
           { $remote_source= $lastver; }
         else
           { if (empty($lastver)) # must ask user for remote-source
@@ -1473,9 +1480,9 @@ sub sh_rmlock_l
   { my($from,$force)=@_;
 
     my @lines= ("ls -l LOCK | grep $from >/dev/null 2>&1;",
-        	'if test $? -eq 0; ',
-        	"then rm -f LOCK; ");
-		
+                'if test $? -eq 0; ',
+                "then rm -f LOCK; ");
+                
     if (!$force)
       { push @lines,
                 "else echo \"LOCK cannot be removed:\" " .
@@ -1485,12 +1492,12 @@ sub sh_rmlock_l
       { push @lines,
                 "else echo \"warning: removing lock by:\" " .
                     "`ls -l LOCK| sed -e \"s/.*-> //\"`;",
-		"     rm -f LOCK; ";
+                "     rm -f LOCK; ";
       };
     push @lines,
                 "fi";
-	      
-    return(@lines);	      
+              
+    return(@lines);           
   }
 
 sub sh_rmlock_s
@@ -1530,7 +1537,7 @@ sub sh_handle_attic_l
     return( 'if ! test -d attic;',
             'then mkdir attic; ',
             'fi',
-	    ' && ',
+            ' && ',
             "cp $files attic 2>/dev/null; true"
             );
   }         
@@ -1646,7 +1653,7 @@ sub get_last_log_entries
                 my $path = $entry->{REMOTEPATH};
                 $hosts=~ s/^\s*(\S+)\s*$/$1/; 
                 # use a sorted list of hosts:
-		$hosts= join(",",sort(split(",",$hosts)));
+                $hosts= join(",",sort(split(",",$hosts)));
                 $path =~ s/^\s*(\S+)\s*$/$1/; 
                 $h{join("|",$action,$path,$hosts)}= $entry;
               };
@@ -1694,7 +1701,7 @@ sub last_ver
           }; 
         my $hosts= join(",",sort(@h));
         $path =~ s/^\s*(\S+)\s*$/$1/; 
-	# remove a trailing slash in the path:
+        # remove a trailing slash in the path:
         $path =~ s/\/$//;
         $key= join("|","distribute",$path,$hosts);
       };
@@ -2047,9 +2054,9 @@ sub myssh_cmd
     if (defined $path)
       { $cmd= "(cd $path; \\\n" .
               "if [ \$? -ne 0 ]; \\\n" .
-	      "then exit $my_errcode; \\\n" .
-	      "fi && \n" .
-	      "$cmd)"; };
+              "then exit $my_errcode; \\\n" .
+              "fi && \n" .
+              "$cmd)"; };
 
     # -A: turn agent forwarding on 
     my $ssh_cmd= "ssh -A $host \\\n'$cmd'";
@@ -2061,7 +2068,7 @@ sub myssh_cmd
     else
       { # shorten the command:
         $ssh_cmd =~ s/\\[\r\n]+/ /g;# combine backslash-continued lines
-	$ssh_cmd =~ s/[\r\n]+/ /g;  # CR/LF -> <space>
+        $ssh_cmd =~ s/[\r\n]+/ /g;  # CR/LF -> <space>
         $ssh_cmd =~ s/ +/ /g;       # space-sequence -> single space
         return(mysys($ssh_cmd, $do_catch, $silent)); 
       }
@@ -2589,9 +2596,9 @@ Syntax:
                 only for distribution directories
 
     expand-glob
-    		if the --localpath parameter contains glob-expressions
-		list all the files that would be checked for transfer
-		when a dist command is issued
+                if the --localpath parameter contains glob-expressions
+                list all the files that would be checked for transfer
+                when a dist command is issued
 
   commands to inspect the server:
 
@@ -2760,6 +2767,11 @@ Syntax:
                 RSYNC_DIST_CHECKSUM
                   when set to 1, use checksums to detect changes in files.
                   see also --checksum 
+                RSYNC_DIST_PARTIAL
+                  when set to 1, make a complete copy of the last version on the
+                  server but distribute only some files from the client
+                  to the server. --localpath may contain file-glob patterns
+                  in this case.
                 RSYNC_DIST_EDITOR
                   the default editor to enter options that the used didn't
                   specify on the command lines. The default is "$default_editor".
@@ -2792,6 +2804,10 @@ Syntax:
 
   miscellaneous options:
 
+    --partial   make a complete copy of the last version on the
+                server but distribute only some files from the client
+                to the server. --localpath may contain file-glob patterns
+    
     --editor [editor]
                 specifiy the interactive editor. 
                 if this option is not given the script tries to read from
