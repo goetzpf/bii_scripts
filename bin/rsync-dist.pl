@@ -25,6 +25,7 @@ use Data::Dumper;
 use simpleconf;
 use container;
 use maillike;
+use extended_glob;
 
 use vars qw($opt_help 
             $opt_man
@@ -46,6 +47,7 @@ use vars qw($opt_help
             $opt_force_rm_lock
             $opt_mk_lock
             $opt_rebuild_last
+            $opt_expand_glob
             $opt_ls 
             $opt_cat_log
             $opt_tail_log
@@ -106,6 +108,7 @@ my @gbl_arg_lst= ('--dist',
                   '--force-rm-lock',
                   '--mk-lock',
                   '--rebuild-last',
+                  '--expand-glob',
                   '--ls',
                   '--cat-log',
                   '--tail-log',
@@ -371,6 +374,7 @@ if (!GetOptions("help|h",
                 "force_rm_lock|force-rm-lock=s",
                 "mk_lock|mk-lock=s",
                 "rebuild_last|rebuild-last",
+                "expand_glob|expand-glob",
 
                 "ls=s",
                 "cat_log|cat-log=s",
@@ -463,11 +467,6 @@ if ((defined $opt_show_config_from_log) ||
     exit(0);
   } 
 
-if ($opt_localprefix)
-  { @opt_localpaths= map{ File::Spec->catfile($opt_localprefix,$_) }
-                          @opt_localpaths;
-  }  
-
 if ($opt_debug)
   { $debug= $opt_debug; }
 
@@ -543,6 +542,11 @@ if (defined $opt_rebuild_last)
     exit($rc ? 0 : 1);
   }
 
+if (defined $opt_expand_glob)
+  { make_file_list($opt_localprefix,1,@opt_localpaths);
+    exit(0);
+  }
+
 if ($opt_mirror)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_mirror);
     my $rc=
@@ -568,9 +572,11 @@ if (defined $opt_add_links)
   }
 
 if (defined $opt_dist)
-  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+  { 
+    my($arg,$rpath,$log,$chg)= dir_dependant('dist');
     my $rc= 
-      dist(\@opt_hosts,\@opt_users,$rpath,\@opt_localpaths, 
+      dist(\@opt_hosts,\@opt_users,$rpath,
+           $opt_localprefix, \@opt_localpaths, 
            $opt_message, $opt_tag, 
            $opt_world_readable);
     exit($rc ? 0 : 1);
@@ -601,7 +607,8 @@ die "error: no command given!";
 
 sub dist
   { my($r_hosts,$r_users,
-       $remote_path, $r_local_paths,
+       $remote_path, 
+       $localprefix, $r_local_paths,
        $logmessage, $tag,
        $world_readable)= @_;
 
@@ -634,6 +641,30 @@ sub dist
       { ensure_var(\$r_local_paths , 'DIST_LOCALPATHS' , 
                    take_default('distribute:LOCALPATHS'));
       };
+      
+    my $filelist_file;
+    my $local_paths;
+    if (has_glob(@$r_local_paths))
+      { 
+        $filelist_file= make_file_list($localprefix,0,@$r_local_paths); 
+      }
+    else
+      { my @p;
+        if ($localprefix)
+	  { @p= map{ File::Spec->catfile($localprefix,$_) } @$r_local_paths; }
+	else
+	  { @p= @$r_local_paths; }
+	
+	foreach my $l (@p)
+	  { if (!-d $l)
+              { die "error: directory \"$l\" not found"; };
+	  };          
+
+	# convert relative to absolute paths based on
+	# the current value of the "PWD" environment variable:
+	my $pwd= $ENV{PWD};
+        $local_paths= join(" ", (map { File::Spec->rel2abs($_,$pwd) } @p));
+      }
 
     my($now,$local_host,$local_user,$from)= local_info();
 
@@ -644,18 +675,7 @@ sub dist
                             $remote_path,
                             'distribute');
 
-    foreach my $l (@$r_local_paths)
-      { if (!-d $l)
-          { die "error: directory \"$l\" not found"; };
-      };          
-
-    # convert relative to absolute paths based on
-    # the current value of the "PWD" environment variable:
-    my $pwd= $ENV{PWD};
-    my $local_paths=  
-       join(" ", (map { File::Spec->rel2abs($_,$pwd) } @$r_local_paths));
-
-    my $rsync_opts= $gbl_rsync_opts . " --copy-unsafe-links";
+          my $rsync_opts= $gbl_rsync_opts . " --copy-unsafe-links";
     $rsync_opts.= " -c" if ($opt_checksum);
 
     my $log= DIST_LOG;
@@ -667,40 +687,58 @@ sub dist
     my $datestr= datestring();
     $r_log->{LOCALDATE}= $datestr;
 
-    my $rcmd= sh_handle_attic($log,$chg) .
-              ' && ' .
-              "echo $datestr > STAMP && " .
-              'if test -e LAST ; ' .
-              'then cp -a -l `cat LAST` `cat STAMP`; ' .
-              'fi ' .         
-              ' && ' .
-              "for l in $local_paths;" .
-              "do rsync $rsync_opts " .
-                 "-e \"ssh -A -l $local_user \" " .
-                 "$local_host:\$l" .' ./`cat STAMP`;' .
-              'done';
+    my $rcmd= sh_handle_attic_s(0,$log,$chg) .
+              sh_indent_and_join(0,
+              ' && ',
+              "echo $datestr > STAMP && ",
+              'if test -e LAST ; ',
+              'then cp -a -l `cat LAST` `cat STAMP`; ',
+              'fi ',
+              ' && ');
+	      
+    if (!defined $filelist_file)     
+      { $rcmd.= sh_indent_and_join(0,	      
+              "for l in $local_paths;",
+              "do rsync $rsync_opts -e \"ssh -A -l $local_user \" \\",
+              "         $local_host:\$l ./`cat STAMP`;",
+              'done');
+      }
+    else
+      { my $lp= File::Spec->rel2abs($localprefix);
+        $rcmd.= sh_indent_and_join(0,
+              "rsync $rsync_opts -e \"ssh -A -l $local_user \" \\",
+	      "      --files-from=:$filelist_file \\", 
+	      "      $local_host:$lp ./`cat STAMP`"); 	      
+      };
 
     if ($world_readable)
-      { $rcmd.= ' && chmod -R a+rX `cat STAMP`'; };
-    $rcmd.=           
-              ' && ' .
-              "echo \"%%\" >> $log && " .
-              "echo VERSION: `cat STAMP` >> $log && " .
-              "echo ACTION: added >> $log && " .
-              sh_add_log($log,$from,$logmessage,$tag) . ' && ' .
-              "echo \"\" >> $chg && cat STAMP >> $chg && " .
-              'if test -e LAST;' .
-              "then echo CHANGED/ADDED FILES relative to `cat LAST`: >> $chg ;" .
-              "else echo ADDED FILES: >> $chg;" .
-              'fi' .
-              ' && ' .
-              'find `cat STAMP` -links 1 >> ' . $chg . ' && ' .
-              'cp STAMP LAST && ' .
-              'sleep 1 && ';
+      { $rcmd.= sh_indent_and_join(0,
+                ' && ',
+		'chmod -R a+rX `cat STAMP`'); 
+      };
+    $rcmd.= sh_indent_and_join(0,          
+              ' && ',
+              "echo \"%%\" >> $log && ",
+              "echo VERSION: `cat STAMP` >> $log && ",
+              "echo ACTION: added >> $log && "
+	      );
+    $rcmd.= sh_add_log_s(0,$log,$from,$logmessage,$tag);
+    	      
+    $rcmd.= sh_indent_and_join(0,
+              ' && ',  
+              "echo \"\" >> $chg && cat STAMP >> $chg && ",
+              'if test -e LAST;',
+              "then echo CHANGED/ADDED FILES relative to `cat LAST`: >> $chg ;",
+              "else echo ADDED FILES: >> $chg;",
+              'fi',
+              ' && ',
+              "find `cat STAMP` -links 1 >> $chg && ",
+              'cp STAMP LAST && ',
+              'sleep 1 && ');
 #die $rcmd;
-    $rcmd.=           
-              'echo `cat STAMP` was created && ' .
-              'rm -f STAMP';
+    $rcmd.= sh_indent_and_join(0,          
+              'echo `cat STAMP` was created && ',
+              'rm -f STAMP');
 
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
@@ -736,6 +774,10 @@ sub dist
     $r_log->{VERSION}= $datestr;
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    
+#    if (defined $filelist_file)
+#      { unlink $filelist_file; }
+    
     return(1);
   }    
 
@@ -1140,7 +1182,6 @@ sub internal_server_lock
 
 
     my($now,$local_host,$local_user,$from)= local_info();
-
    # start to create hash for local logfile:
     my $r_log= new_log_hash($now,
                             $local_host,$local_user,
@@ -1152,16 +1193,16 @@ sub internal_server_lock
 
     if    ($action eq 'force-remove')
       { my $from= $local_user . '@' . $local_host;
-        $rcmd= sh_rmlock($from,1);
+        $rcmd= sh_rmlock_s(0,$from,1);
       }
     elsif ($action eq 'remove')
       { my $from= $local_user . '@' . $local_host;
-        $rcmd= sh_rmlock($from);
+        $rcmd= sh_rmlock_s(0,$from);
       }
     elsif ($action eq 'create')
       { 
         my $from= $local_user . '@' . $local_host;
-        $rcmd= sh_mklock($from)
+        $rcmd= sh_mklock_s(0,$from)
       }
     else
       { die "assertion: unknown action: \"$action\""; };
@@ -1368,76 +1409,139 @@ sub ls_tag
 # ssh shell command snipplets
 # ------------------------------------------------
 
-sub sh_copy_to_hosts
+sub sh_indent_and_join
+# indents lines and joins them to a single 
+# string
+# NOTE: a CR/LF is added at line-ends
+  { my($indent)= shift;
+    my $s= " " x $indent;
+    
+    return($s . join("\n$s",@_) . "\n");
+  }
+
+sub sh_backwards_compatible
+  { my $str= join(" ",@_);
+    $str=~ s/ +/ /g;
+    return($str);
+  }
+
+sub sh_copy_to_hosts_l
   { my($remote_path,@hosts)= @_;
     my $hosts= join(" ",@hosts);
 
-    return( "for h in $hosts; " . 
-            "do rsync $gbl_rsync_opts -H " .
-              "-e \"ssh \" . \$h:$remote_path; " .
+    return( "for h in $hosts; ",
+            "do rsync $gbl_rsync_opts -H -e \"ssh \" . \$h:$remote_path; ",
             'done' );   
   }   
 
+sub sh_copy_to_hosts_s
+  { my($indent)= shift;
+    return(sh_indent_and_join($indent,sh_copy_to_hosts_l(@_))); 
+  }
 
-sub sh_add_log
+sub sh_copy_to_hosts
+  { return(sh_backwards_compatible(sh_copy_to_hosts_l(@_))); }
+
+sub sh_add_log_l
   { my($logfile,$from,$message,$tag)= @_;
-
-    my $str= "echo FROM: $from >> $logfile";
+    my @lines;
+    
+    push @lines, "echo FROM: $from >> $logfile";
     if (defined $tag)
-      { $str.= ' && ' . 
-               "echo \"TAG: $tag\" >> $logfile";
+      { push @lines,
+             ' && ',
+             "echo \"TAG: $tag\" >> $logfile";
       };       
     if (defined $message)
-      { $str.= ' && ' .
-               'echo LOG: "' . $message . "\" >> $logfile"; 
+      { push @lines,
+             ' && ',
+             'echo LOG: "' . $message . "\" >> $logfile"; 
       };
-    return($str);
+    return(@lines);
   }  
 
-sub sh_rmlock
+sub sh_add_log_s
+  { my($indent)= shift;
+    return(sh_indent_and_join($indent,sh_add_log_l(@_))); 
+  }
+
+sub sh_add_log
+  { return(sh_backwards_compatible(sh_add_log_l(@_))); }
+
+
+sub sh_rmlock_l
   { my($from,$force)=@_;
-  
-    my $cmd= 
-        	"ls -l LOCK | grep $from >/dev/null 2>&1;" .
-        	'if test $? -eq 0; ' .
-        	"then rm -f LOCK; ";
+
+    my @lines= ("ls -l LOCK | grep $from >/dev/null 2>&1;",
+        	'if test $? -eq 0; ',
+        	"then rm -f LOCK; ");
+		
     if (!$force)
-      { $cmd.=  "else echo \"LOCK cannot be removed:\" " .
+      { push @lines,
+                "else echo \"LOCK cannot be removed:\" " .
                     "`ls -l LOCK| sed -e \"s/.*-> //\"`;";
       }
     else
-      { $cmd.=  "else echo \"warning: removing lock by:\" " .
-                    "`ls -l LOCK| sed -e \"s/.*-> //\"`;" .
-		    "rm -f LOCK; ";
+      { push @lines,
+                "else echo \"warning: removing lock by:\" " .
+                    "`ls -l LOCK| sed -e \"s/.*-> //\"`;",
+		"     rm -f LOCK; ";
       };
-    $cmd.=      "fi";
+    push @lines,
+                "fi";
 	      
-    return($cmd);	      
+    return(@lines);	      
   }
 
-sub sh_mklock
+sub sh_rmlock_s
+  { my($indent)= shift;
+    return(sh_indent_and_join($indent,sh_rmlock_l(@_))); 
+  }
+
+sub sh_rmlock
+  { return(sh_backwards_compatible(sh_rmlock_l(@_))); }
+
+sub sh_mklock_l
   { my($from)=@_;
 
     my $showlock= '/bin/ls -l LOCK';
        $showlock.= ' | sed -e "s/.*-> //"';
 
-    return("ln -s $from LOCK; " .
-           'if [ $? -ne 0 ]; ' .
-           'then echo LOCKED by`' . $showlock . '`; ' .
-                "exit $my_errcode; " .
+    return("ln -s $from LOCK; ",
+           'if [ $? -ne 0 ]; ',
+           'then echo LOCKED by`' . $showlock . '`; ',
+           "     exit $my_errcode; ",
            'fi');
   }        
 
-sub sh_handle_attic
+sub sh_mklock_s
+  { my($indent)= shift;
+    return(sh_indent_and_join($indent,sh_mklock_l(@_))); 
+  }
+
+sub sh_mklock
+  { return(sh_backwards_compatible(sh_mklock_l(@_))); }
+
+
+sub sh_handle_attic_l
   { my(@files)= @_;
     my $files= join(" ",@files);
 
-    return( 'if ! test -d attic;' .
-            'then mkdir attic; ' .
-            'fi && ' .
+    return( 'if ! test -d attic;',
+            'then mkdir attic; ',
+            'fi',
+	    ' && ',
             "cp $files attic 2>/dev/null; true"
             );
   }         
+
+sub sh_handle_attic_s
+  { my($indent)= shift;
+    return(sh_indent_and_join($indent,sh_handle_attic_l(@_))); 
+  }
+
+sub sh_handle_attic
+  { return(sh_backwards_compatible(sh_handle_attic_l(@_))); }
 
 sub sh_must_all_be_symlinks
   { my(@files)= @_;
@@ -1780,6 +1884,41 @@ sub filetime
     return($time);
   }
 
+sub make_file_list
+# create a list of files and return the
+# name of the created temporary file
+  { my($start_dir,$just_dump,@patterns)= @_;
+    my $old= cwd();
+    
+    if (defined $start_dir)
+      { chdir($start_dir) or die "unable to chdir to \"$start_dir\"\n"; };
+   
+    my $r_files= extended_glob::fglob(@patterns);
+
+    if ($#$r_files<0)
+      { die "no files found for transfer\n"; };
+
+    if (defined $start_dir)
+      { chdir($old) or die "unable to chdir to \"$old\"\n"; };
+      
+    if ($just_dump)
+      { print join("\n",@$r_files),"\n";
+        return;
+      };
+    
+    my $tmp = new File::Temp(UNLINK => 0,
+                             TEMPLATE => 'rsync-dist-filesXXXXX',
+                             DIR => '/tmp');
+    foreach my $l (@$r_files)
+      { 
+        # print $tmp (File::Spec->rel2abs($l)),"\n"; 
+        print $tmp $l,"\n"; 
+      };
+    close($tmp);
+    return($tmp->filename());
+  }
+      
+
 # ------------------------------------------------
 # username/hostname/date utilities  
 # ------------------------------------------------
@@ -1867,6 +2006,15 @@ sub empty
     return(1) if ($st eq "");
     return;
   }
+  
+sub has_glob
+  { 
+    foreach my $str (@_)  
+      { if (extended_glob::is_glob($str))
+          { return(1); };
+      };
+    return;
+  }
 
 # ------------------------------------------------
 # ssh execution
@@ -1897,17 +2045,26 @@ sub myssh_cmd
       { $host= $user . '@' . $host; };
 
     if (defined $path)
-      { $cmd= "(cd $path; if [ \$? -ne 0 ]; then exit $my_errcode; fi && $cmd)"; };
+      { $cmd= "(cd $path; \\\n" .
+              "if [ \$? -ne 0 ]; \\\n" .
+	      "then exit $my_errcode; \\\n" .
+	      "fi && \n" .
+	      "$cmd)"; };
 
     # -A: turn agent forwarding on 
-    my $ssh_cmd= "ssh -A $host '$cmd'";
+    my $ssh_cmd= "ssh -A $host \\\n'$cmd'";
 
     if ($opt_dry_run)
       { print $ssh_cmd,"\n"; 
         return(1);
       }
     else
-      { return(mysys($ssh_cmd, $do_catch, $silent)); }
+      { # shorten the command:
+        $ssh_cmd =~ s/\\[\r\n]+/ /g;# combine backslash-continued lines
+	$ssh_cmd =~ s/[\r\n]+/ /g;  # CR/LF -> <space>
+        $ssh_cmd =~ s/ +/ /g;       # space-sequence -> single space
+        return(mysys($ssh_cmd, $do_catch, $silent)); 
+      }
 
    }
 
@@ -2430,6 +2587,11 @@ Syntax:
                 no lock-file on the remote host. You have to do this
                 yourself with the "--mk-lock" command before.
                 only for distribution directories
+
+    expand-glob
+    		if the --localpath parameter contains glob-expressions
+		list all the files that would be checked for transfer
+		when a dist command is issued
 
   commands to inspect the server:
 
