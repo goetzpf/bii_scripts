@@ -775,8 +775,8 @@ sub dist
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
     
-#    if (defined $filelist_file)
-#      { unlink $filelist_file; }
+    if (defined $filelist_file)
+      { unlink $filelist_file; }
     
     return(1);
   }    
