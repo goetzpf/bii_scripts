@@ -82,7 +82,7 @@ use constant {
   do_change_or_add => 2,
 };
 
-my $sc_version= "1.7";
+my $sc_version= "1.8";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
@@ -1896,6 +1896,12 @@ sub make_file_list
 # name of the created temporary file
   { my($start_dir,$just_dump,@patterns)= @_;
     my $old= cwd();
+    
+    # treat a start_dir that is an empty string
+    # like an undefined start_dir, this means that the 
+    # base for the file-list to build is the current dir
+    if ($start_dir=~ /^\s*$/)
+      { $start_dir= undef; };
     
     if (defined $start_dir)
       { chdir($start_dir) or die "unable to chdir to \"$start_dir\"\n"; };
