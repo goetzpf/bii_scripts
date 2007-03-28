@@ -232,10 +232,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     }
 
 # set BOLD and italic
-#    $paragraph =~ s|  (.*?)  | <B>$1</B> |g;	# bold-text quoted with double spaces 
-#    $paragraph =~ s|\s\'(.*?)\'\s| <I>$1</I> |g;	# italic-text quoted with sinlge quotes
-    $paragraph = substParagraph($paragraph,'  (.*?)  ',"B>");	    # bold-text quoted with double spaces 
-    $paragraph = substParagraph($paragraph,'\W\'(.*?)\'\W',"I>","s");   # italic-text quoted with sinlge quotes
+    $paragraph =~ s|  (.*?)  | <B>$1</B> |g;	# bold-text quoted with double spaces 
+    $paragraph =~ s{(\W|^)'(.*?)'(\W)}{$1<I>$2</I>$3}g;	# italic-text quoted with sinlge quotes
 #    print "para\t|$paragraph|\n";
     
 # reformate tables html
@@ -310,25 +308,4 @@ sub   getParagraph
   {
     return undef;
   }
-}
-
-# check for all occurencies of the pattern $searchPat in $value and enclose with html tags.
-sub   substParagraph
-{   my ($value,$searchPat,$htmlTag,$mod) = @_;
-
-    my $parseVal = $value;
-
-    my $parsed;
-    
-#print "substParagraph parse: ($*)\'$value'\n";
-    while( $parseVal =~ /$searchPat/) # check for all occuring variables: $(VARNAME)
-    {
-#print "\tbefore:\t\'$`\'\n\tmatch\t\'$1\'\n\tremain\t\'$'\'\n";
-        $parsed .= "$` <${htmlTag}$1</${htmlTag} ";
-        $parseVal = $';
-    }
-    $parsed .= $parseVal; # add the not matching remainder
-
-#print "return: \'$parsed'\n";
-    return $parsed;
 }
