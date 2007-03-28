@@ -215,8 +215,10 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
       $indexNr += 1;
     }
 # is LIST ?
-    elsif( $paragraph =~ /^\s*-\s*/i )
+    elsif( $paragraph =~ /(^\s*-\s*)/i )
     { #print "is 2nd list or HR\n";
+      my $indent = length $1;
+      $paragraph =~ s/\n {$indent}/\n/g;
       $paragraph =~ s/^\s*-\s*/<UL>\n  <LI>/i;
       $paragraph =~ s/\n\s*-\s*/<\/LI>\n  <LI>/gi;
       $paragraph = "$paragraph"."</LI>\n</UL>\n";
