@@ -121,7 +121,7 @@ if (defined $config->{'family'}) {
 }
 
 if (defined $config->{'subdomain'}) {
-	$dbjoin .= " AND vn.family_key = device.pkg_bdns.get_subdomain_key('".$config->{'subdomain'}."')";
+	$dbjoin .= " AND vn.subdomain_key = device.pkg_bdns.get_subdomain_key('".$config->{'subdomain'}."')";
 }
 
 if (defined $config->{'lattice'}) {
