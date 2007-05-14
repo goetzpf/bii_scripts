@@ -4,17 +4,22 @@ use ExtUtils::MakeMaker;
 
 # Makefile.PL for libCom/O.Linux
 
-require "platform.p";
+use platform 
+  qw(pl_includes pl_defines pl_dir pl_libdirs
+     pl_libs pl_objects
+     pl_mk_includes
+     pl_platform_includes pl_libcom_subdirs);
 
 WriteMakefile(
     'NAME'    => 'libCom/O.Linux', # perhaps leave this undefined ?
     'SKIP'    => [qw(all static static_lib dynamic dynamic_lib
                      test test_dynamic test_static)],
-    'DEFINE'  => $defines{$platform},
+    'DEFINE'  => pl_defines(),
 #    'INC'    => '-I../../../include -I../..' . 
 #                base_includes(" -I../../../") . '-I.  ',
-    'INC'    => '-I../../include' . base_includes(" -I../../") . 
-                '-I.. -I. ',
+    'INC'    => join(" ",
+                     pl_mk_includes('../../include','..','.'),
+                     pl_platform_includes(["..",".."])),
 );
 
 sub MY::top_targets {

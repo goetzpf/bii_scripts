@@ -12,9 +12,9 @@ require AutoLoader;
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 @EXPORT = qw(
-	
+
 );
-$VERSION = '0.3'; 
+$VERSION = '0.3.3';
 
 bootstrap Pezca $VERSION;
 
@@ -39,7 +39,7 @@ use Pezca;
 =head2 Preface
 
 This module gives access to some functions of the ezca library.
-ezca is a library that simplifies the usage of channel-access, the 
+ezca is a library that simplifies the usage of channel-access, the
 tcp/ip-based protocol that is used in the Experimental Physics Industrial
 Control System (EPICS). This software is copyrighted by the terms described
 in the file LICENSE which is part of the software distribution.
@@ -55,7 +55,7 @@ B<GetDouble>
   ($errcode,$val)= Pezca::GetDouble($channel_name)
 
 Gets a channel name as parameter (a string) and returns a list containing
-of the error-code and the value of the operation. 
+of the error-code and the value of the operation.
 This function can block when the channel is not immediately available.
 This function replaces Pezca::Get().
 
@@ -66,7 +66,7 @@ B<GetString>
   ($errcode,$val)= Pezca::GetString($channel_name)
 
 gets a channel name as parameter (a string) and returns a list containing
-of the value and the error-code of the operation. 
+of the value and the error-code of the operation.
 The value is read as a string.
 This function can block when the channel is not immediately available.
 This function replaces Pezca::GetS().
@@ -79,10 +79,10 @@ B<GetList>
 
 gets a channel name, a type and the number of elements as parameter.
 Known types are "byte","short","long","float","double","string" only the first
-two characters of the type-name are significant. If the type-name is omitted, 
+two characters of the type-name are significant. If the type-name is omitted,
 it defaults to "double". If the number of elements is omitted, all elements
-of the channel are fetched. The function returns the error-code and 
-a list of elements. 
+of the channel are fetched. The function returns the error-code and
+a list of elements.
 This function can block when the channel is not immediately available.
 
 =item *
@@ -94,7 +94,19 @@ B<PutDouble>
 get a channel name (string) and a value (floating point) as parameter. The
 functions return the error-code of the put-operation. They can block when the
 channel is not immediately available. Both functions are identical, the
-Pezca::Put() shouldn't be used in future applications since it is not 
+Pezca::Put() shouldn't be used in future applications since it is not
+complient with the new naming convention of this module.
+
+=item *
+
+B<PutDoubleOldCa>
+
+  $errcode= Pezca::PutDoubleOldCa($channel_name,$value)
+
+get a channel name (string) and a value (floating point) as parameter. The
+functions return the error-code of the put-operation. They can block when the
+channel is not immediately available. Both functions are identical, the
+Pezca::Put() shouldn't be used in future applications since it is not
 complient with the new naming convention of this module.
 
 =item *
@@ -106,7 +118,19 @@ B<PutString>
 get a channel name (string) and a value (string) as parameter. The
 functions return the error-code of the opreration. They can block when the
 channel is not immediately available.
-Pezca::PutS() shouldn't be used in future applications since it is not 
+Pezca::PutS() shouldn't be used in future applications since it is not
+complient with the new naming convention of this module.
+
+=item *
+
+B<PutStringOldCa>
+
+  $errcode= Pezca::PutStringOldCa($channel_name,$value)
+
+get a channel name (string) and a value (string) as parameter. The
+functions return the error-code of the opreration. They can block when the
+channel is not immediately available.
+Pezca::PutS() shouldn't be used in future applications since it is not
 complient with the new naming convention of this module.
 
 =item *
@@ -117,8 +141,20 @@ B<PutList>
 
 gets a channel name, a type and the list of elements as parameter.
 Known types are "byte","short","long","float","double", only the first
-two characters of the type-name are significant. The function returns the 
-error-code of the operation. 
+two characters of the type-name are significant. The function returns the
+error-code of the operation.
+This function can block when the channel is not immediately available.
+
+=item *
+
+B<PutListOldCa>
+
+  $errcode= Pezca::PutListOldCa($channel_name,$type,@values)
+
+gets a channel name, a type and the list of elements as parameter.
+Known types are "byte","short","long","float","double", only the first
+two characters of the type-name are significant. The function returns the
+error-code of the operation.
 This function can block when the channel is not immediately available.
 
 =item *
@@ -127,7 +163,7 @@ B<GetControlLimits>
 
   ($errcode,$low,$high)= Pezca::GetControlLimits($channel)
 
-Get the control limits of the given channel. 
+Get the control limits of the given channel.
 
 =item *
 
@@ -135,7 +171,7 @@ B<GetGraphicLimits>
 
   ($errcode,$low,$high)= Pezca::GetGraphicLimits($channel)
 
-Get the graphic limits of the given channel. 
+Get the graphic limits of the given channel.
 
 =item *
 
@@ -144,7 +180,7 @@ B<GetNelem>
   ($errcode,$no)= Pezca::GetNelem($channel)
 
 Get the number of elements of the given channel. See also
-Pezca::GetList() and Pezca::PutList(). 
+Pezca::GetList() and Pezca::PutList().
 
 =item *
 
@@ -152,7 +188,7 @@ B<GetPrecision>
 
   ($errcode,$prec)= Pezca::GetPrecision($channel)
 
-Get the precision of the given channel. 
+Get the precision of the given channel.
 
 =item *
 
@@ -160,7 +196,7 @@ B<GetUnits>
 
   ($errcode,$units)= Pezca::GetUnits($channel)
 
-Get the engeneering units (a string) of the given channel. 
+Get the engeneering units (a string) of the given channel.
 
 =item *
 
@@ -168,12 +204,12 @@ B<SetMonitorDouble>
 
   $errcode= Pezca::SetMonitorDouble($channel_name)
 
-This function sets a channel-access monitor on the given channel. A buffer 
+This function sets a channel-access monitor on the given channel. A buffer
 is set up that is notified each time the value of the given channel changes.
-All following calls of Pezca::GetDouble() access that local buffer. This is 
-a way to reduce network traffic, when Pesca::GetDouble() is called more 
-frequently than the underlying value actually changes. Note that the 
-data-types of the monitors and the get functions must match, so 
+All following calls of Pezca::GetDouble() access that local buffer. This is
+a way to reduce network traffic, when Pesca::GetDouble() is called more
+frequently than the underlying value actually changes. Note that the
+data-types of the monitors and the get functions must match, so
 Pezca::SetMonitorDouble() should only be used with Pezca:GetDouble().
 
 =item *
@@ -182,12 +218,12 @@ B<SetMonitorString>
 
   $errcode= Pezca::SetMonitorString($channel_name)
 
-This function sets a channel-access monitor on the given channel. A buffer 
+This function sets a channel-access monitor on the given channel. A buffer
 is set up that is notified each time the value of the given channel changes.
-All following calls of Pezca::GetString() access that local buffer. This is 
-a way to reduce network traffic, when Pesca::GetString() is called more 
-frequently than the underlying value actually changes. Note that the 
-data-types of the monitors and the get functions must match, so 
+All following calls of Pezca::GetString() access that local buffer. This is
+a way to reduce network traffic, when Pesca::GetString() is called more
+frequently than the underlying value actually changes. Note that the
+data-types of the monitors and the get functions must match, so
 Pezca::SetMonitorString() should only be used with Pezca:GetString().
 
 =item *
@@ -196,8 +232,8 @@ B<ClearMonitorDouble>
 
   $errcode= Pezca::ClearMonitorDouble($channel_name)
 
-These functions remove the monitor that was set up with 
-Pezca::SetMonitorDouble(). 
+These functions remove the monitor that was set up with
+Pezca::SetMonitorDouble().
 
 =item *
 

@@ -4,14 +4,18 @@ use ExtUtils::MakeMaker;
 
 # Makefile.PL for ezca
 
-require "platform.p";
+use platform 
+  qw(pl_includes pl_defines pl_dir pl_libdirs
+     pl_libs pl_objects
+     pl_mk_includes
+     pl_platform_includes pl_libcom_subdirs);
 
 WriteMakefile(
     'NAME'    => 'ezca',
     'SKIP'    => [qw(all static static_lib dynamic dynamic_lib
                      test test_dynamic test_static)],
-    'DEFINE'  => $defines{$platform},
-    'INC'     => '-I../include -I../db -I../ca -I../libCom -I.',
+    'DEFINE'  => pl_defines(),
+    'INC'     => pl_mk_includes('../include','../db','../ca','../libCom','.'),
 );
 
 sub MY::top_targets {

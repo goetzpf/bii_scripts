@@ -7,14 +7,24 @@ Note that this package contains code from the EPICS distribution
 in form of c source-code. Note that these files have their own copyright
 and were NOT developed at BESSY GmbH.
 
-compiling the module when EPICS is already installed:
---------------------
---> read further in "README.ontop"
-
-compiling the module (standalone-version):
+compiling the module:
 ---------------------
-"perl Makefile.PL"
-"make"
+This module requires that you have installed an EPICS base and
+the ezca library in an EPICS extensions directory.
+
+In order to compile Pezca you may habe to specify where these can be 
+found. The easiest way is to specify the environment varables
+"EPICS_BASE" and "EPICS_EXTENSIONS" if you have not already done so.
+Here is an example how to do this:
+  EPICS_BASE=/home/epics/base EPICS_EXTENSIONS=/home/epics/ext perl Makefile.PL
+
+If the environment variables are already defined (or Pezca guesses the right place)
+you may simply enter this command:
+  perl Makefile.PL.ontop
+  
+Anyway, in order to actually compile Pezca you have to call "make" :
+
+  make
 
 testing:
 --------

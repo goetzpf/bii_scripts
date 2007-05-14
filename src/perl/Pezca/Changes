@@ -65,4 +65,17 @@ Revision history for Perl extension Pezca.
 0.3   Thu Jan 31 2002
 	Sources from epics 3.13.5 were incorporated, replacing the 
 	old epics sources. 
+
+0.3.1 Aug 24  2004
+	small bugfixes that fix errors on Linux
 	
+0.3.2 May 11 2007
+	new configuration system. platform_standalone.pm configures
+	the standalone-version of Pezca (including all channel-access
+	sources), platform.pm configures the "on top" version where Pezca
+	uses an already installed epics base and ezca libary. 	
+
+0.3.3 May 14 2007
+	new configuration system. platform.pm configures
+	the "on top" version of Pezca that uses an already installed 
+	epics base and ezca libary. 

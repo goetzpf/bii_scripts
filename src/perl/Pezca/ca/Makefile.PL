@@ -4,15 +4,20 @@ use ExtUtils::MakeMaker;
 
 # Makefile.PL for libca
 
-require "platform.p";
+use platform 
+  qw(pl_includes pl_defines pl_dir pl_libdirs
+     pl_libs pl_objects
+     pl_mk_includes
+     pl_platform_includes pl_libcom_subdirs);
 
 WriteMakefile(
     'NAME'    => 'libca',
     'SKIP'    => [qw(all static static_lib dynamic dynamic_lib
                      test test_dynamic test_static)],
-    'DEFINE'  => $defines{$platform},
-    'INC'    => '-I../include ' . base_includes(" -I../") . '-I. ' .
-                '-I../db ' . '-I../libCom ',
+    'DEFINE'  => pl_defines(),
+    'INC'     => join(" ",
+                      pl_mk_includes('../include','.','../db','../libCom'),
+                      pl_platform_includes("..")),
 );
 
 sub MY::top_targets {

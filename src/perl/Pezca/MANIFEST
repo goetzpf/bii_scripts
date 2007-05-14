@@ -2,6 +2,7 @@ Changes
 LICENSE
 MANIFEST
 Makefile.PL
+Makefile.PL.ontop
 Pezca.pm
 Pezca.xs
 README
@@ -191,16 +192,12 @@ libCom/Com.rc
 libCom/Makefile.Host
 libCom/Makefile.PL
 libCom/Makefile.Vx
-libCom/O.Linux/Makefile
 libCom/O.Linux/Makefile.PL
 libCom/O.Linux/envData.c
 libCom/O.Linux/errSymTbl.c
 libCom/O.hp700/Makefile.PL
 libCom/O.hp700/envData.c
 libCom/O.hp700/errSymTbl.c
-libCom/O.mv162/Makefile
-libCom/O.mv162/envData.c
-libCom/O.mv162/errSymTbl.c
 libCom/O.solaris/Makefile.PL
 libCom/O.solaris/Templates.DB/Dependency.state
 libCom/O.solaris/envData.c
@@ -302,6 +299,9 @@ libCom/truncateFile.c
 libCom/truncateFile.h
 libCom/tsDefs.h
 libCom/tsSubr.c
-platform.p
+platform_ontop.pm
+platform.pm
+myutils.pm
 test.pl
 typemap
+META.yml                                 Module meta-data (added by MakeMaker)
