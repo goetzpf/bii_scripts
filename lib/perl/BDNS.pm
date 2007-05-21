@@ -64,7 +64,7 @@ $pfam{P} = $pfam{global};
 my $pcnt = "[0-9]*";
 
 our %psdom;
-$psdom{global} = "X";
+$psdom{global} = "BUX";
 $psdom{B} = $psdom{global} . "DST";
 $psdom{F} = $psdom{global} . "LCEGMSU";
 $psdom{P} = $psdom{global} . "KLS";
