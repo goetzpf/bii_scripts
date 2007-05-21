@@ -234,8 +234,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 # set BOLD and italic
     $paragraph =~ s|  (.*?)  | <B>$1</B> |g;	# bold-text quoted with double spaces 
     $paragraph =~ s{(\W|^)'(.*?)'(\W)}{$1<I>$2</I>$3}g;	# italic-text quoted with sinlge quotes
-    $paragraph =~ s/\\\\(.*$)\\\\/<$1>/sg;
-#    print "para\t|$paragraph|\n";
+    $paragraph =~ s/\\\\(.*?)\\\\/<$1>/sg;
+    print "para\t($1)|$paragraph|\n";
     
 # reformate tables html
     $paragraph =~ s|\n<TH|\n    <TH|g;
