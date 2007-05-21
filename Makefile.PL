@@ -40,12 +40,12 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
                 dbcount pfind.pl dbdiff Sch2db.pl
                 dbscan.pl set_ioc_tsrv.pl hgen.pl
                 canlink.pl filter_can_links.pl
-		expander.pl subst2exp.pl grepDb.pl
+		expander.pl subst2exp.pl grepDb.pl dumpdb
 		dbfilter.pl makeDocCommonIndex.pl
 		makeDocPerl.pl makeDocTxt.pl
 		cvs_diff.pl cvs_log_diff.pl camonitor_sort.pl 
 		sch_cvs_diff.pl SetPerms vdct flatdb tkSQL 
-		oracle_request accLaunch
+		oracle_request accLaunch addPVtoArchiver
 		rsync-deploy rsync-dist.pl multi-commit.pl);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm

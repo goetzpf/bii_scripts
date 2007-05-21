@@ -1,0 +1,56 @@
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+
+package require Tclx
+package require http
+
+# http://arc1c.trs.bessy.de:4811/addchannel?GROUP=GrOuP&CHANNEL=ChAnNeL&PERIOD=PeRiOd&MONITOR=1
+
+proc usage {{msg ""}} {
+  if {$msg != ""} {puts stderr "Error: $msg\n"}
+  puts stderr "USAGE: addPVtoArchiver <archiver> <group> <channel> <period> \[mon\] \[dis\]"
+  puts stderr "where:\n\t<archiver>\tis one of ctl, blc, csr, id and misc"
+  puts stderr "\t<group>\t\tis an existing group-name in the archiver-config"
+  puts stderr "\t<channel>\tis the name of the PV to add"
+  puts stderr "\t<period>\tis the min. time \[s\] between events on this PV"
+  puts stderr "\tmon, dis\tare optional and flag this PV as 'monitored' or 'disabling group'"
+  exit
+}
+
+if {[llength $argv] < 4} {usage "too few arguments"}
+
+array set ports {ctl 4811 blc 4812 csr 4821 id 4841 misc 4842}
+
+set rest [lassign $argv archiver group channel period]
+
+if {[array names ports $archiver] == ""} {usage "archiver '$archiver' not found"}
+set port $ports($archiver)
+
+if {[catch {set period [format %.3f $period]}]} {
+  usage "given period seems not to be numeric..."
+}
+if {$period == 0} {
+  usage "given period equals to 0.0..."
+}
+
+
+set req "http://arc1c.trs.bessy.de:$port/addchannel?GROUP=$group&CHANNEL=$channel&PERIOD=$period"
+
+if {[lsearch $rest "mon"] >= 0} {append req "&MONITOR=1"}
+if {[lsearch $rest "dis"] >= 0} {append req "&DISABLE=1"}
+
+set tok [http::geturl $req]
+http::wait $tok
+set str [split [http::data $tok] "\n"]
+http::cleanup $tok
+set a [lsearch $str "*Cannot*"]
+if {$a >= 0} {usage [lindex $str $a]}
+
+set a [lsearch $str "*added*"]
+if {$a >= 0} {
+  set msg [regsub -all "<.?I>" [lindex $str $a] ""]
+  puts $msg
+}
+
+#puts ""
+#puts $str
