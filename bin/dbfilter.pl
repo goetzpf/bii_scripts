@@ -43,10 +43,11 @@ use vars qw($opt_help $opt_summary
 	    $opt_Lowcal
 	    $opt_sdo
 	    $opt_Sdo
+	    $opt_alternative
 	   );
 
 
-my $sc_version= "1.6";
+my $sc_version= "1.7";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files"; 
@@ -98,7 +99,8 @@ if (!@ARGV)
 Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary",
-                "dump_internal|i", "recreate|r", "val_regexp|v=s",
+                "dump_internal|dump-internal|i", 
+		"recreate|r", "val_regexp|v=s",
 		"short|s",
 		"field=s@", 
 		"name|NAME|n=s", "notname|NOTNAME=s", 
@@ -107,17 +109,18 @@ if (!GetOptions("help|h","summary",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
 		"empty|e",
-		"skip_empty_records|E",
+		"skip_empty_records|skip-empty-records|E",
 		"list|l",
 		"percent=s",
-		"unresolved_variables",
-		"unresolved_links",
-		"unresolved_links_plain",
-		"record_references|R=s",
-		"allow_double|A",
+		"unresolved_variables|unresolved-variables",
+		"unresolved_links|unresolved-links",
+		"unresolved_links_plain|unresolved-links-plain",
+		"record_references|record-references|R=s",
+		"allow_double|allow-double|A",
 		"single|S",
 		"lowcal:s", "Lowcal:s",
-		"sdo", "Sdo",
+		"sdo:s", "Sdo:s",
+		"alternative|a",
                 ))
   { die "parameter error!\n"; };
 
@@ -142,6 +145,20 @@ if ($opt_Lowcal ne "")
   { if ($opt_Lowcal!~/=/)
       { push @ARGV,$opt_Lowcal;
         $opt_Lowcal=""; 
+      }; 
+  };
+
+if ($opt_sdo ne "")
+  { if ($opt_sdo!~/=/)
+      { push @ARGV,$opt_sdo;
+        $opt_sdo=""; 
+      }; 
+  };
+
+if ($opt_Sdo ne "")
+  { if ($opt_Sdo!~/=/)
+      { push @ARGV,$opt_Sdo;
+        $opt_Sdo=""; 
       }; 
   };
 
@@ -269,7 +286,9 @@ foreach my $file (@files)
       };
 
     if ((defined $opt_sdo) || (defined $opt_Sdo))
-      { sdo($filename,$recs,(defined $opt_Sdo));
+      { my $par= $opt_sdo;
+        $par= $opt_Sdo if (!defined $par);
+        sdo($filename,$recs,(defined $opt_Sdo),$par);
 	next;
       };
 
@@ -502,6 +521,27 @@ sub list_record_references
     if ($recreate)
       { %to_print= map { $_ => 1 } @reclist; };
     
+    # <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
+    # separator in-between record-names: $S
+    
+    my $A= "\n";
+    my $B= "  references:";
+    my $C= "\n";
+    my $D= "  referenced by:";
+    my $E= "\n";
+    my $F= "\n";
+    my $S= "\n\t";
+    
+    if ($opt_alternative)
+      { $A='';
+        $B=' ->'; 
+	$C='';
+	$D=' <-';
+	$E='';
+	$F= "\n";
+	$S= " ";
+      };
+    
     foreach my $recname (@reclist)
       { my $r_references   = $references{$recname};
         my $r_referenced_by= $referenced_by{$recname};
@@ -509,21 +549,24 @@ sub list_record_references
         if ((!defined $r_references) && (!defined $r_referenced_by))
 	  { next; };
 	
-	print "$recname\n";
+	
+	print $recname,$A;
+	  
 	if (defined $r_references)
 	  { if ($recreate)
 	      { foreach my $r (keys %$r_references)
 	          { $to_print{$r}= 1; };
 	      };	  
-	    print "  references:\n\t",join("\n\t",sort keys %$r_references),"\n"; 
+	    print $B,hjoin($S,sort keys %$r_references),$C;
 	  };
 	if (defined $r_referenced_by)
 	  { if ($recreate)
 	      { foreach my $r (keys %$r_referenced_by)
 	          { $to_print{$r}= 1; };
 	      };	  
-	    print "  referenced by:\n\t",join("\n\t",sort keys %$r_referenced_by),"\n"; 
+	    print $D,hjoin($S,sort keys %$r_referenced_by),$E;
 	  };
+	print $F;  
       };
     if ($recreate)
       { print "=" x 40,"\nRecords:\n";
@@ -889,8 +932,26 @@ sub lowcal
   }
  
 sub sdo
-  { my($filename,$r_rec,$reverse)= @_;
+  { my($filename,$r_rec,$reverse,$params)= @_;
+    my $use_hex= 0;
   
+    if (defined $params)
+      { my @args= split(/\s*,\s*/,$params);
+        foreach my $a (@args)
+	  { if ($a!~/^\s*(\w+)\s*=\s*(\S*)/)
+	      { warn "not understood: \"$a\"\n";
+	        next;
+	      };
+	    my $f= $1;
+	    my $v= $2;
+	    if ($f eq 'hex')
+	      { $use_hex= $v;
+	        next;
+              };
+	    warn "not recognized: \"$a\"\n"; 
+	  };
+      };
+    
     filter_records($r_rec,"DTYP","SDO"); 
     filter_fields($r_rec,['INP','OUT']);
     
@@ -909,6 +970,8 @@ sub sdo
 	  };
 
         my %h= sdo_decode($link);
+	
+	$h{USE_HEX}= $use_hex;
       
         if (!$reverse)
           { printf "%-28s%-3s %s\n",$recname,$dir,sdo_tab_print(%h); }
@@ -976,13 +1039,24 @@ sub sdo_decode
     $h{TIMEOUT} = $timeout;
     return(%h);
   }
- 
+
+# w-r: seen from the server's side 
+sub sdo_rcob
+  { my($node)= @_;
+    return(0x600+$node); 
+  }
+
+sub sdo_wcob
+  { my($node)= @_;
+    return(0x580+$node); 
+  }
+
 sub sdo_tab_print
   { my(%p)= @_;
        
     # HOSTTYPE, PORT, NODE, INDEX, SUBINDEX, DATASIZE, DATATYPE, TIMEOUT
     if (!@_)
-      { my $st= sprintf "%-7s %3s %3s %5s %4s %3s %3s %5s", 
+      { my $st= sprintf "%-7s %3s %3s %5s %4s %3s %3s %5s %5s %6s", 
                         "hosttp",
 			"prt",
 			"nod",
@@ -990,11 +1064,18 @@ sub sdo_tab_print
 			"sidx",
 			"dsz",
 			"dtp",
-			"tmo";
+			"tmo",
+			"inCOB",
+			"outCOB",
+			;
         return($st);
       };
  
-    my $st= sprintf "%-7s %3d %3d %5d %4d %3d %3s %5d", 
+    my  $format= "%-7s %3d %3d %5d %4d %3d %3s %5d %5d %6d";
+    if ($p{USE_HEX})
+      { $format= "%-7s %3d %3d %5x %4x %3d %3s %5d %5x %6x"; };
+    
+    my $st= sprintf $format, 
                lc($p{HOSTTYPE}),
 	       $p{PORT},
 	       $p{NODE},
@@ -1002,7 +1083,10 @@ sub sdo_tab_print
 	       $p{SUBINDEX}, 
 	       $p{DATASIZE},
 	       lc($p{DATATYPE}),
-	       $p{TIMEOUT};
+	       $p{TIMEOUT},
+	       sdo_rcob($p{NODE}),
+	       sdo_wcob($p{NODE}),
+	       ;
  
     return($st);
   }            
@@ -1048,6 +1132,13 @@ sub create_regexp_func
 
 # ------------------------------------------------
 
+sub hjoin
+# call with hjoin($sep,@array)
+# returns $sep . join($sep,@array)
+  { my $sep= shift;
+    return($sep . join($sep, @_));
+  }
+  
 sub print_summary
   { printf("%-20s: $sc_summary\n",
            $sc_name);
@@ -1123,7 +1214,10 @@ Syntax:
       case all records that are connected to other records are
       shown. This option can be combined with "-r", in this case
       all the contents of the shown records are printed in 
-      db-file format       
+      db-file format 
+      With option "-a" the references are printed in an alternative
+      format, each record combined with all dependant records in a
+      single line.      
 
     --allow_double -A : allow double record names 
       (for debugging faulty databases)
@@ -1171,11 +1265,20 @@ Syntax:
       identical to --lowcal except that the record
       names are in the last, not in the first column  
 
-    --sdo: print records with DTYP=SDO and decode
+    --sdo {options}
+      print records with DTYP=SDO and decode
       the CAN link. Record names and can-link properties are
       printed in a table format 
+      The optional <options> parameter is comma-separated a 
+      list in the form
+        name=value
+      currently known options are:
+        hex	     : when not 1, print everything in decimal
+		       when 1, print the index, subindex, in-cob
+		       and out-cob in hex
 
-    --Sdo: identical to --sdo except that the record
+    --Sdo {options}
+      identical to --sdo except that the record
       names are in the last, not in the first column  
 
    filter field values:
