@@ -75,6 +75,7 @@ use vars qw($opt_help
             $opt_debug 
             $opt_version
             $opt_create_missing_links
+	    $opt_ssh_back_tunnel
             );
 
 use constant {
@@ -83,7 +84,7 @@ use constant {
   do_change_or_add => 2,
 };
 
-my $sc_version= "1.8";
+my $sc_version= "1.9";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
@@ -413,6 +414,7 @@ if (!GetOptions("help|h",
                 "dry_run|dry-run",
                 "world_readable|world-readable|w",
                 "create_missing_links|create-missing-links",
+		"ssh_back_tunnel|ssh-back-tunnel=i",
 
 # undocumented:
                 "debug",
@@ -721,19 +723,26 @@ sub dist
               'fi ',
               ' && ');
               
+    my $rsync_ssh_opt= "ssh -A -l $local_user";
+    my $rsync_host= $local_host;
+    if ($opt_ssh_back_tunnel)
+      { $rsync_ssh_opt.= " -p $opt_ssh_back_tunnel";
+        $rsync_host= "localhost";
+      };
+    
     if (!defined $filelist_file)     
       { $rcmd.= sh_indent_and_join(0,         
               "for l in $local_paths;",
-              "do rsync $rsync_opts -e \"ssh -A -l $local_user \" \\",
-              "         $local_host:\$l ./`cat STAMP`;",
+              "do rsync $rsync_opts -e \"$rsync_ssh_opt \" \\",
+              "         $rsync_host:\$l ./`cat STAMP`;",
               'done');
       }
     else
       { my $lp= File::Spec->rel2abs($localprefix);
         $rcmd.= sh_indent_and_join(0,
-              "rsync $rsync_opts -e \"ssh -A -l $local_user \" \\",
+              "rsync $rsync_opts -e \"$rsync_ssh_opt \" \\",
               "      --files-from=:$filelist_file \\", 
-              "      $local_host:$lp ./`cat STAMP`");         
+              "      $rsync_host:$lp ./`cat STAMP`");         
       };
 
     if ($world_readable)
@@ -2902,6 +2911,15 @@ Syntax:
     --create_missing_links
                 for use with command "change-links": don't complain if links
                 dont exist, instead create them
+		
+    --ssh-back-tunnel [port]
+    		use an existing ssh-tunnel on remote host in order to connect
+		back to the local host. This option has only an effect on
+		the "dist" command. 	
+		Such a tunnel can be created by issuing this command 
+		on the remote host:
+		ssh -N -L <port>:<localhost>:22 <localuser>@<tunnel-host>
+			
 END
   }
 __END__
