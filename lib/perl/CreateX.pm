@@ -96,7 +96,7 @@ our @EXPORT = qw(
   write_template_sql
   perform_query
 );
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.7 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.8 $ =~ /(\d+)/g;
 
 use strict;
 use Carp;
@@ -205,7 +205,7 @@ Standard arguments for DBI->connect, i.e.
 =cut
 
 use constant std_dbi_connect_args => (
-    "dbi:Oracle:$ENV{ORACLE_SID}",
+    "dbi:Oracle:mirror",
     "guest",
     "bessyguest",
     {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0}
