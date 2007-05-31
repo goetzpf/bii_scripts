@@ -31,7 +31,6 @@ sub blabla
     "<P class=\"grayText\" ALIGN=\"RIGHT\"><FONT SIZE=\"-1\">last update: $filetime by $user</FONT></P>\n";
 
   my $fileFooter = "<hr class=\"footer\">\n".
-    "<P class=\"footer\"><font size=\"-1\">End of Bessy System Documentation:</font></P>\n".
     "<P class=\"footer\" ALIGN=\"CENTER\"><B>$title</B></P>\n".
     "</BODY>\n".
     "</HTML>\n";
