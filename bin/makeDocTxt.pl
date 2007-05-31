@@ -14,6 +14,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
   use strict;
   use makeDocStyle;
+  use POSIX qw(strftime);
 
   my $inFileName = shift @ARGV;
   my $top =  shift @ARGV;
@@ -37,9 +38,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
  my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
    $atime,$mtime,$ctime,$blksize,$blocks) = stat($inFileName);
-  my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime($mtime);
-  $mon +=1; $year+=1900;
-  my $filetime ="$mday.$mon.$year $hour:$min\'$sec";
+
+  my $filetime = strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
 
 # outfilename an optional 2'nd parameter, not used here, because 
 # make copies the file to its destination
