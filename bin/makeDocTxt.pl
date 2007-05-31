@@ -278,7 +278,8 @@ my $config = Options::parse($usage, 1);
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
   print OUT_FILE $fileHeader;
 
-  if(!$config->{"nocontents"} && length($index) > 0)
+print $config->{"nocontents"};
+  if((!$config->{"nocontents"} || $config->{"nocontents"} eq "") && length($index) > 0)
   { $index = "<H2>Contents</H2>\n<DL>$index</DL><hr>\n";
     print OUT_FILE $index;
   }
