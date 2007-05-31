@@ -16,6 +16,16 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   use makeDocStyle;
   use POSIX qw(strftime);
 
+  use Options;
+
+Options::register(
+  ["nocontents", "c", "",      "leave out table-of-contents"],
+);
+
+my $usage = "create an html-document from a .txt-file\n";
+
+my $config = Options::parse($usage, 1);
+
   my $inFileName = shift @ARGV;
   my $top =  shift @ARGV;
 #  $top =~ s/^\.\.\///;
@@ -268,7 +278,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
   print OUT_FILE $fileHeader;
 
-  if( length($index) > 0)
+  if(!$config->{"nocontents"} && length($index) > 0)
   { $index = "<H2>Contents</H2>\n<DL>$index</DL><hr>\n";
     print OUT_FILE $index;
   }
