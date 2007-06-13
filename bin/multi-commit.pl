@@ -510,7 +510,7 @@ multi-commit.pl - perform multiple commits (cvs|svn|darcs) with a prepared comma
 
 =head1 SYNOPSIS
 
- multi-commit.pl commit <messages.txt> --svn
+  multi-commit.pl commit <messages.txt> --svn
  
 =head1 DESCRIPTION
 
@@ -529,7 +529,7 @@ all log-messages for all files and commits can be specified in a single file
 
 the user can specify which files are committed within a single command.
 Such commits form an indivisable change-set in the repository if subversion
-or darcs is used.
+or darcs are used.
 
 =back
 
@@ -587,7 +587,7 @@ always look with
 
   multi-commit.pl commit MESSAGE.TXT --dry-run | less
 
-what the program would do before comitting changes in the
+what the program would do before actually comitting changes in the
 repository.
 
 =back
