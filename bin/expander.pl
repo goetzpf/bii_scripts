@@ -127,7 +127,8 @@ if (!@files)
 
 
 foreach my $f (@files)
-  { 
+  { if (!-r $f)
+      { die "error: file \"$f\" is not readable!"; };
     expander::parse_file(find_file($f,@ipaths),%expand_options); 
   };
 
