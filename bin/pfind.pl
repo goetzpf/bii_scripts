@@ -29,7 +29,7 @@ use vars qw($opt_help $opt_summary
 	    $opt_ignore_case
             $opt_blank $opt_no_filenames $opt_list $opt_list_nomatch 
 	    $opt_stdin_list
-	    $opt_mult
+	    $opt_mult $opt_exclude
 	    );
 
 
@@ -53,6 +53,7 @@ if (!GetOptions("help|h","summary",
 		"blank|b", "no_filenames|n",
 		"mult:i",
 		"stdin_list|I",
+		"exclude=s"
 		))
   { die "parameter error!\n"; };		
 
@@ -75,6 +76,8 @@ my $f_regex= '*';
 my $s_regex;
 my $s_regex_mod;
 
+my %exclude;
+
 if    (($#ARGV==0) || (defined $opt_stdin_list))
   { $s_regex= $ARGV[0]; }
 elsif ($#ARGV==1)
@@ -83,6 +86,10 @@ elsif ($#ARGV==2)
   { ($path,$f_regex,$s_regex)= @ARGV; }
 else
   { die "too many parameters, use -h for help\n"; };
+ 
+if (defined $opt_exclude)
+  { %exclude= map { $_ => 1 } (split(/,/,$opt_exclude)); 
+  }
  
 if (!defined $opt_stdin_list) # search recursively for files 
   { if ($f_regex!~ /^\/[^\/]*\/\w*$/ )
@@ -177,6 +184,9 @@ sub wanted
     if (!(-r $file)) 
       { warn "file $file is unreadable !\n"; return; };
 
+    if (%exclude)
+      { return if (filter_dir($File::Find::dir)); }
+
     if ($option_filter)
       { for(;;)
           { if ($opt_headers)
@@ -231,6 +241,15 @@ sub wanted
     check_file($File::Find::name,$file);
   }
 
+sub filter_dir
+  { my ($dir)= @_;
+  
+    my @dirs = File::Spec->splitdir( $dir );
+#warn join("|",@dirs);
+    return(1) if (exists $exclude{$dirs[1]});
+    return(0);
+  }  
+  
 sub check_file
   { my($fullname,$name)= @_;
     my $line;
@@ -385,7 +404,7 @@ Syntax:
   $p {options} [file-regexp] [search-regexp] or 
   $p {options} [search-regexp] 
 
-  compares two directory-trees recursively
+  recursive file search
   
   regular expressions for files may be perl-regexps or file-regexps
   a perl-regexp may or may not be enclosed in '/' characters
@@ -417,5 +436,6 @@ Syntax:
 	several lines. 
 	if [value] is non-zero, print the byte-position of the match, too
     --progress: show progress on stderr	
+    --exclude [dir1,dir2...] exclude these directories from search
 END
   }
