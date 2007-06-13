@@ -46,7 +46,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		cvs_diff.pl cvs_log_diff.pl camonitor_sort.pl 
 		sch_cvs_diff.pl SetPerms vdct flatdb tkSQL 
 		oracle_request accLaunch addPVtoArchiver
-		rsync-deploy rsync-dist.pl multi-commit.pl);
+		rsync-deploy rsync-dist.pl multi-commit.pl pcomp.pl);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
