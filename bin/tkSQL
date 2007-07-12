@@ -20,8 +20,8 @@ package require BWidget
 # 
 #  Author(s):  Thomas Birke
 # 
-#  $Revision: 1.6 $
-#  $Date: 2007-05-21 05:23:16 $
+#  $Revision: 1.7 $
+#  $Date: 2007-07-12 07:31:10 $
 # 
 #  $Author: birke $
 # 
@@ -35,8 +35,8 @@ package require BWidget
 set Revision ""
 set Date ""
 set Author ""
-set CVS(Revision) "$Revision: 1.6 $"
-set CVS(Date) "$Date: 2007-05-21 05:23:16 $"
+set CVS(Revision) "$Revision: 1.7 $"
+set CVS(Date) "$Date: 2007-07-12 07:31:10 $"
 set CVS(Author) "$Author: birke $"
 
 regsub ": (.*) \\$" $CVS(Revision) "\\1" CVS(Revision)
@@ -1052,7 +1052,12 @@ proc loginDialog {} {
     
     frame .login.b -bd 0
     button .login.b.ok -text Login -command {set loginString "[.login.f.user get]/[.login.f.pass get]@$database"}
-    button .login.b.guest -text "as Guest" -command {set loginString "guest/bessyguest@$database"}
+    button .login.b.guest -text "as Guest" -command {
+	set loginString "anonymous/bessyguest@$database"
+	if {"$database" == "mirror"} {
+	    set loginString "guest/bessyguest@$database"
+	}
+    }
     button .login.b.cancel -text Quit -command {exit}
     
     pack .login.f.user .login.f.slash .login.f.pass .login.f.at .login.f.database -side left
