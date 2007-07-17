@@ -62,10 +62,15 @@ sub module_cmd
     my $ncmd= $1;
     # now $ncmd is untainted!
 
-    my @lines=  `/usr/bin/zsh -c \"$ncmd\"`;
-#    my @lines=  `/usr/bin/zsh -c abc`;
-    die "command failed" if $?;
+    my $ccmd= "/usr/bin/zsh -G -c \"$ncmd\"";
+    # Note: "-G" is the NULL_GLOB zsh option
+    # see "man zshoptions" search for "-G"
     
+    my @lines=  `$ccmd`;
+    #my @lines=  `/usr/bin/zsh -c abc`;
+    #print "lines:",join("|",@lines),"\n";
+    die "command failed: \"$ccmd\"\n$? $!" if $?;
+
     $ENV{'PATH'}= $old;
     return(\@lines);
   }  
