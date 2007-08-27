@@ -7,7 +7,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.2;
+    $VERSION     = 1.3;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -98,8 +98,8 @@ sub parse
             
             if ($db=~ /$record_head/ogscx)
               { 
-                my $type= ($2 eq "") ? $1 : $2;
-                my $name= ($4 eq "") ? $3 : $4;
+                my $type= (empty($2)) ? $1 : $2;
+                my $name= (empty($4)) ? $3 : $4;
                 
                 $r_this_record_fields= {};
                 $r_this_record= { TYPE => $type, 
@@ -145,8 +145,8 @@ sub parse
 
             if ($db=~ /$field_def/ogscx)
               { 
-                my $field= ($2 eq "") ? $1 : $2;
-                my $value= ($4 eq "") ? $3 : $4;
+		my $field= (empty($2)) ? $1 : $2;
+                my $value= (empty($4)) ? $3 : $4;
                 
                 $r_this_record_fields->{$field}= $value;
                 next;
@@ -155,6 +155,28 @@ sub parse
           };
       };
     return(\%records);    
+  }
+
+sub parse_file
+# parse the db file and return the record hash
+  { my($filename)= @_;
+    local(*F);
+    local($/);
+    my $st;
+    
+    undef $/;
+    
+    if (!defined $filename) # read from STDIN
+      { *F=*STDIN; }
+    else
+      { open(F,$filename) or die "unable to open $filename"; };
+    $st= <F>;
+    
+    close(F) if (defined $filename);
+    
+    return(parse($st));
+    #dump($r_records);
+    #create($r_records);
   }
 
 sub create_record
@@ -169,10 +191,20 @@ sub create_record
   }
    
 sub create
-  { my($r_records)= @_;
+  { my($r_records,$r_reclist)= @_;
   
-    foreach my $rec (sort keys %$r_records)
-      { create_record($rec,$r_records->{$rec}); };
+    if (defined $r_reclist)
+      { if (ref($r_reclist) ne 'ARRAY')
+          { die "error: 2nd parameter must be an array reference"; }
+      }
+    else
+      { $r_reclist= [sort keys %$r_records]; } 
+    
+    foreach my $rec (@$r_reclist)
+      { my $r_f= $r_records->{$rec};
+        next if (!defined $r_f);
+        create_record($rec,$r_f); 
+      };
   }
 
 sub parse_error
@@ -222,6 +254,16 @@ sub dump
     print Data::Dumper->Dump([$r_records], [qw(records)]);
   }
 
+sub empty
+# returns 1 for undefined or empty strings
+  { if (!defined $_[0])
+      { return 1; };
+    if ($_[0] eq "")
+      { return 1; };
+    return;
+  }
+      
+
 1;
 
 __END__
@@ -266,6 +308,18 @@ printing error messages in case of a parse-error.
 
 =item *
 
+B<parse_file()>
+
+  my $r_records= parse_db::parse_file($filename);
+  
+This function parses the contents of the given filename. If the parameter
+C<$filename> is not given it tries to read form STDIN. If the
+file cannot be opened, it dies with an appropriate error message.
+It returns a reference to a hash, where the parsed data
+is stored.
+
+=item *
+
 B<create_record()>
 
   parse_db::create_record($record_name,$r_records)
@@ -277,10 +331,13 @@ screen.
 
 B<create()>
 
-  parse_db::create($r_records)
+  parse_db::create($r_records,$r_record_list)
 
 Print the contents of all records in the standard db format to the
-screen.
+screen. The parameter C<$r_record_list> is optional. The default
+is that records are printed in alphabetical order. If the second
+parameter is given, only records from this list and in this
+order are printed.
   
 =item *
 
