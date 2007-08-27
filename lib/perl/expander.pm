@@ -713,7 +713,7 @@ sub eval_part
     my $subst;
     
     if (!$do_not_replace)
-      { $subst= mk_perl_varnames($sub); 
+      { $subst= mk_perl_varnames($sub,$r_line,$pos); 
         if ($debug)
           { warn "--- evaluate \"$sub\",\n--- after perlify: \"$subst\"\n"; };
       }
@@ -1142,11 +1142,12 @@ sub variable_expand
 
 sub mk_perl_varnames
 # internal
-  { my($line)= @_;
+  { my($line,$r_line,$pos)= @_;
 
-#print "in: |$line|\n";
-    # replace ${a[n]} with \$m{a}->[n]
-    $line=~ s/(?<!\\)\$\{(\w+)\[(\d+)\]\}/\\\$m\{$1\}->\[$2\]/gs;
+#print "in: |$line|\n"; 
+    # replace ${a[..]} with \$m{a}->[..]
+    #   Note: ".." must NOT contain ']'
+    $line=~ s/(?<!\\)\$\{(\w+)\[([^\]]+)\]\}/\\\$m\{$1\}->\[$2\]/gs;
 
     #replace @{a} with \@{\$m{a}}
     $line=~ s/(?<!\\)\@\{(\w+)\}/\@\{\\\$m\{$1\}\}/gs;
@@ -1155,11 +1156,14 @@ sub mk_perl_varnames
     $line=~ s/(?<!\\)\$(\{\w+\})/\\\$m$1/gs;
   
 #warn;    
-    $line=~ s/(?<!\\)\$(\w+)\[(\d+)\]/\\\$m\{$1\}->\[$2\]/gs; 
+    #replace $a[..] with \$m{a}->[..]
+    #   Note: ".." must NOT contain ']'
+    $line=~ s/(?<!\\)\$(\w+)\[([^\]]+)\]/\\\$m\{$1\}->\[$2\]/gs; 
 
     #replace @a with \@{\$m{a}}
     $line=~ s/(?<!\\)\@(\w+)/\@\{\\\$m\{$1\}\}/gs;
 
+    # replace $a with \$m{a}
     $line=~ s/(?<!\\)\$(\w+)/\\\$m\{$1\}/gs; 
 
     # replace \$ with $
@@ -1168,19 +1172,35 @@ sub mk_perl_varnames
     # replace \@ with @
     $line=~ s/\\\@/\@/gs;
 
+#print "here: |$line|\n";
     if (defined $callback)
       { pos($line)=0;
-        while ($line=~/\G.*?\$m\{(\w+)\}/g) 
+        # perform callback for all simple variables
+	while ($line=~/\G.*?\$m\{(\w+)\}/g) 
           { 
             chback();
             &$callback($1); 
           
           };
         pos($line)=0;
-        while ($line=~/\G.*?\$m\{(\w+)\}->\[(\d+)\]/g) 
-          { 
+        # perform callback for all array variables
+        while ($line=~/\G.*?\$m\{(\w+)\}->\[([^\]]+)\]/g) 
+          { my $name= $1;
+	    my $index= $2;
+	    
+	    if ($index!~/^\d+/)
+	      { # if index is not a simple number but an
+	        # expression, try to evaluate it:
+	        my $res= eval($index);
+		if ((!defined ($res)) && ($@ ne ""))
+		  { 
+        	    $err_pre= "in expression \"$index\":\neval-error:$@";
+        	    fatal_parse_error($r_line,$pos); 
+		  };
+		$index= $res;
+              }
             chback();
-            &$callback($1,$2); 
+            &$callback($name,$index); 
           };
       };
 
@@ -1292,10 +1312,12 @@ or
   $name
   $name[index]
   
-The first lines in the examples are simple variables. A variable
-of this type can hold numbers or strings. The second lines are the
-array form. In this case the variable is an array of values, each value 
-can be accessed by an index. The index can be (almost) any perl expression. 
+The first two lines above show simple variables. A variable
+of this type can hold numbers or strings. The third and fourth lines 
+show the array form. In this case the variable is an array of values, 
+each value can be accessed by an index. The index can be a number or
+a perl expression. Note however, that the perl expression MUST not 
+contain the closing bracket ']'. 
 
 CAUTION: In opposition to ordinary perl-programs, scalar and array
 variables are in the same namespace. You cannot have for example
