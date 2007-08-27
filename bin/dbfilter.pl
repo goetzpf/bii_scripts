@@ -16,7 +16,8 @@ use FindBin;
 use Getopt::Long;
 use Data::Dumper;
 
-use parse_db;
+use parse_db 1.3;
+use analyse_db 1.0;
 use canlink;
 
 use vars qw($opt_help $opt_summary
@@ -30,6 +31,7 @@ use vars qw($opt_help $opt_summary
 	    $opt_dtyp
 	    $opt_fields
 	    $opt_empty
+	    $opt_rm_capfast_defaults
 	    $opt_skip_empty_records
 	    $opt_list
 	    $opt_percent
@@ -44,6 +46,7 @@ use vars qw($opt_help $opt_summary
 	    $opt_sdo
 	    $opt_Sdo
 	    $opt_alternative
+	    $opt_recursive
 	   );
 
 
@@ -109,6 +112,7 @@ if (!GetOptions("help|h","summary",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
 		"empty|e",
+		"rm_capfast_defaults|rm-capfast-defaults",
 		"skip_empty_records|skip-empty-records|E",
 		"list|l",
 		"percent=s",
@@ -121,6 +125,7 @@ if (!GetOptions("help|h","summary",
 		"lowcal:s", "Lowcal:s",
 		"sdo:s", "Sdo:s",
 		"alternative|a",
+		"recursive:i",
                 ))
   { die "parameter error!\n"; };
 
@@ -184,7 +189,7 @@ foreach my $file (@files)
     if (!$single_file)
       { $filename= $file; };
       
-    my $recs= parse_file($file);
+    my $recs= parse_db::parse_file($file);
 
     if (defined $opt_name)
       { filter_name($recs,$opt_name); };
@@ -218,6 +223,10 @@ foreach my $file (@files)
 
     if (defined $opt_empty)
       { remove_empty_fields($recs); 
+      };
+      
+    if (defined $opt_rm_capfast_defaults)
+      { remove_capfast_default_fields($recs); 
       };
 
     if (defined $opt_percent)
@@ -263,7 +272,8 @@ foreach my $file (@files)
       { 
         list_record_references($filename,$recs,
 	                       $opt_record_references,
-			       $opt_recreate);
+			       $opt_recreate,
+			       $opt_recursive);
         next;
       };  
     
@@ -315,28 +325,6 @@ foreach my $file (@files)
 
 
 exit(0);
-
-sub parse_file
-# parse the db file and return the record hash
-  { my($filename)= @_;
-    local(*F);
-    local($/);
-    my $st;
-    
-    undef $/;
-    
-    if (!defined $filename) # read from STDIN
-      { *F=*STDIN; }
-    else
-      { open(F,$filename) or die "unable to open $filename"; };
-    $st= <F>;
-    
-    close(F) if (defined $filename);
-    
-    return(parse_db::parse($st));
-    #parse_db::dump($r_records);
-    #parse_db::create($r_records);
-  }
 
 sub rem_empty_records
   { my($r_rec)= @_;
@@ -438,6 +426,13 @@ sub remove_empty_fields
       };
   }
     
+sub remove_capfast_default_fields
+# remove empty fields in all records
+  { my($r_rec)= @_;
+  
+    analyse_db::rem_capfast_defaults($r_rec);
+  }
+    
 sub match_fields
 # return all fields of a record that
 # match a given regexp, note: 
@@ -482,24 +477,29 @@ sub list_unresolved_variables
   } 
 
 sub list_record_references
-  { my ($filename,$recs,$record_name,$recreate)= @_;
+# recs: this complete list of records to work on
+  { my ($filename,$recs,$record_name,$recreate,$recursive)= @_;
 
     my %references;
     my %referenced_by;
     my @reclist;
     my %to_print;
+    
+    # add information about which record is linked
+    # to which other record
+    analyse_db::add_link_info($recs);
+    my $linkset_hash;
+    my $post_filter;
 
-    foreach my $recname (keys %$recs)
-      { my @references   = find_referenced_records($recs,$recname);
-        next if (!@references);
-	$references{$recname}= { map { $_ => 1 } @references };
-        foreach my $r (@references)
-	  { $referenced_by{$r}->{$recname}= 1; }; 
-      };
-    
-    
     if ($record_name !~ /^(all|\/\/)$/i)
-      { create_regexp_func("ref_name_filter",$record_name);
+      { if ($record_name=~/^([^,]+),(.+)$/)
+          { # form: record-name, regexp
+	    $record_name= $1;
+	    $post_filter= $2;
+	  }
+        create_regexp_func("ref_name_filter",$record_name);
+        if (defined $post_filter)
+	  { create_regexp_func("post_name_filter",$post_filter); }
         foreach my $rec (sort keys %$recs)
           { 
 	    if (ref_name_filter($rec))
@@ -509,17 +509,33 @@ sub list_record_references
 	  };
 	if (!@reclist)
 	  { die "no record-names match the given pattern: $record_name\n"; };  
+        if (defined $recursive)
+	  { # recursively get a list of records that depend
+	    # on the given one
+	    if ($#reclist!=0)
+	      { die "recursive option is only allowed for a single record";};
+	    $linkset_hash= analyse_db::linkset_hash($recs,
+	    					    $reclist[0],$recursive);
+	    @reclist= sort{ $linkset_hash->{$a} cmp $linkset_hash->{$b} } 
+	              (keys %$linkset_hash); 				  
+#die "reclist:".join("|",@reclist);
+	  }
       }
     else
       { @reclist=(sort keys %$recs); };
+      
+    if (defined $post_filter)
+      { @reclist= grep { post_name_filter($_) } @reclist; }
     
+    #print parse_db::dump($recs->{$reclist[0]}); die; 
+
     if (defined $filename)
       { print "\nFILE $filename:\n"; 
 	print "=" x 40,"\n";
       };
 
-    if ($recreate)
-      { %to_print= map { $_ => 1 } @reclist; };
+    #if ($recreate)
+    #  { %to_print= map { $_ => 1 } @reclist; };
     
     # <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
     # separator in-between record-names: $S
@@ -543,59 +559,45 @@ sub list_record_references
       };
     
     foreach my $recname (@reclist)
-      { my $r_references   = $references{$recname};
-        my $r_referenced_by= $referenced_by{$recname};
+      { my @references   = analyse_db::references_list($recs,$recname);
+        my @referenced_by= analyse_db::referenced_by_list($recs,$recname);
       
-        if ((!defined $r_references) && (!defined $r_referenced_by))
+        if ((!@references) && (!@referenced_by))
 	  { next; };
 	
+	#if (defined $post_filter)
+        #  { @references   = grep { post_name_filter($_) } @references; 
+	#    @referenced_by= grep { post_name_filter($_) } @referenced_by; 
+	#  };	
 	
-	print $recname,$A;
+	print $recname;
+	if ($linkset_hash)
+	  { print "(",$linkset_hash->{$recname},")"; };
+	
+	print $A;
 	  
-	if (defined $r_references)
-	  { if ($recreate)
-	      { foreach my $r (keys %$r_references)
-	          { $to_print{$r}= 1; };
-	      };	  
-	    print $B,hjoin($S,sort keys %$r_references),$C;
+	if (@references)
+	  { #if ($recreate)
+	    #  { map{ $to_print{$_}= 1 } @references;
+	    #  };	  
+	    print $B,hjoin($S,@references),$C;
 	  };
-	if (defined $r_referenced_by)
-	  { if ($recreate)
-	      { foreach my $r (keys %$r_referenced_by)
-	          { $to_print{$r}= 1; };
-	      };	  
-	    print $D,hjoin($S,sort keys %$r_referenced_by),$E;
+	if (@referenced_by)
+	  { #if ($recreate)
+	    #  { map{ $to_print{$_}= 1 } @referenced_by;
+	    #  };	  
+	    print $D,hjoin($S,@referenced_by),$E;
 	  };
 	print $F;  
       };
     if ($recreate)
       { print "=" x 40,"\nRecords:\n";
-        my %my_recs= map { $_ => $recs->{$_} } (keys %to_print);
-        parse_db::create(\%my_recs);
+        #my %my_recs= map { $_ => $recs->{$_} } (keys %to_print);
+        #parse_db::create(\%my_recs);
+        parse_db::create($recs,\@reclist);
       };  
   } 
  
-sub find_record_references
-# find all records that do reference <$recname>  
-  { my($recs, $recname)= @_;
-    my %recs_found;
-  
-    foreach my $n_recname (keys %$recs)
-      { 
-        my $r_recs= rec_link_fields($recs->{$recname}->{FIELDS},'rechash');
-	if (exists $r_recs->{$recname})
-	  { $recs_found{$n_recname}= 1; };
-      };
-    return(sort keys %recs_found);
-  }	  
-	      
-sub find_referenced_records
-# give a list of all records that a given record references
-  { my($recs, $recname)= @_;
-    
-    return( rec_link_fields($recs->{$recname}->{FIELDS},'reclist') );
-  }
-
 sub list_unresolved_links
   { my ($filename,$recs,$do_list,$plain_list)= @_;
     my $res;
@@ -604,7 +606,7 @@ sub list_unresolved_links
     
     foreach my $recname (keys %$recs)
       { 
-        my $r_ref_fields= rec_link_fields($recs->{$recname}->{FIELDS},'hash');
+        my $r_ref_fields= analyse_db::rec_link_fields($recs,$recname);
         foreach my $f (keys %$r_ref_fields)
 	  { if (exists $recs->{$r_ref_fields->{$f}})
 	      { delete $r_ref_fields->{$f}; };
@@ -643,53 +645,6 @@ sub list_unresolved_links
       };
   } 
 
-sub rec_link_fields
-# return a hash-reference of field->value pairs 
-# where the values
-# are the names of referenced other records 
-  { my($r_fields,$mode)= @_;
-  
-    if (!%dtyp_link_fields)
-      { %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields; };
-    if (!%link_fields)
-      { %link_fields= map{ $_ => 1 } @link_fields; };
-  
-    my %h;
-    
-    foreach my $fieldname (keys %$r_fields)
-      { next if (!exists $link_fields{$fieldname});
-	my $val= $r_fields->{$fieldname};
-	# is it empty ?
-	next if ($val =~ /^\s*$/);
-	# is it a number ?
-	next if ($val =~ /^\s*[+-]?\d+\.?\d*(|[eE][+-]?\d+)$/);
-	if (exists ($dtyp_link_fields{$fieldname}))
-	  { # maybe a hardware link ?
-	    if ($r_fields->{DTYP} ne 'Soft Channel')
-	      { next; };
-	  };	  
-        $val=~ s/[\. ]?(CA|CPP|NPP|NMS|MS|PP)\s*//g;	    
-	$val=~ s/\s+$//;
-	# remove field-names:
-	$val=~ s/\.\w+$//;
-	if    ($mode eq 'hash')
-	  { $h{$fieldname}= $val; }
-	else
-	  { $h{$val}= 1; };
-      };
-    if    ($mode eq 'hash')
-      { return(\%h); }
-    elsif ($mode eq 'reclist')
-      { return(sort keys %h); }
-    elsif ($mode eq 'rechash') 
-      { return(\%h); }
-    else
-      { die; };
-  }
-
- 
-
- 
 sub add_macros
   { my($r_h, $st)= @_;
     my @l= collect_macros($st);
@@ -1100,6 +1055,10 @@ sub create_regexp_func
     if (!defined $regexp)
       { $regexp= '//'; };
     
+    if ($regexp=~ s/^!//)
+    # leading '!' is an inverted regular expression
+      { $invert= 1; }
+    
     if ($regexp !~ /\//)
       { $regexp= "/$regexp/"; };
     
@@ -1184,7 +1143,15 @@ Syntax:
       print only these fields
 
     -e --empty remove empty fields
+    
+    --rm-capfast-defaults
+      remove fields that have still their capfast default value
    
+  regular expressions:
+    [regexp] stands for a perl regular expression. A leading '!'
+    means that the filter is inverted ('do not match'). The regexp
+    may be enclosed in '/' characters, but the may be omitted.
+  
   special options:
   
     --percent [+-number] 
@@ -1208,7 +1175,7 @@ Syntax:
       like --unresolved_links but list only the values themselves, 
       nothing else 
 
-    --record_references -R [regexp]
+    --record_references -R [regexp{,regexp2}]
       list which record (whose name matches regexp) is connected 
       to which other record. regexp may be "all" or "//" in which 
       case all records that are connected to other records are
@@ -1217,7 +1184,19 @@ Syntax:
       db-file format 
       With option "-a" the references are printed in an alternative
       format, each record combined with all dependant records in a
-      single line.      
+      single line. 
+      regexp2 is an optional parameter that can be used to filter
+      the list of connected records. Note that this may be an
+      inverse list (see "regular expressions:" further above)
+      When [regexp] specifies just a single record, the --recursive
+      option can be used in order to recursively search for the
+      set of connected records.
+      
+    --recursive {no}
+      this option can be used together with --record_references.
+      no specifies the maximum path length that is allowed for
+      indirectly connected records in order to be printed. 
+      If no is 0, all connected records are printed. 
 
     --allow_double -A : allow double record names 
       (for debugging faulty databases)
