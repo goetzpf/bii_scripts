@@ -55,7 +55,7 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 Options.pm cfgfile.pm  dbdrv.pm parse_db.pm 
                 BrowseDB/TkUtils.pm makeDocStyle.pm
 		scan_makefile.pm container.pm maillike.pm
-		simpleconf.pm extended_glob.pm
+		simpleconf.pm extended_glob.pm capfast_defaults.pm
 		);
                 
 my @script_pods= qw(rsync-dist.pl multi-commit.pl);
