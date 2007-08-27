@@ -311,6 +311,13 @@ sub filter_file
     my $tmp = new File::Temp(UNLINK => 0,
                              TEMPLATE => 'pcomp-tempXXXXX',
                              DIR => '/tmp');
+    
+    # old File::Temp API (as installed on sioux.blc.bessy.de):
+    # my(undef, $tmp) = File::Temp::tempfile('pcomp-tempXXXXX', 
+    #		                             OPEN => 0,
+    #			                     UNLINK => 0,
+    #                                        DIR => '/tmp');
+    
     cvs_filter($filename,$tmp,$cvs,$cr);
     return($tmp);
   }
