@@ -84,7 +84,7 @@ use constant {
   do_change_or_add => 2,
 };
 
-my $sc_version= "1.9";
+my $sc_version= "2.0";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "manages binary distributions to remote servers"; 
@@ -141,6 +141,8 @@ my @gbl_local_log_order=
                      MIRRORHOSTS 
                      REMOTEUSERS
                      REMOTEUSER
+                     REMOTE_MPATHS
+                     REMOTE_MPATH
                      REMOTEPATH 
                      WORLDREADABLE
                      SOURCEDIR
@@ -1243,13 +1245,16 @@ sub internal_server_lock
 
     my @locked;
     foreach my $r (@$r_hosts_users)
-      { my($remote_host, $remote_user)= @$r;
+      { my($remote_host, $remote_user, $remote_mpath)= @$r;
         print "\nHost:$remote_host:\n";
 
         if ($recursion)
           { warn "trying to $action lock on $remote_host...\n"; };
 
-        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+        my($rc)= myssh_cmd($remote_host,
+	                   $remote_user, 
+			   (defined $remote_mpath)?$remote_mpath:$remote_path, 
+			   $rcmd);
 
         if (!$rc)
           { warn "error: locking on \"$remote_host\" path \"$remote_path\"" .
@@ -1342,10 +1347,18 @@ sub mirror
     my $remote_host= $r_hosts_users->[0]->[0];
     my $remote_user= $r_hosts_users->[0]->[1];
     my @m_hosts;
+    my @m_users;
+    my @m_paths;
     for(my $i=1; $i<=$#$r_hosts_users; $i++)
-      { push @m_hosts, $r_hosts_users->[$i]->[0]; };
+      { push @m_hosts, $r_hosts_users->[$i]->[0]; 
+        push @m_users, $r_hosts_users->[$i]->[1]; 
+        push @m_paths, $r_hosts_users->[$i]->[2]; 
+      };
 
-    my $rcmd= sh_copy_to_hosts($remote_path,@m_hosts);
+    my $rcmd= sh_copy_to_hosts_s(0,$remote_path,
+                                 \@m_hosts,\@m_users,\@m_paths);
+
+    #die "hosts:". join("|",@m_hosts);
 
     if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
       { die "ERROR: locking of the servers failed"; };
@@ -1460,12 +1473,24 @@ sub sh_backwards_compatible
   }
 
 sub sh_copy_to_hosts_l
-  { my($remote_path,@hosts)= @_;
-    my $hosts= join(" ",@hosts);
+# hosts may contain a path-prefix like in "myhost:/opt/OPI"
+# otherwise $remote_path is taken as path-prefix
+  { my($remote_path,$r_hosts,$r_users,$r_paths)= @_;
+    my @lines;
 
-    return( "for h in $hosts; ",
-            "do rsync $gbl_rsync_opts -H -e \"ssh \" . \$h:$remote_path; ",
-            'done' );   
+    for(my $i=0; $i<=$#$r_hosts; $i++)
+      { my $hostpart= $r_hosts->[$i];
+        my $dir= $r_paths->[$i];
+	$dir= $remote_path if (!defined $dir);
+	$hostpart.= ":$dir";
+	my $userpart;
+	if (defined $r_users->[$i])
+	  { $userpart= "-l $r_users->[$i] "; }
+        
+	push @lines,
+             "rsync $gbl_rsync_opts -H -e \"ssh $userpart\" . $hostpart;";
+      }
+    return(@lines);
   }   
 
 sub sh_copy_to_hosts_s
@@ -1543,7 +1568,7 @@ sub sh_mklock_l
 
     return("ln -s $from LOCK; ",
            'if [ $? -ne 0 ]; ',
-           'then echo LOCKED by`' . $showlock . '`; ',
+           'then echo LOCKED by `' . $showlock . '`; ',
            "     exit $my_errcode; ",
            'fi');
   }        
@@ -1830,9 +1855,13 @@ sub new_log_hash
 
     my @remote_hosts;
     my @remote_users;
+    my @remote_mpaths;
+    my $mpath_found;
     foreach my $r (@$r_hosts_users)
-      { push @remote_hosts, $r->[0];
-        push @remote_users, $r->[1]; 
+      { push @remote_hosts , $r->[0];
+        push @remote_users , $r->[1]; 
+	push @remote_mpaths, $r->[2];
+	$mpath_found|= defined($r->[2]);
       };
 
     my($rhosts,$rhosts_tag)= prepare_val(\@remote_hosts,
@@ -1847,6 +1876,13 @@ sub new_log_hash
             $rusers_tag=> $rusers,
             REMOTEPATH=> $remote_path,
             );
+
+    if ($mpath_found)
+      { my($rmpaths,$mpaths_tag)= prepare_val(\@remote_mpaths,
+                                              'REMOTE_MPATH','REMOTE_MPATHS');
+        $h{$mpaths_tag}= $rmpaths;
+      }
+
     return(\%h);
   }           
 
@@ -2436,7 +2472,7 @@ sub ensure_host_users
     for(;;)
       { 
         if    (($#$r_hosts<0) && ($#$r_users<0))
-          { 
+          { # no users and no hosts given
             ensure_var(\@strs, 'REMOTEHOSTSUSERS', 
                        take_default('distribute:REMOTEHOSTS:REMOTEUSERS',
                                     'links:REMOTEHOSTS:REMOTEUSERS',
@@ -2453,16 +2489,17 @@ sub ensure_host_users
                                    )
                       );
             $io_done= 1;    
-            $result= process_user_and_hostname(\@strs);       
+            $result= process_user_and_hostname(\@strs,$r_users);       
           }
         elsif ($#$r_users<0)
           { # no users may be ok, when they are supplied with the
             # hostnames in the form "user@hostname"
             $result= process_user_and_hostname($r_hosts);             
-            $r_hosts= [];
           }
         else
-          { $result= process_user_and_hostname($r_hosts,$r_users); };
+          { # user- and hostnames given, process both
+	    $result= process_user_and_hostname($r_hosts,$r_users); 
+	  };
 
         return($result) if (ref($result) ne '');
         if ($io_done)
@@ -2517,11 +2554,40 @@ sub dirname
     return($dir);
   }         
 
+sub split_uhp
+# split hostname-part, returns:
+# user (optional)
+# host (mandatory)
+# path (optional)
+# valid formats:
+# hostname  user@hostname hostname/path user@hostname/path
+  { my($s)= @_;  
+    $s=~ s/^\s+//;
+    $s=~ s/\s+$//;
+    my($u,$h,$p);
+    
+    if ($s=~/\@/)
+      { if ($s!~/([^\@]+)\@(.+)/)
+          { die "error: hostname \"$s\" not parsable!\n"; }
+	($u,$h)=($1,$2); 
+      }
+    else
+      { $h= $s; }
+      
+    if ($h=~/\//)
+      { if ($h!~/([^\/]+)\/(.+)/)
+          { die "error: hostname \"$s\" not parsable!\n"; }
+        ($h,$p)= ($1,$2); 
+      }
+    return($u,$h,$p);
+  }
+
 sub process_user_and_hostname
 # returns a list of [hostname,username] pairs
 # either hosts and users are arrays, where at least 
 # one hostname and one username is given or
 # hosts is a list of "user@hostname" strings
+# NEW: "user@hostname/dir" is now also allowed
   { my($r_hosts,$r_users)= @_;
     my @l;
 
@@ -2529,20 +2595,19 @@ sub process_user_and_hostname
       { return("no hosts"); }; # no hostnames given
 
     for(my $i=0; $i<= $#$r_hosts; $i++)
-      { if ($r_hosts->[$i]=~ /^\s*(\S+)\@(\S+)\s*$/)
-          { # format: "user@hostname"
-            push @l, [$2,$1];
-            next;
-          };
-        # here: simple hostname
-        my $user= $r_users->[$i];
-        if (!defined $user) # user-array shorter than hostname array
-          { $user= $r_users->[-1]; # take last element of array
-            if (!defined $user)
-              { return("no users"); # error, username missing
+      { my($user,$host,$path)= split_uhp($r_hosts->[$i]);
+        
+	if (!defined $user) # no username found or given
+	  { $user= $r_users->[$i];
+            if (!defined $user) # user-array shorter than hostname array
+              { $user= $r_users->[-1]; # take last element of array
+        	if (!defined $user)
+        	  { return("no users"); # error, username missing
+        	  };
               };
-          };
-        push @l, [$r_hosts->[$i],$user];
+	  }
+	  
+	push @l, [$host,$user,$path];  
       };
     return(\@l);
   }
@@ -2601,6 +2666,13 @@ Syntax:
                 Caution: you may delete data on the secondary
                 hosts that you wanted to keep, think twice before
                 running this command
+		The list of mirror-hosts may contain the directory
+		in the form "hostname/directory". With this it is possible
+		to distribute directories from the central mirror
+		(the first host in the list) to a different directory
+		on the other host. If the directory is not given
+		(no "/" is found in the hostname) it is the same as on the 
+		central mirror
 
     rm-lock --rm-lock [dist|d|links|l]
 
