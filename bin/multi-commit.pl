@@ -340,7 +340,10 @@ sub generate_file_cmd
     elsif ($vcs eq SVN)
       { $cmd= "svn status"; }
     elsif ($vcs eq DARCS)
-      { $cmd= "darcs whatsnew -s"; }
+      { $cmd= "darcs whatsnew -s | " .
+              "sed -e 's/[+-][0-9][0-9]*//g' | " .
+	      "sort | uniq";
+      }
     else
       { die "assertion"; };
     return($cmd);
@@ -425,7 +428,7 @@ sub email
 sub sys
   { my($cmd)= @_;
   
-    print $cmd,"\n";
+    print STDERR $cmd,"\n";
     my $rc= system($cmd);
     return(1) if ($rc==0);
     return;
