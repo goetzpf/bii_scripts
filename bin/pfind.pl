@@ -217,7 +217,7 @@ sub wanted
     return unless (file_filter($file));
 
     if (($opt_perl_ex) && (!$is_perl))
-      { my $type= `file $file`;
+      { my $type= `file \'$file\'`;
         if ($type !~ /\bperl\b/i)
 	  { return if ($type !~ /\btext\b/i);
 	    my $l= `head -n 1 $file`;
@@ -231,10 +231,8 @@ sub wanted
       { if ($file_assist)
           { return if ($file =~ /\.[ao]$/); };
 	
-      
-        my $type= `file $file`;
+        my $type= `file \'$file\'`;
         # print "$_ : |$type|\n";
-	
 	return if ($type !~ /\btext\b/i);
       };
     
