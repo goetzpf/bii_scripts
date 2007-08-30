@@ -291,6 +291,43 @@ sub parse
   }
 
 
+sub create_instance
+  { my($r_hash)= @_;
+    print "    {\n";
+    my @lines;
+    foreach my $key (sort keys %$r_hash)
+      { my $val= $r_hash->{$key};
+        my $st= "      $key=";
+	if ($val=~ /^\s*[+-]?\d+\.?\d*(e[+-]?|)\d*\s*$/) # a number
+	  { $st.= $val; }
+	else
+	  { $st.= "\"$val\""; };
+	push @lines, $st;
+      };
+    print join(",\n",@lines),"\n";
+    print "    }\n";
+  }    
+    
+
+sub create_instances
+  { my($filename, $r_hash)= @_;
+    my $r_instances= $r_hash->{$filename};
+    
+    print "file $filename\n  \{\n";
+    foreach my $instance (@$r_instances)
+      { create_instance($instance);
+      };
+    print "}\n\n";
+  }
+
+sub create
+  { my($r_hash)= @_;
+  
+    foreach my $file (sort keys %$r_hash)
+      { create_instances($file, $r_hash); 
+      }
+  }
+
 sub parse_error
   { my($prg_line,$r_st,$pos,$filename)= @_;
   
@@ -436,6 +473,8 @@ the parsed datais stored. The parameter may either be
 a scalar variable containing the data or a reference to a 
 scalar variable.
 
+=item *
+
 B<dump()>
 
   my $r_templates= parse_subst::parse($st);
@@ -443,6 +482,16 @@ B<dump()>
   
 This function prints a dump of the created structure 
 to the screen. 
+
+=item *
+
+B<create()>
+
+  my $r_templates= parse_subst::parse($st);
+  parse_db::create($r_templates)
+
+Print the contents of the substitution data sorted and in the standard 
+substitution format to the screen. 
 
 =back
 
