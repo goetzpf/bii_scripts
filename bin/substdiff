@@ -1,0 +1,150 @@
+eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
+    if 0;
+# the above is a more portable way to find perl
+# ! /usr/bin/perl
+
+# @STATUS: release
+# @PLATFORM: home bessy
+# @CATEGORY: search
+
+
+# [scriptname] -- describe the function here
+
+use strict;
+
+use FindBin;
+use File::Spec;
+use Getopt::Long;
+
+use parse_subst;
+
+use vars qw($opt_help $opt_summary $opt_textmode 
+            $opt_parse_table);
+
+my $sc_version= "1.0";
+
+my $sc_name= $FindBin::Script;
+my $sc_summary= "compares two substitution files";
+my $sc_author= "Goetz Pfeiffer";
+my $sc_year= "2007";
+
+my $debug= 0; # global debug-switch
+
+my $tmpdir= "$ENV{HOME}/tmp";
+
+
+Getopt::Long::config(qw(no_ignore_case));
+
+if (!GetOptions("help|h","summary","textmode|t", 
+                "parse|p", "parse_table|P", 
+                ))
+  { die "parameter error!\n"; };
+
+if ($opt_help)
+  { help();
+    exit;
+  };
+
+if ($opt_summary)
+  { print_summary();
+    exit;
+  };
+
+
+my $f1= shift @ARGV;
+die "filenames are missing" if (!defined $f1);
+my $f2= shift @ARGV;
+die "second filename is missing" if (!defined $f2);
+
+diff($f1,$f2); 
+
+exit(0);
+# ------------------------------------------------
+
+sub diff
+  { my($f1,$f2)= @_;
+    local(*F);
+  
+    if (!-e $tmpdir)
+      { mkdir($tmpdir) or die "unable to create $tmpdir"; };
+
+    my $t1= mkpath($tmpdir, basename($f1) . 'sorted.1');
+    my $t2= mkpath($tmpdir, basename($f2) . 'sorted.2');
+
+    my $r1= parse_subst::parse_file($f1);
+    my $r2= parse_subst::parse_file($f2);
+
+    my $oldfh;
+    
+    open(F,">$t1") or die;
+    $oldfh = select(F); 
+    parse_subst::create($r1);
+    select($oldfh);
+    close(F);
+
+    open(F,">$t2") or die;
+    $oldfh = select(F); 
+    parse_subst::create($r2);
+    select($oldfh);
+    close(F);
+
+    my $diff= (defined $opt_textmode) ? "diff" : "tkdiff";
+
+    sys("$diff $t1 $t2");
+
+    rm($t1);
+    rm($t2);
+  
+  }
+
+sub basename
+  { return( (File::Spec->splitpath($_[0]))[2] ); }
+
+sub mkpath
+  { return( File::Spec->catfile(@_)); }
+
+sub sys
+  { my($cmd)= @_;
+    return if (0==system($cmd));
+    return if ($?==256);
+    die "\"$cmd\" failed: $?";
+  }
+
+sub rm
+  { return if (1==unlink($_[0]));
+    warn "warning: file \"$_[0]\" could not be removed";
+  }
+
+
+# fit in program text here
+
+# ------------------------------------------------
+
+sub print_summary
+  { printf("%-20s: $sc_summary\n",
+           $sc_name);
+  }
+
+sub h_center
+  { my($st)= @_;
+    return( (' ' x (38 - length($st)/2)) . $st );
+  }
+
+sub help
+  { my $l1= h_center("**** $sc_name $sc_version -- $sc_summary ****");
+    my $l2= h_center("$sc_author $sc_year");
+    print <<END;
+
+$l1
+$l2
+
+Syntax:
+  $sc_name {options} [arg1] [arg2]
+
+  options:
+    -h: help
+    --summary: give a summary of the script
+    -t --textmode: use "diff" instead of "tkdiff"
+END
+  }
+
