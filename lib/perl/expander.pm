@@ -4,6 +4,7 @@ use strict;
 use Cwd;
 use Data::Dumper;
 use IO::Scalar;
+use File::Spec;
 #use Carp;
 
 
@@ -32,9 +33,6 @@ my $forbid_nobracket_vars= 0;
 my $allow_not_defined_vars= 0;
 
 my @m_stack;
-
-my $orig_dir;
-my $in_first_searchpath=0;
 
 my $silent=0;
 
@@ -224,8 +222,11 @@ sub parse_scalar_i
     if ($options{recursive})
       { $recursive= 1; };
     
+    # it is important to have absolute paths here,
+    # see also how find_file() works...
     if (exists $options{includepaths})
-      { @include_paths= @{$options{includepaths}}; };
+      { @include_paths= @{$options{includepaths}}; 
+      };
 # die "I:" . join("|",@include_paths);
     
     if (exists $options{silent})
@@ -467,7 +468,7 @@ sub parse_scalar_i
                 if ($ifcond[-1]>0) 
                   { # do not actually do the include 
                     # when we are within an ignore-block
-                    my $f= find_file($res,@include_paths);
+                    my $f= find_file($res,\@include_paths);
                     
                     if (!defined $f)
                       { $err_pre= "unable to open file \"$res\"";
@@ -701,7 +702,6 @@ sub parse_scalar_i
 
     if ((exists $options{filename}) || (exists $options{scalarref}))
       { close(F); };
-    chback();  
   }
 
 sub eval_part
@@ -1076,7 +1076,6 @@ sub variable_expand
         
         if (defined $callback)
           { 
-            chback();
             &$callback($var); 
           }
         if (!exists $m{$var})
@@ -1114,7 +1113,6 @@ sub variable_expand
     
         if (defined $callback)
           { 
-            chback();
             &$callback($var,$index); 
           }
         
@@ -1178,7 +1176,6 @@ sub mk_perl_varnames
         # perform callback for all simple variables
 	while ($line=~/\G.*?\$m\{(\w+)\}/g) 
           { 
-            chback();
             &$callback($1); 
           
           };
@@ -1199,7 +1196,6 @@ sub mk_perl_varnames
 		  };
 		$index= $res;
               }
-            chback();
             &$callback($name,$index); 
           };
       };
@@ -1218,49 +1214,30 @@ sub strdump
     $x=~ s/\n/\\n/g;
     warn "$prefix DUMP AT POS $p:$x\n";
   }
-    
+
 sub find_file
-  { my($file,@paths)= @_;
+  { my($file,$r_paths)= @_;
  
     return($file) if (-r $file);
 
-    return if (!@paths);
+    return if (!@$r_paths);
     
-    if (!defined $orig_dir)
-      { $orig_dir= cwd(); };
-    
-    my $i=0;
-
-    if ($in_first_searchpath)
-      { $i=1; }   
-    
-    for(; $i<= $#paths; $i++)
-      { 
-        if (!chdir($paths[$i]))
-          { warn "warning: path \"$paths[$i]\" is not valid"; 
-            $in_first_searchpath= 0;
+    my $test;
+    for(my $i=0; $i<= $#$r_paths; $i++)
+      { if (!-d $r_paths->[$i]) 
+          { warn "warning: path \"$r_paths->[$i]\" is not valid"; 
             next;
           };
-        $in_first_searchpath= 0;
-              
-        if (-r $file)
-          { # move the matching path to front :
-            my $e=splice(@paths,$i,1); unshift @paths,$e;
-            $in_first_searchpath= 1;
-            # chdir($orig_dir) or die "unable to chdir to \"$orig_dir\"";
-            return($file); 
-          };
+        $test= File::Spec->catfile($r_paths->[$i], $file);
+	if (-r $test)
+	  { # move the path that matched to the front
+	    my $e=splice(@$r_paths,$i,1); unshift @$r_paths,$e;
+            return($test);
+	  };
       };
     return;
-  }  
-
-sub chback
-  { return if (!defined $orig_dir);
-    chdir($orig_dir) or die "unable to chdir to \"$orig_dir\""; 
-    $in_first_searchpath= 0;
   }
 
-    
 1;
 
 __END__
