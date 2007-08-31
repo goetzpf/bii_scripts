@@ -15,6 +15,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 use strict;
 use Data::Dumper;
 use Cwd;
+use File::Spec;
 
 use FindBin;
 
@@ -127,38 +128,37 @@ if (!@files)
 
 
 foreach my $f (@files)
-  { if (!-r $f)
+  { my $path= find_file($f,\@ipaths);
+    if ((!defined $path) || (!-r $path))
       { die "error: file \"$f\" is not readable!"; };
-    expander::parse_file(find_file($f,@ipaths),%expand_options); 
+    expander::parse_file(find_file($f,\@ipaths),%expand_options); 
   };
 
 
 # ------------------------------------------------
 
 sub find_file
-  { my($file,@paths)= @_;
+  { my($file,$r_paths)= @_;
  
     return($file) if (-r $file);
 
-    return if (!@paths);
+    return if (!@$r_paths);
     
-    my $orig_dir= cwd();
-
-    for(my $i=0; $i<= $#paths; $i++)
-      { 
-        if (!chdir($paths[$i]))
-          { warn "warning: path \"$paths[$i]\" is not valid"; 
+    my $test;
+    for(my $i=0; $i<= $#$r_paths; $i++)
+      { if (!-d $r_paths->[$i]) 
+          { warn "warning: path \"$r_paths->[$i]\" is not valid"; 
             next;
           };
-              
-        if (-r $file)
-          { # move the matching path to front :
-            chdir($orig_dir) or die "unable to chdir to \"$orig_dir\"";
-            return(File::Spec->catfile($paths[$i],$file)); 
-          };
+        $test= File::Spec->catfile($r_paths->[$i], $file);
+	if (-r $test)
+	  { # move the path that matched to the front
+	    my $e=splice(@$r_paths,$i,1); unshift @$r_paths,$e;
+            return($test);
+	  };
       };
     return;
-  }  
+  }
 
 sub print_summary
   { printf("%-20s: $sc_summary\n",
