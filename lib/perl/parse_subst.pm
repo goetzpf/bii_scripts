@@ -110,7 +110,7 @@ sub get_or_mk_hash
 
 sub parse
   { my($arg, $mode)= @_;
-  
+
     my $r_db;
     my $ref = ref($arg);
     if    ($ref eq 'SCALAR')
@@ -288,6 +288,26 @@ sub parse
       { return(\@templates); };
       
     return(\%templates);;
+  }
+
+sub parse_file
+# parse the db file and return the record hash
+  { my($filename)= @_;
+    local(*F);
+    local($/);
+    my $st;
+    
+    undef $/;
+    
+    if (!defined $filename) # read from STDIN
+      { *F=*STDIN; }
+    else
+      { open(F,$filename) or die "unable to open $filename"; };
+    $st= <F>;
+    
+    close(F) if (defined $filename);
+    
+    return(parse($st));
   }
 
 
@@ -472,6 +492,18 @@ complete substitution-file. It returns a reference to a hash, where
 the parsed datais stored. The parameter may either be 
 a scalar variable containing the data or a reference to a 
 scalar variable.
+
+=item *
+
+B<parse_file()>
+
+  my $r_templates= parse_subst::parse_file($filename);
+  
+This function parses the contents of the given filename. If the parameter
+C<$filename> is not given it tries to read form STDIN. If the
+file cannot be opened, it dies with an appropriate error message.
+It returns a reference to a hash, where the parsed data
+is stored.
 
 =item *
 
