@@ -97,19 +97,21 @@ my %is_bracket= ( '(' => 1,
 my %simple_keywords= map{ $_ => 1 } 
               qw (else endif endfor dumphash ifstack silent loud leave begin end);
 
-my %arg_keywords= (set     => KY_STD|KY_BLOCK|KY_REPLACE,
-                   eval    => KY_STD|KY_BLOCK|KY_REPLACE|KY_PRINT,
-                   perl    => KY_STD|KY_BLOCK,
-                   func    => KY_STD|KY_BLOCK|KY_FUNCDEF,
-                   if      => KY_STD,
-                   include => KY_STD,
-                   for     => KY_STD,
+my %arg_keywords= (set      => KY_STD|KY_BLOCK|KY_REPLACE,
+                   eval     => KY_STD|KY_BLOCK|KY_REPLACE|KY_PRINT,
+                   perl     => KY_STD|KY_BLOCK,
+                   func     => KY_STD|KY_BLOCK|KY_FUNCDEF,
+                   if       => KY_STD,
+                   include  => KY_STD,
+                   write_to => KY_STD,
+                   append_to=> KY_STD,
+                   for      => KY_STD,
                    for_noblock => KY_STD,
-                   comment => KY_STD,
-                   debug   => KY_STD,
-                   export  => KY_STD,
-                   list    => KY_STD,
-                   list_new=> KY_STD,
+                   comment  => KY_STD,
+                   debug    => KY_STD,
+                   export   => KY_STD,
+                   list     => KY_STD,
+                   list_new => KY_STD,
                    );
 
 my %functions;
@@ -176,16 +178,15 @@ sub parse_file
       }
     else
       { local($/);
-        local(*F);
+        local(*FI);
         undef $/;
-        open(F, $filename) or die "unable to open \"$filename\"";
-        $var= <F>;
-        close(F);
+        open(FI, $filename) or die "unable to open \"$filename\"";
+        $var= <FI>;
+        close(FI);
         $err_file= $filename;
       };        
     # perl seems to add a linefeed ("\n") at the
     # end of the scalar even if the file didn't contain one
-
     parse_scalar_i(\$var,%options);
     $err_file= $old_err_file;
   }    
@@ -197,7 +198,11 @@ sub parse_scalar
 
 sub parse_scalar_i
   { my($r_line,%options)= @_;
-    local(*F);
+    # CAUTION: due to the use of the same file-handle
+    # when parse_scalar_i is called recursivly when
+    # $include() is executed, F MUST NOT be local here
+    # local(*F);
+    my $must_close_fh;
     my $p;
     my $was_left;
     my(@ifcond)=(1);
@@ -236,7 +241,9 @@ sub parse_scalar_i
     
     my $scalar_ref= $options{scalarref};
     if (defined $scalar_ref)
-      { $fh= new IO::Scalar $scalar_ref; }
+      { $fh= new IO::Scalar $scalar_ref; 
+        $must_close_fh= 1;
+      }
     else
       { $fh= $options{filehandle};
         if (!defined $fh)
@@ -246,6 +253,7 @@ sub parse_scalar_i
             else
               { open(F, ">$filename") or die "unable to create $filename";
                 $fh= \*F;
+		$must_close_fh= 1;
               }
           };
       };
@@ -469,7 +477,6 @@ sub parse_scalar_i
                   { # do not actually do the include 
                     # when we are within an ignore-block
                     my $f= find_file($res,\@include_paths);
-                    
                     if (!defined $f)
                       { $err_pre= "unable to open file \"$res\"";
                         $err_line= __LINE__;
@@ -478,7 +485,30 @@ sub parse_scalar_i
 #die "res: $res\n";
                     my %local_options= %options;
                     $local_options{filehandle}= $fh;
-                    parse_file($f,%local_options); 
+		    parse_file($f,%local_options); 
+                  } 
+                pos($$r_line)= $en+1;
+                next;
+              }
+            elsif  (($ex eq 'write_to') || ($ex eq 'append_to'))
+              {
+#die "include encountered\n";
+                $err_line= __LINE__;
+                my $res= 
+                   eval_bracket_block($r_line,$st,$en,KY_REPLACE);
+
+                if ($ifcond[-1]>0) 
+                  { # do not actually do the thing 
+                    # when we are within an ignore-block
+                    close(F) if ($must_close_fh);
+		    if ($ex eq 'write_to')
+		      {  open(F, ">$res")  or die "unable to create $res"; 
+		      }
+		    else
+		      { open(F, ">>$res") or die "unable to create $res"; 
+		      }
+                    $fh= \*F;
+		    $must_close_fh= 1;
                   } 
                 pos($$r_line)= $en+1;
                 next;
@@ -700,7 +730,7 @@ sub parse_scalar_i
       
     print $fh substr($$r_line,$p) if (!$was_left);
 
-    if ((exists $options{filename}) || (exists $options{scalarref}))
+    if ($must_close_fh)
       { close(F); };
   }
 
@@ -1432,6 +1462,20 @@ else and endif is parsed.
 
 This finishes an if-statement. 
 
+=item I<write_to>
+
+  $write_to(<expression>)
+  
+This command opens a file with the name of the given expression
+and writes expander's output from now on to that file.
+
+=item I<append_to>
+
+  $append_to(<expression>)
+  
+This command opens a file with the name of the given expression
+in append mode and writes expander's output from now on to that file.
+  
 =item I<include>
 
   $include(<expression>)
