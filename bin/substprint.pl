@@ -50,6 +50,9 @@ if ($opt_summary)
 
 my $r_h;
 
+if (!defined $opt_file)
+  { $opt_file= shift(@ARGV); };
+
 $r_h= parse_subst::parse_file($opt_file);
 parse_subst::create($r_h);
 
