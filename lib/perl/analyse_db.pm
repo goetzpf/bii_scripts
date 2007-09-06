@@ -1,5 +1,5 @@
 package analyse_db;
-
+use Data::Dumper;
 use strict;
 
 
@@ -85,7 +85,7 @@ sub rec_link_fields
 
     my $r_fields= $recs->{$recname}->{FIELDS};
     my %h;
-    
+
     foreach my $fieldname (keys %$r_fields)
       { next if (!exists $link_fields{$fieldname});
 	my $val= $r_fields->{$fieldname};
@@ -95,7 +95,7 @@ sub rec_link_fields
 	next if ($val =~ qr/$number/);
 	if (exists ($dtyp_link_fields{$fieldname}))
 	  { # maybe a hardware link ?
-	    if ($r_fields->{DTYP} ne 'Soft Channel')
+	    if (str_defined_different($r_fields->{DTYP},'Soft Channel'))
 	      { next; };
 	  };
 	next if ($val !~ qr/$unquoted_rec_name/);
@@ -274,6 +274,18 @@ sub rem_capfast_defaults
       }
   }	  
 
+sub str_defined_different
+# internal function
+# returns 1 when $str is actually defined
+# to be different from $compare_to
+# returns undef when $str is empty or undefined
+  { my($str,$compare_to)= @_;
+    
+    return if (!defined $str);
+    return if ($str eq '');
+    return($str ne $compare_to);
+  }
+  
 sub error
 #internal error function
   { my($prg_line,$str)= @_;
