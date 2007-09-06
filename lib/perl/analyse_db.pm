@@ -30,6 +30,16 @@ my @dtyp_link_fields= qw(INP OUT);
 
 my @link_fields= qw(
 DOL
+DOL1
+DOL2
+DOL3
+DOL4
+DOL5
+DOL6
+DOL7
+DOL8
+DOL9
+DOLA
 FLNK
 INP
 INPA
@@ -51,6 +61,9 @@ LNK4
 LNK5
 LNK6
 LNK7
+LNK8
+LNK9
+LNKA
 OUT
 SDIS
 SELL);
