@@ -1,0 +1,2 @@
+#!/bin/sh
+/opt/csr/bin/darcs-monitor $1 email `cat _darcs/third-party/darcs-monitor/recipients | tr '\n' ','`
