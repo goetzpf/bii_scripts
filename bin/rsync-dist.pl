@@ -2681,6 +2681,11 @@ Syntax:
                 error in the script
                 (for distribution or links)
 
+    force-rm-lock --force-rm-lock [dist|d|links|l]
+
+                like "rm-lock", but the lock file is removed 
+		even when it was created by another user.
+
     mk-lock --mk-lock [dist|d|links|l]
 
                 create the lockfile in the remote directory. This is
