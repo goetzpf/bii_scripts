@@ -34,7 +34,7 @@ my $sc_year= "2007";
 my $debug= 0; # global debug-switch
 
 my $tmpdir= "/tmp";
-my $adlsort= "./adlsort.pl";
+my $adlsort= "adlsort.pl";
 
 
 #Getopt::Long::config(qw(no_ignore_case));
