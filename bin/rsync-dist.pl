@@ -1514,7 +1514,8 @@ sub sh_add_log_l
     if (defined $message)
       { push @lines,
              ' && ',
-             'echo LOG: "' . $message . "\" >> $logfile"; 
+             'echo LOG: "' . shell_single_quote_escape($message) .
+	     "\" >> $logfile"; 
       };
     return(@lines);
   }  
@@ -2090,6 +2091,24 @@ sub has_glob
           { return(1); };
       };
     return;
+  }
+
+sub shell_single_quote_escape
+  { my($str)= @_;
+  
+    # in a shell command that uses single quotes,
+    # it is a bit complicated to escape single quotes
+    # example:
+    # echo 'test'
+    #   prints "test" to the console but 
+    # echo 'test's' 
+    #   does not print "test's" 
+    #   in order to archive this we have to use
+    # echo 'test'"'"'s'
+    # 
+    # this kind of single-quote escaping is done here:
+    $str=~s/'/'"'"'/g;
+    return($str);
   }
 
 # ------------------------------------------------
