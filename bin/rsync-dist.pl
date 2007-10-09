@@ -64,6 +64,7 @@ use vars qw($opt_help
             $opt_env
             $opt_partial
             $opt_version_file
+            $opt_version_file_prefix
             $opt_editor
             $opt_prefix_distdir
             $opt_no_editor_defaults
@@ -252,6 +253,7 @@ my %gbl_map_hash=
                RSYNC_DIST_CHECKSUM  => \$opt_checksum,
                RSYNC_DIST_PARTIAL => \$opt_partial,
                RSYNC_DIST_VERSION_FILE => \$opt_version_file,
+               RSYNC_DIST_VERSION_FILE_PREFIX => \$opt_version_file_prefix,
                RSYNC_DIST_EDITOR => \$opt_editor,
                RSYNC_DIST_EDITOR_NO_DEFAULTS => \$opt_no_editor_defaults,
                RSYNC_DIST_SHOW_PROGRESS => \$opt_progress,
@@ -285,6 +287,8 @@ my %gbl_config_comments=
                                   "transfer only some files to the server",
                RSYNC_DIST_VERSION_FILE =>
                                   "name of the version-file that is created",
+               RSYNC_DIST_VERSION_FILE_PREFIX =>
+                                  "prefix of the version within the version-file",
                RSYNC_DIST_EDITOR =>
                                   "editor for log-messages and tags",
                RSYNC_DIST_EDITOR_NO_DEFAULTS =>
@@ -314,6 +318,7 @@ RSYNC_DIST_WORLDREADABLE
 RSYNC_DIST_CHECKSUM
 RSYNC_DIST_PARTIAL 
 RSYNC_DIST_VERSION_FILE
+RSYNC_DIST_VERSION_FILE_PREFIX
 RSYNC_DIST_EDITOR 
 RSYNC_DIST_EDITOR_NO_DEFAULTS
 RSYNC_DIST_SHOW_PROGRESS
@@ -407,6 +412,7 @@ if (!GetOptions("help|h",
 
                 "partial",
                 "version_file|version-file=s",
+                "version_file_prefix|version-file-prefix=s",
                 "editor=s",
                 "no_editor_defaults|no-editor-defaults|N!",
                 "prefix_distdir|prefix-distdir!",               
@@ -693,7 +699,7 @@ sub dist
 	    $pre= cwd() if (!$pre);
             $opt_version_file= File::Spec->catfile($pre,$opt_version_file);
 	  }
-	my $str= "$now\n";
+	my $str= "$opt_version_file_prefix$now\n";
 	write_file($opt_version_file,\$str);
       }
 
