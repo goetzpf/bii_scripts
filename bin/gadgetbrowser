@@ -1,0 +1,5 @@
+#!/bin/sh
+
+PATH=$PATH:/opt/java1.4/bin
+
+exec java -cp /opt/csr/GadgetBrowser/ojdbc14.jar:/opt/csr/GadgetBrowser/GadgetBrowser.jar bessy.db.GadgetBrowser.GadgetBrowser "$@"

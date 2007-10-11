@@ -45,7 +45,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		dbfilter.pl makeDocCommonIndex.pl
 		makeDocPerl.pl makeDocTxt.pl
 		cvs_diff.pl cvs_log_diff.pl camonitor_sort.pl 
-		sch_cvs_diff.pl SetPerms vdct flatdb tkSQL 
+		sch_cvs_diff.pl SetPerms vdct gadgetbrowser flatdb tkSQL 
 		oracle_request accLaunch addPVtoArchiver
 		rsync-deploy rsync-dist.pl multi-commit.pl pcomp.pl
                 darcs-kompare makeRegistrar);
