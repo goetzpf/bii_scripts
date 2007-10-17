@@ -127,7 +127,7 @@ sub scan_filename
 	  };
       }
     elsif  ($vcs == SVN)
-      { if ($line=~/^(?:[A-Z] | [A-Z]|[A-Z]{2})\s+(.*?)\s*$/) 
+      { if ($line=~/^(?:[A-Z~] | [A-Z]|[A-Z~]{2})\s+(.*?)\s*$/) 
 	  { # possibly a filename
 	    return($1);
 	  };
