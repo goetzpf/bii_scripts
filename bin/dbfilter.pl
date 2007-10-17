@@ -112,8 +112,8 @@ if (!GetOptions("help|h","summary",
 		"type|TYPE|t=s", 
 		"fields|FIELDS=s",
 		"empty|e",
-		"rm_capfast_defaults|rm-capfast-defaults",
-		"skip_empty_records|skip-empty-records|E",
+		"rm_capfast_defaults|rm-capfast-defaults|E",
+		"skip_empty_records|skip-empty-records",
 		"list|l",
 		"percent=s",
 		"unresolved_variables|unresolved-variables",
@@ -1131,11 +1131,11 @@ Syntax:
   
     -i dump internal hash structure
     -r print results in db-file format (default)
-    -s print results, one line per record
+    -s --short print results, one line per record
     -l just list the names of the matching records
    
   remove/filter records: 
-    -E|--skip_empty_records: records that have no fields (due to
+    --skip_empty_records: records that have no fields (due to
        filtering options that remove fields) are not printed
     
   remove/filter fields: 
@@ -1144,7 +1144,7 @@ Syntax:
 
     -e --empty remove empty fields
     
-    --rm-capfast-defaults
+    -E --rm-capfast-defaults
       remove fields that have still their capfast default value
    
   regular expressions:
