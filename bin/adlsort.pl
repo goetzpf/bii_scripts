@@ -469,7 +469,7 @@ sub parse
                   { #warn "ENDIF";
 		    last; 
 		  };
-	      
+
 	        ($p,$r_struc)= parse($r_data,$p,$bracketlevel+1,$r_indices);
 		if (!defined $r_struc)
 		  { pos($$r_data)= $pos;  # restore pos  
@@ -478,6 +478,14 @@ sub parse
 			last; 
 		      };
 		    # block-end within if-structure: ERROR
+		    if ($opt_debug)
+		      { my ($line,$ch)= pos_to_line_ch($r_indices,$pos);
+	        	warn "assertion at line $line, char $ch:\n";
+		      }
+		    else
+		      { warn "assertion at byte position $pos:\n";
+		      };
+		    warn "string:\"",substr($$r_data,$pos,20),"\"\n";
 		    die "assertion";
 		  };
 		  
@@ -573,12 +581,12 @@ sub parse
 	    
 	    if ($opt_debug)
 	      { my ($line,$ch)= pos_to_line_ch($r_indices,$pos);
-	        print "assertion at line $line, char $ch:\n";
+	        warn "assertion at line $line, char $ch:\n";
 	      }
 	    else
 	      { warn "assertion at byte position $pos:\n";
 	      };
-	    print "string:\"",substr($$r_data,$pos,20),"\"\n";
+	    warn "string:\"",substr($$r_data,$pos,20),"\"\n";
 	    die;
 	  };
 
