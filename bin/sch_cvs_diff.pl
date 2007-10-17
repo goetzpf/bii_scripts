@@ -20,7 +20,8 @@ use File::Spec;
 use vars qw($opt_help 
             $opt_summary 
 	    $opt_svn
-	    $opt_revision $opt_revision2);
+	    $opt_revision $opt_revision2
+	    $opt_textmode);
 
 
 my $sc_version= "1.0";
@@ -41,6 +42,7 @@ my $sch2db= "Sch2db.pl";
 if (!GetOptions("help|h","summary",
                 "svn",
                 "revision|r=s","revision2|s=s",
+		"textmode|t",
                 ))
   { die "parameter error!\n"; };
 
@@ -177,7 +179,10 @@ sub svn_process
 sub show_diff
   { my($f1,$f2)= @_;
   
-    my $cmd= "dbdiff $f1 $f2 2>/dev/null";
+    my $opt;
+    if (defined $opt_textmode)
+      { $opt= "-t"; };
+    my $cmd= "dbdiff $opt $f1 $f2 2>/dev/null";
     sys($cmd);
   }
         
