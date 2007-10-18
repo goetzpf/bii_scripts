@@ -5,7 +5,7 @@
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
 # Time-stamp: <24 Jan 06 14:35:59 Ralph Lange>
-# $Id: SetPerms,v 1.14 2007-10-18 08:46:24 franksen Exp $
+# $Id: SetPerms,v 1.15 2007-10-18 08:47:43 franksen Exp $
 #
 PROG=`basename $0`
 
@@ -201,8 +201,8 @@ do
 	echo Setting everything to group epics-support and mode ???r-Xr-X ...
 
 	chgrp -R epics-support $f > /dev/null 2>&1
-	chmod -R go=rX $f > /dev/null 2>&1
-		       
+	chmod -R g=rwX,o=rX $f > /dev/null 2>&1
+
 # Set all directories and executables to mode rwxrwxr-x
 
 	echo Setting all directories and executables to mode rwxrwxr-x ...
