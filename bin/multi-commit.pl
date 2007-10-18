@@ -418,7 +418,11 @@ sub make_tempfile
 sub email
   { # get Name from /etc/passwd:
     my $n= (getpwuid($<))[6]; 
-    # replace " " with ".":
+    
+    if ($n!~/^([\w ]+)/) 
+      { die "assertion, user name cannot be parsed"; }; 
+      
+    $n= $1; 
     $n=~ s/ /\./g; 
     
     my $mail= "$n\@$mail_domain"; 
