@@ -1,66 +1,103 @@
 ----------------------------------------------------------------------
-Scripts:
+*Scripts*:
 ----------------------------------------------------------------------
+*accLaunch*:
+	launch panels for the BESSY II control system. All
+	panels are read-only, so you can not interfere with 
+	the control system.
 
-SetPerms
-	a semi-automatic shell-script for setting file and 
-	directory permissions in the CVS repository, in 
-	epics, vxworks or development related directories.
+*addPVtoArchiver*:
+	script to add a PV to the channel access archiver.
 
-bdns_import.pl
+*adl_cvs_diff.pl*:
+	show differences between the working and the repository
+	version of an dm2k panel (*.adl) file. Supports CVS and
+	subversion as version control systems.
+
+*adlsort.pl*:
+	Print dm2k panel (*.adl) files sorted to standard out.
+	This can be used to compare two dm2k panel files.
+
+*bdns_import.pl*:
 	import BESSY device names into the oracle database
 
-bdns_lookup.pl
+*bdns_lookup.pl*:
 	lookup BESSY device names in the oracle database
 
-browsedb.pl
+*browsedb.pl*:
 	a perl-script with a graphical user interface to 
         browse the oracle database. The program can be used to view 
 	and change data in the database as well as show relations 
 	between the tables.
-     
-buds_lookup.pl
-	???
 
-camonitor_sort.pl
+*buds_lookup.pl*:
+	lookup BESSY units in the oracle database.
+
+*camonitor_sort.pl*:
 	sort and filer files created by the EPICS camonitor command.
-	The filtering can be specified with regulat expressions.
+	The filtering can be specified with regular expressions.
 	This tool is especially useful when many different PV's 
 	are monitored at a time.
 
-canlink.pl
+*canlink.pl*:
 	encode and decode the lowCAL hardware link as it is 
 	used in the BESSY MultiCAN device support for EPICS.
 
-cvs_diff.pl
+*cvs_diff.pl*:
 	compare versions of a file in a CVS repository. This tool
 	can remove emtpy lines and c-comments before comparing.
 
-cvs_log_diff.pl
+*cvsGuru*:
+	CVS wrapper script - for ctlguru only
+
+*cvs_log_diff.pl*:
 	compares the all log-messages between two revisions or tags
 	in a CVS repository. 
 
-dbfilter.pl
+*darcs-kompare*:
+	start KDE kompare to compare the working copy with the
+	repository copy of a file
+
+*darcs-moni*:
+	small wrapper around darcs-monitor
+	
+*dbcount*:
+	count the number of records in a file
+	
+*dbdiff*:
+	display the difference between two *.db files using tkdiff
+	
+*dbfilter.pl*:
 	A tool to filter db files or to find information in db 
 	files. Regular expression matches can be done on 
 	record names, record types or values of record-fields.
 	Connections between records can be shown, lowCAL and
 	SDO CAN links can be decoded.
-
-dbscan.pl
+	
+*dbscan.pl*:
 	This script is from Rolf Keitel <rolf@triumf.ca>. It scans
 	db and sch files and has lots of options, the most interesting
         being '-d' which searches for 'dangling links'. I.e. it lists
         all records which have links that point somewhere outside the
         given db file (along with the target record). Unfortunately
         does not tell which link field and which target field.
+	Note that dbfilter.pl can do the same with it's "--unresolved_links" 
+	option.
 
-dbutil.p
-	A tool that can export database-tables to ASCII files and 
+*dbsort*:
+	print an EPICS database sorted. Note that dbfilter.pl does exactly
+	the same when called with a database file and no options at all.
+
+*dbutil.p*:
+	A tool that can export oracle database-tables to ASCII files and 
 	re-import these files. Useful if you want to change many parts
 	of a database-table with your favorite text-editor...
-	
-expander.pl
+
+*dumpdb*:
+	dump a database (*.db) file, one record-name combined with one
+	field name in a single line.
+
+*expander.pl*:
 	macro expander for text-files. Since this tool allows
 	the execution of arbitrary perl-expressions, it is 
 	quite powerful and (if you want this) a programming
@@ -68,182 +105,265 @@ expander.pl
 	if-statements, complex expressions and for-loops among others.
 	This script is a simple application of the expander.pm module.
 
-
-filter_can_links.pl
+*filter_can_links.pl*:
 	extract CAN links from a .db file (for the 
 	BESSY lowCAL protocol). Note that dbfilter.pl can
-	almost do the same with the "--lowcal" option.
-	
-	
-grab_xkeys.pl
-	???
+	do the same with it's "--lowcal" option.
 
-grepDb.pl
+*flatdb*:
+	expands and vdctdb db-file into a "flat" db file. 
+
+*gadgetbrowser*:
+	database browser for the new gadget database.
+
+*grab_xkeys.pl*:
+	a little X11 utility that displays scan codes of pressed keys.
+
+*grepDb.pl*:
        A tool to search in EPICS-db files. It allows to define regular
        expressions as triggers in its commandline options for record-name, 
        record-type, field-name and field value if a record or a field matches 
        the trigger, it causes a print of the record. To control the printed 
        output there are options to define the record names, record types or 
        field types that have to be printed.
+
+*hgen.pl*:
+	a header-generator for c and c++
+
+*lockGuru*:
+	Check and/or create the mutex file lock, probably used together
+	with cvsGuru.
 	
-hgen.pl a header-generator for c and c++
+*makeDocCommonIndex.pl*:
+	create an html index for documentation generated with makeDoc.	
 
-makeDocCommonIndex.pl
-	???
+*makeDocPerl.pl*:
+	create html documentation for perl scripts that contain
+	embedded documentation according to "makeDoc" rules. 
 
-makeDocPerl.pl
-	???
+*makeDocTxt.pl*:
+	create html documentation for ascii files that contain
+	documentation according to "makeDoc" rules. 
 	
-makeDocTxt.pl
-	???
+*makeRegistrar*:
+	create EPICS 3.14 registrar code (generates c-code).
 	
-multi-commit.pl
-	perform multiple commits (cvs|svn|darcs) with a prepared command-file 
+*multi-commit.pl*:
+	perform multiple commits (cvs|svn|darcs) with a prepared command-file.
+	HTML documentation available!
 
-paths.pl
-	prints commands to set your perl-environment in order to use
-	the perl-modules and scripts of bii_scripts 
+*oracle_request*:
+	command line tool to make database queries on the oracle database.
 
-paths2.pl
+*paths2.pl*:
 	like paths.pl but uses the global installation directories
 	of the bii_scripts project.
 
-pfind.pl
+*paths.pl*:
+	prints commands to set your perl-environment in order to use
+	the perl-modules and scripts of bii_scripts 
+
+*pcomp.pl*:
+	recursivly compare two directories. Shows which files or directories
+	have different dates, different sizes or are missing. The files or 
+	directories can be filtered. The kind comparisons can also be filtered.
+	Can remove CVS tags or <CR> characters before comparing.
+
+*pfind.pl*:
 	a perl-script for powerful recursive file pattern search, like
 	a recursive grep, but better. Features among other things
         text-file search, c-file search, regular expressions that 
 	match across line-ends.
 
-rsync-dist.pl
+*rsync-deploy*:
+	tool for management for distribution of binary files with.
+	The successor of this script is rsync-dist.pl.
+	
+*rsync-dist.pl*:
 	manages binary distributions to remote servers. No old version
 	is ever lost. Uses hard-links to save storage space. Manages
 	also symbolic links that point to the distribution directories
 	on the server.
+	HTML documentation available!
 
-Sch2db.pl
+*Sch2db.pl*:
 	a perl sch to db converter. Converts capfast(*.sch) files
 	to the db file format as it is used in EPICS. This is faster
 	and more flexible that the combination of sch2edif and e2db...
 
-sch_cvs_diff
+*sch_cvs_diff*:
 	shows the difference between a modified capfast (*.sch) file
 	and it's version on the top-trunk in the cvs repository.
 	The difference of the resulting *.db files is shown, which
 	is much clearer when you want to find out what was really 
 	changed.
-	
-set_ioc_tsrv.pl
-	???
-	
-subst2exp.pl
+
+*set_ioc_tsrv.pl*:
+	set terminal_server and optionally port to connect to 
+	console of an ioc. Probably no longer needed since the
+	conserver is now used for all IOCs.
+
+*SetPerms*:
+	a semi-automatic shell-script for setting file and 
+	directory permissions in the CVS repository, in 
+	epics, vxworks or development related directories.
+
+*subst2exp.pl*:
 	convert substitution-files to expander format for usage
 	with the expander.pl script. This can be used on the fly
 	as an alternative to EPICS msi, or to convert
 	substitution files to expander format in order to use
 	the much more powerful commands of the expander format
 	when replacing values in EPICS template files. 
-
-
-----------------------------------------------------------------------
-Libraries and Modules:
-----------------------------------------------------------------------
-
-BDNS.pm
-	???
 	
-bessy_module.pm
-	This performa a "module <command> <args...>" in the z-shell 
+*substdiff*:
+	compares two substitution files.
+
+*substprint.pl*:
+	pretty-print a substitution file
+	
+*tkSQL*:
+	query the orcle database by directly entering SQL requests.
+	
+*unlockGuru*:
+	Remove the mutex file lock, probably used together
+	with cvsGuru.
+		
+*vdct*:
+	starts the VisualDCT database editor.	
+	
+
+----------------------------------------------------------------------
+*Libraries and Modules*:
+----------------------------------------------------------------------
+*analyse_db.pm*:
+	a Perl module to analyse databases parsed with parse_db.
+	HTML documentation available!
+
+*BDNS.pm*:
+	BESSY device name parser.
+
+*bessy_module.pm*:
+	This performs a "module <command> <args...>" in the z-shell 
 	environment and re-imports the environment-variables to the 
 	perl-process, so they are available in the %ENV-hash
+	HTML documentation available!
 	
-BrowseDB/TkUtils.pm 
+*BrowseDB/TkUtils.pm*: 
 	Tk-utilities for browsedb.pl
+	HTML documentation available!
 
-browsedb_conf.PL  
+*browsedb_conf.PL*:
 	this file is only needed for "make install" in order to 
 	patch browsedb.pl. It hat no use, once bii_scripts is installed
 
-canlink 
+*canlink*:
 	a perl-module that can be used to encode or decode the
 	"cryptic can link" as it is used in the BESSY CAN Bus
 	device support for EPICS.
+	HTML documentation available!
 
-cfgfile.pm
-	simple module to read or write a configuration file
+*capfast_defaults.pm*:
+	a Perl module that contains capfast defaults for
+        record-fields.
+	HTML documentation available!
 
+*cfgfile.pm*:
+	simple module to read or write a configuration file. Probably
+	unfinished and in alpha-release state. 
+	HTML documentation available!
 
-container.pm
+*container.pm*:
 	This provides routines to import and export perl variables into 
 	a single hash. A map-hash defines what hash-key is connected
 	to what variable. Importing and exporting is performed by
 	copying scalars, arrays and hashes. This is not a simple copy
 	of references. Note that deeply nested structures are
 	deeply copied.  
+	HTML documentation available!
 
-CreateX.pm
-	???
+*CreateX.pm*:
+	Routines that help to write CreateX.pl scripts. Not quite sure
+	what this does. Connects to the oracle database.
+	HTML documentation available!
 
-dbdrv_lite.pm
+*dbdrv_lite.pm*:
 	low level routines for sqlite. Used by dbdrv.
 	
-dbdrv_oci
+*dbdrv_oci*:
 	low level routines for the ORACLE database. Needed by dbdrv.
 
-dbdrv_pg.pm   
+*dbdrv_pg.pm*:
 	low level routines for a PostgreSQL database. Needed by dbdrv.
 
-dbdrv_test.pl  
-	test-script for dbdrv. This shouldn't be in the repository!      
+*dbdrv*:
+	low level utilities for SQL database access, needed by
+	dbitable.
+	HTML documentation available!
 
-dbdrv	low level utilities for SQL database access, needed by
-	dbitable
+*dbdrv_test.pl*: 
+	test-script for dbdrv. This shouldn't be in the repository!     
 
-dbitable
+*dbitable*:
 	an object-oriented Perl module for handling single tables
         from an SQL database
+	HTML documentation available!
 
-expander.pm
+*expander.pm*:
 	a module to perform macro-replacements in text files. Features
 	if-statements, complex expressions and for-loops among others
+	HTML documentation available!
 
-maillike.pm
+*extended_glob.pm*:
+	a Perl module for extended filename globbing.
+	HTML documentation available!
+
+*maillike.pm*:
 	This module is used to parse and create data files in a 
 	format similar to mail (RFC822). The data is organized in
 	records, each record has a number of fields and to each 
 	field of a record an certain content is associated.
+	HTML documentation available!
 
-makeDocStyle.pm
-	???
+*makeDocStyle.pm*:
+	module for the makeDoc* scripts.
 
-ODB.pm
-	???
+*ODB.pm*:
+	a Perl module for accessing database via DBI.  Means easier 
+	handling of the DBI routines via this layer.
+	HTML documentation available!
 
-Options.pm
-	???
+*Options.pm*:
+	a Perl module for handling programm arguments, commandline in
+        and output inclusive login requests.
+	HTML documentation available!
 
-parse_db
-	a perl-module for parsing EPICS db-files
+*parse_db*:
+	a perl-module for parsing EPICS db-files.
+	HTML documentation available!
 
+*parse_subst*:
+	a perl-module for parsing EPICS substitution-files.
+	HTML documentation available!
 
-parse_subst
-	a perl-module for parsing EPICS substitution-files
-
-Pezca	
+*Pezca*:
 	a perl-module that implements the channel-access protocol
 	and gives access to EPICS variables (1)
+	HTML documentation available!
 
-scan_makefile.pm
+*scan_makefile.pm*:
 	This module scans one or more than one makefile and returns 
 	a hash reference containing all variables that are set within
 	the makefile together with all environment variables.
+	HTML documentation available!
 
-
-simpleconf.pm
+*simpleconf.pm*:
 	This module is used to parse and create configuration files
 	in a very simple format. The data is typically organized in
 	lines where each line contains a field-name and the contents
 	of the field. Empty lines and lines starting with a "#" character
 	(which are usually a comment) are ignored.
+	HTML documentation available!
 
 -----------------------------------------------------------------------
 (1)	This is a CPAN-like module which has to be installed via
@@ -251,9 +371,3 @@ simpleconf.pm
 	be installed. The source is in "bii_scipts/src/perl/[module]",
 	the documentation in "bii_scipts/doc/man/man3/[module].3",
 	
-(2)	This is a "flat" perl module, which is simply placed in 
-	"bii_scipts/lib/perl" with the name "[module].pm". This module
-	contains embedded documenation, which is extracted to a 
-	man-page via "make". The documentation is in 
-	"bii_scipts/doc/man/man3/[module].3",
-

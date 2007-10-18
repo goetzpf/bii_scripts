@@ -34,6 +34,7 @@ my %add_args= (SHARE_DIR=> undef,
 
 my $bdir= "bin/";
 my $ldir= "lib/perl/";
+my $ddir= "doc/";
 
 my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl 
                 grab_xkeys.pl browsedb.pl paths2.pl 
@@ -48,7 +49,8 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		sch_cvs_diff.pl SetPerms vdct gadgetbrowser flatdb tkSQL 
 		oracle_request accLaunch addPVtoArchiver
 		rsync-deploy rsync-dist.pl multi-commit.pl pcomp.pl
-                darcs-kompare darcs-moni makeRegistrar);
+                darcs-kompare darcs-moni makeRegistrar
+		txt2html.pl);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
@@ -58,6 +60,7 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
 		scan_makefile.pm container.pm maillike.pm
 		simpleconf.pm extended_glob.pm 
 		capfast_defaults.pm analyse_db.pm
+		bessy_module.pm
 		);
                 
 my @script_pods= qw(rsync-dist.pl multi-commit.pl);
@@ -65,7 +68,12 @@ my @script_pods= qw(rsync-dist.pl multi-commit.pl);
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm
              scan_makefile.pm container.pm maillike.pm
-	     simpleconf.pm extended_glob.pm);
+	     simpleconf.pm extended_glob.pm
+	     analyse_db.pm bessy_module.pm
+	     capfast_defaults.pm ODB.pm Options.pm 
+	     );
+	     #../../src/perl/Pezca/Pezca.pm
+
 
 my @args= @ARGV;
 @ARGV=();
@@ -162,6 +170,10 @@ share:
 	install -m 755 -d share/browsedb \$(BROWSEDB_SHARE_DIR)
 	install -m 644 share/browsedb/[^C]* \$(BROWSEDB_SHARE_DIR)
 
+\$(INST_HTMLSCRIPTDIR)/../CONTENTS.html: ${ddir}txt/CONTENTS
+	${bdir}txt2html.pl < \$< > \$@ 
+	chmod a+r \$@
+
 \$(INST_HTMLSCRIPTDIR)/%.html: $bdir%.pl
 	pod2html --infile=\$< --outfile=\$@ 
 
@@ -169,7 +181,7 @@ share:
 	pod2html --infile=\$< --outfile=\$@ 
 
 .PHONY: html
-html: $htmls
+html: $htmls \$(INST_HTMLSCRIPTDIR)/../CONTENTS.html
 
 END
     $postamble;
