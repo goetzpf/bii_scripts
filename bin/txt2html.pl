@@ -9,9 +9,9 @@ eval 'exec perl -w -p00 -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 use HTML::Entities;
 $_ = encode_entities($_, "\200-\377");
 
-if (/^\s/) {
+if (/^\s+\S+/) {
     # Paragraphs beginning with whitespace are wrapped in <PRE> 
-    s{(.*)$}        {<PRE>\n$1</PRE>\n}s;           # indented verbatim
+    s{(.*)$}        {<PRE>\n$1</PRE>\n}gs;           # indented verbatim
 } else {
     s{^-{3,}\s*$} {<hr>}gm; # convert "---" to <hr>
     s{^([\w\.]+:)\s*$} {$1<br>}gm;   # add <br> after ":"
