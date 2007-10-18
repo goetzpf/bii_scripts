@@ -48,7 +48,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		sch_cvs_diff.pl SetPerms vdct gadgetbrowser flatdb tkSQL 
 		oracle_request accLaunch addPVtoArchiver
 		rsync-deploy rsync-dist.pl multi-commit.pl pcomp.pl
-                darcs-kompare makeRegistrar);
+                darcs-kompare darcs-moni makeRegistrar);
 
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
