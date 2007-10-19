@@ -65,6 +65,35 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 
 my @script_pods= qw(rsync-dist.pl multi-commit.pl);
 
+my @script_online_help= ("adl_cvs_diff.pl -h",
+			 "adlsort.pl -h",
+			 "(bdns_import.pl 2>&1; true)",
+			 "(bdns_lookup.pl 2>&1; true)",
+			 "camonitor_sort.pl -h",
+			 "canlink.pl -h",
+			 "cvs_diff.pl -h",
+			 "cvs_log_diff.pl -h",
+			 "dbcount",
+			 "dbdiff -h",
+			 "dbfilter.pl -h",
+                         "(dbscan.pl 2>&1; true)",
+			 "dbsort",
+			 "dbutil.p -h",
+			 "expander.pl -h",
+                         "filter_can_links.pl -h",
+			 "(grepDb.pl 2>&1; true)",
+			 "hgen.pl -h",
+			 "(makeDocTxt.pl -h 2>&1; true)",
+			 "pcomp.pl -h",
+			 "pfind.pl -h",
+			 "Sch2db.pl -h",
+			 "sch_cvs_diff.pl -h",
+			 "(set_ioc_tsrv.pl -h 2>&1; true)",
+			 "subst2exp.pl -h",
+			 "substdiff -h",
+			 "substprint.pl -h",
+			);
+
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm
              scan_makefile.pm container.pm maillike.pm
@@ -92,27 +121,13 @@ my %pm;
 foreach my $m (@modules)
   { $pm{$ldir . $m}= '$(INST_LIB)/' . $m; }; 
 
-my %mp1;
-my @hp1;
-foreach my $p (@script_pods)
-  { my($body)= ($p=~ /^([^\.]+)/);
-    $mp1{$bdir . $p}= '$(INST_MAN1DIR)/' . $body . '.$(MAN1EXT)'; 
-    
-    next if (!exists $add_args{INST_HTMLSCRIPTDIR});
-    my $x= $body; $x=~ s/\.[^\.]+$//;
-    push @hp1, '$(INST_HTMLSCRIPTDIR)/' . "$x.html"; 
-  }; 
-  
-my %mp;
-my @hp;
-foreach my $p (@pods)
-  { my($body)= ($p=~ /^([^\.]+)/);
-    $mp{$ldir . $p}= '$(INST_MAN3DIR)/' . $body . '.$(MAN3EXT)'; 
 
-    next if (!exists $add_args{INST_HTMLLIBDIR});
-    my $x= $body; $x=~ s/\.[^\.]+$//;
-    push @hp, '$(INST_HTMLLIBDIR)/' . "$x.html"; 
-  }; 
+my %mp1= mrg([lpre($bdir,@script_pods)],
+             [lpre('$(INST_MAN1DIR)/',newext('$(MAN1EXT)',@script_pods))]);
+
+
+my %mp = mrg([lpre($ldir,@pods)],
+             [lpre('$(INST_MAN3DIR)/',newext('$(MAN3EXT)',@pods))]);
 
 
 if (exists $add_args{SHARE_DIR})
@@ -159,10 +174,84 @@ WriteMakefile(
       ) : ()),
 );
 
+sub rm_ext
+  { my($x)=@_;
+    $x=~ s/\.[^\.]+$//;
+    return($x);
+  }
+  
+sub nw_ext
+  { my($ext,$val)= @_;
+    return(rm_ext($val) . ".$ext");
+  }
+
 # add another target, "share" to the makefile
+sub newext
+# change all extensions on a list of files
+# extension is the string after "."
+  { my($new,@l)= @_;
+    my @n= map{ nw_ext($new,$_) } @l;
+    return(@n);
+  }
+
+sub lpre
+# prepend a string to each element of a string list
+  { my($pre,@l)= @_;
+    return map { $pre . $_ } @l;
+  }
+  
+sub pstrp
+# extract all non-space characters after string-start 
+# on a list of strings
+# remove round brackets
+  { my(@l)= @_;
+    my @n= map{ scalar($_=~s/\s.*//,$_=~s/[\(\)]//g,$_) } @l;
+    return(@n);
+  }
+
+sub j
+# joins a list with spaces
+  { return(join(" ",@_)) }
+
+sub mrg
+# merges two lists like two stacks of cards
+  { my($r_lst1,$r_lst2)= @_;
+    my @n;
+    
+    if ($#$r_lst1 != $#$r_lst2)
+      { die "assertion"; };
+    for(my $i=0; $i<=$#$r_lst1; $i++)
+      { push @n, $r_lst1->[$i];
+        push @n, $r_lst2->[$i];
+      }
+    return(@n);
+  }
 
 sub MY::postamble {
-    my $htmls= join(" ",@hp,@hp1);
+
+    my @script_online_raw_deps= pstrp(@script_online_help);
+    my @script_online_deps    = lpre($bdir,@script_online_raw_deps);
+    
+    
+    my @script_online_targets= lpre('$(INST_HTMLSCRIPTDIR)/',
+    				    newext("html",@script_online_raw_deps));
+    my @script_online_cmds= @script_online_help;
+    my $script_online_targets=j(@script_online_targets);
+    
+    my $script_online_make;
+    for(my $i=0; $i<=$#script_online_deps; $i++)
+      { $script_online_make.= "$script_online_targets[$i]: $script_online_deps[$i]\n";
+        $script_online_make.= "\t\@echo create \$@ ...\n";
+        $script_online_make.= "\t\@echo \"<PRE>\" > \$@\n"; 
+        $script_online_make.= "\t\@$script_online_cmds[$i] >> \$@\n"; 
+        $script_online_make.= "\t\@echo \"</PRE>\" >> \$@\n"; 
+	$script_online_make.= "\n";
+      };
+        
+    my $podlibs_html=  j(lpre('$(INST_HTMLLIBDIR)/',newext('html',@pods)));
+    
+    my $podscripts_html= j(lpre('$(INST_HTMLSCRIPTDIR)/',newext("html",@script_pods)));
+    
     my $postamble = <<"END";
 .PHONY: share
 share:
@@ -174,14 +263,16 @@ share:
 	${bdir}txt2html.pl < \$< > \$@ 
 	chmod a+r \$@
 
-\$(INST_HTMLSCRIPTDIR)/%.html: $bdir%.pl
+$podscripts_html: \$(INST_HTMLSCRIPTDIR)/%.html: $bdir%.pl
 	pod2html --infile=\$< --outfile=\$@ 
 
-\$(INST_HTMLLIBDIR)/%.html: $ldir%.pm
+$podlibs_html: \$(INST_HTMLLIBDIR)/%.html: $ldir%.pm
 	pod2html --infile=\$< --outfile=\$@ 
+
+$script_online_make
 
 .PHONY: html
-html: $htmls \$(INST_HTMLSCRIPTDIR)/../CONTENTS.html
+html: $podlibs_html $podscripts_html $script_online_targets \$(INST_HTMLSCRIPTDIR)/../CONTENTS.html
 
 END
     $postamble;

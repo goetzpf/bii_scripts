@@ -20,7 +20,7 @@ if (/^\s+\S+/) {
     s{<URL:(.*?)>}    {<A HREF="$1">$1</A>}gs         # embedded URL  (good)
                     ||
     s{(http:\S+)}   {<A HREF="$1">$1</A>}gs;        # guessed URL   (bad)
-    s{\*(\S+)\*}    {<b>$1</b>}g;         # this is *bold* here
+    s{\*([\w\. -]+)\*}    {<b>$1</b>}g;         # this is *bold* here
     s{\b_(\S+)\_\b} {<EM>$1</EM>}g;                 # this is _italics_ here
     s{^}            {<P>\n};                        # add paragraph tag
 }
