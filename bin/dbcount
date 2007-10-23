@@ -1,8 +1,16 @@
 eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   if $running_under_some_shell;
+
+# original script contributed by Los Alamos National Laboratory
+# copyright held by Los Alamos National Laboratory
+
 #
 # $Log: dbcount,v $
-# Revision 1.1  2003-10-22 11:12:26  franksen
+# Revision 1.2  2007-10-23 07:52:42  pfeiffer
+# The BESSY license was added to scripts that
+# were developed here.
+#
+# Revision 1.1  2003/10/22 11:12:26  franksen
 # new
 #
 # Revision 1.1.1.1  2001/10/18 18:07:57  franksen

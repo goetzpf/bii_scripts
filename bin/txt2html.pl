@@ -2,6 +2,9 @@ eval 'exec perl -w -p00 -S $0 ${1+"$@"}' # -*- Mode: perl -*-
     if 0;
 # the above is a more portable way to find perl
 #!/usr/bin/perl -w -p00
+
+# taken from perl cookbook with slight modifications
+
 # text2html - trivial html encoding of normal text
 # -p means apply this script to each record.
 # -00 mean that a record is now a paragraph
