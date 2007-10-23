@@ -8051,10 +8051,10 @@ our %rec_linkable_fields = (
     }
   }
 );
- 
+
 sub record_defaults
   { my($rectype)= @_;
-  
+
     my $r_h= $rec_defaults{"e$rectype"};
     if (!defined $r_h)
       { warn "warning, recordtype \"$rectype\" not known"; 
@@ -8075,7 +8075,7 @@ capfast_defaults - a Perl module that contains capfast defaults for record-field
 =head1 SYNOPSIS
 
   use capfast_defaults;
-  
+
   my $r_h= capfast_defaults::record_defaults("longout");
 
 =head1 DESCRIPTION
@@ -8094,7 +8094,7 @@ in capfast 1.6.
 B<rec_defaults>
 
   print $capfast_defaults::rec_defaults{"elongout");
-  
+
 This global variable contains the record-defaults hash. This hash 
 has one entry for each record-type. Note that the record-types have
 the letter "e" prepended as you can see in the example above.
@@ -8104,7 +8104,7 @@ the letter "e" prepended as you can see in the example above.
 B<rec_linkable_fields>
 
   print $capfast_defaults::rec_linkable_fields{"elongout");
-  
+
 This global variable contains the record-defaults hash for link-fields. 
 This hash has one entry for each record-type. Note that the record-types have
 the letter "e" prepended as you can see in the example above.
@@ -8120,7 +8120,7 @@ the letter "e" prepended as you can see in the example above.
 B<record_defaults()>
 
   my $r_h= capfast_defaults::record_defaults("longout");
-  
+
 This function returns a hash-reference for the given record-type
 or <undef> if the record-type is not known. The hash contains
 all known fields as hash-keys and the defaults as hash-values.

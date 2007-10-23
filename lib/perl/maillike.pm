@@ -39,7 +39,7 @@ my %create_options= map { $_ => 1 } qw(recordseparator mode order);
 sub check_options
 #internal
   { my($hash, $valid, $func)= @_;
-  
+
     foreach my $k (keys %$hash)
       { if (!exists $valid->{$k})
           { croak "unknown option in function $func: \"$k\""; };
@@ -59,9 +59,9 @@ sub parse
     my $separator= $options{recordseparator};
     local(*F);
     my $mode;
-    
+
     check_options(\%options,\%parse_options, "parse");
-      
+
     my $reftype= ref($ref);
     if ($reftype eq '')
       { open(F,$ref) or croak "unable to open \"$ref\"";
@@ -77,14 +77,14 @@ sub parse
       { $mode= 'lines'; }
     else
       { croak "unknown reftype: $reftype"; };
-    
+
     my @main;
     my $r_record;
     my $enqueued;
     my $key;
     my $lineno=0;
     my $line;
-    
+
     for(;;)
       { if    ($mode eq 'file')
           { $line=<F>;
@@ -94,9 +94,9 @@ sub parse
 	  { last if ($lineno>$#$ref);
 	    $line= $ref->[$lineno++]; 
 	  };
-       
+
         chomp($line);
-        
+
 	if (!defined $separator)
 	  { if ($line=~ /^\s*$/)
 	      { # new record starts with an empty line
@@ -135,20 +135,20 @@ sub parse
 	$r_record->{$key}.= "\n" . $line;
       };
     close(F) if  ($mode eq 'file'); 
-      
+
     return(\@main);  
   }
-	  
+
 sub mk_order
 # internal
   { my($r_h, $r_index, $r_keys)= @_;
-  
+
     my @new;
     foreach my $k (@$r_keys)
       { next if (exists $r_h->{$k});
         push @new, $k;
       };
-    
+
     if (@new)
       { my $i= $$r_index;
         foreach my $kk (sort @new)
@@ -157,7 +157,7 @@ sub mk_order
       };	
     my @ordered= sort { $r_h->{$a} <=> $r_h->{$b} } @$r_keys;
     return(\@ordered);
-    
+
   }
 
 sub create
@@ -170,20 +170,20 @@ sub create
     local(*F);
     my $mode;
     my $append_mode=0; # 1 when file exists and is appended
-    
+
 
     check_options(\%options,\%create_options, "create");
 
     $separator.= "\n";
-  
+
     my $reftype= ref($ref);
     if ($reftype eq '')
       { my $fmode= $options{mode}; # '>' or '>>'
         $fmode= '>' if (!defined $fmode);
-	
+
 	if (($fmode eq '>>') && (-e $ref))
 	  { $append_mode= 1; };
-	
+
 	open(F,$fmode,$ref) or croak "unable to open \"$ref\""; 
 	$mode= 'file';
       }
@@ -191,8 +191,8 @@ sub create
       { $mode= 'scalar'; }
     elsif ($reftype eq 'ARRAY')
       { $mode= 'array'; }
-      
-  
+
+
     die "assertion" if (ref $r_l ne 'ARRAY'); 
     if (exists $options{order})
       { my $r_o= $options{order};
@@ -216,12 +216,12 @@ sub create
 	      { last if ($recno>=$#$r_l);
 	        $str= $separator; 
 	      };
-	      
+
 	    if ($append_mode)
 	      { $str= $separator . $str;
 	        $append_mode=0;
 	      };
-	      
+
 	    if    ($mode eq 'file')
 	      { print F $str; }
 	    elsif ($mode eq 'scalar')
@@ -234,8 +234,8 @@ sub create
       };
     close(F) if ($mode eq 'file');
   }
-      	  
-	   	      
+
+
 1;
 __END__
 
@@ -271,7 +271,7 @@ this module creates and parses is shown in this example:
 		  Age => 42
 		}
               ]
-	      
+
 The corresponding "maillike" format may look like this 
 
   Name: John Doe
@@ -296,7 +296,7 @@ a separate line.
 =over 4
 
 =item *
- 
+
 B<parse()>
 
   my $r_h= maillike::parse($var,%options)
@@ -313,7 +313,7 @@ In this case, C<$var> is interpreted as a filename. The parse-function
 opens and reads the file line by line. Example:
 
   my $r_h= maillike::parse("myfile.txt",%options)
-  
+
 =item scalar-reference
 
 In this case, C<$var> is a reference to a scalar variable containing
@@ -362,11 +362,11 @@ just contains two percent-signs.
 =back
 
 =item *
- 
+
 B<create()>
 
   maillike::create($var,$listref,%options);
-  
+
 This function creates a mail-like format from a list of hashes.
 The variable C<$var> can be one of three types:
 
@@ -378,7 +378,7 @@ In this case, C<$var> is interpreted as a filename. The parse-function
 creates or appends (see also "options" description) a file. Example:
 
   maillike::create("myfile.txt",$listref,%options);
-  
+
 =item scalar-reference
 
 In this case, C<$var> is a reference to a scalar variable where 
@@ -396,7 +396,7 @@ the data is appended to. Example:
   my @data;
   maillike::create(\@data,$listref,%options);
   print join("",@data);
-  
+
 Note that each line appended to C<@data> has a linefeed "\n" at the end.
 
 =back

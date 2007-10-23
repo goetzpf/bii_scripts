@@ -56,7 +56,7 @@ sub glob_files
 # expand glob-pattern but only for files
   { my($pattern)= @_;
     my @files;
-  
+
     foreach my $f (glob($pattern))
       { push @files, $f if (-f $f); };
     return(\@files);
@@ -65,7 +65,7 @@ sub glob_files
 sub is_glob
 # return 1 when a string is probably a glob
   { my($str)= @_;
-  
+
     if ($str=~ /[\?\*\[\]]/)
       { 
         return 1; 
@@ -80,15 +80,15 @@ sub expand
 
     if ($debug)
       { warn "expand(\"$pattern\")\n"; };
-      
+
     my @dirs= File::Spec->splitdir( $pattern );
-    
+
     my @newdirs;
-    
+
     for(my $i=0; $i<=$#dirs; $i++)
       { next if (!is_glob($dirs[$i]));
         my $old= cwd();
-	
+
 	my $subdir;
 	if ($i>0)
 	  { if (File::Spec->file_name_is_absolute( $dirs[0] ))
@@ -108,15 +108,15 @@ sub expand
 
 	if ($debug)
 	  { warn "expand \"$dirs[$i]\" in \"$subdir\"\n"; }
-	
+
 	my @files= glob($dirs[$i]);
-	
+
 	if ($debug)
 	  { warn "expanded: " . join(",",@files) . "\n"; };
-	  
+
 	if ($i>0)
 	  { chdir_safe($old); };
-	
+
 	foreach my $f (@files)
 	  { push @newdirs, File::Spec->catfile($subdir,$f,@dirs[($i+1)..$#dirs]);
 	  };
@@ -149,7 +149,7 @@ sub i_expand_list
 	  push @pattern_list, @a; 
 	}
     }
-    
+
     i_expand_list($r_result,@pattern_list);
   }    
 
@@ -157,7 +157,7 @@ sub expand_list
 # expand a list of globs and returns
 # a list-reference
   { my(@pattern_list)= @_;
-  
+
     if ($debug)
       { warn "expand_list(" . quote(@pattern_list) . ")\n"; };
 
@@ -187,7 +187,7 @@ sub wanted
 sub find_files_below
 # find all files below a given list of directories
   { my (@directories)= @_;
-  
+
     @expand_to_filelist_list= ();
     find({ wanted=> \&wanted,
            follow=> 1},
@@ -204,7 +204,7 @@ sub expand_to_filelist
 # sub-directories
   { my($r_result)= @_;
     my @new;
-  
+
     foreach my $f (@$r_result)
       { if (!-e $f)
           { next; };
@@ -218,7 +218,7 @@ sub expand_to_filelist
     @new= sort(@new);
     return(\@new);
   }
-	  
+
 sub fglob
   { my(@patterns)= @_;
 
@@ -226,8 +226,8 @@ sub fglob
     my $k= expand_to_filelist($r);
     return($k);
   }
-  
-	   	      
+
+
 1;
 __END__
 
@@ -256,7 +256,7 @@ than the standard glob function.
 =over 4
 
 =item *
- 
+
 B<fglob()>
 
   my $r_files= extended_glob::fglob(@patterns)
@@ -266,12 +266,12 @@ of patterns. Every part of a given path may contain the
 typical glob-pattern.
 
 =item *
- 
+
 B<is_glob()>
 
   if (extended_glob::is_glob($str))
     { ... }
-    
+
 This function returns 1 when a given string
 is probably a glob-string. It simply checks wether the
 string contains one of the following characters: "?*[]"
@@ -310,7 +310,7 @@ empty pattern
 prints
 
   $VAR1 = [];
-  
+
 No files match the empty pattern
 
 =item *
@@ -330,7 +330,7 @@ prints
 
 The directory "a" was matched and all files and files in
 subdirectories of "a" are returned.
-  
+
 =item *
 
 pattern matches several directories

@@ -59,7 +59,7 @@ if (defined $opt_part)
         $wanted_parts{$part}= 1;
       };
   };
-  
+
 if (defined $opt_multiple)
   { if (!defined($opt_header))
       { die "error, -h option missing\n"; };
@@ -86,7 +86,7 @@ if (defined($opt_multiple))
   { if ($#ARGV>=0) 
       { push @files,@ARGV; };
   };
-     
+
 if ($dump_output)
   { *OUT= *STDOUT; }
 else
@@ -112,7 +112,7 @@ if (defined $org_header)
     my $s2= `cksum $opt_header`;
     my($n1)= ($s1=~ /^(\d+)/);
     my($n2)= ($s2=~ /^(\d+)/);
-    
+
     if ($n1 == $n2) # header-file was unchanged
       { 
         unlink($opt_header) || die "unable to remove $opt_header\n"; 
@@ -130,11 +130,11 @@ else
   { if ($opt_quiet)
       { print "header generated: $opt_header\n"; };
   }
-       
+
 
 sub process_file
   { my($in,$out)= @_; # typeglobs !!!
-  
+
     my $in_string =0; # 1: within a double-quoted string
     my $in_comment=0; # -1: a one-line comment, 1: a real comment
     my $cmt_start=0;
@@ -151,9 +151,9 @@ sub process_file
     my $active=1;    # state of the part (@PS() and @PE())
 
     my %found_parts;
-    
+
     my $old_emit_flag;
-    
+
     while(my $line=<$in>)
       { 
 	chomp($line);
@@ -234,7 +234,7 @@ sub process_file
 	        	$in_comment= 0;
 			last; # leave while-loop
         	      }
-		    
+
 		    elsif ($cmd eq '@PS')
 		      { if (!($line=~ /\G\((.*?)\)/gc))
 		          { die '@PS' . ": args missing\n"; };
@@ -287,7 +287,7 @@ sub process_file
 		    elsif ($cmd=~ /^\@EX/)
 		      { my $immediate= ($cmd eq '@EXI');
 		        my $arg= 1;
-			
+
 			# support the old and the 
 			# new style like '@EX' '@EX1' or '@EX(1)':
                         if    ($line=~ /\G(\d+)/gc)
@@ -310,7 +310,7 @@ sub process_file
 		      }
 		    else
 		      { print STDERR "unknown command: $cmd\n"; };
-		      
+
 		    # now remove the command from the string:  
 		    my $ch;
 		    if ($epos>= length($line)-1)
@@ -368,7 +368,7 @@ sub process_file
 
 sub check_part
   { my($r_wanted,$r_current)= @_;
-    
+
     return (1) if (!%$r_wanted);
 
     foreach my $key (keys %$r_current)
@@ -381,7 +381,7 @@ sub check_part
 
 sub emit
   { my($text,$active,$fh)= @_; # $fh: a typeglob 
-    
+
     return if (!$active); # the global "active" variable
     if ($dump_output)
       { $text=~ s/\n$//;
@@ -392,14 +392,14 @@ sub emit
 
 sub conv_text
   { my($text)= @_;
-  
+
     $text=~ s/\\\"/\"/g;
     $text=~ s/\/\@/\/\*/g;
     $text=~ s/\@\//\*\//g;
     $text=~ s/\\n/\n/gm;
     return($text);
   }  
-  
+
 sub print_help
   { 
     print <<END

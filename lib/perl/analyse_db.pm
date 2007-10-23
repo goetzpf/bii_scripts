@@ -80,7 +80,7 @@ sub rec_link_fields
 # where the values
 # are the names of referenced other records 
   { my($recs, $recname)= @_;
-  
+
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
 
     my $r_fields= $recs->{$recname}->{FIELDS};
@@ -99,7 +99,7 @@ sub rec_link_fields
 	      { next; };
 	  };
 	next if ($val !~ qr/$unquoted_rec_name/);
-	  	  
+
         $val=~ s/[\. ]?(CA|CPP|NPP|NMS|MS|PP)\s*//g;	    
 	$val=~ s/\s+$//;
 	# remove field-names:
@@ -123,7 +123,7 @@ sub add_link_info
 # "REFERENCES" and "REFERENCED_BY" which contain the
 # record-names of the referenced records
   { my($recs)= @_;
-  
+
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
     # delete the "LINKS" sub-hash for each record if 
     # it already exists
@@ -148,7 +148,7 @@ sub references_list
 # returns a sorted list of records this record references
 # add_link_info must have been called before
   { my($recs, $recname)= @_;
-  
+
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
     my $r_lh= $recs->{$recname}->{LINKS};
     #if (!defined $r_lh)
@@ -163,7 +163,7 @@ sub referenced_by_list
 # returns a sorted list of records this record is referenced by
 # add_link_info must have been called before
   { my($recs, $recname)= @_;
-  
+
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
     my $r_lh= $recs->{$recname}->{LINKS};
     error(__LINE__,"no link info found, add_link_info() was not called")
@@ -175,7 +175,7 @@ sub referenced_by_list
 sub r_linkset
 # internal function for function linkset
   { my($cnt, $lvl, $maxlvl, $r_set, $r_seen, $recs, $record)= @_;
-  
+
     die "recursion too deep" if ($lvl>250);
 
     #print "rec:$record lvl:$lvl\n";
@@ -183,7 +183,7 @@ sub r_linkset
     #return if ($r_seen->{$record});
     $r_seen->{$record} = $lvl;
     $r_set ->{$record} = sprintf "%03d:%03d", $lvl, $cnt;
-    
+
     my $mycnt=0;
     my $seen;
     foreach my $r (references_list($recs, $record))
@@ -213,7 +213,7 @@ sub linkset_hash
 # connected to this record
 # returns a sorted list
   { my($recs, $recname, $maxlvl)= @_;
-  
+
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
     my %seen;
     my %set;
@@ -227,7 +227,7 @@ sub linkset_list
 # connected to this record
 # returns a sorted list
   { my($recs, $recname, $maxlvl)= @_;
-  
+
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
     my %seen;
     my %set;
@@ -239,7 +239,7 @@ sub linkset_list
 sub linkset_filter_level
   { my($r_linkset, $maxlevel)= @_;
     my %new;
-    
+
     error(__LINE__,"1st param must be a hash ref") 
       if (ref($r_linkset) ne 'HASH');
     foreach my $k (keys %$r_linkset)
@@ -252,7 +252,7 @@ sub linkset_filter_level
 
 sub linkset_sorted_keys
   { my($r_linkset)= @_;
-  
+
     error(__LINE__,"1st param must be a hash ref") 
       if (ref($r_linkset) ne 'HASH');
     my @l= sort { $r_linkset->{$a} cmp $r_linkset->{$b} } (keys %$r_linkset);
@@ -263,7 +263,7 @@ sub linkset_sorted_keys
 
 sub rem_capfast_defaults
   { my($recs)= @_;
-  
+
     foreach my $recname (keys %$recs)
       { my $r_f= $recs->{$recname}->{FIELDS};
         my $r_def= capfast_defaults::record_defaults("longout");
@@ -280,21 +280,21 @@ sub str_defined_different
 # to be different from $compare_to
 # returns undef when $str is empty or undefined
   { my($str,$compare_to)= @_;
-    
+
     return if (!defined $str);
     return if ($str eq '');
     return($str ne $compare_to);
   }
-  
+
 sub error
 #internal error function
   { my($prg_line,$str)= @_;
-  
+
     my $err= "$str\n" .
              "line $prg_line of analyse_db.pm\n ";
     croak $err;
   }
-             
+
 
 
 1;
@@ -344,7 +344,7 @@ name of the record.
 B<add_link_info()>
 
   analyse_db::add_link_info($records);
-  
+
 This function adds information about the connections of records
 to the records datastructure. The C<$records> datastructure is 
 a reference to a hash. Each key is a record name that points
@@ -392,25 +392,25 @@ The record 'UE112ID7R:AdiUnVDrvDstICnt' is referenced by
 B<references_list()>
 
   print join("\n",analyse_db::references_list($records,$my_recname)),"\n";
-  
+
 This function returns a list of records that is referenced by 
 the given record.
-  
+
 =item *
 
 B<referenced_by_list()>
 
   print join("\n",analyse_db::referenced_by_list($records,$my_recname)),"\n";
-  
+
 This function returns a list of records that reference 
 the given record.
-  
+
 =item *
 
 B<linkset_hash()>
 
   my $r_h= linkset_hash($records,$my_recname,$maxlevel)
-  
+
 This function returns a hash-reference containing all records
 that are related to the given record. $maxlevel (optional)
 is the maxmum allowed distance.
@@ -431,7 +431,7 @@ fourth within that level.
 B<linkset_list()>
 
   my $r_h= linkset_hash($records,$my_recname,$maxlevel)
-  
+
 This function returns a hash-reference containing all records
 that are related to the given record. $maxlevel (optional)
 is the maxmum allowed distance.
@@ -439,7 +439,7 @@ is the maxmum allowed distance.
 B<rem_capfast_defaults()>
 
   rem_capfast_defaults($records)
-  
+
 This function removes all fields that have the still their default 
 value as it is defined in capfast.
 

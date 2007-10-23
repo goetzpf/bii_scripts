@@ -97,7 +97,7 @@ if ($opt_help)
   { print_help();
     exit;
   };
-  
+
 $global_data{formats}{date}{string} = "%4y-%2m-%2d";
 $global_data{formats}{date}{weekdays} = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Son'];
 $global_data{formats}{date}{firstday} = 0;
@@ -190,7 +190,7 @@ if ($opt_bigfonts)
   { $f_10="15";
     $f_9="12";
   };
-  
+
 $global_data{theme}->{main}= { '-background' => "gray81",
 #                              '-font'       => "{helvetica} $f_10",
                                '-foreground' => 'black',
@@ -220,7 +220,7 @@ $global_data{theme}->{'login:entry'}=
                                 '-inactivebackground' => "gray87",
                                 '-foreground' => 'black',
                               };
-                             
+
 $global_data{theme}->{'login:button'}= 
                                { '-activebackground'=> "gray90",
                                };
@@ -237,7 +237,7 @@ $global_data{theme}->{'notebook:fontelmB'}=
                                    '-foreground' => 'black',
                                    '-font'       => "{helvetica} $f_10",
                                  };
-                                 
+
 $global_data{theme}->{'notebook:fontelm'}=
                                  { '-background' => "gray90",
                                    '-foreground' => 'black',
@@ -302,7 +302,7 @@ $global_data{theme}->{text}= { '-background' => "gray81",
                                '-foreground' => "black",
                                '-font'       => "{helvetica} $f_10"
                              };
-                             
+
 $global_data{theme}->{shell}= { #'-background' => "black",
                                 '-background' => "gray90",
                                 '-font'       => "{courier} $f_10",
@@ -514,7 +514,7 @@ sub tk_login
                                       '-activebackground',
                                      );
 
-    
+
     $FrDn->Button(-text => 'Login',
                   %button_opts,
                   -command => [\&tk_login_finish, $r_glbl ],
@@ -597,7 +597,7 @@ sub tk_login_finish
     $r_glbl->{dbh}= $db_handle;
 
     $r_glbl->{db_capability} = dbdrv::get_capabilities();
-    
+
     BrowseDB::TkUtils::Progress($r_glbl,20);
 
     BrowseDB::TkUtils::SetBusy($r_glbl,0);
@@ -625,7 +625,7 @@ sub tk_main_window
 
     my $listbox_action;
     my $Top= MainWindow->new(theme_parameters($r_glbl,'main','-background'));
-    
+
     $Top->protocol('WM_DELETE_WINDOW', [ \&tk_quit_main, $r_glbl]);
 
     $Top->minsize(400,400);
@@ -640,7 +640,7 @@ sub tk_main_window
 
     my $MnTop= $Top->Menu();
     $Top->configure(-menu => $MnTop );
-    
+
     $MnTop->configure(theme_parameters($r_glbl,'topmenu'));
 
 
@@ -1231,7 +1231,7 @@ sub tk_main_window
                  -fill=>"both",
                  -side=>"bottom",
                  -expand=> 0, );
-                 
+
 
         BrowseDB::TkUtils::clear_undef_keys($DlgSQLHistory);
         $r_glbl->{MainWindow}->{sql_history_widget}=$DlgSQLHistory;
@@ -1423,7 +1423,7 @@ sub tk_main_window_finish
     # opens or create a new history file
     my $mydbsrc= $r_glbl->{db_source};
     $mydbsrc=~ s/\//_/g; # in case it's a file-path
-    
+
     $r_glbl->{filename_sql_history} =
                    $r_glbl->{dir} . join("_","/history",
                                   $r_glbl->{db_driver},
@@ -1638,7 +1638,7 @@ sub tk_handle_table_browse_entry
 
     if ($rewrite_value)
       {
-      
+
         my $Entry= $table_browse_widget->Subwidget('entry');
         my $r_var= ($Entry->configure('-textvariable'))[4];
         $$r_var= $proposed;
@@ -1729,11 +1729,11 @@ sub tk_execute_new_query
             $sql_command_widget->delete('@1,0','end');
 
             $sql_history_widget->insert('end', "\n");
-            
+
             # @@@ "green" must be a defined tag for that widget, otherwise
             # it won't work:
             #$sql_history_widget->insert('end', "$sqlquery;", "green");
-            
+
             $sql_history_widget->insert('end', "$sqlquery;");
             $sql_history_widget->insert('end', "\n");
             print $fh "\n".$sqlquery.";\n";
@@ -1766,7 +1766,7 @@ sub tk_quit_main
     my $Top;
     my @options;
 
-  
+
     $Top = $r_glbl->{main_menu_widget};
     my $r_tab= $r_glbl->{all_tables};
     if ((!defined $r_tab) or (!%$r_tab)) # no open tables
@@ -1833,7 +1833,7 @@ sub tk_quit_table
 
     $Top = $r_tbh->{top_widget};
 
-    
+
     if   ($action eq 'reload')
       {
         $message.= " before re-loading from the database ?";
@@ -1847,14 +1847,14 @@ sub tk_quit_table
       }
     else
       { die "unknown action: $action"; };
-      
+
 
     if ($r_glbl->{fast_test})
       { $choice = "close"; };
 
     if (!table_changed($r_tbh))
       { $choice = "close"; };
-    
+
     while(!defined $choice)
       {
         $choice = $Top->Dialog(
@@ -2640,14 +2640,14 @@ sub make_table_window
                   -underline   => 0,
                   -command=> [\&object_info, $r_glbl, $r_tbh]
                 );
- 
+
     $MnView->add('command',
                   -label=> 'sort rows',
                   -underline   => 0,
                   -command=> [\&tk_sort_menu, $r_glbl, $r_tbh]
                 );
- 
- 
+
+
     my $MnViewHCol = $MnView->Menu(%menu_opts);
     $MnView->add('cascade',
                   -label=> 'Hide/Unhide columns',
@@ -2791,19 +2791,19 @@ sub cb_show_content
             "(assertion)";
       }; 
   }      
-         
+
 sub cb_show_contenttable
   {
     my($r_glbl, $r_tbh)= @_;
     # --------------------- table widget
 
     my $FrDn = $r_tbh->{frame_down};
-    
-    
+
+
     #$FrDn->gridForget($FrDn->gridSlaves());
     BrowseDB::TkUtils::ungrid($FrDn);
     #$r_glbl->{main_menu_widget}->update();
-    
+
     $FrDn->gridRowconfigure   (0,-weight=>1); # make it stretchable
     $FrDn->gridColumnconfigure(0,-weight=>1); # make it stretchable
     $FrDn->gridRowconfigure   (1,-weight=>0); # make it non-stretchable
@@ -2835,7 +2835,7 @@ sub cb_show_contenttable
                                 #-flashmode=> 1,
                                 #-width => $dbi_column_no,
                                 theme_parameters($r_glbl,'table')
-                                
+
                                 );
 
     $r_tbh->{table_widget}= $Table;
@@ -3192,14 +3192,14 @@ sub cb_show_contentform
     # repacking FrDown is important in order to get a
     # sensible window-size
     my $FrDn = $r_tbh->{frame_down};
-    
+
     #$FrDn->gridForget($FrDn->gridSlaves());
     BrowseDB::TkUtils::ungrid($FrDn);
     # important to re-pack the frame here:
     $FrDn->pack(-expand=> 1, -fill=>'both', );
 
     #$FrDn->gridPropagate(1);
-    
+
     #$r_glbl->{main_menu_widget}->update();
 
     $FrDn->gridColumnconfigure(0,-weight=>0); # make it stretchable
@@ -3213,7 +3213,7 @@ sub cb_show_contentform
 
     if (!exists $r_tbh->{current_row})
       { $r_tbh->{current_row}= 1; };
-    
+
     my $FastNav = $FrDn->Frame(
                     #-height=>14,
                     -relief=>"raised",-background=>'green',
@@ -3261,7 +3261,7 @@ sub cb_show_contentform
 
     $rowcol++;
 
-     
+
     # it's important that the Pane is not yet packed or gridded
     # since we can not yet calculate it's size
     my $Pane= $FrDn->Pane( 
@@ -3288,7 +3288,7 @@ sub cb_show_contentform
     # now add a frame within the pane, we need this in order
     # to proceed with adding the entry fields without the
     # Pane-Widgets having been gridded
-    
+
     my $Form= $Pane->Frame->pack(-side=>'top' ,-fill=>'both', -expand=>1);
 
     $r_tbh->{form_widget}->{contentframe} = $Form;
@@ -3318,13 +3318,13 @@ sub cb_show_contentform
                                      $colname);
 
        $r_tbh->{form_widget}->{content}->{$colname}=$EntryWidget;
-       
+
        $LabelWidget->grid(-row=>$row, -column=>0, -sticky=>'w');
        $EntryWidget->grid(-row=>$row, -column=>1, -sticky=>'ew');
 
        $row++;
       };
-    
+
     $Form->gridColumnconfigure   (0,-weight=>0); # make it stretchable
     $Form->gridColumnconfigure   (1,-weight=>1); # make it stretchable
 
@@ -3362,7 +3362,7 @@ sub cb_show_contentform_get
     my $selection = 'disabled';
 
     my $lineno;
-    
+
     if    (!defined $incr)
       { $lineno=1; }
     elsif ($incr eq 'first')
@@ -3374,9 +3374,9 @@ sub cb_show_contentform_get
         $lineno=1 if ($lineno<1);
         $lineno=$r_tbh->{row_no} if ($lineno>$r_tbh->{row_no});
       };
-    
+
     $r_tbh->{current_row}= $lineno;
-    
+
     if ($lineno > 1)
       {
         $back = 'normal';
@@ -3395,7 +3395,7 @@ sub cb_show_contentform_get
             configure(-state=>$next);
         $r_tbh->{form_widget}->{fastnavframe}->{last}->
             configure(-state=>$next);
-            
+
         foreach my $colname ( @{$r_tbh->{column_list}} )
         {
             $r_tbh->{form_values}->{$colname} = 
@@ -3412,14 +3412,14 @@ sub cb_show_contentform_entrywidgets
     # $pkey    : primary key of the row
     # $colname : columnname
     my ($r_glbl, $r_tbh, $pkey, $colname) = @_;
-  
+
     my $FormWidget= $r_tbh->{form_widget}->{contentframe};
 
 #return($FormWidget->Label(-text=>"first"),
 #       $FormWidget->Label(-text=>"second"));
 
     #return if (!defined $FormWidget);
-    
+
     # read data from the table:
     $r_tbh->{form_values}->{$colname} = undef;
                #put_get_val_direct($r_tbh,0,$pkey,$colname);
@@ -3512,19 +3512,19 @@ sub object_info
       { $text.= "table or view"; }
     else
       { warn "unknown type: $r_tbh->{table_type}"; };
-      
+
     $text.= "\n\ncolumns:\n";  
 
     if ($table_type ne 'sql')
       { my $all_col_prop= $r_tbh->{column_properties};
-      
+
         $text.= sprintf("%-20s %-15s %6s %9s %8s %8s\n",
                         'name','type','length',
                         'precision','nullable','key-type');
-        
+
         foreach my $colname ( @ { $r_tbh->{column_list} } )
           { my $col_prop= $all_col_prop->{$colname};
-          
+
             my $type  = $col_prop->{type};
             my $length= $col_prop->{length};
             my $prec  = $col_prop->{precision};
@@ -3541,10 +3541,10 @@ sub object_info
               { $prec=""; };
 
             my $keytype="";
-            
+
             if (exists $r_tbh->{pks_h}->{$colname})
               { $keytype= "primary"; }; 
-                    
+
             my $fkh= $r_tbh->{foreign_key_hash}->{$colname};
             if (defined $fkh)
               { # note: the table-name in the foreign_key_hash is
@@ -3558,7 +3558,7 @@ sub object_info
                   $keytype = "foreign, " .
                       (dbdrv::real_name($dbh,$user,$fkh->[0]))[0];
               };
-              
+
             $text.= sprintf("%-20s %-15s %6s %9s %8s %s\n",
                             $colname, $type, $length, 
                             $prec, $null, $keytype);
@@ -3571,7 +3571,7 @@ sub object_info
               { $text .= sprintf("%s.%s (%s)\n",@$r_s);
               };
           };
-    
+
         my @referenced=
                    dbdrv::object_references($dbh,$table_name,$r_glbl->{user});
         if (@referenced)
@@ -3581,7 +3581,7 @@ sub object_info
             };
           };
       };
-      
+
     if ($table_type eq 'view')
       {
         my $sql= dbdrv::read_viewtext($dbh,$table_name,$r_glbl->{user});
@@ -3605,12 +3605,12 @@ sub object_info
             };
 
         };
-          
+
     $text.= "\nSQL command: " . $r_tbh->{dbitable}->{_fetch_cmd};
     BrowseDB::TkUtils::MakeTextWidget($r_glbl,$table_name,\$text)
   }  
 
-   
+
 
 
 sub cb_show_objectinfo
@@ -3953,7 +3953,7 @@ sub tk_show_scroll_relations
               };  
           };
       };
-      
+
     my $r_resident= conn_f_find($r_glbl,$r_tbh);
     if (defined $r_resident)
       { if ($found)
@@ -3977,7 +3977,7 @@ sub tk_show_scroll_relations
       };
     if (!$found)
       { push @text, "this table has no scroll-relations"; };
-    
+
     my $lines;
     my $width=0;
     my $l;
@@ -3989,7 +3989,7 @@ sub tk_show_scroll_relations
     $width= int($width*1.1); # 10 % more
     my $text= join("\n",@text);
 #warn "$width $lines";
-      
+
     BrowseDB::TkUtils::MakeTextWidget($r_glbl,"$myname:scroll-relations",
                                       \$text, 
                                       #popover=>1,
@@ -4142,7 +4142,7 @@ sub tk_mark_manual_foreign_key_col
   { my($r_tbh,$col_name)= @_;
 
     return if ($r_tbh->{display_mode} ne 'table');
-    
+
     my $Table_Widget= $r_tbh->{table_widget};
 
     # get column-indices of "green" columns
@@ -5733,7 +5733,7 @@ sub cb_insert_line_pk_enter
       };
 
     my $col= $r_tbh->{insert_line_pk_cols}->[0];
-    
+
     if (!defined $col) # all pk-columns were processed
       { delete $r_tbh->{insert_line_pk_cols};
 #warn "calling cb_insert_line_finish, values: ";
@@ -5741,7 +5741,7 @@ sub cb_insert_line_pk_enter
         cb_insert_line_finish($r_glbl,$r_tbh); 
         return;
       };
-      
+
 #warn "calling new dialog with col $col";
     BrowseDB::TkUtils::SimpleTextDialog($r_glbl,$r_tbh,
                       tag=> "primary_key_dialog",
@@ -5756,7 +5756,7 @@ sub cb_insert_line_finish
    my $no_pk_cols= $r_tbh->{no_pk_cols};
    my @pk_cols;
    my $r_pk_h;
-   
+
    if (!$no_pk_cols)
      { @pk_cols= @{$r_tbh->{pks}}; 
        $r_pk_h= $r_tbh->{pks_h};
@@ -5765,7 +5765,7 @@ sub cb_insert_line_finish
    my $dbitable= $r_tbh->{dbitable};
 
    my $r_col_hash= $r_tbh->{column_hash};
-   
+
    my $r_values= $r_tbh->{insert_line_values};
    if (!defined $r_values)
      { $r_values= {}; };
@@ -5781,10 +5781,10 @@ sub cb_insert_line_finish
 
    # print "ADD LINE WITH ",join("|",%h),"\n";
    my $new_pk= $dbitable->add_line(%$r_values);
-   
+
    if (exists $r_tbh->{insert_line_values})
      { delete $r_tbh->{insert_line_values}; };
-   
+
    if (!defined $new_pk)
      { # error during insert of line
        return; 
@@ -6504,19 +6504,19 @@ sub tkwarn
 sub theme_parameters
   { my($r_glbl, $key, @keylist)= @_;
     my %local;
-  
+
     my $r_h= $r_glbl->{theme}->{$key};
     my $r_h_glbl;
-    
+
     if (!defined $r_h)
       { warn "warning: theme for $key not found\n" .
              "(was called from " . join(",",caller) . ")";
         return; 
       };
-      
+
     if ($key=~ /^([^:]+):/)
       { $r_h_glbl= $r_glbl->{theme}->{$1}; }; 
-      
+
     if (!@keylist)
       { if (!defined $r_h_glbl)
           { return(%$r_h); };
@@ -6665,7 +6665,7 @@ sub set_column_map
       }
     else
       { $r_col_map= {}; }; # create a new column-map hash 
-    
+
     my($key_to_str,$r_str_to_key)=
             get_column_map($r_glbl,$sql_command,$column_name,$force_reload);
 
@@ -6708,7 +6708,7 @@ sub get_column_map
                   );
           };
       };
-      
+
     my $ntab= dbitable->new('view',$r_glbl->{dbh},
                              'col_map_query',"",$sql_command
                            );
@@ -6835,10 +6835,10 @@ sub add_to_local_column_maps
 #_______________________________________________________
 sub table_changed
   { my($r_tbh)= @_;
-  
+
     my $r_h= $r_tbh->{changed_cells};
     return if (!defined $r_h);
-    
+
     if (%$r_h)
       { return(1); };
     return;
@@ -7203,10 +7203,10 @@ sub conn_f_find
 
     my $r_res= $r_glbl->{residents};
     return if (!defined $r_res);
-    
+
     my $r_res_tab= $r_res->{$f_table};
     return if (!defined $r_res_tab);
-    
+
     # return a hash-ref: res-table-name => [res_col1,res_col2...]
     return($r_res_tab->{$f_col});
   }
@@ -7284,7 +7284,7 @@ sub wanted
 #      };
 #    return($str);
 #  }
-    
+
 
 sub rdump
 #internal
@@ -7296,10 +7296,10 @@ sub rdump
     if (!$r)
       { $val= "<undef>" if (!defined $val);
         $$r_buf.= " " x $indent if ($is_newline);
-        
+
 #       if (length($val)>50)
 #         { $val= trysplit($val,40,$indent); };
-        
+
         $$r_buf.= "\'$val\'$comma\n";
         return;
       };

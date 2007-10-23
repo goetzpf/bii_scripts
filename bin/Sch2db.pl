@@ -108,14 +108,14 @@ if ($opt_summary)
 if ($opt_dump_symfile)
   { $r_rec_defaults= {};
     $r_rec_linkable_fields= {};
-    
+
     scan_symbols($opt_sympath,$r_rec_defaults,
         	 $r_rec_linkable_fields);
-    
+
     $Data::Dumper::Indent= 1;
     print Data::Dumper->Dump([$r_rec_defaults, $r_rec_linkable_fields], 
                              [qw(*rec_defaults *rec_linkable_fields)]);
-    
+
     #hdump("scanned link defaults:","rec_linkable_fields",
     #      $r_rec_linkable_fields); 
     #hdump("scanned symbols:","rec_defaults",$r_rec_defaults);   
@@ -135,7 +135,7 @@ scan_sch($opt_file,\%gl_nlist,\%wires,\%struc,\%symbols);
 if (!$opt_internal_syms)
   { $r_rec_defaults= {};
     $r_rec_linkable_fields= {};
-    
+
     scan_symbols($opt_sympath,$r_rec_defaults,
         	 $r_rec_linkable_fields, keys %symbols);
     #       hdump("scanned link defaults:","rec_linkable_fields",
@@ -146,14 +146,14 @@ if (!$opt_internal_syms)
 # resolve aliases:
 resolve_aliases(\%aliases, \%wires);
 #       hdump("after resolve_aliases():","wires",\%wires);  exit(1);
-   
-    
+
+
 # resolve junctions:
 resolve_junctions(\%gl_nlist, \%wires);
 #       hdump("after resolve_junctions():","wires",\%wires);  exit(1);
 #       hdump("after resolve_junctions():","struc",\%struc);  exit(1);
- 
-	
+
+
 # resolve wires:
 resolve_wires(\%wires, \%fields);
 #       hdump("after resolve_wires():","fields",\%fields);  exit(1);
@@ -175,12 +175,12 @@ sub scan_sch
     my $segment;
     my $lineno=0;
     my $type;
-    
+
     if (defined $filename)
       { open(F,$filename) || die "unable to open $filename\n"; }
     else
       { *F= *STDIN; };
-    
+
     my $line;
     while($line=<F>)
       { $lineno++;
@@ -236,12 +236,12 @@ sub scan_sch
             if ($f[0] eq 'use')
 	      { # a "frame" has nothing to do with epics, ignore it:
 	        next if ($f[6] eq 'frame');
-	      
+
 	        $part= $f[6]; # official part-name
 		die if ($part=~ /^\s*$/);
-		
+
 		$type= $f[1];
-		
+
 		# the epics-symbol type, e.g "elongouts"
 		$r_struc->{$part}->{symbol_type}= $type;
 		# memorize that we need to read the symbol-data file for
@@ -266,7 +266,7 @@ sub scan_sch
 		    $aliases{$part}->{$1}= $val;
 		    next;
 		  }
-		
+
 		$r_struc->{$part}->{$field}= $val;
 		next;
 	      };
@@ -282,7 +282,7 @@ sub scan_sch
 
 sub wire_dest
   { my($field)= @_;
-    
+
     return(undef,$field) if ($field eq 'junction');
     return(undef,$field) if ($field eq 'free');
     return($field =~ /^([^\.]+)\.(.*)/);
@@ -292,7 +292,7 @@ sub wire_dest
 
 sub resolve_aliases
   { my($r_aliases,$r_wires)= @_;
-   
+
     foreach my $wire (keys %$r_wires)
     # ^^^ test each wire
       { my $r_wire= $r_wires->{$wire};
@@ -318,14 +318,14 @@ sub resolve_aliases
 
 sub resolve_wires
   { my($r_wires,$r_fields)= @_;
-  
+
     # foreach wire definition:
     foreach my $key (keys %$r_wires)
       { 
 	# extract the "to" and "from" field:
 	my $from= $r_wires->{$key}->{from};
 	my $to  = $r_wires->{$key}->{to};
-	
+
 	# do nothing if $to or $from is equal to 'free':
 	next if (($from eq 'free') || ($to eq 'free'));
 
@@ -338,7 +338,7 @@ sub resolve_wires
 
 sub resolve_junctions
   { my($r_nodelist, $r_wires)= @_;
-    
+
     # foreach global wire-key
     foreach my $gkey (keys %$r_nodelist)
       { 
@@ -370,7 +370,7 @@ sub resolve_junctions
 
 	if (!$junction_found)
 	  { print_junction_error('junction',$gkey,$count); }; # fatal
-	
+
 	my $count=0;
 	# re-create the wires, so that all fields are connected to each
 	# other with a direct wire:
@@ -393,17 +393,17 @@ sub resolve_connections
 # look at the list of connections in the "fields" array and 
 # put the appropriate values in the field of the corresponding record
   { my($r_struc, $r_fields) = @_;
-  
+
     foreach my $key (keys %$r_fields)
       { 
-      
+
 	my($recname,$field)= ($key=~ /^([^\.]+)\.(.*)/); 
 	next if (!defined $field);
-        
+
 	# get the record field-definitions (a hash-reference):
 	my $rec_data= $r_struc->{$recname};
 	next if (!defined $rec_data);
-	
+
         # this is the record-type:
 	my $rec_type= $rec_data->{type};
 
@@ -417,7 +417,7 @@ sub resolve_connections
 
         next if (!exists $r_fields->{$key}->{connections});
 	# ^^^ the field has no connection-entries at all
-        
+
 	my @conn= @{$r_fields->{$key}->{connections}};
 	# ^^^ the list with all other fields connected to THIS field ($key)
 
@@ -426,17 +426,17 @@ sub resolve_connections
 	foreach my $c (@conn)
 	# scan the list of possible connections, only one is the REAL one
 	  { 
-	  
+
             my($cname,$cfield)= ($c=~ /^([^\.]+)\.(.*)/); 
 
 	    next if (!defined $cfield);
 	    # ^^^ next if the "AAA.BBB" naming scheme is not found
-	    
-	    
+
+
 	    next if (!exists $r_struc->{$cname});
 	    # otherwise the following statement would CREATE a
 	    # hash-entry if there is not already one
-	    
+
 	    # this is the record-type:
 	    my $c_type= $r_struc->{$cname}->{type};
 
@@ -446,7 +446,7 @@ sub resolve_connections
 	    next if (exists $r_rec_linkable_fields->{$c_sym_type}->{$cfield});
 	    # ^^^ ignore linkable fields where we cannot put an
 	    # link-entry into
-            
+
 	    if (defined $conn) # assertion, shouldn't happen ! 
 	      { # after testing all possible connections, exactly one REAL
 	        # connection should be found
@@ -478,13 +478,13 @@ sub resolve_connections
 
 	    my $key= 'val(' . $cfield . ')';
 	    # ^^^ $key is usually 'val(in)' or 'val(outp)'
-	  
+
 	    my $val= $r_struc->{$cname}->{$key};
 	    if (!defined $val)
 	      { # if not specified, take the default value:
 	        $val= $r_rec_defaults->{$conn_type}->{$key}; 
 	      };
-	      
+
             # store the value in the field:
 	    $rec_data->{$field}= $val;
 	    # just in case, delete any "def().." entries, these are 
@@ -494,12 +494,12 @@ sub resolve_connections
 	  }
 	else
 	  { # it's no "hwout" and no "hwin":
-	  
+
 	    # pproc and palrm defaults:
-	    
+
             my $proc;
 	    my $alrm;
-	    
+
             # now take the link default-properties from the 
 	    # rec_linkable_fields hash:
 	    my $r_link_defaults= $r_rec_linkable_fields->{$sym_type}->{$field};
@@ -520,7 +520,7 @@ sub resolve_connections
 	      { $alrm= $rec_data->{$st}; 
 		delete $rec_data->{$st}; 
 	      };
-	      
+
 	    # ensure that $conn ends with a space:  
             if ($conn!~ /\s$/)
 	      { $conn.= ' '; };
@@ -533,9 +533,9 @@ sub resolve_connections
 	    # if field is not FLNK, LNK or pproc or palrm was defined: 
 	    # add $proc and $alrm
 	    $conn.= $proc if (defined($proc)); 
-	      
+
 	    $conn.= $alrm if (defined($alrm));
-	    
+
             # finally, store the link to the field $field within
 	    # the record
 	    $rec_data->{$field}= "$pv$conn"; 
@@ -552,16 +552,16 @@ sub resolve_connections
 sub db_prepare
   { my($in_file,$filename, $r_h, $name_to_desc, $var_to_desc)= @_;
     my($r_rec,$sym_type);
-    
+
     my $prefix;
-    
+
     if (defined $in_file)
       { $prefix= $in_file;
 	$prefix=~ s/^.*\///;
 	$prefix=~ s/\..*?$//;
 	$prefix.= ':';
       };
-    
+
     foreach my $recname (keys %$r_h)
       { 
         # handle macros in record-names:
@@ -572,7 +572,7 @@ sub db_prepare
 	    delete $r_h->{$old};
 	  };  
 
-      
+
         $r_rec= $r_h->{$recname};
         $sym_type= $r_rec->{symbol_type};
 
@@ -581,7 +581,7 @@ sub db_prepare
           { delete $r_h->{$recname};
 	    next;
 	  }; 
-	
+
         handle_misc($r_rec,$recname);	
         handle_defaults($r_rec,$sym_type);
 
@@ -611,30 +611,30 @@ sub db_prepare
 	  };
 	if ($var_to_desc)        
 	  { $r_rec->{DESC}= '$(DESCVAR)'; }
-	
+
       };	
   }  
 
 sub db_print 
   { my($filename, $r_h)= @_;
     local *F;
-    
+
     my $oldfh;
     if (defined $filename)
       { open(F,">$filename") || die "unable to write to $filename\n"; 
         $oldfh= select(F);
       };
-  
+
     foreach my $recname (sort keys %$r_h)
       { 
         my $r_rec= $r_h->{$recname};
-        
+
 	print  "record(",$r_rec->{type},",\"",$r_rec->{name},"\") {\n";
 	foreach my $f (sort keys %$r_rec)
 	  { next if ($f eq 'type');
 	    next if ($f eq 'symbol_type');
 	    next if ($f eq 'name');
-	    
+
 	    print  "    field($f,\"",$r_rec->{$f},"\")\n";
 	  };
 	print  "}\n";  
@@ -642,11 +642,11 @@ sub db_print
     if (defined $filename)
       { select($oldfh);
         close(F) || die "unable to close $filename\n"; 
-        
+
       };
   }  
 
-    
+
 sub handle_misc
   { my($r_rec,$recname)= @_;
 
@@ -668,15 +668,15 @@ sub handle_misc
 	  };
 
         $r_rec->{$key}=~ s/VAR\(([^\)]*)\)/\$\($1\)/g;
-      
+
         if ($key=~/^def\(([^\)]+)\)/)
           { $r_rec->{$1}= $r_rec->{$key};
 	    delete $r_rec->{$key};
             next;
 	  }; 
-      
+
 	$r_rec->{$key}=~ s/\.SLNK\b/\.VAL/;
-        
+
 	if ($key =~ /^(typ|username)\(/)
           { delete $r_rec->{$key}; next;	  
 	  };
@@ -685,14 +685,14 @@ sub handle_misc
 	  };
 
         next if (!defined $opt_warn_miss);
-	
+
 	# check for fields that are missing in the definitions in the
 	# record's symbol file:
 
         # skip the 2 special fields 'PV' and 'symbol_type':	
         next if ($key eq 'PV');
         next if ($key eq 'symbol_type');
-	
+
 	next if (exists $recdef->{$key});
 	if ($opt_warn_miss!=2)
 	  { my $st= 'warning:';
@@ -702,10 +702,10 @@ sub handle_misc
 	    $st.= $r_rec->{symbol_type} . ".sym\n\n";
 	    warn($st); 
 	  };
-	  
+
 	if ($opt_warn_miss>0)
 	  { delete $r_rec->{$key}; };
-	  
+
       };
   };
 
@@ -714,13 +714,13 @@ sub handle_defaults
 
     my $r_def= $r_rec_defaults->{$sym_type};
     return if (!defined $r_def);
-    
+
     if (defined $opt_no_defaults)
       { # just take the default for 'type':
         $r_rec->{type}= $r_def->{type} if (!exists $r_rec->{type});
 	return;
       };
-    
+
     foreach my $field (keys %$r_def)
       { $r_rec->{$field}= $r_def->{$field} if (!exists $r_rec->{$field});
       };
@@ -732,7 +732,7 @@ sub handle_defaults
 sub scan_symbols
   { my($path,$r_defaults,$r_link_defaults,@symbol_list)= @_;
     # if symbol-list is empty, scan all 
-    
+
     if (!-d $path)
       { die "error: \"$path\" is not a directory\n"; };
 
@@ -753,28 +753,28 @@ sub scan_symbols
 	      { warn "no symbol data found for \"$sym\""; };
 	  };    
       };
-    
+
     foreach my $file (@files)
       { 
         scan_sym_file($file,$r_defaults,$r_link_defaults);
       };
   }
-  
-  
-  
+
+
+
 sub scan_sym_file
   { my($file,$r_defaults,$r_link_defaults)= @_;
     local *F;
     my $emsg= "warning: symbol-file $file, double entry:\n";
-    
+
     my $symname= basename($file);
     $symname=~ s/^(.*)\..*$/$1/;
 
-    
+
     if (!exists $r_defaults->{$symname})
       { $r_defaults->{$symname}= {}; };
     my $r_my_rec_defaults= $r_defaults->{$symname};
-    
+
     if (!exists $r_link_defaults->{$symname})
       { $r_link_defaults->{$symname}= {}; };
     my $r_rec_link_defaults= $r_link_defaults->{$symname};
@@ -791,19 +791,19 @@ sub scan_sym_file
 
 	if ($line=~ /^\[([^\]]+)\]/)
           { $segment= $1; next; };
-	 
+
 	next if ($segment ne 'attributes'); 
-	  
+
         # here we are in the "attributes" section	
 
 	# chomp($line);
-	
+
 	($flag,$field,$val)= 
 	       ($line=~ /(\S+)\s+                       # 1st character
 	                 \S+\s+\S+\s+\S+\s+\S+\s+\S+\s+ # 5 dummies 
 	                 ([^:]+):(.*)
 		        /x);
-	
+
 
         if ($flag ne 'p')
 	  { 
@@ -837,7 +837,7 @@ sub scan_sym_file
 	        $r_my_rec_defaults->{$field} = $val;
 	        next;
               };
-	  
+
 	    if ($1 eq 'typ')
 	      { next if ($val ne 'path');
 	        $r_rec_link_defaults->{$2}->{dummy} = 1; 
@@ -874,28 +874,28 @@ sub hdump
   { my($message,$hash_name,$r_h)= @_;
     my $st= "contents of hash \"$hash_name\":";
     my $ul= '_' x length($st);
-    
+
     print "=" x 70,"\n";
     printf("%-12s%s\n","comment:",$message);
     print "-" x 70,"\n";
     printf("%-12s%s\n","hash:",$hash_name);
     print "-" x 70,"\n\n";
-    
-    
+
+
     print_meta_hash($r_h);
     print "=" x 70,"\n";
   }  
 
 sub print_meta_hash
   { my($r_h)= @_;
-  
+
     foreach my $key (sort keys %$r_h)
       { my $val= $r_h->{$key};
 	if (!ref($val))
 	  { print $key,'=>',$val,"\n"; 
 	    next;
 	  };
-	
+
         if (ref($val) eq 'ARRAY')
 	  { print "$key",'=> [',join(",",@$val),"]\n";
 	    next;
@@ -914,7 +914,7 @@ sub print_meta_hash
 
 sub print_hash
   { my($r_h)= @_;
-  
+
     foreach my $key (sort keys %$r_h)
       { my $val= $r_h->{$key};
         print "$key: ";
@@ -935,10 +935,10 @@ sub print_hash
 
 sub print_junction_error
   { my($type) = shift;
-  
+
     my($wire,$count  )= (@_[0..1]);
     my($record,$field)= (@_[0..1]);
-    
+
     my $p= $0;
     $p=~ s/.*?([^\/]+)$/$1/;
     my $file= (defined $opt_file) ? " in file \"$opt_file\"" : "";
@@ -956,7 +956,7 @@ There was more that one possible input-port found that is connected to
 that output-port. A possible explanation is:
 END
 ;    
-    
+
     my $explain= <<END
 Capfast sometimes produces wires that are not connected to each other 
 but do have the same name. You have to rename these wires to have a unique 
@@ -966,23 +966,23 @@ name for each of them. You can do this by two ways:
    Look for "[detail]", then search for all occurences of the wire-name in 
    this section. Replace the number in the wire-name with a new, unique 
    number. 
-   
+
 2) using capfast
    select the wire, then select "text" and "relabel" and give the 
    wire a new name. The name should always be something like "n#xxxx" where 
    'xxxx' is a new, unique number. 
 END
 ;
-    
+
     if ($type eq 'many_ports')
       { die $error_many_ports . $explain; };
-      
+
     if ($type eq 'junction')
       { die $error_junction . $explain; };
-    
+
     die; # perl shouldn't reach this place
   }   
- 
+
 sub print_summary
   { my($p)= ($0=~ /([^\/\\]+)$/);
     printf("%-20s: a better sch to db converter\n",$p);

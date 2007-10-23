@@ -5,17 +5,14 @@ eval 'exec perl -w -p00 -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 # text2html - trivial html encoding of normal text
 # -p means apply this script to each record.
 # -00 mean that a record is now a paragraph
-
 use HTML::Entities;
 $_ = encode_entities($_, "\200-\377");
-
 if (/^\s+\S+/) {
     # Paragraphs beginning with whitespace are wrapped in <PRE> 
     s{(.*)$}        {<PRE>\n$1</PRE>\n}gs;           # indented verbatim
 } else {
     s{^-{3,}\s*$} {<hr>}gm; # convert "---" to <hr>
     s{^([\w\.]+:)\s*$} {$1<br>}gm;   # add <br> after ":"
-    
     s{^(>.*)}       {$1<BR>}gm;                    # quoted text
     s{<URL:(.*?)>}    {<A HREF="$1">$1</A>}gs         # embedded URL  (good)
                     ||

@@ -82,7 +82,7 @@ foreach my $k (sort keys %$r_templates)
 
 sub print_hash
   { my($r_h)= @_;
-  
+
     if (!$opt_reverse)
       { print "\$set(\n";
         my $val;
@@ -106,17 +106,17 @@ sub parse_simple
   { my($r_st)= @_;
     my @words;
     my %words;
-  
+
     my @l= split(/\s*,\s*[\r\n]+/,$$r_st); 
-    
+
     foreach my $l (@l) 
       { push @words, quotewords(q([\s\r\n]*[=,][\s\r\n]*),0,$l); }; 
-      
+
     if ((($#words+1) & 1) == 1)
       { die "file cannot be parsed (odd number of words)"; };
-    
+
     %words= @words;  
-    
+
     return(\%words);
   }    
 
@@ -153,23 +153,23 @@ Syntax:
         MYVAR="MYCONTENT"
     -r : quote the dollar-signs in the variable names instead of 
          dollar-sings in the contents	
-    
+
   example of usage:
   1. with global variables (more msi-compatible), searches template files
      in directory "template_dir", prints result to stdout:
-  
+
     subst2exp.pl -g  < myapp.substitutions | expander.pl -I template_dir -b -n -F  
 
   2. like the example above but without global variables, warns when a 
      variable is not defined:
-  
+
     subst2exp.pl   < myapp.substitutions | expander.pl -I template_dir -b -n -F  
 
   3. like the example above (2) but dies when a 
      variable is not defined. A good test to find undefined variables
      (a thing that msi cannot do) and correct these errors in the
      substitution-file:
-  
+
     subst2exp.pl   < myapp.substitutions | expander.pl -I template_dir -b -F  
 
 

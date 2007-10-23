@@ -63,7 +63,7 @@ if (!GetOptions("help|h", "summary",
 		"filter|F=s","order_by:s",
 		"new_name|n=s",
 		"delete|D", "no_auto_pk"
-		
+
                 ))
   { die(undef,"parameter error, use \"$0 -h\" to display the online-help\n"); 
   };
@@ -77,7 +77,7 @@ if ($opt_summary)
   { print_summary();
     exit;
   };  
-  
+
 if (!exists $known_actions{$opt_action})
   { die "unknown action: $opt_action\n"; };
 
@@ -158,7 +158,7 @@ if (defined $opt_filter)
       { die "use -F [filter-name,filter-parameters...] !\n"; };  
     $parameters{filter}= \@f;
   }; 
- 
+
 if (defined $opt_order_by)
   { if (!$opt_order_by)
       { $parameters{order_by}= ""; }
@@ -181,7 +181,7 @@ elsif ($opt_action eq 'db2screen')
   { db2screen(%parameters); }
 else
   { die "unknown command (internal error): $opt_action"; };
- 
+
 
 sub db2screen
   { my(%options)= @_;
@@ -193,20 +193,20 @@ sub db2screen
     my $tab= dbitable->new('table',$dbh,
                            $options{table},
 			   $options{pk});
-			   
+
     if (!defined $tab)
       { die "error: table not readable, $dbitable::last_error\n"; };
-    
+
     if ($options{order_by}=="")
       { $options{order_by}= [$tab->primary_key_columns()]; };
-    
+
     $tab->load(%ld_options);
 
     dbitable::disconnect_database($dbh);
 
     my %pp_options;
     copy_hash_entries(\%options,\%pp_options,"order_by");
-    
+
     $tab->pretty_print(%pp_options); 
   }
 
@@ -227,9 +227,9 @@ sub db2file
 
     if ($options{order_by}=="")
       { $options{order_by}= [$tab->primary_key_columns()]; };
-    
+
     $tab->load(%ld_options);
-    
+
     dbitable::disconnect_database($dbh);
 
     my %st_options= (pretty=> 1);
@@ -239,13 +239,13 @@ sub db2file
 		       )->store(%st_options);
 
   }
-  
+
 sub file2db
   { my(%options)= @_;
     my $dbh= get_dbh(\%options);
 
     my %ftab_options= (pretty=>1);
-    
+
     if (!defined $opt_no_auto_pk)
       { $ftab_options{primary_key}="generate"; }
     else
@@ -253,25 +253,25 @@ sub file2db
 
     my $ftab= dbitable->new('file',$options{file},$options{tag},
                            );
-			   
+
     if (!defined $ftab)
       { die "error: table not readable, $dbitable::last_error\n"; };
 
     copy_hash_entries(\%options,\%ftab_options,"new_name");
 
     $ftab->load(%ftab_options);
-    
+
     my $tab = $ftab->new('table',"",'','');
 
     if (!defined $tab)
       { die "error: assertion, last error: $dbitable::last_error"; };
- 
+
     my %ld_options;
     copy_hash_entries(\%options,\%ld_options,"filter","mode");
-    
+
     if (!exists $ld_options{mode})
       { $ld_options{mode}="add"; };
-      
+
 warn "ld_options: " . join(",",%ld_options);
 
     $tab->load(%ld_options);
@@ -289,10 +289,10 @@ sub file2screen
 
     if ($options{order_by}=="")
       { $options{order_by}= [$ftab->primary_key_columns()]; };
-    
+
     my %pp_options;
     copy_hash_entries(\%options,\%pp_options,"order_by");
-    
+
     $ftab->pretty_print(%pp_options); 
   }
 
@@ -301,24 +301,24 @@ sub file2file
 
     my %ld_options=(pretty=>1,primary_key=>"generate");
     copy_hash_entries(\%options,\%ld_options,"new_name");
-    
+
     my $ftab= dbitable->new('file',$options{file},$options{tag},
                            )->load(%ld_options);
 
-    
+
     if ($options{order_by}=="")
       { $options{order_by}= [$ftab->primary_key_columns()]; };
-    
+
     my %st_options= (pretty=>1);
     copy_hash_entries(\%options,\%st_options,"order_by");
-    
+
     my $ntab= $ftab->new('file',$options{outfile},$options{tag}
                         )->store(%st_options);
   }
-   
+
 sub get_dbh
   { my($r_options)= @_;
-  
+
     my $dbh= dbitable::connect_database($r_options->{database},
                                         $r_options->{user},
 					$r_options->{password});
@@ -329,7 +329,7 @@ sub get_dbh
 
 sub copy_hash_entries
   { my($r_src,$r_dest,@tags)= @_;
-  
+
     foreach my $tag (@tags)
       { if (exists $r_src->{$tag})
           { $r_dest->{$tag}= $r_src->{$tag}; };
@@ -357,7 +357,7 @@ options:
      entry is not found, the script looks for the environment variable
      DBUTIL. If it is set to (user:password)
      this user-password combination is taken
-     
+
   -p [password], default: "bessyguest"
 
   -a [action]: mandatory, action is one of:
@@ -366,7 +366,7 @@ options:
   -t [table-name,primary_key]: this is mandatory for all actions db2...
      The primary_key may be omitted, in this case it is determined
      by a special SQL query
-     
+
   -n [new table name]
      change the table-name to the new given name. This may be useful 
      when a table is copied to another table with a different name but 
@@ -374,7 +374,7 @@ options:
 
   -f [filename]
      This is mandatory for all actions file2...
-  
+
   -o [filename]
      This is mandatory for all actions ...2file
 
@@ -391,11 +391,11 @@ options:
      this is only relevant for "...2file and ...2screen"
      if no columns are given ordering is made according to
      primary keys
-     
+
   -D deletion mode (only for file2db). In this case, lines
      that are not found in the file but only the database are
      deleted from the database 
-     
+
   --no_auto_pk (only for file2db)
      do not generate primary keys but take the primary key field
      in the file as it is

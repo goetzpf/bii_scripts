@@ -83,7 +83,7 @@ use vars qw (%char_list %type_list
               'G' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 0 },
               'h' => { type => 'mid' ,   raw=> 1, signed=> 1, array=> 1 },
               'H' => { type => 'mid' ,   raw=> 1, signed=> 0, array=> 1 },
-	     
+
 	      'Z' => { type => 'zero',   raw=> 0, signed=> 0, array=> 0 },
 
             );
@@ -491,7 +491,7 @@ sub pretty_print
 
 sub tab_print
   { my(%p)= @_;
-    
+
     if (!@_)
       { my $st= sprintf "%-7s %3s %2s %-4s %s %-6s %3s %3s %4s %4s %4s %6s %4s %3s",
                "srv/cln",
@@ -510,7 +510,7 @@ sub tab_print
 	       "asz";
         return($st);
       };
-    
+
     my $st= sprintf "%-7s %3s %2s %-4s %s %-6s %3d %3d %4d %4d %4d %6.1f %4d %3d",
                $p{server} ? "server" : "client",
 	       $p{multi}  ? "mlt" : "bas",
@@ -529,9 +529,9 @@ sub tab_print
 	       $p{arraysize};
     return($st);
   }	       
-	       
-	       
-      
+
+
+
 
 sub encode
   { my(%p)= @_;

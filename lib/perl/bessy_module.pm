@@ -26,7 +26,7 @@ $VERSION     = 1.0;
 #@EXPORT_OK   = qw();
 
     };
- 
+
 #use vars qw ();
 
 # module is defined as: 
@@ -36,7 +36,7 @@ $VERSION     = 1.0;
 
 sub command
   { my(@commands)= @_;
-  
+
     my $command= shift(@commands); 
     my $r_lines= module_cmd($command,@commands);
     set_env($r_lines);
@@ -44,19 +44,19 @@ sub command
 
 sub module_cmd
   { my($command, @args)= @_;
-  
+
     my $cmd= ". $ENV{BessyConfD}/module_$command.sh $command " .
               join(" ",@args) . " && printenv";
 
     #warn "$cmd\n";
     my $old= $ENV{'PATH'};
-    
+
     # a minimalistic path is needed for the 
     # zsh module-scripts to run. These remaining directories
     # must be absolute and must not be writable for the user
     # (see also "man perlsec")
     $ENV{'PATH'}= '/usr/bin:/usr/bin/X11';
-    
+
     # fool perl's taint-check:
     $cmd=~ /^(.*)$/;
     my $ncmd= $1;
@@ -65,7 +65,7 @@ sub module_cmd
     my $ccmd= "/usr/bin/zsh -G -c \"$ncmd\"";
     # Note: "-G" is the NULL_GLOB zsh option
     # see "man zshoptions" search for "-G"
-    
+
     my @lines=  `$ccmd`;
     #my @lines=  `/usr/bin/zsh -c abc`;
     #print "lines:",join("|",@lines),"\n";
@@ -82,14 +82,14 @@ sub dump_env
 
 sub set_env
   { my($r_l)= @_;
-  
+
     foreach my $l (@$r_l) 
       { 
         next if ($l!~ /^([^=]+)=(.*)/);
 	$ENV{$1}= $2; 
       };
   }
-    
+
 1;
 __END__
 
@@ -102,7 +102,7 @@ bessy_module - a Perl module setting environment-variables the bessy-style.
 =head1 SYNOPSIS
 
   use bessy_module;
-  
+
   bessy_module::command("add","epics");
   bessy_module::dump_env();
 
@@ -123,7 +123,7 @@ available for your perl-application;
 B<command>
 
   bessy_module::command($command,@args);
-  
+
 This performas a "module <command> <args...>" in the z-shell environment and
 re-imports the environment-variables to the perl-process, so they are 
 available in the %ENV-hash.
@@ -147,4 +147,4 @@ Goetz Pfeiffer,  pfeiffer@mail.bessy.de
 perl-documentation
 
 =cut
-  
+

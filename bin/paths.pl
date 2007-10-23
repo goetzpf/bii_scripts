@@ -28,18 +28,18 @@ if ($ENV{PERL5LIB})
   { print 'export PERL5LIB=${PERL5LIB}:',$perl_lib_path,"\n"; }
 else
   { print 'export PERL5LIB=',$perl_lib_path,"\n"; };
-  
+
 print 'export MANPATH=${MANPATH}:',$man_path,"\n"; 
 
 sub slashes
   { my($st)= @_;
     my $s;
-  
+
     while($st=~ /\//g)
       { $s++; };
     return($s);
   }
-  
+
 sub guess_script_path
   { my $scrpath  = $FindBin::Bin;
     my $envpath = $ENV{PWD}; 
@@ -47,27 +47,27 @@ sub guess_script_path
     # try to calc an alternative path
     if (!defined $envpath)
       { return($srcpath); };
-      
+
     my $currpath= cwd;
     my $altpath= $scrpath;
     $altpath=~ s#^$currpath#$envpath#;
-    
+
     # test wether chdir is possible 
     if (!chdir($altpath))
       { return($scrpath); };
-      
+
     chdir($currpath) or die "fatal: chdir back to original directory failed";
-      
+
     if (slashes($altpath)<=slashes($scrpath))
       { return($altpath); };
     return($scrpath);
   }  
-  
+
 sub parent_dir
   { my($path)= @_;
-  
+
     my @dirs = File::Spec->splitdir($path);
     pop @dirs;
     return(File::Spec->join(@dirs));
   }
-      
+

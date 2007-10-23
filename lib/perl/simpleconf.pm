@@ -47,7 +47,7 @@ my %create_options= map { $_ => 1 } qw(lineseparator
 sub check_options
 #internal
   { my($hash, $valid, $func)= @_;
-  
+
     foreach my $k (keys %$hash)
       { if (!exists $valid->{$k})
           { croak "unknown option in function $func: \"$k\""; };
@@ -57,7 +57,7 @@ sub check_options
 sub from_hash
 #internal
   { my($r_hash,$key,$default)= @_;
-  
+
     my $val= $r_hash->{$key};
     return $default if (!defined $val);
     return($val);
@@ -67,7 +67,7 @@ sub parse
   { my($ref,%options)= @_;
     local(*F);
     my $mode;
-    
+
     check_options(\%options,\%parse_options, "parse");
 
     my $regexp   = from_hash(\%options, 
@@ -81,10 +81,10 @@ sub parse
 
     my $r_types  = from_hash(\%options, 
                              'types', {});
-    
+
     my $multi_line= $options{multiline};
     # default: not multiline
-      
+
     my $reftype= ref($ref);
     if ($reftype eq '')
       { open(F,$ref) or croak "unable to open \"$ref\"";
@@ -100,12 +100,12 @@ sub parse
       { $mode= 'lines'; }
     else
       { croak "unknown reftype: $reftype"; };
-    
+
     my %main;
     my $lineno=0;
     my $line;
     my $key;
-    
+
     for(;;)
       { if    ($mode eq 'file')
           { $line=<F>;
@@ -115,18 +115,18 @@ sub parse
 	  { last if ($lineno>$#$ref);
 	    $line= $ref->[$lineno++]; 
 	  };
-       
+
         chomp($line);
 	if ($line=~ /^\s*$/)
 	  { $key= undef; 
 	    next;
 	  };
-	
+
 	if ($line=~ /^\s*#/)
 	  { $key= undef; 
 	    next;
 	  };
-	
+
 	if ($line=~ /$regexp/o)
 	  { $key= $1;
 	    $main{$key}= $2;
@@ -138,37 +138,37 @@ sub parse
 	  { carp "line \"$line\" ignored";
 	    next;
 	  };
-        
+
       };
     close(F) if  ($mode eq 'file'); 
-    
+
     # nothing more to do if $elmregexp is undef
     return(\%main) if (!defined $elmregexp);
-    
+
     # as a second step decompose arrays and hashes:
     my $keytype;
     foreach my $key (keys %main)
       { $keytype= $r_types->{$key}; #may be undef
-	  
+
 	next if ($keytype eq 'SCALAR');
 	my $val= $main{$key};
-	
+
 	if (($val =~/$keyregexp/o) && (!defined $keytype))
 	  { $keytype= 'HASH_GUESSED'; };
 
 	if (($val =~/$elmregexp/o) && (!defined $keytype))
 	  { $keytype= 'ARRAY'; };
-	  
+
 	next if (!defined $keytype);
 	# still unknown keytype, assume SCALAR 
-      
+
 	my @array= split(/$elmregexp/,$val);
-	
+
 	if ($keytype eq 'ARRAY')
 	  { $main{$key}= \@array;
 	    next;
 	  };
-	  
+
 	if (($keytype eq 'HASH') || ($keytype eq 'HASH_GUESSED'))
 	  { my %h;
 	    foreach my $e (@array)
@@ -196,21 +196,21 @@ sub parse
 	    next;  
 	  };
 	die "assertion";
-	
+
       }; #foreach 
     return(\%main);  
   }
-	  
+
 sub mk_order
 # internal
   { my($r_h, $r_index, $r_keys)= @_;
-  
+
     my @new;
     foreach my $k (@$r_keys)
       { next if (exists $r_h->{$k});
         push @new, $k;
       };
-    
+
     if (@new)
       { my $i= $$r_index;
         foreach my $kk (sort @new)
@@ -219,7 +219,7 @@ sub mk_order
       };	
     my @ordered= sort { $r_h->{$a} <=> $r_h->{$b} } @$r_keys;
     return(\@ordered);
-    
+
   }
 
 sub create
@@ -240,7 +240,7 @@ sub create
     my $elementseparator= from_hash(\%options, 'elementseparator', ",");
 
     my $keyseparator    = from_hash(\%options, 'keyseparator', ":");
-    
+
     my $comments= $options{comments};
 
     my $reftype= ref($ref);
@@ -254,8 +254,8 @@ sub create
       { $mode= 'scalar'; }
     elsif ($reftype eq 'ARRAY')
       { $mode= 'array'; }
-      
-  
+
+
     die "assertion" if (ref $r_l ne 'HASH'); 
     if (exists $options{order})
       { my $r_o= $options{order};
@@ -263,11 +263,11 @@ sub create
 	foreach my $k (@$r_o)
 	  { $order{$k}= $o_index++; };
       };
-    
+
     my @keys= keys %$r_l;
     my $r_o= mk_order(\%order, \$o_index, \@keys);
     my $str;	
-	  
+
     for(my $i=0; $i<=$#$r_o; $i++)
       { my $k= $r_o->[$i];
 	if (defined $comments)
@@ -282,9 +282,9 @@ sub create
 	  }
 	else
 	  { $str= undef; }; 
-	
+
 	$str.= $k . $fieldseparator;
-	
+
 	my $val= $r_l->{$k};
 	my $reftype= ref($val);
 	if    ($reftype eq '')
@@ -301,10 +301,10 @@ sub create
 	  }
 	else 
 	  { die "assertion"; };
-	
+
 #warn "str: \"$str\"\n";
 	$str.= $lineseparator;
-       
+
 	if    ($mode eq 'file')
 	  { print F $str; }
 	elsif ($mode eq 'scalar')
@@ -315,11 +315,11 @@ sub create
 	  { die "assertion"; };
 
       }
-      
+
     close(F) if ($mode eq 'file');
   }
-      	  
-	   	      
+
+
 1;
 __END__
 
@@ -351,7 +351,7 @@ this module creates and parses is shown in this example:
                 IGNORE_COMMENTS => "true",
 		OS => "windows"
 	      }
-  
+
 The corresponding "simpleconf" format may look like this 
 
   PATH= /usr/local
@@ -379,7 +379,7 @@ Here is another example:
   print "$x\n";'
 
 The output of this sample script is:
- 
+
   OS= linux
   PATH= /sbin,/usr/local/bin
   SUPPORTED= linux:yes,windows:no
@@ -389,7 +389,7 @@ The output of this sample script is:
 =over 4
 
 =item *
- 
+
 B<parse()>
 
   my $r_h= simpleconf::parse($var,%options)
@@ -407,7 +407,7 @@ In this case, C<$var> is interpreted as a filename. The parse-function
 opens and reads the file line by line. Example:
 
   my $r_h= simpleconf::parse("myfile.txt",%options)
-  
+
 =item scalar-reference
 
 In this case, C<$var> is a reference to a scalar variable containing
@@ -485,7 +485,7 @@ known, "SCALAR","ARRAY" and "HASH". Example:
 			               IGNORE_COMMENTS=> 'SCALAR',
 				       OS=> 'SCALAR' }
 		             );
-			     
+
 If a type for a field is not specified, the parse-function
 tries to guess. This guess may go wrong when the config-file
 contains an array with just one element. The parser will 
@@ -494,11 +494,11 @@ without the proper "type" option think this is a scalar.
 =back
 
 =item *
- 
+
 B<create()>
 
   simpleconf::create($var,$hashref,%options);
-  
+
 This function creates a simpleconf-like format from a hash.
 The variable C<$var> can be one of three types:
 
@@ -510,7 +510,7 @@ In this case, C<$var> is interpreted as a filename. The parse-function
 creates or appends (see also "options" description) a file. Example:
 
   my $r_h= simpleconf::create("myfile.txt",$hashref,%options);
-  
+
 =item scalar-reference
 
 In this case, C<$var> is a reference to a scalar variable where 
@@ -528,7 +528,7 @@ the data is appended to. Example:
   my @data;
   my $r_h= simpleconf::create(\@data,$hashref,%options);
   print join("",@data);
-  
+
 Note that each line appended to C<@data> has a linefeed "\n" at the end.
 
 =back
@@ -576,14 +576,14 @@ prepended to the field definition. Example:
 	    "OS= windows\n";
   simpleconf::create(\$x,$ydata,{OS=>"operating system:"}); 
   print $x;
-  
+
 The output on the screen would be:
 
   IGNORE_COMMENTS= true
   # operating system:
   OS= windows
   PATH= /usr/local
-  
+
 =item mode
 
 This option specifies the mode the file is opened with, provided

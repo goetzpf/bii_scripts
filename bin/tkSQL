@@ -20,10 +20,10 @@ package require BWidget
 # 
 #  Author(s):  Thomas Birke
 # 
-#  $Revision: 1.7 $
-#  $Date: 2007-07-12 07:31:10 $
+#  $Revision: 1.8 $
+#  $Date: 2007-10-23 07:06:58 $
 # 
-#  $Author: birke $
+#  $Author: pfeiffer $
 # 
 #  Copyright (c) 2001 by Berliner Elektronenspeicherring-Gesellschaft
 #                             fuer Synchrotronstrahlung m.b.H.,
@@ -35,9 +35,9 @@ package require BWidget
 set Revision ""
 set Date ""
 set Author ""
-set CVS(Revision) "$Revision: 1.7 $"
-set CVS(Date) "$Date: 2007-07-12 07:31:10 $"
-set CVS(Author) "$Author: birke $"
+set CVS(Revision) "$Revision: 1.8 $"
+set CVS(Date) "$Date: 2007-10-23 07:06:58 $"
+set CVS(Author) "$Author: pfeiffer $"
 
 regsub ": (.*) \\$" $CVS(Revision) "\\1" CVS(Revision)
 regsub ": (.*) \\$" $CVS(Date) "\\1" CVS(Date)
@@ -117,7 +117,7 @@ proc Split {str} {
       set p ""
     }
   }
-  
+
   return $ret
 }
 
@@ -240,7 +240,7 @@ proc addHist {Sql mode} {
     if {$pos != -1} {
       .history.txt delete 0.0+${pos}c 0.0+[expr $pos + [string length $Stmt] + 2]c
     }
-    
+
     .history.txt insert end "$Stmt\n\n"
     .history.txt mark set insert end
     .command.txt tag add sel 1.0 end
@@ -292,7 +292,7 @@ proc Exec {sql {mode plain}} {
     }
 
     set outputWindow .output.txt
-    
+
     if {"$mode" != "silent"} {
       set Stmt $Sql
       if {![regexp {;$} $Stmt]} { append Stmt ";" }
@@ -301,7 +301,7 @@ proc Exec {sql {mode plain}} {
       Print "\n"
     }
   }
-  
+
   if { ( "[string range $sql 0 2]" == "PL:" ) } {
     addHist $sql plain
     Orasql $sql
@@ -412,13 +412,13 @@ proc Exec {sql {mode plain}} {
       keylset Aliases $aliasL $aliasR
       set Sql ""
     }
-    
+
     ### remove an alias
     if [regexp "^unalias\[ \t\n\]\+(\[a-zA-Z0-9\]\+)" $Sql all aliasL] {
       keyldel Aliases $aliasL
       set Sql ""
     }
-    
+
     ### replace variables with their values
     if {[regexp "^set\[ \t\]\+\(\[a-zA-Z\]\+\)\[ \t\]\+\(.*\)" $Sql all var val]} {
       set $var [string tolower $val]
@@ -460,7 +460,7 @@ proc Exec {sql {mode plain}} {
 	      incr l
 	    }
 	  }
-	  
+
 	  if {("$OutputMode" == "tktable") && ("$outputWindow" != ".help.output.txt")} {
 	    if {[llength $x] > 0} {
 	      package require Tktable
@@ -476,7 +476,7 @@ proc Exec {sql {mode plain}} {
 	      }
 	      set table .output.txt.tab$ntables
 	      frame $table -bd 1 -relief sunken -width 600 -height 400
-	      
+
 	      table $table.t -variable ResultArr$ntables -rows $l -cols [llength $x] \
 		  -colstretch none -rowstretch none -state disabled \
 		  -resizeborders both -titlerows 1 -xscrollcommand "$table.hs set" \
@@ -490,7 +490,7 @@ proc Exec {sql {mode plain}} {
 	      grid $table.hs $table.rs -sticky swen
 	      grid columnconfigure $table 0 -weight 1
 	      grid rowconfigure $table 0 -weight 1
-	      
+
 	      .output.txt window create end -window $table
 	      incr ntables
 	    }
@@ -521,7 +521,7 @@ proc Exec {sql {mode plain}} {
 	      .*      { set TheFormat "$TheFormat\n" }
 	    }
 	    append Break "+\n"
-	    
+
 	    if {[regexp "table" $OutputMode]} { set O $Break }
 	    append O [eval format \$TheFormat $x]
 	    if {[regexp "table" $OutputMode]} { append O $Break }
@@ -530,7 +530,7 @@ proc Exec {sql {mode plain}} {
 	      if {[regexp "xtable" $OutputMode]} { append O $Break }
 	    }
 	    if {[regexp "^table" $OutputMode]} { append O $Break }
-	    
+
 	    if {[llength $x] > 0} {
 	      if {"$OutputLocation" == "\"\""} {
 		Print "\n$O\n\n"
@@ -809,7 +809,7 @@ set lX ""
 proc evalOutput {Output} { 
   global Silent cnt lX menu 
   if {[llength $Output] == 0} {return}
-  
+
   foreach line [split $Output "\n"] {
     if {![regexp "rows selected." $line]} {
       if {[llength $line] > 0} {
@@ -821,7 +821,7 @@ proc evalOutput {Output} {
 	  set menu .help.m$X.m
 	}
 	set lX $X
-	
+
 	if [catch {menubutton .help.m$X -text [string toupper $c] -menu .help.m$X.m -width 1 -bd 1 -relief raised}] {
 	  incr cnt
 	} else {
@@ -880,7 +880,7 @@ proc basicHelp {{force 0}} {
     Print "\n\t\t\tset variables with \""
     Print "set <VarName> <Value>" red
     Print "\"\n\n"
-    
+
     Print "\ttcl-statements\t" green bold
     Print "evaluate any tcl-statement\n"
     Print "\t\t\tany input enclosed in \"\[\" and \"\]\" is executed as a tcl-statement\n"
@@ -981,7 +981,7 @@ proc removeModule {ns} {
       set idx [lsearch -exact $activeModules $ns]
       catch {destroy .m$ns}
       set activeModules [lreplace $activeModules $idx $idx]
-      
+
       catch "namespace eval $ns mod_exit"
       catch {namespace eval $ns {oraclose $OSH}}
       catch {namespace eval $ns {oralogoff $OLH}}
@@ -1015,14 +1015,14 @@ proc loginDialog {} {
     label .login.label1 -text "Connect to Database" \
 	-font [font create -family helvetica -size 18 -weight bold]
     label .login.label2 -text "as"
-    
+
     frame .login.f -bd 0
     entry .login.f.user -bg $lbgc -width 8
     label .login.f.slash -text "/"
     entry .login.f.pass -selectbackground turquoise -selectforeground turquoise \
 	-show * -bg $lbgc -width 8
     label .login.f.at -text "@"
-    
+
     set tnsadmin "/non-ex"
     if {[llength [array names env TNS_ADMIN]] > 0} {
       set tnsadmin $env(TNS_ADMIN)
@@ -1030,7 +1030,7 @@ proc loginDialog {} {
     if {![file isdir $tnsadmin]} {
       set tnsadmin $env(ORACLE_HOME)/network/admin
     }
-    
+
     for_file line $tnsadmin/tnsnames.ora {
       if {![regexp {^[\# \t]} $line] && "$line" != ""} {
 	regexp {^[A-Za-z_]*} $line match
@@ -1049,7 +1049,7 @@ proc loginDialog {} {
     eval tk_optionMenu .login.cstrings theConnectString $allConnectStrings
     set theConnectString "$user@$instance"
     trace variable theConnectString w selectUserInstance
-    
+
     frame .login.b -bd 0
     button .login.b.ok -text Login -command {set loginString "[.login.f.user get]/[.login.f.pass get]@$database"}
     button .login.b.guest -text "as Guest" -command {
@@ -1059,23 +1059,23 @@ proc loginDialog {} {
 	}
     }
     button .login.b.cancel -text Quit -command {exit}
-    
+
     pack .login.f.user .login.f.slash .login.f.pass .login.f.at .login.f.database -side left
     pack .login.b.ok .login.b.guest .login.b.cancel -side left -fill both -padx 8 -pady 8 -expand t
-    
+
     pack .login.label1 -fill x
     pack .login.label2 -fill x
     pack .login.cstrings -fill x -padx 8 -pady 8
     pack .login.f -padx 8 -pady 8
     pack .login.b -fill x
-    
+
     bind .login.f.user <Return> {focus .login.f.pass; break}
     bind .login.f.pass <Return> {.login.b.ok invoke; break}
     bind .login.b.ok <Return> {.login.b.ok invoke; break}
-    
+
     .login.f.user insert end $user
     .login.f.pass insert end $pass
-   
+
     focus .login.f.pass 
 
 #    tkwait window .login
@@ -1084,7 +1084,7 @@ proc loginDialog {} {
     trace vdelete theConnectString w selectUserInstance
   } else {
     set loginString [lindex $argv 0]
-    
+
     if {"$loginString" == "/"} {
       set loginString "/@$env(ORACLE_SID)"
     }
@@ -1270,11 +1270,11 @@ foreach w {. .command.txt .output.txt .history.txt} {
   event add <<Up>> <Alt-Key-Up>
   event add <<Up>> <Meta-Key-Up>
   bind $w <<Up>> {Blink .history.lbl.up; .history.lbl.up invoke; break}
-  
+
   event add <<Down>> <Alt-Key-Down>
   event add <<Down>> <Meta-Key-Down>
   bind $w <<Down>> {Blink .history.lbl.dn; .history.lbl.dn invoke; break}
-  
+
   event add <<Cut>> <Control-Key-w>
   event add <<Cut>> <Control-Key-x>
   event add <<Cut>> <Shift-Key-Delete>

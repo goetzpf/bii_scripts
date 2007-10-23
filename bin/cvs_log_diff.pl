@@ -100,22 +100,22 @@ foreach my $f (@$r_files)
     print $$rep,"\n"; 
   }
 
- 
+
 sub cvs_log
   { local(*STATUS);
     my $file;
     my $lineno= 0;
-    
+
     my %h;
     my $r_file;
     my $r_tags;
     my $r_desc;
-    
+
     my $desc_rev;
     my $r_desc_text;
     my @files;
-    
-  
+
+
     open(STATUS, "cvs log 2>&1 |")
       || die "can't fork: $!";
     my $status= 'initial';
@@ -195,11 +195,11 @@ sub cvs_log
    	    next;
 	  }  
       } # while
-      	      
+
     close STATUS || die "bad netstat: $! $?";
     return(\@files,\%h);
   }
- 
+
 sub sortcmp_versions
   { cmp_versions($a,$b); }
 
@@ -224,37 +224,37 @@ sub cmp_versions
 	  { return 1; };
       }
   }	    
-      
+
 sub version_dots
   { my($v)= @_;
     my $w= $v;
     $w=~ s/\.//g;
     return(length($v)-length($w));
   }      
-  
+
 sub cvs_log_display
   { my($r_logs,$file,$from_tag,$to_tag,$use_branches)= @_;
     my $dots;
-  
+
     my $r_file_logs= $r_logs->{$file};
-    
+
     if (!defined $r_file_logs)
       { die "no log information about \"$file\"\n "; };  
-            
+
     my $r_tags= $r_file_logs->{TAGS};
     my $r_desc= $r_file_logs->{DESC};
 
     my $from_rev= $r_tags->{$from_tag};
-    
+
     if (!defined $from_rev)
       { warn "tag $from_tag not known for file $file\n" if (!$opt_quiet);
 	return;
       };
- 
+
     $dots= version_dots($from_rev);
- 
+
 #die "from: $from_rev"; 
-    
+
     my $to_rev;
     if (defined $to_tag)
       { $to_rev= $r_tags->{$to_tag};
@@ -266,19 +266,19 @@ sub cvs_log_display
 	if ($x>$dots)
 	  { $dots= $x; };
       };
-      
+
     my @revs= sort sortcmp_versions (keys %$r_desc);
-    
+
 #print "$file FROM: $from_rev\n"; 
     my $first=1;
     for(my $i=0; $i<=$#revs; $i++)
       { 
- 
+
 #print "REV: $revs[$i]\n";      
         next if (cmp_versions($revs[$i],$from_rev)<=0);
         if (defined $to_rev)
 	  { next if (cmp_versions($to_rev,$revs[$i])<0); 
-	  
+
 	  };
 #warn;
         if (!$use_branches)
@@ -300,13 +300,13 @@ sub cvs_log_display
 
 sub cvs_tag_change_display
   { my($r_files,$r_logs,$from_tag,$to_tag)= @_;
-  
+
     foreach my $file (@$r_files)
       { my $r_file_logs= $r_logs->{$file};
-    
+
 	if (!defined $r_file_logs)
 	  { die "no log information about \"$file\"\n "; };  
-            
+
         my $r_tags= $r_file_logs->{TAGS};
 
         my $from_rev= $r_tags->{$from_tag};
@@ -320,9 +320,9 @@ sub cvs_tag_change_display
 	  { warn "tag $to_tag not known for file $file\n" if (!$opt_quiet);
 	    next;
 	  };
-	
+
 	next if ($from_rev eq $to_rev);
-	
+
 	print $file,"\n";
       } 
   }	
@@ -330,15 +330,15 @@ sub cvs_tag_change_display
 sub cvs_taglist
   { my($r_files,$r_logs,$min_no)= @_;
     my %tags;
-  
+
     if ($min_no<=0)
       { $min_no= $#$r_files + $min_no + 1; };
     foreach my $file (@$r_files)
       { my $r_file_logs= $r_logs->{$file};
-    
+
 	if (!defined $r_file_logs)
 	  { die "no log information about \"$file\"\n "; };  
-            
+
         my $r_tags= $r_file_logs->{TAGS};
 	foreach my $t (keys %$r_tags)
 	  { $tags{$t}+=1; };
@@ -348,13 +348,13 @@ sub cvs_taglist
 #print "min:$min_no\n";  
 #die;
     my @found= grep { $tags{$_}>=$min_no } (keys %tags);  
-      
+
     print join("\n",(sort @found)),"\n"; 
   }	
-	
+
 sub sys
   { my($cmd,$nowarn)= @_;
-  
+
     print "$cmd\n" if ($debug);
     if (system($cmd) && !$nowarn)
       { warn "\"$cmd\" failed : $?"; 

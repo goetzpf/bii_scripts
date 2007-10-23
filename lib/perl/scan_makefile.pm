@@ -33,19 +33,19 @@ my $global_hash_name= "id_config_h";
 sub filetime
 # private function
   { my($filename)= @_;
-  
+
     return((stat($filename))[9]);
   }
-  
+
 sub must_create_cache
 # private function
   { my($cache,@filenames)= @_;
-    
+
     if (!-e $cache)
       { return(1); };
-      
+
     my $t= filetime($cache);
-        
+
     foreach my $f (@filenames)
       { if (filetime($f)>= $t)
           { return(1); };
@@ -56,32 +56,32 @@ sub must_create_cache
 sub files_exist
 # private function
   { my(@files)= @_;
-    
+
     foreach my $f (@files)
       { if (!-f $f)
           { return; };
       };
     return(1);
   }
-    
+
 
 sub scan
   { my(@filenames)= @_;
-  
+
     if (!files_exist(@filenames))
       { croak "error: not all of the filenames exist"; };
-  
+
     my %h;
     my $includes= join(" ",@filenames);
-  
+
     my $cmd= "echo -e \"include $includes\\n" .
                       ".EXPORT_ALL_VARIABLES:\\n" .
 		      "scan_makefile_pe:\\n" .
 		        "\\t\@printenv\\n\" | " .
 	     "make -e -f - scan_makefile_pe";
-			
+
     $cmd.= " 2>&1 |";
-      
+
     # -e: environment overrides make
     open(F, $cmd) || die "can\'t fork: $!";
     while (my $line=<F>) 
@@ -95,7 +95,7 @@ sub scan
 	$h{$1}= $2;  
       }
     close(F) || croak "bad netstat: $! $?";
-    
+
     return(\%h);
   }
 
@@ -103,18 +103,18 @@ sub write_cache
 # private function
   { my($cache,$r_h)= @_;
     local(*F);
-  
+
     open(F,">$cache") or die "unable to create $cache"; 
     print F Data::Dumper->Dump([$r_h], ["*$global_hash_name"]);
     close(F) or croak "error while closing $cache";
   }
-  
+
 sub read_cache    
 # private function
   { my($cache)= @_;
-  
+
     my $return= do $cache;
-    
+
     if (!$return)
       { croak "couldn't parse $cache: $@" if $@;
         croak "couldn't do $cache: $!"  unless defined $return;
@@ -124,10 +124,10 @@ sub read_cache
     my %h= %id_config_h;
     return(\%h);
   }    
-  
+
 sub cache_scan
   { my($cache,@filenames)= @_;
-  
+
     if (must_create_cache($cache,@filenames))
       { my $r_h= scan(@filenames);
         write_cache($cache,$r_h);
@@ -135,7 +135,7 @@ sub cache_scan
       };
     return(read_cache($cache));
   }
-  
+
 1;  
 
 __END__

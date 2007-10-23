@@ -46,7 +46,7 @@ sub process
     local(*G);
     open(F,$backup) or die "unable to open $backup";
     open(G,">$new") or die "unable to create $new";
-    
+
     #warn "BACKUP: $backup\n";
     #warn "NEW: $new\n";
 
@@ -66,7 +66,7 @@ sub process
 	    $mode= undef;
 	    next;
 	  };
-	  
+
 	if ($line=~ /#CONFIGURE: (\w+)\s+(\w*)\s*([\$\w]*)/)
 	  { 
 	    if ($1 eq 'make_variable')
@@ -78,7 +78,7 @@ sub process
 		    if ($val!~ /^\"[^\"]*\"$/)
 		      { 
 		        $val= '"' . $val . '"'; 
-		      
+
 		      };
 
 		    print G 'my '.$varname.'= '.$val.";\n";
@@ -100,14 +100,14 @@ sub process
 	  };
 	print G $line,"\n";
       };
-      
+
     close(F);
     close(G);      
   }     
 
 sub make_backup
   { my($path)= @_;
-  
+
     my $bak_path= gen_bak_filename($path);
     if (!move($path,$bak_path)) # from File::Copy 
       { die "error: renaming $path to $bak_path failed"; };
@@ -124,14 +124,14 @@ sub change_filepart
 
 sub gen_bak_filename
   { my($path)= @_;
-  
+
     my ($volume,$directories,$file) = File::Spec->splitpath( $path );
     if ($file!~ s/\.(.*)/\.bak/)
       { $file.= ".bak"; };
-    
+
     return(File::Spec->catpath($volume,$directories,$file));
   }
-      
+
 sub create_file
   { my($path)= @_;
     local(*F);

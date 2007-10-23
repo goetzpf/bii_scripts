@@ -69,7 +69,7 @@ my %known_options= map { $_ => 1 } qw(overwrite
 sub check_options
 #internal
   { my($hash, $valid, $func)= @_;
-  
+
     foreach my $k (keys %$hash)
       { if (!exists $valid->{$k})
           { croak "unknown option in function $func: \"$k\""; };
@@ -79,13 +79,13 @@ sub check_options
 sub from_hash
 #internal
   { my($r_hash,$key,$default)= @_;
-  
+
     my $val= $r_hash->{$key};
     return $default if (!defined $val);
     return($val);
   }
 
-  
+
 sub dup_deep
 # internal
 # for scalars and scalar-references returns
@@ -94,7 +94,7 @@ sub dup_deep
 # reference to a copy of the array or hash
 #   performs a deep copy of nested structures
   { my($ref,$reftype,$deref)= @_;
-  
+
     if ($reftype eq '')
       { return($ref); };
     if ($reftype eq 'SCALAR')
@@ -105,7 +105,7 @@ sub dup_deep
       };
     if ($reftype eq 'ARRAY')
       { my @v;
-      
+
         foreach my $elm (@$ref)
 	  { push @v, dup_deep($elm,ref($elm),0); }
         if ($deref)
@@ -115,7 +115,7 @@ sub dup_deep
       };
     if ($reftype eq 'HASH')
       { my %v;
-      
+
         my $elm;
 	foreach my $key (keys %$ref)
 	  { $elm= $ref->{$key};
@@ -128,11 +128,11 @@ sub dup_deep
       };
     die "assertion";
   }
-    
+
 
 sub empty
   { my($ref,$reftype)= @_;
-  
+
     if ($reftype eq '')
       { return(!defined($ref)); };
     if ($reftype eq 'SCALAR')
@@ -153,20 +153,20 @@ sub cpstructs
   { my($src,$src_reftype,$dst,$dst_reftype,
        $overwrite,$skip_empty,$deep_copy)= @_;
     my $sf= ($src_reftype eq '') ? 'SCALAR' : $src_reftype;
-  
+
     if ($dst_reftype eq '')
       { croak "error: destination is not a reference"; };
-      
+
     if ($sf ne $dst_reftype)
       { croak "error: reftypes don't match: $src_reftype - $dst_reftype"; };
-      
-    
+
+
     if (!$overwrite)
       { return if (!empty($dst,$dst_reftype)); };
-    
+
     if ($skip_empty)
       { return if (empty($src,$src_reftype)); };
-    
+
     if ($sf eq 'SCALAR')
       { if (!$deep_copy)
           { $$dst= $$src; }
@@ -174,7 +174,7 @@ sub cpstructs
 	  { $$dst= dup_deep($src,$src_reftype,1); };
 	return;
       };
-      
+
     if ($src_reftype eq 'ARRAY')
       { if (!$deep_copy)
           { @$dst= @$src; }
@@ -182,7 +182,7 @@ sub cpstructs
 	  { @$dst= dup_deep($src,$src_reftype,1); };
         return;
       };
-      
+
     if ($src_reftype eq 'HASH')
       { if (!$deep_copy)
           { %$dst= %$src; }
@@ -190,58 +190,58 @@ sub cpstructs
 	  { %$dst= dup_deep($src,$src_reftype,1); };
         return;
       };
-      
+
     die "assertion";
   }
-  
+
 sub cpstructs2hash
 # internal, used by Import
 # copies a reference to a hash
   { my($r_dst_hash,$key,$src,$src_reftype,
        $overwrite,$skip_empty,$deep_copy)= @_;
-  
+
     # if $src_reftype is a scalar-reference, de-reference the
     # scalar and put the pure scalar into the hash:
-    
+
     if (!$overwrite)
       { return if (exists $r_dst_hash->{$key}); };
-    
+
     if ($skip_empty)
       { return if (empty($src,$src_reftype)); };
-    
+
     if (!$deep_copy)
       { $r_dst_hash->{$key}= $src;
         return;
       };
-    
+
     $r_dst_hash->{$key}= dup_deep($src,$src_reftype,
                                   ($src_reftype eq 'SCALAR') ? 1 : 0
 		                 );
   }
-  
+
 sub Import
 # overwrite=>0: do not overwrite entries in %$r_dst_hash
 # skip_empty=>1: do no write "empty" values to hash
 # deep_copy=>1: perform a deep copy of datastructures,
 #   otherwise just the references are copied
   { my($r_map_hash,$r_dst_hash,%options)= @_;
-  
+
     check_options(\%options,\%known_options, "Import");
 
 
     my $overwrite = from_hash(\%options,'overwrite',1);
     my $skip_empty= from_hash(\%options,'skip_empty',0);
     my $deep_copy = from_hash(\%options,'deep_copy',1);
-    
-  
+
+
     foreach my $key (keys %$r_map_hash)
       { my $src_ref= $r_map_hash->{$key};
-        
+
         cpstructs2hash($r_dst_hash,$key,$src_ref,ref($src_ref),
 	               $overwrite,$skip_empty,$deep_copy);
       };
   }
-  
+
 sub Export
 # overwrite=>0: do not overwrite entries in destination
 #           (when dest is not empty or undef)
@@ -270,7 +270,7 @@ sub Export
 
       }; 
   }  
-  
+
 # -----------------------------------------------------
 # Testcode from here
 # -----------------------------------------------------
@@ -533,7 +533,7 @@ sub Export
 #  }     
 #
 
-   	      
+
 1;
 __END__
 
@@ -555,11 +555,11 @@ container - load and store global variables in a hash
   my %map= (VAR => \$var,
             LIST=> \@list,
 	    HASH=> \%hash);
-	   
+
   my %container;
   container::Import(\%map,\%container);
   print Dumper(\%container);
-  
+
 =head1 DESCRIPTION
 
 =head2 Preface
@@ -576,11 +576,11 @@ deeply copied.
 =over 4
 
 =item *
- 
+
 B<Import()>
 
   container::Import($r_map_hash,$r_container,%options);
-  
+
 This function imports all variables that are mentioned in the
 map-hash into the container-hash C<%$r_container>. 
 The first two parameters are references to hashes.
@@ -606,7 +606,7 @@ values from the variables are always written to the hash.
 If overwrite is set to zero like in
 
   container::Import($r_map_hash,$r_hash,overwrite=>0)
-  
+
 values are only written to the hash when the hash-key does
 not already exist. The default for this option is 1.
 
@@ -628,14 +628,14 @@ variables directly. The default for this option is 1.
 
 
 =back
-  
+
 
 =item *
- 
+
 B<Export()>
 
   container::Export($r_map_hash,$r_container,%options);
-  
+
 This function exports values from the hash C<%$r_container> to 
 variables. It uses information of the map-hash in order to
 associate a hash-key with a variable reference. 
@@ -671,17 +671,17 @@ is dereferenced. Example:
 
   use Data::Dumper;
   use container;
-  
+
   my %h;
   my %container= ( "hash1" => {"A" => [1,2,3]} );
   my %map_hash= ("hash1" => \%h);
-  
+
 Now the following commands:  
-  
+
   container::Export(\%map_hash,\%container,deep_copy=>1);
   $container{hash1}->{A}->[2]=100;
   print Dumper(\%h);
-    
+
 lead to this result:
 
   $VAR1 = {
@@ -707,7 +707,7 @@ leads to this:
                      100
                    ]
           };
-  
+
 
 Without deep copy, the hash is re-created for C<%h> but the 
 data-structures one level below the first level, here the

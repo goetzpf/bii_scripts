@@ -76,27 +76,27 @@ list_records($r_records,@can_records);
 
 sub filter_port
   { my($port, $r_records, @can_records)= @_;
-  
+
     return( grep { $r_records->{$_}->{CAN_STRUC}->{port}==$port } @can_records);
   }
-  
+
 sub filter_in_cob
   { my($cob, $r_records, @can_records)= @_;
-  
+
     return( grep { $r_records->{$_}->{CAN_STRUC}->{in_cob}==$cob } @can_records);
   }
-  
+
 sub filter_out_cob
   { my($cob, $r_records, @can_records)= @_;
-  
+
     return( grep { $r_records->{$_}->{CAN_STRUC}->{out_cob}==$cob } @can_records);
   }
-  
-  
+
+
 
 sub list_records
   { my($r_records, @list)= @_;
-  
+
     if (!defined $opt_pretty)
       { foreach my $rec (sort @list)
           { printf "%-25s -> %s\n", $rec, $r_records->{$rec}->{CAN_LINK}; };
@@ -108,14 +108,14 @@ sub list_records
 	    $st=~ s/^/\t/gm;
 	    print $st;
 	  };
- 
+
       };
   }
 
 sub can_records
   { my($r_records)= @_;
     my @can_records;
-  
+
     foreach my $rec (keys %$r_records)
       { my $rs= $r_records->{$rec};
         my $dtyp= $rs->{FIELDS}->{DTYP};
@@ -130,7 +130,7 @@ sub can_records
 	$rs->{CAN_STRUC}=  
 	  { canlink::decode($linkstring) };
 	$rs->{CAN_LINK}= $linkstring;
-	  
+
         push @can_records, $rec;
       };
     return(@can_records);
@@ -138,7 +138,7 @@ sub can_records
 
 sub find_canlink
   { my($rec)= @_;
-  
+
     my $r_fields= $rec->{FIELDS};
     foreach my $field (qw(INP OUT))
       { my $f= $r_fields->{$field};
@@ -153,7 +153,7 @@ sub parsedb
   { my($filename)= @_;
     local(*F);
     local($/);
-    
+
     open(F,$filename) or die "unable to open $filename";
     my $st= <F>;
     close(F);

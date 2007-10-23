@@ -663,7 +663,7 @@ sub dist
       { ensure_var(\$r_local_paths , 'DIST_LOCALPATHS' , 
                    take_default('distribute:LOCALPATHS'));
       };
-      
+
     my $filelist_file;
     my $local_paths;
     #if (has_glob(@$r_local_paths))
@@ -677,7 +677,7 @@ sub dist
           { @p= map{ File::Spec->catfile($localprefix,$_) } @$r_local_paths; }
         else
           { @p= @$r_local_paths; }
-        
+
         foreach my $l (@p)
           { if (!-d $l)
               { die "error: directory \"$l\" not found"; };
@@ -730,14 +730,14 @@ sub dist
               'then cp -a -l `cat LAST` `cat STAMP`; ',
               'fi ',
               ' && ');
-              
+
     my $rsync_ssh_opt= "ssh -A -l $local_user";
     my $rsync_host= $local_host;
     if ($opt_ssh_back_tunnel)
       { $rsync_ssh_opt.= " -p $opt_ssh_back_tunnel";
         $rsync_host= "localhost";
       };
-    
+
     if (!defined $filelist_file)     
       { $rcmd.= sh_indent_and_join(0,         
               "for l in $local_paths;",
@@ -765,7 +765,7 @@ sub dist
               "echo ACTION: added >> $log && "
               );
     $rcmd.= sh_add_log_s(0,$log,$from,$logmessage,$tag);
-              
+
     $rcmd.= sh_indent_and_join(0,
               ' && ',  
               "echo \"\" >> $chg && cat STAMP >> $chg && ",
@@ -816,10 +816,10 @@ sub dist
     $r_log->{VERSION}= $datestr;
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
-    
+
     if (defined $filelist_file)
       { unlink $filelist_file; }
-    
+
     return(1);
   }    
 
@@ -987,7 +987,7 @@ sub change_link
           { die "error: no last dist-version for hosts " . 
                 join(",",@$r_hosts) . " and path $remote_source\n";
           }     
-        
+
         if ((!defined ($remote_source)) || ($remote_source eq ""))
           { $remote_source= $lastver; }
         else
@@ -1468,7 +1468,7 @@ sub sh_indent_and_join
 # NOTE: a CR/LF is added at line-ends
   { my($indent)= shift;
     my $s= " " x $indent;
-    
+
     return($s . join("\n$s",@_) . "\n");
   }
 
@@ -1492,7 +1492,7 @@ sub sh_copy_to_hosts_l
 	my $userpart;
 	if (defined $r_users->[$i])
 	  { $userpart= "-l $r_users->[$i] "; }
-        
+
 	push @lines,
              "rsync $gbl_rsync_opts -H -e \"ssh $userpart\" . $hostpart;";
       }
@@ -1510,7 +1510,7 @@ sub sh_copy_to_hosts
 sub sh_add_log_l
   { my($logfile,$from,$message,$tag)= @_;
     my @lines;
-    
+
     push @lines, "echo FROM: $from >> $logfile";
     if (defined $tag)
       { push @lines,
@@ -1541,7 +1541,7 @@ sub sh_rmlock_l
     my @lines= ("ls -l LOCK | grep $from >/dev/null 2>&1;",
                 'if test $? -eq 0; ',
                 "then rm -f LOCK; ");
-                
+
     if (!$force)
       { push @lines,
                 "else echo \"LOCK cannot be removed:\" " .
@@ -1555,7 +1555,7 @@ sub sh_rmlock_l
       };
     push @lines,
                 "fi";
-              
+
     return(@lines);           
   }
 
@@ -1703,7 +1703,7 @@ sub get_last_log_entries
         if (!defined $action)
           { warn "assertion"; next; };
         $h{$action}= $entry;
-        
+
         if ($action eq 'distribute')
           { # store more for "dist" actions:
             my $date= $entry->{LOCALDATE};
@@ -1966,16 +1966,16 @@ sub make_file_list
 # name of the created temporary file
   { my($start_dir,$just_dump,@patterns)= @_;
     my $old= cwd();
-    
+
     # treat a start_dir that is an empty string
     # like an undefined start_dir, this means that the 
     # base for the file-list to build is the current dir
     if ($start_dir=~ /^\s*$/)
       { $start_dir= undef; };
-    
+
     if (defined $start_dir)
       { chdir($start_dir) or die "unable to chdir to \"$start_dir\"\n"; };
-   
+
     my $r_files= extended_glob::fglob(@patterns);
 
     if ($#$r_files<0)
@@ -1983,12 +1983,12 @@ sub make_file_list
 
     if (defined $start_dir)
       { chdir($old) or die "unable to chdir to \"$old\"\n"; };
-      
+
     if ($just_dump)
       { print join("\n",@$r_files),"\n";
         return;
       };
-    
+
     my $tmp = new File::Temp(UNLINK => 0,
                              TEMPLATE => 'rsync-dist-filesXXXXX',
                              DIR => '/tmp');
@@ -2000,7 +2000,7 @@ sub make_file_list
     close($tmp);
     return($tmp->filename());
   }
-      
+
 
 # ------------------------------------------------
 # username/hostname/date utilities  
@@ -2037,22 +2037,22 @@ sub datestring
 
 sub timeindex
   { my($datestr)= @_;
-  
+
     my($date,$time)= split("T",$datestr);
     my($year,$month,$day)= split("-",$date);
     my($h,$m,$s)= split(":",$time);
-  
+
     return(timegm($s,$m,$h,$day,$month-1,$year-1900))
   }
- 
+
 
 sub datestring_is_today
   { my($str)= @_;
-   
+
     my $index= timeindex($str);
-    
+
     my $now= time();
-    
+
     if (time()-timeindex($str) < 86400)
       { return(1); };
     return;
@@ -2089,7 +2089,7 @@ sub empty
     return(1) if ($st eq "");
     return;
   }
-  
+
 sub has_glob
   { 
     foreach my $str (@_)  
@@ -2101,7 +2101,7 @@ sub has_glob
 
 sub shell_single_quote_escape
   { my($str)= @_;
-  
+
     # in a shell command that uses single quotes,
     # it is a bit complicated to escape single quotes
     # example:
@@ -2590,7 +2590,7 @@ sub split_uhp
     $s=~ s/^\s+//;
     $s=~ s/\s+$//;
     my($u,$h,$p);
-    
+
     if ($s=~/\@/)
       { if ($s!~/([^\@]+)\@(.+)/)
           { die "error: hostname \"$s\" not parsable!\n"; }
@@ -2598,7 +2598,7 @@ sub split_uhp
       }
     else
       { $h= $s; }
-      
+
     if ($h=~/\//)
       { if ($h!~/([^\/]+)\/(.+)/)
           { die "error: hostname \"$s\" not parsable!\n"; }
@@ -2621,7 +2621,7 @@ sub process_user_and_hostname
 
     for(my $i=0; $i<= $#$r_hosts; $i++)
       { my($user,$host,$path)= split_uhp($r_hosts->[$i]);
-        
+
 	if (!defined $user) # no username found or given
 	  { $user= $r_users->[$i];
             if (!defined $user) # user-array shorter than hostname array
@@ -2631,7 +2631,7 @@ sub process_user_and_hostname
         	  };
               };
 	  }
-	  
+
 	push @l, [$host,$user,$path];  
       };
     return(\@l);
@@ -2942,7 +2942,7 @@ Syntax:
     --partial   make a complete copy of the last version on the
                 server but distribute only some files from the client
                 to the server. --localpath may contain file-glob patterns
-    
+
     --version-file [filename]
     		when the <dist> command is executed, the name of
 		the directory that is created on the server is written
@@ -3013,7 +3013,7 @@ Syntax:
     --create_missing_links
                 for use with command "change-links": don't complain if links
                 dont exist, instead create them
-		
+
     --ssh-back-tunnel [port]
     		use an existing ssh-tunnel on remote host in order to connect
 		back to the local host. This option has only an effect on
@@ -3021,7 +3021,7 @@ Syntax:
 		Such a tunnel can be created by issuing this command 
 		on the remote host:
 		ssh -N -L <port>:<localhost>:22 <localuser>@<tunnel-host>
-			
+
 END
   }
 __END__

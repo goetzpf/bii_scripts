@@ -24,7 +24,7 @@ my %db_object_types = (TABLE=>'T', VIEW=>'V', 'SYSTEM TABLE'=>'S',
 		      );
 
 my %typemap= (
-    
+
       # numeric types:
               smallint           => 'number',   # documented, found
               integer            => 'number',   # documented, found
@@ -44,7 +44,7 @@ my %typemap= (
               character          => 'string',   # documented
               '"char"'           => 'string',   # documented, found
               text               => 'string',   # documented, found
-                 
+
       # binary data types
               bytea              => 'number',   # documented, found
 
@@ -94,7 +94,7 @@ my %typemap= (
               regoperator        => undef,      # documented
               regclass           => undef,      # documented
               regtype            => undef,      # documented
-      
+
       # pdeudo types
 
               any                => undef,      # documented     
@@ -109,7 +109,7 @@ my %typemap= (
               opaque             => undef,      # documented     
 
       # types that were found but not documented (??)
-      
+
               abstime            => undef,      # found
               int2vector         => undef,      # found
               name               => undef,      # found
@@ -214,7 +214,7 @@ sub real_name
 # that has logged in
 # the user_name is not evaluated, just returned
   { my($dbh,$user_name,$object_name)= @_;
-  
+
     return($object_name,$user_name,$object_name);
   }
 
@@ -245,7 +245,7 @@ sub load_object_dict
     my %lt_objs;
 
     return if (defined $r_db_objects);
-    
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -264,7 +264,7 @@ sub load_object_dict
         return;
       };
     die "assertion" if (ref($data) ne 'ARRAY');
-    
+
     foreach my $elm (@$data)
       { # CATALOG
         # SCHEMA
@@ -359,16 +359,16 @@ sub check_existence
 sub check_exists  
 # INTERNAL to dbdrv_pg!!!
   { my($dbh,$user_name,$table_name)= @_;
-  
+
     $table_name= lc($table_name);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     load_object_dict($dbh,$user_name);
-    
+
     return if (!exists $r_db_objects->{$table_name});
-    
+
     # return table-name 
     return( $table_name );
   }
@@ -419,10 +419,10 @@ sub get_simple_column_types
     # so we have to determine the column-types manually here
 
     # see also the definition of "%typemap" at the top of this file
-  
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
-          
+
     my($table) = dbdrv::check_exists($dbh,"",$table_name);
 
     if (!defined $table)
@@ -432,7 +432,7 @@ sub get_simple_column_types
       };
 
     my $r_types= $sth->{TYPE};
-    
+
     return( map{ $typemap{lc($_)} } @$r_types );
 
   }
@@ -453,7 +453,7 @@ sub column_properties
                 "table $table does not exist");
         return;
       };
-    
+
     my $sth= $dbh->prepare("select * from quotes");  
     my $r_colnames= $sth->{NAME_lc};
     my $r_coltypes= $sth->{TYPE};  
@@ -470,7 +470,7 @@ sub column_properties
 #=============================================================
 # relations: primary, foreign, resident keys
 #=============================================================
-  
+
 #-------------------------------------------------------------
 # primary key
 #-------------------------------------------------------------
@@ -494,7 +494,7 @@ sub primary_keys
 
     return( $dbh->primary_key("","",$table) );
   }
-  
+
 #-------------------------------------------------------------
 # foreign-key 
 #-------------------------------------------------------------
@@ -590,7 +590,7 @@ sub read_checktext
 #-------------------------------------------------------------
 # read triggertext
 #-------------------------------------------------------------
-  
+
 sub read_triggertext
 # EXPORTED
 # reads the name, type, event, referer, clause, status

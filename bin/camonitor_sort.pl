@@ -51,7 +51,7 @@ if ($opt_summary)
   { print_summary();
     exit;
   };
-  
+
 STDERR->autoflush(1);  
 
 mk_regexp("n_regexp",$opt_name);
@@ -94,7 +94,7 @@ sub slurp
     local(*F);
     my @lines;
     my $cnt=100;
-    
+
     if (defined $file)
       { open(F,$file) || die "unable to open $file"; }
     else
@@ -113,9 +113,9 @@ sub slurp
 
     if (defined $file)
       { close(F); }; 	
-    
+
     print STDERR "\n" if ($opt_progress);
-        
+
     return(\@lines);
   }
 
@@ -123,7 +123,7 @@ sub mk_hash
   { my($r_lines,$n_regexp,$t_regexp,$v_regexp,$r_regexp)= @_;
     my %h;
     my $cnt=100;
-    
+
     for(my $i=0; $i<=$#$r_lines; $i++)
       { if ($opt_progress)
           { if (--$cnt==0)
@@ -133,12 +133,12 @@ sub mk_hash
           };
         my $line= $r_lines->[$i];
         my @a= split(/\s+/,$line);
-        
+
 	if (defined $n_regexp)
 	  { next if (!n_regexp($a[0]));  };
-	  
+
 	next if ($a[1] eq '<undefined>');
-	
+
 	if (defined $t_regexp)
 	  { next if (!t_regexp($a[1] . " " . $a[2])); };  
 
@@ -147,26 +147,26 @@ sub mk_hash
 
 	if (defined $r_regexp)
 	  { next if (!r_regexp($line)); };  
-	
+
 	my $key= $a[1] . "," . $a[2] . "," . $a[0];
 #print "$key->",$line,"\n";
-	
+
 	if ($opt_rm_tmstamp)
 	  { $line= sprintf "%-40s %s",$a[0],$a[3]; };
-	
+
 	$h{$key}= $line;
       };
     print STDERR "\n" if ($opt_progress);
     return(\%h);
   }
-  
+
 sub print_sorted
   { my($r_h)= @_;
-  
+
     foreach my $k (sort keys %$r_h)
       { print $r_h->{$k},"\n"; };
   }      
-    
+
 
 sub print_summary
   { printf("%-20s: $sc_summary\n",

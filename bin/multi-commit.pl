@@ -78,7 +78,7 @@ if ($opt_summary)
   { print_summary();
     exit;
   };
-  
+
 if (defined $opt_cvs)
   { $vcs= CVS; }
 
@@ -87,16 +87,16 @@ if (defined $opt_svn)
       { die "contradicting options\n"; };
     $vcs= SVN;
   };
-  
+
 if (defined $opt_darcs)
   { if (defined $vcs)
       { die "contradicting options\n"; };
     $vcs= DARCS;
   };
-  
+
 if (!defined $vcs)
   { $vcs= SVN; };  
-  
+
 
 if ((defined $opt_generate) && (defined $opt_commit))
   { die "contradicting options\n"; };
@@ -109,7 +109,7 @@ elsif (defined $opt_commit)
   { 
     scan_file($vcs,$opt_commit);
   };
-  
+
 
 exit(0);
 
@@ -117,7 +117,7 @@ exit(0);
 
 sub scan_filename
   { my($vcs,$line)= @_;
-  
+
     return if ($line=~ /^\s*$/);
 
     if     ($vcs == CVS)
@@ -152,7 +152,7 @@ sub scan_file
     my %file_comments;
     my $last_file; 
     my $last_empty; 
-    
+
 #die "vcs:$vcs";
 
     my $lineno=0;
@@ -164,11 +164,11 @@ sub scan_file
 	  { next if (++$last_empty>1); }
 	else
 	  { $last_empty=0; };
-	
+
 #warn "line:\"$line\"\n";
-	
+
 	my $matched_filename= scan_filename($vcs,$line);
-	
+
 	if (defined $matched_filename)
 	  { 
 	    my @w= quotewords(q(\s+), 1, $matched_filename);
@@ -193,7 +193,7 @@ sub scan_file
 		  { $comment.= $file_comments{$files[0]}; }
 		else
 		  { build_comment(\$comment, \%file_comments, \@files); };
-	        
+
 		$comment=~ s/^\s*\n//;
 		commit($vcs,$comment,@files);
 	      };
@@ -212,7 +212,7 @@ sub scan_file
 	  }
 	else
 	  { $file_comments{$last_file}.= $line; 
-	  
+
 	  };
       };
     if (@files)
@@ -224,7 +224,7 @@ sub scan_file
 
 sub print_msg
   { my($r_files,$r_comments)= @_;
-  
+
     for(my $i= $#$r_comments; $i>0; $i--)
       { if ($r_comments->[$i]=~ /^\s*$/)
 	  { $r_comments->[$i]= undef; }
@@ -235,28 +235,28 @@ sub print_msg
     print join("\n",@$r_comments),"\n\n";
     print join("\n",@$r_files),"\n\n";
   }
-   
+
 
 sub scan_svn_log
   { my ($par)= @_;
-  
+
     my $mode= "init";
-  
+
     my @files;
     my @comments;
     my $lineno;
-    
+
     my ($old, $new);
 
     if ($par=~/(.*),(.*)/)
       { $old= $1; $new= $2; }
     else
       { die "error: please specify \"old-path,new-path\"\n"; }; 
-  
+
     while(my $line=<>)
       { $lineno++;
         chomp($line);
-	
+
 	if ($line=~ /^-{4,}/)
 	  { next if (!@files);
 	    print_msg(\@files,\@comments);
@@ -281,7 +281,7 @@ sub scan_svn_log
 	        next;
 	      };
 	    my $l= $line; 
-	    
+
 	    if ($l!~ /^\s*([A-Z]{1,2})\s+(.*)/)
 	      { die "file not parsable:\n\"$l\"\n"; }
 	    else
@@ -299,30 +299,30 @@ sub scan_svn_log
 	    next;
 	  }  
       }
-      
+
     if (@files)
       { print_msg(\@files,\@comments); }     	        
   }	
-	          
-	
- 
-  
+
+
+
+
 
 sub build_comment
   { my($r_comment, $r_file_comments, $r_files)= @_;
-  
+
     my $first;
     foreach my $file (@$r_files)
       { my $filecomment= $r_file_comments->{$file};
         next if (!defined $filecomment);
 	next if ($filecomment =~ /^[\s\r\n]*$/);
-        
+
 	if ($$r_comment!~ /\n\s*\n$/)
 	      { $$r_comment.= "\n"; };
-	
+
 	if (!$first)
 	  { $first=1; 
-	    
+
 	    $$r_comment.= "File-specific comments:\n\n"; 
 	  };
 	$$r_comment.= $file . ":\n";
@@ -330,11 +330,11 @@ sub build_comment
 	$$r_comment.= $filecomment;
       };
   }
-    
+
 sub generate_file_cmd
   { my($vcs)= @_;
     my $cmd;
-    
+
     if    ($vcs eq CVS)
       { $cmd= "cvs -n -q update"; }
     elsif ($vcs eq SVN)
@@ -348,10 +348,10 @@ sub generate_file_cmd
       { die "assertion"; };
     return($cmd);
   }
-  
+
 sub generate_file
   { my($vcs)= @_;
-  
+
     my $cmd= generate_file_cmd($vcs);
     if ($opt_dry_run)
       { print "command: \"$cmd\"\n";
@@ -361,11 +361,11 @@ sub generate_file
           { die "error: command failed!"; };
       };    
   }    
-  
+
 
 sub commit_cmd
   { my($vcs,$files,$temp_file)= @_;
-  
+
     my $cmd;
     if    ($vcs eq CVS)
       { $cmd= "cvs commit -F $temp_file $files"; }
@@ -379,17 +379,17 @@ sub commit_cmd
       { die "assertion"; };
     return($cmd);
   }
-      
+
 sub commit
   { my($vcs,$comment, @files)= @_;
-  
+
     my $cmd;
     my $temp_file= make_tempfile(\$comment);
-    
+
     my $files= join(" ",@files);
-    
+
     my $cmd= commit_cmd($vcs,$files,$temp_file);
-    
+
     if ($opt_dry_run)
       { print "command: \"$cmd\"\n";
         print "content of $temp_file:\n";
@@ -418,20 +418,20 @@ sub make_tempfile
 sub email
   { # get Name from /etc/passwd:
     my $n= (getpwuid($<))[6]; 
-    
+
     if ($n!~/^([\w ]+)/) 
       { die "assertion, user name cannot be parsed"; }; 
-      
+
     $n= $1; 
     $n=~ s/ /\./g; 
-    
+
     my $mail= "$n\@$mail_domain"; 
     return($mail);
   }
 
 sub sys
   { my($cmd)= @_;
-  
+
     print STDERR $cmd,"\n";
     my $rc= system($cmd);
     return(1) if ($rc==0);
@@ -473,7 +473,7 @@ Syntax:
     commit [file]
     	commit changes to the repository,    
 	the file argument is mandatory 
-  
+
   options:
     -h: help
     --man: show embedded man-page
@@ -518,7 +518,7 @@ multi-commit.pl - perform multiple commits (cvs|svn|darcs) with a prepared comma
 =head1 SYNOPSIS
 
   multi-commit.pl commit <messages.txt> --svn
- 
+
 =head1 DESCRIPTION
 
 =head2 Features
@@ -561,7 +561,7 @@ message file.
 =item commit
 
   multi-commit.pl commit MESSAGE.TXT
-  
+
 This command performs the commit of all files mentioned in the 
 message-file. For the details of the format of this file see below.
 

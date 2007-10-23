@@ -239,6 +239,9 @@ sub MY::postamble {
     my $script_online_targets=j(@script_online_targets);
     
     my $script_online_make;
+    
+    # ERROR: the globally installed scripts are started
+    # here instead of the local scripts
     for(my $i=0; $i<=$#script_online_deps; $i++)
       { $script_online_make.= "$script_online_targets[$i]: $script_online_deps[$i]\n";
         $script_online_make.= "\t\@echo create \$@ ...\n";

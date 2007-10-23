@@ -64,7 +64,7 @@ exit(0);
 sub diff
   { my($f1,$f2)= @_;
     local(*F);
-  
+
     if (!-e $tmpdir)
       { mkdir($tmpdir) or die "unable to create $tmpdir"; };
 
@@ -75,7 +75,7 @@ sub diff
     my $r2= parse_subst::parse_file($f2);
 
     my $oldfh;
-    
+
     open(F,">$t1") or die;
     $oldfh = select(F); 
     parse_subst::create($r1);
@@ -94,7 +94,7 @@ sub diff
 
     rm($t1);
     rm($t2);
-  
+
   }
 
 sub basename

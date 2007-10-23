@@ -75,9 +75,9 @@ exit(0);
 
 sub mk_n_regexp
   { my($regexp)= @_;
-  
+
     return if (!defined $regexp);
-    
+
     if ($regexp !~ /^\//)
       { $regexp= '/' . $regexp . '/'; };
 
@@ -88,9 +88,9 @@ sub mk_n_regexp
 
 sub apply_name_regexp
   { my($regexp, $f1)= @_;
-  
+
     return($f1) if (!defined $regexp);
-    
+
     my %new;
     foreach my $k (keys %$f1)
       { $new{n_regexp($k)}= $f1->{$k}; };
@@ -100,7 +100,7 @@ sub apply_name_regexp
 
 sub parse_diff
   { my($table_format, $n_regexp, $f1,$f2)= @_;
-  
+
     my $r1= parse_db($f1);
     my $r2= parse_db($f2);
 
@@ -110,7 +110,7 @@ sub parse_diff
     $r2= apply_name_regexp($n_regexp, $r2);
 
     #parse_db::dump($r1); die; 
- 
+
     my($r_only_in_1,$r_only_in_2,$r_in_both)=
       cmp_hashkeys($r1, $r2);
 
@@ -137,7 +137,7 @@ sub parse_diff
 	      { print "    ",$k,"\n"; };
           }
       };
-      
+
     foreach my $r (@$r_in_both)
       { cmp_hashes($table_format,
                    $r,
@@ -154,7 +154,7 @@ sub cmp_hashes
 
     my $r_h1= $r1->{FIELDS};
     my $r_h2 = $r2->{FIELDS};
-    
+
     my $tp1= $r1->{TYPE};
     my $tp2= $r2->{TYPE};
     if ($tp1 ne $tp2)
@@ -167,10 +167,10 @@ sub cmp_hashes
 	  };
 	return;  
       };      
-    
+
     my($r_only_in_1,$r_only_in_2,$r_in_both)=
       cmp_hashkeys($r_h1, $r_h2);
- 
+
     if (@$r_only_in_1)
       { if ($table_format)
           { foreach my $k (@$r_only_in_1)
@@ -188,7 +188,7 @@ sub cmp_hashes
 	      { print $indent,"    ",$k,"\n"; };
 	  }
       };
-      
+
     if (@$r_only_in_2)
       { if ($table_format)
           { foreach my $k (@$r_only_in_2)
@@ -206,7 +206,7 @@ sub cmp_hashes
 	      { print $indent,"    ",$k,"\n"; };
 	  }
       };
-      
+
 
     if ($table_format)
       { foreach my $k (@$r_in_both)
@@ -235,20 +235,20 @@ sub cmp_hashes
       }      
   }
 
-	
-	
+
+
 sub cmp_hashkeys
   { my($r_h1, $r_h2)= @_;
     my %keys;
     my @only_in_1;
     my @only_in_2;
     my @in_both;
-    
+
     foreach my $k (sort keys %$r_h1)  
       { $keys{$k}++; };  
     foreach my $k (sort keys %$r_h2)  
       { $keys{$k}++; }; 
-      
+
     my $v;
     foreach my $k (sort keys %keys)
       { $v= $keys{$k};
@@ -263,12 +263,12 @@ sub cmp_hashkeys
       };  
     return(\@only_in_1,\@only_in_2,\@in_both);
   }	 
- 
+
 sub parse_db
   { my($f)= @_;
     local $/;
     local *F;
-    
+
     open(F, $f) or die "unable to open $f";
     my $st= <F>;
 
@@ -295,7 +295,7 @@ sub diff
 
     rm($t1);
     rm($t2);
-  
+
   }
 
 sub basename
@@ -352,7 +352,7 @@ Syntax:
     -n [regexp]: apply this regexp to 
       all record names before comparing them
       (only with -p or -P)
-      
+
 END
   }
 

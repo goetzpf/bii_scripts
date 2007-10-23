@@ -53,7 +53,7 @@ use constant {
 
   SM_ROUND_SCALAR   => 0x03,
   SM_ROUND_INDEXED  => 0x13,
-  
+
   SM_SUBTYPE        => 0x0F,
 
   SM_EVAL           => 0x04,
@@ -63,9 +63,9 @@ use constant {
   SM_ARGKEYWORD     => 0x103,
 
   SM_KEYWORD_OR_FUNC=> 0x100,
-  
+
   SM_INDEXED        => 0x10,
-  
+
              };
 
 use constant {
@@ -93,7 +93,7 @@ my %is_bracket= ( '(' => 1,
                   ']' => 1,
                   '{' => 1,
                   '}' => 1);
-                  
+
 my %simple_keywords= map{ $_ => 1 } 
               qw (else endif endfor dumphash ifstack silent loud leave begin end);
 
@@ -128,20 +128,20 @@ my $gbl_err_pre;
 
 sub get_var
   { my($name,$index)= @_;
-  
+
     if (!defined $index)
       { return($m{$name}); };
     if (!exists $m{$name})
       { return; };
     return($m{$name}->[$index]);
   }
-  
+
 sub test_var
   { my($name,$index)= @_;
-  
+
     if (!exists $m{$name})
       { return; };
-      
+
     if (defined $index)
       { if (ref($m{$name}) ne 'ARRAY')
           { return; };
@@ -150,10 +150,10 @@ sub test_var
     else
       { return(1); };
   }
-  
+
 sub set_var  
   { my($name,$index,$value)= @_;
-  
+
     if (!defined $value)
       { $m{$name}= $index; 
         return;
@@ -207,38 +207,38 @@ sub parse_scalar_i
     my $was_left;
     my(@ifcond)=(1);
     my @forstack;
-    
+
     my $m_stack_init= $#m_stack;
-  
+
     my $pre;
     my $post;
-    
+
     my $fh;
-    
+
     if ($options{forbit_nobrackets})
       { $forbid_nobracket_vars= 1; };
-    
+
     if ($options{roundbrackets})
       { $allow_round_brackets= 1; };
-    
+
     if ($options{allow_not_defined_vars})
       { $allow_not_defined_vars= 1; };
-    
+
     if ($options{recursive})
       { $recursive= 1; };
-    
+
     # it is important to have absolute paths here,
     # see also how find_file() works...
     if (exists $options{includepaths})
       { @include_paths= @{$options{includepaths}}; 
       };
 # die "I:" . join("|",@include_paths);
-    
+
     if (exists $options{silent})
       { $silent= $options{silent}; };
-    
+
     $gbl_err_pre= $options{errmsg};
-    
+
     my $scalar_ref= $options{scalarref};
     if (defined $scalar_ref)
       { $fh= new IO::Scalar $scalar_ref; 
@@ -257,10 +257,10 @@ sub parse_scalar_i
               }
           };
       };
-      
+
     if (exists $options{callback}) 
       { $callback= $options{callback}; }; 
-    
+
 
     my $max= length($$r_line);
 
@@ -271,19 +271,19 @@ sub parse_scalar_i
         $p= pos($$r_line))
       {
         $err_line= -1;
-                    
+
         $pre= $1;
         $post= $2;
-        
+
         if ($pre ne "")
           { print $fh $pre if ($ifcond[-1]>0); };
-          
+
         if ($post=~ /\s+/)
           { next if ($silent);
             print $fh $post if ($ifcond[-1]>0);
             next;
           };
-          
+
         if ($post eq "")
           { 
 #           next if ($silent);
@@ -295,7 +295,7 @@ sub parse_scalar_i
           { print $fh '$' if ($ifcond[-1]>0);
             next; 
           };
-          
+
         if ($post eq "\\\\n") # backslash-backslash-n
           { print $fh "\\n" if ($ifcond[-1]>0);
             next; 
@@ -319,10 +319,10 @@ sub parse_scalar_i
               };
             next;  
           }
-        
+
         # from here, $pos must be '$'
         die "internal error" if ($post ne '$'); # assertion
-        
+
         $p= pos($$r_line); # pos after "$"
 
         # no variable expansion in a skipped part:
@@ -351,7 +351,7 @@ sub parse_scalar_i
               { warn "--- \"$ex\" recognized,\n"; };
 
             my $ky_flag= $arg_keywords{$ex};
-             
+
             if ($ky_flag & KY_BLOCK)
               { if ($ifcond[-1]<=0)
                   { $err_line= __LINE__;
@@ -363,7 +363,7 @@ sub parse_scalar_i
 
                 $err_line= __LINE__;
                 my $res= eval_bracket_block($r_line,$st,$en,$ky_flag);
-                
+
                 print $fh $res if ($ky_flag & KY_PRINT);
                 pos($$r_line)= $en+1;
                 next;
@@ -421,7 +421,7 @@ sub parse_scalar_i
                           { warn "--- evaluated FALSE, skip 1st if-part\n"; }
                       };
                     push @ifcond, ($res) ? 1 : -1; 
-                  
+
                   };
                 pos($$r_line)= $en+1;
                 next;
@@ -437,7 +437,7 @@ sub parse_scalar_i
                     $err_line= __LINE__;
                     fatal_parse_error($r_line,$p); 
                   };
-                
+
                 my $m_stacked;
                 if ($ifcond[-1]>0) 
                   { # do not evalutate the for-condition
@@ -541,7 +541,7 @@ sub parse_scalar_i
                             $keep{$1}= 1;
                           };
                       };  
-                    
+
 
                     my $format= "%-${len}s=\"%s\"$sep\n";
 
@@ -571,7 +571,7 @@ sub parse_scalar_i
 
             if ($debug)
               { warn "--- \"$ex\" recognized,\n"; };
-          
+
 
             if ($ex eq 'begin')
               { if ($ifcond[-1]>0) 
@@ -603,28 +603,28 @@ sub parse_scalar_i
                 print STDERR "HASH-DUMP:\n",Data::Dumper->Dump([\%m], ['m']),"\n";
                 next;
               };
-            
+
             if ($ex eq 'ifstack')
               { 
                 print STDERR "IF-STACK-DUMP:\n",join(",",@ifcond),"\n";
                 next;
               };
-            
+
             if ($ex eq 'leave')
               { $was_left=1; 
                 last; 
               };
-            
+
             if ($ex eq 'silent')
               { $silent=1; 
                 next;
               };
-            
+
             if ($ex eq 'loud')
               { $silent=0; 
                 next;
               };
-            
+
             if   ($ex eq 'else')
               { 
                 if ($#ifcond<1)
@@ -633,7 +633,7 @@ sub parse_scalar_i
                     fatal_parse_error($r_line,$p); 
                   };
                 $ifcond[-1]= -$ifcond[-1]; # 1 --> -1, -1-->1, 0-->0
-                
+
                 if ($debug)
                   { if ($ifcond[-1]<=0)
                       { warn "--- skipping\n"; }
@@ -659,20 +659,20 @@ sub parse_scalar_i
                     $err_line= __LINE__;
                     fatal_parse_error($r_line,$p); 
                   };
-                
+
                 if ($ifcond[-1]<=0) 
                   { # within ignore-block
                     pop @forstack; 
                     next;
                   };
-                
+
                 my($pos1,$cond,$loop,$m_stacked)= @{$forstack[-1]};
-                
+
                 $err_line= __LINE__;
                 eval_part($loop,$r_line,$pos1);
                 $err_line= __LINE__;
                 my $res= eval_part($cond,$r_line,$pos1);
-                
+
                 if ($debug)
                   { if ($res)
                       { warn "--- looping\n"; }
@@ -708,26 +708,26 @@ sub parse_scalar_i
 
         pos($$r_line)= $p;
       } # for 
-    
+
     if ($#ifcond !=0 )
       {  
         $err_pre= "unfinished if-blocks";
         $err_line= __LINE__;
         fatal_parse_error($r_line,$p); 
       };
-      
+
     if ($#forstack>=0)
       { $err_pre= "unfinished for-blocks";
         $err_line= __LINE__;
         fatal_parse_error($r_line,$p); 
       };
-  
+
     if ($#m_stack>$m_stack_init)
       { $err_pre= "unfinished begin-blocks";
         $err_line= __LINE__;
         fatal_parse_error($r_line,$p); 
       };
-      
+
     print $fh substr($$r_line,$p) if (!$was_left);
 
     if ($must_close_fh)
@@ -736,12 +736,12 @@ sub parse_scalar_i
 
 sub eval_part
   { my($sub,$r_line,$pos,$do_not_replace)= @_;
-  
+
 #warn "before:|" . $sub . "|\n";
 #warn "after:|" . mk_perl_varnames($sub,$comment) . "|\n";
 
     my $subst;
-    
+
     if (!$do_not_replace)
       { $subst= mk_perl_varnames($sub,$r_line,$pos); 
         if ($debug)
@@ -752,7 +752,7 @@ sub eval_part
         if ($debug)
           { warn "--- evaluate \"$subst\"\n"; };
       };    
-    
+
     my $res= eval($subst);
     if ((!defined ($res)) && ($@ ne ""))
       { 
@@ -764,7 +764,7 @@ sub eval_part
 
 sub rec_eval
   { my($sub,$r_line,$pos)= @_;
-    
+
     for(my $cnt=0; $cnt<100; $cnt++)
       { 
 #warn "rec_eval:\"$sub\"";
@@ -772,14 +772,14 @@ sub rec_eval
           { return($sub); };
         $sub= eval_part('"' . $sub . '"',$r_line,$pos);
       };
- 
+
     $err_pre= "recursion error in expression";
     fatal_parse_error($r_line,$pos); 
   }     
 
 sub skip_bracket_block
   { my($r_line,$start_at)= @_;
-  
+
     my($start,$end)= match($r_line,$start_at);
 
     if (!defined $start)
@@ -800,7 +800,7 @@ sub eval_func_block
 
     my $sub= substr($$r_line, $start+1, $end-$start-1);
 #warn "evaluate: $sub";
-    
+
     $sub= $functions{$funcname} . "($sub)";
 
     my $res= eval_part($sub,$r_line,$start); 
@@ -810,13 +810,13 @@ sub eval_func_block
 
 sub eval_bracket_block
   { my($r_line,$start,$end,$ky_flags)= @_;
-  
+
     my $sub= substr($$r_line, $start+1, $end-$start-1);
 #warn "evaluate: $sub";
 
     if ($ky_flags & KY_FUNCDEF)
       { $sub=~ s/^\s+//;
-    
+
         my($funcname)= ($sub=~ /^(\w+)/);
         if (!defined $funcname)
           { 
@@ -827,7 +827,7 @@ sub eval_bracket_block
         $functions{$funcname}= "m_" . $funcname;
         # hash maps function-name to real-function-name
       }  
-      
+
     my $res= eval_part($sub,$r_line,$start,!($ky_flags & KY_REPLACE));
 
     return($res);
@@ -839,11 +839,11 @@ sub match
 # backslash
 # returns the position of opening and closing bracket 
   { my($r_str,$pos,$in_string)= @_;
-    
+
 #warn "called at pos $pos\n";
     my $o= substr($$r_str,$pos,1);
     my $c;
-    
+
     if (($o eq '"') || ($o eq "'"))
       { $c= $o; 
         $in_string=1;
@@ -864,12 +864,12 @@ sub match
           { pos($$r_str)= pos($$r_str)+1;
             next;
           };
-          
+
         if ($in_string)
           { if (exists $is_bracket{$1})
               { next; };
           };
-          
+
         my($start,$end)= match($r_str,pos($$r_str)-1);
 #warn "returned substr: " . substr($$r_str,$start,$end-$start+1) . "\n";
         return if (!defined $start);
@@ -877,17 +877,17 @@ sub match
       };
     return; 
   }
-      
+
 sub fatal_parse_error
   { my($r_str,$position,$pline,$message,$do_not_die)= @_; 
-  
+
     my($line,$column)= find_position_in_string($r_str,$position);
-    
+
     my $err;
     $err= $gbl_err_pre if ($gbl_err_pre);
-    
+
     $err.= $do_not_die ? "warning\n" : "fatal error\n";
-    
+
     $err.= "module: $err_module";
     $err.= " line: $err_line" if (defined $err_line);
     $err.= "\n$err_pre\n" if (defined $err_pre);    
@@ -910,7 +910,7 @@ sub find_position_in_string
 
     my $cnt=0;
     my $lineno=1;
-    
+
 
     pos($$r_str)=0;
     my $oldpos=-1;
@@ -938,7 +938,7 @@ sub simple_match
   { my($r_line, $p)= @_;
 
     pos($$r_line)= $p;
-    
+
     # form $a (...)
     if ($$r_line=~ /\G(\w+)\s*\(/gs)
       { my $name= $1;
@@ -971,13 +971,13 @@ sub simple_match
     # form ${a[..]}
     if ($$r_line=~ /\G\{(\w+)\[([^\]]+)\]\}/gs)
       { return(SM_CURLY_INDEXED, $p-1, pos($$r_line)-1, $1,$2); }; #name, key
-      
+
     pos($$r_line)= $p;
 
     # form ${a}
     if ($$r_line=~ /\G\{(\w+)\}/gs)
       { return(SM_CURLY_SCALAR, $p-1, pos($$r_line)-1, $1, undef); };    #name
-      
+
     pos($$r_line)= $p;
 
 
@@ -1012,19 +1012,19 @@ sub simple_match
            $err_line= __LINE__;
            fatal_parse_error($r_line,$p); 
          };
-                 
+
        my $e= pos($$r_line)-1;
 
        return(SM_EVAL, $p-1, $e, substr($$r_line,$pi+1,$end-$pi-1), undef);
       };
-      
+
     pos($$r_line)= $p;
     return(SM_NO);  
   }  
 
 sub variable_expand
   { my($r_line, $p, $in_ignore_part)= @_;
-  
+
     # match a single variable or array-element or keyword or function
     my($type,$start,$end,$var,$index)= simple_match($r_line, $p);
 
@@ -1038,25 +1038,25 @@ sub variable_expand
             $err_line= __LINE__;
             fatal_parse_error($r_line,$p); 
           }
-          
+
         # user functions within an ignore-part are:
 	#  ignored ;-)
 	if (($in_ignore_part) && ($type == SM_FUNC))
 	  { pos($$r_line)= $p;
             return(VE_DONE,'$'); 
           }; 
-	
+
 	return(($type == SM_ARGKEYWORD) ? VE_ARGKEYWORD : VE_FUNC, 
                $var, $m_start, $m_end); 
        }
 
     if ($type == SM_NO)
       { # could not find a variable expression
-        
+
         pos($$r_line)= $p;
         return(VE_DONE,'$'); 
       }
-    
+
     if ($type == SM_EVAL) 
       { # SM_EVAL: the name of the variable has to be evalutated,
         # don't do this within an ignore-part
@@ -1068,32 +1068,32 @@ sub variable_expand
 #pos($$r_line)= $p;
 #return;  
         # this is now the name of the variable
-        
+
       };
-      
+
     if (!$allow_round_brackets)
       { if (($type & SM_SUBTYPE)==SM_ROUND_SCALAR)
           { pos($$r_line)= $p;
             return(VE_DONE,'$'); 
           }
       }
-       
+
     if ($forbid_nobracket_vars)
       { if (($type & SM_SUBTYPE)==SM_SIMPLE_SCALAR)
           { pos($$r_line)= $p;
             return(VE_DONE,'$'); 
           }
       }
-    
+
     if ($type == SM_SIMPLE_SCALAR)
       { pos($$r_line)= $p;
-        
+
         if (exists $simple_keywords{$var})
           { return(VE_KEYWORD, $var); }; 
       }   
-          
+
     # from here it's an variable that is to expand
- 
+
     if ($in_ignore_part)
       { # do not lookup variables when within an ignore-part
         # (e.g. an if--then block that is to be skipped)
@@ -1103,7 +1103,7 @@ sub variable_expand
 
     if (!($type & SM_INDEXED))
       { # not an array expression
-        
+
         if (defined $callback)
           { 
             &$callback($var); 
@@ -1133,19 +1133,19 @@ sub variable_expand
 	    return(VE_DONE,rec_eval($m{$var},$r_line,$p)); 
 	  };
       };
-    
+
     # from here: it's an index expression
     if ($index=~/\$/)
       { # a "complicated" expression
         $index= eval_part($index, $r_line, $p);
       };
- 
-    
+
+
         if (defined $callback)
           { 
             &$callback($var,$index); 
           }
-        
+
     if (!exists $m{$var})
       { 
         $err_pre= "macro \$\{$var\} is not defined";
@@ -1166,7 +1166,7 @@ sub variable_expand
     else
       { return(VE_DONE,rec_eval($m{$var}->[$index],$r_line,$p)); };
   }
- 
+
 
 sub mk_perl_varnames
 # internal
@@ -1179,10 +1179,10 @@ sub mk_perl_varnames
 
     #replace @{a} with \@{\$m{a}}
     $line=~ s/(?<!\\)\@\{(\w+)\}/\@\{\\\$m\{$1\}\}/gs;
-    
+
     # replace ${a} with \$m{a}
     $line=~ s/(?<!\\)\$(\{\w+\})/\\\$m$1/gs;
-  
+
 #warn;    
     #replace $a[..] with \$m{a}->[..]
     #   Note: ".." must NOT contain ']'
@@ -1207,14 +1207,14 @@ sub mk_perl_varnames
 	while ($line=~/\G.*?\$m\{(\w+)\}/g) 
           { 
             &$callback($1); 
-          
+
           };
         pos($line)=0;
         # perform callback for all array variables
         while ($line=~/\G.*?\$m\{(\w+)\}->\[([^\]]+)\]/g) 
           { my $name= $1;
 	    my $index= $2;
-	    
+
 	    if ($index!~/^\d+/)
 	      { # if index is not a simple number but an
 	        # expression, try to evaluate it:
@@ -1234,10 +1234,10 @@ sub mk_perl_varnames
 
     return($line); 
   }
-  
+
 sub strdump
   { my($r_line, $p, $len, $prefix)= @_;
-  
+
     $len= 20 if (!defined $len);
 
     my $x= substr($$r_line,$p,$len);
@@ -1247,11 +1247,11 @@ sub strdump
 
 sub find_file
   { my($file,$r_paths)= @_;
- 
+
     return($file) if (-r $file);
 
     return if (!@$r_paths);
-    
+
     my $test;
     for(my $i=0; $i<= $#$r_paths; $i++)
       { if (!-d $r_paths->[$i]) 
@@ -1313,12 +1313,12 @@ Variables have the following form:
 
   ${name}
   ${name[index]}
-  
+
 or
 
   $name
   $name[index]
-  
+
 The first two lines above show simple variables. A variable
 of this type can hold numbers or strings. The third and fourth lines 
 show the array form. In this case the variable is an array of values, 
@@ -1339,15 +1339,15 @@ Almost all expressions that are valid in perl can be used. For example
 this expression defines and sets a variable
 
   $myvar=1
-  
+
 This expression does a simple calculation:
 
   $myvar*2
-  
+
 This expression initializes an array:
 
   @my_array=("X", "Y", "Z")
-  
+
 =item I<keywords>
 
 Keywords always start with a dollar sign. They may be followed by
@@ -1366,7 +1366,7 @@ is not interpreted as a variable or keyword. The backslash, however, is removed.
 So
 
   \$myvar
-  
+
 expands to $myvar.
 
 =item I<line concatenation>
@@ -1388,13 +1388,13 @@ A "\n" is always replaced with a line-feed.
 =item I<set>
 
   $set(<expression>)
-  
+
 The expression is evaluated, but the result is not printed.
 
 =item I<eval>
 
   $eval(<expression>)
-  
+
 The expression is evaluated and the result is printed.
 Note that is can also be used to calculate the name of a 
 variable and expand it:
@@ -1412,11 +1412,11 @@ done in the given expression before it is evaluated.
 This can be used to include perl-modules
 
   $perl(require modulename;) 
-  
+
 or to define functions
-  
+
   $perl(sub myfunc { print "$_[0]\n"; })
-  
+
 Note that variables of expander cannot be used here, since they 
 are represented internally in a perl-hash. In principle you could
 access the variables here by directly accessing the hash, but that
@@ -1432,7 +1432,7 @@ variable and expand it:
 =item I<func>
 
   $func(myfunc { my($a,$b)= @; return($a+$b); })
-  
+
 This is a definition of a function. It is actually a shortcut for
 $perl(myfunc { my($a,$b)= @; return($a+$b); }). The advantage of
 this construct is, however, that such a function is evaluated 
@@ -1443,7 +1443,7 @@ the example above.
 =item I<if>
 
   $if (<expression>)
-  
+
 The expression is evaluated. It it is logical true, the following
 part is further parsed until $else or $endif is encountered.
 
@@ -1465,27 +1465,27 @@ This finishes an if-statement.
 =item I<write_to>
 
   $write_to(<expression>)
-  
+
 This command opens a file with the name of the given expression
 and writes expander's output from now on to that file.
 
 =item I<append_to>
 
   $append_to(<expression>)
-  
+
 This command opens a file with the name of the given expression
 in append mode and writes expander's output from now on to that file.
-  
+
 =item I<include>
 
   $include(<expression>)
-  
+
 This command includes and parses the file specified by <expression>  
-  
+
 =item I<comment>
 
   $comment(<comment>)
-  
+
 Everything between the brackets is ignored. Note however, that
 bracket-pairs (round, square and curly) within the comment 
 must be matching, nested pairs.
@@ -1493,7 +1493,7 @@ must be matching, nested pairs.
 =item I<for>
 
   $for(<init expression>;<condition>;<loop statement>)
-  
+
 This starts a loop very similar to the loop in c or perl.
 The text between for end endfor is printed several times.
 The init and loop-expression can be used to count a counter-variable
@@ -1507,7 +1507,7 @@ Here is an example:
   $for($i=0; $i<5; $i++)
     NAME= "Axle$i"
   $endfor
-  
+
 Here is another example with arrays:
 
   $set(@chars=qw(X Y Z))
@@ -1518,51 +1518,51 @@ Here is another example with arrays:
 =item I<for_noblock>
 
   $for_noblock(<init expression>;<condition>;<loop statement>)
-  
+
 This command is similar to $for except that it doesn not implicitly
 start a new $begin-$end block.
 
 =item I<endfor>
-  
+
   $endfor
-  
+
 This ends a for-expression. This statement contains also an implicit 
 $end which ends restores all variables to the state they had before
 the block started. 
 
 =item I<begin>
-  
+
   $begin
 
 This statement opens a new block. All variable definitions and changes
 within a block are reversed when the block ends with $end
 
 =item I<end>
-  
+
   $end
-  
+
 This statement ends a block. All variable definitions are restored
 to the state they had before the block started.  
 
 =item I<export>
-  
+
   $export($var1,$var2)
-  
+
 This statement can be used within a block (see $begin). It exports
 the local variables (given as a comma-separated list) to
 the variable-settiing outside the block.  
 
 =item I<list>
-  
+
   $list(10,",")
-  
+
 Prints a list of all defined variables in the form of key=value 
 pairs. The first parameter is the width of the key column, 
 the second parameter is the separator string that separates
 each key-value pair.
 
 =item I<list_new>
-  
+
   $list_new(10,",",$var1,$var2)
 
 This command is similar to $list except that it prints only 
@@ -1574,9 +1574,9 @@ is useful, when the current block has re-defined a variable
 that already existed, and this variable shall be printed, too.
 
 =item I<silent>
-  
+
   $silent
-  
+
 This option changes to mode to silent-mode. In this mode, 
 spaces and line-feeds are not printed. This mode is useful
 if large parts of the input only consist of variable definitions.
@@ -1584,38 +1584,38 @@ Usually, each empty line that is often used to separate definitions,
 would be printed.
 
 =item I<loud>
-  
+
   $loud
-  
+
 This switches back from silent-mode to the normal mode of operation.  
 
 =item I<leave>
-  
+
   $leave
- 
+
 This immediately leaves the parse-function producing no more output. 
 
 =item I<debug>
-  
+
   $debug(<text>)
-  
+
 This statement emits arbitrary text to STDERR. 
-  
+
 =item I<dumphash>
-  
+
   $dumphash
-  
+
 This dumps the internal hash %m that is used to hold all
 defined variables. This is only useful for debugging.
-  
+
 =item I<ifstack>
-  
+
   $ifstack
-  
+
 This dumps the internal if-stack that is used to
 track if-else-endif blocks.
 This is only useful for debugging.
-  
+
 =back
 
 =head2 The option hash
@@ -1722,7 +1722,7 @@ is no longer true.
 B<parse_scalar()>
 
   parse_scalar($st,%options)
-  
+
 This function parses a (multi-line) scalar and prints the results.
 See also the description of the option-hash further up.
 
@@ -1731,7 +1731,7 @@ See also the description of the option-hash further up.
 B<parse_file()>
 
   parse_file($filename,%options)
-  
+
 This function parses given file and prints the results.
 See also the description of the option-hash further up.
 
@@ -1744,7 +1744,7 @@ B<get_var()>
 
 This function returns the value of the internal variable with the
 name $varname. If $index is given, an index-variable is assumed.
-  
+
 =item *
 
 B<set_var()>

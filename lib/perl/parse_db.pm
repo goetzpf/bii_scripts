@@ -78,7 +78,7 @@ sub handle_double_names
 
 sub parse
   { my($db,$filename)= @_;
-  
+
     my $level= 0;
 
     my %records;
@@ -86,21 +86,21 @@ sub parse
     my $r_this_record;
     my $r_this_record_fields;
 
-    
+
     for(;;)
       { 
         if ($level==0)
           { 
             # skip comment-lines at level 0:
             $db=~/\G$space_or_comment/ogscx;
-            
+
             last if ($db=~/\G[\s\r\n]*$/gsc);
-            
+
             if ($db=~ /$record_head/ogscx)
               { 
                 my $type= (empty($2)) ? $1 : $2;
                 my $name= (empty($4)) ? $3 : $4;
-                
+
                 $r_this_record_fields= {};
                 $r_this_record= { TYPE => $type, 
                                   FIELDS => $r_this_record_fields };
@@ -133,7 +133,7 @@ sub parse
               };
             parse_error(__LINE__,\$db,pos($db),$filename);
           };
-          
+
         if ($level==1)
           { 
             if ($db=~ /\G
@@ -147,7 +147,7 @@ sub parse
               { 
 		my $field= (empty($2)) ? $1 : $2;
                 my $value= (empty($4)) ? $3 : $4;
-                
+
                 $r_this_record_fields->{$field}= $value;
                 next;
               };
@@ -163,17 +163,17 @@ sub parse_file
     local(*F);
     local($/);
     my $st;
-    
+
     undef $/;
-    
+
     if (!defined $filename) # read from STDIN
       { *F=*STDIN; }
     else
       { open(F,$filename) or die "unable to open $filename"; };
     $st= <F>;
-    
+
     close(F) if (defined $filename);
-    
+
     return(parse($st));
     #dump($r_records);
     #create($r_records);
@@ -182,24 +182,24 @@ sub parse_file
 sub create_record
   { my($recname, $r_hash)= @_;
     my $r_fields= $r_hash->{FIELDS};
-    
+
     print "record(",$r_hash->{TYPE},",\"$recname\") {\n";
     foreach my $f (sort keys %$r_fields)
       { print "\tfield(",$f,",\"",$r_fields->{$f},"\")\n";
       };
     print "}\n\n";
   }
-   
+
 sub create
   { my($r_records,$r_reclist)= @_;
-  
+
     if (defined $r_reclist)
       { if (ref($r_reclist) ne 'ARRAY')
           { die "error: 2nd parameter must be an array reference"; }
       }
     else
       { $r_reclist= [sort keys %$r_records]; } 
-    
+
     foreach my $rec (@$r_reclist)
       { my $r_f= $r_records->{$rec};
         next if (!defined $r_f);
@@ -209,7 +209,7 @@ sub create
 
 sub parse_error
   { my($prg_line,$r_st,$pos,$filename)= @_;
-  
+
     my($line,$column)= find_position_in_string($r_st,$pos);
     if (defined $filename)
       { $filename= "in file $filename "; };
@@ -218,8 +218,8 @@ sub parse_error
              "line $line, column $column in file\n ";
     croak $err;
   }
-             
-    
+
+
 
 sub find_position_in_string
 # gets a position as returned by pos(..) in a
@@ -229,7 +229,7 @@ sub find_position_in_string
 
     my $cnt=0;
     my $lineno=1;
-    
+
 
     pos($$r_str)=0;
     my $oldpos=-1;
@@ -250,7 +250,7 @@ sub find_position_in_string
 
 sub dump
   { my($r_records)= @_;
-  
+
     print Data::Dumper->Dump([$r_records], [qw(records)]);
   }
 
@@ -262,7 +262,7 @@ sub empty
       { return 1; };
     return;
   }
-      
+
 
 1;
 
@@ -300,7 +300,7 @@ can then be used for further evaluation.
 B<parse()>
 
   my $r_records= parse_db::parse($st,$filename);
-  
+
 This function parses a given scalar variable that must contain a 
 complete db-file. It returns a reference to a hash, where the parsed data
 is stored. The parameter $filename is optional and is just used for
@@ -311,7 +311,7 @@ printing error messages in case of a parse-error.
 B<parse_file()>
 
   my $r_records= parse_db::parse_file($filename);
-  
+
 This function parses the contents of the given filename. If the parameter
 C<$filename> is not given it tries to read form STDIN. If the
 file cannot be opened, it dies with an appropriate error message.
@@ -323,7 +323,7 @@ is stored.
 B<create_record()>
 
   parse_db::create_record($record_name,$r_records)
-  
+
 Print the contents of the given record in the standard db format to the
 screen.
 
@@ -338,13 +338,13 @@ screen. The parameter C<$r_record_list> is optional. The default
 is that records are printed in alphabetical order. If the second
 parameter is given, only records from this list and in this
 order are printed.
-  
+
 =item *
 
 B<handle_double_names()>
 
   parse_db::handle_double_names($mode)
-  
+
 Determine how double record names are treated. The following
 modes are known:
 
@@ -387,7 +387,7 @@ that field. Note that undefined fields-values are empty strings (""), not
 the perl undef-value.
 
 Example of a hash that parse() returns:
-  
+
   $r_records= { 'UE52ID5R:BaseCmdHome' => 
                    { 'TYPE'  => 'sub',
                      'FIELDS'=> { 'PRIO' => 'LOW',

@@ -59,7 +59,7 @@ my $RX_pattern  =
 	       $RX_space_or_comment
 	       \{ 
 	       /x;
-		      
+
 my $RX_var= 
             qr/\G  
                $RX_space_or_comment	
@@ -67,14 +67,14 @@ my $RX_var=
                $RX_space_or_comment
 	       $RX_comma
 	       /x;
-	    
+
 my $RX_val= qr/\G  
                $RX_space_or_comment	
 	       (?:$RX_quoted|$RX_unquoted_value)	      
                $RX_space_or_comment
 	       $RX_comma
 	       /x;
-	    
+
 
 my $RX_definition = 
             qr/\G
@@ -87,10 +87,10 @@ my $RX_definition =
                $RX_space_or_comment
 	       $RX_comma
 	       /x;
- 
+
 sub get_or_mk_array
   { my($key,$r_hash)= @_;
-  
+
     my $r= $r_hash->{$key};
     return $r if (defined $r);
     my @l;
@@ -100,7 +100,7 @@ sub get_or_mk_array
 
 sub get_or_mk_hash
   { my($key,$r_hash)= @_;
-  
+
     my $r= $r_hash->{$key};
     return $r if (defined $r);
     my %l;
@@ -121,25 +121,25 @@ sub parse
       { croak "parse: argument is neither a scalar nor " .
               "a reference to a scalar"; 
       };
-  
+
     $mode= "templateHash" if (!defined $mode);
-    
+
     if (($mode ne 'templateHash') && ($mode ne 'templateList'))
       { die "unknown mode: \"$mode\""; };
-   
+
     my $quirks= ($mode eq 'templateList') ? 1 : 0;
-    
+
     if ($old_parser && $quirks)
       { die "error: old_parser and 'templateList' are mutual exclusive"; };
-    
+
     my $level= 'top';
 
 # mode: default 
     my %templates;
-    
+
     my @templates;
     my $lastfilename;
-    
+
     my $r_file;
     # a ref to a list containing all
     # instances for a certain *.template file
@@ -149,13 +149,13 @@ sub parse
     # for a certain instance
 
     my $sub_block_type;
-    
+
     my $field_index;
     # index within a pattern-field
-    
+
     my @column_names;
     # names of columns within a pattern-field
-    
+
     my $instance_no; 
     # only needed for $old_parser= 1
 
@@ -189,16 +189,16 @@ sub parse
 		          { @$r_file= ($filename); };
 		      };	  
 		  }
-                
-		
+
+
 		$instance_no= 0;
-		
+
 		$level='file';
 		next;
 	      };
            parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
 	  };
-	  
+
 	if ($level eq 'file')
 	  { 
             if ($$r_db=~ /\G
@@ -207,13 +207,13 @@ sub parse
               { $level= 'top';
                 next;
               };
-	      
+
 	    if ($$r_db=~ /$RX_pattern/ogscx)
 	      { $level= 'pattern_cols';
 	        @column_names= ();
 	        next;
 	      }
-	      
+
 	    if ($$r_db=~ /\G
                       $RX_space_or_comment
                       \{/ogscx)
@@ -222,7 +222,7 @@ sub parse
 		  { $r_file->{$instance_no++}= \%h; }
 		else
 		  { push @$r_file, \%h; };
-		  
+
 		$r_instance= \%h;
 	        $level= 'sub-block';
 		$sub_block_type= undef;
@@ -255,7 +255,7 @@ sub parse
 	      { $level= 'file';	     
 	        next;
               } 
-            
+
 	    if ($sub_block_type ne 'pattern')
 	      { if ($$r_db=~ /$RX_definition/ogscx)
 		  { my $var= ($2 eq "") ? $1 : $2;
@@ -265,7 +265,7 @@ sub parse
 		    next;
 	          }
 	      };
-	      
+
 	    if ($sub_block_type ne 'regular')
 	      { if ($$r_db=~ /$RX_val/ogscx)
 		  { my $value= ($2 eq "") ? $1 : $2;
@@ -281,12 +281,12 @@ sub parse
 
            parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
 	  }; # for   
-	
+
       };
 
     if ($quirks)
       { return(\@templates); };
-      
+
     return(\%templates);;
   }
 
@@ -296,17 +296,17 @@ sub parse_file
     local(*F);
     local($/);
     my $st;
-    
+
     undef $/;
-    
+
     if (!defined $filename) # read from STDIN
       { *F=*STDIN; }
     else
       { open(F,$filename) or die "unable to open $filename"; };
     $st= <F>;
-    
+
     close(F) if (defined $filename);
-    
+
     return(parse($st));
   }
 
@@ -327,12 +327,12 @@ sub create_instance
     print join(",\n",@lines),"\n";
     print "    }\n";
   }    
-    
+
 
 sub create_instances
   { my($filename, $r_hash)= @_;
     my $r_instances= $r_hash->{$filename};
-    
+
     print "file $filename\n  \{\n";
     foreach my $instance (@$r_instances)
       { create_instance($instance);
@@ -342,7 +342,7 @@ sub create_instances
 
 sub create
   { my($r_hash)= @_;
-  
+
     foreach my $file (sort keys %$r_hash)
       { create_instances($file, $r_hash); 
       }
@@ -350,7 +350,7 @@ sub create
 
 sub parse_error
   { my($prg_line,$r_st,$pos,$filename)= @_;
-  
+
     my($line,$column)= find_position_in_string($r_st,$pos);
     if (defined $filename)
       { $filename= "in file $filename "; };
@@ -359,8 +359,8 @@ sub parse_error
              "line $line, column $column in file\n ";
     croak $err;
   }
-             
-    
+
+
 
 sub find_position_in_string
 # gets a position as returned by pos(..) in a
@@ -370,7 +370,7 @@ sub find_position_in_string
 
     my $cnt=0;
     my $lineno=1;
-    
+
 
     pos($$r_str)=0;
     my $oldpos=-1;
@@ -440,9 +440,9 @@ sub rdump
 
 sub dump
   { my($r_templates)= @_;
- 
+
     my $r;
-    
+
     rdump(\$r,$r_templates,0);
     print $r,"\n";
   }
@@ -498,7 +498,7 @@ scalar variable.
 B<parse_file()>
 
   my $r_templates= parse_subst::parse_file($filename);
-  
+
 This function parses the contents of the given filename. If the parameter
 C<$filename> is not given it tries to read form STDIN. If the
 file cannot be opened, it dies with an appropriate error message.
@@ -511,7 +511,7 @@ B<dump()>
 
   my $r_templates= parse_subst::parse($st);
   parse_subst::dump($r_templates);
-  
+
 This function prints a dump of the created structure 
 to the screen. 
 
@@ -540,7 +540,7 @@ gives the value of that field. Note that undefined fields-values are
 empty strings (""), not the perl undef-value.
 
 Example of a hash that parse() returns:
-  
+
   $r_templates= { 'acsm.template' => 
                           [  {
                                'MCHAN' => 'A',
@@ -555,16 +555,16 @@ Example of a hash that parse() returns:
                                'BASE' => 'U49ID8R:'
                              },
 		          ]
-			  
+
 =head2 backwards compability:
 
 Version 1.0 of the parser used a hash instead of the array as explained
 above, with keys from "0" to .. "n". If you want a template-hash 
 structure that is still compatible to this, set C<$old_parser> to 1 like
 this:
-	
+
   $parse_subst::old_parser=1;
-	
+
 
 =head1 AUTHOR
 

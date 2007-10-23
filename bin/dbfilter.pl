@@ -145,7 +145,7 @@ if ($opt_lowcal ne "")
         $opt_lowcal=""; 
       }; 
   };
-  
+
 if ($opt_Lowcal ne "")
   { if ($opt_Lowcal!~/=/)
       { push @ARGV,$opt_Lowcal;
@@ -188,7 +188,7 @@ foreach my $file (@files)
   { my $filename;
     if (!$single_file)
       { $filename= $file; };
-      
+
     my $recs= parse_db::parse_file($file);
 
     if (defined $opt_name)
@@ -224,7 +224,7 @@ foreach my $file (@files)
     if (defined $opt_empty)
       { remove_empty_fields($recs); 
       };
-      
+
     if (defined $opt_rm_capfast_defaults)
       { remove_capfast_default_fields($recs); 
       };
@@ -257,17 +257,17 @@ foreach my $file (@files)
       { list_unresolved_variables($filename,$recs,1);
         next;
       };
-    
+
     if (defined $opt_unresolved_links)
       { list_unresolved_links($filename,$recs,1);
         next;
       };
-    
+
     if (defined $opt_unresolved_links_plain)
       { list_unresolved_links($filename,$recs,1,1);
         next;
       };
-      
+
     if (defined $opt_record_references)
       { 
         list_record_references($filename,$recs,
@@ -276,7 +276,7 @@ foreach my $file (@files)
 			       $opt_recursive);
         next;
       };  
-    
+
     if (defined $opt_list)
       { foreach my $r (sort keys %$recs)
 	  { if (defined $filename)
@@ -328,7 +328,7 @@ exit(0);
 
 sub rem_empty_records
   { my($r_rec)= @_;
-    
+
     foreach my $recname (keys %$r_rec)
       { my $r_f= $r_rec->{$recname}->{FIELDS};
 	if (!%$r_f)
@@ -339,9 +339,9 @@ sub rem_empty_records
 sub one_line_dump_recs
 # dump all records, one record per line
   { my($filename,$r_rec)= @_;
-    
+
     print "\nFILE $filename:\n" if (defined $filename);
-    
+
     foreach my $recname (sort keys %$r_rec)
       { print "$recname";
         my $r_f= $r_rec->{$recname};
@@ -359,7 +359,7 @@ sub one_line_dump_recs
 sub dump_recs
 # dump the internal record-hash structure
   { my($filename,$r_rec)= @_;
-    
+
     print "\nFILE $filename:\n" if (defined $filename);
     parse_db::dump($r_rec);
   }
@@ -378,7 +378,7 @@ sub find_val_in_rec
 # regular expression
   { my($rec)= @_;
     my @matches;
-  
+
     my $r_values= $rec->{FIELDS};
     foreach my $v (sort keys %$r_values)
       { 
@@ -393,7 +393,7 @@ sub filter_rec_fields
 # part of a given hash
   { my($rec, $r_field_hash)= @_;
     my @rem;
-  
+
     my $r_values= $rec->{FIELDS};
     foreach my $v (sort keys %$r_values)
       { if (!exists $r_field_hash->{lc($v)})
@@ -402,13 +402,13 @@ sub filter_rec_fields
     foreach my $v (@rem)
       { delete $r_values->{$v}; };
   }
-    
+
 sub filter_fields
 # remove all fields in all records that
 # are part of a given list
   { my($r_rec,$r_fields)= @_;
     my %h= map { lc($_)=>1 } @$r_fields;
-    
+
     foreach my $rec (keys %$r_rec)
       { filter_rec_fields($r_rec->{$rec}, \%h); };
   }
@@ -416,7 +416,7 @@ sub filter_fields
 sub remove_empty_fields
 # remove empty fields in all records
   { my($r_rec)= @_;
-  
+
     foreach my $rec (keys %$r_rec)
       { my $r_values= $r_rec->{$rec}->{FIELDS};
         foreach my $f (keys %$r_values)
@@ -425,14 +425,14 @@ sub remove_empty_fields
 	  };
       };
   }
-    
+
 sub remove_capfast_default_fields
 # remove empty fields in all records
   { my($r_rec)= @_;
-  
+
     analyse_db::rem_capfast_defaults($r_rec);
   }
-    
+
 sub match_fields
 # return all fields of a record that
 # match a given regexp, note: 
@@ -453,8 +453,8 @@ sub list_unresolved_variables
     my $res;
     my %mac;
     my %recs;
-    
-    
+
+
     foreach my $recname (keys %$recs)
       { $res= add_macros(\%mac, $recname);
         my $r_fields= $recs->{$recname}->{FIELDS};
@@ -484,7 +484,7 @@ sub list_record_references
     my %referenced_by;
     my @reclist;
     my %to_print;
-    
+
     # add information about which record is linked
     # to which other record
     analyse_db::add_link_info($recs);
@@ -523,10 +523,10 @@ sub list_record_references
       }
     else
       { @reclist=(sort keys %$recs); };
-      
+
     if (defined $post_filter)
       { @reclist= grep { post_name_filter($_) } @reclist; }
-    
+
     #print parse_db::dump($recs->{$reclist[0]}); die; 
 
     if (defined $filename)
@@ -536,10 +536,10 @@ sub list_record_references
 
     #if ($recreate)
     #  { %to_print= map { $_ => 1 } @reclist; };
-    
+
     # <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
     # separator in-between record-names: $S
-    
+
     my $A= "\n";
     my $B= "  references:";
     my $C= "\n";
@@ -547,7 +547,7 @@ sub list_record_references
     my $E= "\n";
     my $F= "\n";
     my $S= "\n\t";
-    
+
     if ($opt_alternative)
       { $A='';
         $B=' ->'; 
@@ -557,25 +557,25 @@ sub list_record_references
 	$F= "\n";
 	$S= " ";
       };
-    
+
     foreach my $recname (@reclist)
       { my @references   = analyse_db::references_list($recs,$recname);
         my @referenced_by= analyse_db::referenced_by_list($recs,$recname);
-      
+
         if ((!@references) && (!@referenced_by))
 	  { next; };
-	
+
 	#if (defined $post_filter)
         #  { @references   = grep { post_name_filter($_) } @references; 
 	#    @referenced_by= grep { post_name_filter($_) } @referenced_by; 
 	#  };	
-	
+
 	print $recname;
 	if ($linkset_hash)
 	  { print "(",$linkset_hash->{$recname},")"; };
-	
+
 	print $A;
-	  
+
 	if (@references)
 	  { #if ($recreate)
 	    #  { map{ $to_print{$_}= 1 } @references;
@@ -597,13 +597,13 @@ sub list_record_references
         parse_db::create($recs,\@reclist);
       };  
   } 
- 
+
 sub list_unresolved_links
   { my ($filename,$recs,$do_list,$plain_list)= @_;
     my $res;
     my %mac;
     my %found_recs;
-    
+
     foreach my $recname (keys %$recs)
       { 
         my $r_ref_fields= analyse_db::rec_link_fields($recs,$recname);
@@ -628,7 +628,7 @@ sub list_unresolved_links
 	print join("\n",sort keys %values),"\n";
 	return;
       };
-    
+
     print "=" x 40,"\n";
     if ($do_list)
       { print "unresolved links in these records:\n";
@@ -657,7 +657,7 @@ sub add_macros
 sub collect_macros
   { my($st)= @_;
     my @l;
-  
+
     while ($st=~ /\$\(([^\)]*)\)/g) 
       { push @l,$1; }; 
     return(@l);  
@@ -669,14 +669,14 @@ sub filter_records
   { my($r_rec,$field,$regexp)= @_;
     my @nomatch;
     my $field_is_regexp;
-    
+
 #die "$field,$regexp";
     if ($field=~ /\//)
       { # field is a regular expression
         create_regexp_func("field_matcher",$field);
 	$field_is_regexp= 1;
       };	
-    
+
     create_regexp_func("field_filter",$regexp);
 
     foreach my $rec (sort keys %$r_rec)
@@ -704,13 +704,13 @@ sub filter_records
         delete $r_rec->{$r}; 
       };
   }
- 
+
 sub filter_type
 # remove all records whose type does not
 # match a given regular expression
   { my($r_rec,$regexp)= @_;
     my @nomatch;
-  
+
 #die "$r_rec,$regexp";
     create_regexp_func("type_filter",$regexp);
 
@@ -724,13 +724,13 @@ sub filter_type
         delete $r_rec->{$r}; 
       };
   }
-      
+
 sub filter_name 
 # remove all records whose name does not match a
 # given regular expression
   { my($r_rec,$regexp,$invert)= @_;
     my @nomatch;
-  
+
     create_regexp_func("name_filter",$regexp,$invert);
 
     foreach my $rec (sort keys %$r_rec)
@@ -746,10 +746,10 @@ sub filter_name
 
 sub filter_percent
   { my($r_rec,$percent)= @_;
-  
+
     my @rem_recs= (sort keys %$r_rec);
     my $len= $#rem_recs+1;
-    
+
     if ($percent>0) # remove last <no> percent
       { my $n= int($percent/100*$len+0.5); # one more for safety reasons
         @rem_recs= splice @rem_recs,$n+1,($len-$n);
@@ -763,17 +763,17 @@ sub filter_percent
         delete $r_rec->{$r}; 
       };
   }
-         
-    
+
+
 sub find_val
 # remove all records where not one of the
 # fields matches a given regular expression
   { my($filename,$r_rec,$regexp,$do_print)= @_;
     my @fields;
     my @delete;
-  
+
     create_regexp_func("value_filter",$regexp);
-    
+
     foreach my $rec (sort keys %$r_rec)
       { 
         @fields= find_val_in_rec( $r_rec->{$rec});
@@ -793,11 +793,11 @@ sub find_val
         delete $r_rec->{$r}; 
       };
   }	
- 
+
 sub lowcal
   { my($filename,$r_rec,$reverse,$filters)= @_;
     my %filter_hash;
-    
+
     my %filter_map= 
       ( srv=> 'server',
 	mul=>'multi',
@@ -823,7 +823,7 @@ sub lowcal
 	s=>  '^1', 
 	u=>  '^0', 
       );
-      
+
 
     if (defined $filters)
       { my @args= split(/\s*,\s*/,$filters);
@@ -848,15 +848,15 @@ sub lowcal
       };
 
 #die "f:" . join("|",%filter_hash);
-    
+
     filter_records($r_rec,"DTYP","lowcal"); 
     filter_fields($r_rec,['INP','OUT']);
-    
+
     if (!$reverse)
       { printf "%-25s%-3s %s\n","recordname","dir",canlink::tab_print(); }
     else
       { printf "%s %-3s %-25s\n",canlink::tab_print(),"dir","recordname"; }
-    
+
     foreach my $recname (sort keys %$r_rec)
       { my $r= $r_rec->{$recname}->{FIELDS};
         my $link= $r->{OUT};
@@ -867,10 +867,10 @@ sub lowcal
 	  };
 
         my %h= canlink::decode($link);
-      
+
         $h{dir}= $dir; # put 'dir' into the hash in order
 		       # to be able to filter it
-	
+
 	my $skip;
 	foreach my $field (keys %filter_hash)
 	  { 
@@ -878,18 +878,18 @@ sub lowcal
 	      { $skip=1; last; }; 
 	  };
 	next if ($skip);	  
-      
+
         if (!$reverse)
           { printf "%-25s%-3s %s\n",$recname,$dir,canlink::tab_print(%h); }
 	else
           { printf "%s %-3s %-25s\n",canlink::tab_print(%h),$dir,$recname; }
       };
   }
- 
+
 sub sdo
   { my($filename,$r_rec,$reverse,$params)= @_;
     my $use_hex= 0;
-  
+
     if (defined $params)
       { my @args= split(/\s*,\s*/,$params);
         foreach my $a (@args)
@@ -906,15 +906,15 @@ sub sdo
 	    warn "not recognized: \"$a\"\n"; 
 	  };
       };
-    
+
     filter_records($r_rec,"DTYP","SDO"); 
     filter_fields($r_rec,['INP','OUT']);
-    
+
     if (!$reverse)
       { printf "%-28s%-3s %s\n","recordname","dir",sdo_tab_print(); }
     else
       { printf "%s %-3s %-28s\n",sdo_tab_print(),"dir","recordname"; }
-    
+
     foreach my $recname (sort keys %$r_rec)
       { my $r= $r_rec->{$recname}->{FIELDS};
         my $link= $r->{OUT};
@@ -925,9 +925,9 @@ sub sdo
 	  };
 
         my %h= sdo_decode($link);
-	
+
 	$h{USE_HEX}= $use_hex;
-      
+
         if (!$reverse)
           { printf "%-28s%-3s %s\n",$recname,$dir,sdo_tab_print(%h); }
 	else
@@ -939,9 +939,9 @@ sub sdo_decode
   { my($str)= @_;
     my($connection_char,$port,$node,$index,
        $subindex,$datasize,$conversion_char,$timeout);
-    
+
     my %h;
-    
+
     if   ($str=~/^\@C:(.)\s+A:(\d+),(\d+),(\d+),(\d+)\s+
                  V:(\d+),(.)\s+T:(\d+)\s*$/x)
       { $connection_char= $1;
@@ -975,17 +975,17 @@ sub sdo_decode
       { $h{HOSTTYPE}= "CLIENT"; }
     else
       { die "link tot parsable:\"$str\""; };
-      
+
     if    (lc($conversion_char) eq 'r') 
       { $h{DATATYPE}= "RAW"; }
     elsif (lc($conversion_char) eq 'i') 
       { $h{DATATYPE}= "INT"; }
     else
       { die "link not parsable (conv.char):\"$str\""; };
-    
+
     if ($subindex>255)
       { die "link not parsable (subindex range):\"$str\""; };
-      
+
     $h{PORT}    = $port;
     $h{NODE}    = $node;
     $h{INDEX}   = $index;
@@ -1008,7 +1008,7 @@ sub sdo_wcob
 
 sub sdo_tab_print
   { my(%p)= @_;
-       
+
     # HOSTTYPE, PORT, NODE, INDEX, SUBINDEX, DATASIZE, DATATYPE, TIMEOUT
     if (!@_)
       { my $st= sprintf "%-7s %3s %3s %5s %4s %3s %3s %5s %5s %6s", 
@@ -1025,11 +1025,11 @@ sub sdo_tab_print
 			;
         return($st);
       };
- 
+
     my  $format= "%-7s %3d %3d %5d %4d %3d %3s %5d %5d %6d";
     if ($p{USE_HEX})
       { $format= "%-7s %3d %3d %5x %4x %3d %3s %5d %5x %6x"; };
-    
+
     my $st= sprintf $format, 
                lc($p{HOSTTYPE}),
 	       $p{PORT},
@@ -1042,26 +1042,26 @@ sub sdo_tab_print
 	       sdo_rcob($p{NODE}),
 	       sdo_wcob($p{NODE}),
 	       ;
- 
+
     return($st);
   }            
-   
+
 sub create_regexp_func
 # create a function for regular expression
 # matching
   { my($funcname,$regexp,$invert)= @_;
     my $str;
-  
+
     if (!defined $regexp)
       { $regexp= '//'; };
-    
+
     if ($regexp=~ s/^!//)
     # leading '!' is an inverted regular expression
       { $invert= 1; }
-    
+
     if ($regexp !~ /\//)
       { $regexp= "/$regexp/"; };
-    
+
     if ($regexp eq '//')
       { $str= "sub $funcname " .
            " { return( defined(\$_[0]) ); }";
@@ -1086,7 +1086,7 @@ sub create_regexp_func
       { die "error: eval() failed, error-message:\n" . $@ . " "  };
   }
 
-    
+
 # fit in program text here
 
 # ------------------------------------------------
@@ -1097,7 +1097,7 @@ sub hjoin
   { my $sep= shift;
     return($sep . join($sep, @_));
   }
-  
+
 sub print_summary
   { printf("%-20s: $sc_summary\n",
            $sc_name);
@@ -1123,37 +1123,37 @@ Syntax:
   $sc_name {options} [file1] [file2...]
 
   options:
-  
+
     -h: help
     --summary: give a summary of the script
 
   specify the type of output:
-  
+
     -i dump internal hash structure
     -r print results in db-file format (default)
     -s --short print results, one line per record
     -l just list the names of the matching records
-   
+
   remove/filter records: 
     --skip_empty_records: records that have no fields (due to
        filtering options that remove fields) are not printed
-    
+
   remove/filter fields: 
     --fields --FIELDS [field1,field2...] 
       print only these fields
 
     -e --empty remove empty fields
-    
+
     -E --rm-capfast-defaults
       remove fields that have still their capfast default value
-   
+
   regular expressions:
     [regexp] stands for a perl regular expression. A leading '!'
     means that the filter is inverted ('do not match'). The regexp
     may be enclosed in '/' characters, but the may be omitted.
-  
+
   special options:
-  
+
     --percent [+-number] 
       keep the first or last n percent of all records
       if number is negative, filter the LAST n percent of all
@@ -1191,7 +1191,7 @@ Syntax:
       When [regexp] specifies just a single record, the --recursive
       option can be used in order to recursively search for the
       set of connected records.
-      
+
     --recursive {no}
       this option can be used together with --record_references.
       no specifies the maximum path length that is allowed for
@@ -1261,14 +1261,14 @@ Syntax:
       names are in the last, not in the first column  
 
    filter field values:
-    
+
     --value [regexp] 
        print a list of all fields in records where
        the field-value matches a regular expression, 
 
     -v [regexp] filter records where at least one field matches
        the given regular expression
-    
+
     --field [field,regexp]|[field] : process only records where
       field matches regexp  
       if regexp is omitted just test for the existence of that field
@@ -1284,7 +1284,7 @@ Syntax:
     --DTYP [regexp] : filter DTYP field
 
     --TYPE|-t [regexp] : filter record type
-    
+
     if no file is given $sc_name reads from standard-input  
 END
   }

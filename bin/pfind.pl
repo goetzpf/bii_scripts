@@ -70,7 +70,7 @@ if ($opt_summary)
 
 if ($#ARGV<0)
   { die "parameters are missing, use -h for help!\n"; };
-  
+
 my $path   = '.';
 my $f_regex= '*';
 my $s_regex;
@@ -86,11 +86,11 @@ elsif ($#ARGV==2)
   { ($path,$f_regex,$s_regex)= @ARGV; }
 else
   { die "too many parameters, use -h for help\n"; };
- 
+
 if (defined $opt_exclude)
   { %exclude= map { $_ => 1 } (split(/,/,$opt_exclude)); 
   }
- 
+
 if (!defined $opt_stdin_list) # search recursively for files 
   { if ($f_regex!~ /^\/[^\/]*\/\w*$/ )
       { $f_regex= filemask_convert($f_regex); };
@@ -102,14 +102,14 @@ if (!defined $opt_stdin_list) # search recursively for files
     if ($@)
       { die "error: eval() failed, error-message:\n" . $@ . " "  };
   };
-  
+
 
 if ($s_regex !~ /^\//)
   { $s_regex= "/$s_regex/"; };
 
 if (defined $opt_ignore_case)
   { $s_regex.= "i"; };
-      
+
 #print "****|$s_regex|\n";
 #die;
 
@@ -117,7 +117,7 @@ if (defined $opt_mult) # multi-line mode
   { $s_regex=~ /^\/(.*)\/(\w*)$/;
     $s_regex= $1;
     $s_regex_mod= $2;
-  
+
     if ($s_regex!~ /\\G/) # \G option is missing...
       { $s_regex= '\G.*?' . $s_regex; };
 
@@ -138,7 +138,7 @@ eval( "sub line_filter " .
       " { return( scalar (\$_[0]=~$s_regex) ); }" );
 if ($@)
   { die "error: eval() failed, error-message:\n" . $@ . " "  };
-      
+
 my $option_filter= ($opt_ccode || $opt_headers || $opt_perl || $opt_make);
 my $text_filter  = ($opt_perl_ex || $opt_text);
 
@@ -149,12 +149,12 @@ else
       { check_($file);
       };
   };
-	
+
 sub check_
   { my($path)= @_;
     chomp($path);
     my $old= cwd;
-  
+
     my ($volume,$dirs,$file) = File::Spec->splitpath($path);
     if (!-d $dirs)
       { 
@@ -170,15 +170,15 @@ sub check_
       { check_file($path,$file); };
     chdir($old) || die "unable to chdir to $old\n";
   }  
-    
+
 
 sub wanted 
   { my $file= $_;
     my $is_perl;
-  
+
     if ($opt_progress)
       { printf(STDERR "\r%-78s\r", $File::Find::dir . "/$file"); }
-    
+
     return unless (-f $file);
     return if (-z $file);
     if (!(-r $file)) 
@@ -204,7 +204,7 @@ sub wanted
               { last if ($file =~ /^([Mm]akefile|
 	                             [Mm]akefile\.\w+|
 				     \w+\.mak)$/x); };
-	      
+
 	    # return if the filename didn't match the wanted file-scheme
 	    # AND if not one of the text-file search filters is on
 	    if (!$text_filter)
@@ -213,7 +213,7 @@ sub wanted
 	      { last; }; 
           };
       }; 
-    
+
     return unless (file_filter($file));
 
     if (($opt_perl_ex) && (!$is_perl))
@@ -225,45 +225,45 @@ sub wanted
 	  };
 	$is_perl= 1;
       };
-        
-    
+
+
     if (($opt_text) && (!$is_perl))
       { if ($file_assist)
           { return if ($file =~ /\.[ao]$/); };
-	
+
         my $type= `file \'$file\'`;
         # print "$_ : |$type|\n";
 	return if ($type !~ /\btext\b/i);
       };
-    
+
     check_file($File::Find::name,$file);
   }
 
 sub filter_dir
   { my ($dir)= @_;
-  
+
     my @dirs = File::Spec->splitdir( $dir );
 #warn join("|",@dirs);
     return(1) if (exists $exclude{$dirs[1]});
     return(0);
   }  
-  
+
 sub check_file
   { my($fullname,$name)= @_;
     my $line;
     my $lineno=0;
     my $was_matched;
-    
+
     my $filename_print_mode='P';
     # P:normal print, N:no print, L:list-print I:inverse List-print
-    
+
     if ($opt_no_filenames)
       { $filename_print_mode= 'N'; };
     if ($opt_list)
       { $filename_print_mode= 'L'; };
     if ($opt_list_nomatch)
       { $filename_print_mode= 'I'; };
-    
+
     if (!open(F,$name))
       { warn "unable to open file $name in path $File::Find::dir\n";
         return; 
@@ -277,10 +277,10 @@ sub check_file
 	close(F);
 #warn "regexp: $s_regex";
         pos($content)=0;
-	
+
 	while(line_filter($content))
 	  { $was_matched=1;
-	    
+
 	    if ($filename_print_mode eq 'L')
   	      { print "$fullname\n"; 
 	        last;
@@ -292,7 +292,7 @@ sub check_file
                   { print "\n-------> $fullname\n"; };
 		$fullname= undef;
 	      };
-		     
+
 	    my $pos= pos($content) - length($&);
 	    if ($opt_mult)
 	      { print "match at position ",$pos,"\n"; }; 
@@ -303,19 +303,19 @@ sub check_file
 	    else
 	      { printf("%5d: %s\n",$lineno,$line); };
 	  };
-	
+
 	if ($filename_print_mode eq 'I')
 	  { if (!$was_matched)
   	      { print "$fullname\n"; }
 	  }; 
 	return;
       };      
-    
+
     while ($line=<F>)
       { $lineno++;
         next unless line_filter($line);
 	$was_matched=1;
-	
+
 	if ($filename_print_mode eq 'L')
   	  { print "$fullname\n"; 
 	    last;
@@ -327,7 +327,7 @@ sub check_file
               { print "\n-------> $fullname\n"; };
 	    $fullname= undef;
 	  };
-	  
+
         chomp($line);
 	if ($opt_blank)
 	  { print "$line\n"; }
@@ -340,7 +340,7 @@ sub check_file
   	  { print "$fullname\n"; }
       }; 
   }	
-  
+
 sub find_position_in_file
   { my($name,$position)= @_;
     local(*F);
@@ -359,14 +359,14 @@ sub find_position_in_file
     close(F);
     return($lineno,$line);
   }
-            	
-	
+
+
 sub filemask_convert
   { my($r)= @_;
-   
+
     if ($r eq '*')
       { return('/.*/'); };
-    
+
     $r=~ s/^([^\*])/\^$1/; # line-start sign   
     $r=~ s/([^\*])$/$1\$/; # line-end sign
     $r=~ s/^\*//;          # rem. * at line-start
@@ -374,13 +374,13 @@ sub filemask_convert
     $r=~ s/\./\\\./g;      # point-quoting
     $r=~ s/\?/\./g;        # ? - conversion
     $r=~ s/\*/\.\*/g;      # * - conversion
-    
-    
+
+
     if ($r=~ /\//)
       { die "error: filemask must NOT contain a path\n"; };
-    
+
     $r= '/' . $r . '/';
-    
+
     return($r);
   }  
 
@@ -391,7 +391,7 @@ sub print_summary
 
 sub help
   { my $p= $FindBin::Script;
-  
+
     print <<END;
 
            **** $p $version -- the file-tree regexp-search program ****
@@ -403,12 +403,12 @@ Syntax:
   $p {options} [search-regexp] 
 
   recursive file search
-  
+
   regular expressions for files may be perl-regexps or file-regexps
   a perl-regexp may or may not be enclosed in '/' characters
   (it is sometimes handy to use '/' in order to add modifiers like 
    'i' after the finishing '/').
-  
+
   options:
     -h: help
     -i: ignore case in search-regular expression

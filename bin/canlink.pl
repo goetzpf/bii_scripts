@@ -41,10 +41,10 @@ if ((!$opt_decode) && (!$opt_encode) && $opt_tab)
 if ($opt_decode)
   { while ($#ARGV>=0)
       { $opt_decode.= ' ' . shift(@ARGV); };
-    
+
     my %h= canlink::decode($opt_decode);
     die if (!%h);
-    
+
     if ($opt_tab)
       { print canlink::tab_print(%h),"\n";
       }
@@ -82,7 +82,7 @@ if ($opt_encode)
   };
 
 print "option missing, enter \"-h\" for help \n";
-       
+
 sub help
   { print <<END;
 
@@ -99,6 +99,6 @@ Syntax: $FindBin::Script {options}
     -t (together with -d): print result in a single line suitable 
        for printing a table
        -t alone prints the table-heading   
-    
+
 END
   }

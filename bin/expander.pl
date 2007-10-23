@@ -54,7 +54,7 @@ my $sc_year= "2005";
 my $debug= 0; # global debug-switch
 
 # global parameter hash:
-                  
+
 
 my @files;
 my @macros;
@@ -139,11 +139,11 @@ foreach my $f (@files)
 
 sub find_file
   { my($file,$r_paths)= @_;
- 
+
     return($file) if (-r $file);
 
     return if (!@$r_paths);
-    
+
     my $test;
     for(my $i=0; $i<= $#$r_paths; $i++)
       { if (!-d $r_paths->[$i]) 
@@ -221,7 +221,7 @@ Short (incomplete) syntax description (see also manpage of expander.pm)
 \$if (<expression>)
 \$else
 \$endif			-> conditional parsing
-		
+
 \$for(<init-expr>;<condition-expression>;<loop-expr)
 \$endfor			
 			-> parsing-loop

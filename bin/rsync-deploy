@@ -237,9 +237,9 @@ deploy () {
     TOP=$1; shift
 
     RSYNC_DIRS=("$@")
-    
+
     ssh $RHOST "test -d $RTOP || (echo creating $RHOST:$RTOP; mkdir $RTOP)"
-    
+
     echo "rsync'ing files/directories {$RSYNC_DIRS} to $RHOST:$RTOP/$RSYNC_DATETIME"
     if $verbose; then cparg=-alv; else cparg=-al; fi
     if $copy; then ssh $RHOST "cd $RTOP; cp $cparg $RSYNC_HEAD/ $RSYNC_DATETIME"; : $[ rc += $? ]; fi
@@ -305,7 +305,7 @@ unlock () {
     LHOST=$1
     LTOP=$2
     ID=$3
-    
+
     ssh $LHOST "cd $LTOP; rm .rsync-lock"
 }
 

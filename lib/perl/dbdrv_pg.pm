@@ -55,7 +55,7 @@ my %db_object_types = (TABLE=>'T', VIEW=>'V', PROCEDURE=>'P',
 		      );
 
 my %typemap= (
-    
+
       # numeric types:
               smallint           => 'number',   # documented, found
               integer            => 'number',   # documented, found
@@ -75,7 +75,7 @@ my %typemap= (
               character          => 'string',   # documented
               '"char"'           => 'string',   # documented, found
               text               => 'string',   # documented, found
-                 
+
       # binary data types
               bytea              => 'number',   # documented, found
 
@@ -125,7 +125,7 @@ my %typemap= (
               regoperator        => undef,      # documented
               regclass           => undef,      # documented
               regtype            => undef,      # documented
-      
+
       # pdeudo types
 
               any                => undef,      # documented     
@@ -140,7 +140,7 @@ my %typemap= (
               opaque             => undef,      # documented     
 
       # types that were found but not documented (??)
-      
+
               abstime            => undef,      # found
               int2vector         => undef,      # found
               name               => undef,      # found
@@ -253,11 +253,11 @@ sub real_name
     return if (!defined $dbh);
 
     load_object_dict($dbh,$user_name);
-    
+
     my $full_object_name= add_schema($dbh,$object_name);
-        
+
     my $data= $r_db_objects->{$full_object_name};
-      
+
     return if (!defined $data); # not in list of objects
 
     my($schema,$short_object_name)= split(/\./,$full_object_name);
@@ -277,13 +277,13 @@ sub canonify_name
 
     if ($object_name !~ /\./)
       { return($object_name); };
-      
+
     my %curr_schemas= current_schemas($dbh);
-      
+
     my ($schema,$obj)= split(/\./,$object_name); 
     if (!exists($curr_schemas{$schema}))
       { return($object_name); };
-      
+
     return($obj);
   }
 
@@ -294,10 +294,10 @@ sub current_schemas
 # returns a hash with the current schemas
 # (default-schemas for the current user)
   { my($dbh)= @_;
-  
+
     if (%curr_schemas)
       { return(%curr_schemas); };
-    
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -305,7 +305,7 @@ sub current_schemas
     # handle arrays yet. I currently get a segmentation fault... :-(
     my $SQL= "select array_to_string(current_schemas,'|') " .
               "from current_schemas(true);";
-    
+
     my $res= $dbh->selectall_arrayref($SQL);
 
     if (!defined $res)
@@ -315,11 +315,11 @@ sub current_schemas
       };
 
     return if ($#$res<0);
-    
+
     my @schemas= split(/\|/,$res->[0]->[0]);
-    
+
     #print Dumper(\@schemas);
-    
+
     %curr_schemas= map { $_=>1 } @schemas;
     return(%curr_schemas);
   }
@@ -330,7 +330,7 @@ sub schemas_for_object
 # for a given object(table or view)
   { my($dbh,$object_name)= @_; 
     my @schemas;
-  
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -339,12 +339,12 @@ sub schemas_for_object
              "WHERE c.relname='$object_name' AND " .
                    "c.relnamespace=n.oid";
 
-    
+
     #returns:
     #      relname       |      nspname
     # -------------------+--------------------
     #  table_constraints | information_schema    
-    
+
     my $res= $dbh->selectall_arrayref($SQL);
 
     if (!defined $res)
@@ -354,10 +354,10 @@ sub schemas_for_object
       };
 
     return if ($#$res<0);
-    
+
     foreach my $r_line (@$res)
       { push @schemas, $r_line->[1]; };
-      
+
     return(@schemas);
   }
 
@@ -366,9 +366,9 @@ sub add_schema
 # add schema-name prefix to an object_name
   { my($dbh,$object_name)= @_;
     my $obj;
-    
+
     $object_name= lc($object_name);
-    
+
     return($object_name) if ($object_name =~ /\./);
 
     $obj= $object2schemaobject{$object_name};
@@ -413,7 +413,7 @@ sub load_object_dict
   { my($dbh)= @_;
 
     return if (defined $r_db_objects);
-    
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -595,18 +595,18 @@ sub check_existence
 sub check_exists  
 # INTERNAL to dbdrv_pg!!!
   { my($dbh,$user_name,$table_name)= @_;
-  
+
     $table_name= lc($table_name);
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     load_object_dict($dbh,$user_name);
-    
+
     $table_name= add_schema($dbh,$table_name);
 
     return if (!exists $r_db_objects->{$table_name});
-    
+
     # return schema and table-name separate:
     return( split(/\./,$table_name) );
   }
@@ -658,10 +658,10 @@ sub get_simple_column_types
     # so we have to determine the column-types manually here
 
     # see also the definition of "%typemap" at the top of this file
-  
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
-          
+
     my($schema,$table) = dbdrv::check_exists($dbh,"",$table_name);
 
     if (!defined $table)
@@ -699,7 +699,7 @@ sub get_simple_column_types
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
-    
+
     my @x;
     my $t;
     foreach my $r_line (@$res)
@@ -760,7 +760,7 @@ sub column_properties
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
- 
+
     my %ret;
     foreach my $line ( @$res )
       {
@@ -777,7 +777,7 @@ sub column_properties
 #=============================================================
 # relations: primary, foreign, resident keys
 #=============================================================
-  
+
 #-------------------------------------------------------------
 # primary key
 #-------------------------------------------------------------
@@ -834,7 +834,7 @@ sub primary_keys
     # a line like: PRIMARY KEY (a, c)
 
     my $line= $res->[0]->[0];
-    
+
     return if ($line eq "");
 
 #warn "line:$line\n";
@@ -846,12 +846,12 @@ sub primary_keys
     my $pk= uc($1);  
     if ($pk!~ /,/) # only a single primary key
       { return( $pk ); };
-      
+
     my @pk_list= split(/[\s,]+/,$pk);
     return(@pk_list);
-    
+
   }
-  
+
 #-------------------------------------------------------------
 # foreign-key 
 #-------------------------------------------------------------
@@ -870,7 +870,7 @@ sub foreign_keys
 
     ($full_name,$table_owner,$table,$schema)=
        real_name($dbh,$user_name,$table_name);
-    
+
     if (!defined $table) # assertion !
       { dbwarn($mod_l,'foreign_keys',__LINE__,
                "table $table_name not present or accessible");
@@ -889,7 +889,7 @@ sub foreign_keys
              "WHERE contype = 'f' AND " .
                     "conrelid=$table_oid";
 
-  
+
     sql_trace($SQL) if ($sql_trace);
     my $res=
       $dbh->selectall_arrayref($SQL);
@@ -919,7 +919,7 @@ sub foreign_keys
         $foreign_keys{uc($1)}= [ $2, uc($3), $table_owner];
         # a bit of a fake here, the table-owner 
         # is added without further check
-   
+
       };
 
     return( \%foreign_keys);
@@ -987,7 +987,7 @@ sub resident_keys
       { # no resident keys found, just return "undef"
         return;
       };
-      
+
     # build a hash,
     # col_name => [ [resident_table1,resident_column1,resident_owner],
     #               [resident_table2,resident_column2,resident_owner],
@@ -1004,7 +1004,7 @@ sub resident_keys
             return;
           };
         my($resident_col,$foreign_tab,$foreign_col)=(uc($1),$2,uc($3));
-        
+
         if (($foreign_col=~ /,/) or ($resident_col=~ /,/))
           { dbwarn($mod_l,'foreign_keys',__LINE__,
                     "column-combinations are not supported, found relation was:\n" .
@@ -1036,7 +1036,7 @@ sub object_dependencies
 # type is either "TABLE" or "VIEW"
   { my($dbh,$table_name,$user_name)= @_;
     my($full_name,$table_owner,$table,$schema);
-  
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -1051,9 +1051,9 @@ sub object_dependencies
       };
 
     view_dependencies($dbh,$user_name);
-    
+
     my @dependents;
-    
+
     my $data= $r_db_objects->{"$schema.$table"};
     if (defined $data)
       { my $referencing= $data->[4]; 
@@ -1061,7 +1061,7 @@ sub object_dependencies
           { foreach my $obj (@$referencing)
               { my $d= $r_db_objects->{$obj};
                 die "assertion!" if (!defined $d);
-                
+
                 push @dependents, [$d->[1],$obj,
                                    $d->[0] eq 'T' ? 'TABLE':'VIEW',
                                   ];
@@ -1104,7 +1104,7 @@ sub sql_parse
 # with embedded lists
 # recognizes numbers and strings starting with "'"
   { my($str,$r_list)= @_;
- 
+
 
     #print "SQLPARSE:$str\n";
     my $ch;
@@ -1147,7 +1147,7 @@ sub scan_FROM
   { my($dbh,$r_list,$r_objs,$r_known_objs)= @_;
     my $from_found;
     my $obj_found;
-  
+
 
     #print "SCAN FROM *************************************\n";
     foreach my $elm (@$r_list)
@@ -1201,13 +1201,13 @@ sub view_dependencies
   { my($dbh,$username)= @_;
 
     return if ($view_dependencies_examined);
-    
+
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     my $SQL= "SELECT * from pg_views WHERE " .
              "has_table_privilege(schemaname || '.' || viewname,'select')";
-             
+
     # returns schemaname, viewname, viewowner, description
 
     my $res= $dbh->selectall_arrayref($SQL);
@@ -1236,12 +1236,12 @@ sub view_dependencies
         scan_FROM($dbh,\@parse_tree,\%referenced,$r_db_objects);
 
         next if (!%referenced);
-        
+
         $n= $line->[0] . "." . $line->[1];
-        
+
         # store information in data-dictionary
         $r_db_objects->{$n}->[3]= [sort keys %referenced];
-          
+
         foreach my $obj (keys %referenced)
           { push @{ $r_db_objects->{$obj}->[4] }, $n; };  
 
@@ -1249,7 +1249,7 @@ sub view_dependencies
         #                   [4]: referencing objects
         #  --> but only with respect to views, no information
         #      about foreign-key relations!!
-                
+
         #$viewrefs{$line->[0] . "." . $line->[1]}= \%referenced;
         #print Dumper(\@parse_tree);
         #print "-" x 20,"\n";
@@ -1288,9 +1288,9 @@ sub object_references
       };
 
     view_dependencies($dbh,$user_name);
-    
+
     my @referenced;
-    
+
     my $data= $r_db_objects->{$full_name};
     if (defined $data)
       { my $referenced= $data->[3]; 
@@ -1298,7 +1298,7 @@ sub object_references
           { foreach my $obj (@$referenced)
               { my $d= $r_db_objects->{$obj};
                 die "assertion!" if (!defined $d);
-                
+
                 push @referenced, [$d->[1],$obj,
                                    $d->[0] eq 'T' ? 'TABLE':'VIEW',
                                   ];
@@ -1315,7 +1315,7 @@ sub object_references
         my %tabs;
         foreach my $col (keys %$fk)
           { my $r_line= $fk->{$col};
-            
+
             $tabs{add_schema($dbh,$r_line->[0])}= 1;
           };
 #print Dumper(\%tabs);
@@ -1390,7 +1390,7 @@ sub read_viewtext
     my $r_line= $res_r->[0];
     if (!ref($r_line))
       { return; }; # empty
-    
+
     my $text= $r_line->[0];
     return( $text );
   }
@@ -1410,7 +1410,7 @@ sub read_checktext
 #-------------------------------------------------------------
 # read triggertext
 #-------------------------------------------------------------
-  
+
 sub read_triggertext
 # EXPORTED
 # reads the name, type, event, referer, clause, status

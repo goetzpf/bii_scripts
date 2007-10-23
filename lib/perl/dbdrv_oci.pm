@@ -158,7 +158,7 @@ sub real_name
 
     if ((!defined $data) && ($obj !~ /\./))
       { # try a 2nd lookup with the user-name as prefix:
-        
+
         $object_name= "$user_name.$obj";
         $data= $r_db_objects->{$object_name};
       };
@@ -374,7 +374,7 @@ sub accessible_objects
 
     load_object_dict($dbh,$user_name);
     # loads also functions and procedures
-    
+
     my @keys= keys %$r_db_objects;
 
 #print Dumper(\%types);
@@ -616,10 +616,10 @@ sub column_properties
                 "selectall_arrayref failed, errcode:\n$DBI::errstr");
         return;
       };
-    
+
     return if (!@$res_r);
     # no column-properties found
-    
+
     my %ret;
     # caution: the hash may be empty !
     foreach my $line ( @$res_r )
@@ -633,7 +633,7 @@ sub column_properties
         };
       };
 #print Dumper(\%ret);      
-      
+
     return( \%ret );
   }
 
@@ -1163,7 +1163,7 @@ sub read_viewtext
 
     ($table_owner,$table_name)=
                 (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
- 
+
     if (!defined $table_name)
       { # not in list of synonyms and user objects
         # the object is probably not accessible

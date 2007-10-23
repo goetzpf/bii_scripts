@@ -68,13 +68,13 @@ if (defined($opt_patch))
   { $opt_patch=1; };
 if (defined($opt_simpatch))
   { $opt_patch=-1; };
-  
+
 if ($#ARGV<1)
   { die "error:path1 or path2 is missing!\n"; };
 
 my($src) = $ARGV[0];
 my($dest)= $ARGV[1];
-  
+
 
 if (defined($opt_file_match))
   { my $re= normalize_regexp($opt_file_match);
@@ -96,7 +96,7 @@ if (defined($opt_msg_nomatch))
     $regexp_flag|=2; 
     eval 'sub nregexp { return($_[0]!~ '. "$re) }";
   }
-      
+
 all_files($src,$dest);
 
 
@@ -114,7 +114,7 @@ sub all_files
 
     get_dirs_files($spath,\@sdirs,\@sfiles);
     get_dirs_files($dpath,\@ddirs,\@dfiles);
-    
+
     if (!defined($opt_only_dirs))
       { foreach my $file (join_lists(@sfiles,@dfiles))
           { my(%h)= compare_files( "$spath/$file", "$dpath/$file", 0);
@@ -148,9 +148,9 @@ sub get_dirs_files
   { # $_[0] dir-name, $_[1]: reference on dir-array $_[2]: ref. on file-array
     my($dir_name,$dir_array_ref,$file_array_ref)= @_;
     local *DIRHANDLE;
-    
+
     my $dir;
-    
+
     if (!(-e $dir_name))
       { return; }; # the directory does not exist
     opendir(DIRHANDLE,$dir_name) || 
@@ -212,7 +212,7 @@ sub compare_files
 	else
 	  { $h{'exist'}= "sd"; } # both files are there  
       };
-      
+
     if ($opt_nodate)
       { $h{'date'}= '='; } # ignore date-differences
     else
@@ -225,7 +225,7 @@ sub compare_files
 	else
 	  { $h{'date'}= '='; };
       };
-    
+
     if (!$is_dir)
       {	my $fl1= $f1;
         my $fl2= $f2;
@@ -233,7 +233,7 @@ sub compare_files
           { $fl1= filter_file($f1,$opt_filter_cvs, $opt_filter_cr);
 	    $fl2= filter_file($f2,$opt_filter_cvs, $opt_filter_cr);
 	  };
-      
+
         my $t1= (-s $fl1);  
 	my $t2= (-s $fl2); 
 	my $is_equal; 
@@ -243,7 +243,7 @@ sub compare_files
 	  } # src smaller
  	elsif ($t1>$t2) 
 	  { $h{'size'}= '>'; 
-	  
+
 	  } # src larger
         elsif (fcomp($fl1,$fl2))
 	  { $is_equal= 1;
@@ -253,11 +253,11 @@ sub compare_files
 	else
 	  { $h{'content'}= '!'; 
 	  };
-	      
+
 	if (defined $opt_show_diff)
 	  { diff_file($fl1,$fl2,$f1,$f2) if (!$is_equal);
 	  };
-	  
+
         if ((defined $opt_filter_cvs) || (defined $opt_filter_cr))
 	  { unlink($fl1);
 	    unlink($fl2);
@@ -275,7 +275,7 @@ sub fcomp
     my($ret)= 1; 
     open(F1,$_[0]) || die "unable to open \"$_[0]\"\n";
     open(F2,$_[1]) || die "unable to open \"$_[1]\"\n";
-    
+
     for(;;)
       { $l1=read(F1,$buf1,4096);
         $l2=read(F2,$buf2,4096);
@@ -297,38 +297,38 @@ sub fcomp
 
 sub diff_file
   { my($f1,$f2,$real_f1,$real_f2)= @_;
-  
+
     print "-" x 60,"\n";
     print "diff $real_f1 $real_f2:\n";
-    
+
     system("diff $f1 $f2");
   }
-    
+
 
 sub filter_file
   { my($filename,$cvs,$cr)= @_;
-  
+
     my $tmp = new File::Temp(UNLINK => 0,
                              TEMPLATE => 'pcomp-tempXXXXX',
                              DIR => '/tmp');
-    
+
     # old File::Temp API (as installed on sioux.blc.bessy.de):
     # my(undef, $tmp) = File::Temp::tempfile('pcomp-tempXXXXX', 
     #		                             OPEN => 0,
     #			                     UNLINK => 0,
     #                                        DIR => '/tmp');
-    
+
     cvs_filter($filename,$tmp,$cvs,$cr);
     return($tmp);
   }
-	
+
 sub cvs_filter
   { my($in,$out,$cvs,$cr)= @_;
     local(*F);
     local($/);
     undef $/;
     my $x;
-    
+
     open(F, $in) or die "unable to open \"$in\"";
     $x= <F>;
     close(F);
@@ -340,7 +340,7 @@ sub cvs_filter
     print F $x;
     close(F);
   }
-    				 
+
 
 # -------------- file selection logic ----------------  
 
@@ -348,7 +348,7 @@ sub comp_fnames
   { # regexp-handling for filenames
     # returns 1: must compare  0: must not compare 
     my($f1,$f2)= @_;
-    
+
     if ($fregexp_flag==0)
       { return 1; };
     if ($fregexp_flag & 1)
@@ -371,7 +371,7 @@ sub join_lists
     return(sort keys %h);
   }
 
-    
+
 # ------------------ user messages -------------------  
 
 sub print_user_msg
@@ -382,7 +382,7 @@ sub print_user_msg
 
     if (!$st)
       { return; };
-          
+
     if ($regexp_flag & 1)
       { if (!regexp($st))
           { return; };
@@ -391,7 +391,7 @@ sub print_user_msg
       { if (!nregexp($st))
           { return; };
       };
-      
+
     if ($opt_tkdiff)
       { print "tkdiff $f1 $f2\n"; };
     if (defined($opt_verbose))
@@ -410,7 +410,7 @@ sub user_message
   { my($short_mode,%h)= @_;
     my($dmsg,$smsg,$cmsg);
     my($x);
-    
+
 #die if ($short_mode);
     if (!exists($h{'exist'}))
       { return; }; # used to skip files 
@@ -419,7 +419,7 @@ sub user_message
       { return if ($short_mode);
         return("both missing"); 
       };
-    
+
     if ($x eq "s")
       { return("D  ") if ($short_mode); 
         return("destination missing");
@@ -428,7 +428,7 @@ sub user_message
       { return("A  ") if ($short_mode); 
         return("source missing"); 
       };
-    
+
     $x= $h{'date'};
     if    ($x eq '<')
       { if ($short_mode)
@@ -446,7 +446,7 @@ sub user_message
       { if ($short_mode)
 	  { $dmsg= " "; }
       };         
-      
+
     $x= $h{'size'};
     if ($x)
       {	if ($short_mode)
@@ -487,7 +487,7 @@ sub user_message
 	$cmsg= " " if (!$cmsg);  
         return(sprintf ("%s%s%s",$dmsg,$smsg,$cmsg));
       }  
-    
+
     $x= join(',',$dmsg,$smsg,$cmsg);
      $x=~ s/,\s*,/,/g;
     $x=~ s/,$//;
@@ -534,12 +534,12 @@ sub should_patch
 
 sub normalize_regexp
   { my($re)= @_;
-    
+
     if ($re !~ /^\//)
       { return("/$re/"); };
     return($re);
   }
-      
+
 
 # ------------------- online-help --------------------  
 
@@ -564,7 +564,7 @@ sub print_summary
   { my($p)= ($0=~ /([^\/\\]+)$/);
     printf("%-20s: compare two file-trees\n",$p);
   }
-       
+
 sub help
   { my($p)= ($0=~ /([^\/\\]+)$/);
     print <<END;
@@ -577,19 +577,19 @@ Syntax: $p {options} [path1] [path2]
     --prn-eq -e     also give a message for files that are equal
     --only-dirs -d  compare only directories, not files
     --nodirs|-D     compare only files, not directories
-    
+
     --file-match -f   [regexp] 
                     compare only files that match [regexp]
-		    
+
     --file-nomatch -F [regexp]
                     compare only files that do not match [regexp]
-		    
+
     --msg-match -m    [regexp]
                     show only messages that match [regexp]
-		    
+
     --msg-nomatch -M  [regexp]
                     show only messages that do not match [regexp]
-		    
+
     --nodate        ignore differences in the file-date
     --nosrc         ignore when the source is missing
     --nodest        ignore when the destination is missing
@@ -618,6 +618,6 @@ Syntax: $p {options} [path1] [path2]
 	     3rd char:
 	       =: files equal
 	       !: files unequal  
-	     
+
 END
   }

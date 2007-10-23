@@ -56,7 +56,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
             "    -pr <recName>:   print records tha match that name\n\n".
             "*  Example  :\n\n".
             "      grepDb.pl -t bo -r PHA1R -f DTYP -c lowcal -pf '(DTYP|OUT)' filename\n\n";
-    
+
     my $trigRecType = ".";
     my $trigRecName = ".";
     my $trigFieldName = ".";
@@ -90,7 +90,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         $prRecName  = $trigRecName;
         $prFieldName= $trigFieldName ;
     }
-    
+
 #print "Trigger:\n\tType:\'$trigRecType\',\tname \'$trigRecName\',\tfield \'$trigFieldName\',\t value: \'$trigFieldValue\'\n";
 #print "Print:\n\tType: \'$prRecType\',\tname \'$prRecName\',\tfield \'$prFieldName\'\n";
 
@@ -144,16 +144,16 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
 sub parseDb
 {   my ($st,$filename) = @_;
-    
+
     my $r_h= parse_db::parse($st,$filename);
-    
+
     my $rH_records;
     my $rH_recName2recType;
     foreach my $recname (keys %$r_h)
       { $rH_records->{$recname}= $r_h->{$recname}->{FIELDS};
         $rH_recName2recType->{$recname}= $r_h->{$recname}->{TYPE};
       };
-    
+
     return ($rH_records,$rH_recName2recType);
 }
 

@@ -145,16 +145,16 @@ sub format_sql_command
 sub split_sql_command
   { my($sql)= @_;
     my @parts= &parse_line(';', 1, $sql);
-    
+
     my @statements;
     foreach my $p (@parts)
       { next if ($p=~ /^[\s\n\r]*$/);
-        
+
         if ($p=~ /[\"\']/)
           { push @statements, $p;
             next;
           };
-        
+
         $p =~ s/^[\s\n\r]//;
         $p =~ s/[\s\n\r]$//;
         push @statements, $p;
@@ -199,7 +199,7 @@ sub rdump
 
 sub rdump_s
   { my($r_buf,$val,$indent,$is_newline,$comma)= @_;
-  
+
     my $r= ref($val);
     if (!$r)
       { $$r_buf.= " " x $indent if ($is_newline);
@@ -236,13 +236,13 @@ sub rdump_s
 
 sub set_err_func
   { my($f_ref)= @_;
-  
+
     if (!defined $f_ref)
       { # reset to old error-function
         $errorfunc= \&my_err_func;
         return;
       }
-      
+
     if (ref($f_ref) ne "CODE")
       { dberror($mod,'set_err_func',__LINE__,
                 'parameter is not a reference to a subroutine!');
@@ -360,10 +360,10 @@ sub dump_object_dict
 
 sub dump_r_object_dict
   { my($filename)= @_;
-  
+
     my $fh= \*STDOUT;
     local(*F);
-    
+
     if (defined $filename)
       { if (!open(F,">$filename"))
           { dberror($mod,'dump_r_object_dict',__LINE__,"unable to open file"); 
@@ -371,7 +371,7 @@ sub dump_r_object_dict
           };
         $fh= \*F;
       };
-      
+
     rdump($fh,$r_db_reverse_synonyms,0);
     if (defined $filename)
       { if (!close(F))
@@ -522,7 +522,7 @@ sub get_help
           };        
         push @lines, $line;
       }; 
-    
+
     return join("\n",@lines);
   }
 
@@ -708,7 +708,7 @@ of the two following functions:
     }
 
   $dbdrv::set_warn_func(\&my_warn_func)
-  
+
 This function has only one parameter which should be a reference
 to a function or C<undef>. In the first case, the function you
 supplied is used to print the error-message. It should expect
@@ -725,7 +725,7 @@ call to C<warn>) is re-instated.
     }
 
   $dbdrv::set_error_func(\&my_error_func)
-  
+
 This function is very similar to C<set_warn_func>. The only difference
 is that the cases when your error-print function is called are usually
 fatal errors that can not be recovered. So it is safe when your function
@@ -996,7 +996,7 @@ It returns an array of the following format
               [$owner2, $name2, $type2],
                            ...
             )
-            
+
 The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".        
 
 =item dbdrv::object_references
@@ -1012,7 +1012,7 @@ It returns a hash of the following format
               [$owner2, $name2, $type2],
                            ...
             )
-            
+
 The field C<$type> is either "VIEW", "TABLE" or "PROCEDURE".        
 
 =item dbdrv::object_addicts
@@ -1055,7 +1055,7 @@ It returns a hash of the following format:
 
   my @list= ( [$name1, $type1, $event1, $referer1, 
                $clause1, $status1, $body1, $description1],
- 
+
               [$name2, $type2, $event2, $referer2, 
                $clause2, $status2, $body2, $description2],
                            ...

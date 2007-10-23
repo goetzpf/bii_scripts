@@ -94,18 +94,18 @@ exit(0);
 
 sub basename
   { my($path)= @_;
-    
+
     my ($volume,$directories,$file) = File::Spec->splitpath( $path );
-    
+
     if ($file!~ /(.*)\.(?:adl|cdl)$/)
       { die "error: file $file is not a capfast file\n"; };
-      
+
     return($1);
   }
 
 sub process
   { my($filename,$rev,$no)= @_;
-  
+
     if ($rev eq "local")
       { print "working copy";
         return(local_process($filename,$no)); 
@@ -126,19 +126,19 @@ sub process
 sub local_process
   { my($filename,$no)= @_;
     my $cmd;
-  
+
     my $base= basename($filename) . ".$no.db";
     $base= File::Spec->catfile($tmpdir,$base);
-    
+
     if (!sys("$adlsort -f $filename > $base"))
       { return; };
     return($base);
   }
-    
+
 sub cvs_process
   { my($filename,$rev,$no)= @_;
     my $cmd;
-  
+
     my $cvs_options;
     if (defined $rev)
       { $cvs_options= "-r $rev"; 
@@ -146,40 +146,40 @@ sub cvs_process
 
     my $base= basename($filename) . ".$no.db";
     $base= File::Spec->catfile($tmpdir,$base);
-    
+
     if (!sys("cvs update $cvs_options -p $filename 2> /dev/null | " .
              "$adlsort > $base"))
       { return; };
     return($base);
   }
- 
+
 sub svn_process
   { my($filename,$rev,$no)= @_;
     my $cmd;
-  
+
     if (!defined $rev)
       { $rev= 'HEAD'; }; 
     # else: leave revision number 
-     
+
     my $base= basename($filename) . ".$no.db";
     $base= File::Spec->catfile($tmpdir,$base);
-    
+
     if (!sys("svn cat -r $rev $filename 2> /dev/null | " .
              "$adlsort > $base"))
       { return; };
     return($base);
   }
- 
+
 sub show_diff
   { my($f1,$f2)= @_;
-  
+
     my $cmd= "tkdiff $f1 $f2 2>/dev/null";
     sys($cmd);
   }
-        
+
 sub sys
   { my($cmd)= @_;
-  
+
     print "\n$cmd\n" if ($debug);
     if (system($cmd))
       { warn "\"$cmd\" failed : $?"; 

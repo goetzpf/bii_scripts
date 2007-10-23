@@ -89,7 +89,7 @@ sub SimpleTextDialog
 
     if (!defined $r_tbh)
       { $r_tbh= $r_glbl; };
-    
+
     my $tag= $options{tag};
 
     die if (!defined $tag); # assertion
@@ -135,7 +135,7 @@ sub SimpleTextDialog
     $h{top}     = $Top;
     $h{callback}= $options{callback} if (exists $options{callback});
     $h{variable}= $options{variable} if (exists $options{variable});
-    
+
 
     $r_tbh->{$tag}= \%h;
 
@@ -180,7 +180,7 @@ sub MakeTextWidget
 
     my %text;
     my %text_options;
-    
+
     # -height and -width are passed to the text-widget instead of
     # the Top-widget
     foreach my $opt ('-height', '-width') 
@@ -188,7 +188,7 @@ sub MakeTextWidget
         $text_options{$opt}= $tk_options{$opt};
 	delete $tk_options{$opt};
       };
- 
+
     # my $Top= MainWindow->new(-background=>$r_glbl->{theme}->{background});
     my $Top= MakeToplevel($r_glbl,
                          title=>$r_glbl->{title},
@@ -608,7 +608,7 @@ sub MakeToplevel
     my $MainWidget;
     my %known_opts=(parent_widget=>1, title=>1, geometry=>1, popover=>1);
     my %tk_opts;
-    
+
     foreach my $opt (keys %options)
       { next if ($known_opts{$opt});
         $tk_opts{$opt}= $options{$opt};
@@ -728,11 +728,11 @@ sub Progress
 
 sub ungrid
   { my($gridwidget)= @_;
-    
+
     my @slaves= $gridwidget->gridSlaves();
-    
+
     return if (!@slaves);
-        
+
     $gridwidget->gridForget(@slaves);
     foreach my $w (@slaves)
       { $w->destroy(); };

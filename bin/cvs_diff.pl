@@ -32,7 +32,7 @@ my $sc_year= "2006";
 
 my %type= (c => 1,
            any => 2);
-	    
+
 my $type= 'c';	    
 
 my $debug= 1; # global debug-switch
@@ -47,7 +47,7 @@ if (!GetOptions("help|h","summary",
 		"no_comments|c",
 		"no_multiple_empty_lines|m",
 		"type|t=s"
-	
+
                 ))
   { die "parameter error!\n"; };
 
@@ -105,20 +105,20 @@ exit(0);
 
 sub basename
   { my($path)= @_;
-    
+
     my ($volume,$directories,$file) = File::Spec->splitpath( $path );
-    
+
     if ($type eq 'c')
       { if ($file!~ /(.*)\.(c|cc|cpp|CC)$/)
           { die "error: file $file is not a c file\n"; };
       };
-      
+
     return($1);
   }
 
 sub process
   { my($filename,$rev,$no,$rm_comments,$rm_spc_lines)= @_;
-  
+
     if ($rev eq "local")
       { print "working copy";
         return(local_process($filename,$no,$rm_comments,$rm_spc_lines)); 
@@ -141,26 +141,26 @@ sub slurp
     local($/);
     undef $/;
     open(F, $filename) or die "unable to open $filename";
-    
-    
+
+
     my $content= <F>;
     close(F);
     return(\$content);
   }
-  
+
 sub unslurp  
   { my($filename,$r_content)= @_;
-  
+
     local(*F);
     open(F, ">$filename") or die "unable to create $filename";
     print F $$r_content;
     close(F);
   }
-    
-  
+
+
 sub rm_comments
   { my($r_content)= @_;
-   
+
     if ($type eq 'c')
       { # handle "<c-commands> // comment"
 	$$r_content=~ s/^(\S+?)\/\/(.*?)/$1/gm;
@@ -172,50 +172,50 @@ sub rm_comments
 	$$r_content=~ s/\/\*.*?\*\///g;
       };
   }
-  
+
 sub rm_mult_spc_lines  
   { my($r_content)= @_;
-   
+
     $$r_content=~ s/^\s+$//gm;
     $$r_content=~ s/\n+/\n/g;
   }
-    
-  
+
+
 sub expand_it
   { my($r_content)= @_;
-  
+
     my @lines= split(/\n/,$$r_content);
-    
+
     for(my $i=0; $i<= $#lines; $i++)
       { $lines[$i]= expand($lines[$i]); };
-    
+
     $$r_content= join("\n",@lines);
   }   
-    
+
 
 sub local_process
   { my($filename,$no,$rm_comments,$rm_spc_lines)= @_;
     my $cmd;
-  
+
     my $base= basename($filename) . ".$no.db";
     $base= File::Spec->catfile($tmpdir,$base);
-    
+
     my $r= slurp($filename);
     rm_comments($r) if ($rm_comments);
     rm_mult_spc_lines($r) if ($rm_spc_lines);
     expand_it($r);
     unslurp($base,$r);
-    
+
     return($base);
   }
-    
+
 sub cvs_process
   { my($filename,$cvs_options,$no,$rm_comments,$rm_spc_lines)= @_;
     my $cmd;
-  
+
     my $base= basename($filename) . ".$no.db";
     $base= File::Spec->catfile($tmpdir,$base);
-    
+
     if (!sys("cvs update $cvs_options -p $filename 2> /dev/null > " .
              "$base"))
       { return; };
@@ -224,20 +224,20 @@ sub cvs_process
     rm_mult_spc_lines($r) if ($rm_spc_lines);
     expand_it($r);
     unslurp($base,$r);
-      
+
     return($base);
   }
- 
+
 sub show_diff
   { my($f1,$f2)= @_;
-  
+
     my $cmd= "tkdiff $f1 $f2 2> /dev/null";
     sys($cmd,1);
   }
-        
+
 sub sys
   { my($cmd,$nowarn)= @_;
-  
+
     print "$cmd\n" if ($debug);
     if (system($cmd) && !$nowarn)
       { warn "\"$cmd\" failed : $?"; 
@@ -279,7 +279,7 @@ Syntax:
     -m --no_multiple_empty_lines
     --type [type] :
       known types $types 
-      
+
 END
   }
 

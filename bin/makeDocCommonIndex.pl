@@ -46,13 +46,13 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     {
         $application = "$1";
     }
-    
+
     if( $isInApplication ne $application)
     { 
       $isInApplication = $application;
       $docContens .= "<H4><B>$application</B></H4>\n";
     }
-    
+
     if( -e $entryFile )
     {
 
@@ -73,7 +73,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         }
         close ENTRY_FILE;
       }
-      
+
       $entryFile =~ /$installPath\/(.*)/;
       $docContens .= "  <LI><A HREF=\"$1\">$title</A></LI>\n";
     }
@@ -91,7 +91,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     $pwd =~ s/.*\/(.*)$/$1/;
     $indexTitle = "Documentation Index of $pwd";
   }
-  
+
   my ($fileHeader,$fileFooter) = makeDocStyle::blabla($indexTitle,$filetime,$ENV{USER});
 
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";

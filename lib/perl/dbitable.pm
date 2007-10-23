@@ -1006,17 +1006,17 @@ sub get_column_property
     my ($colname, $colproperty) = @_;
 
     return if (!exists $self->{_column_properties});
-    
+
     if (!defined $colname)
       { # return everything if no specific column was requested
         return( %{$self->{_column_properties}} );
       }; 
-    
-    
+
+
     my $col_prop= $self->{_column_properties}->{$colname};
-    
+
     return if (!defined $col_prop);
-    
+
     return( $col_prop->{$colproperty} );
   }
 
@@ -1119,7 +1119,7 @@ sub value
       { $pk= $key; }
     else
       { $pk= $self->{_aliases}->{$key}; };
-      
+
     return if (!defined $pk);
 
     my $line= $self->{_lines}->{$pk};
@@ -1703,7 +1703,7 @@ sub load_from_db
 
         $self->{_native_pk_list}= \@new_list;
       };
-      
+
     # change table name if the user wants it:
     if (exists $options{new_name})
       { $self->{_table}= $options{new_name}; };
@@ -2366,7 +2366,7 @@ sub load_from_file
         $r_aliases->{ $pk }= $pk;
       };
     $self->{_lines}= \%lines_hash;
-    
+
     # change table name if the user wants it:
     if (exists $options{new_name})
       { $self->{_table}= $options{new_name}; };

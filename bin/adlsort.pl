@@ -42,8 +42,8 @@ if (!GetOptions("help|h","debug", "file|f=s", "backup|b",
 		"new_sort|new-sort"
 		))
   { die "parameter error!\n"; };
-                                                                                
-                                                                                
+
+
 if ($opt_help)
   { help();
     exit;
@@ -88,17 +88,17 @@ if (defined $opt_backup)
   { select $oldfh;
     close(F);
   };
-  
+
 exit(0);
 #print "----------------------------------------\n";
 
 sub import_dump
   { my($filename)= @_;
-  
+
     do $filename or die "assertion";
     return($VAR);
   }
-    
+
 
 sub parse_file
   { my($filename)= @_;
@@ -110,14 +110,14 @@ sub parse_file
     my $r_p= parse_top(\$data);
     return($r_p);
   }
-    
+
 
 sub read_expanded_file
   { my($filename)=@_;
     local(*F);
     my $use_stdin= (!defined $filename) || ($filename eq "");
     my @lines;
-    
+
     if (!$use_stdin)
       { open(F, $filename) or die "unable to open $filename"; }
     else
@@ -137,7 +137,7 @@ sub line_indices
   { my($r_data)= @_;
     my @lines;
     my $cr= ord("\n");
-  
+
     my $last=0;
     for(my $i=0; $i< length($$r_data); $i++)
       { 
@@ -148,13 +148,13 @@ sub line_indices
 	$last= $i+1;
       };
     #print "\n"; die;
-      
+
     return(\@lines);  
   }   
 
 sub pos_to_line_ch
   { my($r_indices,$pos)= @_;
-  
+
     for(my $i=$#$r_indices; $i>= 0; $i--)
       { 
         if ($r_indices->[$i]<=$pos)
@@ -169,9 +169,9 @@ sub pos_to_line_ch
 
 sub parse_top
   { my($r_data)= @_;
-  
+
     my $r_indices;
-    
+
     if ($opt_debug)
       { $r_indices= line_indices($r_data); };
 
@@ -179,38 +179,38 @@ sub parse_top
     #my($a,$b)= pos_to_line_ch($r_indices,46); print "$a $b\n";     die;
 
     my @top;
-  
+
     pos($$r_data)=0;
     my ($p,$r_struc)=(0,undef);
-    
+
     for(;;)
       { ($p,$r_struc)= parse($r_data,$p,0,$r_indices);
         last if (!defined $r_struc);
 	push @top, $r_struc;
       };
-      
+
     return(\@top);  
   }      
 
 sub print_parse_tree
   { my($r_list,$sortmode)= @_;
-  
+
 #print "xxxxxxxxxxxxxxxxxxxxxxx\n";
 #    foreach my $elm (@$r_list)
     if ($sortmode eq "SORT-NEW")
       { foreach my $elm (@$r_list)
           { calc_key($elm); };
       }
-    
+
     foreach my $elm (sort_elements($sortmode,@$r_list))
       { 
         print_p_elm($elm,0,$sortmode);
       };
   }
-  
+
 sub print_p_elm
   { my($elm,$level,$sortmode)= @_;
-  
+
     if ($elm->{type} eq 'if')
       { print $elm->{tag},"\n";
         my $if_elm  = $elm->{value}->[0];
@@ -225,16 +225,16 @@ sub print_p_elm
 	print "${raw_metachar}endif\n";
         return;
       };  
-    
+
     if ($elm->{type} eq 'struct')
       { print "\t" x $level;
 	print quote($elm->{tag}) . " {\n";
-	
+
 	if ($elm->{tag} eq 'colors')
 	  { $sortmode= ""; 
 	    # we MUST NOT sort the colormap
 	  }
-	
+
 	foreach my $s (sort_elements($sortmode,@{$elm->{value}}))
 	  { print_p_elm($s,$level+1,$sortmode); };
 	print "\t" x $level,"}\n"; 
@@ -259,7 +259,7 @@ sub print_p_elm
 
 sub key_of_type_subtype_tag
   { my($r_s)= @_;
-    
+
     my $ref= ref($r_s);
     if ($ref eq '') # a simple value
       { return(mk_subkey($r_s)); }
@@ -267,12 +267,12 @@ sub key_of_type_subtype_tag
       { my $t= substr($r_s->{type},0,10);
 	my $st=substr($r_s->{subtype},0,10);
 	my $tg=substr($r_s->{tag},0,10);
-	
+
 	my $special= $special_tags{$r_s->{tag}};
 	if (defined $special)
 	  { return( $special); 
 	  };
-	
+
 	return( sprintf((" " x 10) . "-%-10s%-10s%-10s%s",
 	                $t,$st,$tg,mk_subkey($r_s->{value})));
       };
@@ -281,23 +281,23 @@ sub key_of_type_subtype_tag
 
 sub smallest
   { my($r_list);
-  
+
     if ($#$r_list < 0)
       { return; }
     if ($#$r_list == 0)
       { return($r_list->[0]); }
-  
+
     my $key= $r_list->[0];
     for(my $i=1; $i<=$#$r_list; $i++)
       { if ($key gt $r_list->[$i])
           { $key= $r_list->[$i]; }
       };
   }
-    
+
 
 sub mk_subkey
   { my($val)= @_;
-    
+
     my $ref= ref($val);
     if ($ref ne '')
       { # a reference
@@ -321,7 +321,7 @@ sub mk_subkey
     return(sprintf("%-10s",substr($val,0,10)));
   }
 
-  
+
 sub key_of_scalar
   { my($r_s)= @_;
     return(substr($$r_s,0,10));
@@ -340,22 +340,22 @@ sub key_of_hash
   { my($r_hash)= @_;
     my @hashkeys= sort(keys %$r_hash);
     my @l;
-    
+
     foreach my $k (@hashkeys)
       { push @l,calc_key($r_hash->{$k}); }
     return( key_of_type_subtype_tag($r_hash) . 
             join("|",@hashkeys) . "-" . join(";",@l)
 	  );
   }    
- 
+
 sub calc_key
   { my($elm)= @_;
     my $key;
     my $ref= ref($elm);
-    
+
     if (exists $sort_keys{$elm})
       { return($sort_keys{$elm}); };
-    
+
     if    ($ref eq '')
       { $key= key_of_scalar(\$elm); 
       }
@@ -373,12 +373,12 @@ sub calc_key
     $sort_keys{$elm}= $key;
     return($key);
   }
-      
+
 sub sort_elements
 # sort a list of elements
   { my($sortmode,@elm_list)= @_;
     my %tags;
-    
+
     if (!$sortmode)
       { return(@elm_list); }; 
 
@@ -409,10 +409,10 @@ sub sort_elements
       }
     else
       { die "unknown sortmode:$sortmode (assertion)"; }
-      
+
   }       
-    
-    
+
+
 sub quote
   { my($st)= @_;
     if ($st=~ /\s/)
@@ -420,13 +420,13 @@ sub quote
     return($st);
   }  
 
-	
+
 #      
 #sub sort_elements
 # { my($a,$b)= @_;
 #  
 #    my $level= $a->{level};    
-    
+
 
 sub parse
   { my($r_data,$pos,$bracketlevel,$r_indices)= @_;
@@ -444,7 +444,7 @@ sub parse
       };
     my %struc; 
     pos($$r_data)= $pos;  
-  
+
     for(;;)
       {
 
@@ -488,7 +488,7 @@ sub parse
 		    warn "string:\"",substr($$r_data,$pos,20),"\"\n";
 		    die "assertion";
 		  };
-		  
+
 	        $pos= $p;
 	        pos($$r_data)= $pos;  # restore pos  
 		push @$val, $r_struc;
@@ -496,7 +496,7 @@ sub parse
 
 	    return(pos($$r_data),\%struc); 
           }
-	
+
 	pos($$r_data)= $pos;  # restore pos  
 
         # match "<identifier>=<value>" :
@@ -504,10 +504,10 @@ sub parse
 	  { $struc{type}= "value"; 
 	    $struc{tag}= $1;
             $struc{value}= $3;
-	    
+
 	    $struc{tag}  =~ s/\"//g;
-	    
-	    
+
+
 	    if ($opt_debug)
 	      { 
 		$struc{start}= pos($$r_data) - 
@@ -518,7 +518,7 @@ sub parse
 		$struc{end_lc}  = [pos_to_line_ch($r_indices,$struc{end})];
 	        $struc{level}= $bracketlevel;
 	      };
-	    
+
 	    warn "val found: $1 = $3\n" if ($opt_debug);
 	    return(pos($$r_data),\%struc);
 	  };		       
@@ -558,15 +558,15 @@ sub parse
 		push @{ $struc{value} }, $r_struc;
 	      };
  	    $struc{subtype}= "list";
-           
+
 	    if ($struc{value}->[0]->{type} eq "array-elm")
 	      { $struc{subtype}= "array"; };
 
             if ($struc{value}->[0]->{type} eq "point-elm")
 	      { $struc{subtype}= "point-list"; };
-	    
+
 	    pos($$r_data)= $pos;
-	    
+
             if ($$r_data=~ /\G(\s*\})/g)
 	      { 
 	        if ($opt_debug)
@@ -578,7 +578,7 @@ sub parse
 	      };
 
 	    pos($$r_data)= $pos;
-	    
+
 	    if ($opt_debug)
 	      { my ($line,$ch)= pos_to_line_ch($r_indices,$pos);
 	        warn "assertion at line $line, char $ch:\n";
@@ -596,7 +596,7 @@ sub parse
 	if ($$r_data=~ /\G\s*(\w+),/g)
 	  { $struc{type}= "array-elm";
 	    $struc{value}= $1;
-	    
+
 	    if ($opt_debug)
 	      { 
 		$struc{start}= pos($$r_data) - length($1);
@@ -608,14 +608,14 @@ sub parse
 	    warn "array-elm found: $1\n" if ($opt_debug);
 	    return(pos($$r_data),\%struc);
 	  };
-	  
+
 	pos($$r_data)= $pos; # restore pos 
 
         # match "(<identifier1>,<identifier2>)" (point):
 	if ($$r_data=~ /\G\s*(\(\d+,\d+\))/g)
 	  { $struc{type}= "point-elm";
 	    $struc{value}= $1;
-	    
+
 	    if ($opt_debug)
 	      { 
 		$struc{start}= pos($$r_data) - length($1);
@@ -627,9 +627,9 @@ sub parse
 	    warn "point-elm found: $1\n" if ($opt_debug);
 	    return(pos($$r_data),\%struc);
 	  };
-	  
-	  
-	  
+
+
+
 	# nothing more to match, return undef
 	return;  
       };	
@@ -646,14 +646,14 @@ sub mydump
       { print ";\n"; };
   }
 
-	     
+
 sub mysort
   { my $A= $a;
     my $B= $b; 
-  
+
     $A= $s_index{$A} if (exists $s_index{$A});
     $B= $s_index{$B} if (exists $s_index{$B});
-    
+
     return $A cmp $B;
   }
 
@@ -688,13 +688,13 @@ sub rdump
     if ($r eq 'HASH')
       { $$r_buf.=  "\n" . " " x $indent if ($is_newline);
         $$r_buf.=  "{ \n"; $indent+=2;
-        
+
 	my @k;
 	if (!defined $special)
 	  { @k= sort keys %$val; }
 	else
 	  { @k= sort mysort (keys %$val); };
-	  
+
         for(my $i=0; $i<= $#k; $i++)
           { my $k= $k[$i];
             my $st= (" " x $indent) . $k . " => ";
@@ -715,7 +715,7 @@ sub rdump
     $$r_buf.=  " " x $indent if ($is_newline);
     $$r_buf.=  "REF TO: \'$r\'$comma\n";
   }
-      
+
 sub print_from_to
   { my ($r_data,$from,$to)= @_;
     print (substr $$r_data, $from, $to-$from+1);
@@ -723,12 +723,12 @@ sub print_from_to
 
 sub help
   { my $p= $FindBin::Script;
-                                                                                
+
     print <<END
-                                                                                
+
            **** $p $version -- adl parser
                               Goetz Pfeiffer 2005
-                                                                                
+
   options:
     -h: help
     -f [file], neither -i not -f are given, read from stdin

@@ -5,7 +5,7 @@
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
 # Time-stamp: <24 Jan 06 14:35:59 Ralph Lange>
-# $Id: SetPerms,v 1.15 2007-10-18 08:47:43 franksen Exp $
+# $Id: SetPerms,v 1.16 2007-10-23 07:06:57 pfeiffer Exp $
 #
 PROG=`basename $0`
 
@@ -73,7 +73,7 @@ do
 
 	echo EPICS related repository: $f
 	echo Setting everything to group epics and mode ???r-X--- ...
-		       
+
 	chgrp -R epics $f > /dev/null 2>&1
 	chmod -R g-w,g+rX,o= $f > /dev/null 2>&1
 
@@ -86,7 +86,7 @@ do
 # Set all fileattr g+w
 
 	find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
-    
+
 	;;
 
 ###############################################################################
@@ -145,10 +145,10 @@ do
 
 	echo CapFast tree: $f
 	echo Setting everything to group epics and mode ???r-Xr-X ...
-		       
+
 	chgrp -R epics $f > /dev/null 2>&1
 	chmod -R go=rX $f > /dev/null 2>&1
-		       
+
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
 	echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
@@ -158,16 +158,16 @@ do
 	    echo $files | xargs chmod u=rwx,g=rwx,o=rx
 	    echo $files | xargs chgrp epima
 	fi
-       
+
 # Make binary executables unreadable for others
 
 	echo Making binary executables unreadable for others...
-		       
+
 	find $f/ -type f -perm +111 -follow -user $USER \
 	 -exec /bin/sh -c "chmod g-w {}; file {} | grep -v script | grep -q executable && chmod o-r {}" \;
 
 	;;
-  
+
 ###############################################################################
 
   */epics/templates*)
@@ -176,21 +176,21 @@ do
 
 	echo EPICS templates tree: $f
 	echo Setting everything to group epics and mode ???r-Xr-X ...
-		       
+
 	chgrp -R epics $f > /dev/null 2>&1
 	chmod -R g=rX,o=rX $f > /dev/null 2>&1
-		       
+
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
 	echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
-		       
+
 	files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
 	if [ -n "$files" ]; then
 	    echo $files | xargs chmod u=rwx,g=rwx,o=rx
 	    echo $files | xargs chgrp epima
 	fi
 	;;
-  
+
 ###############################################################################
 
     */Epics/*/support*)
@@ -224,10 +224,10 @@ do
 
 	echo EPICS/vxWorks  tree: $f
 	echo Setting everything to group epics and mode ???r-Xr-X ...
-		       
+
 	chgrp -R epics $f > /dev/null 2>&1
 	chmod -R go=rX $f > /dev/null 2>&1
-		       
+
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
 	echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
@@ -240,13 +240,13 @@ do
         find -type d -user $USER -exec chmod g+s {} \;
 
 	;;
-  
+
 ###############################################################################
 
   */epics/config*)
-	   
+
 	echo Setting everything to group epics and mode ???r-X--- ...
-			
+
 	chgrp epics $f > /dev/null 2>&1
 	chmod g=rX,o= $f > /dev/null 2>&1
 
@@ -260,7 +260,7 @@ do
 
 	echo Web tree: $f
 	echo Setting everything to group wwwadm and mode ???r-Xr-X ...
-		       
+
 	chgrp -R wwwadm $f > /dev/null 2>&1
 	chmod -R go=rX $f > /dev/null 2>&1
 
@@ -308,7 +308,7 @@ do
         done
 
 	;;
-  
+
 ###############################################################################
 
   *)

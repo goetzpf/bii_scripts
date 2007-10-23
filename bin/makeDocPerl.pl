@@ -100,7 +100,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     }
     elsif( $parse =~ /\@EXPORT_OK\s*=\s*qw\(\s*(.*)\s*$/s )	# check '@EXPORT_OK = qw( funcName funcName2...\n'
     {  							# and more in folowing lines
-        
+
 	@exportedFuncs = split /\s+/, $1;
 #	print "EXPORTED: $1";
 	while( $parse = <IN_FILE> )

@@ -142,7 +142,7 @@ sub set_file_path
 {
 	my $i;
 	my $fp = $filepath_hash{$ext};
-	
+
 	@filepath = split /\:/,$fp;
 	for ($i = 0; $i <= $#filepath; $i++) {
 		$filepath[$i] = $filepath[$i].'/';
@@ -157,7 +157,7 @@ sub set_file_path
 sub check_cmdline
 {
 	my $i;
-	
+
 	if ($#ARGV < 0) {
 		return -1;
 	}
@@ -306,7 +306,7 @@ sub usage
 
 sub check_file_list
 {
-	
+
 	if ($mode eq 'sync PLC') {
 		if ($#topfile < 0 || $#topfile > 0) {
 			print "sync PLC mode can only analyze one file (startup script)\n";
@@ -334,7 +334,7 @@ sub update_file_list
 	my @startuplines;
 	my @filenames = ();
 	my ($line, $file);
-	
+
 	my $fname = $_[0];
 	if ($fname =~ /startup/) {
 		if (open(INP, $fname)) {
@@ -404,7 +404,7 @@ sub scan_file
 			exit $err;
 		}
 	}
-	
+
 	# here we really get _into_ the file
 	$current_name = $inname;
 	if ($fname =~ /\//) {   #explicit directory given
@@ -514,7 +514,7 @@ sub generate_xref
 	my $type = 'component';
 	# need our own copy of file for recursive calling
 	my @my_filelines = @global_filelines;
-	
+
 	# store lines starting with "use" lines in array
 	foreach $fileline(@my_filelines) {
 		if (substr($fileline, 0, 3) eq 'use') {
@@ -609,7 +609,7 @@ sub store_component
 	my $file = $_[0];
 	my $component = $_[1];
 	my $typ = $_[2];
-	
+
 	if (!exists $xrefcomponent_hash{$file}{$component}){
 		$xrefcomponent_hash{$file}{$component} = $typ;
 		if ($verbose) {
@@ -628,7 +628,7 @@ sub store_component
 sub check_dangling_links
 {
 	my ($field, $link, $line, $ok, $recname, $right);
-	
+
 	foreach $line (@global_filelines) {
 		if ($line =~ /^record\(/ ) {
 			$recname = '';
@@ -684,7 +684,7 @@ sub check_dangling_links
 sub list_hwpvs
 {
 	my ($dtyp, $hwio, $line, $push, $record, $right);
-	
+
 	$record = "";
 	$push = 0;
 	$hwio = 0;
@@ -730,7 +730,7 @@ sub list_hwpvs
 sub check_hw_io
 {
 	my ($hwio, $line, $ok, $record, $right);
-	
+
 	$record = "";
 	$ok = 1;
 	$hwio = 0;
@@ -773,7 +773,7 @@ sub get_modtcp_groups
 	my $modtcp = 0;
 	my $plccount = 0;
 	my $plcname = "";
-	
+
 	if ($#topfile < 0 || $#topfile > 0) {
 		print "Modtcp mode can only analyze one file (startup script)\n";
 		return -2;
@@ -929,7 +929,7 @@ sub get_modtcp_groups
 sub check_modtcp_groups
 {
 	my ($hwio, $line, $ok, $record, $left, $right);
-	
+
 	$record = "";
 	$ok = 1;
 	$hwio = 0;
@@ -1030,11 +1030,11 @@ sub list_opticsok
 {
 	my ($line, $record, $optok, $temp, $reportline);
 	my (@inputs);
-	
+
 	$record = "";
 	$optok = 0;
 	@inputs = ();
-	
+
 	foreach $line (@global_filelines) {
 		if (substr($line, 0, 6) eq 'record') {
 			if ($#inputs >= 0) {
@@ -1088,7 +1088,7 @@ sub generate_pvxref
 {
 	my ($fileline);
 	my $fname = $_[0];
-	
+
 	# store lines starting with "use" lines in array
 	foreach $fileline(@global_filelines) {
 		if ($fileline =~ /record\(/ ) {
@@ -1140,7 +1140,7 @@ sub update_record_count
 sub search_fields
 {
 	my ($value, $line, $record, $right, $field);
-	
+
 	$record = "";
 	$value = 0;
 	foreach $line (@global_filelines) {
@@ -1171,7 +1171,7 @@ sub search_fields
 sub get_plcmbbos
 {
 	my ($hwmbbo, $mbbo, $cmd, $line, $record, $right);
-	
+
 	$record = "";
 	$hwmbbo = 0;
 	$mbbo = 0;
@@ -1257,7 +1257,7 @@ sub report_dangling_links
 	print STDERR "\nHit <return> to start report\n";
 	$key1 = <STDIN>;
 	print "\n\nDangling Links Report\n$timestamp\nFiles: @topfile\n";
-	
+
 	foreach $key1 (sort keys %link_hash) {
 		if ($verbose) {
 			print "next record in link hash: $key1\n";
@@ -1277,9 +1277,9 @@ sub report_hwpvs
 {
 	my $count = 0;
 	my $key1;
-	
+
 	print "\n\nHardware PV Report for DTYP $hwtype\n$timestamp\nFiles: @topfile\n";
-	
+
 	foreach $key1 (sort keys %addr_hash) {
 		if ($verbose) {
 			print "next record in addr hash: $key1\n";
@@ -1297,12 +1297,12 @@ sub report_hwpvs
 sub report_io_check
 {
 	my $line;
-	
+
 	if ($#report_list < 0) {
 		print "\n No zero I/O addresses found\n";
 	} else {
 		print "\nPotential address error in the following PVs:\n";
-	
+
 		foreach $line(@report_list) {
 			print $line;
 		}
@@ -1314,12 +1314,12 @@ sub report_io_check
 sub report_modtcp
 {
 	my $line;
-	
+
 	if ($#report_list < 0) {
 		print "\n All Modtcp addresses are within groups\n";
 	} else {
 		print "\nModtcp groups have address inconsistencies:\n";
-	
+
 		foreach $line(@report_list) {
 			print $line;
 		}
@@ -1331,7 +1331,7 @@ sub report_opticsok
 {
 	my $name = 'isacopticsoklist.txt';
 	my $name2 = $burt_directory.'isacopticsok.req';
-	
+
 	if (open (OUT, ">$name") ) {
 		print OUT @report_list;
 		close OUT;
@@ -1353,12 +1353,12 @@ sub report_opticsok
 sub report_duplicate
 {
 	my $line;
-	
+
 	if ($#report_list < 0) {
 		print "\n No duplicate records found\n";
 	} else {
 		print "\n*** duplicate records ***:\n";
-	
+
 		foreach $line(@report_list) {
 			print $line;
 		}
@@ -1370,12 +1370,12 @@ sub report_duplicate
 sub report_fieldvalues
 {
 	my $line;
-	
+
 	if ($#report_list < 0) {
 		print "\n No records found where field $fieldName equals $fieldValue\n";
 	} else {
 		print "\nRecords where field $fieldName equals $fieldValue:\n";
-	
+
 		foreach $line(@report_list) {
 			print $line;
 		}
@@ -1395,7 +1395,7 @@ sub report_xref
 			print STDERR "c <pattern> .. look for pattern in child\n";
 			print STDERR "a .. all\n";
 			print STDERR "<return> .. quit\n";
-			
+
 			$mode = <STDIN>;
 			chomp $mode;
 			$mode =~ s/\r//g;
@@ -1434,7 +1434,7 @@ sub report_all_xref
 {
 	my ($key1, $key2);
 	print "Report type: all\n";
-	
+
 	foreach $key1 (sort keys %xrefcomponent_hash) {
 		print "$key1:\n";
 
@@ -1449,7 +1449,7 @@ sub report_upward_xref
 {
 	my ($key1, $key2, $print1);
 	print "Report type: select parent\n";
-	
+
 	my $select_string = $_[0];
 	print "Selection string: $select_string\n\n";
 
@@ -1477,7 +1477,7 @@ sub report_downward_xref
 {
 	my ($key1, $key2, $print1);
 	print "Report type: select child\n";
-	
+
 	my $select_string = $_[0];
 	print "Selection string: $select_string\n\n";
 
@@ -1504,7 +1504,7 @@ sub report_plcmbbos
 	my ($line, $rec);
 	my $count = 0;
 	my $fileno = 1;
-	
+
 	if ($#report_list < 0) {
 		print "\n No PLC mbboDirects found\n";
 	} else {
@@ -1542,7 +1542,7 @@ sub write_req_file
 		exit;
 	}
 	print "\nWriting file $outfile\n";
-		
+
 	print OUT "%\n% Backup request file $outfile\n%\n";
 	foreach my $line(@reqlines) {
 		print OUT $line;

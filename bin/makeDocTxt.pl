@@ -31,7 +31,7 @@ my $config = Options::parse($usage, 1);
 #  $top =~ s/^\.\.\///;
   my $outFileName;
   if( @ARGV ){ $outFileName = shift @ARGV;}
-  
+
 # for creation of outfile name with installpath from infile name
 #  my $installPath=".";
 #  if( @ARGV ){ $installPath = shift @ARGV;}
@@ -69,7 +69,7 @@ my $config = Options::parse($usage, 1);
 
   my $title = $outFileName;
   $title =~ s/.*\/(.*)$/$1/;
-  
+
   my $parse=$file;
   my $setImgToEnd = 0;
   my $firstLIne=1;
@@ -106,7 +106,7 @@ my $config = Options::parse($usage, 1);
     $paragraph =~ s/^\n*// ;		# remove leading \n
     $paragraph =~ s/\s*$//g ;		# remove trailing \s
     next if( $paragraph eq "" );	# skip empty paragraphs
-    
+
 # set SPECIAL CHARACTERS for all paragraphs that are not preformated
     $paragraph =~ s|&|&amp;|g;
     $paragraph =~ s|Ö|&Ouml;|g;
@@ -159,7 +159,7 @@ my $config = Options::parse($usage, 1);
         my $tableHeader = $1;
         $tableHeader =~ s/\s*\|\s*/<\/TH><TH>/gi;
         $th = "<TABLE border=1 cellpadding=\"2\">\n<TR valign=\"top\">\n<TH>$tableHeader</TH>\n</TR>\n<TR>\n<TD>";
-        
+
       }
       else
       { #print "without header line\n";
@@ -246,7 +246,7 @@ my $config = Options::parse($usage, 1);
     $paragraph =~ s{(\W|^)'(.*?)'(\W)}{$1<I>$2</I>$3}g;	# italic-text quoted with sinlge quotes
     $paragraph =~ s/\\\\(.*?)\\\\/<$1>/sg;
 #    print "para\t($1)|$paragraph|\n";
-    
+
 # reformate tables html
     $paragraph =~ s|\n<TH|\n    <TH|g;
     $paragraph =~ s|<\/TH><TH>|<\/TH>\t<TH>|g;
@@ -287,7 +287,7 @@ my $config = Options::parse($usage, 1);
   print OUT_FILE $fileFooter;
   close OUT_FILE;
 
-  
+
 # Create external idx file
 #  $outFileName = $inFileName;
 #  $outFileName =~ s/(.*)\.\w+$/$1.idx.html/;     # with path
@@ -297,8 +297,8 @@ my $config = Options::parse($usage, 1);
 #    "<link rel=stylesheet type=\"text/css\" href=\"../Windex.css\">\n".
 #    "</HEAD>\n<BODY>\n".
 #    $idxFile;"</BODY>\n</HTML>\n";
- 
- 
+
+
 # get next paragraph from the text. A paragraph is either something that ends with '/n/n' - a
 # lbank line or the end of file.
 sub   getParagraph
