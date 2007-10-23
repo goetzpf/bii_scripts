@@ -1,5 +1,29 @@
 package expander;
 
+# This software is copyrighted by the BERLINER SPEICHERRING
+# GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
+# The following terms apply to all files associated with the software.
+# 
+# BESSY hereby grants permission to use, copy and modify this
+# software and its documentation for non-commercial, educational or
+# research purposes provided that existing copyright notices are
+# retained in all copies.
+# 
+# The receiver of the software provides BESSY with all enhancements, 
+# including complete translations, made by the receiver.
+# 
+# IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+# SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+# OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN 
+# IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# 
+# BESSY SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
+# BASIS, AND BESSY HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+# UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+
+
 use strict;
 use Cwd;
 use Data::Dumper;
@@ -1359,16 +1383,6 @@ an expression that is enclosed in brackets. Examples:
 
 In this case, $if is followed by an expression, $else and $endif aren't.
 
-=item I<quoting>
-
-If the dollar sign is preceeded by a backslash, the following sequence
-is not interpreted as a variable or keyword. The backslash, however, is removed.
-So
-
-  \$myvar
-
-expands to $myvar.
-
 =item I<line concatenation>
 
 A single \ at the end of a line concatenates this line with the 
@@ -1378,6 +1392,31 @@ empty lines in the output.
 =item I<forced linefeed>
 
 A "\n" is always replaced with a line-feed.
+
+=item I<escapes>
+
+=over 4
+
+=item variable escapes
+
+If the dollar sign is preceeded by a backslash, the following sequence
+is not interpreted as a variable or keyword. The backslash, however, is removed.
+So
+
+  \$myvar
+
+expands to $myvar.
+
+=item line concatenation escape
+
+A line ending with "\\" is not concatenated with the next line
+but "\\" is replaced with "\".
+
+=item linefeed escape
+
+A "\\n" is not replaced with a linefeed but with "\n".
+
+=back
 
 =back
 

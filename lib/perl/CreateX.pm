@@ -1,3 +1,28 @@
+
+# This software is copyrighted by the BERLINER SPEICHERRING
+# GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
+# The following terms apply to all files associated with the software.
+# 
+# BESSY hereby grants permission to use, copy and modify this
+# software and its documentation for non-commercial, educational or
+# research purposes provided that existing copyright notices are
+# retained in all copies.
+# 
+# The receiver of the software provides BESSY with all enhancements, 
+# including complete translations, made by the receiver.
+# 
+# IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+# SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+# OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN 
+# IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# 
+# BESSY SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
+# BASIS, AND BESSY HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+# UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+
+
 =head1 NAME
 
 CreateX - Routines that help to write CreateX.pl scripts
@@ -96,7 +121,7 @@ our @EXPORT = qw(
   write_template_sql
   perform_query
 );
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.8 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.9 $ =~ /(\d+)/g;
 
 use strict;
 use Carp;
