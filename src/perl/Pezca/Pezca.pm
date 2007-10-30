@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 
 );
-$VERSION = '0.3.3';
+$VERSION = '0.4';
 
 bootstrap Pezca $VERSION;
 
@@ -78,9 +78,11 @@ B<GetList>
   ($errcode,@values)= Pezca::GetList($channel_name,$type,$no)
 
 gets a channel name, a type and the number of elements as parameter.
-Known types are "byte","short","long","float","double","string" only the first
-two characters of the type-name are significant. If the type-name is omitted,
-it defaults to "double". If the number of elements is omitted, all elements
+Known types (upper or lower case strings allowed) are byte, char, uchar,
+short, ushort, long, ulong, int, uint, float, double and string.
+The type name must not be omitted. If the type is unknown, the function
+prints an error message and returns errcode -1.
+If the number of elements is omitted, all elements
 of the channel are fetched. The function returns the error-code and
 a list of elements.
 This function can block when the channel is not immediately available.
@@ -140,9 +142,11 @@ B<PutList>
   $errcode= Pezca::PutList($channel_name,$type,@values)
 
 gets a channel name, a type and the list of elements as parameter.
-Known types are "byte","short","long","float","double", only the first
-two characters of the type-name are significant. The function returns the
-error-code of the operation.
+Known types (upper or lower case strings allowed) are byte, char, uchar,
+short, ushort, long, ulong, int, uint, float, double and string.
+The type name must not be omitted. If the type is unknown, the function
+prints an error message and returns errcode -1.
+The function returns the error-code of the operation.
 This function can block when the channel is not immediately available.
 
 =item *
@@ -152,8 +156,11 @@ B<PutListOldCa>
   $errcode= Pezca::PutListOldCa($channel_name,$type,@values)
 
 gets a channel name, a type and the list of elements as parameter.
-Known types are "byte","short","long","float","double", only the first
-two characters of the type-name are significant. The function returns the
+Known types (upper or lower case strings allowed) are byte, char, uchar,
+short, ushort, long, ulong, int, uint, float, double and string.
+The type name must not be omitted. If the type is unknown, the function
+prints an error message and returns errcode -1.
+The function returns the
 error-code of the operation.
 This function can block when the channel is not immediately available.
 
