@@ -114,6 +114,8 @@ my %platform_libcomFiles=
                          ['libCom','os','WIN32','sigPipeIgnore.c'], 
                          ['libCom','os','WIN32','getLastWSAErrorAsString.c'],  
                          ['libCom','os','WIN32','osiSleep.c'], 
+                         ['libCom','O.Linux','envData.c'],
+                         ['libCom','O.Linux','errSymTbl.c' ],
                        ],
       );
 
