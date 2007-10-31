@@ -28,7 +28,7 @@
 package require Tclx
 package require http
 
-# http://arc1c.trs.bessy.de:4811/addchannel?GROUP=GrOuP&CHANNEL=ChAnNeL&PERIOD=PeRiOd&MONITOR=1
+# http://arc11c.trs.bessy.de:4811/addchannel?GROUP=GrOuP&CHANNEL=ChAnNeL&PERIOD=PeRiOd&MONITOR=1
 
 proc usage {{msg ""}} {
   if {$msg != ""} {puts stderr "Error: $msg\n"}
@@ -58,7 +58,7 @@ if {$period == 0} {
 }
 
 
-set req "http://arc1c.trs.bessy.de:$port/addchannel?GROUP=$group&CHANNEL=$channel&PERIOD=$period"
+set req "http://arc11c.trs.bessy.de:$port/addchannel?GROUP=$group&CHANNEL=$channel&PERIOD=$period"
 
 if {[lsearch $rest "mon"] >= 0} {append req "&MONITOR=1"}
 if {[lsearch $rest "dis"] >= 0} {append req "&DISABLE=1"}
