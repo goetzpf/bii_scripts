@@ -83,7 +83,7 @@ my @script_online_help= ("adl_cvs_diff.pl -h",
                          "filter_can_links.pl -h",
 			 "(grepDb.pl 2>&1; true)",
 			 "hgen.pl -h",
-			 "(makeDocTxt.pl -h 2>&1; true)",
+			 #"(makeDocTxt.pl -h 2>&1; true)",
 			 "pcomp.pl -h",
 			 "pfind.pl -h",
 			 "Sch2db.pl -h",
@@ -103,6 +103,9 @@ my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
 	     );
 	     #../../src/perl/Pezca/Pezca.pm
 
+my @makeDocTxt_files= qw(USE_PERL.txt INSTALL.txt CONTENTS.txt);
+my @makeDocScript_files= qw();
+my @makeDocModule_files= qw();
 
 my @args= @ARGV;
 @ARGV=();
@@ -255,6 +258,12 @@ sub MY::postamble {
     
     my $podscripts_html= j(lpre('$(INST_HTMLSCRIPTDIR)/',newext("html",@script_pods)));
     
+    my $makeDocTxt_html= j(lpre('$(INST_HTMLSCRIPTDIR)/../',newext("html",@makeDocTxt_files)));
+
+    my $makeDocScript_files= j(lpre('$(INST_HTMLSCRIPTDIR)/',newext("html",@makeDocScript_files)));
+
+    my $makeDocModule_files= j(lpre('$(INST_HTMLLIBDIR)/',newext("html",@makeDocModule_files)));
+
     my $postamble = <<"END";
 .PHONY: share
 share:
@@ -262,10 +271,30 @@ share:
 	install -m 755 -d share/browsedb \$(BROWSEDB_SHARE_DIR)
 	install -m 644 share/browsedb/[^C]* \$(BROWSEDB_SHARE_DIR)
 
-\$(INST_HTMLSCRIPTDIR)/../CONTENTS.html: ${ddir}txt/CONTENTS
+#\$(INST_HTMLSCRIPTDIR)/../CONTENTS.html: ${ddir}txt/CONTENTS.txt
+#	rm -f \$@
+#	${bdir}makeDocTxt.pl \$< \$@ 
+#	echo ${bdir}makeDocTxt.pl \$< \$@ 
+#	chmod a+r \$@
+
+\$(INST_HTMLSCRIPTDIR)/../%.html: ${ddir}txt/%.txt
 	rm -f \$@
-	${bdir}txt2html.pl < \$< > \$@ 
+	${bdir}makeDocTxt.pl \$< \$@
 	chmod a+r \$@
+
+\$(INST_HTMLSCRIPTDIR)/%.html: bin/%.pl
+	rm -f \$@
+	${bdir}makeDocPerl.pl \$< blib/\$(\@F)
+	${bdir}makeDocTxt.pl  blib/\$(\@F) \$@
+	chmod a+r \$@
+	rm blib/\$(\@F)
+
+\$(INST_HTMLLIBDIR)/%.html: lib/perl/%.pm
+	rm -f \$@
+	${bdir}makeDocPerl.pl \$< blib/\$(\@F)
+	${bdir}makeDocTxt.pl  blib/\$(\@F) \$@
+	chmod a+r \$@
+	rm blib/\$(\@F)
 
 $podscripts_html: \$(INST_HTMLSCRIPTDIR)/%.html: $bdir%.pl
 	pod2html --infile=\$< --outfile=\$@ 
@@ -276,7 +305,8 @@ $podlibs_html: \$(INST_HTMLLIBDIR)/%.html: $ldir%.pm
 $script_online_make
 
 .PHONY: html
-html: $podlibs_html $podscripts_html $script_online_targets \$(INST_HTMLSCRIPTDIR)/../CONTENTS.html
+html: $podlibs_html $podscripts_html $script_online_targets $makeDocTxt_html $makeDocScript_files $makeDocModule_files
+
 
 END
     $postamble;

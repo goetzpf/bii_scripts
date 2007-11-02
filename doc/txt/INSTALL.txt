@@ -1,0 +1,40 @@
+bii_scripts: Installation
+*******************************
+
+after CVS checkout, you can do the following things to install
+the scripts and modules:
+
+    perl Makefile.PL {options}
+    make
+    make install
+    make share
+
+The following options may be useful:
+
+*  prefix=<directory>  :
+  specify the directory where the files go
+  
+*  SHARE_DIR=<directory>  :
+  specify where the program configuration files go
+  
+*  USE_PERL5LIB=<number>  :
+  if you set number not to 0, then some scripts (currently
+  browsedb.pl) will rely on the environment variable PERL5LIB
+  in order to find their modules. Otherwise the modules will
+  be searched at "$FindBin::RealBin/../lib/perl" where
+  $FindBin::RealBin is the location of the perl-script
+  
+*  USE_GP_MODULES=<number>  :
+  if set to 1, libraries like Tk are taken from 
+  /home/unix/pfeiffer/project/perl/lib/site_perl
+  Note that this is for testing only and that it does only work
+  on the BESSY 2 HP-UX systems
+  
+
+How to install on the BESSY HP-UX server ocean:
+
+  perl Makefile.PL prefix=/opt/csr/lib/perl \
+  USE_PERL5LIB=1 SHARE_DIR=/opt/csr/share
+  
+   
+
