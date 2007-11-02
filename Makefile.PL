@@ -263,6 +263,7 @@ share:
 	install -m 644 share/browsedb/[^C]* \$(BROWSEDB_SHARE_DIR)
 
 \$(INST_HTMLSCRIPTDIR)/../CONTENTS.html: ${ddir}txt/CONTENTS
+	rm -f \$@
 	${bdir}txt2html.pl < \$< > \$@ 
 	chmod a+r \$@
 
