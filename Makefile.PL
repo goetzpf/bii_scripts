@@ -36,6 +36,7 @@ my $bdir= "bin/";
 my $ldir= "lib/perl/";
 my $ddir= "doc/";
 
+# List of all scripts to be installed
 my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl 
                 grab_xkeys.pl browsedb.pl paths2.pl 
                 dbcount pfind.pl dbdiff substdiff substprint.pl
@@ -52,6 +53,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
                 darcs-kompare darcs-moni makeRegistrar
 		txt2html.pl);
 
+# List of all modules to be installed
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
                 canlink.pm  dbdrv_oci.pm  dbitable.pm 
 		expander.pm
@@ -62,9 +64,11 @@ my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm
 		capfast_defaults.pm analyse_db.pm
 		bessy_module.pm
 		);
-                
+
+# Documentation for Scripts with pod documentation
 my @script_pods= qw(rsync-dist.pl multi-commit.pl);
 
+# Documentation for Scripts with online help only, no other documentation
 my @script_online_help= ("adl_cvs_diff.pl -h",
 			 "adlsort.pl -h",
 			 "(bdns_import.pl 2>&1; true)",
@@ -93,7 +97,7 @@ my @script_online_help= ("adl_cvs_diff.pl -h",
 			 "substdiff -h",
 			 "substprint.pl -h",
 			);
-
+# Documentation for modules with pod documentation
 my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
              cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm
              scan_makefile.pm container.pm maillike.pm
@@ -103,7 +107,10 @@ my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
 	     );
 	     #../../src/perl/Pezca/Pezca.pm
 
+# Common documentation files in makeDoc style
 my @makeDocTxt_files= qw(USE_PERL.txt INSTALL.txt CONTENTS.txt);
+
+# Documentation for modules, scripts with makeDoc documentation
 my @makeDocScript_files= qw();
 my @makeDocModule_files= qw();
 
