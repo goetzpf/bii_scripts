@@ -1,7 +1,7 @@
 eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	if $running_under_some_shell;
 
-#  This software is copyrighted by the BERLINER SPEICHERRING
+##  This software is copyrighted by the BERLINER SPEICHERRING
 #  GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
 #  The following terms apply to all files associated with the software.
 #  
@@ -52,17 +52,27 @@ my $usage = "create an html-document from a .txt-file\n";
 my $config = Options::parse($usage, 1);
 
   my $inFileName = shift @ARGV;
-  my $top =  shift @ARGV;
-#  $top =~ s/^\.\.\///;
-  my $outFileName;
-  if( @ARGV ){ $outFileName = shift @ARGV;}
-
-# for creation of outfile name with installpath from infile name
-#  my $installPath=".";
-#  if( @ARGV ){ $installPath = shift @ARGV;}
-
   chomp $inFileName;
-  print "Create html from: \'$inFileName\'\n";
+
+  my $outFileName;  	# outfilename an optional 2'nd parameter, 
+  if( @ARGV )
+  { 
+    $outFileName = shift @ARGV;
+  }
+  else
+  { 
+    $outFileName = $inFileName;
+    if($outFileName =~ /(.*)\.\w+$/)	# make some infile.txt -> infile.html
+    {
+      $outFileName = "$1.html"
+    }
+    else
+    {
+      $outFileName .= ".html"	    	# without extension: infile -> infile.html
+    }
+  } 
+
+  print "Create html from: '$inFileName' write '$outFileName'\n";
   my $file;
   open(IN_FILE, "<$inFileName") or die "can't open input file $inFileName: $!";
   { local $/;
@@ -76,16 +86,6 @@ my $config = Options::parse($usage, 1);
 
   my $filetime = strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
 
-# outfilename an optional 2'nd parameter, not used here, because 
-# make copies the file to its destination
-# if no outfilename is given, it becomes infilename.html withhout path
-
-  if( ! $outFileName )
-  { $outFileName = $inFileName;
-#    $outFileName =~ s/(\w+)\.(\w+$)/$1.html/;  # omit path
-    $outFileName =~ s/(.*)\.\w+$/$1.html/;     # with path
-  } 
-
 #print header
   my $index;	# index of all headlines
   my $idxFile;	# extra index file of all headlines
@@ -97,7 +97,7 @@ my $config = Options::parse($usage, 1);
 
   my $parse=$file;
   my $setImgToEnd = 0;
-  my $firstLIne=1;
+  my $firstLine=1;
   my $isPre=0;
   my $paragraphBefore;
 
@@ -105,6 +105,9 @@ my $config = Options::parse($usage, 1);
 
   while( getParagraph(\$parse, \$paragraph) )
   {
+# the characters <, > are allways substituted, also in PRE paragraphs!
+    $paragraph =~ s|<|&lt;|g;
+    $paragraph =~ s|>|&gt;|g;
 # is PRE (code) ?
     if( $paragraph =~ /^\s\s/i )
     { #print "is Preformated\n";
@@ -143,8 +146,6 @@ my $config = Options::parse($usage, 1);
     $paragraph =~ s|ß|&szlig;|g;
     $paragraph =~ s|€|&euro;|g;
     $paragraph =~ s|µ|&mu;|g;
-    $paragraph =~ s|<|&lt;|g;
-    $paragraph =~ s|>|&gt;|g;
     $paragraph =~ s|\"|&quot;|g;
 
 # recognise ANCHORS in the document:  (anchor: #AnchorName)
@@ -153,6 +154,8 @@ my $config = Options::parse($usage, 1);
 # recognise html tags:
 # (displayed text: http://something)
     $paragraph =~ s|\((.*?):\s*http://(.*?)\)|<A HREF=\"http://$2\">$1</A> |g;
+    $paragraph =~ s|\((.*?):\s*URL=\s*(.*?)\)|<A HREF=\"$2\">$1</A> |g;
+    $paragraph =~ s|\(\s*URL=\s*(.*?)\)|<A HREF=\"$1\">$1</A> |g;
 
 # (displayed text: #something) for local references
     $paragraph =~ s|\((.*?):\s*\#(.*?)\)|<A HREF=\"#$2\">$1</A> |g;
@@ -198,7 +201,7 @@ my $config = Options::parse($usage, 1);
     elsif( $paragraph =~ /\*\*\*+/i )	
     { #print "is H1\n";
       $paragraph =~ s/\n*\*\*\*+//i;
-      if( $firstLIne )	#create Site header if first line is a H1 tag
+      if( $firstLine )	#create Site header if first line is a H1 tag
       { 
         $idxFile .="<DT><a href=\"$outFileName#cont_$indexNr\"target=\"Wtext\"><B>$paragraph</B></a></DT><hr>\n";	# set reference in .idx.html file
 #        $header .= "<TABLE CELLPADDING=0 CELLSPACING=0 width=100%>\n".
@@ -283,7 +286,7 @@ my $config = Options::parse($usage, 1);
     $docContens .= "$paragraph\n";
     #print "**html:\n$paragraph\n";
 
-    $firstLIne=0;
+    $firstLine=0;
   }  # end while
 
 #  print "is END |$parse|\n";
@@ -299,7 +302,6 @@ my $config = Options::parse($usage, 1);
 
   my ($fileHeader,$fileFooter) = makeDocStyle::blabla($title,$filetime,$ENV{USER});
 
-#  print "write $outFileName\n";
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
   print OUT_FILE $fileHeader;
 
