@@ -7,6 +7,6 @@ darcs record -a -l -m UNADDED
 darcs send -a --output=$dest/local-patches
 darcs changes --context --repo=`cat _darcs/prefs/defaultrepo` > $dest/remote-context
 darcs changes --context > $dest/local-context
-yes | darcs unrecord --last=1
-darcs whatsnew -s | sed 's/^A //' | xargs darcs remove
-yes | darcs unrecord --last=1
+yes | darcs unrecord -p'^UNADDED$' -a --last=1
+darcs whatsnew -s | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove
+yes | darcs unrecord -p'^UNRECORDED$' -a --last=1
