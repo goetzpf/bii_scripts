@@ -51,7 +51,7 @@ my @scripts= qw(dbsort bdns_import.pl dbutil.p bdns_lookup.pl
 		oracle_request accLaunch addPVtoArchiver
 		rsync-deploy rsync-dist.pl multi-commit.pl pcomp.pl
                 darcs-kompare darcs-moni makeRegistrar
-		txt2html.pl);
+		txt2html.pl darcs-save darcs-restore);
 
 # List of all modules to be installed
 my @modules= qw(BDNS.pm ODB.pm parse_subst.pm CreateX.pm

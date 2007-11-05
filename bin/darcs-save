@@ -1,0 +1,12 @@
+#!/bin/sh
+dest=.darcs-restore
+test -d $dest || mkdir $dest
+cp _darcs/prefs/defaultrepo $dest
+darcs record -a -m UNRECORDED
+darcs record -a -l -m UNADDED
+darcs send -a --output=$dest/local-patches
+darcs changes --context --repo=`cat _darcs/prefs/defaultrepo` > $dest/remote-context
+darcs changes --context > $dest/local-context
+yes | darcs unrecord --last=1
+darcs whatsnew -s | sed 's/^A //' | xargs darcs remove
+yes | darcs unrecord --last=1
