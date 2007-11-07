@@ -397,6 +397,19 @@ Libraries and Modules:
 	(which are usually a comment) are ignored.
         (URL=modules/simpleconf.html)
 
+*  darcs-save, darcs-restore  :
+        These tools can be used to save and later restore a source tree
+        that is under darcs control. The idea is to call darcs-save
+        immediately before (binary) distribution. The generated directory
+        named '.darcs-restore' should then be distributed, too. In order
+        to restore the sources for such a distribution, call darcs-restore
+        with the distribution directory (which may be a remote path,
+        darcs-restore uses scp) as first, and the name of the directory to
+        be created as second argument. Special feature: it is not
+        necessary to record pending changes prior to distribution.
+        Not-recorded changes and not-yet-added files and directories are
+        restored just fine.
+
 -----------------------------------------------------------------------
 
 Footnotes:
