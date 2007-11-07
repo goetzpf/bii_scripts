@@ -110,6 +110,10 @@ sub parse
     my $r_this_record;
     my $r_this_record_fields;
 
+    if (!defined $db)
+      { simple_parse_error(__LINE__,$filename,"<undef> cannot be parsed"); }
+    if ($db=~/^\s*$/)
+      { simple_parse_error(__LINE__,$filename,"\"\" cannot be parsed"); }
 
     for(;;)
       { 
@@ -230,6 +234,16 @@ sub create
         create_record($rec,$r_f); 
       };
   }
+
+sub simple_parse_error
+  { my($prg_line, $filename, $msg)= @_;
+    if (defined $filename)
+      { $filename= "in file $filename "; };
+    my $err= "Parse error ${filename}at line $prg_line of parse_db.pm,\n" .
+             $msg . "\n";
+    croak $err;
+  }
+    
 
 sub parse_error
   { my($prg_line,$r_st,$pos,$filename)= @_;

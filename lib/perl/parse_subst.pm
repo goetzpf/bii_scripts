@@ -135,6 +135,9 @@ sub get_or_mk_hash
 sub parse
   { my($arg, $mode)= @_;
 
+    if (!defined $arg)
+      { simple_parse_error(__LINE__,"<undef> cannot be parsed"); }
+    
     my $r_db;
     my $ref = ref($arg);
     if    ($ref eq 'SCALAR')
@@ -145,6 +148,11 @@ sub parse
       { croak "parse: argument is neither a scalar nor " .
               "a reference to a scalar"; 
       };
+
+    if (!defined $$r_db)
+      { simple_parse_error(__LINE__,"<undef> cannot be parsed"); }
+    if ($$r_db=~/^\s*$/)
+      { simple_parse_error(__LINE__,"\"\" cannot be parsed"); }
 
     $mode= "templateHash" if (!defined $mode);
 
@@ -370,6 +378,13 @@ sub create
     foreach my $file (sort keys %$r_hash)
       { create_instances($file, $r_hash); 
       }
+  }
+
+sub simple_parse_error
+  { my($prg_line, $msg)= @_;
+    my $err= "Parse error at line $prg_line of parse_subst.pm,\n" .
+             $msg . "\n";
+    croak $err;
   }
 
 sub parse_error
