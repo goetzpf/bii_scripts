@@ -340,7 +340,7 @@ is returned do NOT return alised column table prefixes such as
 aliasing the function col_aliases.
 The resultset is returned shows the content like that:
 
-resultset = (
+%resultset = (
 	{ row1col1=>row1colval1, row1col2=>row1colval2 ...},
 	{ row2col1=>row2colval1, row1col2=>row2colval2 ...},
 	... )

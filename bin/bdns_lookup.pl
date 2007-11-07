@@ -50,9 +50,10 @@ Options::register(
 	['passwd', 				'p', 	'=s', "Password",   "password", "", 1],
 	['force', 					'f',   	'', 	"use force query with the default database account"],
 	['verbose',  				'v',   '', 	"print a lot more informations"],
-	['output', 					'o', 	'=s', "output format as a selection of list, table, htmltable, csvtable, set, htmlset, xmlset or dump"],
+	['output', 					'o', 	'=s', "output format as a selection of \n\tlist, \n\ttable, \n\thtmltable, \n\tcsvtable, \n\tset, \n\thtmlset, \n\txmlset or \n\tdump"],
 	['outputbody',			'b', 	'', 	"removing to output header"],
 	['outputindex',			'i', 	'', 	"insert indexcount to output"],
+	['wwwform',			'w',	'',		"returns the formular for webrequests" ],
 	['extract', 				'x', 	'', 	"concat the extracted name parts"],
 	['description',			't', 	'', 	"concat the textual descriptions"],
 	['groups', 				'g', 	'', 	"concat the grouping names"],
@@ -65,7 +66,9 @@ Options::register(
 );
 
 my $usage = "parse bessy device name service for the given list of names or patterns (% as any and more, ? one unspecified character)
-usage: bdns_lookup [options] names...
+usage: bdns_lookup.pl [options] names...
+% ... on ore more unspecified characters
+_ ... one or no unspecified characters
 options:
 ";
 
@@ -73,17 +76,23 @@ my $config = Options::parse($usage, 1);
 
 $usage = $usage . $Options::help;
 
-die $usage if $#ARGV< 0;
+#warn Dumper($config);
 
+die $usage if $#ARGV < 0 and not ($config->{"wwwform"}  or $config->{"help"});
 ODB::verbose() == 1 if $config->{'verbose'};
+
 
 if (! defined $config->{'output'} or ! $config->{'output'} =~ /(table|csvtable|htmltable|list|set|htmlset|xmlset|dump)/) {
 	$config->{'output'} = 'list';
 }
+$config->{"verbose"} = undef if ($config->{"wwwform"} or $config->{"output"} =~ /(htmltable|xmlset|htmlset)/);
 
-die $usage if not $config or $config->{"help"};
+my $dbschema = "";
+if ($config->{"dbase"} ne "mirror") {
+	$dbschema = "DEVICE.";
+}
 
-if ($config->{"force"}) {
+if ($config->{"force"} or $config->{"wwwform"}) {
 	$config->{'dbase'} = "devices";
 	$config->{'user'} = "anonymous";
 	$config->{'passwd'} = "bessyguest";
@@ -94,14 +103,9 @@ if ($config->{"force"}) {
 
 my @names = @ARGV;
 
-die $usage if not @names;
+die $usage if $#names = 0 or undef ($config->{"wwwform"});
 
 Options::ask_out();
-
-my $dbschema = "";
-if ($config->{"dbase"} ne "mirror") {
-	$dbschema = "DEVICE.";
-}
 
 # main object string, will be completed iprportionally of arguments
 my $dbobject = $dbschema.'V_NAMES vn';
@@ -117,6 +121,9 @@ if ($config->{'sort'}) {
 } else {
 	$config->{'sort'} = "name";
 }
+my %dbselectionlists = ();
+my %dboptionfield = ();
+
 $dborder{"key"} = "vn.KEY";
 $dborder{"name"} = "vn.NAME";
 $dborder{"revkey"} = "vn.KEY DESC";
@@ -126,55 +133,79 @@ $dborder{"revname"} = "vn.NAME DESC";
 my $colmax = 12;
 
 if (defined $config->{'extract'}) {
-	push @columns, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
-	push @head, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
-	$dborder{"family"} = "FAMILY";
-	$dborder{"domain"} = "FACILITY, DOMAIN, SUBSTR(SUBDOMAIN, 1, 1), TO_NUMBER(SUBSTR(SUBDOMAIN, 2))";
-	$dborder{"revdomain"} = "FACILITY DESC, DOMAIN DESC, SUBSTR(SUBDOMAIN, 1, 1) DESC, TO_NUMBER(SUBSTR(SUBDOMAIN, 2)) DESC";
+	if (exists($config->{"wwwform"})) {
+		$dboptionfield{"Extraction"} = "extract";
+	} else {
+		push @columns, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
+		push @head, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
+		$dborder{"family"} = "FAMILY";
+		$dborder{"domain"} = "FACILITY, DOMAIN, SUBSTR(SUBDOMAIN, 1, 1), TO_NUMBER(SUBSTR(SUBDOMAIN, 2))";
+		$dborder{"revdomain"} = "FACILITY DESC, DOMAIN DESC, SUBSTR(SUBDOMAIN, 1, 1) DESC, TO_NUMBER(SUBSTR(SUBDOMAIN, 2)) DESC";
+	}
 }
 
 if (defined $config->{'description'}) {
-	$dbobject .= ', '.$dbschema.'V_NAME_DESCRIPTIONS vnd';
-	push @columns, ('DESCRIPTION');
-	push @head, ('DESCRIPTION');
-	$dbjoin .= " AND vn.key = vnd.key(+)";
+	if (exists($config->{"wwwform"})) {
+		$dboptionfield{"Description"} = "description";
+	} else {
+		$dbobject .= ', '.$dbschema.'V_NAME_DESCRIPTIONS vnd';
+		push @columns, ('DESCRIPTION');
+		push @head, ('DESCRIPTION');
+		$dbjoin .= " AND vn.key = vnd.key(+)";
+	}
 }
 
 if (defined $config->{'family'}) {
-	$dbjoin .= " AND vn.family_key = device.pkg_bdns.get_family_key('".$config->{'family'}."')";
+	if (exists($config->{"wwwform"})) {
+		$dbselectionlists{"Families"} = [$dbschema.'V_FAMILIES f', "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
+	} else {
+		$dbjoin .= " AND vn.family_key = device.pkg_bdns.get_family_key('".$config->{'family'}."')";
+	}
 }
 
 if (defined $config->{'subdomain'}) {
-	$dbjoin .= " AND vn.subdomain_key = device.pkg_bdns.get_subdomain_key('".$config->{'subdomain'}."')";
+	if (exists($config->{"wwwform"})) {
+		$dbselectionlists{"Subdomains"} = [$dbschema.'V_SUBDOMAINS f', "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
+	} else {
+		$dbjoin .= " AND vn.subdomain_key = device.pkg_bdns.get_subdomain_key('".$config->{'subdomain'}."')";
+	}
 }
 
 if (defined $config->{'lattice'}) {
-	$dbobject .= ', '.$dbschema.'V_LATTICE vl';
-	push @columns, ('DS', 'LENGTH');
-	push @head, ('DS', 'LENGTH');
-	$dbjoin .= " AND vn.key = vl.key";
-	$config->{'sort'} = "lattice";
-	$dborder{"lattice"} = "TO_NUMBER(vl.DS)";
+	if (exists($config->{"wwwform"})) {
+		$dboptionfield{"Lattice"} = "lattice";
+	} else {
+		$dbobject .= ', '.$dbschema.'V_LATTICE vl';
+		push @columns, ('DS', 'LENGTH');
+		push @head, ('DS', 'LENGTH');
+		$dbjoin .= " AND vn.key = vl.key";
+		$config->{'sort'} = "lattice";
+		$dborder{"lattice"} = "TO_NUMBER(vl.DS)";
+	}
 }
 
 if (defined $config->{'facility'}) {
-	if (uc($config->{'facility'}) eq "MLS") {
-		if (defined $config->{"extract"}) {
-			$dbjoin .= " AND vn.facility = 'P'";
-		} else {
-			$dbjoin .= " AND vn.name LIKE '%P'";
-		}
-	} elsif (uc($config->{'facility'}) eq "FEL") {
-		if (defined $config->{"extract"}) {
-			$dbjoin .= " AND vn.facility = 'F'";
-		} else {
-		$dbjoin .= " AND vn.name LIKE '%F'";
-		}
+	if (exists($config->{"wwwform"})) {
+		$dbselectionlists{"Facilities"} = [$dbschema.'V_FACILITIES f', "KEY, NAME||' ('||PART_FACILITY||')' VALUE", "NAME IS NOT NULL"];
 	} else {
-		if (defined $config->{"extract"}) {
-			$dbjoin .= " AND vn.facility = ' '";
+		if (uc($config->{'facility'}) eq "MLS") {
+			if (defined $config->{"extract"}) {
+				$dbjoin .= " AND vn.facility = 'P'";
+			} else {
+				$dbjoin .= " AND vn.name LIKE '%P'";
+			}
+		} elsif (uc($config->{'facility'}) eq "FEL") {
+			if (defined $config->{"extract"}) {
+				$dbjoin .= " AND vn.facility = 'F'";
+			} else {
+				$dbjoin .= " AND vn.name LIKE '%F'";
+			}
 		} else {
-			$dbjoin .= " AND (vn.name NOT LIKE '%F' OR vn.name NOT LIKE '%F')";
+			if (defined $config->{"extract"}) {
+				$dbjoin .= " AND vn.facility = ' '";
+			} else {
+				$dbjoin .= " AND (vn.name NOT LIKE '%F' OR vn.name NOT LIKE '%F')";
+			}
 		}
 	}
 }
@@ -186,8 +217,33 @@ if (! $dborder{$config->{'sort'}}) {
 print "Output formatted as ".$config->{'output'}.." and sorted by ".$config->{"sort"}."\n" if ($config->{"verbose"});
 
 my $handle = ODB::login($config);
-
 delete ($config->{'passwd'});
+
+if (exists $config->{'wwwform'}) {
+	my $retform = "\n<!-- formbegin from bdns_param -->";
+	$retform .= "\n<table class=\"bdns\" id=\"bdns_lookup_form\">";
+	$retform .= "\n\t<input type=\"hidden\" name=\"table\" value=\"bdns_lookup\" />";
+	$retform .= "\n\t<tr>\n\t\t<th class=\"bdns\" id=\"bdns_lookup_form.Name\">Name</th>\n\t\t<td class=\"bdns\" id=\"bdns_lookup_value.Name\"><input type=\"text\" id=\"bdns_lookup_value.name\" name=\"name\"></td>\n\t</th>";
+	$retform .= "\n\t<tr>\n\t\t<th class=\"bdns\" id=\"bdns_lookup_form.Key\">Key</th>\n\t\t<td class=\"bdns\" id=\"bdns_lookup_value.Key\"><input type=\"text\" id=\"bdns_lookup_value.name_key\" name=\"name_key\"></td>\n\t</th>";
+	foreach my $selopt (keys %dbselectionlists) {
+		$retform .= "\n\t<tr>\n\t\t<th class=\"bdns\" id=\"bdns_lookup_form.".lc($selopt)."\">$selopt</th>\n\t\t<td class=\"bdns\" id=\"bdns_lookup_form.".lc($selopt)."\">\n\t\t\t<select name=\"".$selopt."\" id=\"bdns_lookup_form.".$selopt."\">";
+		my $selresult = ODB::sel($dbselectionlists{$selopt}[0], $dbselectionlists{$selopt}[1], $dbselectionlists{$selopt}[2]);
+		if (defined $selresult) {
+			#print Dumper($selresult);
+			$selidx = 0;
+			foreach my $selrow (@$selresult) {
+				$retform .= "\n\t\t\t\t<option value=\"".$selrow->{'KEY'}."\" id=\"bdns_lookup_form.".$selopt.".$selidx\">".$selrow->{'VALUE'}."</option>";
+				$selidx++;
+			}
+		}
+		$retform .= "\n\t\t\t</select>\n\t\t</td>\n\t</tr>";
+	}
+	# routine for facility,, family, group,
+	$retform .= "\n</table>";
+	$retform .= "\n<!-- formend from bdns_lookup -->\n";
+	print $retform;
+	exit 0;
+}
 
 Options::print_out("Connected as ".$config->{'user'}."@".$config->{'dbase'}."\n") if $config->{"verbose"};
 
@@ -226,9 +282,9 @@ foreach my $devname (@names) {
 # htmltable
 		} elsif ($config->{'output'} eq 'htmltable') {
 			print "\n\t".sprintf("<tr id=\"%u\">", $indexed);
-			print "\n\t\t".join("\n\t\t", map(sprintf("<td class=\"bdns\">%s</td>", $row->{$_}), @head));
+			print "\n\t\t".join("\n\t\t", map(sprintf("<td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td>", $row->{$_}), @head));
 			if ($config->{'groups'}) {
-				print "\n\t\t".sprintf("<td class=\"bdns\">%s</td>", &getGroups($row->{'vn.KEY'}));
+				print "\n\t\t".sprintf("<td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td>", &getGroups($row->{'vn.KEY'}));
 			}
 			print "\n\t".sprintf("</tr>");
 # csvtable
@@ -248,11 +304,11 @@ foreach my $devname (@names) {
 			print "\n";
 # xmlset
 		} elsif ($config->{'output'} eq 'htmlset') {
-			print join("", map(sprintf("\n\t<tr class=\"bdns\" id =\"$indexed\"><th class=\"bdns\">%s</th><td class=\"bdns\">%s</td></tr>", $_, $row->{$_}), @head));
+			print join("", map(sprintf("\n\t<tr class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\"><th class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</th><td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td></tr>", $_, $row->{$_}), @head));
 			if ($config->{'groups'}) {
-				print sprintf("\n\t<tr class=\"bdns\" id =\"$indexed\"><th class=\"bdns\">GROUPS</th><td class=\"bdns\">%s</td></tr>", &getGroups($row->{'vn.KEY'}));
+				print sprintf("\n\t<tr class=\"bdns\"  id=\"bdns_lookup_result.groups$indexed\"><th class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">GROUPS</th><td class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">%s</td></tr>", &getGroups($row->{'vn.KEY'}));
 			}
-			print "\n\t<tr class=\"bdns\" colspan=\"2\"><td><hr /></td>\n";
+			print "\n\t<tr class=\"bdns\" colspan=\"2\" id=\"bdns_lookup_result.separator\"><td class=\"bdns\" id=\"bdns_lookup_result.separator$indexed\"><hr /></td>\n";
 		} elsif ($config->{'output'} eq 'xmlset') {
 			print "\n\t".sprintf("<entry index=\"%u\">", $indexed);
 			print "\n\t\t".join("\n\t\t", map(sprintf("<%s>%s</%s>", lc($_), $row->{$_}, lc($_)), @head));
