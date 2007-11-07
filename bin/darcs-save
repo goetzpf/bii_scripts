@@ -2,11 +2,17 @@
 dest=.darcs-restore
 test -d $dest || mkdir $dest
 cp _darcs/prefs/defaultrepo $dest
-darcs record -a -m UNRECORDED
-darcs record -a -l -m UNADDED
+darcs record -a -m NOT-RECORDED
+darcs record -a -l -m NOT-ADDED
+darcs tag "`whoami`@`uname -n`:`pwd`"
 darcs send -a --output=$dest/local-patches
 darcs changes --context --repo=`cat _darcs/prefs/defaultrepo` > $dest/remote-context
 darcs changes --context > $dest/local-context
-yes | darcs unrecord -p'^UNADDED$' -a --last=1
+#unrecord the tag
+yes | darcs unrecord -a --last=1
+#unrecord not-added files
+yes | darcs unrecord -p'^NOT-ADDED$' -a --last=1
+#un-add these files
 darcs whatsnew -s | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove
-yes | darcs unrecord -p'^UNRECORDED$' -a --last=1
+#unrecord not recorded changes
+yes | darcs unrecord -p'^NOT-RECORDED$' -a --last=1

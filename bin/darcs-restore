@@ -15,9 +15,14 @@ repo=`cat $darcs_restore_dir/defaultrepo`
 darcs get --repo-name=$temp/pre-restored --context=$remote_context $repo || exit
 darcs apply --allow-conflicts --repodir=$temp/pre-restored $local_patches || exit
 darcs get --repo-name=$restored --context=$local_context $temp/pre-restored || exit
-yes | darcs unrecord -p'^UNADDED$' --last=1 --repodir=$restored
+#unrecord the tag
+yes | darcs unrecord --last=1 --repodir=$restored
+#unrecord unadded files
+yes | darcs unrecord -p'^NOT-ADDED$' --last=1 --repodir=$restored
+#un-add these files
 darcs whatsnew -s  --repodir=$restored | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove --repodir=$restored
-yes | darcs unrecord -p'^UNRECORDED$' --repodir=$restored --last=1
+#unrecord unrecorded changes
+yes | darcs unrecord -p'^NOT-RECORDED$' --repodir=$restored --last=1
 echo $repo > $restored/_darcs/prefs/defaultrepo
 rm -f $restored/_darcs/prefs/repos
 rm -rf $temp
