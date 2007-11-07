@@ -56,6 +56,7 @@
       $file = <IN_FILE>;
     }  
     close IN_FILE;
+    die "Empty file: '$inFileName'" unless length($file) > 0;
     $r_substData = parse_subst::parse($file,'templateList');
     #parse_subst::dump($r_substData);
 

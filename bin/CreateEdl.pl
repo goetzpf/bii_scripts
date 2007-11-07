@@ -96,8 +96,10 @@
       $file = <IN_FILE>;
     }  
     close IN_FILE;
+    die "Empty file: '$inFileName'" unless length($file) > 0;
 
     $file = $title.$file if( defined $title);
+
     $r_substData = parse_subst::parse($file,'templateList');
 
 
@@ -408,8 +410,8 @@ sub   getTemplate
 
     if( not defined $widgetPath )
     {
-	warn "Skip '$itemName':  no adl-file '$widgetName' found in: '",join(':',@searchDlPath),"'\n";
-	next;
+	warn "Skip '$itemName':  no edl-file '$widgetName' found in: '",join(':',@searchDlPath),"'\n";
+	return undef;
     }
     elsif( $opt_M == 1)
     {
