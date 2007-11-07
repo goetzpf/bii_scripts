@@ -1,20 +1,23 @@
 #!/bin/sh
-#usage: darcs_restore [user@host:]source-dir dest-dir
+if test $# -ne 2; then
+  echo "usage: darcs_restore [user@host:]source-dir dest-dir"
+  exit
+fi
 test -d $2 && echo "$0: target directory already exists!" && exit
 temp=`mktemp -d`
-scp -r $1/.darcs-restore $temp
+scp -r $1/.darcs-restore $temp || exit
 darcs_restore_dir=$temp/.darcs-restore
 restored=$2
 remote_context=$darcs_restore_dir/remote-context
 local_context=$darcs_restore_dir/local-context
 local_patches=$darcs_restore_dir/local-patches
 repo=`cat $darcs_restore_dir/defaultrepo`
-darcs get --repo-name=$temp/pre-restored --context=$remote_context $repo
-darcs apply --allow-conflicts --repodir=$temp/pre-restored $local_patches
+darcs get --repo-name=$temp/pre-restored --context=$remote_context $repo || exit
+darcs apply --allow-conflicts --repodir=$temp/pre-restored $local_patches || exit
 darcs get --repo-name=$restored --context=$local_context $temp/pre-restored || exit
-yes | darcs unrecord --last=1 --repodir=$restored
-darcs whatsnew -s  --repodir=$restored | sed 's/^A //' | xargs darcs remove --repodir=$restored
-yes | darcs unrecord --repodir=$restored --last=1
+yes | darcs unrecord -p'^UNADDED$' --last=1 --repodir=$restored
+darcs whatsnew -s  --repodir=$restored | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove --repodir=$restored
+yes | darcs unrecord -p'^UNRECORDED$' --repodir=$restored --last=1
 echo $repo > $restored/_darcs/prefs/defaultrepo
 rm -f $restored/_darcs/prefs/repos
 rm -rf $temp
