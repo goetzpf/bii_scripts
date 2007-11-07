@@ -108,10 +108,10 @@ my @pods= qw(parse_db.pm dbitable.pm parse_subst.pm
 	     #../../src/perl/Pezca/Pezca.pm
 
 # Common documentation files in makeDoc style
-my @makeDocTxt_files= qw(USE_PERL.txt INSTALL.txt CONTENTS.txt CreateAdl.pl CreateEdl.pl);
+my @makeDocTxt_files= qw(USE_PERL.txt INSTALL.txt CONTENTS.txt);
 
 # Documentation for modules, scripts with makeDoc documentation
-my @makeDocScript_files= qw();
+my @makeDocScript_files= qw(CreateAdl.pl CreateEdl.pl);
 my @makeDocModule_files= qw();
 
 my @args= @ARGV;
