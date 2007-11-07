@@ -55,6 +55,11 @@ Scripts
 	used in the BESSY MultiCAN device support for EPICS.
 	(URL=scripts/canlink.html)
 
+*  CreateAdl.pl, CreateEdl.pl  :
+    	Create Panels from EPICS-Database '.substitution' files and 
+	widgets for each item of the '.substitution' file.
+	(URL=scripts/CreateAdl.html) (URL=scripts/CreateEdl.html)
+	
 *  cvs_diff.pl  :
 	compare versions of a file in a CVS repository. This tool
 	can remove emtpy lines and c-comments before comparing.

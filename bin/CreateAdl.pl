@@ -1,5 +1,15 @@
   eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	if $running_under_some_shell;
+
+##   Usage: CreateAdl.pl [options] inFilename outFilename\n
+#      Options:
+#      -x pixel      		       X-Position of the panel (default=100)
+#      -y pixel      		       Y-Position of the panel (default=100)
+#      -w pixel       		       Panel width (default=900)
+#      -I searchPath                    Search paht(s) for panel widgets
+#      -M                               Create make dependencies
+#      -v                               Verbose, debug output
+
 #
 #   Understanding the data structure
 # ========================================
@@ -169,7 +179,7 @@
     close FILE;
 
 #-------------------------------------------------------------------------------   
-sub getDisplaySize
+sub   getDisplaySize
 {   my($filename) = @_;
 
     my $x;
@@ -195,7 +205,7 @@ sub getDisplaySize
     return ($width,$hight);
 }
 #-------------------------------------------------------------------------------   
-sub setXy
+sub   setXy
 { 
     if( $xNow + $widgetWidth > $displayWidth )
     { $xNow = 0;
