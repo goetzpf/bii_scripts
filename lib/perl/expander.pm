@@ -185,6 +185,12 @@ sub set_var
     $m{$name}->[$index]= $value;
   }
 
+sub set_indexvar  
+  { my($name,$index,$value)= @_;
+
+    $m{$name}->[$index]= $value;
+  }
+
 sub declare_func
   { my($identifier,$funcname)= @_;
     $functions{$identifier}= $funcname;
@@ -1793,6 +1799,20 @@ B<set_var()>
 
 This function sets the value of the internal variable with the
 name $varname. If $index is given, an index-variable is assumed.
+Note that the 2nd example, using this function to set and index-variable
+is depricated. Use the new function set_indexvar() (see below) instead.
+The problem is, that C<set_var($varname,$index,undef)> kind of destroys
+the internal index variable while calling C<set_indexvar($varname,$index,undef)>
+works without problems.
+
+=item *
+
+B<set_indexvar()>
+
+  set_indexvar($varname,$index,$value)
+
+This function sets the value of the internal index-variable with the
+name $varname. 
 
 =item *
 
