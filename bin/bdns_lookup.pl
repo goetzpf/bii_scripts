@@ -230,7 +230,7 @@ if (exists $config->{'wwwform'}) {
 		my $selresult = ODB::sel($dbselectionlists{$selopt}[0], $dbselectionlists{$selopt}[1], $dbselectionlists{$selopt}[2]);
 		if (defined $selresult) {
 			#print Dumper($selresult);
-			$selidx = 0;
+			my $selidx = 0;
 			foreach my $selrow (@$selresult) {
 				$retform .= "\n\t\t\t\t<option value=\"".$selrow->{'KEY'}."\" id=\"bdns_lookup_form.".$selopt.".$selidx\">".$selrow->{'VALUE'}."</option>";
 				$selidx++;
