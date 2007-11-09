@@ -308,7 +308,7 @@ foreach my $devname (@names) {
 			if ($config->{'groups'}) {
 				print sprintf("\n\t<tr class=\"bdns\"  id=\"bdns_lookup_result.groups$indexed\"><th class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">GROUPS</th><td class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">%s</td></tr>", &getGroups($row->{'vn.KEY'}));
 			}
-			print "\n\t<tr class=\"bdns\" colspan=\"2\" id=\"bdns_lookup_result.separator\"><td class=\"bdns\" id=\"bdns_lookup_result.separator$indexed\"><hr /></td>\n";
+			print "\n\t<tr class=\"bdns\" colspan=\"2\" id=\"bdns_lookup_result.separator\"><td class=\"bdns\" id=\"bdns_lookup_result.separator$indexed\"><hr /></td></tr>\n";
 		} elsif ($config->{'output'} eq 'xmlset') {
 			print "\n\t".sprintf("<entry index=\"%u\">", $indexed);
 			print "\n\t\t".join("\n\t\t", map(sprintf("<%s>%s</%s>", lc($_), $row->{$_}, lc($_)), @head));
@@ -402,13 +402,13 @@ sub getFooter {
 			print &printLine();
 			$ret .= "\n $rowindex Entries found";
 		} elsif ($config->{'output'} eq "htmltable") {
-			$ret .= "\n\t</table>";
+			$ret .= "</table>";
 		} elsif ($config->{'output'} eq "set") {
 			$ret .= "\n";
 			print &printLine();
 			$ret .= "\n $rowindex Entries found";
 		} elsif ($config->{'output'} eq "htmlset") {
-			$ret .= "\n\t</table>";
+			$ret .= "</table>";
 		}
 	}
 	if ($config->{'output'} eq "xmlset") {
