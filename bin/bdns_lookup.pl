@@ -219,7 +219,7 @@ print "Output formatted as ".$config->{'output'}.." and sorted by ".$config->{"s
 my $handle = ODB::login($config);
 delete ($config->{'passwd'});
 
-if (exists $config->{'wwwform'}) {
+if (defined $config->{'wwwform'}) {
 	my $retform = "\n<!-- formbegin from bdns_param -->";
 	$retform .= "\n<table class=\"bdns\" id=\"bdns_lookup_form\">";
 	$retform .= "\n\t<input type=\"hidden\" name=\"table\" value=\"bdns_lookup\" />";
