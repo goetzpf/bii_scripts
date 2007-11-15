@@ -43,12 +43,19 @@ proc usage {{msg ""}} {
 
 if {[llength $argv] < 4} {usage "too few arguments"}
 
-array set ports {ctl 4811 blc 4812 csr 4821 id 4841 misc 4842}
+array set hosts {
+    ctl  arc11c.trs.bessy.de:4811
+    blc  arc11c.trs.bessy.de:4812 
+    csr  arc11c.trs.bessy.de:4821 
+    id   arc11c.trs.bessy.de:4841
+    misc arc11c.trs.bessy.de:4842
+    mls  arc1cp.mlscs.bessy.de:4811
+}
 
 set rest [lassign $argv archiver group channel period]
 
-if {[array names ports $archiver] == ""} {usage "archiver '$archiver' not found"}
-set port $ports($archiver)
+if {[array names hosts $archiver] == ""} {usage "archiver '$archiver' not found"}
+set host $hosts($archiver)
 
 if {[catch {set period [format %.3f $period]}]} {
   usage "given period seems not to be numeric..."
@@ -58,7 +65,7 @@ if {$period == 0} {
 }
 
 
-set req "http://arc11c.trs.bessy.de:$port/addchannel?GROUP=$group&CHANNEL=$channel&PERIOD=$period"
+set req "http://$host/addchannel?GROUP=$group&CHANNEL=$channel&PERIOD=$period"
 
 if {[lsearch $rest "mon"] >= 0} {append req "&MONITOR=1"}
 if {[lsearch $rest "dis"] >= 0} {append req "&DISABLE=1"}
