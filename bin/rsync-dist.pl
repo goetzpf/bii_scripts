@@ -743,7 +743,8 @@ sub dist
     if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
       { die "ERROR: locking of the servers failed"; };
 
-    my $datestr= datestring();
+    my $datestr= $now; # make dates consistent!!
+    
     $r_log->{LOCALDATE}= $datestr;
 
     my $rcmd= sh_handle_attic_s(0,$log,$chg) .
