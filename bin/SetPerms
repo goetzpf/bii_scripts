@@ -30,7 +30,6 @@
 # Completely cron-job-aware, runs even with "PATH=/usr/bin"
 #
 # Time-stamp: <24 Jan 06 14:35:59 Ralph Lange>
-# $Id: SetPerms,v 1.19 2007-11-26 11:01:39 franksen Exp $
 #
 PROG=`basename $0`
 
