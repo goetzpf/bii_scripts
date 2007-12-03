@@ -594,7 +594,7 @@ build_html_pythonlib: build_html_pythonlib_pydocs
 build_html_pythonlib_pydocs: $(PYTHONLIB_HTML_BUILD_DIR) $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST)
 
 $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTHONLIB_SRC_DIR)/%.py
-	(cd $(@D) && pydoc -w $(abspath $(<D))/$(<F))
+	d=`pwd` && cd $(@D) && pydoc -w $$d/$<
 
 # directory creation.........................................
 
