@@ -135,13 +135,13 @@ SCRIPT_LIST=$(call find_xfiles,$(SCRIPT_SRC_DIR),[A-Za-z]*,1)
 # perl libraries that have to be installed
 # match all files in $(PERLLIB_SRC_DIR) with name *.pm
 # depth 100 (all sub and sub-subdirs), omit "i386-linux-thread-multi/Pezca.pm"
-PERLLIB_LIST= $(filter-out i386-linux-thread-multi/Pezca.pm,\
+PERLLIB_LIST=$(filter-out i386-linux-thread-multi/Pezca.pm,\
 	      $(call find_files,$(PERLLIB_SRC_DIR),*.pm,100))
 
 # python libraries that have to be installed
 # match all files in $(PYTHONLIB_SRC_DIR) with name *.pm
 # depth 100 (all sub and sub-subdirs)
-PYTHONLIB_LIST= $(call find_files,$(PYTHONLIB_SRC_DIR),*.py,100)
+PYTHONLIB_LIST=$(call find_files,$(PYTHONLIB_SRC_DIR),*.py,100)
 
 # a list of sub-directories within the perl-lib directory
 # find all directories below $(PERLLIB_SRC_DIR), depth 1
@@ -156,60 +156,61 @@ PYTHONLIB_DIRLIST=$(filter-out CVS,\
 		  $(call find_subdirs,$(PYTHONLIB_SRC_DIR),1))
  
 # scripts with embedded POD documentation
-POD_SCRIPT_LIST= rsync-dist.pl multi-commit.pl
+POD_SCRIPT_LIST=rsync-dist.pl multi-commit.pl
 
 # scripts with no embedded documentation 
 # create online help by executing "(script 2>&1; true)
 PLAINTXT_SCRIPT_LIST= \
-	    dbcount \
-	    dbsort
+	dbcount \
+	dbsort
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.pl 2>&1; true)
 PLAINTXT_PL_SCRIPT_LIST= \
-	    bdns_import.pl \
-	    bdns_lookup.pl \
-	    dbscan.pl \
-	    grepDb.pl
+	bdns_import.pl \
+	bdns_lookup.pl \
+	dbscan.pl \
+	grepDb.pl
 
 # scripts with no embedded documentation 
 # create online help by executing "(script -h 2>&1; true)
 PLAINTXT_H_SCRIPT_LIST= \
-            dbdiff \
-            substdiff
+	dbdiff \
+	substdiff
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.p -h 2>&1; true)
 PLAINTXT_H_P_SCRIPT_LIST= \
-            dbutil.p
+	dbutil.p
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PL_SCRIPT_LIST= \
-            adl_cvs_diff.pl\
-            adlsort.pl \
-            camonitor_sort.pl \
-            canlink.pl \
-            cvs_diff.pl \
-            cvs_log_diff.pl \
-            dbfilter.pl \
-            expander.pl \
-            filter_can_links.pl \
-            hgen.pl \
-	    pcomp.pl \
-            pfind.pl \
-            Sch2db.pl \
-            sch_cvs_diff.pl \
-            set_ioc_tsrv.pl \
-            subst2exp.pl \
-            substprint.pl
+	adl_cvs_diff.pl\
+	adlsort.pl \
+	camonitor_sort.pl \
+	canlink.pl \
+	cvs_diff.pl \
+	cvs_log_diff.pl \
+	dbfilter.pl \
+	expander.pl \
+	filter_can_links.pl \
+	hgen.pl \
+	pcomp.pl \
+	pfind.pl \
+	Sch2db.pl \
+	sch_cvs_diff.pl \
+	set_ioc_tsrv.pl \
+	subst2exp.pl \
+	substprint.pl
 
 # perl libraries with embedded POD documentation
-POD_PERLLIB_LIST= parse_db.pm dbitable.pm parse_subst.pm \
-               cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm \
-               scan_makefile.pm container.pm maillike.pm \
-               simpleconf.pm extended_glob.pm \
-               analyse_db.pm bessy_module.pm \
+POD_PERLLIB_LIST= \
+	parse_db.pm dbitable.pm parse_subst.pm \
+	cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm \
+	scan_makefile.pm container.pm maillike.pm \
+	simpleconf.pm extended_glob.pm \
+	analyse_db.pm bessy_module.pm \
 
 # python libraries with embedded pydoc documentation
 PYDOC_PYTHONLIB_LIST=FilterFile.py 
