@@ -156,7 +156,7 @@ PYTHONLIB_DIRLIST=$(filter-out CVS,\
 		  $(call find_subdirs,$(PYTHONLIB_SRC_DIR),1))
  
 # scripts with embedded POD documentation
-POD_SCRIPT_LIST=rsync-dist.pl multi-commit.pl
+POD_SCRIPT_LIST=rsync-dist.pl multi-commit.pl bdns_lookup.pl
 
 # scripts with no embedded documentation 
 # create online help by executing "(script 2>&1; true)
@@ -168,7 +168,6 @@ PLAINTXT_SCRIPT_LIST= \
 # create online help by executing "(script.pl 2>&1; true)
 PLAINTXT_PL_SCRIPT_LIST= \
 	bdns_import.pl \
-	bdns_lookup.pl \
 	dbscan.pl \
 	grepDb.pl
 
