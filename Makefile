@@ -545,19 +545,29 @@ build_html_script_plaintxt: $(SCRIPT_HTML_BUILD_DIR) \
 			    $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST)
 
 $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
-	($< 2>&1; true) > $@
+	@echo "<PRE>"      >  $@
+	(PERL5LIB=$(PERLLIB_SRC_DIR) $<  2>&1; true)   >> $@
+	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
-	($< -h 2>&1; true) > $@
+	@echo "<PRE>"      >  $@
+	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.p
-	($< -h 2>&1; true) > $@
+	@echo "<PRE>"      >  $@
+	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
-	($< -h 2>&1; true) > $@
+	@echo "<PRE>"      >  $@
+	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
-	($< 2>&1; true) > $@
+	@echo "<PRE>"      >  $@
+	(PERL5LIB=$(PERLLIB_SRC_DIR) $<  2>&1; true)   >> $@
+	@echo "</PRE>"     >> $@
 
 build_html_script_doctxt: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_DOCTXT_SCRIPT_BUILD_LIST)
 
