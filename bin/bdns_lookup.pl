@@ -46,22 +46,21 @@ use Data::Dumper;
 
 Options::register(
 	['dbase',  				'd', 	'=s', "Database instance (e.g. devices)", "database", $ENV{'ORACLE_SID'}],
-	['user',   					'u', 	'=s', "User name",  'user',     "anonymous"],
+	['user',   				'u', 	'=s', "User name",  'user',     "anonymous"],
 	['passwd', 				'p', 	'=s', "Password",   "password", "", 1],
-	['force', 					'f',   	'', 	"use force query with the default database account"],
-	['verbose',  				'v',   '', 	"print a lot more informations"],
-	['output', 					'o', 	'=s', "output format as a selection of \n\tlist, \n\ttable, \n\thtmltable, \n\tcsvtable, \n\tset, \n\thtmlset, \n\txmlset or \n\tdump"],
-	['outputbody',			'b', 	'', 	"removing to output header"],
-	['outputindex',			'i', 	'', 	"insert indexcount to output"],
-	['wwwform',			'w',	'',		"returns the formular for webrequests" ],
-	['extract', 				'x', 	'', 	"concat the extracted name parts"],
-	['description',			't', 	'', 	"concat the textual descriptions"],
-	['groups', 				'g', 	'', 	"concat the grouping names"],
-	['lattice', 					'l', 	'', 	"concat the lattice values"],
-	['sort', 						's', 	'=s', "supported: key/revkey, \n\tnamerevname (default), \n\tfamily (only if -x option is set), \n\tdomain/revdomain (only if -x option is set), \n\tgroups(only if -g option is set)\n\tlattice sorted automatically"],
-	['revertsort', 			'S', 	'', 	"revert/desc sort, without lattice order"],
-	['facility', 					'F', 	'=s', "filter facility, like  bii, mls, fel"],
-	['family', 					'T', 	'=s', "type of device, better the family"],
+	['force', 				'f',   	'',   "use force query with the default database account"],
+	['Verbose',  			'V',   '',    "print a lot more informations"],
+	['output', 				'o', 	'=s', "output format as a selection of \n\tlist, \n\ttable, \n\thtmltable, \n\tcsvtable, \n\tset, \n\thtmlset, \n\txmlset or \n\tdump"],
+	['outputbody',			'b', 	'',   "removing to output header"],
+	['outputindex',			'i', 	'',   "insert indexcount to output"],
+	['wwwform',				'w',	'',	  "returns the formular for webrequests" ],
+	['extract', 			'x', 	'',   "concat the extracted name parts"],
+	['description',			't', 	'',   "concat the textual descriptions"],
+	['groups', 				'g', 	'',   "concat the grouping names"],
+	['sort', 				's', 	'=s', "supported: key/revkey, \n\tnamerevname (default), \n\tfamily (only if -x option is set), \n\tdomain/revdomain (only if -x option is set), \n\tgroups(only if -g option is set)"],
+	['revertsort', 			'S', 	'',   "revert/desc sort"],
+	['facility', 			'F', 	'=s', "filter facility, like  bii, mls, fel"],
+	['family', 				'T', 	'=s', "type of device, better the family"],
 	['subdomain', 			'L', 	'=s', "location of the device or better the subdomain"],
 );
 
@@ -171,19 +170,6 @@ if (defined $config->{'subdomain'}) {
 	}
 }
 
-if (defined $config->{'lattice'}) {
-	if (exists($config->{"wwwform"})) {
-		$dboptionfield{"Lattice"} = "lattice";
-	} else {
-		$dbobject .= ', '.$dbschema.'V_LATTICE vl';
-		push @columns, ('DS', 'LENGTH');
-		push @head, ('DS', 'LENGTH');
-		$dbjoin .= " AND vn.key = vl.key";
-		$config->{'sort'} = "lattice";
-		$dborder{"lattice"} = "TO_NUMBER(vl.DS)";
-	}
-}
-
 if (defined $config->{'facility'}) {
 	if (exists($config->{"wwwform"})) {
 		$dbselectionlists{"Facilities"} = [$dbschema.'V_FACILITIES f', "KEY, NAME||' ('||PART_FACILITY||')' VALUE", "NAME IS NOT NULL"];
@@ -214,7 +200,9 @@ if (! $dborder{$config->{'sort'}}) {
 	$config->{'sort'} = "name";
 }
 
-print "Output formatted as ".$config->{'output'}.." and sorted by ".$config->{"sort"}."\n" if ($config->{"verbose"});
+print "Filtering with '$dbjoin'\n" if ($config->{"Verbose"});
+
+print "Output formatted as ".$config->{'output'}." and sorted by ".$config->{"sort"}."\n" if ($config->{"verbose"});
 
 my $handle = ODB::login($config);
 delete ($config->{'passwd'});
@@ -245,7 +233,7 @@ if (defined $config->{'wwwform'}) {
 	exit 0;
 }
 
-Options::print_out("Connected as ".$config->{'user'}."@".$config->{'dbase'}."\n") if $config->{"verbose"};
+Options::print_out("Connected as ".$config->{'user'}."@".$config->{'dbase'}."\n") if $config->{"Verbose"};
 
 print &getHeader();
 
@@ -431,3 +419,103 @@ sub printLine {
 	return $ret;
 }
 exit;
+__END__
+
+=head1 NAME
+
+bdns_lookup.pl - a Perl programm for querying the database for device names
+
+=head2 INTRODUCTION
+
+This program uses DBI for accessing the database. The Modules u needed to install:
+
+ * FindBin
+ * DBI
+ * Options
+ * ODB
+ * Data::Dumper;
+
+The results can be presented different as formats and content.
+In the following overview the most options are described.
+
+=head2 SYNTAX
+
+To call thte syntax the following short syntax is preferred:
+
+	usage: bdns_lookup.pl [bdfFghilLnuopsStTvwx] names
+
+Please suggest to configure the packages and have may be a look to your
+PERL5LIB environment variable, that there is the path to the packages
+is correctly set.
+
+=head2 ACCESS
+
+	-h, --help		display this help
+
+	-v, --verbose		print verbose messages
+
+	-V, --Verbose		print a lot more informations
+
+	-l, --log[=STRING]	print messages to file instead of stdout
+
+	-n, --not		do not perform any actual work
+
+	-d, --dbase=STRING	Database instance (e.g. devices)
+
+	-u, --user=STRING	User name for database access
+
+	-p, --passwd=STRING	Password, not shown in TTY
+
+	-f, --force		use force query with the default database account,
+
+				ignoring user and password options
+
+=head2 OUTPUT/FORMAT
+
+	-o, --output=STRING		output format as a selection of
+	
+		* list - textual list of names,
+		* table - ascii table,
+		* set - ascii sets,
+		* csvtable - csvtable,
+		* htmltable - htmlbased table,
+		* htmlset - separated html listentries,
+		* xmlset - simpleformatted xml text
+		* dump - perl dump
+
+	-b, --outputbody		removing to output header
+
+	-i, --outputindex		insert indexcount to output, formerly known as number of line
+
+	-w, --wwwform			returns the formular for webrequests
+
+	-x, --extract			concat the extracted name parts in to different columns,
+
+								shows the complete partitioning splitted in the parsed parts
+
+	-t, --description		concat the textual descriptions are given to all name parts
+
+	-g, --groups			concat the grouping names, the specific name is joined to
+
+=head2 ORDERING AND SORTING
+
+	-s, --sort=STRING			sort options supported:
+		* namerevname (default),
+		* key/revkey,
+		* family (only if -x option is set),
+		* domain/revdomain (only if -x option is set),
+		* groups(only if -g option is set)
+
+	-S, --revertsort			revert/desc sort of given sort order
+
+	-F, --facility=STRING		filter facility, like  bii, mls, fel
+
+	-T, --family=STRING			type of device, better the family
+
+	-L, --subdomain=STRING		location of the device or better the subdomain
+
+=head1 AUTHOR
+
+Patrick Laux,  laux@bessy.de
+
+=cut
