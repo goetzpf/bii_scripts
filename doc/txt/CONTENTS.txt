@@ -243,6 +243,10 @@ Scripts
 	directory permissions in the CVS repository, in 
 	epics, vxworks or development related directories.
 
+*  stripUnresolvedDb.pl  :
+    	remove all unresolved fields from a database. Means all fields 
+	that contain some variables $(VARIABLE).
+	
 *  subst2exp.pl  :
 	convert substitution-files to expander format for usage
 	with the expander.pl script. This can be used on the fly

@@ -1,0 +1,35 @@
+## stripUnresolvedDb.pl
+#  ******************************
+#  
+#     USAGE:  stripUnresolvedDb.pl inputFile.substitutions nrOfColumns
+#  
+#  strip unresolved fields from an EPICS.db file
+#
+  eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
+	if $running_under_some_shell;
+  use strict;
+  no strict "refs";
+  
+  my $filename = shift @ARGV; # input file
+
+  die "missing paramter: inputFile\n USAGE:  stripUnresolvedDb.pl inputFile.substitutions \n" unless defined $filename;
+
+  print "strip unresolved fields from: $filename \n";
+
+  my( $file, $r_substData);
+  open(IN_FILE, "<$filename");
+
+  my @lines;
+  my @sortedNames;
+  my $templateName;
+  while( <IN_FILE> )
+  { if( ! /\$\(/ )
+    { push @lines, $_;
+    };
+  }
+  close IN_FILE;
+  open(OUT_FILE, ">$filename") or die "can't open output file: $filename";
+  foreach (@lines)
+  { print OUT_FILE $_;
+  }
+  close OUT_FILE;
