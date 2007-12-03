@@ -30,56 +30,69 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
 # *  Author  : Kuner
 #
-# search in an EPICS db file. 
+#  grep EPICS db files for records, fields, values etc. Print output in EPICS.db format
 #
-#  *  USAGE:  grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename
+#     USAGE:  grepDb.pl -t<TRIGGER> <match> [-p<PRINT> <match>] filename/s
 #
-#  Trigger options may be set al gusto, they are processed as regular expressions 
-#  concatenated with AND:
+#  *  Triggers  : defines what fields, records etc are of interest. The values of the trigger 
+#  options  are processed as regular expressions and concatenated with logical AND, 
+#  means all triggers have to match.
 #
-#      -tt <recType>: record type
-#      -tr <recName>: record name
+#      -tt <recType>:   record type
+#      -tr <recName>:   record name
 #      -tf <fieldType>: field type
-#      -tv <value>:    field contains <value>
+#      -tv <value>:     field contains <value>
+#      -tl:             db linkage (other trace options usable to reduce output)
 #
-#  Print options: default: all: record and fields
+#  *  Print options:  defines the output fields. The record name and type is allways shown. 
+#  Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:
 #
-#      -pf <fieldType>: print this field/s
 #      -pt <recType>:   print records of this type
 #      -pr <recName>:   print records tha match that name
+#      -pf <fieldType>: print this field/s
 #
 #  Common options:
 #
 #       -i ignore case
 #       -v verbose
 #
-#  *  Example  :
+#  *  Examples  :
 #
 #       grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP$|OUT|DTYP|NOBT)' *.db
+#
+#  Means Show all records of 'DTYP=EK IO32' print the fields 'INP$.OUT,DTYP' and 'NOBT'.
+#
+#       grepDb.pl  -tf '(INP|OUT|LNK|DOL)' file.db
+#
+#  Means Show the record linkage of this file, same as 'grepDb.pl  -tl file.db'.
 #
     use strict;
     use Getopt::Long;
     use Data::Dumper;
     use parse_db;
 
-    my $usage ="\n*  USAGE:\n\n".
-            "      grepDb.pl -t<TRIGGER> <match> -p<Print> <match> filename\n\n".
-            "* Trigger options\n\n".
-            "    * options not set match allways\n".
-            "    * options are processed as regular expressions concatenated with AND:\n\n".
-            "    -tt <recType>:   record type\n".
-            "    -tr <recName>:   record name\n".
-            "    -tf <fieldType>: field type\n".
-            "    -tv <value>:      field contains <value>\n\n".
-            "* Print options:\n\n".
-            "    * options not set match allways, but\n".
-            "    * no option set means print records with fields that match the trigger\n".
-            "    * options are processed as regular expressions concatenated with AND:\n\n".
-            "    -pf <fieldType>: print this field/s\n".
-            "    -pt <recType>:   print records of this type\n".
-            "    -pr <recName>:   print records tha match that name\n\n".
-            "*  Example  :\n\n".
-            "      grepDb.pl -t bo -r PHA1R -f DTYP -c lowcal -pf '(DTYP|OUT)' filename\n\n";
+    my $usage ="\nUSAGE: grepDb.pl -t<TRIGGER> <match> [-p<PRINT> <match>] filename/s\n\n".
+        "TRIGGERS:  defines what fields, records etc are of interest. The values of the trigger \n".
+        "   options  are processed as regular expressions and concatenated with logical AND, \n".
+        "   means all triggers have to match.\n\n".
+        "    -tt <recType>:   record type\n".
+        "    -tr <recName>:   record name\n".
+        "    -tf <fieldType>: field type\n".
+        "    -tv <value>:     field contains <value>\n".
+        "    -tl:             db linkage (other trace options usable to reduce output)\n\n".
+        "PRINT OPTIONS:  defines the output fields. The record name and type is allways shown.\n". 
+        "   Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:\n\n".
+        "    -pt <recType>:   print records of this type\n".
+        "    -pr <recName>:   print records tha match that name\n".
+        "    -pf <fieldType>: print this field/s\n\n".
+        "COMMON OPTIONS:\n\n".
+        "     -i ignore case\n".
+        "     -v verbose\n\n".
+        "EXAMPLES:\n\n".
+        "     grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP$|OUT|DTYP|NOBT)' *.db\n\n".
+        "   Means Show all records of 'DTYP=EK IO32' print the fields 'INP$.OUT,DTYP' and 'NOBT'.\n\n".
+        "     grepDb.pl  -tf '(INP|OUT|LNK|DOL)' file.db\n\n".
+        "   Means Show the record linkage of this file, same as 'grepDb.pl  -tl file.db'.\n\n";
 
     my $trigRecType = ".";
     my $trigRecName = ".";
@@ -89,11 +102,12 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $prRecName = ".";
     my $prFieldName = ".";
     my $ignore;
+    my $links;
     my $verbose;
 
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
-                           "i"=>\$ignore,"v"=>\$verbose);
+                           "i"=>\$ignore,"v"=>\$verbose,"tl"=>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -107,6 +121,11 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         eval( "sub match { return( scalar (\$_[0]=~/\$_[1]/) ); }" );
     }
 
+    if( defined $links )
+    {
+        $trigFieldName = "(INP|OUT|LNK|DOL)";
+    }
+
 # default if NO print options are set: the trigger options!
     if( ($prRecType eq ".") && ($prRecName eq ".") && ($prFieldName eq ".") )
     {
@@ -114,7 +133,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         $prRecName  = $trigRecName;
         $prFieldName= $trigFieldName ;
     }
-
+    
 #print "Trigger:\n\tType:\'$trigRecType\',\tname \'$trigRecName\',\tfield \'$trigFieldName\',\t value: \'$trigFieldValue\'\n";
 #print "Print:\n\tType: \'$prRecType\',\tname \'$prRecName\',\tfield \'$prFieldName\'\n";
 
