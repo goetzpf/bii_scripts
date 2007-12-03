@@ -289,7 +289,7 @@ Libraries and Modules:
 
 *  analyse_db.pm  :
 	a Perl module to analyse databases parsed with parse_db.
-        (URL=modules/analyse_db.html)
+        (URL=perllib/analyse_db.html)
 
 *  BDNS.pm  :
 	BESSY device name parser.
@@ -298,7 +298,7 @@ Libraries and Modules:
 	This performs a "module <command> <args...>" in the z-shell 
 	environment and re-imports the environment-variables to the 
 	perl-process, so they are available in the %ENV-hash
-        (URL=modules/bessy_module.html)
+        (URL=perllib/bessy_module.html)
 
 *  BrowseDB/TkUtils.pm  : 
 	Tk-utilities for browsedb.pl
@@ -311,17 +311,17 @@ Libraries and Modules:
 	a perl-module that can be used to encode or decode the
 	"cryptic can link" as it is used in the BESSY CAN Bus
 	device support for EPICS.
-        (URL=modules/canlink.html)
+        (URL=perllib/canlink.html)
 
 *  capfast_defaults.pm  :
 	a Perl module that contains capfast defaults for
         record-fields.
-        (URL=modules/capfast_defaults.html)
+        (URL=perllib/capfast_defaults.html)
 
 *  cfgfile.pm  :
 	simple module to read or write a configuration file. Probably
 	unfinished and in alpha-release state. 
-        (URL=modules/cfgfile.html)
+        (URL=perllib/cfgfile.html)
 
 *  container.pm  :
 	This provides routines to import and export perl variables into 
@@ -330,12 +330,12 @@ Libraries and Modules:
 	copying scalars, arrays and hashes. This is not a simple copy
 	of references. Note that deeply nested structures are
 	deeply copied.  
-        (URL=modules/container.html)
+        (URL=perllib/container.html)
 
 *  CreateX.pm  :
 	Routines that help to write CreateX.pl scripts. Not quite sure
 	what this does. Connects to the oracle database.
-        (URL=modules/CreateX.html)
+        (URL=perllib/CreateX.html)
 
 *  dbdrv_lite.pm  :
 	low level routines for sqlite. Used by dbdrv.
@@ -349,7 +349,7 @@ Libraries and Modules:
 *  dbdrv  :
 	low level utilities for SQL database access, needed by
 	dbitable.
-        (URL=modules/dbdrv.html)
+        (URL=perllib/dbdrv.html)
 
 *  dbdrv_test.pl  : 
 	test-script for dbdrv. This shouldn't be in the repository!     
@@ -357,23 +357,23 @@ Libraries and Modules:
 *  dbitable  :
 	an object-oriented Perl module for handling single tables
         from an SQL database
-        (URL=modules/dbitable.html)
+        (URL=perllib/dbitable.html)
 
 *  expander.pm  :
 	a module to perform macro-replacements in text files. Features
 	if-statements, complex expressions and for-loops among others
-        (URL=modules/expander.html)
+        (URL=perllib/expander.html)
 
 *  extended_glob.pm  :
 	a Perl module for extended filename globbing.
-        (URL=modules/extended_glob.html)
+        (URL=perllib/extended_glob.html)
 
 *  maillike.pm  :
 	This module is used to parse and create data files in a 
 	format similar to mail (RFC822). The data is organized in
 	records, each record has a number of fields and to each 
 	field of a record an certain content is associated.
-        (URL=modules/maillike.html)
+        (URL=perllib/maillike.html)
 
 *  makeDocStyle.pm  :
 	module for the makeDoc* scripts.
@@ -381,20 +381,20 @@ Libraries and Modules:
 *  ODB.pm  :
 	a Perl module for accessing database via DBI.  Means easier 
 	handling of the DBI routines via this layer.
-        (URL=modules/ODB.html)
+        (URL=perllib/ODB.html)
 
 *  Options.pm  :
 	a Perl module for handling programm arguments, commandline in
         and output inclusive login requests.
-        (URL=modules/Options.html)
+        (URL=perllib/Options.html)
 
 *  parse_db  :
 	a perl-module for parsing EPICS db-files.
-        (URL=modules/parse_db.html)
+        (URL=perllib/parse_db.html)
 
 *  parse_subst  :
 	a perl-module for parsing EPICS substitution-files.
-        (URL=modules/parse_subst.html)
+        (URL=perllib/parse_subst.html)
 
 *  Pezca  :
 	a perl-module that implements the channel-access protocol
@@ -405,7 +405,7 @@ Libraries and Modules:
 	This module scans one or more than one makefile and returns 
 	a hash reference containing all variables that are set within
 	the makefile together with all environment variables.
-        (URL=modules/scan_makefile.html)
+        (URL=perllib/scan_makefile.html)
 
 *  simpleconf.pm  :
 	This module is used to parse and create configuration files
@@ -413,7 +413,7 @@ Libraries and Modules:
 	lines where each line contains a field-name and the contents
 	of the field. Empty lines and lines starting with a "#" character
 	(which are usually a comment) are ignored.
-        (URL=modules/simpleconf.html)
+        (URL=perllib/simpleconf.html)
 
 -----------------------------------------------------------------------
 
