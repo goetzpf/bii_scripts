@@ -468,6 +468,8 @@ $(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLI
 
 clean: 
 	rm -rf $(LOCAL_BUILD_DIR)
+	rm -f pod2htmd.tmp pod2htmi.tmp
+	rm -f $(PYTHONLIB_SRC_DIR)/*.pyc
 
 # build......................................................
 
