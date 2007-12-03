@@ -415,7 +415,10 @@ install: install_shared install_scripts install_perl_libs install_python_libs in
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
 
 $(_SHARE_INSTALL_DIRLIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
-	install -d -g $(DEFAULT_GROUP) -m 0775 $< $@
+	rm -rf $@ && \
+	mkdir -p $@ && \
+	chmod 0775 $@ && \
+	chgrp $(DEFAULT_GROUP) $@	
 
 $(_SHARE_INSTALL_LIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	install -g $(DEFAULT_GROUP) -m 0775 $< $@
@@ -431,9 +434,9 @@ $(_PERLLIB_INSTALL_LIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	install -g $(DEFAULT_GROUP) -m 0775 $< $@
 
 $(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
-	rm -rf $@
-	mkdir -p $@
-	chmod 0775 $@
+	rm -rf $@ && \
+	mkdir -p $@ && \
+	chmod 0775 $@ && \
 	chgrp $(DEFAULT_GROUP) $@	
 
 install_python_libs: build_python_libs $(PYTHONLIB_INSTALL_DIR) $(_PYTHONLIB_INSTALL_DIRLIST) $(_PYTHONLIB_INSTALL_LIST)
