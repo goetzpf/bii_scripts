@@ -3,20 +3,20 @@ package dbitable;
 # This software is copyrighted by the BERLINER SPEICHERRING
 # GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
 # The following terms apply to all files associated with the software.
-# 
+#
 # BESSY hereby grants permission to use, copy and modify this
 # software and its documentation for non-commercial, educational or
 # research purposes provided that existing copyright notices are
 # retained in all copies.
-# 
-# The receiver of the software provides BESSY with all enhancements, 
+#
+# The receiver of the software provides BESSY with all enhancements,
 # including complete translations, made by the receiver.
-# 
+#
 # IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
 # SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
-# OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN 
+# OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN
 # IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # BESSY SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
 # TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
 # PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
@@ -51,6 +51,8 @@ use Text::Wrap;
 use Text::ParseWords;
 use File::Spec;
 use Cwd;
+use IO::Scalar;
+use IO::File;
 
 # use DBD::AnyData;
 
@@ -236,6 +238,13 @@ sub init_filetype
     if (!defined $filename)
       { dbdrv::dberror($mod,'init_filetype',__LINE__,
                        "type \'file\': filename parameter missing");
+        return;
+      };
+
+    my $fref= ref($filename);
+    if (($fref ne "") && ($fref ne 'SCALAR'))
+      { dbdrv::dberror($mod,'init_filetype',__LINE__,
+                       "type \'file\': filename must be scalar or scalar reference");
         return;
       };
 
@@ -567,6 +576,7 @@ sub export_csv
     my $filename= shift;
     my %options= @_;
     my $sep= ';';
+    my $is_stdout;
 
     my $is_multi_pk= $self->{_multi_pk};
 
@@ -586,10 +596,16 @@ sub export_csv
 
     local(*G);
 
-    if (!open(G,">$filename"))
-      { dbdrv::dbwarn($mod,'export_csv',__LINE__,
-                      "unable to write $filename");
-        return;
+    if ((!defined $filename) || ($filename eq ""))
+      { *G= *STDOUT;
+        $is_stdout= 1;
+      }
+    else
+      { if (!open(G,">$filename"))
+          { dbdrv::dbwarn($mod,'export_csv',__LINE__,
+                          "unable to write $filename");
+            return;
+          };
       };
     print G join($sep,@$r_column_list),"\n";
 
@@ -624,10 +640,12 @@ sub export_csv
 
         print G join($sep,@cells),"\n";
       };
-    if (!close(G))
-      { dbdrv::dbwarn($mod,'export_csv',__LINE__,
-                     "unable to close $filename");
-        return;
+    if (!$is_stdout)
+      { if (!close(G))
+          { dbdrv::dbwarn($mod,'export_csv',__LINE__,
+                         "unable to close $filename");
+            return;
+          };
       };
   }
 
@@ -1034,7 +1052,7 @@ sub get_column_property
     if (!defined $colname)
       { # return everything if no specific column was requested
         return( %{$self->{_column_properties}} );
-      }; 
+      };
 
 
     my $col_prop= $self->{_column_properties}->{$colname};
@@ -1157,7 +1175,7 @@ sub value
             return;
           };
 
-        return $line->[ $i ]; 
+        return $line->[ $i ];
       }
     else
       { my $i= $self->{_columns}->{$column};
@@ -2145,7 +2163,7 @@ sub load_from_file
 # primary_key=> 'generate', 'preserve',
 #           generate: only done where pk==0 !!!!
 # new_name=> $name
-#       change $self->{_table} to the new name   
+#       change $self->{_table} to the new name
   { my $self= shift;
     my %options= @_;
 
@@ -2179,13 +2197,37 @@ sub load_from_file
 
     my $filename= $self->{_filename};
     my $tag= $self->{_tag};
-    local(*F);
 
-    if (!open(F,"$filename"))
-      { dbdrv::dberror($mod,'load_from_file',__LINE__,
-                       "unable to read to $filename");
-        return;
-      };
+    my $fh;
+
+    if    ($filename eq "")
+      { # read the complete file and buffer it since it may
+        # contain information on some tables or tags that we
+        # don't want to read this time but next time
+        if (!exists $self->{_buffered_lines})
+          { local $/;
+            undef $/;
+            my $buffered_lines= <>; # read everything from stdin
+            $self->{_buffered_lines}= \$buffered_lines;
+          }
+        $fh= new IO::Scalar $self->{_buffered_lines};
+      }
+    elsif (ref $filename eq 'SCALAR')
+      { $fh= new IO::Scalar $filename;
+        if (!defined $fh)
+          { die "assertion"; };
+      }
+    elsif (ref $filename eq '')
+      { $fh= new IO::File;
+
+        if (!$fh->open("$filename"))
+          { dbdrv::dberror($mod,'load_from_file',__LINE__,
+                           "unable to read from $filename");
+            return;
+          };
+      }
+    else
+      { die "assertion"; }
 
     my $line;
     my $part;
@@ -2194,8 +2236,9 @@ sub load_from_file
 
     my @line_list;
 
-    while($line=<F>)
-      { chomp($line);
+    while($line=<$fh>)
+      {
+        chomp($line);
         next if ($line=~ /^\s*$/);
         next if ($line=~ /^#/);
         if (!defined $part)
@@ -2317,11 +2360,8 @@ sub load_from_file
           };
       };
 
-    if (!close(F))
-      { dbdrv::dberror($mod,'load_from_file',__LINE__,
-                       "unable to close $filename");
-        return;
-      };
+    if ($filename ne "")
+      { $fh->close(); };
 
     if (!$found)
       { dbdrv::dberror($mod,'load_from_file',__LINE__,
@@ -2365,7 +2405,7 @@ sub load_from_file
     my %lines_hash;
     my $single_pki= $pkis[0];
     my $pk;
-    my $gen_pk= ($options{primary_key} eq 'generate');
+    my $gen_pk= exists($options{primary_key}) && ($options{primary_key} eq 'generate');
     if ($is_multi_pk && $gen_pk)
       { dbdrv::dberror($mod,'load_from_file',__LINE__,
                        "can\'t generate pk on multi-pk " .
@@ -2407,6 +2447,8 @@ sub store_to_file
   { my $self= shift;
     my %options= @_;
     my $is_multi_pk= $self->{_multi_pk};
+    my $is_scalarref;
+    my $is_stdout;
 
     $self->gen_sort_prepare(\%options);
 
@@ -2418,97 +2460,125 @@ sub store_to_file
       };
 
     # volume is ignored !!
-    my ($volume,$dir,$filename) = File::Spec->splitpath( $self->{_filename} );
+    my ($volume,$dir,$filename,$filepath);
 
-    my $filepath= $filename;
-    # catfile makes an error when $dir is equal to "", so the
-    # following "if" is needed
-    if ($dir) # dir not empty
-      { $filepath= File::Spec->catfile($dir,$filename); };
-    # NOTE: $dir ends with a '/' !!
+    if (ref($self->{_filename}) eq "") # ordinary filename
+      { if ($self->{_filename} eq "")
+          { $is_stdout= 1; }
+        else
+          {
+            ($volume,$dir,$filename) = File::Spec->splitpath( $self->{_filename} );
+            $filepath= $filename;
+            # catfile makes an error when $dir is equal to "", so the
+            # following "if" is needed
+            if ($dir) # dir not empty
+              { $filepath= File::Spec->catfile($dir,$filename); };
+            # NOTE: $dir ends with a '/' !!
+          }
+      }
+    else
+      { $filename= $self->{_filename};
+        $is_scalarref= 1;
+      }
 
     my $tag= $self->{_tag};
-    local(*F);
-    local(*G);
+
+    my $fh_r;
+    my $fh_w;
     my $tempname;
     my $temppath;
+    my $buf;
 
-    if (-e $filepath)
-      { $tempname= "dbitable-$$";
-        my $temppath= $tempname;
-        # catfile makes an error when $dir is equal to "", so the
-        # following "if" is needed
-        if ($dir) # dir not empty
-          { $temppath= File::Spec->catfile($dir,$tempname); };
-        # NOTE: $dir ends with a '/' !!
+    if ($is_stdout || $is_scalarref || (-e $filepath))
+      { if    ($is_stdout)
+          { if (exists $self->{_buffered_lines})
+              { $fh_r= new IO::Scalar $self->{_buffered_lines}; }
+            $fh_w= \*STDOUT;
+          }
+        elsif ($is_scalarref)
+          { $fh_r= new IO::Scalar $filename;
+            $fh_w= new IO::Scalar \$buf;
+          }
+        else
+          {
+            $fh_r= new IO::File;
+            $fh_w= new IO::File;
+            $tempname= "dbitable-$$";
+            $temppath= $tempname;
+            # catfile makes an error when $dir is equal to "", so the
+            # following "if" is needed
+            if ($dir) # dir not empty
+              { $temppath= File::Spec->catfile($dir,$tempname); };
+            # NOTE: $dir ends with a '/' !!
 
-        if (!open(F,$filepath))
-          { dbdrv::dberror($mod,'store_to_file',__LINE__,
-                           "unable to read $filepath");
-            return;
-          };
-        if (!open(G,">$temppath"))
-          { dbdrv::dberror($mod,'store_to_file',__LINE__,
-                           "unable to write $temppath");
-            return;
-          };
+            if (!$fh_r->open($filepath))
+              { dbdrv::dberror($mod,'store_to_file',__LINE__,
+                               "unable to read $filepath");
+                return;
+              };
+            if (!$fh_w->open(">$temppath"))
+              { dbdrv::dberror($mod,'store_to_file',__LINE__,
+                               "unable to write $temppath");
+                return;
+              };
+          }
         my $line;
         my $ftag;
-        while($line=<F>)
-          { if ($tag ne $ftag)
-              {
+        if (defined $fh_r)
+          {
+            while($line=<$fh_r>)
+              { if ($tag ne $ftag)
+                  {
+                    if ($line !~ /^\[Tag ([^\]\s]+)\s*\]\s*$/)
+                      { print $fh_w $line; next; };
+                    $ftag= $1;
+                    if ($tag ne $ftag)
+                      { print $fh_w $line; };
+                    next;
+                  };
                 if ($line !~ /^\[Tag ([^\]\s]+)\s*\]\s*$/)
-                  { print G $line; next; };
+                  { next; };
                 $ftag= $1;
                 if ($tag ne $ftag)
-                  { print G $line; };
+                  { print $fh_w $line; };
                 next;
-              };
-            if ($line !~ /^\[Tag ([^\]\s]+)\s*\]\s*$/)
-              { next; };
-            $ftag= $1;
-            if ($tag ne $ftag)
-              { print G $line; };
-            next;
-          }
-        if (!close(F))
-          { dbdrv::dberror($mod,'store_to_file',__LINE__,
-                           "unable to close $filepath");
-            return;
+              }
+            $fh_r->close();
           };
       }
     else
-      { if (!open(G,">$filepath"))
+      { $fh_w= new IO::File;
+        if (!$fh_w->open(">$filepath"))
           { dbdrv::dberror($mod,'store_to_file',__LINE__,
                            "unable to write $filepath");
             return;
           };
       };
 
-    print G "[Tag $tag]\n";
-    print G "[Version $export_version]\n";
+    print $fh_w "[Tag $tag]\n";
+    print $fh_w "[Version $export_version]\n";
     if (!$slim_format)
-      { print G "[Properties]\n";
+      { print $fh_w "[Properties]\n";
         my @defines;
         foreach my $prop (qw(_table _type))
           { my $val= $self->{$prop};
             next if (!defined $val);
             push @defines, (uc(substr($prop,1)) . '=' . $val);
           };
-        print G wrap('', '', join(" ",@defines)),"\n";
-        print G "PK=\"",join(" ",@{$self->{_pks}}),"\"\n";
+        print $fh_w wrap('', '', join(" ",@defines)),"\n";
+        print $fh_w "PK=\"",join(" ",@{$self->{_pks}}),"\"\n";
         if (exists $self->{_fetch_cmd})
           { # fetch_cmd is a long quoted string and MUST NOT
             # be handled by wrap() !!!
-            print G "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n";
+            print $fh_w "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n";
           };
-        print G "\n";
+        print $fh_w "\n";
 
 
-        #print G "TABLE=",$self->{_table}," PK=",$self->{_pk},
+        #print $fh_w "TABLE=",$self->{_table}," PK=",$self->{_pk},
         #        " TYPE=",$self->{_type},"\n";
-        #print G "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n";
-        print G "[Aliases]\n";
+        #print $fh_w "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n";
+        print $fh_w "[Aliases]\n";
         my $r_a= $self->{_aliases};
 
         my @text;
@@ -2518,18 +2588,18 @@ sub store_to_file
             next if ($val eq $k);
             push @text, ($k . "=>" . $val);
           };
-        print G wrap('', '', join(", ",@text)),"\n";
+        print $fh_w wrap('', '', join(", ",@text)),"\n";
       };
 
     if (exists $self->{_types})
-      { print G "[Column-Types]\n";
-        print G wrap('', '', join(", ",@{$self->{_types}})),"\n";
+      { print $fh_w "[Column-Types]\n";
+        print $fh_w wrap('', '', join(", ",@{$self->{_types}})),"\n";
       };
 
-    print G "[Columns]\n";
-    print G wrap('', '', join(", ",@{$self->{_column_list}})),"\n";
+    print $fh_w "[Columns]\n";
+    print $fh_w wrap('', '', join(", ",@{$self->{_column_list}})),"\n";
 
-    print G "[Table]\n";
+    print $fh_w "[Table]\n";
     my $r_l= $self->{_lines};
 
     $gen_sort_href= $r_l;
@@ -2550,7 +2620,7 @@ sub store_to_file
                 next if ($c!~ /[\|;]/);
                 $c= "'" . $c . "'";
               };
-            printf G ($format,@cells);
+            printf $fh_w ($format,@cells);
           }
       }
     else
@@ -2562,19 +2632,15 @@ sub store_to_file
                 next if ($c!~ /[\|;]/);
                 $c= "'" . $c . "'";
               };
-            print G join(";",@cells),"\n";
+            print $fh_w join(";",@cells),"\n";
           };
       };
 
     if ($options{'pretty'})
-      { print G "#","=" x 70,"\n"; };
+      { print $fh_w "#","=" x 70,"\n"; };
 
     if (defined $tempname)
-      { if (!close(G))
-          { dbdrv::dberror($mod,'store_to_file',__LINE__,
-                           "unable to close $temppath");
-            return;
-          };
+      { $fh_w->close();
         if (1!=unlink($filepath))
           { dbdrv::dberror($mod,'store_to_file',__LINE__,
                            "unable to delete $filepath");
@@ -2613,11 +2679,12 @@ sub store_to_file
         #rename($tempname,$filename) or
       }
     else
-      { if (!close(G))
-          { dbdrv::dberror($mod,'store_to_file',__LINE__,
-                           "unable to close $temppath");
-            return;
-          };
+      { if (!$is_stdout)
+          { $fh_w->close(); };
+        if ($is_scalarref)
+          { # copy:
+            $$filename= $buf;
+          }
       };
     return($self);
   }
@@ -3094,6 +3161,13 @@ they are distinguished in the file by their "tag", basically a unique string
 that identifies them. With C<store>, if there is already a section with the
 tag C<$tag> in the file, it will simply be overwritten.
 
+If the C<$filename> parameter is a reference to a scalar variable, this
+scalar variable will be used instead of a file. load() will then read from
+the contents of that variable and store() will write to that variable.
+
+If the C<$filename> parameter is an empty string, standard-in and standard-out
+will be used to when load() or store() is called on this table.
+
 Note that as an option, a list (C<@column_list>) can be specified for a
 table-object that is created as an empty object with no data. The C<@column_list>
 has to be a list consisting of the name of the primary key, and a list of
@@ -3352,7 +3426,9 @@ only used for sorting (see above).
   $table->export_csv($filename, %options)
 
 This method exports to a table to a file using the csv format,
-which means comma separated value. The following options are
+which means comma separated value. If C<$filename> is an empty
+string or <undef>, the table is written to standard-out.
+The following options are
 known:
 
 =over 4
