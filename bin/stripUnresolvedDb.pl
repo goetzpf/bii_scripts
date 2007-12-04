@@ -1,9 +1,10 @@
 ## stripUnresolvedDb.pl
 #  ******************************
 #  
-#     USAGE:  stripUnresolvedDb.pl inputFile.substitutions nrOfColumns
+#     USAGE:  stripUnresolvedDb.pl inputFile.substitutions
 #  
-#  strip unresolved fields from an EPICS.db file
+#  remove all unresolved fields from a database. Means all fields 
+#  that contain some variables $(VARIABLE).
 #
   eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	if $running_under_some_shell;
