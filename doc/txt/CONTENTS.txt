@@ -267,6 +267,11 @@ Scripts
 *  tkSQL  :
 	query the oracle database by directly entering SQL requests.
 
+*  txtcleanup.py  :
+        a cleanup tool for text files. Removes tabs and trailing
+	spaces in files. Can also be used as a filter.
+        (URL=scripts/txtcleanup.html)
+
 *  unlockGuru  :
 	Remove the mutex file lock, probably used together
 	with cvsGuru.
