@@ -335,6 +335,10 @@ _PYTHONLIB_INSTALL_DIRLIST=$(addprefix $(PYTHONLIB_INSTALL_DIR)/,$(PYTHONLIB_DIR
 _HTML_DOCTXT_TXT_BUILD_LIST=\
   $(addprefix $(HTML_BUILD_DIR)/,$(call force_extension_list,html,$(DOCTXT_TXT_LIST)))
 
+# list of all html files belonging to txt that are to be installed
+_HTML_DOCTXT_TXT_INSTALL_LIST=\
+  $(addprefix $(HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(DOCTXT_TXT_LIST)))
+
 # list of all (generated) html files belonging to perl libs
 _HTML_POD_PERLLIB_BUILD_LIST=\
   $(addprefix $(PERLLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(POD_PERLLIB_LIST)))
@@ -410,7 +414,8 @@ _HTML_ALL_SCRIPT_INSTALL_LIST= \
 
 #############################################################
 
-.PHONY:	default all install install_shared install_scripts install_perl_libs \
+.PHONY:	default all install install_html_txt install_shared install_scripts \
+	install_perl_libs \
 	install_python_libs install_html install_html_script \
 	install_html_perllib install_html_pythonlib \
 	clean \
@@ -428,7 +433,13 @@ all: build
 
 # install....................................................
 
-install: install_shared install_scripts install_perl_libs install_python_libs install_html
+install: install_html_txt install_shared install_scripts \
+	 install_perl_libs install_python_libs install_html
+
+install_html_txt: build_html_txt_doc $(_HTML_DOCTXT_TXT_INSTALL_LIST)
+
+$(_HTML_DOCTXT_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% 
+	install -g $(DEFAULT_GROUP) -m 0775 $< $@
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
 
