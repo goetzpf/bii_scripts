@@ -32,6 +32,10 @@
 # help when called with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_SCRIPT_LIST variable
 
+# for scripts with name *.py that generate reStructuredText
+# when called with "--doc" as the only parameter
+#    add scriptname to the RST_DOC_PY_SCRIPT_LIST variable
+
 # in order to add a perl library to bii_scripts place it into
 # the "lib/perl" directory ($(PERLLIB_SRC_DIR)) or create a
 # sub-directory in "lib/perl" and place the files there.
@@ -82,6 +86,11 @@ PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
 # create the installation directories in
 # case the do not exist already
 # CREATE_INSTALL_DIRS=1
+
+# out-comment the following if
+# docutils (http://docutils.sourceforge.net)
+# are not installed
+DOCUTILS_AVAILABLE=1
 
 # build directories..........................................
 
@@ -203,6 +212,9 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	subst2exp.pl \
 	substprint.pl
 
+RST_DOC_PY_SCRIPT_LIST= \
+	txtcleanup.py
+
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
 	parse_db.pm dbitable.pm parse_subst.pm \
@@ -216,7 +228,8 @@ PYDOC_PYTHONLIB_LIST=FilterFile.py
 
 # scripts that have embedded documentation that can be HTML converted 
 # with makedoctext
-DOCTXT_SCRIPT_LIST= CreateAdl.pl CreateEdl.pl
+DOCTXT_SCRIPT_LIST= 
+#CreateAdl.pl CreateEdl.pl
 
 # files in the doc/txt directory that can be HTML converted 
 # with makedoctext
@@ -365,6 +378,9 @@ _HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST=\
 _HTML_PLAINTXT_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_SCRIPT_LIST)))
 
+_HTML_RST_PY_SCRIPT_BUILD_LIST=\
+  $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(RST_DOC_PY_SCRIPT_LIST)))
+
 # all plaintxt documentaion scripts:
 _PLAINTXT_ALL_SCRIPT_LIST= \
     $(PLAINTXT_H_SCRIPT_LIST) \
@@ -379,7 +395,9 @@ _HTML_DOCTXT_SCRIPT_BUILD_LIST=\
 
 
 # all scripts for which documentation is generated 
-_DOC_ALL_SCRIPT_LIST=  $(POD_SCRIPT_LIST) $(_PLAINTXT_ALL_SCRIPT_LIST) $(DOCTXT_SCRIPT_LIST)
+_DOC_ALL_SCRIPT_LIST=  \
+	$(POD_SCRIPT_LIST) $(_PLAINTXT_ALL_SCRIPT_LIST) \
+	$(RST_DOC_PY_SCRIPT_LIST) $(DOCTXT_SCRIPT_LIST)
 
 # list of all html files that are generated for scripts
 _HTML_ALL_SCRIPT_INSTALL_LIST= \
@@ -398,7 +416,8 @@ _HTML_ALL_SCRIPT_INSTALL_LIST= \
 	clean \
 	build build_shared build_scripts build_perl_libs build_python_libs \
 	build_html build_html_txt_doc build_html_script build_html_script_pods \
-	build_html_script_plaintxt build_html_script_doctxt build_html_perllib \
+	build_html_script_plaintxt build_html_script_doctxt build_html_script_rst \
+	build_html_perllib \
 	build_html_perllib_pods build_html_pythonlib \
 	build_html_pythonlib_pydocs \
 	found
@@ -535,7 +554,10 @@ $(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.t
 
 # ...........................................................
 # build documentation for perl scripts
-build_html_script: build_html_script_pods build_html_script_plaintxt build_html_script_doctxt
+build_html_script: \
+	build_html_script_pods build_html_script_plaintxt \
+	build_html_script_rst \
+	build_html_script_doctxt
 
 build_html_script_pods: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_POD_SCRIPT_BUILD_LIST) 
 
@@ -574,11 +596,23 @@ $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIP
 	(PERL5LIB=$(PERLLIB_SRC_DIR) $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
+build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST)
+
+$(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
+ifdef DOCUTILS_AVAILABLE
+	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $< --doc | rst2html > $@
+else
+	@echo "<PRE>"      >  $@
+	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR)  $< --doc >> $@
+	@echo "</PRE>"     >> $@
+endif
+
+
 build_html_script_doctxt: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_DOCTXT_SCRIPT_BUILD_LIST)
 
 $(_HTML_DOCTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
-	PERL5LIB=$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	PERL5LIB=$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
