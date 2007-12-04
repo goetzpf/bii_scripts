@@ -88,6 +88,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         "COMMON OPTIONS:\n\n".
         "     -i ignore case\n".
         "     -v verbose\n\n".
+        "     -q quiet:       print just EPICS-db, no additional info as filename etc.\n\n".
         "EXAMPLES:\n\n".
         "     grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP$|OUT|DTYP|NOBT)' *.db\n\n".
         "   Means Show all records of 'DTYP=EK IO32' print the fields 'INP$.OUT,DTYP' and 'NOBT'.\n\n".
@@ -104,10 +105,11 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $ignore;
     my $links;
     my $verbose;
+    my $quiet;
 
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
-                           "i"=>\$ignore,"v"=>\$verbose,"tl"=>\$links);
+                           "i"=>\$ignore,"v"=>\$verbose,"q"=>\$quiet,"tl"=>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -126,6 +128,11 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         $trigFieldName = "(INP|OUT|LNK|DOL)";
     }
 
+    if( defined $$quiet && defined $verbose )
+    {
+        warn "Option 'quiet' overrides option 'verbose'";
+	$verbose = undef;
+    }
 # default if NO print options are set: the trigger options!
     if( ($prRecType eq ".") && ($prRecName eq ".") && ($prFieldName eq ".") )
     {
@@ -149,7 +156,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
         if( (defined $filename) && defined $verbose )
         {
-            print "File: \"$filename\"\n";
+            print "File: \"$filename\"\n" unless defined $quiet;
             $filename = undef;
         }
 
@@ -169,7 +176,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
                     if( (defined $filename) && match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
-                        print "\nFile: \"$filename\"\n";
+                        print "File: \"$filename\"\n" unless defined $quiet;
                         $filename = undef;
                     }
                     if( match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
