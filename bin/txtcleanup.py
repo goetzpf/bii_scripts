@@ -96,7 +96,7 @@ def script_shortname():
 	  
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: utility for blah blah\n" % script_shortname()
+    print "%-20s: a cleanup tool for text files\n" % script_shortname()
 
 def print_doc():
     print \
