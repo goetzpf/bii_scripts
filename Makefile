@@ -178,7 +178,6 @@ PLAINTXT_SCRIPT_LIST= \
 PLAINTXT_PL_SCRIPT_LIST= \
 	bdns_import.pl \
 	dbscan.pl \
-	grepDb.pl
 
 # scripts with no embedded documentation 
 # create online help by executing "(script -h 2>&1; true)
@@ -228,8 +227,9 @@ PYDOC_PYTHONLIB_LIST=FilterFile.py
 
 # scripts that have embedded documentation that can be HTML converted 
 # with makedoctext
-DOCTXT_SCRIPT_LIST= 
-#CreateAdl.pl CreateEdl.pl
+DOCTXT_SCRIPT_LIST= CreatePanel.pl 	\
+	stripUnresolvedDb.pl 		\
+	grepDb.pl			
 
 # files in the doc/txt directory that can be HTML converted 
 # with makedoctext
