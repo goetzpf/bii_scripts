@@ -6,18 +6,28 @@ a file or a filehandle to standard-in or standard-out.
 
 import sys
 import os
+import shutil
 import tempfile
+
+def _copyperm(src,dest):
+	"""copy file permission and GID from one file to another."""
+	statinfo = os.stat(src)
+	# st_mode , st_ino , st_dev , st_nlink , st_uid ,
+	# st_gid , st_size , st_atime , st_mtime , st_ctime
+	os.chown(dest,-1,statinfo[5])
+	os.chmod(dest, statinfo[0])
+
 
 class FilterFile(object):
 	"""a file-object for writing filter utilities.
-	
+
 	This object contains a filehandle to an ordinary file
 	or to standard-in or standard-out."""
 	def __init__(self,filename=None,
 		     opennow=False,
 		     mode="r",replace_ext="bak"):
 		"""constructor of a FilterFile. Arguments:
-			
+
 		parameters:
 		filename             -- the filename or None in order
 					to open stdin or stdout
@@ -27,16 +37,16 @@ class FilterFile(object):
 		mode		     -- the filemode as is is described for
 					the python open() function.
 					when filename is None, mode "r" opens
-					stdin, mode "w" or mode "u" opens 
+					stdin, mode "w" or mode "u" opens
 					stdout. A special case in mode "u",
 					with python open() doesn't know of.
 					When filename is not None, mode "u"
-					opens a temporary-file that is 
-					renamed to the original file upon 
+					opens a temporary-file that is
+					renamed to the original file upon
 					close. The original file is renamed
 					to filename.<replace_ext>.
 		replace_ext	     -- the filename-extension for the backup
-					of the original file when "u" is 
+					of the original file when "u" is
 					used for the mode parameter.
 		"""
 		self._filename= filename
@@ -48,13 +58,13 @@ class FilterFile(object):
 			self.open()
 	def __del__(self):
 		"""deletion method of FilterFile.
-		
+
 		This method closes a file if a file was opened"""
 		#print "filehandle closed!"
-		self.close()	
+		self.close()
 	def open(self):
 		"""open the file.
-		
+
 		If the filename is None, standard-in or standard-out
 		are not actually opened but only their filehandles
 		are stored within the FilterFile object."""
@@ -80,14 +90,15 @@ class FilterFile(object):
 				self._fh= open(self._filename,self._mode)
 	def close(self):
 		"""close the file.
-		
+
 		If standard-in or standard-out were actually selected,
 		they are not closed."""
 		if self._fh is None:
 			return
-		if self._filename is not None:	
+		if self._filename is not None:
 			self._fh.close()
 			if self._tempname is not None:
+				_copyperm(self._filename,self._tempname)
 				if self._replace_ext is None:
 					os.remove(self._filename)
 				else:
@@ -95,7 +106,9 @@ class FilterFile(object):
 						"%s.%s" % \
 						(self._filename,\
 						 self._replace_ext))
-				os.rename(self._tempname,self._filename)
+				shutil.copy2(self._tempname,self._filename)
+				_copyperm(self._tempname,self._filename)
+				os.remove(self._tempname)
 				self._tempname= None
 		self._fh= None
 	def fh(self):
@@ -103,22 +116,22 @@ class FilterFile(object):
 		return self._fh
 	def write(self, *args):
 		"""write to the currently opened file.
-		
+
 		This method simply calls self.fh().write(args)."""
 		self._fh.write(*args)
 	def read(self, *args):
 		"""read from the currently opened file.
-		
+
 		This method simply calls self.fh().read(args)."""
 		self._fh.read(*args)
 	def readline(self, *args):
 		"""read a line from the currently opened file.
-		
+
 		This method simply calls self.fh().readline(args)."""
 		self._fh.readline(*args)
 	def print_to_screen(self):
 		"""print the contents of the file to the screen.
-		
+
 		This function prints the contents of the currently
 		in read-mode opened file to standard-out.
 		Note that it raises an exception of there is no
@@ -131,6 +144,6 @@ class FilterFile(object):
 			              "but is \"%s\"" % self._mode
 		for line in self._fh:
 			print line
-		
-			
-		
+
+
+
