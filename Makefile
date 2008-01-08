@@ -529,7 +529,7 @@ $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/%
 # extra rule here:
 $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 	cp $< $(@D) 
-	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR) \
+	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR)/browsedb \
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
 
 # build perl libs............................................
