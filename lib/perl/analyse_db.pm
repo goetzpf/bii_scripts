@@ -125,7 +125,7 @@ sub rec_link_fields
 	  };
 	next if ($val !~ qr/$unquoted_rec_name/);
 
-        $val=~ s/[\. ]?(CA|CPP|NPP|NMS|MS|PP)\s*//g;	    
+        $val=~ s/[\. ]?(CA|CP|CPP|NPP|NMS|MS|PP)\s*//g;	    
 	$val=~ s/\s+$//;
 	# remove field-names:
 	$val=~ s/\.\w+$//;
