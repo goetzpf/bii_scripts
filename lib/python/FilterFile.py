@@ -123,12 +123,12 @@ class FilterFile(object):
 		"""read from the currently opened file.
 
 		This method simply calls self.fh().read(args)."""
-		self._fh.read(*args)
+		return self._fh.read(*args)
 	def readline(self, *args):
 		"""read a line from the currently opened file.
 
 		This method simply calls self.fh().readline(args)."""
-		self._fh.readline(*args)
+		return self._fh.readline(*args)
 	def print_to_screen(self):
 		"""print the contents of the file to the screen.
 
