@@ -2,12 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 from optparse import OptionParser
-import logging
 #import string
 import os.path
 import re
-
-from logging import debug
 
 from FilterFile import *
 
@@ -198,11 +195,6 @@ def main():
 
     parse the command-line options and perform the command
     """
-    logging.basicConfig(#level=logging.DEBUG,
-                        level=logging.WARNING,
-                        format='%(message)s',
-                       )
-
     # command-line options and command-line help:
     usage = "usage: %prog [options] {files}"
 
