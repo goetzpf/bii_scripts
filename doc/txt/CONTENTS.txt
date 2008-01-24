@@ -26,7 +26,7 @@ Scripts
 	This can be used to compare two dm2k panel files.
 	(URL=scripts/adlsort.html)
 
-* archiver2camonitor.py  :
+*  archiver2camonitor.py  :
 	This tool converts data from the Channel access archiver
         (retrieved via CGI, "plot" command, then clicking on "plot")
         to a sorted list of values compatible with the format
