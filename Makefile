@@ -214,7 +214,8 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	substprint.pl
 
 RST_DOC_PY_SCRIPT_LIST= \
-	txtcleanup.py
+	txtcleanup.py \
+	archiver2camonitor.py
 
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
