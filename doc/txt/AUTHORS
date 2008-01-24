@@ -30,4 +30,6 @@ Goetz Pfeiffer <pfeiffer@mail.bessy.de>
 	parse_db
 	parse_subst
 	dbfilter.pl
+	archiver2camonitor.py
+	txtcleanup.py
 	
