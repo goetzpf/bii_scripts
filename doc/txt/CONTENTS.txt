@@ -31,6 +31,7 @@ Scripts
         (retrieved via CGI, "plot" command, then clicking on "plot")
         to a sorted list of values compatible with the format
         of the camonitor tool.
+	(URL=scripts/archiver2camonitor.html)
 
 *  bdns_import.pl  :
 	import BESSY device names into the oracle database.
