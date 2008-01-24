@@ -572,9 +572,6 @@ sub parse_scalar_i
                           };
                       };  
 
-
-                    my $format= "%-${len}s=\"%s\"$sep\n";
-
                     my @l= sort keys %m;
                     if (($ex eq 'list_new') && ($#m_stack>=0))
                       { my $r_backup= $m_stack[-1];
@@ -583,10 +580,21 @@ sub parse_scalar_i
                                  } @l;
                       };   
 
-                    my $last= pop @l;
-                    foreach my $k (@l)
-                      { printf $format, $k, $m{$k}; };
-                    printf "%-${len}s=\"%s\"\n", $last, $m{$last};
+                    my $format= "%-${len}s=\"%s\"";
+
+		    for(my $i=0; $i<=$#l; $i++)
+                      { my $k= $l[$i];
+		        my $ref= ref($m{$k});
+			if    ($ref eq "")
+			  { printf $format, $k, $m{$k}; }
+			elsif ($ref eq "ARRAY")
+			  { printf $format, $k, join(",",@{$m{$k}}); }
+			else
+			  { die "unexpected ref type: $ref"; };
+			if ($i<$#l)
+			  { print $sep; };
+			print "\n";
+		      };
 
                   };
                 pos($$r_line)= $en+1;
