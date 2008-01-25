@@ -105,9 +105,6 @@ my $config = Options::parse($usage, 1);
 
   while( getParagraph(\$parse, \$paragraph) )
   {
-# the characters <, > are allways substituted, also in PRE paragraphs!
-    $paragraph =~ s|<|&lt;|g;
-    $paragraph =~ s|>|&gt;|g;
 # is PRE (code) ?
     if( $paragraph =~ /^\s\s/i )
     { #print "is Preformated\n";
@@ -136,6 +133,8 @@ my $config = Options::parse($usage, 1);
     next if( $paragraph eq "" );	# skip empty paragraphs
 
 # set SPECIAL CHARACTERS for all paragraphs that are not preformated
+#    $paragraph =~ s|<|&lt;|g;
+#    $paragraph =~ s|>|&gt;|g;
     $paragraph =~ s|&|&amp;|g;
     $paragraph =~ s|Ö|&Ouml;|g;
     $paragraph =~ s|ö|&ouml;|g;
