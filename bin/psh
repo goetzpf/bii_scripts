@@ -294,7 +294,8 @@ sub psh_eval_line
 #    # remove comments (VERY SIMPLE)
 #    s/#[^;]*$//;         # remove lines that are only comments
 
-    if (s/\s*>\s*$//)
+    #print "L:|$_|\n";
+    if (s/^\s*>\s*$//m)
       { $multi_line_mode= 0;
 	print "multi line mode OFF\n";
 	$last_multi_line= $_; 
