@@ -138,7 +138,7 @@ eval 'exec perl -w -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 use Term::ReadLine;
 use Term::ReadLine::Gnu;
 
-if ($ARGV[0] eq '-h')
+if (defined $ARGV[0] && $ARGV[0] eq '-h')
   { prhelp();
     exit(0);
   }
