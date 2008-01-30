@@ -217,6 +217,7 @@ Scripts
 *  psh  :
         a perl-shell. Useful for testing small functions or expressions
 	in an interactive shell.
+	(URL=scripts/psh.html)
 
 *  rsync-deploy  :
 	tool for management for distribution of binary files with.
