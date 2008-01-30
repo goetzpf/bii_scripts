@@ -214,6 +214,10 @@ Scripts
 	match across line-ends.
         (URL=scripts/pfind.html)
 
+*  psh  :
+        a perl-shell. Useful for testing small functions or expressions
+	in an interactive shell.
+
 *  rsync-deploy  :
 	tool for management for distribution of binary files with.
 	The successor of this script is rsync-dist.pl.
