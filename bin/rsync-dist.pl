@@ -754,6 +754,7 @@ sub dist
               "echo $datestr > STAMP && ",
               'if test -e LAST ; ',
               'then cp -a -l `cat LAST` `cat STAMP`; ',
+              'else mkdir `cat STAMP`; ',
               'fi ',
               ' && ');
 
@@ -2825,38 +2826,42 @@ Syntax:
   options to specify remote host and user:
 
     --host -H [remote-host[,remote-host2...]]
-                specify the remote host. A list of secondary 
-                remote-hosts can be added separated by a commas or
-                spaces or colons
+                a list of remote-hosts separated by comma, spaces, or colon
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_HOST"      
+
     --user -u [remote-user[,remote-user2...]]
-                specify the user for login on the remote host
+                user for login on the remote host
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_USER"      
 
   options to specify directories:
 
     --distpath -p [remote-dist-path] 
-                specify the remote directory
+                remote directory where files are disted
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_PATH"      
 
     --linkpath -P [remote link-path]
-                specify the remote directory
+                remote directory where links are created
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_LINKPATH"  
 
     --localpath -l [local-path,local-path2...] 
-                specify the local path
+                list of files or directories to be distributed
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_LOCALPATH" 
                 Several paths can be specified with either a comma-separated 
                 list or several -l options
 
     --localprefix [prefix]
-                this prefix is prepended to all paths given to
-                the localpath option
+                prepended to all files or directories to be distributed
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_LOCALPREFIX"       
 
@@ -2864,6 +2869,7 @@ Syntax:
 
     --message -m {logmessage} 
                 specify a log message
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_MESSAGE"
                 if this option is given without being followed by a 
@@ -2877,7 +2883,8 @@ Syntax:
                 to the "--message" option
 
     --tag -t [tag]
-                specify a tag for the distribution
+                a tag for the distribution
+
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_TAG"       
                 if this option is given without being followed by a 
