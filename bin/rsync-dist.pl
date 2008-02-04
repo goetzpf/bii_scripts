@@ -45,6 +45,7 @@ use Cwd;
 use Time::Local;
 
 use Data::Dumper;
+use Carp;
 
 use simpleconf;
 use container;
@@ -703,8 +704,8 @@ sub dist
           { @p= @$r_local_paths; }
 
         foreach my $l (@p)
-          { if (!-d $l)
-              { die "error: directory \"$l\" not found"; };
+          { if (!-e $l)
+              { die "error: path \"$l\" not found"; };
           };          
 
         # convert relative to absolute paths based on
@@ -957,7 +958,7 @@ sub change_link
 
     # read the link-parameter if it is defined
     # it should be <source-dir>,<filemask>
-    if (defined $linkparam)
+    if ($linkparam ne "")
       { 
         # NOTE: source-dir may contain a colon (':')
         # so we MUST NOT split the string along a colon:
@@ -1001,7 +1002,7 @@ sub change_link
 
     my $r_files= \@files;
     if (empty($r_files))
-      { ensure_var(\$r_files      , 'FILEMASK' ,
+      { ensure_var($r_files      , 'FILEMASK' ,
                    take_default('links:FILES'));
       };
 
@@ -2108,7 +2109,7 @@ sub empty
     elsif ($reftype eq 'SCALAR')
       { $st= $$st; }
     elsif ($reftype ne '')
-      { die "assertion: reftype:\"$reftype\""; };
+      { croak "assertion: reftype:\"$reftype\""; };
 
     return(1) if (!defined $st);
     return(1) if ($st eq "");
