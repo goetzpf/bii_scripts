@@ -8,6 +8,9 @@
 #
 #    Usage: CreatePanel.pl [options] inFilename outFilename\n
 #
+#     if inFilename  is '-', data is read from standard-in
+#     if outFilename is '-', data is written to standard-out
+#
 #    Options:
 #      -title  TitleString | Title.type  Title of the panel (string or file). Default=no title
 #      -baseW filename                  base panel name for layout=xy
@@ -21,7 +24,8 @@
 #      -sort NAME                       Sort a group of signals. NAME is the name of a 
 #                                       Name-Value pair in the substitution data.
 #                                       this is done only for the layouts: 'line', 'table'
-# 
+#  
+#
 # Overview
 # ========
 # 
@@ -71,21 +75,27 @@
     my $usage =
     my @searchDlPath;
     my $panelWidth;
-    my $usage = "Usage: CreatePanel.pl [options] inFilename outFilename\n
+    my $usage = 
+"Usage: CreatePanel.pl [options] inFilename outFilename\n
+       if inFilename  is '-', data is read from standard-in
+       if outFilename is '-', data is written to standard-out
      Options:
-      -title  TitleString | Title.type  Title of the panel (string or file). Default=no title
+      -title  TitleString | Title.type  Title of the panel (string or file). 
+                                       Default=no title
       -baseW filename                  base panel name for layout=xy
       -x pixel      		       X-Position of the panel (default=100)
       -y pixel      		       Y-Position of the panel (default=100)
       -w pixel       		       Panel width (default=900)
       -I searchPath                    Search paht(s) for panel widgets
       -M                               Create make dependencies
-      -layout xy | grid | table        placement of the widgets, (default = by line) 
+      -layout xy | grid | table        placement of the widgets, 
+                                       (default = by line) 
       -type adl|edl                    Create edl or mfp file (default is edl)
-      -sort NAME                       Sort a group of signals. NAME is the name of a 
-                                       Name-Value pair in the substitution data.
-				       this is ignored unless for layouts: 'line', 'table'
-     ";
+      -sort NAME                       Sort a group of signals. NAME is the 
+                                       name of a Name-Value pair in the 
+				       substitution data. This is ignored 
+				       unless for layouts: 'line', 'table'
+     \n";
     my %dependencies;
     die unless GetOptions("M","I=s"=>\@searchDlPath,"v","x=i","w=i"=>\$panelWidth,"y=i",
     	    	    	  "type=s"=>\$type,"title=s"=>\$title,"layout=s"=>\$layout, 
@@ -111,12 +121,17 @@
     	
 
     my( $file, $r_substData);
-    open(IN_FILE, "<$inFileName") or die "can't open input file: $inFileName";
+    
+    if ($inFileName eq '-') # read from stdin
+      { *IN_FILE= *STDIN; }
+    else
+      { open(IN_FILE, "<$inFileName") or die "can't open input file: $inFileName"; }
+      
     { local $/;
       undef $/; # ignoriere /n in der Datei als Trenner
       $file = <IN_FILE>;
     }  
-    close IN_FILE;
+    close IN_FILE if ($inFileName ne '-');
     die "Empty file: '$inFileName'" unless length($file) > 0;
 
     $file = $title.$file if( defined $title);
@@ -146,7 +161,12 @@
     
 
     print "\nDisplay: width=$panelWidth, height=$panelHeight\n" if $opt_v == 1;
-    open(FILE, ">$outFileName") or die "  can't open output file: $outFileName";
+
+    if ($outFileName eq '-')
+      { *FILE= *STDOUT; }
+    else
+      { open(FILE, ">$outFileName") or die "  can't open output file: $outFileName"; };
+      
     if( $opt_M == 1)
     {
     	$inFileName = "../O.Common/$1.edl" if $inFileName =~ /.*\/(.*)\..*$/;
@@ -183,7 +203,7 @@
 	print FILE $header;
 	print FILE $printEdl;
     }
-    close FILE;
+    close FILE if ($outFileName ne '-');
 
 ## Layout of the created display
 #  =============================
