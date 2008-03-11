@@ -771,8 +771,8 @@ sub dist
               sh_indent_and_join(0,
               ' && ',
               "echo $datestr > STAMP && ",
-              'if test -e $last ; ',
-              'then cp -a -l `cat $last` `cat STAMP`; ',
+              "if test -e $last ; ",
+              "then cp -a -l `cat $last` `cat STAMP`; ",
               'else mkdir `cat STAMP`; ',
               'fi ',
               ' && ');
@@ -815,13 +815,13 @@ sub dist
     $rcmd.= sh_indent_and_join(0,
               ' && ',  
               "echo \"\" >> $chg && cat STAMP >> $chg && ",
-              'if test -e $last;',
+              "if test -e $last;",
               "then echo CHANGED/ADDED FILES relative to `cat LAST`: >> $chg ;",
               "else echo ADDED FILES: >> $chg;",
               'fi',
               ' && ',
               "find `cat STAMP` -links 1 >> $chg && ",
-              'cp STAMP $last && ',
+              "cp STAMP $last && ",
               'sleep 1 && ');
 #die $rcmd;
     $rcmd.= sh_indent_and_join(0,          
