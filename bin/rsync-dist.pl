@@ -440,7 +440,7 @@ if (!GetOptions("help|h",
                 "write_config_from_log|write-config-from-log=s",
                 "env",
 
-                "branch",
+                "branch=s",
 		"partial",
                 "version_file|version-file=s",
                 "version_file_prefix|version-file-prefix=s",
