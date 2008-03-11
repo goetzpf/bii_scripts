@@ -72,6 +72,7 @@ use vars qw($opt_help
             $opt_force_rm_lock
             $opt_mk_lock
             $opt_rebuild_last
+            $opt_create_branch
             $opt_expand_glob
             $opt_ls 
             $opt_cat_log
@@ -87,6 +88,7 @@ use vars qw($opt_help
             $opt_show_config_from_log
             $opt_write_config_from_log
             $opt_env
+            $opt_branch
             $opt_partial
             $opt_version_file
             $opt_version_file_prefix
@@ -137,6 +139,7 @@ my @gbl_arg_lst= ('--dist',
                   '--force-rm-lock',
                   '--mk-lock',
                   '--rebuild-last',
+                  '--create-branch',
                   '--expand-glob',
                   '--ls',
                   '--cat-log',
@@ -170,7 +173,8 @@ my @gbl_local_log_order=
                      REMOTE_MPATHS
                      REMOTE_MPATH
                      REMOTEPATH 
-                     WORLDREADABLE
+                     BRANCH
+		     WORLDREADABLE
                      SOURCEDIR
                      VERSION
                      TAG
@@ -417,6 +421,7 @@ if (!GetOptions("help|h",
                 "force_rm_lock|force-rm-lock=s",
                 "mk_lock|mk-lock=s",
                 "rebuild_last|rebuild-last",
+                "create_branch|create-branch=s",
                 "expand_glob|expand-glob",
 
                 "ls=s",
@@ -435,7 +440,8 @@ if (!GetOptions("help|h",
                 "write_config_from_log|write-config-from-log=s",
                 "env",
 
-                "partial",
+                "branch",
+		"partial",
                 "version_file|version-file=s",
                 "version_file_prefix|version-file-prefix=s",
                 "editor=s",
@@ -589,6 +595,13 @@ if (defined $opt_rebuild_last)
     exit($rc ? 0 : 1);
   }
 
+if (defined $opt_create_branch)
+  { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
+    my $rc=
+      create_branch(\@opt_hosts,\@opt_users,$rpath,$opt_create_branch);
+    exit($rc ? 0 : 1);
+  }
+
 if (defined $opt_expand_glob)
   { make_file_list($opt_localprefix,1,@opt_localpaths);
     exit(0);
@@ -624,7 +637,8 @@ if (defined $opt_dist)
     my $rc= 
       dist(\@opt_hosts,\@opt_users,$rpath,
            $opt_localprefix, \@opt_localpaths, 
-           $opt_message, $opt_tag, 
+           $opt_message, $opt_tag,
+	   $opt_branch, 
            $opt_world_readable);
     exit($rc ? 0 : 1);
   }
@@ -657,6 +671,7 @@ sub dist
        $remote_path, 
        $localprefix, $r_local_paths,
        $logmessage, $tag,
+       $branch,
        $world_readable)= @_;
 
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
@@ -748,12 +763,16 @@ sub dist
     
     $r_log->{LOCALDATE}= $datestr;
 
+    my $last= "LAST";
+    if ((defined $branch) && ($branch ne ""))
+      { $last.= "-$branch"; };
+    
     my $rcmd= sh_handle_attic_s(0,$log,$chg) .
               sh_indent_and_join(0,
               ' && ',
               "echo $datestr > STAMP && ",
-              'if test -e LAST ; ',
-              'then cp -a -l `cat LAST` `cat STAMP`; ',
+              'if test -e $last ; ',
+              'then cp -a -l `cat $last` `cat STAMP`; ',
               'else mkdir `cat STAMP`; ',
               'fi ',
               ' && ');
@@ -791,18 +810,18 @@ sub dist
               "echo VERSION: `cat STAMP` >> $log && ",
               "echo ACTION: added >> $log && "
               );
-    $rcmd.= sh_add_log_s(0,$log,$from,$logmessage,$tag);
+    $rcmd.= sh_add_log_s(0,$log,$from,$logmessage,$tag, $branch);
 
     $rcmd.= sh_indent_and_join(0,
               ' && ',  
               "echo \"\" >> $chg && cat STAMP >> $chg && ",
-              'if test -e LAST;',
+              'if test -e $last;',
               "then echo CHANGED/ADDED FILES relative to `cat LAST`: >> $chg ;",
               "else echo ADDED FILES: >> $chg;",
               'fi',
               ' && ',
               "find `cat STAMP` -links 1 >> $chg && ",
-              'cp STAMP LAST && ',
+              'cp STAMP $last && ',
               'sleep 1 && ');
 #die $rcmd;
     $rcmd.= sh_indent_and_join(0,          
@@ -840,6 +859,10 @@ sub dist
 
     if (defined $tag)
       { $r_log->{TAG}= $tag; };
+
+    if (defined $branch)
+      { $r_log->{BRANCH}= $branch; };
+
     $r_log->{VERSION}= $datestr;
 
     append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
@@ -916,6 +939,9 @@ sub move_file
                 sh_add_log($log,$from,$logmessage,undef) . ' && ' .
                 sh_rebuild_LAST() . ' && ' .
                 'rm -f STAMP';
+
+    # !!!NOTE: "LAST" files for branches are currently NOT rebuilt 
+    # you have to do that yourself!! 
 
     if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
       { die "ERROR: locking of the servers failed"; };
@@ -1355,6 +1381,57 @@ sub rebuild_last
     return($all_rc);
   }
 
+sub create_branch
+  { my($r_hosts,$r_users,
+       $remote_path, $param) = @_;
+
+    my ($to_br,$from_br)= split(/,/,$param);
+    if ((!defined $to_br) || ($to_br=~/^\s*$/))
+      { die "\"to\" parameter is invalid: \"$to_br\";"; };
+      
+    
+    my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
+    if (empty($remote_path))
+      { ensure_var(\$remote_path, 'REMOTEPATH',
+                   take_default('distribute:REMOTEPATH',
+                                'links:REMOTEPATH'));
+      };                           
+
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # start to create hash for local logfile:
+    my $from_pr= (defined $from_br) ? $from_br : "trunk";
+    my $r_log= new_log_hash($now,
+                            $local_host,$local_user,
+                            $r_hosts_users,
+                            $remote_path,
+                            'create branch $to from $from_pr');
+
+    my $rcmd= sh_create_branch($to_br, $from_br);
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
+      { die "ERROR: locking of the servers failed"; };
+
+    my $all_rc=1;
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        print "\nHost:$remote_host:\n";
+        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+        $all_rc&= $rc;
+        if (!$rc)
+           { warn "(command failed)\n"; };
+      };
+
+    if (!internal_server_lock($r_hosts_users,$remote_path,'remove'))
+      { warn "WARNING: unlocking of the servers failed"; };
+
+    return 1 if ($opt_dry_run); # OK
+
+    append_single_log($gbl_local_log,$r_log,\@gbl_local_log_order);
+    return($all_rc);
+  }
+
+
 sub mirror
   { my($r_hosts,$r_users,$remote_path)= @_;
 
@@ -1535,10 +1612,16 @@ sub sh_copy_to_hosts
   { return(sh_backwards_compatible(sh_copy_to_hosts_l(@_))); }
 
 sub sh_add_log_l
-  { my($logfile,$from,$message,$tag)= @_;
+  { my($logfile,$from,$message,$tag, $branch)= @_;
     my @lines;
 
     push @lines, "echo FROM: $from >> $logfile";
+    if (defined $branch)
+      { push @lines,
+             ' && ',
+             "echo \"BRANCH: $branch\" >> $logfile";
+      };       
+    
     if (defined $tag)
       { push @lines,
              ' && ',
@@ -1694,6 +1777,21 @@ sub sh_add_symlink_log
 sub sh_rebuild_LAST
   { my $str= '/bin/ls --indicator-style=none -d [12]* ';
     $str.= ' | sort | tail -n 1 > LAST';
+    return($str);
+  }
+
+sub sh_create_branch
+  { my($to,$from)= @_;
+    my $src= "LAST";
+    my $dest;
+    if (defined $from)
+      { $src.= "-$from"; };
+      
+    if (!defined $to)
+      { die "assertion"; };
+    $dest= "LAST-$to";  
+  
+    my $str= "cp $src $dest";
     return($str);
   }
 
@@ -2757,6 +2855,12 @@ Syntax:
                 yourself with the "--mk-lock" command before.
                 only for distribution directories
 
+    create-branch [name]{,source}
+                create a new branch on the server. The {,source} parameter is
+		optional. It is the name of the old branch from which new 
+		branch is created. If {,source} is omitted, the branch 
+		is created from trunk
+    
     expand-glob
                 if the --localpath parameter contains glob-expressions
                 list all the files that would be checked for transfer
@@ -2971,6 +3075,10 @@ Syntax:
                 unix-shell environment.  
 
   miscellaneous options:
+
+    --branch [branchname]
+                use the most recent version of <branchname> to make the
+		hardlink-copy on the server.		 
 
     --partial   make a complete copy of the last version on the
                 server but distribute only some files from the client
