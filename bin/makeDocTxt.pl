@@ -33,7 +33,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #    USAGE: txt2html.pl txtFileName.txt $(TOP) [installPath/outFileName]
 #  
 #    txtFileName: the input file
-#    $(TOP)	: the path to the documentation top, something like  '../..'
 #    outFileName: optional, name and path where to write the output, default: './txtFileName.html'
 #
 
@@ -47,7 +46,11 @@ Options::register(
   ["nocontents", "c", "",      "leave out table-of-contents"],
 );
 
-my $usage = "create an html-document from a .txt-file\n";
+my $usage = "makeDocTxt.pl [OPTIONS] infile.txt [outfile.html]\n".
+    "  Create an html-document from a .txt-file with special format style\n".
+    "  for details see http://www-csr.bessy.de/control/Docs/MLT/kuner/autoDocs/makeDocs/makeDocEn.html\n".
+    "OPTIONS: \n";
+
 
 my $config = Options::parse($usage, 1);
 
@@ -99,42 +102,45 @@ my $config = Options::parse($usage, 1);
   my $setImgToEnd = 0;
   my $firstLine=1;
   my $isPre=0;
-  my $paragraphBefore;
+  my $preBlockCont;
 
   my $paragraph;
 
   while( getParagraph(\$parse, \$paragraph) )
   {
+
 # is PRE (code) ?
     if( $paragraph =~ /^\s\s/i )
     { #print "is Preformated\n";
-      $docContens .= "$paragraphBefore";
-      #print "**html:\n$paragraphBefore\n";
       if( ! $isPre )
       { $isPre = 1 ; # begin preformated block
-        $paragraphBefore = "<PRE>\n$paragraph";
+        $preBlockCont = $paragraph;
       } else
-      { $paragraphBefore = $paragraph;
+      { 
+        $preBlockCont .= $paragraph;
       }
       next;
     }
-
+# isPre, but paragraph is no longer PRE -> so print the PRE block to document
     if( $isPre )			# end preformated block
-    { $paragraphBefore =~ s/\n*$//gi;	# skip last newline
+    { $preBlockCont =~ s/\n*$//gi;	# skip last newline
       #print "end Preformated\n";
-      $docContens .= "$paragraphBefore\n</PRE>\n";
-      $paragraphBefore = "";
+      $preBlockCont =~ s|<|&lt;|g; # <,> quoted also in preformated text!
+      $preBlockCont =~ s|>|&gt;|g;
+      $docContens .= "<PRE>\n$preBlockCont\n</PRE>\n";
+      $preBlockCont = "";
       $isPre = 0;
     }  
 
+# remove trash: leading \n, trailing \s, skip empty paragraphs
     #print "remove leading/trailing \\s, \\n\n";
     $paragraph =~ s/^\n*// ;		# remove leading \n
     $paragraph =~ s/\s*$//g ;		# remove trailing \s
     next if( $paragraph eq "" );	# skip empty paragraphs
 
 # set SPECIAL CHARACTERS for all paragraphs that are not preformated
-#    $paragraph =~ s|<|&lt;|g;
-#    $paragraph =~ s|>|&gt;|g;
+    $paragraph =~ s|<|&lt;|g;
+    $paragraph =~ s|>|&gt;|g;
     $paragraph =~ s|&|&amp;|g;
     $paragraph =~ s|Ö|&Ouml;|g;
     $paragraph =~ s|ö|&ouml;|g;
@@ -146,19 +152,26 @@ my $config = Options::parse($usage, 1);
     $paragraph =~ s|€|&euro;|g;
     $paragraph =~ s|µ|&mu;|g;
     $paragraph =~ s|\"|&quot;|g;
-
+  
 # recognise ANCHORS in the document:  (anchor: #AnchorName)
     $paragraph =~ s|\(anchor:\s*\#(.*?)\)|<A NAME=\"$1\"></A> |g;
 
 # recognise html tags:
+
 # (displayed text: http://something)
     $paragraph =~ s|\((.*?):\s*http://(.*?)\)|<A HREF=\"http://$2\">$1</A> |g;
+
+# (displayed text: URL=path/to/something)
     $paragraph =~ s|\((.*?):\s*URL=\s*(.*?)\)|<A HREF=\"$2\">$1</A> |g;
+
+# (http://path/to/something) - show just the path
+    $paragraph =~ s|\(\s*http://(.*?)\)|<A HREF=\"http://$1\">http://$1</A> |g;
+
+# (URL=path/to/something) - for local paths, show just the path
     $paragraph =~ s|\(\s*URL=\s*(.*?)\)|<A HREF=\"$1\">$1</A> |g;
 
-# (displayed text: #something) for local references
+# (displayed text: #something) - for local references
     $paragraph =~ s|\((.*?):\s*\#(.*?)\)|<A HREF=\"#$2\">$1</A> |g;
-    $paragraph =~ s|http://(.*?)\)|<A HREF=\"http://$1\">http://$1</A> |g;
 
 # get pictures
    # $paragraph =~ s|\((.*?):\s*([\w\d]+)\.JPG\)|$1 <A HREF=\"$2.JPG\" TARGET="Wimg"><IMG SRC=\"TN_$2.JPG\" ALT="$2"></A>|gi;
@@ -197,17 +210,11 @@ my $config = Options::parse($usage, 1);
       $paragraph = "$th$paragraph</TD>\n</TR>\n</TABLE>\n";
     }
 # is H1 ?
-    elsif( $paragraph =~ /\*\*\*+/i )	
+    elsif( $paragraph =~ s/\s*\*{4,}//i )	
     { #print "is H1\n";
-      $paragraph =~ s/\n*\*\*\*+//i;
       if( $firstLine )	#create Site header if first line is a H1 tag
       { 
         $idxFile .="<DT><a href=\"$outFileName#cont_$indexNr\"target=\"Wtext\"><B>$paragraph</B></a></DT><hr>\n";	# set reference in .idx.html file
-#        $header .= "<TABLE CELLPADDING=0 CELLSPACING=0 width=100%>\n".
-#	  "<TR>\n<TD colspan=2 WIDTH=80%><H1 ALIGN=\"center\">$paragraph</H1>\n</TD>\n".
-#	  "<TD><P><FONT SIZE=\"-1\" >last Modified: by $ENV{'USER'}<br>$filetime </FONT></P>\n    </TD>\n".
-#	  "</TR>\n</TABLE>\n\n<HR>\n";
-
         $title = $paragraph;
         next;
       }
@@ -219,40 +226,36 @@ my $config = Options::parse($usage, 1);
       }
     }
 # is H2 ?
-    elsif( $paragraph =~ /=======+/i )
+    elsif( $paragraph =~ s/\s*={4,}//i )
     { #print "is H2\n";
-      $paragraph =~ s/\s*======+//i;
       $index .="<DT style=\"margin-left:20px\"><a href=\"#cont_$indexNr\">$paragraph</a></DT>\n";	# set reference contents
       $idxFile .="<DT>&bull;<a href=\"$outFileName#cont_$indexNr\" target=\"Wtext\">$paragraph</a></DT>\n";	# set reference in .idx.html file
       $paragraph = "\n<A NAME=\"cont_$indexNr\"></A>\n<H2>"."$paragraph"."</H2>\n";
       $indexNr += 1;
     }
-# is H3 or HR ?
-    elsif( $paragraph =~ /-------+/i )
+# is H3
+    elsif( $paragraph =~ s/\s*-{4,}//i )
     { #print "is H3\n";
-      if( $paragraph =~ /^---+/ )
-      { $paragraph = "\n<HR>\n";
-      }
-      else
-      {
-      $paragraph =~ s/\s*---+//i;
       $index .="<DT style=\"margin-left:40px\"><a href=\"#cont_$indexNr\">$paragraph</a></DT>\n";	# set reference in .idx.html file
       $idxFile .="<DT style=\"margin-left:20px\">&bull;<a href=\"$outFileName#cont_$indexNr\" target=\"Wtext\">$paragraph</a></DT>\n";	# set reference in .idx.html file
       $paragraph = "\n<A NAME=\"cont_$indexNr\"></A>\n<H3>"."$paragraph"."</H3>\n";
       $indexNr += 1;
-      }
+    }
+# is HR
+    elsif( $paragraph =~ /^-{4,}/ )
+    { 
+      $paragraph = "\n<HR>\n";
     }
 # is H4 ?
-    elsif( $paragraph =~ /\.\.\.\.\./i )
+    elsif( $paragraph =~ s/\s*\.{4,}//i )
     { #print "is H4\n";
-      $paragraph =~ s/\s*\.\.\.\.(\.)*//i;
       $index .="<DT style=\"margin-left:60px\"><a href=\"#cont_$indexNr\">$paragraph</a></DT>\n";	# set reference in .idx.html file
       $idxFile .="<DT style=\"margin-left:40px\">&bull;<a href=\"$outFileName#cont_$indexNr\" target=\"Wtext\">$paragraph</a></DT>\n";	# set reference in .idx.html file
       $paragraph = "\n<A NAME=\"cont_$indexNr\"></A>\n<H4>"."$paragraph"."</H4>\n";
       $indexNr += 1;
     }
 # is LIST ?
-    elsif( $paragraph =~ /(^\s*-\s*)/i )
+    elsif( $paragraph =~ /(^\s{0,1}-\s*)/i )
     { #print "is 2nd list or HR\n";
       my $indent = length $1;
       $paragraph =~ s/\n {$indent}/\n/g;
@@ -289,14 +292,19 @@ my $config = Options::parse($usage, 1);
   }  # end while
 
 #  print "is END |$parse|\n";
-  if( $isPre )			# end of file but in preformated block
-  { $paragraphBefore =~ s/\n*$//gi;	# skip last newline
-    $docContens .= "$paragraphBefore</PRE>\n";
+
+# end of file but in preformated block
+  if( $isPre )
+  { 
+    $preBlockCont =~ s/\n*$//gi;	# skip last newline
+    $preBlockCont =~ s|<|&lt;|g; # <,> quoted also in preformated text!
+    $preBlockCont =~ s|>|&gt;|g;
+    $docContens .= "<PRE>\n$preBlockCont\n</PRE>\n";
     $isPre = 0;
   }  
   else
   {
-    $docContens .= "$paragraphBefore\n";
+    $docContens .= "$preBlockCont\n";
   }
 
   my ($fileHeader,$fileFooter) = makeDocStyle::blabla($title,$filetime,$ENV{USER});
@@ -314,19 +322,8 @@ my $config = Options::parse($usage, 1);
   close OUT_FILE;
 
 
-# Create external idx file
-#  $outFileName = $inFileName;
-#  $outFileName =~ s/(.*)\.\w+$/$1.idx.html/;     # with path
-#  (IDX_FILE, ">$outFileName") or die "can't open idx file: $outFileName: $!";
-#  print IDX_FILE "<HTML>\n<HEAD>\n".
-#    "<META HTTP-EQUIV=\"CONTENT-TYPE\" CONTENT=\"text/html; charset=iso-8859-1\">\n".
-#    "<link rel=stylesheet type=\"text/css\" href=\"../Windex.css\">\n".
-#    "</HEAD>\n<BODY>\n".
-#    $idxFile;"</BODY>\n</HTML>\n";
-
-
 # get next paragraph from the text. A paragraph is either something that ends with '/n/n' - a
-# lbank line or the end of file.
+# 'blank line' or the 'end of file'.
 sub   getParagraph
 { my( $r_parse, $r_paragraph) = @_;
   if($$r_parse =~ /.*?\n\s*\n/is )	#one paragraph ends with two newlines \n\n
