@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -w
 
 # -*- perl-*-
 #  This software is copyrighted by the BERLINER SPEICHERRING
@@ -186,6 +186,7 @@ if ($output ne "htmltable" && $output ne "htmlwizard" && $output ne "htmlsnippet
 }
 
 $devname =~ tr/a-z/A-Z/;
+$devname =~ s/ //g;
 
 if ($output eq "html" || $output eq "htmlwizard") {
 	print "<html>\n"
@@ -223,7 +224,7 @@ if ($output eq "html" || ($output eq "htmlwizard" && $modus == 0)) {
 		. "\t<form method=\"GET\" action=\"".$ENV{'REQUEST_URI'}."\" name=\"devname\">\n"
 		. "\t<table class=\"bdns\">"
 		. "\t<thead><tr>\n"
-		. "\t\t<th>Please enter a devicename (max. allowed <br />length currently is ${BDNS::MAXLENGTH} chars):</th>\n"
+		. "\t\t<th>Please enter a devicename<br/>(max. length currently is ${BDNS::MAXLENGTH} chars):</th>\n"
 		. "\t</tr></thead>\n"
 		. "\t<tbody><tr>\n"
 		. "\t\t<td colspan=\"2\">Name: <input name=\"search\" value=\"$devname\" size=\"30\"></td>\n"
@@ -285,7 +286,7 @@ if ($output ne "htmlwizard" || ($output eq "htmlwizard" && $modus > 0))
 				print "<div name=\"bdnsparser\" id=\"parserresult\">\n";
 				print "<p>\n"
 					. "$eg valid devicename <strong>$devname</strong> splits into:\n";
-				print "\t<table class=\"bdns\" id=\"parserresult.table\">\n";
+				print "\t<table cellpadding=\"8\" class=\"bdns\" id=\"parserresult.table\">\n";
 				print "\t<tr><th class=\"bdns\" align=\"right\">Member:</th>\n";
 				print "\t    <td class=\"bdns\" id=\"parserresult.member\">$member</td><td>$vm</td><td><font size=\"-1\">min 1 char of '<strong>A</strong>'-'<strong>Z</strong>'</font></td></tr>\n";
 				print "\t<tr><th class=\"bdns\" align=\"right\">Index:</th>\n";
@@ -333,8 +334,8 @@ if ($output eq "html" || $output eq "htmlwizard") {
 		. "\t<li>format - the returned format:\n"
 		. "\t\t<ul>\n"
 		. "\t\t\t<li>html - (default) a complete page</li>\n"
-		. "\t\t\t<li>htmlwizard - splitted pag into two steps</li>\n"
-		. "\t\t\t<li>htmltable - content without the page haeder and footer</li>\n"
+		. "\t\t\t<li>htmlwizard - split page into two steps</li>\n"
+		. "\t\t\t<li>htmltable - content without the page header and footer</li>\n"
 		. "\t\t\t<li>htmlsnippet - short description and link to paged info</li>\n"
 		. "\t\t</ul>\n"
 		. "\t</li>\n"
