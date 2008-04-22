@@ -105,6 +105,9 @@ rx_data= re.compile("".join((r'^',rx_str_us_date,r'\s+',
                              rx_str_time,r'\s+',rx_str_float_or_word,
 			     r'\s*(.*)$')))
 
+rx_disconnect= re.compile("".join((r'^# ',rx_str_us_date,r'\s+',
+                          rx_str_time,r" Disconnected\s*$")))
+
 rx_comment= re.compile(r'^\s*#')
 
 def empty(string):
@@ -162,6 +165,26 @@ def is_channel(line):
     if m is None:
         return None
     return m.group(1)
+
+def is_disconnected(line):
+    """returns date and time of a "disconnect" message.
+
+    example of a disconnect message:
+    # 02/21/2008 13:28:30.309669580 Disconnected
+    
+    Here are some examples for the function:
+    >>> is_disconnected(r"# 02/21/2008 13:28:30.309669580 Disconnected")
+    ('02/21/2008', '13:28:30.309669580', 'Disconnected', '')
+
+    If nothing is matched, the function returns None:
+    >>> print is_disconnected(r'01/21/2008 18:45:00.000000000   62.0872102')   
+    None
+    """
+    m= re.match(rx_disconnect,line)
+    if m is None:
+        return None
+    return(m.group(1),m.group(2),"Disconnected","")
+    
 
 def is_data(line):
     """scans a data line.
@@ -267,26 +290,33 @@ def process_iterable(iterable,results,from_msg=""):
         lineno+=1
 	if empty(line):
 	    continue
+	tp= None
 	if is_comment(line):
-	    # may be a comment or a channel definition
+	    # may be a comment or a channel definition or
+	    # a disconnect message
 	    st= is_channel(line)
 	    if st is not None:
 	        channel= st
-	    continue  
-	tp= is_data(line)
-	if tp is not None:
-	    if channel is None:
-	        raise AssertionError,"unknown channel"
-	    date= usdate2iso(tp[0])
-	    if not empty(tp[3]): # extra flags present
-	        extra= " " + tp[3]
-	    else:
-	        extra= ""
-	    key= " ".join((date,tp[1],channel)) 
-	    results[key]= "%-30s %s %s %s%s" % \
-	                  (channel,date,tp[1],tp[2],extra)
-	    continue	     
-	raise AssertionError,"parse error %sline %d" % (from_msg,lineno)      
+		continue
+	    tp= is_disconnected(line) # returns date, time, "Disconnected"
+	    if tp is None:
+	        continue # ignore all other comments
+	if tp is None:   # if tp is none, try to read data
+	    tp= is_data(line)
+	if tp is None:
+	    print "LINE:",line
+	    raise AssertionError,"parse error %sline %d" % (from_msg,lineno)      
+	if channel is None:
+	    raise AssertionError,"unknown channel"
+	date= usdate2iso(tp[0])
+	if not empty(tp[3]): # extra flags present
+	    extra= " " + tp[3]
+	else:
+	    extra= ""
+	key= " ".join((date,tp[1],channel)) 
+	results[key]= "%-30s %s %s %s%s" % \
+	              (channel,date,tp[1],tp[2],extra)
+	continue	     
 
 
 def process(filename_,results):
