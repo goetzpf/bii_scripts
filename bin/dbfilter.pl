@@ -149,7 +149,7 @@ if (!GetOptions("help|h","summary",
 		"lowcal:s", "Lowcal:s",
 		"sdo:s", "Sdo:s",
 		"alternative|a",
-		"recursive:i",
+		"recursive|rec:i",
                 ))
   { die "parameter error!\n"; };
 
@@ -1216,7 +1216,7 @@ Syntax:
       option can be used in order to recursively search for the
       set of connected records.
 
-    --recursive {no}
+    --recursive --rec {no}
       this option can be used together with --record_references.
       no specifies the maximum path length that is allowed for
       indirectly connected records in order to be printed. 
