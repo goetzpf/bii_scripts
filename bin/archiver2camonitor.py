@@ -78,6 +78,7 @@ Reference of command line options
 """
 from optparse import OptionParser
 #import string
+import sys
 import os.path
 
 import re
