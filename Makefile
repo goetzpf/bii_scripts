@@ -28,6 +28,10 @@
 # with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_P_SCRIPT_LIST variable
 
+# for scripts with name *.py that generate help when called 
+# with "-h" as the only parameter
+#    add scriptname to the PLAINTXT_H_PY_SCRIPT_LIST variable
+
 # for scripts with name * (no file extension) that generate 
 # help when called with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_SCRIPT_LIST variable
@@ -214,6 +218,10 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	subst2exp.pl \
 	substprint.pl
 
+# scripts with no embedded documentation 
+# create online help by executing "(script.pl -h 2>&1; true)
+PLAINTXT_H_PY_SCRIPT_LIST= 
+
 RST_DOC_PY_SCRIPT_LIST= \
 	txtcleanup.py \
 	archiver2camonitor.py
@@ -380,6 +388,9 @@ _HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST=\
 _HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_H_PL_SCRIPT_LIST)))
 
+_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST=\
+  $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_H_PY_SCRIPT_LIST)))
+
 _HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_PL_SCRIPT_LIST)))
 
@@ -389,11 +400,12 @@ _HTML_PLAINTXT_SCRIPT_BUILD_LIST=\
 _HTML_RST_PY_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(RST_DOC_PY_SCRIPT_LIST)))
 
-# all plaintxt documentaion scripts:
+# all plaintxt documentation scripts:
 _PLAINTXT_ALL_SCRIPT_LIST= \
     $(PLAINTXT_H_SCRIPT_LIST) \
     $(PLAINTXT_H_P_SCRIPT_LIST) \
     $(PLAINTXT_H_PL_SCRIPT_LIST) \
+    $(PLAINTXT_H_PY_SCRIPT_LIST) \
     $(PLAINTXT_PL_SCRIPT_LIST) \
     $(PLAINTXT_SCRIPT_LIST)
 
@@ -584,6 +596,7 @@ build_html_script_plaintxt: $(SCRIPT_HTML_BUILD_DIR) \
 			    $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST) \
+			    $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST)
 
 $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
@@ -602,6 +615,11 @@ $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRI
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
+	@echo "<PRE>"      >  $@
+	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	@echo "</PRE>"     >> $@
+
+$(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 	@echo "<PRE>"      >  $@
 	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
