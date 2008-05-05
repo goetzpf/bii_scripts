@@ -220,7 +220,8 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.pl -h 2>&1; true)
-PLAINTXT_H_PY_SCRIPT_LIST= 
+PLAINTXT_H_PY_SCRIPT_LIST= \
+	pyone.py
 
 RST_DOC_PY_SCRIPT_LIST= \
 	txtcleanup.py \
