@@ -121,7 +121,8 @@ def main():
 	else:
 		if argOptionList.database is not None: dbInstanceString = argOptionList.database
 		if argOptionList.database is None or dbInstanceString is None: 
-			instance = getpass.getuser("Instance ["+ dbInstanceString +"]:")
+			print "Instance:"
+			instance = getpass.getuser()
 			if instance is None:
 				instance = dbInstanceString
 			if instance is not dbInstanceString:
@@ -130,6 +131,7 @@ def main():
 			dbInstanceString = argOptionList.database
 		if argOptionList.user is not None: dbLoginUser = argOptionList.user
 		if dbLoginUser is None: 
+			print "Username:"
 			user = getpass.getuser()
 			if user is None:
 				user = dbLoginUser
