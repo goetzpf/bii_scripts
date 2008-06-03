@@ -143,7 +143,7 @@ def main():
 	if argOptionList.connecttype is not None and argOptionList.connecttype in dbProtocolList:
 		dbInstanceTypeString = argOptionList.connecttype
 	if argOptionList.format is not None and argOptionList.format in outFormatList.keys():
-		formattype = argOptionList.format
+		outFormat = argOptionList.format
 	if argOptionList.none is not None:
 		outFormatNullString = argOptionList.none
 	
