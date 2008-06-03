@@ -80,7 +80,7 @@ def main():
 		It begins with parsing commandline arguments.
 	"""
 	dbInstanceTypeString = "oci8"
-	dbLoginUser = os.environ.get("USER")
+	dbLoginUser = ""
 	dbLoginPassword = ""
 	dbInstanceString = os.environ.get("ORACLE_SID")
 	outFormat = "txt"
@@ -121,18 +121,16 @@ def main():
 	else:
 		if argOptionList.database is not None: dbInstanceString = argOptionList.database
 		if argOptionList.database is None or dbInstanceString is None: 
-			print "Instance:"
-			instance = getpass.getuser()
+			instance = raw_input('Instance: ')
 			if instance is None:
 				instance = dbInstanceString
 			if instance is not dbInstanceString:
-				dbInstanceString = user
+				dbInstanceString = instance
 		else:
 			dbInstanceString = argOptionList.database
 		if argOptionList.user is not None: dbLoginUser = argOptionList.user
-		if dbLoginUser is None: 
-			print "Username:"
-			user = getpass.getuser()
+		if argOptionList.user is None: 
+			user = raw_input('Username: ')
 			if user is None:
 				user = dbLoginUser
 			if user is not dbLoginUser:
@@ -160,13 +158,9 @@ def main():
 		if argOptionList.sql is not None and selectcommand.match(argOptionList.sql):
 			dbSQLString = argOptionList.sql
 		else:
-			if argOptionList.sql is None:
-				inpcont = sys.stdin.read()
-				if selectcommand.match(inpcont):
-					dbSQLString = inpcont
-				else:
-					print "ERROR piped command isnt a valid sql select statement"
-					sys.exit(-2)
+			inpcont = raw_input('Statement: ')
+			if selectcommand.match(inpcont):
+				dbSQLString = inpcont
 			else:
 				print "ERROR given command isnt a valid sql select statement"
 				sys.exit(-2)
