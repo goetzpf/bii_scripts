@@ -102,7 +102,7 @@ def main():
 	argParser = OptionParser(usage=usage, version="%%prog 2.5", description="make e request to a rdbms with a sql statement")
 	argParser.add_option ("-u", "--user", type="string", action="store", metavar="dbLoginUsername", help="set username")
 	argParser.add_option ("-p", "--password", type="string", action="store", metavar="dbLoginPassword", help="set password")
-	argParser.add_option ("-d", "--database", type="string",  action="store", metavar="dbInstanceStringStringString", help="set password")
+	argParser.add_option ("-d", "--database", type="string",  action="store", metavar="dbInstanceString", help="set password")
 	helpcontext ="defines connectiontype to database, (", ",".join(dbProtocolList), ")"
 	argParser.add_option ("-c", "--connecttype", type="string",  action="store", metavar="dbInstanceTypeString", help=helpcontext)
 	argParser.add_option ("-g", "--guest", action="store_false", help="set forced anonymous access")
@@ -120,8 +120,8 @@ def main():
 		dbInstanceString = "devices"
 	else:
 		if argOptionList.database is not None: dbInstanceString = argOptionList.database
-		if argOptionList.database is None or dbInstanceStringStringString is None: 
-			instance = getpass.getuser("Instance ["+ dbInstanceStringStringString +"]:")
+		if argOptionList.database is None or dbInstanceString is None: 
+			instance = getpass.getuser("Instance ["+ dbInstanceString +"]:")
 			if instance is None:
 				instance = dbInstanceString
 			if instance is not dbInstanceString:
@@ -174,7 +174,7 @@ def main():
 	try:
 		dbConnectHandle = adodb.NewADOConnection(dbInstanceTypeString)
 		dbConnectHandle.Connect(dbInstanceString, dbLoginUser, dbLoginPassword)
-		#print "connect to "+dbInstanceTypeString+"://"+dbLoginUser+"@"+dbInstanceStringStringString
+		#print "connect to "+dbInstanceTypeString+"://"+dbLoginUser+"@"+dbInstanceString
 	except :
 		print "ERROR connect to "+dbInstanceTypeString+"://"+dbLoginUser+"@"+dbInstanceString+" returns", sys.exc_info()[1]
 		sys.exit(-1)
