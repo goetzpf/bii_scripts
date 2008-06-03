@@ -109,10 +109,13 @@ def main():
  	argParser.add_option ("-s", "--sql", type="string", action="store", metavar="dbSQLString",  help="sequel command")
  	argParser.add_option ("-n", "--none", type="string", action="store", metavar="dbSQLString",  help="sequel command")
  	argParser.add_option ("-o", "--format", type="string",  action="store", metavar="outputformat", help="decide the output format (c, python, php, perl, html, xml, json, txt, csv, tab, console)")
- 	argParser.add_option ("--doc",  action="store_false", help="create online help in restructured text format. Use \"./db_request.py--doc | rst2html\" for creation of html help")
+ 	argParser.add_option ("--doc",  action="store_true", help="create online help in restructured text format. Use \"./db_request.py--doc | rst2html\" for creation of html help")
  	argParser.add_option ("-t", "--test",  action="store_false", help="performs simply self-test")
 
 	(argOptionList, argCommandList) = argParser.parse_args()
+	if argOptionList.doc:
+		print_doc()
+		sys.exit(0)
 	if argOptionList.guest is not None: 
 		dbInstanceTypeString='oci8'
 		dbLoginUser = "anonymous"
@@ -147,9 +150,6 @@ def main():
 	if argOptionList.none is not None:
 		outFormatNullString = argOptionList.none
 	
-	if argOptionList.doc:
-		print_doc()
-		sys.exit(0)
 	if argOptionList.test:
 		make_test()
 		sys.exit(0)
