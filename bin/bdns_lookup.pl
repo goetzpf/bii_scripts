@@ -75,7 +75,7 @@ my $config = Options::parse($usage, 1);
 
 $usage = $usage . $Options::help;
 
-#warn Dumper($config);
+warn Dumper($config);
 
 die $usage if $#ARGV < 0 and not ($config->{"wwwform"}  or $config->{"help"});
 ODB::verbose() == 1 if $config->{'verbose'};
@@ -131,10 +131,11 @@ $dborder{"revname"} = "vn.NAME DESC";
 # columnwidth maximal
 my $colmax = 12;
 
-if (defined $config->{'extract'}) {
-	if (exists($config->{"wwwform"})) {
+if ($config->{'extract'} == 1) {
+	if ($config->{'wwwform'} == 1) {
 		$dboptionfield{"Extraction"} = "extract";
 	} else {
+warn;
 		push @columns, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
 		push @head, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
 		$dborder{"family"} = "FAMILY";
@@ -143,8 +144,9 @@ if (defined $config->{'extract'}) {
 	}
 }
 
-if (defined $config->{'description'}) {
-	if (exists($config->{"wwwform"})) {
+if ($config->{'description'} == 1) {
+warn;
+	if ($config->{"wwwform"} == 1) {
 		$dboptionfield{"Description"} = "description";
 	} else {
 		$dbobject .= ', '.$dbschema.'V_NAME_DESCRIPTIONS vnd';
@@ -154,40 +156,40 @@ if (defined $config->{'description'}) {
 	}
 }
 
-if (defined $config->{'family'}) {
-	if (exists($config->{"wwwform"})) {
+if ($config->{'family'} == 1) {
+	if ($config->{"wwwform"} == 1) {
 		$dbselectionlists{"Families"} = [$dbschema.'V_FAMILIES f', "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
 	} else {
 		$dbjoin .= " AND vn.family_key = device.pkg_bdns.get_family_key('".$config->{'family'}."')";
 	}
 }
 
-if (defined $config->{'subdomain'}) {
-	if (exists($config->{"wwwform"})) {
+if ($config->{'subdomain'} == 1) {
+	if ($config->{"wwwform"} == 1) {
 		$dbselectionlists{"Subdomains"} = [$dbschema.'V_SUBDOMAINS f', "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
 	} else {
 		$dbjoin .= " AND vn.subdomain_key = device.pkg_bdns.get_subdomain_key('".$config->{'subdomain'}."')";
 	}
 }
 
-if (defined $config->{'facility'}) {
-	if (exists($config->{"wwwform"})) {
+if ($config->{'facility'} == 1) {
+	if ($config->{"wwwform"} == 1) {
 		$dbselectionlists{"Facilities"} = [$dbschema.'V_FACILITIES f', "KEY, NAME||' ('||PART_FACILITY||')' VALUE", "NAME IS NOT NULL"];
 	} else {
 		if (uc($config->{'facility'}) eq "MLS") {
-			if (defined $config->{"extract"}) {
+			if ($config->{"extract"} == 1) {
 				$dbjoin .= " AND vn.facility = 'P'";
 			} else {
 				$dbjoin .= " AND vn.name LIKE '%P'";
 			}
 		} elsif (uc($config->{'facility'}) eq "FEL") {
-			if (defined $config->{"extract"}) {
+			if ($config->{"extract"} == 1) {
 				$dbjoin .= " AND vn.facility = 'F'";
 			} else {
 				$dbjoin .= " AND vn.name LIKE '%F'";
 			}
 		} else {
-			if (defined $config->{"extract"}) {
+			if ($config->{"extract"} == 1) {
 				$dbjoin .= " AND vn.facility = ' '";
 			} else {
 				$dbjoin .= " AND (vn.name NOT LIKE '%F' OR vn.name NOT LIKE '%F')";
@@ -199,7 +201,8 @@ if (defined $config->{'facility'}) {
 if (! $dborder{$config->{'sort'}}) {
 	$config->{'sort'} = "name";
 }
-
+print "Sourcing from '$dbobject'\n" if ($config->{"Verbose"});
+print "Selecting with '".join(",", @columns)."'\n" if ($config->{"Verbose"});
 print "Filtering with '$dbjoin'\n" if ($config->{"Verbose"});
 
 print "Output formatted as ".$config->{'output'}." and sorted by ".$config->{"sort"}."\n" if ($config->{"verbose"});
@@ -235,14 +238,14 @@ if (defined $config->{'wwwform'}) {
 
 Options::print_out("Connected as ".$config->{'user'}."@".$config->{'dbase'}."\n") if $config->{"Verbose"};
 
-print &getHeader();
-
 # counter for rows
 my $indexed = 0;
 # getting the aliased colstring for select
 my $colstr = ODB::col_aliases(\@columns, \@head);
 # calculation linelength
 my $linelength = 80;
+
+print &getHeader();
 
 #main part
 foreach my $devname (@names) {
@@ -292,7 +295,7 @@ foreach my $devname (@names) {
 			print "\n";
 # xmlset
 		} elsif ($config->{'output'} eq 'htmlset') {
-			print join("", map(sprintf("\n\t<tr class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\"><th class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</th><td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td></tr>", $_, $row->{$_}), @head));
+			print join("", map(sprintf("\n\t<tr class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\"><th class=\"bdns\" align=\"right\" id=\"bdns_lookup_result.$_$indexed\">%s</th><td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td></tr>", $_, $row->{$_}), @head));
 			if ($config->{'groups'}) {
 				print sprintf("\n\t<tr class=\"bdns\"  id=\"bdns_lookup_result.groups$indexed\"><th class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">GROUPS</th><td class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">%s</td></tr>", &getGroups($row->{'vn.KEY'}));
 			}
@@ -418,7 +421,9 @@ sub printLine {
 	}
 	return $ret;
 }
+
 exit;
+
 __END__
 
 =head1 NAME
