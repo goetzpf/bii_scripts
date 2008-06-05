@@ -61,7 +61,6 @@ use vars qw($opt_help $opt_summary
 	    $opt_percent
 	    $opt_unresolved_variables
 	    $opt_unresolved_links
-	    $opt_unresolved_links_plain
 	    $opt_record_references
 	    $opt_allow_double
 	    $opt_single
@@ -141,8 +140,7 @@ if (!GetOptions("help|h","summary",
 		"list|l",
 		"percent=s",
 		"unresolved_variables|unresolved-variables",
-		"unresolved_links|unresolved-links",
-		"unresolved_links_plain|unresolved-links-plain",
+		"unresolved_links|unresolved-links:i",
 		"record_references|record-references|R=s",
 		"allow_double|allow-double|A",
 		"single|S",
@@ -267,7 +265,6 @@ foreach my $file (@files)
 	(!defined $opt_list) &&
 	(!defined $opt_unresolved_variables) &&
 	(!defined $opt_unresolved_links) &&
-	(!defined $opt_unresolved_links_plain) &&
 	(!defined $opt_record_references)
        )
       { $opt_recreate=1; };
@@ -283,12 +280,10 @@ foreach my $file (@files)
       };
 
     if (defined $opt_unresolved_links)
-      { list_unresolved_links($filename,$recs,1);
-        next;
-      };
-
-    if (defined $opt_unresolved_links_plain)
-      { list_unresolved_links($filename,$recs,1,1);
+      { 
+ 	if ($opt_unresolved_links eq "")
+          { $opt_unresolved_links=2; } # default: 2
+        list_unresolved_links($filename,$recs, $opt_unresolved_links);
         next;
       };
 
@@ -623,7 +618,7 @@ sub list_record_references
   } 
 
 sub list_unresolved_links
-  { my ($filename,$recs,$do_list,$plain_list)= @_;
+  { my ($filename,$recs,$verbosity)= @_;
     my $res;
     my %mac;
     my %found_recs;
@@ -641,7 +636,7 @@ sub list_unresolved_links
       };
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
-    if ($plain_list)
+    if ($verbosity==0)
       { # just list all items (values) that are missing
         my %values;
         foreach my $recname (keys %found_recs)
@@ -653,13 +648,15 @@ sub list_unresolved_links
 	return;
       };
 
-    print "=" x 40,"\n";
-    if ($do_list)
-      { print "unresolved links in these records:\n";
+    if ($verbosity>1)
+      { 
+        print "=" x 40,"\n";
+        print "unresolved links in these records:\n";
         print "-" x 40,"\n";
         print join("\n",sort keys %found_recs);
+        print "\n\n";
       };
-    print "\n\nList of fields with unresolved links\n";
+    print "List of fields with unresolved links\n";
     print "-" x 40,"\n";
     foreach my $recname (sort keys %found_recs)
       { my $r_f= $found_recs{$recname};
@@ -1186,7 +1183,7 @@ Syntax:
     --unresolved_variables 
       list all unresolved variables like \$(VARNAME) in the db file
 
-    --unresolved_links 
+    --unresolved_links {verbosity} 
       try to find unresolved links in the db-file.
       list all links that cannot be resolved within the
       db file. Currently the followings list of fields is expected to
@@ -1194,6 +1191,12 @@ Syntax:
       $links1
       $links2
       All values that seem to be a number or an empty string are ignored
+
+      verbosity may be a number between 0 and 2.
+      0   : just list the link values (the default)
+      1   : list record names and link values
+      2   : print a list of record names, then a list of
+            record names and link values
 
     --unresolved_links_plain
       like --unresolved_links but list only the values themselves, 
