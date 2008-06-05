@@ -51,14 +51,14 @@ use Carp;
 
 our $treat_double_records=1;
 
-my $space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
+our $space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
 
-my $quoted_word         = qr/\"(\w+)\"/;
-my $unquoted_word       = qr/(\w+)/;
+our $quoted_word         = qr/\"(\w+)\"/;
+our $unquoted_word       = qr/(\w+)/;
 
-my $quoted              = qr/\"(.*?)(?<!\\)\"/;
-my $unquoted_rec_name   = qr/([\w\-:\[\]<>;]+)/;
-my $unquoted_field_name = qr/([\w\-\+:\.\[\]<>;]+)/;
+our $quoted              = qr/\"(.*?)(?<!\\)\"/;
+our $unquoted_rec_name   = qr/([\w\-:\[\]<>;]+)/;
+our $unquoted_field_name = qr/([\w\-\+:\.\[\]<>;]+)/;
 
 my $record_head= qr/\G
                       record

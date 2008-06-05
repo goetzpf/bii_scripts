@@ -96,7 +96,7 @@ SELL);
 my %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields;
 my %link_fields     = map{ $_ => 1 } @link_fields;
 
-my $unquoted_rec_name   = qr/^([\w\-:\[\]<>;]+)/;
+# my $unquoted_rec_name   = qr/^([\w\-:\[\]<>;]+)/;
 my $number              = qr/^\s*[+-]?\d+\.?\d*(|[eE][+-]?\d+)$/;
 
 sub rec_link_fields
@@ -123,7 +123,7 @@ sub rec_link_fields
 	    if (str_defined_different($r_fields->{DTYP},'Soft Channel'))
 	      { next; };
 	  };
-	next if ($val !~ qr/$unquoted_rec_name/);
+	next if ($val !~ qr/$parse_db::unquoted_rec_name/);
 
         #$val=~ s/(\s+|\s*\.)(CPP|NPP|NMS|MS|PP|CP|CA)\b/ /g;	    
 	#$val=~ s/\s+$//;
