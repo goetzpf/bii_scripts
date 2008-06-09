@@ -96,11 +96,10 @@ SELL);
 my %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields;
 my %link_fields     = map{ $_ => 1 } @link_fields;
 
-# my $unquoted_rec_name   = qr/^([\w\-:\[\]<>;]+)/;
-# Number as taken from perl FAQ:
-#my $number              = qr/^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
-# Number as taken from EPICS parser (file dblex.l):
-my $number              = qr/^\s*-?(([0-9]+)|([0-9]*\.[0-9]+)([eE][-+]?[0-9]+)?)\s*$/;
+# Number as taken from perl FAQ, modified to allow hexadecimals too
+my $dec_number      = qr/([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?/;
+my $hex_number      = qr/0x[0-9a-fA-F]+/;
+my $number          = qr/^($hex_number|$dec_number)$/;
 
 sub rec_link_fields
 # $r_fields is a list of fields of a record
