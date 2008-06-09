@@ -100,7 +100,7 @@ my %link_fields     = map{ $_ => 1 } @link_fields;
 # Number as taken from perl FAQ:
 #my $number              = qr/^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
 # Number as taken from EPICS parser (file dblex.l):
-my $number              = qr/-?(([0-9]+)|([0-9]*\.[0-9]+)([eE][-+]?[0-9]+)?)/;
+my $number              = qr/^\s*-?(([0-9]+)|([0-9]*\.[0-9]+)([eE][-+]?[0-9]+)?)\s*$/;
 
 sub rec_link_fields
 # $r_fields is a list of fields of a record
