@@ -97,7 +97,10 @@ my %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields;
 my %link_fields     = map{ $_ => 1 } @link_fields;
 
 # my $unquoted_rec_name   = qr/^([\w\-:\[\]<>;]+)/;
-my $number              = qr/^\s*[+-]?\d+\.?\d*(|[eE][+-]?\d+)$/;
+# Number as taken from perl FAQ:
+#my $number              = qr/^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
+# Number as taken from EPICS parser (file dblex.l):
+my $number              = qr/-?(([0-9]+)|([0-9]*\.[0-9]+)([eE][-+]?[0-9]+)?)/;
 
 sub rec_link_fields
 # $r_fields is a list of fields of a record
