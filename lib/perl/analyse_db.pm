@@ -123,15 +123,12 @@ sub rec_link_fields
 	    if (str_defined_different($r_fields->{DTYP},'Soft Channel'))
 	      { next; };
 	  };
-	next if ($val !~ qr/$parse_db::unquoted_rec_name/);
 
-        #$val=~ s/(\s+|\s*\.)(CPP|NPP|NMS|MS|PP|CP|CA)\b/ /g;	    
-	#$val=~ s/\s+$//;
-	## remove field-names:
-	#$val=~ s/\.\w+$//;
+        $val=~ s/(\s+|\s*\.)(CPP|NPP|NMS|MS|PP|CP|CA)\b/ /g;	    
+	$val=~ s/[\.\s]+$//;
+	$val=~ s/\.\w+$//;
 	
-	#$h{$fieldname}= $val;
-	$h{$fieldname}= $1;
+	$h{$fieldname}= $val;
       };
     return(\%h);
   }
