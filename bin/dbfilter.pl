@@ -1198,10 +1198,6 @@ Syntax:
       2   : print a list of record names, then a list of
             record names and link values
 
-    --unresolved_links_plain
-      like --unresolved_links but list only the values themselves, 
-      nothing else 
-
     --record_references -R [regexp{,regexp2}]
       list which record (whose name matches regexp) is connected 
       to which other record. regexp may be "all" or "//" in which 
