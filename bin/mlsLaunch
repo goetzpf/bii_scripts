@@ -26,10 +26,10 @@
 
 
 # 
-# Opens the X-Display and starts launch on ash as user acc
+# Opens the X-Display and starts launch on ash as user mls
 # 
 # Usage:
-#         accLaunch [-t] [-c]
+#         mlsLaunch [-t] [-c]
 #
 #         -t : Tunnel X   --- Use ssh X11 forwarding rather than
 #                             direct X connection (useless, since tunneling
@@ -40,19 +40,17 @@
 # Tested on:   HPUX   (ssh version 1)
 #              Linux  (openssh version 2)
 
-# Weitere Environment-Variablen-Settings können in die "" der
-# Launch-Start-Zeilen eingefügt werden (mit Leerzeichen getrennt direkt
+# Weitere Environment-Variablen-Settings kÃ¶nnen in die "" der
+# Launch-Start-Zeilen eingefÃ¼gt werden (mit Leerzeichen getrennt direkt
 # vor das launch-Kommando)
 
 hostName=${HOST:-$HOSTNAME}
 #echo "hostName=$hostName"
 compress=""
-tunnelX11="1"
 withMapper=""
 
 for cmdArg
 do
-  [ "$cmdArg" = "-t" ] && tunnelX11="1"
   [ "$cmdArg" = "-c" ] && compress="-C"
   [ "$cmdArg" = "-m" ] && withMapper="+opi +int -browser +mapper"
 done
@@ -61,7 +59,9 @@ done
 # ssh-agent starten und identity laden
 # ------------------------------------
 
-# Wenn der ssh-agent nicht läuft, starten
+if false
+then
+# Wenn der ssh-agent nicht laeuft, starten
 if [ "$SSH_AUTH_SOCK" = "" ]
 then
   eval `ssh-agent`
@@ -70,15 +70,14 @@ fi
 
 # Kein Key geladen? -> ssh-add
 [ "$(ssh-add -l | grep 'no ident')" = "" ] || ssh-add </dev/null
-
+fi
 #
 # Vebindung herstellen
 # --------------------
 
-  # Durch ssh getunnelte X-Verbindung
-  # Launch starten
-  #ssh $compress acc@ash.acc.bessy.de "launch"
-  ssh -f -n $compress -Y acc@ash.acc.bessy.de "launch $@ $withMapper"
+# Durch ssh getunnelte X-Verbindung
+# Launch starten
+SSH_ASKPASS=/usr/X11R6/bin/ssh-askpass ssh -f -n $compress -Y mls@mls-srv.acc.bessy.de "launch $@ $withMapper"
 
 #
 # Evtl. ssh-agent wieder abwerfen
