@@ -217,7 +217,7 @@ do
 
 ###############################################################################
 
-    */Epics/*/support*)
+    */[Ee]pics/*/support*)
 
 # Set everything to group epics-support and ???r-X---
 
