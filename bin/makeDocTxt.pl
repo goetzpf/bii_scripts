@@ -153,6 +153,16 @@ my $config = Options::parse($usage, 1);
     $paragraph =~ s|µ|&mu;|g;
     $paragraph =~ s|\"|&quot;|g;
   
+# same for utf-8 encoded umlauts:
+    $paragraph =~ s|\xc3\x96|&Ouml;|g;
+    $paragraph =~ s|\xc3\xb6|&ouml;|g;
+    $paragraph =~ s|\xc3\x9c|&Uuml;|g;
+    $paragraph =~ s|\xc3\xbc|&uuml;|g;
+    $paragraph =~ s|\xc3\x84|&Auml;|g;
+    $paragraph =~ s|\xc3\xa4|&auml;|g;
+    $paragraph =~ s|\xc3\x9f|&szlig;|g;
+    $paragraph =~ s|\xe2\x82\xac|&euro;|g;
+
 # recognise ANCHORS in the document:  (anchor: #AnchorName)
     $paragraph =~ s|\(anchor:\s*\#(.*?)\)|<A NAME=\"$1\"></A> |g;
 
