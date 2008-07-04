@@ -75,11 +75,10 @@ my $config = Options::parse($usage, 1);
 
 $usage = $usage . $Options::help;
 
-warn Dumper($config);
+#warn Dumper($config);
 
 die $usage if $#ARGV < 0 and not ($config->{"wwwform"}  or $config->{"help"});
 ODB::verbose() == 1 if $config->{'verbose'};
-
 
 if (! defined $config->{'output'} or ! $config->{'output'} =~ /(table|csvtable|htmltable|list|set|htmlset|xmlset|dump)/) {
 	$config->{'output'} = 'list';
@@ -135,7 +134,6 @@ if ($config->{'extract'} == 1) {
 	if ($config->{'wwwform'} == 1) {
 		$dboptionfield{"Extraction"} = "extract";
 	} else {
-warn;
 		push @columns, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
 		push @head, ('MEMBER','IND', 'SUBIND', 'FAMILY', 'COUNTER', 'SUBDOMAIN', 'DOMAIN', 'FACILITY');
 		$dborder{"family"} = "FAMILY";
@@ -145,7 +143,6 @@ warn;
 }
 
 if ($config->{'description'} == 1) {
-warn;
 	if ($config->{"wwwform"} == 1) {
 		$dboptionfield{"Description"} = "description";
 	} else {
