@@ -141,7 +141,6 @@ my $config = Options::parse($usage, 1);
 # set SPECIAL CHARACTERS for all paragraphs that are not preformated
     $paragraph =~ s|<|&lt;|g;
     $paragraph =~ s|>|&gt;|g;
-    $paragraph =~ s|&|&amp;|g;
     $paragraph =~ s|Ö|&Ouml;|g;
     $paragraph =~ s|ö|&ouml;|g;
     $paragraph =~ s|Ü|&Uuml;|g;
