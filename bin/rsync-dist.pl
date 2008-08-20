@@ -104,6 +104,7 @@ use vars qw($opt_help
             $opt_version
             $opt_create_missing_links
 	    $opt_ssh_back_tunnel
+	    $opt_filter_output
             );
 
 use constant {
@@ -288,6 +289,7 @@ my %gbl_map_hash=
                RSYNC_DIST_SHOW_PROGRESS => \$opt_progress,
                RSYNC_DIST_TAG => \$opt_tag,
                RSYNC_DIST_MESSAGE => \$opt_message,
+               RSYNC_DIST_FILTER_OUTPUT => \$opt_filter_output,
               );
 
 # the following datastructure is used when the config-file
@@ -329,7 +331,10 @@ my %gbl_config_comments=
                                   "fixed tag for all distributions",
                RSYNC_DIST_MESSAGE => 
                                   "fixed log-message for dist, add-links\n" .
-                                  "and change-links commands"                                     
+                                  "and change-links commands",
+               RSYNC_DIST_FILTER_OUTPUT => 
+                                  "boolean flag: 1 means process output to\n" .
+                                  "be human readable, 0 means raw, default is 0",
               );
 
 # the following datastructure is used when the config-file
@@ -353,6 +358,7 @@ RSYNC_DIST_EDITOR_NO_DEFAULTS
 RSYNC_DIST_SHOW_PROGRESS
 RSYNC_DIST_TAG
 RSYNC_DIST_MESSAGE
+RSYNC_DIST_FILTER_OUTPUT
 );
 
 
@@ -455,6 +461,7 @@ if (!GetOptions("help|h",
                 "create_missing_links|create-missing-links",
 		"ssh_back_tunnel|ssh-back-tunnel=i",
 
+		"filter_output|filter-output",
 # undocumented:
                 "debug",
                 "version",
@@ -1161,7 +1168,9 @@ sub change_link
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         print "\nHost:$remote_host:\n";
-        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+        my($rc,$r_lines)= myssh_cmd(
+          $remote_host, $remote_user, $remote_path, $rcmd, 1, 1);
+        print maybe_filter_output($r_lines);
         $all_rc&= $rc;
         if (!$rc)
           { warn "(command failed)\n"; };
@@ -1248,7 +1257,9 @@ sub ls
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
         print "\nHost:$remote_host:\n"; 
-        my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
+        my($rc,$r_lines)= myssh_cmd(
+          $remote_host, $remote_user, $remote_path, $rcmd, 1, 1);
+        print maybe_filter_output($r_lines);
        $all_rc&= $rc;
        if (!$rc)
           { warn "(command failed)\n"; };
@@ -2762,6 +2773,27 @@ sub process_user_and_hostname
     return(\@l);
   }
 
+sub maybe_filter_output
+# call filter_output depending on option
+  { my $r_lines = $_[0];
+    if ($opt_filter_output)
+      { filter_output(@$r_lines)
+      }
+    else
+      { map("$_\n",@$r_lines);
+      }
+  }
+
+sub filter_output
+# filter the output from a remote 'ls -l' command to make it more readable
+  { return grep(!/^$/, map
+      { if (m{(\S+) -\> .*/([T\d-:]+)})
+          { sprintf("%-20s %s\n",$1,$2) }
+        else
+          { "" }
+      } @_);
+  }
+
 # ------------------------------------------------
 # online-help
 # ------------------------------------------------
@@ -3065,6 +3097,10 @@ Syntax:
                   is given on the command line
                   NOTE: it is, however, questionable to specify a
                   constant default log message
+                RSYNC_DIST_FILTER_OUTPUT
+                  when set to 1, output from remote ssh commands
+                  is filtered to make it more human readable. This affects the
+                  commands "change-links", "add-links", and "ls links".
 
                 Note that command-line arguments always override 
                 values taken from the config-file.   
@@ -3083,6 +3119,11 @@ Syntax:
     --partial   make a complete copy of the last version on the
                 server but distribute only some files from the client
                 to the server. --localpath may contain file-glob patterns
+
+    --filter-output
+                when this option is given, output from remote ssh commands
+                is filtered to make it more human readable. This affects the
+                commands "change-links", "add-links", and "ls links".
 
     --version-file [filename]
     		when the <dist> command is executed, the name of
