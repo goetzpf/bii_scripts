@@ -620,12 +620,17 @@ sub   parseVars
     return $value;
 }
 
-## Special processing of the PV variable
-#  =====================================
+## Special processing of the PV variable (.edl only)
+#  ================================================
 # 
-# Don't ask why, but it is useful! What happens: A PV substitution may be truncated if 
-# it contains a a field.
-# 
+# A PV substitution that contains a field is truncated to the PV name for PV definitions in the 
+# widget that contains also fields. What is this usefull for?
+#
+# For bi|bo, MBBI|MBBO records it may be usefull to display the .DESC field and the status or the 
+# Value of the record. The widget may define just the PV for text message and also the status as text.
+# So the user of this widget is free to define the substituton of PV to PVNAME or PVNAME.DESC and 
+# the status in the widget defined as "$(PV).STAT" will be substituted correct in both cases!
+#
 # Definition in .substitution file  | Definition in .edl-template| substitution result
 # --------------------------------+--------------------------+---------------
 # PV="DEVICE"                     | controlPv="$(PV)"        | controlPv="DEVICE"
@@ -873,7 +878,6 @@ sub cmpFunc
 
 sub   setAdlWidget
 {   my ($widgetFileName,$widgetWidth,$widgetHeight,$rH_Attr, $xScale,$xPos,$yPos) = @_;
-
     my $facePlate;
     $facePlate.= "faceplateX=$xPos\n";
     $facePlate.="faceplateY=$yPos\n";
@@ -881,34 +885,49 @@ sub   setAdlWidget
     $facePlate.="faceplateHeight=$widgetHeight\n";
 
     my $adlFile = 1;
+    my $widgetFileStem;
     if( $widgetFileName =~ /^(.*)\.template/ )
     {
-    	$widgetFileName=$1.".adl";
+    	$widgetFileStem=$1;
 	$adlFile = 0;
     }
-    
-# .template files has to have at least a NAME substitution. All other substitutions but 
-# NAME and SNAME are ignored they are supposed to be database substitutions
-    if( $adlFile==0 && $$rH_Attr{NAME} )	
-    {   #print "$widgetFileName, $adlFile: $$rH_Attr{NAME}\n";
-	$facePlate.="faceplateAdl=$widgetFileName";
+print "setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr, $xScale,$xPos,$yPos)",Dumper($rH_Attr) if $widgetFileName =~ /text/;
+# .template files must have at least a substitution for the porcess variable name. 
+# Possible identifiers are: NAME, NAME + SNAME, PV and TEXT for text.adl widget
+# All other substitutions are ignored they are supposed to be database substitutions
+    if( $adlFile==0)
+    {   
+	$facePlate.="faceplateAdl=$widgetFileStem.adl";
 	if( length( $$rH_Attr{NAME} ))
-	{   $facePlate.="\nfaceplateMacro=NAME=$$rH_Attr{NAME}"
+	{   
+	    $facePlate.="\nfaceplateMacro=NAME=$$rH_Attr{NAME}";
+	    if( length( $$rH_Attr{SNAME}) )
+	    {   $facePlate.=",SNAME=$$rH_Attr{SNAME}";
+	    }
 	}
-	if( length( $$rH_Attr{SNAME}) )
-	{   $facePlate.=",SNAME=$$rH_Attr{SNAME}";
+	elsif( length( $$rH_Attr{PV} ))
+	{   
+	    $facePlate.="\nfaceplateMacro=PV=$$rH_Attr{PV}";
+	}
+	elsif( length( $$rH_Attr{TEXT}) && ($widgetFileName eq 'text.template'))
+	{   
+	    $facePlate.="\nfaceplateMacro=TEXT=$$rH_Attr{TEXT}";
+	}
+	else
+	{
+	    die "No PV substitutions found for:setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr, $xScale,$xPos,$yPos)",Dumper($rH_Attr)
 	}
     }
 
 # for .adl files all substitutions are expanded
     elsif( $adlFile==1 )
-    { 	#print "$widgetFileName, $adlFile: ",join(',',keys(%$rH_Attr)),"\n";
-    	$facePlate.="faceplateAdl=$widgetFileName";
-        if( scalar( keys(%$rH_Attr) ) )
+    { 	
+	$facePlate.="faceplateAdl=$widgetFileName";
+	if( scalar( keys(%$rH_Attr) ) )
 	{   my $str = join(',', map{"$_=$rH_Attr->{$_}"} keys(%$rH_Attr));
 	    $facePlate.="\nfaceplateMacro=$str";
 	}
-  }
-  $facePlate.="\n";
-  return $facePlate;
+    }
+    $facePlate.="\n";
+    return $facePlate;
 }
