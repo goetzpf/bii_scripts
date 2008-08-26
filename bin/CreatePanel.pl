@@ -12,14 +12,14 @@
 #     if outFilename is '-', data is written to standard-out
 #
 #    Options:
-#      -title  TitleString | Title.type  Title of the panel (string or file). Default=no title
+#      -title  TitleString | Title.type Title of the panel (string or file). Default=no title
 #      -baseW filename                  base panel name for layout=xy
-#      -x pixel      		       X-Position of the panel (default=100)
-#      -y pixel      		       Y-Position of the panel (default=100)
-#      -w pixel       		       Panel width (default=900)
+#      -x pixel      		        X-Position of the panel (default=100)
+#      -y pixel      		        Y-Position of the panel (default=100)
+#      -w pixel       		        Panel width (default=900)
 #      -I searchPath                    Search paht(s) for panel widgets
 #      -M                               Create make dependencies
-#      -layout xy | grid | table        placement of the widgets, (default = by line) 
+#      -layout line|xy|grid|table       placement of the widgets, (default = by line) 
 #      -type adl|edl                    Create edl or mfp file (default is edl)
 #      -sort NAME                       Sort a group of signals. NAME is the name of a 
 #                                       Name-Value pair in the substitution data.
@@ -29,31 +29,35 @@
 # Overview
 # ========
 # 
-# This script provides for a way to create more complex edm or dm2k displayes from adl/edl-template widgets and 
-# a definition file. The adl/edl-templates are dm2k/edm displays that contain variables for PVs, strings or 
+# This script provides for a way to create more complex edm or dm2k-mfp displayes from adl/edl-template widgets and 
+# a definition file. The adl/edl-widgets are dm2k/edm displays that contain variables for PVs, strings or 
 # whatever. The variables are defined in '.substitution' files, same syntax as EPICS substitution files.
+#
+# * There are generic adl/edl-templates for analog values, bits and strings.
+#
+# * There is the feature of (scaling: #scale) each widget in horizontal direction.
+#
+# * There are several panel (layouts: #layout) available: Table, Grid or Place to xy coordinates.
+#
 # 
-# - There are generic adl/edl-templates for analog values, bits and strings.
-# - For panesl of list form there may be user defined panels for EPICS .template files.
-# 
-# For edm panels there is the feature scaling. All widgets may contain the variable WIDTH in one or more edm objects, to scale the
-# object and the total width of the edl-template. The '.substitution' file may have the parameter SCALE="pixel", that 
-# scales the width of each object of an  edl-template. 
-#
-# There are several panel layouts available - see below.
-#
-#
 # The substitution files
 # ======================
 # 
-# The substitution files have the same notation as EPICS database substitution files.
-# So they may be used for a prototype panels in EPICS database development. 
-# For each EPICS template file there has to exist an edl-template display with the same name.
+# The substitution files to create a panel have the same notation as EPICS database substitution files.
+#
+# For each EPICS template file there has to exist an edl/adl-template display with the same name. Unknown files 
+# are skipped to give a chance to use just a subset of the substitution file for the panel. 
+#
+# The -I options define the search path for the widgets
+#
+# So the EPICS database substitution file may be used for a prototype panel in EPICS database development
+# or if there is a generic panel and a EPICS template for a device
 # 
 # Notation in .substitution file | Panel Template
 # -------------------------------+---------------
 # file EPICS_db.template {       | EPICS_db.edl
 # file panel.edl {               | panel.edl
+# file panel.adl {               | panel.adl
 # 
   eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	if $running_under_some_shell;
@@ -205,19 +209,32 @@
     }
     close FILE if ($outFileName ne '-');
 
-## Layout of the created display
+## (anchor: #layout)
+#
+#  Layout of the created display
 #  =============================
 #
 #  The commandline option '-layout' determines which way the edl templates are placed in the Display
 #
-#  Create by line (Default)
+#  Layout by line (Default)
 #  ........................
 #
-#  - The total width of the panel is set by the argument '-width', or set to 900 by default.
-#    The Widgets are placed from the left to the right as written in a line as long as the display width
-#    is not exceeded. Then a new line begins.
-#  - A new edl-template type results in the begin of a new line.
-#  - The option '-sort NAME' is available
+#  Widget1 | Widget2 | Widget3 
+#  --------+--------------------
+#  Widget4 | Widget5 | Widget6 
+#  Widget7 | Widget8 | Widget9 
+#
+#
+#  * The Widgets are placed from the left to the right - as written in a line - as long as the display 
+#    width is not exceeded. Then a new line begins.
+#
+#  * The total width of the panel is set by the argument '-width', or set to 900 by default.
+#
+#  * A new line begins if there is a new  edl-template type.
+#
+#  * The order of widgets may be set ba the option '-sort NAME'. NAME is any name of a variable in 
+#    the '.substitutions' file
+# 
 sub   layoutLine
 {   my ($r_substData,$displayWidth) = @_;
 
@@ -268,14 +285,23 @@ sub   layoutLine
     return ($prEdl,$displayWidth, $yPos);
 }    
 
-##  Create by table
+##  Layout by table
 #  ........................
 #
-#  - The total width of the panel is set by the argument '-width', or set to 900 by default.
-#  The Widgets are placed in rows an collumns. 
-#  - The option '-sort NAME' is available
-#  - A new edl-template type results in the begin of a new table.
+#  Widget1 | Widget4 | Widget7 
+#  --------+--------------------
+#  Widget2 | Widget5 | Widget8 
+#  Widget3 | Widget6 | Widget9 
 #
+#  * The widgets are placed in columns top down and rows right to left. 
+#
+#  * The total width of the panel is set by the argument '-width', or set to 900 by default.
+#
+#  * A new linene begins if there is a new  edl-template type.
+#
+#  * The order of widgets may be set ba the option '-sort NAME'. NAME is any name of a variable in 
+#    the '.substitutions' file
+# 
 sub   layoutTable
 {   my ($r_substData,$displayWidth) = @_;
 
@@ -335,14 +361,14 @@ sub   layoutTable
     return ($prEdl,$displayWidth, $yPos);
 }    
 
-## Place each widget to a fixed position
+## Layout XY: Place each widget to a fixed position
 #  ........................
 #
 #  The option '-layout xy'  will place each item of the '.substitutions' file to the position defined by
-#  the parameter 'PANEL_POS'. This parameter defines the x/y position in pixel and has to be set for each 
-#  edl-tempolate instance.
+#  the variable 'PANEL_POS'. This variable defines the x/y position in pixel and has to be set for each 
+#  edl-template instance.
 #
-#  As base widget to print the edl-templates in there has to exist a edl file with the same name as the 
+#  As base widget to print the edl-templates in there has to exist a '.edl' file with the same name as the 
 # .substitutions file
 #
 sub    layoutXY
@@ -385,11 +411,16 @@ sub    layoutXY
     return ($prEdl,$displayWidth, $displayHeight);
 }
 
-## Place each widget to a table by grid parameters
+## Layout GRID: Place each widget to a table by grid parameters
 #  ........................
 #
+#  Widget1.1 | Widget1.2 | Widget1.3 
+#  --------+--------------------
+#  Widget2.1 | Widget2.2 | Widget2.3 
+#  Widget3.1 | Widget3.2 | Widget3.3 
+#
 #  The option '-layout GRID'  will place each item of the '.substitutions' file to the position defined by
-#  the parameter 'GRID="COL,ROW"'. This parameter defines the column and row and has to be set for each edl-template
+#  the variable 'GRID="COL,ROW"'. This parameter defines the column and row and has to be set for each edl-template
 #  instance. Parameter SPAN="n-Cols"' may be set to span in horizontal direction.
 #
 sub    layoutGrid
@@ -491,13 +522,7 @@ sub    layoutGrid
     return ($prEdl,$xPos, $displayHeight);
 }
 
-## The edl templates are searched in this order:
-# 
-# - local: './'
-# - one up: '../'
-# - as comes from the GenericTemplateApp: '$(TOP)/share'
-# - as installed: '$(TOP)/dl'
-#
+## The edl templates are searched in the search paths as defined by the -I options
 # 
 sub   getTemplate
 {   my ($itemName) = @_;
@@ -600,8 +625,10 @@ sub   getDisplay
 # 
 # * $(PV) = proces variable name
 # 
-# *  Attention  : variables are not substituted for .adl files, but given as macro substitutions 
-#    to the widget instance in the '.mfp' file.
+# *  Attention  : variables for .adl files are given as macro substitutions to the widget instance 
+#    in the '.mfp' file. So variables may only occur on places where dm2k allows it. EDM panels are
+#    a copy of the widgets, so variables may occur anywhere and are substituted in the output file.
+#
 sub   parseVars
 {   my ($value,$rH_Attr) = @_;
 
@@ -626,9 +653,9 @@ sub   parseVars
 # A PV substitution that contains a field is truncated to the PV name for PV definitions in the 
 # widget that contains also fields. What is this usefull for?
 #
-# For bi|bo, MBBI|MBBO records it may be usefull to display the .DESC field and the status or the 
+# For bi/bo, MBBI/MBBO records it may be usefull to display the .DESC field and the status or the 
 # Value of the record. The widget may define just the PV for text message and also the status as text.
-# So the user of this widget is free to define the substituton of PV to PVNAME or PVNAME.DESC and 
+# So the user of this widget is free to define the variable PV to PVNAME or PVNAME.DESC and 
 # the status in the widget defined as "$(PV).STAT" will be substituted correct in both cases!
 #
 # Definition in .substitution file  | Definition in .edl-template| substitution result
@@ -699,18 +726,21 @@ sub   parsePV
     return $value;
 }
 
-##  Scaling the widgets
-#   ====================
+##  (anchor: #scale)
 #
-# There are the values 'SCALE="width"' and 'WIDTH="width"' in the substitution file that control the width of a widget.
+#  Scaling the widgets
+#  ====================
 #
-# If the parameter 'WIDTH' is defined the whole widget width is set to 'WIDTH'. All variables '$(WIDTH)' in the 
+# The variables 'SCALE="width"' and 'WIDTH="width"' may occur in the substitution file to control the width of a widget.
+#
+# If the variable 'WIDTH' is defined the whole widget width is set to 'WIDTH'. All variables '$(WIDTH)' in the 
 # edl-template are substituted to a calculated width: 'w=WIDTH-x' to take care of the x-position of the object. 
 #
-# If the parameter 'SCALE' is defined it means the whole edl-template is scaled from its original width 
-# to the size of the parameter 'SCALE'. The 'x' and 'w' values and the x values of all points of each object are scaled.
+# For .mfp files WIDTH works the same way as SCALE
 #
-
+# If the parameter 'SCALE' is defined it means the whole edl-template is scaled from its original width 
+# to the size of the parameter 'SCALE'. The 'x' and 'w' values of all points of each object are scaled.
+#
 sub   getWidth
 {   my ($xDispSize,$rH_Attr) = @_;
 
@@ -871,7 +901,7 @@ sub   sorted
 #    for(my $idx=0; $idx<scalar(@$rA); $idx++){print "$$rA[$idx]->{SNAME}\t$$rA[$idx]->{SNAME}\n" ;}
     return \@rSort;
 }
-sub cmpFunc 
+sub   cmpFunc 
 { #print "ab:$a->{$opt_sort},$b->{$opt_sort}\n"; 
     $a->{$opt_sort} <=> $a->{$opt_sort} 
 }
