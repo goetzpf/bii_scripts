@@ -44,7 +44,7 @@ BEGIN {
 
 use vars      @EXPORT_OK;
 
-
+use Config;
 use Data::Dumper;
 use File::Spec;
 use Cwd;
@@ -97,8 +97,13 @@ sub scan
 
     my %h;
     my $includes= join(" ",@filenames);
+    my $eopt=" -e";
+    if ($Config{"osname"} eq 'hpux')
+      { # echo on hpux doesn't know of an "-e" option
+        $eopt= "";
+      };
 
-    my $cmd= "echo -e \"include $includes\\n" .
+    my $cmd= "echo $eopt \"include $includes\\n" .
                       ".EXPORT_ALL_VARIABLES:\\n" .
 		      "scan_makefile_pe:\\n" .
 		        "\\t\@printenv\\n\" | " .
