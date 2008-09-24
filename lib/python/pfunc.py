@@ -23,11 +23,15 @@ class ArgFreeze:
     """a callable class that freezes (remembers) arguments to a function.
     
     Note: this is not the implementation of a closure. The callable
-    object only remembers parameters, not global variables. Note also
+    object only remembers its parameters, not global variables. Note also
     that it just remembers plain values and references. It doesn't do
     a deep copy of objects that are given as parameters.     
-    
-    Here is an example:
+   
+    The remembered parameters can be overwritten with parameters given
+    when the ArgFreeze functor is actually called. The remembered parameter
+    work like defaults. 
+
+    Here are some examples:
     >>> def test(arg1,arg2,arg3):
     ...     print "arg1:",arg1," arg2:",arg2," arg3:",arg3
 
