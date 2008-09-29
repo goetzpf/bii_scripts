@@ -101,7 +101,7 @@ sub handle_double_names
   }
 
 sub parse
-  { my($db,$filename)= @_;
+  { my($db,$filename,$storeType)= @_;
 
     my $level= 0;
 
@@ -110,6 +110,12 @@ sub parse
     my $r_this_record;
     my $r_this_record_fields;
 
+    if ($storeType eq 'asArray')
+    {
+    	$treat_double_records = 0 ;
+    	$r_this_record->{'ORDERDFIELDS'} =[];
+    }
+    my $rA_records; # [{'NAME'='recName', TYPE='recType', FIELDS=[[NAME,VALUE],..]},..]
     if (!defined $db)
       { simple_parse_error(__LINE__,$filename,"<undef> cannot be parsed"); }
     if ($db=~/^\s*$/)
@@ -155,7 +161,12 @@ sub parse
 		    else
 		      { die "assertion (treat_double_records)"; };
 		  };
-                $records{$name}= $r_this_record; 
+                if($storeType eq 'asArray')
+		{ 
+		    $r_this_record->{'NAME'}=$name;
+		    push @$rA_records, $r_this_record;
+		}
+		$records{$name}= $r_this_record; 
                 $level=1;
                 next;
               };
@@ -177,12 +188,19 @@ sub parse
                 my $value= (empty($4)) ? $3 : $4;
 
                 $r_this_record_fields->{$field}= $value;
-                next;
+                push @{$r_this_record->{'ORDERDFIELDS'}}, $field if ($storeType eq 'asArray');
+		next;
               };
             parse_error(__LINE__,\$db,pos($db),$filename);
           };
       };
-    return(\%records);    
+    if($storeType eq 'asArray')
+    { 
+    	return $rA_records;
+    }
+    {
+    	return(\%records);
+    }
   }
 
 sub parse_file
@@ -337,12 +355,21 @@ can then be used for further evaluation.
 
 B<parse()>
 
-  my $r_records= parse_db::parse($st,$filename);
+  my $r_records= parse_db::parse($st,$filename,$storeType);
 
 This function parses a given scalar variable that must contain a 
 complete db-file. It returns a reference to a hash, where the parsed data
 is stored. The parameter $filename is optional and is just used for
 printing error messages in case of a parse-error.
+
+$storeType Parameter is also optional and specifies the format of the
+returned data structure:
+
+- undef: default {'NAME'=> { TYPE=>'recType', FIELDS => { FIELD1=> VALUE1, ...},..}
+- asArray : [{'NAME'=>'recName', TYPE=>'recType', FIELDS => { FIELD1=> VALUE1, ...}, 
+               'ORDERDFIELDS' => [FIELD1,..]},
+	       ..
+	    ]
 
 =item *
 
@@ -424,7 +451,7 @@ The field-hash contains a key for each field name that gives the value of
 that field. Note that undefined fields-values are empty strings (""), not
 the perl undef-value.
 
-Example of a hash that parse() returns:
+Example of a hash that parse() returns as default:
 
   $r_records= { 'UE52ID5R:BaseCmdHome' => 
                    { 'TYPE'  => 'sub',
@@ -434,6 +461,13 @@ Example of a hash that parse() returns:
                                 }
                    } 
               }
+  Return 'asArray'
+   $r_records= [ {'NAME'   =>'recName', 
+                  'TYPE'   =>'recType', 
+		  'FIELDS' => { FIELD1=> VALUE1, ...}, 
+                  'ORDERDFIELDS' => [FIELD1,..]
+	         }
+	       ]
 
 =head1 AUTHOR
 
