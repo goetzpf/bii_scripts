@@ -96,6 +96,9 @@ use vars qw($opt_help
             $opt_prefix_distdir
             $opt_no_editor_defaults
             $opt_last_dist
+	    $opt_one_filesystem
+	    $opt_preserve_links
+	    $opt_exclude_list
             $opt_checksum
             $opt_progress
             $opt_dry_run
@@ -280,6 +283,9 @@ my %gbl_map_hash=
                RSYNC_DIST_LOCALPREFIX =>
                                        \$opt_localprefix,
                RSYNC_DIST_WORLDREADABLE => \$opt_world_readable,
+               RSYNC_DIST_ONE_FILESYSTEM  => \$opt_one_filesystem,
+               RSYNC_DIST_PRESERVE_LINKS  => \$opt_preserve_links,
+               RSYNC_DIST_EXCLUDE_LIST  => \$opt_exclude_list,
                RSYNC_DIST_CHECKSUM  => \$opt_checksum,
                RSYNC_DIST_PARTIAL => \$opt_partial,
                RSYNC_DIST_VERSION_FILE => \$opt_version_file,
@@ -312,6 +318,13 @@ my %gbl_config_comments=
 
                RSYNC_DIST_WORLDREADABLE =>
                                   "make all dirs on server world-readable",       
+               RSYNC_DIST_ONE_FILESYSTEM =>
+                                  "do not cross filesystem boundaries",
+               RSYNC_DIST_PRESERVE_LINKS =>
+                                  "copy links as they are, do not dereference them",
+               RSYNC_DIST_EXCLUDE_LIST =>
+                                  "specify a file that contains files to exclude from\n" .
+                                  "transfer",
                RSYNC_DIST_CHECKSUM =>
                                   "use checksum to detect file changes",
                RSYNC_DIST_PARTIAL =>
@@ -454,6 +467,9 @@ if (!GetOptions("help|h",
                 "no_editor_defaults|no-editor-defaults|N!",
                 "prefix_distdir|prefix-distdir!",               
                 "last_dist|last-dist|L",
+                "one_filesystem|one-filesystem",
+                "preserve_links|preserve-links",
+		"exclude_list|exclude-list=s",
                 "checksum",
                 "progress",
                 "dry_run|dry-run",
@@ -757,14 +773,28 @@ sub dist
                             $remote_path,
                             'distribute');
 
-          my $rsync_opts= $gbl_rsync_opts . " --copy-unsafe-links";
+    my $rsync_opts= $gbl_rsync_opts;
+    if (!$opt_preserve_links)
+      { 
+        $rsync_opts.=  " --copy-unsafe-links";
+      }
+    else
+      {
+        $rsync_opts.= " -l" ;
+      }
     $rsync_opts.= " -c" if ($opt_checksum);
+    $rsync_opts.= " -x" if ($opt_one_filesystem);
 
     my $log= DIST_LOG;
     my $chg= DIST_CHANGES;
 
     if (!internal_server_lock($r_hosts_users,$remote_path,'create'))
       { die "ERROR: locking of the servers failed"; };
+
+    if ($opt_exclude_list)
+      { copy_file_to_server($opt_exclude_list, $r_hosts_users, $remote_path);  
+        $rsync_opts.= " --exclude-from=$opt_exclude_list";
+      }
 
     my $datestr= $now; # make dates consistent!!
     
@@ -846,6 +876,11 @@ sub dist
         if (!$rc)
           { warn "(command failed)\n"; };
       };
+
+    if ($opt_exclude_list)
+      { 
+        remove_file_from_server($opt_exclude_list, $r_hosts_users, $remote_path);  
+      }
 
     if (!internal_server_lock($r_hosts_users,$remote_path,'remove'))
       { warn "WARNING: unlocking of the servers failed"; };
@@ -1265,6 +1300,27 @@ sub ls
           { warn "(command failed)\n"; };
       };
     return($all_rc);
+  }
+
+sub copy_file_to_server
+  { my($filename, $r_hosts_users, $remote_path)= @_;
+
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        myscp($remote_host, $remote_user, $filename, $remote_path, 0, 0);
+      }
+  }
+
+sub remove_file_from_server
+  { my($filename, $r_hosts_users, $remote_path)= @_;
+
+    # basically basename($filename):
+    $filename= (File::Spec->splitpath($filename))[-1];
+    foreach my $r (@$r_hosts_users)
+      { my($remote_host, $remote_user)= @$r;
+        my $cmd= "rm -f $filename";
+        myssh_cmd($remote_host, $remote_user, $remote_path, $cmd, 0, 0); 
+      }
   }
 
 sub server_lock
@@ -2257,6 +2313,13 @@ sub shell_single_quote_escape
 # ssh execution
 # ------------------------------------------------
 
+sub myscp
+  { my($host, $user, $file, $destpath, $do_catch, $silent)= @_;
+
+    my $cmd= "scp $file $user\@$host:$destpath";
+    return(mysys($cmd, $do_catch, $silent)); 
+  }
+
 sub myssh_cmd
 # make a system call on a remote host
 # global variables used:
@@ -3068,6 +3131,12 @@ Syntax:
                 RSYNC_DIST_WORLDREADABLE
                   when set to 1, make all distributed files world-readable
                   see also --world-readable
+                RSYNC_DIST_ONE_FILESYSTEM
+ 		  when set to 1, do not cross filesystem boundaries on the
+	          local host. See also --one-filesystem 
+                RSYNC_DIST_EXCLUDE_LIST
+		  specify a file on the local host that contains files that
+		  are to be excluded
                 RSYNC_DIST_CHECKSUM
                   when set to 1, use checksums to detect changes in files.
                   see also --checksum 
@@ -3180,6 +3249,12 @@ Syntax:
                 append the name of the last distribution that was
                 made to the "source" part of the add-links or
                 change-links command            
+
+    --one-filesystem 
+                do not cross filesystem boundaries on the local host
+
+    --exclude-list [file]
+                specify a file that contains files to be excluded from transfer
 
     --checksum  use checksums instead of date-comparisons when deciding 
                 wether a file should be transferred
