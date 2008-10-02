@@ -13,7 +13,7 @@
 #
 #    Options:
 #      -title  TitleString | Title.type Title of the panel (string or file). Default=no title
-#      -baseW filename                  base panel name for layout=xy
+#      -baseW filename                  Base panel name for layout=xy
 #      -x pixel      		        X-Position of the panel (default=100)
 #      -y pixel      		        Y-Position of the panel (default=100)
 #      -w pixel       		        Panel width (default=900)
@@ -24,6 +24,8 @@
 #      -sort NAME                       Sort a group of signals. NAME is the name of a 
 #                                       Name-Value pair in the substitution data.
 #                                       this is done only for the layouts: 'line', 'table'
+#      -subst 'NAME=\"VALUE\",...'      Panel substitutions from commandline
+#      -v    	    	    	        verbose
 #  
 #
 # Overview
@@ -38,6 +40,8 @@
 # * There is the feature of (scaling: #scale) each widget in horizontal direction.
 #
 # * There are several panel (layouts: #layout) available: Table, Grid or Place to xy coordinates.
+#
+# * For EPICS.db or EPICS.template files there is a debug panel created to show each field of all records.
 #
 # 
 # The substitution files
@@ -59,6 +63,18 @@
 # file panel.edl {               | panel.edl
 # file panel.adl {               | panel.adl
 # 
+# Debug Panels
+# ===========
+#
+# For EPICS.db or EPICS.template files there is a debug panel created to show each field of all records in
+# the same order as in theEPICS.db file.
+#
+# *  Example:  Create a panel for each record of the template and set the Devicname with '-subst' option
+#
+# CreatePanel.pl -w 1030 -subst 'NAME="FOMZ1M:motor"' -I . -I ~/ctl/apps/genericTemplate/head/dl motorRdb.template test.edl
+#
+#
+
   eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	if $running_under_some_shell;
 
@@ -66,6 +82,7 @@
     no strict "refs";
     use Text::ParseWords;
     use parse_subst;
+    use parse_db;
     use Getopt::Long;
     use Data::Dumper;
     $|=1;   # print unbuffred
@@ -79,6 +96,7 @@
     my $usage =
     my @searchDlPath;
     my $panelWidth;
+    my $substPar;
     my $usage = 
 "Usage: CreatePanel.pl [options] inFilename outFilename\n
        if inFilename  is '-', data is read from standard-in
@@ -99,15 +117,17 @@
                                        name of a Name-Value pair in the 
 				       substitution data. This is ignored 
 				       unless for layouts: 'line', 'table'
+      -subst 'NAME=\"VALUE\",...'      Panel substitutions from commandline
+      -v    	    	    	       verbose
      \n";
     my %dependencies;
     die unless GetOptions("M","I=s"=>\@searchDlPath,"v","x=i","w=i"=>\$panelWidth,"y=i",
     	    	    	  "type=s"=>\$type,"title=s"=>\$title,"layout=s"=>\$layout, 
-			  "sort=s"=>\$opt_sort,"baseW=s"=>\$baseW);
+			  "subst=s"=>\$substPar,"sort=s"=>\$opt_sort,"baseW=s"=>\$baseW);
 
     die $usage unless scalar(@ARGV) > 1;
     die "Illegal Panel type: '$type'" unless ( ($type eq 'edl') || ($type eq 'adl') );
-    
+    my $rH_subst = getSubstitutions($substPar) if defined $substPar;
     my( $inFileName, $outFileName) = @ARGV;
     $panelWidth = 900 unless( $panelWidth > 0);
 
@@ -123,6 +143,7 @@
     	$title = "file text.$type {\n  {TEXT=\"$title\",WIDTH=\"$panelWidth\",COLOR=\"28\",TXTCOLOR=\"0\"}\n}\n";
     }
     	
+#-- Read and parse input --
 
     my( $file, $r_substData);
     
@@ -140,10 +161,19 @@
 
     $file = $title.$file if( defined $title);
 
-    $r_substData = parse_subst::parse($file,'templateList');
-    
+    $inFileName =~ /\.(\w+)/;
+    my $fileType = $1;
+    if($fileType eq 'substitutions') {
+    	$r_substData = parse_subst::parse($file,'templateList');
+    }
+    elsif($fileType eq 'db' || $fileType eq 'template' ) {
+    	$layout = 'dbDbg';
+    	$r_substData = parse_db::parse($file,$inFileName,'asArray');
+    }
+#print Dumper($r_substData),"$fileType\nSubstitutions '$substPar'):";print Dumper($rH_subst);die;
 
-#parse_subst::dump($r_substData);
+#-- Create layout dependant panel data --
+
     my $printEdl;
     my $panelHeight;
     if($layout eq "xy")
@@ -158,11 +188,16 @@
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutTable($r_substData,$panelWidth);
     }
+    elsif($layout eq "dbDbg")
+    {
+        ($printEdl,$panelWidth, $panelHeight) = layoutDbDbg($r_substData,$panelWidth,$rH_subst);
+    }
     else
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutLine($r_substData,$panelWidth);
     }
     
+#-- write output
 
     print "\nDisplay: width=$panelWidth, height=$panelHeight\n" if $opt_v == 1;
 
@@ -208,6 +243,7 @@
 	print FILE $printEdl;
     }
     close FILE if ($outFileName ne '-');
+
 
 ## (anchor: #layout)
 #
@@ -357,7 +393,6 @@ sub   layoutTable
 	$yPos += $rows * $yDispSize;
     }
 
-#    $yPos += $yDispSize if $xPos > 0;
     return ($prEdl,$displayWidth, $yPos);
 }    
 
@@ -520,6 +555,57 @@ sub    layoutGrid
 
 #print "Panel Size:  $xPos, $displayHeight\n";   
     return ($prEdl,$xPos, $displayHeight);
+}
+
+sub   layoutDbDbg
+{   my($r_db,$panelWidth,$rH_Subst)=@_;
+
+    my $prEdl;
+    my $panelHeight;
+    my ($recHeadContent, $widgetWidth, $recHeadHight) = getDisplay('recHead.template');
+    my ($itemContent, $itemWidth, $itemHight) = getDisplay('item.template');
+    
+#print "layoutDbDbg(r_db,$panelWidth,subst), $recHeadHight, $itemHight attr=", Dumper($rH_Subst);
+
+    $widgetWidth = $itemWidth if $itemWidth > $widgetWidth;
+    my $colHight;
+    my $colMaxHight;
+    my $xPos=0;
+    my $yPos=0;
+    foreach (@$r_db)
+    {
+    	my $recName = $_->{NAME};
+	$recName = parseVars($recName,$rH_Subst);
+	my $rA_fields = $_->{ORDERDFIELDS};
+	$rH_Subst->{DEVNAME} = $recName;
+#print " record: $recName, \t",Dumper($rH_Subst);
+
+	my $edl = setWidget($recHeadContent,$widgetWidth,$recHeadHight,$rH_Subst,undef,$xPos,$yPos);
+	die "Error setWidget($recHeadContent,$widgetWidth,$recHeadHight,rH_Subst,undef,$xPos,$yPos)" unless defined $edl;
+	$prEdl .= "$edl" if defined $edl;
+	
+	$colHight = $recHeadHight;
+	
+	foreach (@$rA_fields)
+	{
+	    $rH_Subst->{FIELD} = $_;
+#print "\tFIELD: $_, y=$yPos, col=$colHight y=",$yPos+$colHight,"\t";
+	    my $edl = setWidget($itemContent,$widgetWidth,$itemHight,$rH_Subst,undef,$xPos,$yPos+$colHight);
+	    die "Error setWidget($recHeadContent,$widgetWidth,$recHeadHight,rH_Subst,undef,$xPos,$yPos+$colHight)" unless defined $edl;
+	    $prEdl .= "$edl" if defined $edl;
+	
+	    $colHight += $itemHight;
+	}
+	$colMaxHight = $colHight if $colHight > $colMaxHight;
+	$xPos += $widgetWidth;
+	if($xPos + $widgetWidth > $panelWidth)
+	{
+	    $xPos = 0;
+	    $yPos += $colMaxHight;
+	    $colMaxHight = 0;
+	}
+    }
+    return ($prEdl,$panelWidth, $yPos+$colMaxHight);
 }
 
 ## The edl templates are searched in the search paths as defined by the -I options
@@ -775,6 +861,7 @@ sub   getWidth
 sub   setWidget
 {   my ($parse,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos) = @_;
 
+#print "setWidget(parse,$xDispWIDTH,$yDispSize,rH_Attr, $xScale,$xPos,$yPos)\n";
     my $edl;
     if($type eq 'adl')
     {
@@ -881,6 +968,7 @@ sub   processPoints
     return $ret;
 }
 
+# lexical sort of the widgets
 sub   sorted
 {   my ($rA, $opt_sort,$grp)=@_;
     foreach (@$rA)
@@ -921,7 +1009,8 @@ sub   setAdlWidget
     	$widgetFileStem=$1;
 	$adlFile = 0;
     }
-print "setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr, $xScale,$xPos,$yPos)",Dumper($rH_Attr) if $widgetFileName =~ /text/;
+#print "setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr, $xScale,$xPos,$yPos)",Dumper($rH_Attr) if $widgetFileName =~ /text/;
+
 # .template files must have at least a substitution for the porcess variable name. 
 # Possible identifiers are: NAME, NAME + SNAME, PV and TEXT for text.adl widget
 # All other substitutions are ignored they are supposed to be database substitutions
@@ -960,4 +1049,144 @@ print "setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr, $xScale,
     }
     $facePlate.="\n";
     return $facePlate;
+}
+
+## Regexp token parser
+#  ===================
+#
+#  The Tokens are processed in the defined order.
+#
+#  *  Token definition  : a list of regexp containing one or three elements:
+#
+#  - One element: The regexp to rekognize the token
+#  - Three elements: Token begin , Token content, Token limiter
+#
+sub parse
+{   my ($parse, $rA_tokDefList,$mode)=@_;
+    
+    my $errStr;
+    my @tokList;
+    unshift @$rA_tokDefList, ['FORGETT_SPACE_CHARACTERS',[qr(^\s+)]] if $mode eq 'ignoreSpace';
+#print Dumper($rA_tokDefList); 
+    while($parse)
+    {
+    	my $tokContent;
+	my $tokName;
+	foreach (@$rA_tokDefList)
+	{
+	    $tokName = $_->[0];
+	    my $rA_tokDef = $_->[1];
+	    my $tokRE = $rA_tokDef->[0];
+
+	    if( $parse =~ $tokRE)
+	    {	
+#print "Found: token: '$tokName'='$tokRE' parse='$parse':";
+	    	$parse=$';
+    	    	$tokContent = $&;
+	    	if( $tokName eq 'FORGETT_SPACE_CHARACTERS')
+		{
+#print "Ignore: token: '$tokName'='$tokRE' parse='$parse':";
+		    $tokContent = undef;
+		    last ;
+		}
+		$tokRE = $rA_tokDef->[1];
+		if( defined $tokRE) # is a three RE token
+		{
+#print "\tTRY content: '$tokName', '$tokRE':";
+		    if( $parse =~ $tokRE) # token content
+		    {	
+		    	$parse=$';
+	    		$tokContent = $&;
+		    	$tokRE = $rA_tokDef->[2];
+#print "\t\tTRY delimiter: '$tokName', '$tokRE':";
+			if( defined $tokRE && $parse =~ $tokRE) # token delimiter
+			{
+			    $parse=$';
+			    last;
+			}
+			else
+			{
+			    $errStr .= "Can't find token delimiter for $tokContent***$parse";
+			    last
+			}
+		    }
+		    else
+		    {
+			$errStr .= "Can't find token Content for $parse";
+		    }
+		}
+		else	# was a one RE token
+		{
+		    last;
+		}
+#print "END tokens";
+	    }
+	}
+    	if( defined $tokContent && length($errStr)==0)
+	{
+#print "\nmatch '$tokName','$tokContent'\n";
+	    push @tokList, [$tokName,$tokContent]
+	}
+	elsif( $tokName ne 'FORGETT_SPACE_CHARACTERS')
+	{
+	    $errStr = "Can't find token in: '$parse'" if( length($errStr)==0 );
+	    warn "PARSE ERROR: ".$errStr;
+	    return undef;
+	}
+
+    }
+#print "TOK LIST = ",join(",",map{"$_->[0]='$_->[1]'"}@tokList),"\n";
+    return \@tokList;
+}
+
+## Parse string for name value pairs.
+#
+#  * Syntax: NAME="VALUE",NAME2="VALUE2",...
+#
+#  *  Return  : Hash = {NAME=>"VALUE",NAME2=>"VALUE2"}
+#
+sub getSubstitutions
+{   my($parse) = @_;
+
+    my @token = (
+        ['QSTR' , [qr(^"), qr(^(?:[^"\\\\]+|\\\\(?:.|\n))*), qr(")]],# matches a "quoted" string
+    	['SEP_NV'  , [qr(^=)]],
+    	['SEP_ITEM', [qr(^,)]],
+        ['NAME' , [qr(^[a-zA-Z0-9_\-:\.\$]+)]]          # matches an unquoted string contains [a-zA-Z0-9_\-] followed by '='
+	);
+
+    my $rA_toks = parse($parse,\@token,'ignoreSpace');
+    die "PARSE ERROR" unless defined $rA_toks;
+#print " parse($parse) = ",Dumper($rA_toks);
+    my %subst;
+    while()
+    {
+	my ($tok,$tokVal) = @{shift @$rA_toks};
+#print "\t1 ($tok,$tokVal) \tNAME || SEP_ITEM || undef\n";
+	last unless defined $tok;
+     	($tok,$tokVal) = @{shift @$rA_toks} if $tok eq 'SEP_ITEM';
+	if($tok eq 'NAME')
+	{
+	    my $name = $tokVal ;
+	    ($tok,$tokVal) = @{shift @$rA_toks};
+#print "\t2 ($tok,$tokVal) \tSEP_NV \n";
+    	    return undef unless $tok eq 'SEP_NV';
+	    ($tok,$tokVal) = @{shift @$rA_toks};
+#print "\t3 ($tok,$tokVal) \tQSTR\n";
+    	    if($tok eq 'QSTR' || $tok eq 'NAME')
+	    {
+#print "FOUND: '$name' = '$tokVal'\n";
+		$subst{$name} = $tokVal;
+	    }
+	    else
+	    {
+	    	return undef;
+	    }
+    	}
+	else
+	{
+	    return undef;
+	}
+    }
+    return \%subst;
 }
