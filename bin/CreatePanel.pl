@@ -131,7 +131,7 @@
     my( $inFileName, $outFileName) = @ARGV;
     $panelWidth = 900 unless( $panelWidth > 0);
 
-    print "Create Panel in: $inFileName out: $outFileName, width = $panelWidth \n" if $opt_v == 1;
+    print "Create Panel in <- $inFileName out -> $outFileName, width = $panelWidth \n" if $opt_v == 1;
     if( $title =~ /\.$type$/ )
     {
         $title = "file $title {\n  {SCALE=\"$panelWidth\"}\n}\n";
@@ -161,7 +161,7 @@
 
     $file = $title.$file if( defined $title);
 
-    $inFileName =~ /\.(\w+)/;
+    $inFileName =~ /\.(\w+)\s*$/;
     my $fileType = $1;
     if($fileType eq 'substitutions') {
     	$r_substData = parse_subst::parse($file,'templateList');
@@ -170,7 +170,7 @@
     	$layout = 'dbDbg';
     	$r_substData = parse_db::parse($file,$inFileName,'asArray');
     }
-#print Dumper($r_substData),"$fileType\nSubstitutions '$substPar'):";print Dumper($rH_subst);die;
+#print "inFileName '$inFileName', fileType '$fileType', ",Dumper($r_substData),"\nSubstitutions '$substPar'):";print Dumper($rH_subst);die;
 
 #-- Create layout dependant panel data --
 
