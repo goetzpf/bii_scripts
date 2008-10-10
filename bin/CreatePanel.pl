@@ -19,6 +19,8 @@
 #      -w pixel       		        Panel width (default=900)
 #      -I searchPath                    Search paht(s) for panel widgets
 #      -M                               Create make dependencies
+#      -padx				x-padding between widgets in pixel (layout grid only)
+#      -pady				y-padding between widgets in pixel (layout grid only)
 #      -layout line|xy|grid|table       placement of the widgets, (default = by line) 
 #      -type adl|edl                    Create edl or mfp file (default is edl)
 #      -sort NAME                       Sort a group of signals. NAME is the name of a 
@@ -97,6 +99,8 @@
     my @searchDlPath;
     my $panelWidth;
     my $substPar;
+    my $padx;
+    my $pady;
     my $usage = 
 "Usage: CreatePanel.pl [options] inFilename outFilename\n
        if inFilename  is '-', data is read from standard-in
@@ -112,6 +116,8 @@
       -M                               Create make dependencies
       -layout xy | grid | table        placement of the widgets, 
                                        (default = by line) 
+      -padx                            x-padding between widgets in pixel (layout grid only)
+      -pady                            y-padding between widgets in pixel (layout grid only)
       -type adl|edl                    Create edl or mfp file (default is edl)
       -sort NAME                       Sort a group of signals. NAME is the 
                                        name of a Name-Value pair in the 
@@ -121,28 +127,33 @@
       -v    	    	    	       verbose
      \n";
     my %dependencies;
+    my %options;    # store some options to check for it in the layout... functions.
+    
     die unless GetOptions("M","I=s"=>\@searchDlPath,"v","x=i","w=i"=>\$panelWidth,"y=i",
     	    	    	  "type=s"=>\$type,"title=s"=>\$title,"layout=s"=>\$layout, 
-			  "subst=s"=>\$substPar,"sort=s"=>\$opt_sort,"baseW=s"=>\$baseW);
+			  "subst=s"=>\$substPar,"sort=s"=>\$opt_sort,"baseW=s"=>\$baseW,
+			  "padx=i"=>\$padx,"pady=i"=>\$pady);
 
     die $usage unless scalar(@ARGV) > 1;
-    die "Illegal Panel type: '$type'" unless ( ($type eq 'edl') || ($type eq 'adl') );
-    my $rH_subst = getSubstitutions($substPar) if defined $substPar;
-    my( $inFileName, $outFileName) = @ARGV;
-    $panelWidth = 900 unless( $panelWidth > 0);
 
-    print "Create Panel in <- $inFileName out -> $outFileName, width = $panelWidth \n" if $opt_v == 1;
-    if( $title =~ /\.$type$/ )
+    die "Illegal Panel type: '$type'" unless ( ($type eq 'edl') || ($type eq 'adl') );
+    $options{TYPE} = $type;
+    $options{PADX} = $padx;
+    $options{PADY} = $pady;
+    my( $inFileName, $outFileName) = @ARGV;
+    
+    if( defined $substPar)
     {
-        $title = "file $title {\n  {SCALE=\"$panelWidth\"}\n}\n";
-	print "Title: '$title'\n" if $opt_v == 1;
+        my $rH_subst = getSubstitutions($substPar);
+	$options{SUBSTITUTIONS} = $rH_subst;
     }
-    elsif( defined $title )
-    {
-	print "Title: '$title' use file: 'text.$type'\n" if $opt_v == 1;
-    	$title = "file text.$type {\n  {TEXT=\"$title\",WIDTH=\"$panelWidth\",COLOR=\"28\",TXTCOLOR=\"0\"}\n}\n";
-    }
-    	
+
+    $options{PANELWIDTH} = ( $panelWidth > 0) ? $panelWidth : 900;
+    print "Create Panel in <- $inFileName out -> $outFileName, width = $options{PANELWIDTH} \n" if $opt_v == 1;
+    $panelWidth = undef;
+    
+    $options{TITLE}=$title if defined $title;
+
 #-- Read and parse input --
 
     my( $file, $r_substData);
@@ -159,7 +170,7 @@
     close IN_FILE if ($inFileName ne '-');
     die "Empty file: '$inFileName'" unless length($file) > 0;
 
-    $file = $title.$file if( defined $title);
+    $options{TITLE}=$title if defined $title;
 
     $inFileName =~ /\.(\w+)\s*$/;
     my $fileType = $1;
@@ -178,23 +189,23 @@
     my $panelHeight;
     if($layout eq "xy")
     {
-        ($printEdl,$panelWidth, $panelHeight) = layoutXY($r_substData);
+        ($printEdl,$panelWidth, $panelHeight) = layoutXY($r_substData,\%options);
     }
     elsif($layout eq "grid")
     {
-        ($printEdl,$panelWidth, $panelHeight) = layoutGrid($r_substData);
+        ($printEdl,$panelWidth, $panelHeight) = layoutGrid($r_substData,\%options);
     }
     elsif($layout eq "table")
     {
-        ($printEdl,$panelWidth, $panelHeight) = layoutTable($r_substData,$panelWidth);
+        ($printEdl,$panelWidth, $panelHeight) = layoutTable($r_substData,\%options);
     }
     elsif($layout eq "dbDbg")
     {
-        ($printEdl,$panelWidth, $panelHeight) = layoutDbDbg($r_substData,$panelWidth,$rH_subst);
+        ($printEdl,$panelWidth, $panelHeight) = layoutDbDbg($r_substData,\%options);
     }
     else
     {
-        ($printEdl,$panelWidth, $panelHeight) = layoutLine($r_substData,$panelWidth);
+        ($printEdl,$panelWidth, $panelHeight) = layoutLine($r_substData,\%options);
     }
     
 #-- write output
@@ -272,14 +283,16 @@
 #    the '.substitutions' file
 # 
 sub   layoutLine
-{   my ($r_substData,$displayWidth) = @_;
+{   my ($r_substData,$rH_options) = @_;
 
+    print "layout: Table\n" if $opt_v == 1;
+    my $panelWidth = $rH_options->{PANELWIDTH};
     my $prEdl;
+    my $xPos=0;
+    my $yPos=0;	    	    # put next part of display here 
 
-    my( $xPos, $yPos);	    	    # put next part of display here 
-    print "layout: Line\n" if $opt_v == 1;
-
-    $yPos=0;
+    print "layout: Line\n",Dumper($r_substData),Dumper($rH_options) if $opt_v == 1;
+    ($prEdl,$xPos,$yPos) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
     foreach my $group (@$r_substData)
     { 
     	
@@ -300,7 +313,7 @@ sub   layoutLine
     	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
 	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
 # setup next position
-	    if( $xPos + 2*$xDispWIDTH > $displayWidth )
+	    if( $xPos + 2*$xDispWIDTH > $panelWidth )
 	    { 
     		$xPos = 0;
     		$yPos += $yDispSize;
@@ -318,7 +331,7 @@ sub   layoutLine
 	
     }
 
-    return ($prEdl,$displayWidth, $yPos);
+    return ($prEdl,$panelWidth, $yPos);
 }    
 
 ##  Layout by table
@@ -339,24 +352,30 @@ sub   layoutLine
 #    the '.substitutions' file
 # 
 sub   layoutTable
-{   my ($r_substData,$displayWidth) = @_;
+{   my ($r_substData,$rH_options) = @_;
 
     my $prEdl;
 
     my( $xPos, $yPos);	    	    # put next part of display here 
     print "layout: Table\n" if $opt_v == 1;
 
-    $yPos=0;
+    my $panelWidth = $rH_options->{PANELWIDTH};
+    my $prEdl;
+    my $xPos=0;
+    my $yPos=0;	    	    # put next part of display here 
+
+#print "layout: table\n",Dumper($r_substData),Dumper($rH_options);
+    ($prEdl,$xPos,$yPos) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
     foreach my $group (@$r_substData)
     { 
     	
         my $edlFileName = shift @$group;	# the name of the .template/.edl file 
     	# get content, width and height of actual edl-template
-	my ($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
+	my ($edlContent, $widgetWidth, $widgetHeight) = getDisplay($edlFileName);
     	next unless defined $edlContent;
 
 	$xPos=0;    # begin new display type with a new line
-    	print "Display '$edlFileName': $xDispSize, $yDispSize, yPos = $yPos\n" if $opt_v == 1;
+    	print "Display '$edlFileName': $widgetWidth, $widgetHeight, yPos = $yPos\n" if $opt_v == 1;
 
  
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
@@ -364,12 +383,12 @@ sub   layoutTable
 	my $widthMax;
 	foreach my $rH_Attr (@$group)
 	{
-	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
-	    $widthMax = ($xDispWIDTH > $widthMax) ? $xDispWIDTH : $widthMax;
+	    my ($scaledWidgetWidth, $xScale) = getWidth($widgetWidth,$rH_Attr);
+	    $widthMax = ($scaledWidgetWidth > $widthMax) ? $scaledWidgetWidth : $widthMax;
 	}
-    	print "\tTable   item widthMax=$widthMax, (display width=$displayWidth)\n" if $opt_v == 1;
+    	print "\tTable   item widthMax=$widthMax, (display width=$panelWidth)\n" if $opt_v == 1;
 
-	my $cols = int($displayWidth / $widthMax);
+	my $cols = int($panelWidth / $widthMax);
 	my $rows = scalar(@$group) / $cols;
 	$rows = int($rows+1) if( $rows - int( $rows) );
 
@@ -379,21 +398,21 @@ sub   layoutTable
 	foreach my $rH_Attr (@$group)
 	{   
 	    my $x = int ($idx / $rows) * $widthMax;
-	    my $y = ($idx - int($idx / $rows) * $rows) * $yDispSize;
+	    my $y = ($idx - int($idx / $rows) * $rows) * $widgetHeight;
 	    
 	    my $edl;
-    	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
-	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$x,$y+$yPos);
+    	    my ($scaledWidgetWidth, $xScale) = getWidth($widgetWidth,$rH_Attr);
+	    $edl = setWidget($edlContent,$scaledWidgetWidth,$widgetHeight,$rH_Attr, $xScale,$x,$y+$yPos);
 	    die "Error in file \'$edlFileName\', data line:", Dumper($rH_Attr) unless defined $edl;
 	    $prEdl .= "$edl" if defined $edl;
 	    
 	    $idx++;
 	}
 
-	$yPos += $rows * $yDispSize;
+	$yPos += $rows * $widgetHeight;
     }
 
-    return ($prEdl,$displayWidth, $yPos);
+    return ($prEdl,$panelWidth, $yPos);
 }    
 
 ## Layout XY: Place each widget to a fixed position
@@ -407,16 +426,17 @@ sub   layoutTable
 # .substitutions file
 #
 sub    layoutXY
-{   my ($r_substData) = @_;
+{   my ($r_substData,$rH_options) = @_;
 
     my $baseWidget = (defined $baseW) ? $baseW : $inFileName;
     $baseWidget =~s/\.substitutions/\.edl/;
     
-    my ($prEdl, $displayWidth, $displayHeight) = getDisplay($baseWidget);
+    my ($prEdl, $panelWidth, $panelHeight) = getDisplay($baseWidget);
     die "can' find base widget: \'$baseWidget\'" unless defined $prEdl;
-    print "layout XY: base panel: $baseWidget: w=$displayWidth, h=$displayHeight\n" if $opt_v == 1;
+    print "layout XY: base panel: $baseWidget: w=$panelWidth, h=$panelHeight\n" if $opt_v == 1;
 
-
+    my($p,$xPos,$yPos) = setTitle($rH_options,0,0) if defined $rH_options->{TITLE};
+    $prEdl .= $p;
     foreach my $group (@$r_substData)
     { 
     	
@@ -435,6 +455,10 @@ sub    layoutXY
 	    	warn "Can't find PANEL_POS in ", join(',', @$rH_Attr);
 	    	next;
 	    }
+	    else
+	    {
+	    	delete($rH_Attr->{PANEL_POS});
+	    }
 	    my $edl;
     	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
 	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
@@ -443,7 +467,7 @@ sub    layoutXY
 	}
     }
 
-    return ($prEdl,$displayWidth, $displayHeight);
+    return ($prEdl,$panelWidth, $panelHeight);
 }
 
 ## Layout GRID: Place each widget to a table by grid parameters
@@ -459,12 +483,12 @@ sub    layoutXY
 #  instance. Parameter SPAN="n-Cols"' may be set to span in horizontal direction.
 #
 sub    layoutGrid
-{   my ($r_substData) = @_;
+{   my ($r_substData,$rH_options) = @_;
 
     print "layout Grid: \n" if $opt_v == 1;
     my @table;	    # rH_data = table[col]->[row]
     my @colMaxWidth;
-    my @rowMaxWidth;
+    my @rowMaxHeight;
     foreach my $group (@$r_substData)
     { 
     	
@@ -493,7 +517,7 @@ sub    layoutGrid
 	    {
 	    	$colMaxWidth[$xGrid] = ($xDispWIDTH > $colMaxWidth[$xGrid]) ? $xDispWIDTH : $colMaxWidth[$xGrid] ;
 	    }
-	    $rowMaxWidth[$yGrid] = ($yDispSize > $rowMaxWidth[$yGrid]) ? $yDispSize : $rowMaxWidth[$yGrid];
+	    $rowMaxHeight[$yGrid] = ($yDispSize > $rowMaxHeight[$yGrid]) ? $yDispSize : $rowMaxHeight[$yGrid];
 
 	    $table[$xGrid]->[$yGrid]->{xDispWIDTH} = $xDispWIDTH;
 	    $table[$xGrid]->[$yGrid]->{xScale}     = $xScale;
@@ -505,16 +529,23 @@ sub    layoutGrid
 	}
     }
     
-#print "row [",join(',',@rowMaxWidth),"]\ncol [",join(',',@colMaxWidth),"]\n";
+#print "row [",join(',',@rowMaxHeight),"]\ncol [",join(',',@colMaxWidth),"]\n";
     my $prEdl;
 
-    my($displayWidth, $displayHeight); # total display size
+    my $padX = (defined $rH_options->{PADX}) ? $rH_options->{PADX}:0;
+    my $padY = (defined $rH_options->{PADY}) ? $rH_options->{PADY}:0;
+    my $xPos=0;	    	    # put next part of display here 
+    my $yPos=0;
+    my $yPosNull=0;   	    # start position of a column
+
+#print "layout: Grid\n",Dumper($r_substData),Dumper($rH_options);
+    ($prEdl,$xPos,$yPosNull) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
+    $xPos += $padX;
     my $col  = 0;
-    my $xPos = 0;
     foreach (@table)
     {   
 	my $row=0;
-    	my $yPos = 0;
+    	$yPos = $yPosNull + $padY;
 	foreach my $rH ( @{$table[$col]} )
 	{
 	    if( defined $rH )
@@ -534,7 +565,8 @@ sub    layoutGrid
 		    }
 		}
 #print "[$col,$row]  $xPos,$yPos  $rH->{xDispWIDTH},$rH->{yDispSize}\n";
-	    
+	    	delete($rH->{rH_Attr}->{GRID});
+	    	delete($rH->{rH_Attr}->{SPAN});
 		my $edl = setWidget($rH->{edlContent},$rH->{xDispWIDTH},$rH->{yDispSize},
 	    	    	    	    $rH->{rH_Attr},$rH->{xScale},$xPos,$yPos);
 		die "Error in GRID($col,$row), data line:", Dumper($rH->{rH_Attr}) unless defined $edl;
@@ -542,19 +574,18 @@ sub    layoutGrid
 #die if($col==1 && $row==1);
     	    }	    
 	    
-	    $yPos += $rowMaxWidth[$row];
+	    $yPos += $rowMaxHeight[$row] + $padY;
+print "Panel POS:  $xPos, $yPos\n";   
 	    # Set next Position
 	    $row++;
 	}
-	$xPos += $colMaxWidth[$col];
+	$xPos += $colMaxWidth[$col] + $padX;
     	$col++;
     }
     
     
-    $displayHeight += $_ foreach(@rowMaxWidth);
-
-#print "Panel Size:  $xPos, $displayHeight\n";   
-    return ($prEdl,$xPos, $displayHeight);
+print "Panel Size:  $xPos, $yPos\n";   
+    return ($prEdl,$xPos+$padX, $yPos+$padY);
 }
 
 sub   layoutDbDbg
@@ -658,6 +689,7 @@ sub   getTemplate
 sub   getDisplay
 {   my($widgetFileName) = @_;
 
+print "getDisplay($widgetFileName)\n";
     my $widgetContent = getTemplate($widgetFileName);;
     return undef unless defined $widgetContent;
 
@@ -827,45 +859,61 @@ sub   parsePV
 # If the parameter 'SCALE' is defined it means the whole edl-template is scaled from its original width 
 # to the size of the parameter 'SCALE'. The 'x' and 'w' values of all points of each object are scaled.
 #
-sub   getWidth
-{   my ($xDispSize,$rH_Attr) = @_;
+# *  IMPORTANT  : the function removes the keys 'SCALE' and 'WIDTH' from the substitutions hash, because this 
+# parameters are of no further use in the widget, but would occur in the .mfp macro substitutions!
+#
+sub getWidth
+{   my ($widgetWidth,	# original widget width
+    	$rH_Attr) = @_; # substitutions - look for WIDTH and SCALE
 
-#    return $xDispSize if $type eq 'adl'; # adl doesn't support scaling!
+#    return $widgetWidth if $type eq 'adl'; # adl doesn't support scaling!
     my $xScale;
-    my $xDispWIDTH;
+    my $scaledWidth;
 # parse for WIDTH parameter and set it
     if (defined $rH_Attr->{WIDTH} && not defined $rH_Attr->{SCALE} )
     {
-    	$xDispWIDTH =$rH_Attr->{WIDTH};
+    	$scaledWidth =$rH_Attr->{WIDTH};
     }
     #  scale all 'x' and 'w' in the objects of the panel
     elsif( defined $rH_Attr->{SCALE} && not defined $rH_Attr->{WIDTH})
     {
-    	$xDispWIDTH = $rH_Attr->{SCALE};
-    	$xScale = $rH_Attr->{SCALE} / $xDispSize ;
-#print "Set scale: $rH_Attr->{SCALE} / $xDispSize = $xScale\n";	
+    	$scaledWidth = $rH_Attr->{SCALE};
+    	$xScale = $rH_Attr->{SCALE} / $widgetWidth ;
+#print "Set scale: $rH_Attr->{SCALE} / $widgetWidth = $xScale\n";	
     }
     elsif( not defined $rH_Attr->{SCALE} && not defined $rH_Attr->{WIDTH})
     {
-    	$xDispWIDTH = $xDispSize;
+    	$scaledWidth = $widgetWidth;
     }
     else
     {
 	warn "Illegal parameters in substitution file: can't define SCALE and WIDTH!";
 	return; # 'undef' is the error condition
     }
-#print "xDispWidth = $xDispWIDTH, ".(defined $xScale);
-    return ($xDispWIDTH, $xScale)
+#print "xDispWidth = $scaledWidth, ".(defined $xScale);
+
+    delete($rH_Attr->{SCALE});
+    delete($rH_Attr->{WIDTH});
+
+## *  Return:  '($scaledWidth, $xScale)' the scaled width of the widget and the scale factor to be used otherwise.
+#
+    return ($scaledWidth, $xScale)
 }
 
-sub   setWidget
-{   my ($parse,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos) = @_;
+## Place the widget
+sub setWidget
+{   my ($parse,     	    # raw widget content 
+    	$xDispWIDTH,	    # scaled widget width
+	$yDispSize, 	    # widget height
+	$rH_Attr,   	    # variable substitutions
+	$xScale,    	    # scaling factor use to scale each elements x-position (edl only)
+	$xPos,$yPos) = @_;  # Pixel Pos to place the widget
 
 #print "setWidget(parse,$xDispWIDTH,$yDispSize,rH_Attr, $xScale,$xPos,$yPos)\n";
     my $edl;
     if($type eq 'adl')
     {
-    	return setAdlWidget($parse,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
+    	return setAdlWidget($parse,$xDispWIDTH,$yDispSize,$rH_Attr,$xPos,$yPos);
     }
     
 # ATTENTION make shure that this regexp matches only one object,means one x= ..y=  w= section!!
@@ -948,7 +996,123 @@ sub   setWidget
 # substitute all other variables
     	$edl = parseVars($edl,$rH_Attr);
     }
+## *  Return  :
+#
+#  - '$edl' the content of the edl file with correct values for x- y-positions and substituted variables.
+#  - what 'setAdlWidget' returns for 'type=adl'.
+#
     return $edl;   
+}
+
+## Create the title is option '-title' is set
+#
+sub setTitle
+{   my($rH_options,$xPos,$yPos)=@_;
+print "setTitle($xPos,$yPos)",Dumper($rH_options);
+    my $title = $rH_options->{TITLE};
+    my $panelWidth = $rH_options->{PANELWIDTH};
+    my $type = $rH_options->{TYPE};
+    my %panelSubst;
+    
+    my $titleContent;
+    my $titleWidth;
+    my $titleHight;
+    if( $title =~ /\.$type$/ )	# parameter is a widget file name
+    {
+        ($titleContent, $titleWidth, $titleHight) = getDisplay($title);
+
+	$title = "file $title {\n  {SCALE=\"$panelWidth\"}\n}\n";
+	print "Title: '$title'\n" if $opt_v == 1;
+    }
+    elsif( defined $title ) # parameter is the text of the titel: use text.edl
+    {
+        ($titleContent, $titleWidth, $titleHight) = getDisplay("text.$type");
+	$panelSubst{TEXT}=$title;
+	if($type eq 'adl')
+	{
+	    $panelSubst{SCALE}=$panelWidth;
+	}
+	elsif($type eq 'edl')
+	{
+	    $panelSubst{WIDTH}=$panelWidth;
+	}
+	$panelSubst{COLOR}=39;
+	$panelSubst{TXTCOLOR}=30;
+	print "Title: '$title' use file: 'text.$type'\n" if $opt_v == 1;
+    }
+print  "getDisplay($title) = (, $titleWidth, $titleHight) content=$titleContent\n";
+    my $xScale;
+    ($titleWidth, $xScale) = getWidth($titleWidth,\%panelSubst);
+    my $edl = setWidget($titleContent,$titleWidth,$titleHight,\%panelSubst,$xScale,$xPos,$yPos);
+    die "Error in setTitle() -> setWidget(($titleContent,$titleWidth,$titleHight,panelSubst,$xScale,$xPos,$yPos)" unless defined $edl;
+
+## *  Return  : '($edl,$xPos,$titleHight)' The $edl content and the start position for the panel content
+#
+    return ($edl,$xPos,$titleHight);
+}
+
+## Create .mfp output for '-type adl' option
+#
+sub setAdlWidget
+{   my ($widgetFileName,    # widget file name
+    	$widgetWidth,	    # widget width
+	$widgetHeight,	    # widget height
+	$rH_Attr,   	    # macro substitutions
+	$xPos,$yPos) = @_;  # widget position
+    my $facePlate;
+    $facePlate.= "faceplateX=$xPos\n";
+    $facePlate.="faceplateY=$yPos\n";
+    $facePlate.="faceplateWidth=$widgetWidth\n";
+    $facePlate.="faceplateHeight=$widgetHeight\n";
+
+    my $adlFile = 1;
+    my $widgetFileStem;
+    if( $widgetFileName =~ /^(.*)\.template/ )
+    {
+    	$widgetFileStem=$1;
+	$adlFile = 0;
+    }
+    
+#print "setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr,$xPos,$yPos)",Dumper($rH_Attr) if $widgetFileName =~ /text/;
+
+# .template files must have at least a substitution for the porcess variable name. 
+# Possible identifiers are: NAME, NAME + SNAME, PV and TEXT for text.adl widget
+# All other substitutions are ignored they are supposed to be database substitutions
+    if( $adlFile==0)
+    {   
+	$facePlate.="faceplateAdl=$widgetFileStem.adl";
+	if( length( $$rH_Attr{NAME} ))
+	{   
+	    $facePlate.="\nfaceplateMacro=NAME=$$rH_Attr{NAME}";
+	    if( length( $$rH_Attr{SNAME}) )
+	    {   $facePlate.=",SNAME=$$rH_Attr{SNAME}";
+	    }
+	}
+	elsif( length( $$rH_Attr{PV} ))
+	{   
+	    $facePlate.="\nfaceplateMacro=PV=$$rH_Attr{PV}";
+	}
+	elsif( length( $$rH_Attr{TEXT}) && ($widgetFileName eq 'text.template'))
+	{   
+	    $facePlate.="\nfaceplateMacro=TEXT=$$rH_Attr{TEXT}";
+	}
+	else
+	{
+	    die "No PV substitutions found for:setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr,$xPos,$yPos)",Dumper($rH_Attr)
+	}
+    }
+
+# for .adl files all substitutions are expanded
+    elsif( $adlFile==1 )
+    { 	
+	$facePlate.="faceplateAdl=$widgetFileName";
+	if( scalar( keys(%$rH_Attr) ) )
+	{   my $str = join(',', map{"$_=$rH_Attr->{$_}"} keys(%$rH_Attr));
+	    $facePlate.="\nfaceplateMacro=$str";
+	}
+    }
+    $facePlate.="\n";
+    return $facePlate;
 }
 
 sub   processPoints
@@ -992,63 +1156,6 @@ sub   sorted
 sub   cmpFunc 
 { #print "ab:$a->{$opt_sort},$b->{$opt_sort}\n"; 
     $a->{$opt_sort} <=> $a->{$opt_sort} 
-}
-
-sub   setAdlWidget
-{   my ($widgetFileName,$widgetWidth,$widgetHeight,$rH_Attr, $xScale,$xPos,$yPos) = @_;
-    my $facePlate;
-    $facePlate.= "faceplateX=$xPos\n";
-    $facePlate.="faceplateY=$yPos\n";
-    $facePlate.="faceplateWidth=$widgetWidth\n";
-    $facePlate.="faceplateHeight=$widgetHeight\n";
-
-    my $adlFile = 1;
-    my $widgetFileStem;
-    if( $widgetFileName =~ /^(.*)\.template/ )
-    {
-    	$widgetFileStem=$1;
-	$adlFile = 0;
-    }
-#print "setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr, $xScale,$xPos,$yPos)",Dumper($rH_Attr) if $widgetFileName =~ /text/;
-
-# .template files must have at least a substitution for the porcess variable name. 
-# Possible identifiers are: NAME, NAME + SNAME, PV and TEXT for text.adl widget
-# All other substitutions are ignored they are supposed to be database substitutions
-    if( $adlFile==0)
-    {   
-	$facePlate.="faceplateAdl=$widgetFileStem.adl";
-	if( length( $$rH_Attr{NAME} ))
-	{   
-	    $facePlate.="\nfaceplateMacro=NAME=$$rH_Attr{NAME}";
-	    if( length( $$rH_Attr{SNAME}) )
-	    {   $facePlate.=",SNAME=$$rH_Attr{SNAME}";
-	    }
-	}
-	elsif( length( $$rH_Attr{PV} ))
-	{   
-	    $facePlate.="\nfaceplateMacro=PV=$$rH_Attr{PV}";
-	}
-	elsif( length( $$rH_Attr{TEXT}) && ($widgetFileName eq 'text.template'))
-	{   
-	    $facePlate.="\nfaceplateMacro=TEXT=$$rH_Attr{TEXT}";
-	}
-	else
-	{
-	    die "No PV substitutions found for:setAdlWidget($widgetFileName,$widgetWidth,$widgetHeight,rH_Attr, $xScale,$xPos,$yPos)",Dumper($rH_Attr)
-	}
-    }
-
-# for .adl files all substitutions are expanded
-    elsif( $adlFile==1 )
-    { 	
-	$facePlate.="faceplateAdl=$widgetFileName";
-	if( scalar( keys(%$rH_Attr) ) )
-	{   my $str = join(',', map{"$_=$rH_Attr->{$_}"} keys(%$rH_Attr));
-	    $facePlate.="\nfaceplateMacro=$str";
-	}
-    }
-    $facePlate.="\n";
-    return $facePlate;
 }
 
 ## Regexp token parser
