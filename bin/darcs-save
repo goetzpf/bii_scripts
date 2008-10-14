@@ -5,7 +5,7 @@ cp _darcs/prefs/defaultrepo $dest
 darcs record -a -m NOT-RECORDED
 darcs record -a -l -m NOT-ADDED
 darcs tag "`whoami`@`uname -n`:`pwd`"
-darcs send -a --output=$dest/local-patches
+darcs send -a --output=$dest/local-patches --dont-edit-description
 darcs changes --context --repo=`cat _darcs/prefs/defaultrepo` > $dest/remote-context
 darcs changes --context > $dest/local-context
 #unrecord the tag
