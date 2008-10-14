@@ -19,8 +19,7 @@
 #      -w pixel       		        Panel width (default=900)
 #      -I searchPath                    Search paht(s) for panel widgets
 #      -M                               Create make dependencies
-#      -padx				x-padding between widgets in pixel (layout grid only)
-#      -pady				y-padding between widgets in pixel (layout grid only)
+#      -border				extra space to the panel border left,right,bottom in pixel (layout grid only)
 #      -layout line|xy|grid|table       placement of the widgets, (default = by line) 
 #      -type adl|edl                    Create edl or mfp file (default is edl)
 #      -sort NAME                       Sort a group of signals. NAME is the name of a 
@@ -99,8 +98,7 @@
     my @searchDlPath;
     my $panelWidth;
     my $substPar;
-    my $padx;
-    my $pady;
+    my $border;
     my $usage = 
 "Usage: CreatePanel.pl [options] inFilename outFilename\n
        if inFilename  is '-', data is read from standard-in
@@ -114,10 +112,9 @@
       -w pixel       		       Panel width (default=900)
       -I searchPath                    Search paht(s) for panel widgets
       -M                               Create make dependencies
-      -layout xy | grid | table        placement of the widgets, 
-                                       (default = by line) 
-      -padx                            x-padding between widgets in pixel (layout grid only)
-      -pady                            y-padding between widgets in pixel (layout grid only)
+      -layout xy | grid | table        placement of the widgets,(default: by Line) 
+      -border			       extra space to the panel border left,right,
+                                       bottom in pixel (layout grid only)
       -type adl|edl                    Create edl or mfp file (default is edl)
       -sort NAME                       Sort a group of signals. NAME is the 
                                        name of a Name-Value pair in the 
@@ -132,14 +129,13 @@
     die unless GetOptions("M","I=s"=>\@searchDlPath,"v","x=i","w=i"=>\$panelWidth,"y=i",
     	    	    	  "type=s"=>\$type,"title=s"=>\$title,"layout=s"=>\$layout, 
 			  "subst=s"=>\$substPar,"sort=s"=>\$opt_sort,"baseW=s"=>\$baseW,
-			  "padx=i"=>\$padx,"pady=i"=>\$pady);
+			  "border=i"=>\$border);
 
     die $usage unless scalar(@ARGV) > 1;
 
     die "Illegal Panel type: '$type'" unless ( ($type eq 'edl') || ($type eq 'adl') );
     $options{TYPE} = $type;
-    $options{PADX} = $padx;
-    $options{PADY} = $pady;
+    $options{BORDER} = $border;
     my( $inFileName, $outFileName) = @ARGV;
     
     if( defined $substPar)
@@ -285,13 +281,12 @@
 sub   layoutLine
 {   my ($r_substData,$rH_options) = @_;
 
-    print "layout: Table\n" if $opt_v == 1;
+    print "layout: Line\n" if $opt_v == 1;
     my $panelWidth = $rH_options->{PANELWIDTH};
     my $prEdl;
     my $xPos=0;
     my $yPos=0;	    	    # put next part of display here 
 
-#print "layout: Line\n",Dumper($r_substData),Dumper($rH_options) if $opt_v == 1;
     ($prEdl,$xPos,$yPos) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
     foreach my $group (@$r_substData)
     { 
@@ -302,12 +297,12 @@ sub   layoutLine
     	next unless defined $edlContent;
 
 	$xPos=0;    # begin new display type with a new line
-#print "Display '$edlFileName': $xDispSize, $yDispSize\n" if $opt_v == 1;
+#print "Display '$edlFileName': $xDispSize, $yDispSize\n";
 
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
 	foreach my $rH_Attr (@$group)
 	{ 
-#print "'$edlFileName' $xPos,$yPos\n" if $opt_v == 1;
+#print "'$edlFileName' $xPos,$yPos\n";
 	    my $edl;
 
     	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
@@ -375,7 +370,7 @@ sub   layoutTable
     	next unless defined $edlContent;
 
 	$xPos=0;    # begin new display type with a new line
-#print "Display '$edlFileName': $widgetWidth, $widgetHeight, yPos = $yPos\n" if $opt_v == 1;
+#print "Display '$edlFileName': $widgetWidth, $widgetHeight, yPos = $yPos\n";
 
  
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
@@ -386,7 +381,7 @@ sub   layoutTable
 	    my ($scaledWidgetWidth, $xScale) = getWidth($widgetWidth,$rH_Attr);
 	    $widthMax = ($scaledWidgetWidth > $widthMax) ? $scaledWidgetWidth : $widthMax;
 	}
-#print "\tTable   item widthMax=$widthMax, (display width=$panelWidth)\n" if $opt_v == 1;
+#print "\tTable   item widthMax=$widthMax, (display width=$panelWidth)\n";
 
 	my $cols = int($panelWidth / $widthMax);
 	my $rows = scalar(@$group) / $cols;
@@ -444,7 +439,7 @@ sub    layoutXY
 	my ($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
     	next unless defined $edlContent;
 
-#    	print "Display $edlFileName: $xDispSize, $yDispSize\n" if $opt_v == 1;
+#print "Display $edlFileName: $xDispSize, $yDispSize\n";
 
 	foreach my $rH_Attr (@$group)
 	{ 
@@ -493,9 +488,9 @@ sub    layoutGrid
     { 
     	
         my $edlFileName = shift @$group;	# the name of the .template/.edl file 
-	my ($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
+	my ($edlContent, $widgetWidth, $widgetHeight) = getDisplay($edlFileName);
     	next unless defined $edlContent;
-#print "Display $edlFileName: $xDispSize, $yDispSize\n";
+#print "Display $edlFileName: $widgetWidth, $widgetHeight\n";
 
 	foreach my $rH_Attr (@$group)
 	{ 
@@ -506,8 +501,8 @@ sub    layoutGrid
 	    	next;
 	    }
 	    my $edl;
-    	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
-#print "  GRID($xGrid,$yGrid) /$edlFileName/ $xDispWIDTH/$yDispSize, $xScale\n";
+    	    my ($widgetWidth, $xScale) = getWidth($widgetWidth,$rH_Attr);
+#print "  GRID($xGrid,$yGrid) /$edlFileName/ $widgetWidth/$widgetHeight, $xScale\n";
 
 	    if(defined $rH_Attr->{SPAN} )
 	    {
@@ -515,15 +510,15 @@ sub    layoutGrid
 	    }
 	    else
 	    {
-	    	$colMaxWidth[$xGrid] = ($xDispWIDTH > $colMaxWidth[$xGrid]) ? $xDispWIDTH : $colMaxWidth[$xGrid] ;
+	    	$colMaxWidth[$xGrid] = ($widgetWidth > $colMaxWidth[$xGrid]) ? $widgetWidth : $colMaxWidth[$xGrid] ;
 	    }
-	    $rowMaxHeight[$yGrid] = ($yDispSize > $rowMaxHeight[$yGrid]) ? $yDispSize : $rowMaxHeight[$yGrid];
+	    $rowMaxHeight[$yGrid] = ($widgetHeight > $rowMaxHeight[$yGrid]) ? $widgetHeight : $rowMaxHeight[$yGrid];
 
-	    $table[$xGrid]->[$yGrid]->{xDispWIDTH} = $xDispWIDTH;
+	    $table[$xGrid]->[$yGrid]->{widgetWidth} = $widgetWidth;
 	    $table[$xGrid]->[$yGrid]->{xScale}     = $xScale;
 	    $table[$xGrid]->[$yGrid]->{xGrid}      = $xGrid;
 	    $table[$xGrid]->[$yGrid]->{yGrid}      = $yGrid;
-	    $table[$xGrid]->[$yGrid]->{yDispSize}  = $yDispSize;
+	    $table[$xGrid]->[$yGrid]->{widgetHeight}  = $widgetHeight;
 	    $table[$xGrid]->[$yGrid]->{rH_Attr}    = $rH_Attr;
 	    $table[$xGrid]->[$yGrid]->{edlContent} = $edlContent;
 	}
@@ -532,20 +527,23 @@ sub    layoutGrid
 #print "row [",join(',',@rowMaxHeight),"]\ncol [",join(',',@colMaxWidth),"]\n";
     my $prEdl;
 
-    my $padX = (defined $rH_options->{PADX}) ? $rH_options->{PADX}:0;
-    my $padY = (defined $rH_options->{PADY}) ? $rH_options->{PADY}:0;
+    my $border = (defined $rH_options->{BORDER}) ? $rH_options->{BORDER}:undef;
     my $xPos=0;	    	    # put next part of display here 
     my $yPos=0;
     my $yPosNull=0;   	    # start position of a column
 
 #print "layout: Grid\n",Dumper($r_substData),Dumper($rH_options);
-    ($prEdl,$xPos,$yPosNull) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
-    $xPos += $padX;
+
+    # dummy set to get the title height
+    my $dummy;
+    ($dummy,$xPos,$yPosNull) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE}; 
+    
+    $xPos += $border;
     my $col  = 0;
     foreach (@table)
     {   
 	my $row=0;
-    	$yPos = $yPosNull + $padY;
+    	$yPos = $yPosNull;
 	foreach my $rH ( @{$table[$col]} )
 	{
 	    if( defined $rH )
@@ -557,35 +555,38 @@ sub    layoutGrid
 		    my @s = @colMaxWidth[$col..$colLast-1];
 		    my $spanedWidth;
 		    $spanedWidth += $_ foreach (@s);
-#print "\tspan $col - $colLast = $rH->{xDispWIDTH} OR [",join('+',@s),",$colMaxWidth[$colLast]] => colMaxWidth[",$colLast,"] = ",$rH->{xDispWIDTH}  - $spanedWidth,"\n";
+#print "\tspan $col - $colLast = $rH->{widgetWidth} OR [",join('+',@s),",$colMaxWidth[$colLast]] => colMaxWidth[",$colLast,"] = ",$rH->{widgetWidth}  - $spanedWidth,"\n";
 
-		    if( $spanedWidth + $colMaxWidth[$colLast] < $rH->{xDispWIDTH})
+		    if( $spanedWidth + $colMaxWidth[$colLast] < $rH->{widgetWidth})
 		    {
-		     	$colMaxWidth[$colLast] = $rH->{xDispWIDTH}  - $spanedWidth;
+		     	$colMaxWidth[$colLast] = $rH->{widgetWidth}  - $spanedWidth;
 		    }
 		}
-#print "[$col,$row]  $xPos,$yPos  $rH->{xDispWIDTH},$rH->{yDispSize}\n";
+#print "[$col,$row]  $xPos,$yPos  $rH->{widgetWidth},$rH->{widgetHeight}\n";
 	    	delete($rH->{rH_Attr}->{GRID});
 	    	delete($rH->{rH_Attr}->{SPAN});
-		my $edl = setWidget($rH->{edlContent},$rH->{xDispWIDTH},$rH->{yDispSize},
+		my $edl = setWidget($rH->{edlContent},$rH->{widgetWidth},$rH->{widgetHeight},
 	    	    	    	    $rH->{rH_Attr},$rH->{xScale},$xPos,$yPos);
 		die "Error in GRID($col,$row), data line:", Dumper($rH->{rH_Attr}) unless defined $edl;
 		$prEdl .= "$edl" if defined $edl;
 #die if($col==1 && $row==1);
     	    }	    
 	    
-	    $yPos += $rowMaxHeight[$row] + $padY;
+	    $yPos += $rowMaxHeight[$row];
 #print "Panel POS:  $xPos, $yPos\n";   
 	    # Set next Position
 	    $row++;
 	}
-	$xPos += $colMaxWidth[$col] + $padX;
+	$xPos += $colMaxWidth[$col];
     	$col++;
     }
-    
-    
+    my $panelwidth = $xPos + $border;
+
+    $rH_options->{PANELWIDTH} = $panelwidth;
+    ($dummy,$xPos,$yPosNull) = setTitle($rH_options,0,0) if defined $rH_options->{TITLE}; 
+    $prEdl .= $dummy if defined $dummy;
 #print "Panel Size:  $xPos, $yPos\n";   
-    return ($prEdl,$xPos+$padX, $yPos+$padY);
+    return ($prEdl,$panelwidth, $yPos+$border);
 }
 
 sub   layoutDbDbg
@@ -865,8 +866,8 @@ sub   parsePV
 sub getWidth
 {   my ($widgetWidth,	# original widget width
     	$rH_Attr) = @_; # substitutions - look for WIDTH and SCALE
+#print "getWidth($widgetWidth),",Dumper($rH_Attr);
 
-#    return $widgetWidth if $type eq 'adl'; # adl doesn't support scaling!
     my $xScale;
     my $scaledWidth;
 # parse for WIDTH parameter and set it
@@ -1008,21 +1009,20 @@ sub setWidget
 #
 sub setTitle
 {   my($rH_options,$xPos,$yPos)=@_;
+
 #print "setTitle($xPos,$yPos)",Dumper($rH_options);
     my $title = $rH_options->{TITLE};
     my $panelWidth = $rH_options->{PANELWIDTH};
     my $type = $rH_options->{TYPE};
     my %panelSubst;
-    
+#print "setTitle: $title, panelWidth=$panelWidth, type=$type\n";
     my $titleContent;
     my $titleWidth;
     my $titleHight;
     if( $title =~ /\.$type$/ )	# parameter is a widget file name
     {
         ($titleContent, $titleWidth, $titleHight) = getDisplay($title);
-
-	$title = "file $title {\n  {SCALE=\"$panelWidth\"}\n}\n";
-#print "Title: '$title'\n" if $opt_v == 1;
+	$panelSubst{SCALE}=$panelWidth;
     }
     elsif( defined $title ) # parameter is the text of the titel: use text.edl
     {
@@ -1038,13 +1038,13 @@ sub setTitle
 	}
 	$panelSubst{COLOR}=39;
 	$panelSubst{TXTCOLOR}=30;
-#print "Title: '$title' use file: 'text.$type'\n" if $opt_v == 1;
+#print "Title: '$title' use file: 'text.$type'\n";
     }
 #print  "getDisplay($title) = (, $titleWidth, $titleHight) content=$titleContent\n";
     my $xScale;
     ($titleWidth, $xScale) = getWidth($titleWidth,\%panelSubst);
     my $edl = setWidget($titleContent,$titleWidth,$titleHight,\%panelSubst,$xScale,$xPos,$yPos);
-    die "Error in setTitle() -> setWidget(($titleContent,$titleWidth,$titleHight,panelSubst,$xScale,$xPos,$yPos)" unless defined $edl;
+    die "Error in setTitle() -> setWidget($titleContent,$titleWidth,$titleHight,panelSubst,$xScale,$xPos,$yPos)" unless defined $edl;
 
 ## *  Return  : '($edl,$xPos,$titleHight)' The $edl content and the start position for the panel content
 #
