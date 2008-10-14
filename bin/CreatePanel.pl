@@ -291,7 +291,7 @@ sub   layoutLine
     my $xPos=0;
     my $yPos=0;	    	    # put next part of display here 
 
-    print "layout: Line\n",Dumper($r_substData),Dumper($rH_options) if $opt_v == 1;
+#print "layout: Line\n",Dumper($r_substData),Dumper($rH_options) if $opt_v == 1;
     ($prEdl,$xPos,$yPos) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
     foreach my $group (@$r_substData)
     { 
@@ -302,12 +302,12 @@ sub   layoutLine
     	next unless defined $edlContent;
 
 	$xPos=0;    # begin new display type with a new line
-    	print "Display '$edlFileName': $xDispSize, $yDispSize\n" if $opt_v == 1;
+#print "Display '$edlFileName': $xDispSize, $yDispSize\n" if $opt_v == 1;
 
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
 	foreach my $rH_Attr (@$group)
 	{ 
-    	    print "'$edlFileName' $xPos,$yPos\n" if $opt_v == 1;
+#print "'$edlFileName' $xPos,$yPos\n" if $opt_v == 1;
 	    my $edl;
 
     	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
@@ -375,7 +375,7 @@ sub   layoutTable
     	next unless defined $edlContent;
 
 	$xPos=0;    # begin new display type with a new line
-    	print "Display '$edlFileName': $widgetWidth, $widgetHeight, yPos = $yPos\n" if $opt_v == 1;
+#print "Display '$edlFileName': $widgetWidth, $widgetHeight, yPos = $yPos\n" if $opt_v == 1;
 
  
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
@@ -386,13 +386,13 @@ sub   layoutTable
 	    my ($scaledWidgetWidth, $xScale) = getWidth($widgetWidth,$rH_Attr);
 	    $widthMax = ($scaledWidgetWidth > $widthMax) ? $scaledWidgetWidth : $widthMax;
 	}
-    	print "\tTable   item widthMax=$widthMax, (display width=$panelWidth)\n" if $opt_v == 1;
+#print "\tTable   item widthMax=$widthMax, (display width=$panelWidth)\n" if $opt_v == 1;
 
 	my $cols = int($panelWidth / $widthMax);
 	my $rows = scalar(@$group) / $cols;
 	$rows = int($rows+1) if( $rows - int( $rows) );
 
-    	print "\t\tcols=$cols, rows=$rows\n" if $opt_v == 1;
+#print "\t\tcols=$cols, rows=$rows\n" if $opt_v == 1;
 
 	my $idx;
 	foreach my $rH_Attr (@$group)
@@ -444,7 +444,7 @@ sub    layoutXY
 	my ($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
     	next unless defined $edlContent;
 
-    	print "Display $edlFileName: $xDispSize, $yDispSize\n" if $opt_v == 1;
+#    	print "Display $edlFileName: $xDispSize, $yDispSize\n" if $opt_v == 1;
 
 	foreach my $rH_Attr (@$group)
 	{ 
@@ -575,7 +575,7 @@ sub    layoutGrid
     	    }	    
 	    
 	    $yPos += $rowMaxHeight[$row] + $padY;
-print "Panel POS:  $xPos, $yPos\n";   
+#print "Panel POS:  $xPos, $yPos\n";   
 	    # Set next Position
 	    $row++;
 	}
@@ -584,7 +584,7 @@ print "Panel POS:  $xPos, $yPos\n";
     }
     
     
-print "Panel Size:  $xPos, $yPos\n";   
+#print "Panel Size:  $xPos, $yPos\n";   
     return ($prEdl,$xPos+$padX, $yPos+$padY);
 }
 
@@ -689,7 +689,7 @@ sub   getTemplate
 sub   getDisplay
 {   my($widgetFileName) = @_;
 
-print "getDisplay($widgetFileName)\n";
+#print "getDisplay($widgetFileName)\n";
     my $widgetContent = getTemplate($widgetFileName);;
     return undef unless defined $widgetContent;
 
@@ -1008,7 +1008,7 @@ sub setWidget
 #
 sub setTitle
 {   my($rH_options,$xPos,$yPos)=@_;
-print "setTitle($xPos,$yPos)",Dumper($rH_options);
+#print "setTitle($xPos,$yPos)",Dumper($rH_options);
     my $title = $rH_options->{TITLE};
     my $panelWidth = $rH_options->{PANELWIDTH};
     my $type = $rH_options->{TYPE};
@@ -1022,7 +1022,7 @@ print "setTitle($xPos,$yPos)",Dumper($rH_options);
         ($titleContent, $titleWidth, $titleHight) = getDisplay($title);
 
 	$title = "file $title {\n  {SCALE=\"$panelWidth\"}\n}\n";
-	print "Title: '$title'\n" if $opt_v == 1;
+#print "Title: '$title'\n" if $opt_v == 1;
     }
     elsif( defined $title ) # parameter is the text of the titel: use text.edl
     {
@@ -1038,9 +1038,9 @@ print "setTitle($xPos,$yPos)",Dumper($rH_options);
 	}
 	$panelSubst{COLOR}=39;
 	$panelSubst{TXTCOLOR}=30;
-	print "Title: '$title' use file: 'text.$type'\n" if $opt_v == 1;
+#print "Title: '$title' use file: 'text.$type'\n" if $opt_v == 1;
     }
-print  "getDisplay($title) = (, $titleWidth, $titleHight) content=$titleContent\n";
+#print  "getDisplay($title) = (, $titleWidth, $titleHight) content=$titleContent\n";
     my $xScale;
     ($titleWidth, $xScale) = getWidth($titleWidth,\%panelSubst);
     my $edl = setWidget($titleContent,$titleWidth,$titleHight,\%panelSubst,$xScale,$xPos,$yPos);
@@ -1139,7 +1139,7 @@ sub   sorted
     {
     	unless( defined $_->{$opt_sort} )
 	{
-	    print "\tSorting: skip $grp: Can't find '$opt_sort' in: (",join(',',keys(%$_)),")\n" if $opt_v == 1;
+#print "\tSorting: skip $grp: Can't find '$opt_sort' in: (",join(',',keys(%$_)),")\n" if $opt_v == 1;
 	    return $rA;
 	}
     }
