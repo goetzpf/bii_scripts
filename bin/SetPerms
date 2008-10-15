@@ -50,17 +50,17 @@ if [ $# = 0 ]; then
 else
     for f
     do
-	if [ ! -d $f ]; then
-	    echo $f is not a directory.
-	    echo $USAGE
-	    exit 1
-	else
-	    case $f in                   # Prefix relative paths with `pwd`
-	    /*) ;;
-	    *) f=`pwd`/$f ;;
-	    esac
-	    dirs="$dirs $f"
-	fi
+        if [ ! -d $f ]; then
+            echo $f is not a directory.
+            echo $USAGE
+            exit 1
+        else
+            case $f in                   # Prefix relative paths with `pwd`
+            /*) ;;
+            *) f=`pwd`/$f ;;
+            esac
+            dirs="$dirs $f"
+        fi
     done
 fi
 
@@ -69,22 +69,22 @@ do
     case $f in
     *CVS*)
         echo "# NOTE!!! ####################################################################"
-	echo "# We're trying to get around \"SetPerms\" for the CVS-repository completely"
-	echo "# by using the \"set-group-id\" mode-bit of directories."
-	echo "# Please perform the following commands to set up everything."
-	echo "#"
-	echo "#\tcd $f"
-	echo "#\tfind . -type d -user \`whoami\` | xargs chmod g+s"
-	echo "#"
-	echo "# You don't need to do a \"SetPerms\" in this directory"
-	echo "# ($f) anymore!"
-	echo "#"
-	echo "# And please report any problems to T. Birke or B. Franksen."
-	echo "##############################################################################"
-	echo
-	;;
+        echo "# We're trying to get around \"SetPerms\" for the CVS-repository completely"
+        echo "# by using the \"set-group-id\" mode-bit of directories."
+        echo "# Please perform the following commands to set up everything."
+        echo "#"
+        echo "#\tcd $f"
+        echo "#\tfind . -type d -user \`whoami\` | xargs chmod g+s"
+        echo "#"
+        echo "# You don't need to do a \"SetPerms\" in this directory"
+        echo "# ($f) anymore!"
+        echo "#"
+        echo "# And please report any problems to T. Birke or B. Franksen."
+        echo "##############################################################################"
+        echo
+        ;;
     *)
-	;;
+        ;;
     esac
 
     case $f in
@@ -95,23 +95,23 @@ do
 
 # Set everything to group epics and ???r-X---
 
-	echo EPICS related repository: $f
-	echo Setting everything to group epics and mode ???r-X--- ...
+        echo EPICS related repository: $f
+        echo Setting everything to group epics and mode ???r-X--- ...
 
-	chgrp -R epics $f > /dev/null 2>&1
-	chmod -R g-w,g+rX,o= $f > /dev/null 2>&1
+        chgrp -R epics $f > /dev/null 2>&1
+        chmod -R g-w,g+rX,o= $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwsr-x
 
-	echo Setting all directories to mode rwxrwsr-x ...
+        echo Setting all directories to mode rwxrwsr-x ...
 
-	find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx 2>/dev/null
+        find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx 2>/dev/null
 
 # Set all fileattr g+w
 
-	find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
+        find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
 
-	;;
+        ;;
 
 ###############################################################################
 
@@ -119,23 +119,23 @@ do
 
 # Set everything to group interf and ???r-X---
 
-	echo MultiCAN repository: $f
-	echo Setting everything to group interf and mode ???r-X--- ...
+        echo MultiCAN repository: $f
+        echo Setting everything to group interf and mode ???r-X--- ...
 
-	chgrp -R interf $f > /dev/null 2>&1
-	chmod -R g=rX,o= $f > /dev/null 2>&1
+        chgrp -R interf $f > /dev/null 2>&1
+        chmod -R g=rX,o= $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
-	echo Setting all directories to mode rwxrwxr-x ...
+        echo Setting all directories to mode rwxrwxr-x ...
 
-	find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx  2>/dev/null
+        find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx  2>/dev/null
 
 # Set all fileattr g+w
 
-	find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
+        find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
 
-	;;
+        ;;
 
 ###############################################################################
 
@@ -143,23 +143,23 @@ do
 
 # Set everything to group swdevel and ???r-X---
 
-	echo medmPanels repository: $f
-	echo Setting everything to group swdevel and mode ???r-X--- ...
+        echo medmPanels repository: $f
+        echo Setting everything to group swdevel and mode ???r-X--- ...
 
-	chgrp -R swdevel $f > /dev/null 2>&1
-	chmod -R g=rX,o= $f > /dev/null 2>&1
+        chgrp -R swdevel $f > /dev/null 2>&1
+        chmod -R g=rX,o= $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
-	echo Setting all directories to mode rwxrwxr-x ...
+        echo Setting all directories to mode rwxrwxr-x ...
 
-	find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx  2>/dev/null
+        find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx  2>/dev/null
 
 # Set all fileattr g+w
 
-	find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
+        find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
 
-	;;
+        ;;
 
 ###############################################################################
 
@@ -167,30 +167,30 @@ do
 
 # Set everything to group epics and ???r-Xr-X
 
-	echo CapFast tree: $f
-	echo Setting everything to group epics and mode ???r-Xr-X ...
+        echo CapFast tree: $f
+        echo Setting everything to group epics and mode ???r-Xr-X ...
 
-	chgrp -R epics $f > /dev/null 2>&1
-	chmod -R go=rX $f > /dev/null 2>&1
+        chgrp -R epics $f > /dev/null 2>&1
+        chmod -R go=rX $f > /dev/null 2>&1
 
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
-	echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
+        echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
 
-	files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
-	if [ -n "$files" ]; then
-	    echo $files | xargs chmod u=rwx,g=rwx,o=rx
-	    echo $files | xargs chgrp epima
-	fi
+        files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
+        if [ -n "$files" ]; then
+            echo $files | xargs chmod u=rwx,g=rwx,o=rx
+            echo $files | xargs chgrp epima
+        fi
 
 # Make binary executables unreadable for others
 
-	echo Making binary executables unreadable for others...
+        echo Making binary executables unreadable for others...
 
-	find $f/ -type f -perm +111 -follow -user $USER \
-	 -exec /bin/sh -c "chmod g-w {}; file {} | grep -v script | grep -q executable && chmod o-r {}" \;
+        find $f/ -type f -perm +111 -follow -user $USER \
+         -exec /bin/sh -c "chmod g-w {}; file {} | grep -v script | grep -q executable && chmod o-r {}" \;
 
-	;;
+        ;;
 
 ###############################################################################
 
@@ -198,22 +198,22 @@ do
 
 # Set everything to group epics and ???r-Xr-X
 
-	echo EPICS templates tree: $f
-	echo Setting everything to group epics and mode ???r-Xr-X ...
+        echo EPICS templates tree: $f
+        echo Setting everything to group epics and mode ???r-Xr-X ...
 
-	chgrp -R epics $f > /dev/null 2>&1
-	chmod -R g=rX,o=rX $f > /dev/null 2>&1
+        chgrp -R epics $f > /dev/null 2>&1
+        chmod -R g=rX,o=rX $f > /dev/null 2>&1
 
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
-	echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
+        echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
 
-	files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
-	if [ -n "$files" ]; then
-	    echo $files | xargs chmod u=rwx,g=rwx,o=rx
-	    echo $files | xargs chgrp epima
-	fi
-	;;
+        files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
+        if [ -n "$files" ]; then
+            echo $files | xargs chmod u=rwx,g=rwx,o=rx
+            echo $files | xargs chgrp epima
+        fi
+        ;;
 
 ###############################################################################
 
@@ -221,20 +221,20 @@ do
 
 # Set everything to group epics-support and ???r-X---
 
-	echo Epics support tree: $f
-	echo Setting everything to group epics-support and mode ???r-Xr-X ...
+        echo Epics support tree: $f
+        echo Setting everything to group epics-support and mode ???r-Xr-X ...
 
-	chgrp -R epics-support $f > /dev/null 2>&1
-	chmod -R g=rwX,o=rX $f > /dev/null 2>&1
+        chgrp -R epics-support $f > /dev/null 2>&1
+        chmod -R g=rwX,o=rX $f > /dev/null 2>&1
 
 # Set all directories and executables to mode rwxrwxr-x
 
-	echo Setting all directories and executables to mode rwxrwxr-x ...
+        echo Setting all directories and executables to mode rwxrwxr-x ...
 
-	files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
-	if [ -n "$files" ]; then
-	    echo $files | xargs chmod ug=rwx,o=rx
-	fi
+        files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
+        if [ -n "$files" ]; then
+            echo $files | xargs chmod ug=rwx,o=rx
+        fi
         find -type d -user $USER -exec chmod g+s {} \;
 
         echo Making everything under explicit version numbers read-only ...
@@ -242,7 +242,7 @@ do
         do
             chmod -R a-w $d > /dev/null 2>&1
         done
-	;;
+        ;;
 
 ###############################################################################
 
@@ -251,34 +251,34 @@ do
 
 # Set everything to group epics and ???r-X---
 
-	echo EPICS/vxWorks  tree: $f
-	echo Setting everything to group epics and mode ???r-Xr-X ...
+        echo EPICS/vxWorks  tree: $f
+        echo Setting everything to group epics and mode ???r-Xr-X ...
 
-	chgrp -R epics $f > /dev/null 2>&1
-	chmod -R go=rX $f > /dev/null 2>&1
+        chgrp -R epics $f > /dev/null 2>&1
+        chmod -R go=rX $f > /dev/null 2>&1
 
 # Set all directories and executables to group epima and mode rwxrwxr-x
 
-	echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
+        echo Setting all directories and executables to group epima and mode rwxrwxr-x ...
 
-	files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
-	if [ -n "$files" ]; then
-	    echo $files | xargs chmod ug=rwx,o=rx
-	    echo $files | xargs chgrp epima
-	fi
+        files=`find $f/ -follow -user $USER -a \( -type d -o -type f -perm +111 \)`
+        if [ -n "$files" ]; then
+            echo $files | xargs chmod ug=rwx,o=rx
+            echo $files | xargs chgrp epima
+        fi
         find -type d -user $USER -exec chmod g+s {} \;
-	;;
+        ;;
 
 ###############################################################################
 
   */epics/config*)
 
-	echo Setting everything to group epics and mode ???r-X--- ...
+        echo Setting everything to group epics and mode ???r-X--- ...
 
-	chgrp epics $f > /dev/null 2>&1
-	chmod g=rX,o= $f > /dev/null 2>&1
+        chgrp epics $f > /dev/null 2>&1
+        chmod g=rX,o= $f > /dev/null 2>&1
 
-	;;
+        ;;
 
 ###############################################################################
 
@@ -286,19 +286,19 @@ do
 
 # Set everything to group wwwadm and ???r-Xr-X
 
-	echo Web tree: $f
-	echo Setting everything to group wwwadm and mode ???r-Xr-X ...
+        echo Web tree: $f
+        echo Setting everything to group wwwadm and mode ???r-Xr-X ...
 
-	chgrp -R wwwadm $f > /dev/null 2>&1
-	chmod -R go=rX $f > /dev/null 2>&1
+        chgrp -R wwwadm $f > /dev/null 2>&1
+        chmod -R go=rX $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
-	echo Setting all directories to mode rwxrwxr-x ...
+        echo Setting all directories to mode rwxrwxr-x ...
 
-	find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx 2>/dev/null
+        find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx 2>/dev/null
 
-	;;
+        ;;
 
 ###############################################################################
 
@@ -306,23 +306,23 @@ do
 
 # Set everything to group interf and ???r-X---
 
-	echo bii_scripts related repository: $f
-	echo Setting everything to group scrptdev and mode ???r-X--- ...
+        echo bii_scripts related repository: $f
+        echo Setting everything to group scrptdev and mode ???r-X--- ...
 
-	chgrp -R scrptdev $f > /dev/null 2>&1
-	chmod -R g=rX,o= $f > /dev/null 2>&1
+        chgrp -R scrptdev $f > /dev/null 2>&1
+        chmod -R g=rX,o= $f > /dev/null 2>&1
 
 # Set all directories to mode rwxrwxr-x
 
-	echo Setting all directories to mode rwxrwxr-x ...
+        echo Setting all directories to mode rwxrwxr-x ...
 
-	find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx 2>/dev/null
+        find $f/ -type d -follow -user $USER | xargs chmod u=rwx,g=srwx,o=rx 2>/dev/null
 
 # Set all fileattr g+w
 
-	find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
+        find $f/ -follow -user $USER -name fileattr | xargs chmod g+w 2>/dev/null
 
-	;;
+        ;;
 
 ###############################################################################
 
@@ -337,14 +337,14 @@ do
             find $f/$d -follow -user $USER -type d -exec chmod g+s {} \;
         done
 
-	;;
+        ;;
 
 ###############################################################################
 
   *)
-	echo Not in EPICS or CapFast or Web Tree.
-	exit 1
-	;;
+        echo Not in EPICS or CapFast or Web Tree.
+        exit 1
+        ;;
     esac
 done
 
