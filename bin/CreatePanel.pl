@@ -1026,7 +1026,8 @@ sub setTitle
     }
     elsif( defined $title ) # parameter is the text of the titel: use text.edl
     {
-        ($titleContent, $titleWidth, $titleHight) = getDisplay("text.$type");
+    	my $titleWidget = ($type eq 'adl') ? "title.adl"  : "text.edl";
+        ($titleContent, $titleWidth, $titleHight) = getDisplay($titleWidget);
 	$panelSubst{TEXT}=$title;
 	if($type eq 'adl')
 	{
