@@ -328,11 +328,13 @@ do
 
     /opt/csr)
 
-	echo Setting everything to mode a+r ...
-
-        for d in bin lib man share
-	do
-            find $f/$d -follow -user $USER -exec chmod a+r {} \;
+        echo Setting everything under bin, lib, man, share, and include to
+        echo group scrptdev, mode a+r,g+w, and all directories to mode g+s
+        for d in bin lib man share include
+        do
+            chgrp -R scrptdev $f/$d > /dev/null 2>&1
+            chmod -R a+r,g+w $f/$d > /dev/null 2>&1
+            find $f/$d -follow -user $USER -type d -exec chmod g+s {} \;
         done
 
 	;;
