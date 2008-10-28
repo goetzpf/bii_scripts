@@ -271,7 +271,8 @@ find_files=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)')
 # find executable files in a given sub-directory that match a 
 # given name pattern up to a given depth
 # $(call find_xfiles,$(dir),$(glob-pattern),$(maxdepth))
-find_xfiles=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)' -perm -u+x))
+# find_xfiles=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)' -perm -u+x))
+find_xfiles=$(shell cd $(1) && (file * | grep executable | sed -e 's/:.*//'; grep -l "eval 'exec" *) | sort | uniq)
 
 # remove the extension on all from a list of files
 # use with:
@@ -540,6 +541,7 @@ $(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/%
 build_scripts: $(SCRIPT_BUILD_DIR) $(_SCRIPT_BUILD_LIST)
 
 $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/%
+	chmod u+x $<
 	cp $< $(@D) 
 
 # browsedb.pl needs to be patched, so we have an 
