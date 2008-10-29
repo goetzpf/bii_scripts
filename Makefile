@@ -70,15 +70,17 @@ DEFAULT_GROUP=scrptdev
 
 # install directories .......................................
 
-SHARE_INSTALL_DIR=/opt/csr/share
+INSTALL_PREFIX=/opt/csr
 
-SCRIPT_INSTALL_DIR=/opt/csr/bin
+SHARE_INSTALL_DIR=$(INSTALL_PREFIX)/share
 
-PERLLIB_INSTALL_DIR=/opt/csr/lib/perl
+SCRIPT_INSTALL_DIR=$(INSTALL_PREFIX)/bin
 
-PYTHONLIB_INSTALL_DIR=/opt/csr/lib/python
+PERLLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/perl
 
-HTML_INSTALL_DIR=/opt/csr/share/html/bii_scripts
+PYTHONLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
+
+HTML_INSTALL_DIR=$(INSTALL_PREFIX)/share/html/bii_scripts
 
 SCRIPT_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/scripts
 
