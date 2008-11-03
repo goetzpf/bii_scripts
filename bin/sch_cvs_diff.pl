@@ -250,6 +250,7 @@ Syntax:
     --svn: use subversion instead of cvs
     -r [cvs-revision] (mandatory)
     -s [2nd cvs revision] (optional)
+    -t --textmode : show differences as text
 END
   }
 
