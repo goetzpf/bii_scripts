@@ -16,9 +16,13 @@
 # for scripts with name *.pl and makeDocTxt documentation:
 #    add scriptname to the DOCTXT_SCRIPT_LIST variable
 
-# for scripts with name *.pl that generate help when called 
+# for scripts with name * that generate help when called 
 # with no parameters at all
 #    add scriptname to the PLAINTXT_SCRIPT_LIST variable
+
+# for scripts with name *.pl that generate help when called 
+# with no parameters at all
+#    add scriptname to the PLAINTXT_PL_SCRIPT_LIST variable
 
 # for scripts with name *.pl that generate help when called 
 # with "-h" as the only parameter
@@ -179,13 +183,14 @@ POD_SCRIPT_LIST=rsync-dist.pl multi-commit.pl bdns_lookup.pl
 # create online help by executing "(script 2>&1; true)
 PLAINTXT_SCRIPT_LIST= \
 	dbcount \
-	dbsort
+	dbsort 
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.pl 2>&1; true)
 PLAINTXT_PL_SCRIPT_LIST= \
 	bdns_import.pl \
 	dbscan.pl \
+        copyrename.pl
 
 # scripts with no embedded documentation 
 # create online help by executing "(script -h 2>&1; true)
