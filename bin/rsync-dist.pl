@@ -96,9 +96,9 @@ use vars qw($opt_help
             $opt_prefix_distdir
             $opt_no_editor_defaults
             $opt_last_dist
-	    $opt_one_filesystem
-	    $opt_preserve_links
-	    $opt_exclude_list
+            $opt_one_filesystem
+            $opt_preserve_links
+            $opt_exclude_list
             $opt_checksum
             $opt_progress
             $opt_dry_run
@@ -106,8 +106,8 @@ use vars qw($opt_help
             $opt_debug 
             $opt_version
             $opt_create_missing_links
-	    $opt_ssh_back_tunnel
-	    $opt_filter_output
+            $opt_ssh_back_tunnel
+            $opt_filter_output
             );
 
 use constant {
@@ -178,7 +178,7 @@ my @gbl_local_log_order=
                      REMOTE_MPATH
                      REMOTEPATH 
                      BRANCH
-		     WORLDREADABLE
+                     WORLDREADABLE
                      SOURCEDIR
                      VERSION
                      TAG
@@ -460,7 +460,7 @@ if (!GetOptions("help|h",
                 "env",
 
                 "branch=s",
-		"partial",
+                "partial",
                 "version_file|version-file=s",
                 "version_file_prefix|version-file-prefix=s",
                 "editor=s",
@@ -469,15 +469,15 @@ if (!GetOptions("help|h",
                 "last_dist|last-dist|L",
                 "one_filesystem|one-filesystem",
                 "preserve_links|preserve-links",
-		"exclude_list|exclude-list=s",
+                "exclude_list|exclude-list=s",
                 "checksum",
                 "progress",
                 "dry_run|dry-run",
                 "world_readable|world-readable|w",
                 "create_missing_links|create-missing-links",
-		"ssh_back_tunnel|ssh-back-tunnel=i",
+                "ssh_back_tunnel|ssh-back-tunnel=i",
 
-		"filter_output|filter-output",
+                "filter_output|filter-output",
 # undocumented:
                 "debug",
                 "version",
@@ -661,7 +661,7 @@ if (defined $opt_dist)
       dist(\@opt_hosts,\@opt_users,$rpath,
            $opt_localprefix, \@opt_localpaths, 
            $opt_message, $opt_tag,
-	   $opt_branch, 
+           $opt_branch, 
            $opt_world_readable);
     exit($rc ? 0 : 1);
   }
@@ -758,12 +758,12 @@ sub dist
     if ($opt_version_file)
       { # create filename
         if (!File::Spec->file_name_is_absolute($opt_version_file))
-	  { my $pre= $localprefix;
-	    $pre= cwd() if (!$pre);
+          { my $pre= $localprefix;
+            $pre= cwd() if (!$pre);
             $opt_version_file= File::Spec->catfile($pre,$opt_version_file);
-	  }
-	my $str= "$opt_version_file_prefix$now\n";
-	write_file($opt_version_file,\$str);
+          }
+        my $str= "$opt_version_file_prefix$now\n";
+        write_file($opt_version_file,\$str);
       }
 
     # start to create hash for local logfile:
@@ -1378,9 +1378,9 @@ sub internal_server_lock
           { warn "trying to $action lock on $remote_host...\n"; };
 
         my($rc)= myssh_cmd($remote_host,
-	                   $remote_user, 
-			   (defined $remote_mpath)?$remote_mpath:$remote_path, 
-			   $rcmd);
+                           $remote_user, 
+                           (defined $remote_mpath)?$remote_mpath:$remote_path, 
+                           $rcmd);
 
         if (!$rc)
           { warn "error: locking on \"$remote_host\" path \"$remote_path\"" .
@@ -1658,13 +1658,13 @@ sub sh_copy_to_hosts_l
     for(my $i=0; $i<=$#$r_hosts; $i++)
       { my $hostpart= $r_hosts->[$i];
         my $dir= $r_paths->[$i];
-	$dir= $remote_path if (!defined $dir);
-	$hostpart.= ":$dir";
-	my $userpart;
-	if (defined $r_users->[$i])
-	  { $userpart= "-l $r_users->[$i] "; }
+        $dir= $remote_path if (!defined $dir);
+        $hostpart.= ":$dir";
+        my $userpart;
+        if (defined $r_users->[$i])
+          { $userpart= "-l $r_users->[$i] "; }
 
-	push @lines,
+        push @lines,
              "rsync $gbl_rsync_opts -H -e \"ssh $userpart\" . $hostpart;";
       }
     return(@lines);
@@ -1698,7 +1698,7 @@ sub sh_add_log_l
       { push @lines,
              ' && ',
              'echo LOG: "' . shell_single_quote_escape($message) .
-	     "\" >> $logfile"; 
+             "\" >> $logfile"; 
       };
     return(@lines);
   }  
@@ -2059,8 +2059,8 @@ sub new_log_hash
     foreach my $r (@$r_hosts_users)
       { push @remote_hosts , $r->[0];
         push @remote_users , $r->[1]; 
-	push @remote_mpaths, $r->[2];
-	$mpath_found|= defined($r->[2]);
+        push @remote_mpaths, $r->[2];
+        $mpath_found|= defined($r->[2]);
       };
 
     my($rhosts,$rhosts_tag)= prepare_val(\@remote_hosts,
@@ -2722,8 +2722,8 @@ sub ensure_host_users
           }
         else
           { # user- and hostnames given, process both
-	    $result= process_user_and_hostname($r_hosts,$r_users); 
-	  };
+            $result= process_user_and_hostname($r_hosts,$r_users); 
+          };
 
         return($result) if (ref($result) ne '');
         if ($io_done)
@@ -2793,7 +2793,7 @@ sub split_uhp
     if ($s=~/\@/)
       { if ($s!~/([^\@]+)\@(.+)/)
           { die "error: hostname \"$s\" not parsable!\n"; }
-	($u,$h)=($1,$2); 
+        ($u,$h)=($1,$2); 
       }
     else
       { $h= $s; }
@@ -2821,17 +2821,17 @@ sub process_user_and_hostname
     for(my $i=0; $i<= $#$r_hosts; $i++)
       { my($user,$host,$path)= split_uhp($r_hosts->[$i]);
 
-	if (!defined $user) # no username found or given
-	  { $user= $r_users->[$i];
+        if (!defined $user) # no username found or given
+          { $user= $r_users->[$i];
             if (!defined $user) # user-array shorter than hostname array
               { $user= $r_users->[-1]; # take last element of array
-        	if (!defined $user)
-        	  { return("no users"); # error, username missing
-        	  };
+                if (!defined $user)
+                  { return("no users"); # error, username missing
+                  };
               };
-	  }
+          }
 
-	push @l, [$host,$user,$path];  
+        push @l, [$host,$user,$path];  
       };
     return(\@l);
   }
@@ -2911,13 +2911,13 @@ Syntax:
                 Caution: you may delete data on the secondary
                 hosts that you wanted to keep, think twice before
                 running this command
-		The list of mirror-hosts may contain the directory
-		in the form "hostname/directory". With this it is possible
-		to distribute directories from the central mirror
-		(the first host in the list) to a different directory
-		on the other host. If the directory is not given
-		(no "/" is found in the hostname) it is the same as on the 
-		central mirror
+                The list of mirror-hosts may contain the directory
+                in the form "hostname/directory". With this it is possible
+                to distribute directories from the central mirror
+                (the first host in the list) to a different directory
+                on the other host. If the directory is not given
+                (no "/" is found in the hostname) it is the same as on the 
+                central mirror
 
     rm-lock --rm-lock [dist|d|links|l]
 
@@ -2929,7 +2929,7 @@ Syntax:
     force-rm-lock --force-rm-lock [dist|d|links|l]
 
                 like "rm-lock", but the lock file is removed 
-		even when it was created by another user.
+                even when it was created by another user.
 
     mk-lock --mk-lock [dist|d|links|l]
 
@@ -2952,9 +2952,9 @@ Syntax:
 
     create-branch [name]{,source}
                 create a new branch on the server. The {,source} parameter is
-		optional. It is the name of the old branch from which new 
-		branch is created. If {,source} is omitted, the branch 
-		is created from trunk
+                optional. It is the name of the old branch from which new 
+                branch is created. If {,source} is omitted, the branch 
+                is created from trunk
     
     expand-glob
                 if the --localpath parameter contains glob-expressions
@@ -3089,7 +3089,7 @@ Syntax:
                 if this option is given without being followed by a 
                 tag-string, an empty tag is used        
 
-    --autotag   (only for the "dist" commannd)
+    --autotag   (only for the "dist" command)
                 take the tag from the last distributed version and
                 increment the number at the end of this tag by one.
                 This is an alternative to the "--tag" option
@@ -3101,7 +3101,7 @@ Syntax:
                 is simple <name>=<value>
                 Empty lines and lines starting with "#" are ignored.
                 Spaces around the "=" sign are also ignored. Array values
-                are specifed as comma-separated lists.
+                are specified as comma-separated lists.
                 The following variables are recognized
                 RSYNC_DIST_HOST
                   name of the distribution host or hosts. 
@@ -3132,11 +3132,11 @@ Syntax:
                   when set to 1, make all distributed files world-readable
                   see also --world-readable
                 RSYNC_DIST_ONE_FILESYSTEM
- 		  when set to 1, do not cross filesystem boundaries on the
-	          local host. See also --one-filesystem 
+                  when set to 1, do not cross filesystem boundaries on the
+                  local host. See also --one-filesystem 
                 RSYNC_DIST_EXCLUDE_LIST
-		  specify a file on the local host that contains files that
-		  are to be excluded
+                  specify a file on the local host that contains files that
+                  are to be excluded
                 RSYNC_DIST_CHECKSUM
                   when set to 1, use checksums to detect changes in files.
                   see also --checksum 
@@ -3183,7 +3183,7 @@ Syntax:
 
     --branch [branchname]
                 use the most recent version of <branchname> to make the
-		hardlink-copy on the server.		 
+                hardlink-copy on the server.             
 
     --partial   make a complete copy of the last version on the
                 server but distribute only some files from the client
@@ -3195,20 +3195,20 @@ Syntax:
                 commands "change-links", "add-links", and "ls links".
 
     --version-file [filename]
-    		when the <dist> command is executed, the name of
-		the directory that is created on the server is written
-		to this file. 
-		Note that the filename may be a complete path+filename.
-		If the path is not absolute, it is assumed to be relative
-		to localprefix. If localprefix is not specified, it is
-		assumed to be relative to the current working directory.
-		Note too, that the file may be created in one of the
-		directories that is to be distributed. This is done before
-		the actual transfer of files takes place, so you will
-		find the generated file on the server too, in this case.
+                when the <dist> command is executed, the name of
+                the directory that is created on the server is written
+                to this file. 
+                Note that the filename may be a complete path+filename.
+                If the path is not absolute, it is assumed to be relative
+                to localprefix. If localprefix is not specified, it is
+                assumed to be relative to the current working directory.
+                Note too, that the file may be created in one of the
+                directories that is to be distributed. This is done before
+                the actual transfer of files takes place, so you will
+                find the generated file on the server too, in this case.
 
     --editor [editor]
-                specifiy the interactive editor. 
+                specify the interactive editor. 
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_EDITOR", if this
                 is not set from "EDITOR", if this is not set the
@@ -3222,7 +3222,7 @@ Syntax:
 
     --no-no-editor-defaults 
                 set "--no-editor-defaults" (see above) to false
-                (use editor defaults). Since this is the default behaviour, 
+                (use editor defaults). Since this is the default behavior, 
                 this option is only needed in order to override a 
                 different setting taken from a config file  
 
@@ -3241,7 +3241,7 @@ Syntax:
 
     --no-prefix-distdir 
                 set "--prefix-distdir" (see above) to false. Since
-                this is the default behaviour, this option is only needed
+                this is the default behavior, this option is only needed
                 in order to override a different setting taken from
                 a config file  
 
@@ -3257,7 +3257,7 @@ Syntax:
                 specify a file that contains files to be excluded from transfer
 
     --checksum  use checksums instead of date-comparisons when deciding 
-                wether a file should be transferred
+                whether a file should be transferred
 
     --progress  use the rsync "progress" option to show the progress
                 of rsync on screen
@@ -3269,15 +3269,15 @@ Syntax:
 
     --create_missing_links
                 for use with command "change-links": don't complain if links
-                dont exist, instead create them
+                don't exist, instead create them
 
     --ssh-back-tunnel [port]
-    		use an existing ssh-tunnel on remote host in order to connect
-		back to the local host. This option has only an effect on
-		the "dist" command. 	
-		Such a tunnel can be created by issuing this command 
-		on the remote host:
-		ssh -N -L <port>:<localhost>:22 <localuser>@<tunnel-host>
+                use an existing ssh-tunnel on remote host in order to connect
+                back to the local host. This option has only an effect on
+                the "dist" command.     
+                Such a tunnel can be created by issuing this command 
+                on the remote host:
+                ssh -N -L <port>:<localhost>:22 <localuser>@<tunnel-host>
 
 END
   }
@@ -3329,7 +3329,7 @@ in one single command.
 =item *
 
 a lock file is created before critical actions on the server(s), so
-several instances of this script can be started at the same sime
+several instances of this script can be started at the same same
 by different people without interfering with each other
 
 =item *
@@ -3403,7 +3403,7 @@ where the user has access to, can write to
 =head2 Using a configuration file
 
 Certain values like the name of the remote host or the 
-directory on the remote-host can be stored in a configuation file. 
+directory on the remote-host can be stored in a configuration file. 
 The program can then read that configuration file in order to obtain
 these values. Such a file is easy to create. Example:
 
@@ -3411,7 +3411,7 @@ these values. Such a file is easy to create. Example:
       --checksum show-config
 
 This command prints the contents of such a file to the screen where
-all settings match the ones given as commandline parameters. Here is how
+all settings match the ones given as command line parameters. Here is how
 you create that file directly:
 
   rsync-dist.pl -H myhost -u myuser -p /dist-dir -P /link-dir\
@@ -3498,6 +3498,17 @@ the first time. It is modified each time you distribute files to the
 server. When a new version is distributed, the directory mentioned in
 "LAST" is copied by hard-link copy, then rsync is called to transmit
 all changed/added or removed files.
+
+=item branches
+When your development takes place on several branches at the same 
+time, the hard-link copy of the last distributed version may
+be inefficient with respect to the space it occupies on the 
+hard disk. For these cases, branches can be used. A branch simply
+means that another "LAST" file is used in order to create the
+hard-link copy. A branch can be created from trunk or another
+branch with the create-branch command. It can be used together with
+the dist command with the "--branch" option. See also the online
+help when you execute "rsync-dist.pl -h".
 
 =item the file CHANGES-DIST
 
@@ -3622,7 +3633,7 @@ contains information on symbolic links in the directory
   2006-10-09T10:33:09 idcp13
 
 The first line means for example, that in directory 
-"opt/IOC/Releases/idcp/links" there is a symblic link
+"opt/IOC/Releases/idcp/links" there is a symbolic link
 named "idcp12" that references the distribution-directory 
 "2006-10-09T10:28:13"-
 
@@ -3845,7 +3856,7 @@ Logging onto the server required
 
 =head1 Further reading
 
-Please do also have a look the the parameter help. You get this by
+Please do also have a look at the parameter help. You get this by
 entering
 
   rsync-dist.pl -h | less
