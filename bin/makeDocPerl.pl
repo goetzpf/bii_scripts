@@ -200,19 +200,20 @@ sub   checkSubParameters
 { 
     my($parse) = @_;
 
-    my $parameterNames;
+    my @parameterNames;
     my $parameterString = "\n";
-    while( $parse =~ /\s*\$\s*(.*)\s*\)*\s*\#\s*(.*)\s*$/ )
+    while( $parse =~ /\s*(\$[\w\d_]*).*\#\s*(.*)\s*$/ )
     {
 	my $parName = $1;
 	my $parDesc = $2;
+	print "'$parse'\n\tNAME='$parName'\n\nDESC='$parDesc'\n";
 	$parName =~ /^\s*([^, ]+)/;
-	$parameterNames  .= "$1, ";
-	$parameterString .= "$1\t| $parDesc\n";
+	push @parameterNames, $parName;
+	$parameterString .= "-  $parName:  $parDesc\n";
 	last if( $parse =~ /\)/ );
 	$parse = <IN_FILE>;
     }
 
     $parameterString = "*  Parameter  :\n\n".$parameterString."\n\n";
-    return ($parameterNames,$parameterString);
+    return (join(',',@parameterNames),$parameterString);
 }
