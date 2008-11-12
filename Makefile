@@ -50,8 +50,15 @@
 
 # in order to generate documentation to for the library
 # do the following:
-# for scripts with name *.pl and POD documentation:
-#    add scriptname to the POD_SCRIPT_LIST variable
+
+# for perl modules with embedded POD documentation 
+#    add module name to the POD_PERLLIB_LIST variable
+
+# for perl modules with embedded makeDocTxt documentation 
+#    add scriptname to the DOCTXT_PERLLIB_LIST variable
+
+# for python modules with embedded pydoc documentation 
+#    add scriptname to the PYDOC_PYTHONLIB_LIST variable
 
 #############################################################
 
@@ -246,10 +253,14 @@ POD_PERLLIB_LIST= \
 PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py 
 
 # scripts that have embedded documentation that can be HTML converted 
-# with makedoctext
+# with makeDocTxt
 DOCTXT_SCRIPT_LIST= CreatePanel.pl 	\
 	stripUnresolvedDb.pl 		\
 	grepDb.pl			
+
+# perl libraries with embedded documentation that can be HTML converted
+# with makeDocTxt
+DOCTXT_PERLLIB_LIST= 
 
 # files in the doc/txt directory that can be HTML converted 
 # with makedoctext
@@ -360,9 +371,13 @@ _HTML_DOCTXT_TXT_BUILD_LIST=\
 _HTML_DOCTXT_TXT_INSTALL_LIST=\
   $(addprefix $(HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(DOCTXT_TXT_LIST)))
 
-# list of all (generated) html files belonging to perl libs
+# list of all (POD generated) html files belonging to perl libs
 _HTML_POD_PERLLIB_BUILD_LIST=\
   $(addprefix $(PERLLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(POD_PERLLIB_LIST)))
+
+# list of all (makeDocTxt generated) html files belonging to perl libs
+_HTML_DOCTXT_PERLLIB_BUILD_LIST=\
+  $(addprefix $(PERLLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(DOCTXT_PERLLIB_LIST)))
 
 # list of all (generated) html files belonging to python libs
 _HTML_PYDOC_PYTHONLIB_BUILD_LIST=\
@@ -663,12 +678,19 @@ $(_HTML_DOCTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC
 # ...........................................................
 # build documentation for perl libraries
 
-build_html_perllib: build_html_perllib_pods 
+build_html_perllib: build_html_perllib_pods build_html_perllib_doctxt
 
 build_html_perllib_pods: $(PERLLIB_HTML_BUILD_DIR) $(_HTML_POD_PERLLIB_BUILD_LIST)
 
 $(_HTML_POD_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm
 	pod2html $< > $@
+
+build_html_perllib_doctxt: $(PERLLIB_HTML_BUILD_DIR) $(_HTML_DOCTXT_PERLLIB_BUILD_LIST)
+
+$(_HTML_DOCTXT_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm
+	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	rm -f $@.tmp
 
 # ...........................................................
 # build documentation for python libraries
