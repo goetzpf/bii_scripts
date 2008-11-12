@@ -260,7 +260,8 @@ DOCTXT_SCRIPT_LIST= CreatePanel.pl 	\
 
 # perl libraries with embedded documentation that can be HTML converted
 # with makeDocTxt
-DOCTXT_PERLLIB_LIST= 
+DOCTXT_PERLLIB_LIST= printData.pm \
+	tokParse.pm
 
 # files in the doc/txt directory that can be HTML converted 
 # with makedoctext
