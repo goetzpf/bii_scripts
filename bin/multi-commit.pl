@@ -64,7 +64,7 @@ my %gbl_arg_lst= (generate=> '--generate',
 		  );
 
 
-my $mail_domain= "bessy.de";
+my $mail_domain= "helmholtz-berlin.de";
 
 my $sc_version= "1.0";
 
