@@ -471,7 +471,7 @@ Example of a hash that parse() returns as default:
 
 =head1 AUTHOR
 
-Goetz Pfeiffer,  goetzp@gmx.net
+Goetz Pfeiffer,  Goetz.Pfeiffer@helmholtz-berlin.de
 
 =head1 SEE ALSO
 

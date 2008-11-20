@@ -1846,7 +1846,7 @@ way works similar to a function defined with "$func" in the text.
 
 =head1 AUTHOR
 
-Goetz Pfeiffer,  goetzp@gmx.net
+Goetz Pfeiffer,  Goetz.Pfeiffer@helmholtz-berlin.de
 
 =head1 SEE ALSO
 
