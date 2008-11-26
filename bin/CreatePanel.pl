@@ -1037,8 +1037,8 @@ sub setTitle
 	{
 	    $panelSubst{WIDTH}=$panelWidth;
 	}
-	$panelSubst{COLOR}=39;
-	$panelSubst{TXTCOLOR}=30;
+	$panelSubst{COLOR}=54;
+	$panelSubst{TXTCOLOR}=0;
 #print "Title: '$title' use file: 'text.$type'\n";
     }
 #print  "getDisplay($title) = (, $titleWidth, $titleHight) content=$titleContent\n";
