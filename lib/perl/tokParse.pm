@@ -1,5 +1,6 @@
 package tokParse;
 use strict;
+use Data::Dumper;
 BEGIN {
 
 use Exporter   ( 
@@ -11,9 +12,10 @@ $VERSION     = 1.0;
 
 @ISA       = qw(Exporter);
 @EXPORT_OK = qw(
-            parse
-            dumpData
-                 );
+        	parse
+        	dumpData
+        	nextToken
+	       );
 %EXPORT_TAGS = ( );     # eg: TAG => [ qw!name1 name2! ],
 
 # your exported package globals go here,
@@ -58,7 +60,7 @@ sub parse
     	my $tokContent;
 	my $tokName;
 	foreach (@$rA_tokDefList)
-	{
+	{   
 	    $tokName = $_->[0];
 	    my $rA_tokDef = $_->[1];
 	    my $tokRE = $rA_tokDef->[0];
@@ -140,25 +142,25 @@ sub getSubstitutions
         ['NAME' , [qr(^[a-zA-Z0-9_\-:\.\$]+)]]          # matches an unquoted string contains [a-zA-Z0-9_\-] followed by '='
 	);
 
-    my $rA_toks = parse($parse,\@token,'ignoreSpace');
+    my $rA_toks = tokParse::parse($parse,\@token,'ignoreSpace');
     die "PARSE ERROR" unless defined $rA_toks;
-#print " parse($parse) = ",Dumper($rA_toks);
     my %subst;
-    while()
+#print " parse($parse) = ",Dumper($rA_toks);
+    while(1)
     {
-	my ($tok,$tokVal) = @{shift @$rA_toks};
-#print "\t1 ($tok,$tokVal) \tNAME || SEP_ITEM || undef\n";
-	last unless defined $tok;
-     	($tok,$tokVal) = @{shift @$rA_toks} if $tok eq 'SEP_ITEM';
-	if($tok eq 'NAME')
+	my ($tokType,$tokVal) = nextToken($rA_toks);
+#print "\t1 ($tokType,$tokVal) \tNAME || SEP_ITEM || undef\n";
+	last unless defined $tokType;
+     	($tokType,$tokVal) = nextToken($rA_toks) if $tokType eq 'SEP_ITEM';
+	if($tokType eq 'NAME')
 	{
 	    my $name = $tokVal ;
-	    ($tok,$tokVal) = @{shift @$rA_toks};
-#print "\t2 ($tok,$tokVal) \tSEP_NV \n";
-    	    return undef unless $tok eq 'SEP_NV';
-	    ($tok,$tokVal) = @{shift @$rA_toks};
-#print "\t3 ($tok,$tokVal) \tQSTR\n";
-    	    if($tok eq 'QSTR' || $tok eq 'NAME')
+	    ($tokType,$tokVal) = nextToken($rA_toks);;
+#print "\t2 ($tokType,$tokVal) \tSEP_NV \n";
+    	    return undef unless $tokType eq 'SEP_NV';
+	    ($tokType,$tokVal) =nextToken($rA_toks);;
+#print "\t3 ($tokType,$tokVal) \tQSTR\n";
+    	    if($tokType eq 'QSTR' || $tokType eq 'NAME')
 	    {
 #print "FOUND: '$name' = '$tokVal'\n";
 		$subst{$name} = $tokVal;
@@ -176,4 +178,14 @@ sub getSubstitutions
     return \%subst;
 }
 
+## Get next token from token list returned from parse()
+#
+#  *  Return  : (tokType,tokValue) or (undef,undef) if list is empty
+sub nextToken
+{   my ($rA_tokList) = @_;
+    
+    my $nextTok = shift @$rA_tokList;
+    return (undef,undef) unless defined $nextTok;
+    return @$nextTok;
+}
 1;
