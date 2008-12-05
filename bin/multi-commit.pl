@@ -439,11 +439,25 @@ sub make_tempfile
     return($tmp->filename);
   }  
 
+sub umlaut
+  { my($s)= @_;
+    
+    $s=~s/ä/ae/g;
+    $s=~s/Ä/Ae/g;
+    $s=~s/ö/oe/g;
+    $s=~s/Ö/Oe/g;
+    $s=~s/ü/ue/g;
+    $s=~s/Ü/Ue/g;
+    $s=~s/ß/ss/g;
+    return $s
+  }
+
 sub email
   { # get Name from /etc/passwd:
     my $n= (getpwuid($<))[6]; 
 
-    if ($n!~/^([\w ]+)/) 
+    $n= umlaut($n);
+    if ($n!~/^([\w ]{3,})/) 
       { die "assertion, user name cannot be parsed"; }; 
 
     $n= $1; 
