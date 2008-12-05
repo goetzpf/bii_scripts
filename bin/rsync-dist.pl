@@ -98,6 +98,7 @@ use vars qw($opt_help
             $opt_last_dist
             $opt_one_filesystem
             $opt_preserve_links
+	    $opt_remove_links
             $opt_exclude_list
             $opt_checksum
             $opt_progress
@@ -285,6 +286,7 @@ my %gbl_map_hash=
                RSYNC_DIST_WORLDREADABLE => \$opt_world_readable,
                RSYNC_DIST_ONE_FILESYSTEM  => \$opt_one_filesystem,
                RSYNC_DIST_PRESERVE_LINKS  => \$opt_preserve_links,
+               RSYNC_DIST_REMOVE_LINKS  => \$opt_remove_links,
                RSYNC_DIST_EXCLUDE_LIST  => \$opt_exclude_list,
                RSYNC_DIST_CHECKSUM  => \$opt_checksum,
                RSYNC_DIST_PARTIAL => \$opt_partial,
@@ -322,6 +324,8 @@ my %gbl_config_comments=
                                   "do not cross filesystem boundaries",
                RSYNC_DIST_PRESERVE_LINKS =>
                                   "copy links as they are, do not dereference them",
+               RSYNC_DIST_REMOVE_LINKS =>
+                                  "always remove symbolic links by dereferencing them",
                RSYNC_DIST_EXCLUDE_LIST =>
                                   "specify a file that contains files to exclude from\n" .
                                   "transfer",
@@ -469,6 +473,7 @@ if (!GetOptions("help|h",
                 "last_dist|last-dist|L",
                 "one_filesystem|one-filesystem",
                 "preserve_links|preserve-links",
+                "remove_links|remove-links",
                 "exclude_list|exclude-list=s",
                 "checksum",
                 "progress",
@@ -774,14 +779,17 @@ sub dist
                             'distribute');
 
     my $rsync_opts= $gbl_rsync_opts;
-    if (!$opt_preserve_links)
-      { 
-        $rsync_opts.=  " --copy-unsafe-links";
-      }
+    if ($opt_preserve_links && $opt_remove_links)
+      { die "ERROR: --remove-links and --preserve-links are contradicting options"; }
+    if ((!$opt_preserve_links) && (!$opt_remove_links))
+      { $rsync_opts.=  " --copy-unsafe-links"; }
     else
-      {
-        $rsync_opts.= " -l" ;
+      { if ($opt_preserve_links)
+          { $rsync_opts.= " -l"; }
+	if ($opt_remove_links)
+	  { $rsync_opts.= " -L"; }
       }
+
     $rsync_opts.= " -c" if ($opt_checksum);
     $rsync_opts.= " -x" if ($opt_one_filesystem);
 
@@ -3136,6 +3144,11 @@ Syntax:
                 RSYNC_DIST_ONE_FILESYSTEM
                   when set to 1, do not cross filesystem boundaries on the
                   local host. See also --one-filesystem 
+                RSYNC_DIST_PRESERVE_LINKS
+		  when set to 1, symbolic links are never dereferenced and
+		  always copied as links
+                RSYNC_DIST_REMOVE_LINKS
+		  when set to 1, symbolic links always dereferenced
                 RSYNC_DIST_EXCLUDE_LIST
                   specify a file on the local host that contains files that
                   are to be excluded
@@ -3254,6 +3267,12 @@ Syntax:
 
     --one-filesystem 
                 do not cross filesystem boundaries on the local host
+
+    --preserve-links
+                never dereference links, just keep them
+
+    --remove-links
+                always dereference links
 
     --exclude-list [file]
                 specify a file that contains files to be excluded from transfer
