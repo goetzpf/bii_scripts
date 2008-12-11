@@ -237,8 +237,10 @@ do
         fi
         find -type d -user $USER -exec chmod g+s {} \;
 
+# Set everything under explicit version numbers to read-only
+
         echo Making everything under explicit version numbers read-only ...
-        for d in `find $f -type d | egrep '/[0-9]+-[0-9]+[^/]*$'`
+        for d in `find $f -type d -user $USER | egrep '/[0-9]+-[0-9]+[^/]*$'`
         do
             chmod -R a-w $d > /dev/null 2>&1
         done
@@ -246,7 +248,7 @@ do
 
 ###############################################################################
 
-    */vw/* | */epics/*/support* | */epics/base* | */epics/*/base* | */epics/extensions* |\
+    */vw/* | */epics/base* | */epics/*/base* | */epics/extensions* |\
     */vxworks/* | */Epics/base* | */Epics/*/base* | */Epics/extensions* )
 
 # Set everything to group epics and ???r-X---
