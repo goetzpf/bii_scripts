@@ -235,6 +235,9 @@ do
         if [ -n "$files" ]; then
             echo $files | xargs chmod ug=rwx,o=rx
         fi
+
+        echo Setting set-group-id bit on all directories ...
+
         find -type d -user $USER -exec chmod g+s {} \;
 
 # Set everything under explicit version numbers to read-only
