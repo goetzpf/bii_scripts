@@ -168,19 +168,19 @@ my $config = Options::parse($usage, 1);
 # recognise html tags:
 
 # (displayed text: http://something)
-    $paragraph =~ s|\((.*?):\s*http://(.*?)\)|<A HREF=\"http://$2\">$1</A> |g;
+    $paragraph =~ s|\((.*?):\s*http://(.*?)\)|<A HREF=\"http://$2\">$1</A>|g;
 
 # (displayed text: URL=path/to/something)
-    $paragraph =~ s|\((.*?):\s*URL=\s*(.*?)\)|<A HREF=\"$2\">$1</A> |g;
+    $paragraph =~ s|\((.*?):\s*URL=\s*(.*?)\)|<A HREF=\"$2\">$1</A>|g;
 
 # (http://path/to/something) - show just the path
-    $paragraph =~ s|\(\s*http://(.*?)\)|<A HREF=\"http://$1\">http://$1</A> |g;
+    $paragraph =~ s|\(\s*http://(.*?)\)|<A HREF=\"http://$1\">http://$1</A>|g;
 
 # (URL=path/to/something) - for local paths, show just the path
-    $paragraph =~ s|\(\s*URL=\s*(.*?)\)|<A HREF=\"$1\">$1</A> |g;
+    $paragraph =~ s|\(\s*URL=\s*(.*?)\)|<A HREF=\"$1\">$1</A>|g;
 
 # (displayed text: #something) - for local references
-    $paragraph =~ s|\((.*?):\s*\#(.*?)\)|<A HREF=\"#$2\">$1</A> |g;
+    $paragraph =~ s|\((.*?):\s*\#(.*?)\)|<A HREF=\"#$2\">$1</A>|g;
 
 # get pictures
    # $paragraph =~ s|\((.*?):\s*([\w\d]+)\.JPG\)|$1 <A HREF=\"$2.JPG\" TARGET="Wimg"><IMG SRC=\"TN_$2.JPG\" ALT="$2"></A>|gi;
