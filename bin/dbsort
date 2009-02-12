@@ -42,6 +42,7 @@ while ( <FIN> )
   # concatenate each record into a single string delimited by '---"
   # print $_;
   chop;
+  next if m/^\s*#/;
   s/^\s+/\t/;
   if (m/record\s*\(\s*\w+\s*,\s*("[^"]+"|[)]+)/) {
     $record->{text} = $_;
