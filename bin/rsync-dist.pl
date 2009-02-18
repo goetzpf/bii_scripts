@@ -3521,6 +3521,7 @@ server. When a new version is distributed, the directory mentioned in
 all changed/added or removed files.
 
 =item branches
+
 When your development takes place on several branches at the same 
 time, the hard-link copy of the last distributed version may
 be inefficient with respect to the space it occupies on the 
