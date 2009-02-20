@@ -250,7 +250,7 @@ POD_PERLLIB_LIST= \
 	analyse_db.pm bessy_module.pm \
 
 # python libraries with embedded pydoc documentation
-PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py 
+PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py rdump.py putil.py
 
 # scripts that have embedded documentation that can be HTML converted 
 # with makeDocTxt
