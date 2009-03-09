@@ -238,12 +238,12 @@ do
 
         echo Setting set-group-id bit on all directories ...
 
-        find -type d -user $USER -exec chmod g+s {} \;
+        find $f/ -type d -user $USER -exec chmod g+s {} \;
 
 # Set everything under explicit version numbers to read-only
 
         echo Making everything under explicit version numbers read-only ...
-        for d in `find $f -type d -user $USER | egrep '/[0-9]+-[0-9]+[^/]*$'`
+        for d in `find $f/ -type d -user $USER | egrep '/[0-9]+-[0-9]+[^/]*$'`
         do
             chmod -R a-w $d > /dev/null 2>&1
         done
@@ -271,7 +271,7 @@ do
             echo $files | xargs chmod ug=rwx,o=rx
             echo $files | xargs chgrp epima
         fi
-        find -type d -user $USER -exec chmod g+s {} \;
+        find $f/ -type d -user $USER -exec chmod g+s {} \;
         ;;
 
 ###############################################################################
