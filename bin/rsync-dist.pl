@@ -1907,15 +1907,14 @@ sub get_last_log_entries
         if ($action eq 'distribute')
           { # store more for "dist" actions:
             my $date= $entry->{LOCALDATE};
-            if (datestring_is_today($date))
-              { my $hosts= $entry->{REMOTEHOSTS};
-                my $path = $entry->{REMOTEPATH};
-                $hosts=~ s/^\s*(\S+)\s*$/$1/; 
-                # use a sorted list of hosts:
-                $hosts= join(",",sort(split(",",$hosts)));
-                $path =~ s/^\s*(\S+)\s*$/$1/; 
-                $h{join("|",$action,$path,$hosts)}= $entry;
-              };
+            
+	    my $hosts= $entry->{REMOTEHOSTS};
+	    my $path = $entry->{REMOTEPATH};
+	    $hosts=~ s/^\s*(\S+)\s*$/$1/; 
+	    # use a sorted list of hosts:
+	    $hosts= join(",",sort(split(",",$hosts)));
+	    $path =~ s/^\s*(\S+)\s*$/$1/; 
+	    $h{join("|",$action,$path,$hosts)}= $entry;
           }; 
         # by the following lines we can collect
         # "similar actions" under a single action-label
