@@ -78,6 +78,7 @@ use vars qw($opt_help
             $opt_cat_log
             $opt_tail_log
             $opt_perl_log
+            $opt_python_log
             $opt_ls_tag 
             $opt_ls_version
             $opt_cat_changes
@@ -150,6 +151,7 @@ my @gbl_arg_lst= ('--dist',
                   '--cat-log',
                   '--tail-log',
                   '--perl-log',
+                  '--python-log',
                   '--ls-tag',
                   '--ls-version',
                   '--cat-changes',
@@ -451,6 +453,7 @@ if (!GetOptions("help|h",
                 "cat_log|cat-log=s",
                 "tail_log|tail-log=s",
                 "perl_log|perl-log=s",
+                "python_log|python-log=s",
                 "ls_tag|ls-tag|T=s",
                 "ls_version|ls-version=s",
                 "cat_changes|cat-changes:s",
@@ -559,13 +562,17 @@ if (defined $opt_ls)
     exit(0);
   }
 
-if ((defined $opt_cat_log) || (defined $opt_perl_log))
-  { my $dump_perl= (defined $opt_perl_log);
-    my $dirname= ($dump_perl) ? $opt_perl_log : $opt_cat_log;
+if ((defined $opt_cat_log) || (defined $opt_perl_log) || (defined $opt_python_log))
+  { my $scheme; 
+    if (defined $opt_perl_log)
+      { $scheme= "perl"; }; 
+    if (defined $opt_python_log)
+      { $scheme= "python"; }; 
+    my $dirname= ($scheme) ? $opt_perl_log : $opt_cat_log;
     my($arg,$rpath,$log,$chg)= dir_dependant($dirname);
 
     my $rc= cat_file_(\@opt_hosts,\@opt_users,$rpath,
-                                $log,undef,$dump_perl);
+                                $log,undef,$scheme);
     exit($rc ? 0 : 1);
   }
 
@@ -1236,7 +1243,8 @@ sub change_link
 
 sub cat_file_
   { my($r_hosts,$r_users,
-       $remote_path, $filename, $tailpar, $perlify) = @_;
+       $remote_path, $filename, $tailpar, $scheme) = @_;
+    # known values for $scheme: undef,"perl","python"
 
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
     if (empty($remote_path))
@@ -1257,7 +1265,7 @@ sub cat_file_
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n"; 
+        print "\nHost:$remote_host:\n" if ($scheme ne "python");
 
         my($rc,$r_lines)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                                     $rcmd, 1, 1);
@@ -1267,12 +1275,21 @@ sub cat_file_
           { warn "(command failed)\n"; 
             next;
           };
-        if ($perlify)
+        if (($scheme eq "perl") || ($scheme eq "python"))
           { 
             my $r_h= maillike::parse($r_lines,recordseparator=>"%%");
             my $name= $filename;
             $name=~ s/-/_/g;
-            print Data::Dumper->Dump([$r_h],[$name]);
+	    if ($scheme eq "perl")
+              { print Data::Dumper->Dump([$r_h],[$name]); }
+	    else
+	      { my $st= Data::Dumper->Dump([$r_h],[$name]); 
+	        $st=~ s/\$LOG_LINKS\s*=\s*//;
+		$st=~ s/=>/:/g;
+		$st=~ s/'/"""/g;
+		$st=~ s/;\s*$//;
+		print $st;
+	      }
           }
         else
           { 
