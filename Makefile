@@ -239,7 +239,8 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 
 RST_DOC_PY_SCRIPT_LIST= \
 	txtcleanup.py \
-	archiver2camonitor.py
+	archiver2camonitor.py \
+	rsync-linklog-stat.py
 
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
