@@ -43,13 +43,14 @@ some further examples.
 In the first example we just want a statistic of the lifetimes of all
 versions::
 
-  rsync-dist.pl -c rsync-dist.config python-log l | rsync-linklog-stat.py -l
+  rsync-dist.pl -c rsync-dist.config --single-host python-log l | rsync-linklog-stat.py -l
 
 If we want to use one of the options --filter-existent or --filter-nonexistent, calling the
 program with a pipe gets a bit more compilcated, since rsync-dist.pl has to be 
 called twice in order to provide all the needed information::
 
-  (rsync-dist.pl -c rsync-dist.config ls d; rsync-dist.pl -c rsync-dist.config python-log l) |\\
+  (rsync-dist.pl -c rsync-dist.config --single-host ls d; \\
+   rsync-dist.pl -c rsync-dist.config --single-host python-log l) |\\
    rsync-linklog-stat.py -l --filter-existent
 
 Output formats
@@ -237,7 +238,7 @@ def rsync_dist(config_file,get_existing=False):
 	                to get a list of existing versions in the
 			distribution directory
     """
-    rsync= "rsync-dist.pl -c %s" % config_file
+    rsync= "rsync-dist.pl -c %s --single-host" % config_file
     if not get_existing:
 	cmd=rsync+" python-log l"
     else:

@@ -110,6 +110,7 @@ use vars qw($opt_help
             $opt_version
             $opt_create_missing_links
             $opt_ssh_back_tunnel
+	    $opt_single_host
             $opt_filter_output
             );
 
@@ -489,6 +490,7 @@ if (!GetOptions("help|h",
                 "world_readable|world-readable|w",
                 "create_missing_links|create-missing-links",
                 "ssh_back_tunnel|ssh-back-tunnel=i",
+		"single_host|single-host",
 
                 "filter_output|filter-output",
 # undocumented:
@@ -563,7 +565,7 @@ if ($opt_debug)
 
 if (defined $opt_ls)
   { my($arg,$rpath,$log,$chg)= dir_dependant($opt_ls);
-    ls(\@opt_hosts,\@opt_users,$rpath);
+    ls(\@opt_hosts,\@opt_users,$rpath,$opt_single_host);
     exit(0);
   }
 
@@ -577,7 +579,7 @@ if ((defined $opt_cat_log) || (defined $opt_perl_log) || (defined $opt_python_lo
     my($arg,$rpath,$log,$chg)= dir_dependant($dirname);
 
     my $rc= cat_file_(\@opt_hosts,\@opt_users,$rpath,
-                                $log,undef,$scheme);
+                                $log,undef,$scheme,$opt_single_host);
     exit($rc ? 0 : 1);
   }
 
@@ -1260,7 +1262,7 @@ sub change_link
 
 sub cat_file_
   { my($r_hosts,$r_users,
-       $remote_path, $filename, $tailpar, $scheme) = @_;
+       $remote_path, $filename, $tailpar, $scheme, $single_host) = @_;
     # known values for $scheme: undef,"perl","python"
 
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
@@ -1280,9 +1282,13 @@ sub cat_file_
       };
 
     my $all_rc=1;
+    if ($single_host)
+      { my @myhosts= ($r_hosts_users->[0]);
+        $r_hosts_users= \@myhosts;
+      };
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n" if ($scheme ne "python");
+        print "\nHost:$remote_host:\n" if (!$single_host);
 
         my($rc,$r_lines)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                                     $rcmd, 1, 1);
@@ -1319,7 +1325,7 @@ sub cat_file_
 
 sub ls
   { my($r_hosts,$r_users,
-       $remote_path) = @_;
+       $remote_path, $single_host) = @_;
 
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
     if (empty($remote_path))
@@ -1331,9 +1337,13 @@ sub ls
     my $rcmd= "/bin/ls -l";
 
     my $all_rc=1;
+    if ($single_host)
+      { my @myhosts= ($r_hosts_users->[0]);
+        $r_hosts_users= \@myhosts;
+      };
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n"; 
+        print "\nHost:$remote_host:\n" if (!$single_host);
         my($rc,$r_lines)= myssh_cmd(
           $remote_host, $remote_user, $remote_path, $rcmd, 1, 1);
         print maybe_filter_output($r_lines);
@@ -3339,6 +3349,10 @@ Syntax:
                 Such a tunnel can be created by issuing this command 
                 on the remote host:
                 ssh -N -L <port>:<localhost>:22 <localuser>@<tunnel-host>
+
+    --single-host
+    		perform "ls" or "cat-log" or "tail-log" command
+		only on the first remote host.
 
 END
   }
