@@ -19,7 +19,7 @@ what version are no longer in use.
 Quick reference
 ===============
 
-* show statistics on link names
+* show statistics on link names::
 
    rsync-linklog-stat.py -c rsync-dist.config -n
 
