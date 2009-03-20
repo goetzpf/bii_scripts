@@ -67,6 +67,7 @@ use vars qw($opt_help
             $opt_from_attic
             $opt_change_links
             $opt_add_links
+            $opt_remove_links
             $opt_mirror
             $opt_rm_lock
             $opt_force_rm_lock
@@ -99,7 +100,7 @@ use vars qw($opt_help
             $opt_last_dist
             $opt_one_filesystem
             $opt_preserve_links
-	    $opt_remove_links
+	    $opt_dereference_links
             $opt_exclude_list
             $opt_checksum
             $opt_progress
@@ -116,6 +117,7 @@ use constant {
   do_add           => 0,
   do_change        => 1,
   do_change_or_add => 2,
+  do_remove        => 3,
 };
 
 my $sc_version= "2.0";
@@ -140,6 +142,7 @@ my @gbl_arg_lst= ('--dist',
                   '--from-attic',
                   '--change-links',
                   '--add-links',
+                  '--remove-links',
                   '--mirror',
                   '--rm-lock',
                   '--force-rm-lock',
@@ -195,6 +198,7 @@ my @gbl_local_log_order=
 my %gbl_local_log_actionmap= 
      ( 'change links'    => 'links',
        'add links'       => 'links',
+       'remove links'    => 'links',
        'move to attic'   => 'move',
        'move from attic' => 'move',
        );
@@ -288,7 +292,7 @@ my %gbl_map_hash=
                RSYNC_DIST_WORLDREADABLE => \$opt_world_readable,
                RSYNC_DIST_ONE_FILESYSTEM  => \$opt_one_filesystem,
                RSYNC_DIST_PRESERVE_LINKS  => \$opt_preserve_links,
-               RSYNC_DIST_REMOVE_LINKS  => \$opt_remove_links,
+               RSYNC_DIST_DEREFERENCE_LINKS  => \$opt_dereference_links,
                RSYNC_DIST_EXCLUDE_LIST  => \$opt_exclude_list,
                RSYNC_DIST_CHECKSUM  => \$opt_checksum,
                RSYNC_DIST_PARTIAL => \$opt_partial,
@@ -441,6 +445,7 @@ if (!GetOptions("help|h",
                 "from_attic|from-attic:s",
                 "change_links|change-links|C:s",
                 "add_links|add-links|A:s",
+                "remove_links|remove-links:s",
                 "mirror=s",
                 "rm_lock|rm-lock=s",
                 "force_rm_lock|force-rm-lock=s",
@@ -476,7 +481,7 @@ if (!GetOptions("help|h",
                 "last_dist|last-dist|L",
                 "one_filesystem|one-filesystem",
                 "preserve_links|preserve-links",
-                "remove_links|remove-links",
+                "dereference_links|dereference-links",
                 "exclude_list|exclude-list=s",
                 "checksum",
                 "progress",
@@ -666,6 +671,15 @@ if (defined $opt_add_links)
     exit($rc ? 0 : 1);
   }
 
+if (defined $opt_remove_links)
+  { my($arg,$rpath,$log,$chg)= dir_dependant('links');
+    my @files;
+    my $source;
+    my $rc=
+      change_link(do_remove, \@opt_hosts,\@opt_users,$rpath,$opt_message,$opt_remove_links);
+    exit($rc ? 0 : 1);
+  }
+
 if (defined $opt_dist)
   { 
     my($arg,$rpath,$log,$chg)= dir_dependant('dist');
@@ -786,14 +800,14 @@ sub dist
                             'distribute');
 
     my $rsync_opts= $gbl_rsync_opts;
-    if ($opt_preserve_links && $opt_remove_links)
-      { die "ERROR: --remove-links and --preserve-links are contradicting options"; }
-    if ((!$opt_preserve_links) && (!$opt_remove_links))
+    if ($opt_preserve_links && $opt_dereference_links)
+      { die "ERROR: --dereference-links and --preserve-links are contradicting options"; }
+    if ((!$opt_preserve_links) && (!$opt_dereference_links))
       { $rsync_opts.=  " --copy-unsafe-links"; }
     else
       { if ($opt_preserve_links)
           { $rsync_opts.= " -l"; }
-	if ($opt_remove_links)
+	if ($opt_dereference_links)
 	  { $rsync_opts.= " -L"; }
       }
 
@@ -1063,17 +1077,12 @@ sub change_link
 
                 if (!(($opt_prefix_distdir) && ($opt_last_dist)))
                   { # take first argument as remote_source
-                    $remote_source= shift @files; 
+		    if ($link_action != do_remove)
+                      { $remote_source= shift @files; }
                   };
               };
           };
       }
-
-    if ($opt_prefix_distdir)
-      { # prepend distpath to remote_source:
-        $remote_source= File::Spec->catfile($opt_distpath,$remote_source); 
-      };   
-
 
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
 
@@ -1090,27 +1099,27 @@ sub change_link
                    take_default('links:FILES'));
       };
 
+        
     # if $remote_source is not defined and --last-dist is given:
     if ($opt_last_dist)
-      { my $lastver= last_ver($r_hosts,$remote_source);
+      { my $lastver= last_ver($r_hosts,$opt_distpath);
         if (empty($lastver))
           { die "error: no last dist-version for hosts " . 
-                join(",",@$r_hosts) . " and path $remote_source\n";
+                join(",",@$r_hosts) . " and path $opt_distpath\n";
           }     
 
-        if ((!defined ($remote_source)) || ($remote_source eq ""))
+        if (empty($remote_source))
           { $remote_source= $lastver; }
-        else
-          { if (empty($lastver)) # must ask user for remote-source
-              { $remote_source= ""; }
-            else
-              { $remote_source= File::Spec->catfile($remote_source,
-                                                    $lastver); 
-              }
-          };
       }
 
-    if (empty($remote_source))
+    if (($opt_prefix_distdir) && (!empty($remote_source)))
+      { # prepend distpath to remote_source:
+        $remote_source= File::Spec->catfile($opt_distpath,$remote_source); 
+      };   
+
+
+
+    if (($link_action != do_remove) && (empty($remote_source)))
       { ensure_var(\$remote_source  , 'SOURCE_DIR' ,
                    take_default('links:SOURCEDIR'));
       };
@@ -1145,6 +1154,7 @@ sub change_link
     # start to create hash for local logfile:
     my $action_name= ($link_action == do_add)    ? 'add links' :
                      ($link_action == do_change) ? 'change links' :
+                     ($link_action == do_remove) ? 'remove links' :
                                                    'change or add links';
     my $r_log= new_log_hash($now,
                             $local_host,$local_user,
@@ -1169,6 +1179,11 @@ sub change_link
       { $rcmd.= ' && ' . sh_must_all_be_symlinks(@$r_files) . ' && ' .
                 '/bin/ls -l ' . $files;
         $rcmd.= ' > OLD && ' 
+      }
+    elsif ($link_action==do_remove)
+      { $rcmd.= ' && ' . sh_must_all_be_symlinks(@$r_files) . ' && ' .
+                '/bin/ls -l ' . $files;
+        $rcmd.= ' > REMOVED && ' 
       }
     elsif ($link_action==do_change_or_add)
       { $rcmd.= " && ".
@@ -1203,9 +1218,11 @@ sub change_link
 
     $rcmd.=     
                 "for l in $files ; " .
-                'do rm -f $l && ' .
-                  "ln -s $remote_source \$l; " .
-                'done && ' .
+                'do rm -f $l '; 
+    if ($link_action!=do_remove)
+      { $rcmd.= '&& ' . "ln -s $remote_source \$l "; }
+    $rcmd.=     
+                ';done && ' .
                 "echo \"%%\" >> $log && " .
                 "echo DATE: $datestr >> $log && " .
                 sh_add_log($log,$from,$logmessage,undef) . ' && ' .
@@ -1850,6 +1867,10 @@ sub sh_add_symlink_log
               "cat OLD >> $log && rm -f OLD; fi && " .
               "if test -f CHANGED; then echo \"NEW:\" >> $log && " .
               "/bin/ls -l `cat CHANGED` | tee -a $log && rm -f CHANGED; fi ";
+      }
+    elsif ($link_action==do_remove)
+      { $str= "echo \"REMOVED:\" >> $log && " .
+              "cat REMOVED >> $log && rm -f REMOVED ";
       }
     else
       { if ($link_action==do_add)
@@ -2931,6 +2952,9 @@ Syntax:
                 add links on the remote server
                 --> see also "--last-dist"
 
+    remove-links --remove-links [source,files]
+                remove links on the remote server
+
     mirror --mirror [dist|d|links|l]
                 mirror the specified directory from the first
                 given host to all following ones. 
@@ -3287,7 +3311,7 @@ Syntax:
     --preserve-links
                 never dereference links, just keep them
 
-    --remove-links
+    --dereference-links
                 always dereference links
 
     --exclude-list [file]
