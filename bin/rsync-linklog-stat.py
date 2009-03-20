@@ -55,7 +55,7 @@ called twice in order to provide all the needed information::
 Output formats
 ==============
 
-rsync-linklog-stat has three output formats.
+rsync-linklog-stat has four output formats.
 
 the *names* format
   In this format, each symlink-name is followed by a colon and
@@ -106,6 +106,15 @@ the *lifetimes* format
     /opt/IOC/r/dist/2009-03-19T11:38:54:
 	 2009-03-19T11:40:16    NOW                      0.97
 
+the *orphans* format
+  This format is used for the special -o or --orphan option. It is 
+  just a list of the sub-directories in the distribution directory 
+  are not and were never in use, meaning no symbolic link ever pointed 
+  to them. Here is an example::
+
+    2009-02-25T08:29:07
+    2009-02-25T17:01:44
+
 
 Reference of command line options
 =================================
@@ -149,6 +158,10 @@ Reference of command line options
 
 -l, --lifetimes
   print lifetime summary for each version
+
+-o, --orphan
+  print orphan versions, versions that are not in 
+  use and never have been.
 
 -b, --brief
   brief output, with -n just show link names,
@@ -577,7 +590,7 @@ def filter_existent_versions(version_paths, short_existing_version_names):
 
     Note that the parameter short_existing_version_names usually only
     contains the date-part of the version, but not the complete 
-    path. version_paths however, contains version paths.
+    path. version_paths however, contain version paths.
 
     Here is an example:
     >>> v=set(['/home/pfeiffer/r/dist/2009-03-19T11:38:12',
@@ -592,6 +605,32 @@ def filter_existent_versions(version_paths, short_existing_version_names):
 	if last in short_existing_version_names:
 	    result.add(v)
     return result
+
+def filter_orphan_version_names(version_paths, short_existing_version_names):
+    """return all version_paths that are also in short_existing_version_names.
+
+    Note that the parameter short_existing_version_names usually only
+    contains the date-part of the version, but not the complete 
+    path. version_paths however, contain version paths.
+
+    Here is an example:
+    >>> v=set(['/home/pfeiffer/r/dist/2009-03-19T11:38:12',
+    ...   '/home/pfeiffer/r/dist/2009-03-19T11:38:54'])
+    >>> e=set(['2009-03-19T11:38:12','2009-03-19T12:00:00'])
+    >>> filter_orphan_version_names(v,e)
+    set(['2009-03-19T12:00:00'])
+    """
+    result= set()
+    for v in version_paths:
+	last= os.path.split(v)[-1]
+	if last in short_existing_version_names:
+	    result.add(last)
+    return short_existing_version_names.difference(result)
+
+def print_orphaned_versions(myset):
+    """print the list of orphaned versions.
+    """
+    print "\n".join(sorted(myset))
 
 def parse_log_by_name(log):
     """parses the log-links file by name.
@@ -961,7 +1000,7 @@ def process_file(f,options):
     """process a single file.
     """
     distdir_info= (options.distdir or options.filter_existent or
-                   options.filter_nonexistent)
+                   options.filter_nonexistent or options.orphan)
     if options.call:
 	input= rsync_dist(options.call,distdir_info)
     else:
@@ -994,11 +1033,18 @@ def process_file(f,options):
     remove_versions= set()
     all_versions= set(versiondict.keys())
     since_date= None
+
     if options.filter_inactive_since:
 	try:
 	    since_date= parse_iso_onlydate(options.filter_inactive_since)
 	except ValueError,e:
 	    sys.exit("invalid date:%s" % options.filter_inactive_since)
+
+    if options.orphan:
+	orphans= filter_orphan_version_names(all_versions,existent_short_versions)
+	print_orphaned_versions(orphans)
+	return
+	
     if options.filter_existent or options.filter_nonexistent:
 	existent_in_distdir= filter_existent_versions( 
 	                              all_versions,
@@ -1111,6 +1157,11 @@ def main():
     parser.add_option("-l", "--lifetimes",   # implies dest="switch"
                       action="store_true", # default: None
                       help="print lifetime summary for each version",
+                      )
+    parser.add_option("-o", "--orphan",   # implies dest="switch"
+                      action="store_true", # default: None
+                      help="print orphan versions, versions that are "+\
+		           "not in use and never have been.",
                       )
     parser.add_option("-b", "--brief",   # implies dest="switch"
                       action="store_true", # default: None
