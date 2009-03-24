@@ -296,6 +296,7 @@ my %gbl_map_hash=
                RSYNC_DIST_DEREFERENCE_LINKS  => \$opt_dereference_links,
                RSYNC_DIST_EXCLUDE_LIST  => \$opt_exclude_list,
                RSYNC_DIST_CHECKSUM  => \$opt_checksum,
+               RSYNC_DIST_BRANCH => \$opt_branch,
                RSYNC_DIST_PARTIAL => \$opt_partial,
                RSYNC_DIST_VERSION_FILE => \$opt_version_file,
                RSYNC_DIST_VERSION_FILE_PREFIX => \$opt_version_file_prefix,
@@ -338,6 +339,8 @@ my %gbl_config_comments=
                                   "transfer",
                RSYNC_DIST_CHECKSUM =>
                                   "use checksum to detect file changes",
+               RSYNC_DIST_BRANCH =>
+                                  "use this branch for distributing files",
                RSYNC_DIST_PARTIAL =>
                                   "transfer only some files to the server",
                RSYNC_DIST_VERSION_FILE =>
@@ -374,6 +377,7 @@ RSYNC_DIST_LOCALPATH
 RSYNC_DIST_LOCALPREFIX
 RSYNC_DIST_WORLDREADABLE 
 RSYNC_DIST_CHECKSUM
+RSYNC_DIST_BRANCH 
 RSYNC_DIST_PARTIAL 
 RSYNC_DIST_VERSION_FILE
 RSYNC_DIST_VERSION_FILE_PREFIX
@@ -3205,6 +3209,9 @@ Syntax:
                 RSYNC_DIST_CHECKSUM
                   when set to 1, use checksums to detect changes in files.
                   see also --checksum 
+                RSYNC_DIST_BRANCH
+		  when this variable is defined, use this branch
+		  for distributing files. Seet also the --branch option.
                 RSYNC_DIST_PARTIAL
                   when set to 1, make a complete copy of the last version on the
                   server but distribute only some files from the client
