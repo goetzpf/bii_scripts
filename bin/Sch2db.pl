@@ -129,6 +129,21 @@ if ($opt_summary)
     exit;
   };  
 
+# GetOptions has a problem:
+#  if an option argument is missing, the next
+#  option is just taken as option argument. So
+#  if you call "Sch2db.pl -s -f [file]", the argument
+#  to -s is missing, to -s gets "-f" as value and
+#  "-f" is removed as option. So we test all options
+#  with argument if the argument starts with "-", if this
+#  is found, an error message is printed and the program
+#  is aborted. 
+foreach my $s ($opt_file, $opt_out, $opt_sympath)
+  { next if (!defined $s);
+    if ($s=~/^-/)
+      { die "option argument missing"; }
+  }
+
 if ($opt_dump_symfile)
   { $r_rec_defaults= {};
     $r_rec_linkable_fields= {};
@@ -774,7 +789,7 @@ sub scan_symbols
               { push @files,$p;
 	      }
 	    else
-	      { warn "no symbol data found for \"$sym\""; };
+	      { warn "Warning: no symbol data found for \"$sym\""; };
 	  };    
       };
 
