@@ -608,13 +608,15 @@ if (defined $opt_tail_changes)
 
 if (defined $opt_ls_tag)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    ls_tag(\@opt_hosts,\@opt_users,$rpath,$opt_ls_tag);
+    ls_tag(\@opt_hosts,\@opt_users,$rpath,$opt_ls_tag,
+           $opt_single_host);
     exit(0);
   }
 
 if (defined $opt_ls_version)
   { my($arg,$rpath,$log,$chg)= dir_dependant('dist');
-    ls_version(\@opt_hosts,\@opt_users,$rpath,$opt_ls_version);
+    ls_version(\@opt_hosts,\@opt_users,$rpath,$opt_ls_version,
+               $opt_single_host);
     exit(0);
   }
 
@@ -1613,7 +1615,7 @@ sub mirror
 
 sub ls_version
   { my($r_hosts,$r_users,
-       $remote_path, $version) = @_;
+       $remote_path, $version, $single_host) = @_;
 
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
     if (empty($remote_path))
@@ -1622,24 +1624,30 @@ sub ls_version
                                 'links:REMOTEPATH'));
       };                           
 
-    die "tag missing" if (empty($version));
+    die "version missing" if (empty($version));
 
     my $log= DIST_LOG;
 
     my $rcmd= "if ! test -e $log; then ".
                 "echo file $log not found ;" .
               'else ' .
-                "grep -B 3 -A 1 TAG $log | " .
-                "grep -A 4 \"VERSION: $version\" ; " . 
+	        "tr \"\\n\" \"\\r\" < $log | " .
+		"sed -e \"s/%%\\r/%%\\n/g\" | " .
+		"grep \"VERSION: $version\" | " .
+		"tr \"\\r\" \"\\n\"; " . 
                 'if test $? -eq 1; ' .
                 'then echo not found;' .
                 'fi; ' .
               'fi';
 
     my $all_rc=1;
+    if ($single_host)
+      { my @myhosts= ($r_hosts_users->[0]);
+        $r_hosts_users= \@myhosts;
+      };
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n";
+        print "\nHost:$remote_host:\n" if (!$single_host);
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1650,7 +1658,7 @@ sub ls_version
 
 sub ls_tag
   { my($r_hosts,$r_users,
-       $remote_path, $tag) = @_;
+       $remote_path, $tag, $single_host) = @_;
 
     my $r_hosts_users= ensure_host_users($r_hosts,$r_users);
     if (empty($remote_path))
@@ -1666,16 +1674,23 @@ sub ls_tag
     my $rcmd= "if ! test -e $log; then ".
                 "echo file $log not found ;" .
               'else ' .
-                "grep '\"'\"'TAG:.*" . $tag . "'\"'\"' $log -B 3 -A 1 ;" .
+	        "tr \"\\n\" \"\\r\" < $log | " .
+		"sed -e \"s/%%\\r/%%\\n/g\" | " .
+		"grep \"TAG: $tag\" | " .
+		"tr \"\\r\" \"\\n\"; " . 
                 'if test $? -eq 1; ' .
                 'then echo not found;' .
                 'fi; ' .
               'fi';
 
     my $all_rc=1;
+    if ($single_host)
+      { my @myhosts= ($r_hosts_users->[0]);
+        $r_hosts_users= \@myhosts;
+      };
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n";
+        print "\nHost:$remote_host:\n" if (!$single_host);
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
