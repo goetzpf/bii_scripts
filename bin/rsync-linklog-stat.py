@@ -61,9 +61,11 @@ Quick reference
    rsync-linklog-stat.py -c rsync-dist.config -l
 
 * show fallback recommendation::
+
    rsync-linklog-stat.py -c rsync-dist.config --fallback-info [linkname]
 
 * show information for a list of versions::
+
    rsync-linklog-stat.py -c rsync-dist.config --version-info [version1,version2...]
 
 Examples
