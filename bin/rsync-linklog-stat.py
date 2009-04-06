@@ -204,6 +204,10 @@ Reference of command line options
   print idle versions, versions that are not in 
   use and never have been.
 
+--version-info [versions]
+  show logfile information for [versions]. [versions] 
+  is a comma-separated list of version strings.
+
 -b, --brief
   brief output, with -n just show link names,
   with -v and -l just show version names
