@@ -1034,12 +1034,24 @@ def print_log_by_name(d,activated_versions,brief=False,last=None):
         if last is not None:
             if last<len(lst):
                 lst=lst[len(lst)-last:]
-        for elm in lst:
+        # printing is a bit complicated here since
+        # we want to print the star "*" only the LAST
+        # time an active version is in the list, not
+        # every time (note that the same version can
+        # appear more than once in the list). 
+        # More than one star would confuse the user.
+        lines=[]
+        for elm in reversed(lst):
             ver= elm[1]
             if ver is None:
                 ver= "REMOVED"
-            flg="*" if activated==ver else ""
-            print "%1s%23s    %s" % (flg,elm[0],ver)
+            if activated==ver:
+                lines.append("*%23s    %s" % (elm[0],ver))
+                activated=None
+            else:
+                lines.append(" %23s    %s" % (elm[0],ver))
+        for l in reversed(lines):
+            print l
 
 def versions_of_log_by_name(ndict, names):
     """returns a set of versions that were used by the given names.
