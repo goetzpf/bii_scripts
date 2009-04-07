@@ -758,9 +758,11 @@ sub   parseVars
     {
         $varName = $1;
         $parseVal = $';
-        my $varValue = $rH_Attr->{$varName};
-        $value =~ s/\$\($varName\)/$varValue/g ;
+        if (exists $rH_Attr->{$varName}) {
+          my $varValue = $rH_Attr->{$varName};
+          $value =~ s/\$\($varName\)/$varValue/g ;
 #print "\t\$($varName)\t= /'$varValue/'";
+        }
     }
 #print "\n";
     return $value;
