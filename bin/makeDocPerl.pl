@@ -206,7 +206,7 @@ sub   checkSubParameters
     {
 	my $parName = $1;
 	my $parDesc = $2;
-	print "'$parse'\n\tNAME='$parName'\n\nDESC='$parDesc'\n";
+#print "'$parse'\n\tNAME='$parName'\n\nDESC='$parDesc'\n";
 	$parName =~ /^\s*([^, ]+)/;
 	push @parameterNames, $parName;
 	$parameterString .= "-  $parName:  $parDesc\n";
