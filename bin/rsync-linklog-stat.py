@@ -592,7 +592,7 @@ def datetime_of_lsl_isodate(str):
     """
     return datetime.datetime.strptime(str,"%Y-%m-%d %H:%M")
 
-def datetime_of_lsl_shortdate(str,year=None):
+def datetime_of_lsl_nonisodate(str,year=None):
     """parse an yearless date produced from ls -l.
 
     This function parses a date in the form
@@ -608,18 +608,23 @@ def datetime_of_lsl_shortdate(str,year=None):
         a datetime.datetime object
 
     Here are some examples:
-    >>> datetime_of_lsl_shortdate("Oct  9 10:42")
+    >>> datetime_of_lsl_nonisodate("Oct  9 10:42")
     datetime.datetime(1900, 10, 9, 10, 42)
-    >>> datetime_of_lsl_shortdate("Oct  9 10:42",2005)
+    >>> datetime_of_lsl_nonisodate("Oct  9 10:42",2005)
     datetime.datetime(2005, 10, 9, 10, 42)
-    >>> datetime_of_lsl_shortdate("Oct  9 10:42b",2005)
+    >>> datetime_of_lsl_nonisodate("Oct  9 2007")
+    datetime.datetime(2007, 10, 9, 0, 0)
+    >>> datetime_of_lsl_nonisodate("Oct  9 10:42b",2005)
     Traceback (most recent call last):
        ...
-    ValueError: unconverted data remains: b
+    ValueError: time data did not match format:  data=Oct  9 10:42b  fmt=%b %d %Y
     """
-    d= datetime.datetime.strptime(str,"%b %d %H:%M")
-    if year is not None:
-        d= d.replace(year=year)
+    try:
+	d= datetime.datetime.strptime(str,"%b %d %H:%M")
+	if year is not None:
+	    d= d.replace(year=year)
+    except ValueError,e:
+	d= datetime.datetime.strptime(str,"%b %d %Y")
     return d
 
 def datetime_of_lsl_tokenlist(list,year=None):
@@ -653,6 +658,8 @@ def datetime_of_lsl_tokenlist(list,year=None):
     (datetime.datetime(1900, 10, 9, 10, 42), ['idcp13', '->'])
     >>> datetime_of_lsl_tokenlist(" Oct  9 10:42 idcp13 ->".split())
     (datetime.datetime(1900, 10, 9, 10, 42), ['idcp13', '->'])
+    >>> datetime_of_lsl_tokenlist(" Oct  9 2007 idcp13 ->".split())
+    (datetime.datetime(2007, 10, 9, 0, 0), ['idcp13', '->'])
     >>> datetime_of_lsl_tokenlist("nOct  9 10:42 idcp13 ->".split())
     Traceback (most recent call last):
        ...
@@ -666,7 +673,7 @@ def datetime_of_lsl_tokenlist(list,year=None):
         pass
     str= " ".join(list[0:3])
     try:
-        d= datetime_of_lsl_shortdate(str,year)
+        d= datetime_of_lsl_nonisodate(str,year)
         return(d, list[3:])
     except ValueError,e:
         raise ValueError, "no parsable date in list: %s" % repr(list)
@@ -720,6 +727,14 @@ def parse_lsl_line(str):
     27
     1900-10-09 13:14:00
     idcp13 -> ../dist/2006-10-09T10:33:09
+    >>> t(parse_lsl_line("lrwxr-xr-x   1 idadm    expermt        27 Oct  9 2007 13:14 idcp13 -> ../dist/2006-10-09T10:33:09"))
+    lrwxr-xr-x
+    1
+    idadm
+    expermt
+    27
+    2007-10-09 00:00:00
+    13:14 idcp13 -> ../dist/2006-10-09T10:33:09
     >>> t(parse_lsl_line("lrwxrwxrwx 1 iocadm iocadm 47 2009-03-16 14:46 idcp8 -> /opt/IOC/Releases/idcp/dist/2009-03-16T14:46:04"))
     lrwxrwxrwx
     1
@@ -855,6 +870,7 @@ def parse_lsl_distdir(lines):
             result= parse_lsl_line(l)
         except ValueError,e:
             # just ignore unparsable lines
+            # print "IGNORED:",l
             continue
         name= result[-1]
         try:
