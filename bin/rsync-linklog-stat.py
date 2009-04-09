@@ -272,6 +272,13 @@ import re
 # version of the program:
 my_version= "1.0"
 
+def Cnt(lst):
+    s= 0
+    for l in lst:
+	if l:
+	    s+= 1
+    return s
+
 def system(cmd, catch_stdout=True):
     """execute a command.
     
@@ -1487,7 +1494,7 @@ def process_file(f,options):
         options.last=3
         options.filter_names= options.fallback_info
     filter_existent= (options.filter_existent or options.call) and \
-                     (not options.filter_ignexistent)
+                     (not (options.filter_ignexistent or options.filter_nonexistent))
     distdir_info= (options.distdir or filter_existent or
                    options.filter_nonexistent or options.idle)
     if options.call:
@@ -1772,7 +1779,7 @@ def main():
     if options.summary:
         print_summary()
         sys.exit(0)
-
+ 
     if options.doc:
         print_doc()
         sys.exit(0)
@@ -1780,6 +1787,17 @@ def main():
     if options.test:
         _test()
         sys.exit(0)
+
+    cmds= [options.names, options.versions, options.lifetimes, 
+           options.idle, (options.version_info is not None)]
+    vstr="--names,--versions,--lifetimes,--idle,--version-info"
+
+    cmdno= Cnt(cmds)
+    if cmdno==0:
+	sys.exit("a command is missing, (%s)" % vstr)
+
+    if cmdno>1:
+	sys.exit("only one command (%s) is allowed at a time" % vstr)
 
     if options.version_info:
         version_info(options)
