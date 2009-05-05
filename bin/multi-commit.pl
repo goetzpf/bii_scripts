@@ -45,13 +45,15 @@ use Text::ParseWords;
 use constant { 
   CVS   => 1,
   SVN   => 2,
-  DARCS => 3 };
+  DARCS => 3,
+  HG    => 4
+};
 
 use vars qw($opt_help $opt_summary $opt_man 
             $opt_commit
 	    $opt_generate
 	    $opt_svn_log_gen
-            $opt_darcs $opt_cvs $opt_svn
+            $opt_darcs $opt_cvs $opt_svn $opt_hg
 	    $opt_dry_run);
 
 # the following options are also recognized without
@@ -69,9 +71,9 @@ my $mail_domain= "helmholtz-berlin.de";
 my $sc_version= "1.0";
 
 my $sc_name= $FindBin::Script;
-my $sc_summary= "perform multiple commits (cvs|svn|darcs) with a prepared command-file"; 
+my $sc_summary= "perform multiple commits (cvs|svn|darcs|hg) with a prepared command-file"; 
 my $sc_author= "Goetz Pfeiffer";
-my $sc_year= "2007";
+my $sc_year= "2009";
 
 my $debug= 0; # global debug-switch
 
@@ -86,7 +88,7 @@ preproc_args();
 
 if (!GetOptions("help|h","summary","man","commit=s","generate",
                 "svn_log_gen|svn-log-gen=s",
-                "dry_run|dry-run","darcs","cvs","svn"
+                "dry_run|dry-run","darcs","cvs","svn", "hg"
                 ))
   { die "parameter error!\n"; };
 
@@ -116,6 +118,12 @@ if (defined $opt_darcs)
   { if (defined $vcs)
       { die "contradicting options\n"; };
     $vcs= DARCS;
+  };
+
+if (defined $opt_hg)
+  { if (defined $vcs)
+      { die "contradicting options\n"; };
+    $vcs= HG;
   };
 
 if (!defined $vcs)
@@ -158,6 +166,12 @@ sub scan_filename
       }
     elsif  ($vcs == DARCS)
       { if ($line=~/^[A-Z]\s+(.*?)\s*[\+\-0-9 ]*$/) 
+	  { # possibly a filename
+	    return($1);
+	  };
+      }
+    elsif  ($vcs == HG)
+      { if ($line=~/^[A-Z]\s+(.*?)\s*$/) 
 	  { # possibly a filename
 	    return($1);
 	  };
@@ -328,10 +342,6 @@ sub scan_svn_log
       { print_msg(\@files,\@comments); }     	        
   }	
 
-
-
-
-
 sub build_comment
   { my($r_comment, $r_file_comments, $r_files)= @_;
 
@@ -368,6 +378,8 @@ sub generate_file_cmd
               "sed -e 's/[+-][0-9][0-9]*//g' | " .
 	      "sort | uniq";
       }
+    elsif ($vcs eq HG)
+      { $cmd= "hg status"; }
     else
       { die "assertion"; };
     return($cmd);
@@ -399,6 +411,8 @@ sub commit_cmd
       { my $mail= email(); 
         $cmd= "darcs record -A $mail -a --logfile=$temp_file $files"; 
       }
+    elsif ($vcs eq HG)
+      { $cmd= "hg commit -l $temp_file $files"; }
     else
       { die "assertion"; };
     return($cmd);
@@ -519,6 +533,7 @@ Syntax:
     --dry-run: just simulate the action
     --svn  : use subversion (the default)
     --darcs: use darcs 
+    --hg   : use mercurial 
     --cvs  : use cvs
 
 Format of a commit-file:
