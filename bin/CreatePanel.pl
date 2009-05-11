@@ -590,14 +590,18 @@ sub    layoutGrid
 }
 
 sub   layoutDbDbg
-{   my($r_db,$panelWidth,$rH_Subst)=@_;
+{   my($r_db,$rH_Subst)=@_;
 
+    my $panelWidth = $rH_Subst->{PANELWIDTH};
     my $prEdl;
     my $panelHeight;
     my ($recHeadContent, $widgetWidth, $recHeadHight) = getDisplay('recHead.template');
     my ($itemContent, $itemWidth, $itemHight) = getDisplay('item.template');
     
 #print "layoutDbDbg(r_db,$panelWidth,subst), $recHeadHight, $itemHight attr=", Dumper($rH_Subst);
+
+    # avoid fields from recHead
+    my %recHeadkey= ( 'NAME'=>1,'STAT'=>1,'VAL'=>1,'DESC'=>1,'DTYP'=>1,'RTYP'=>1,'DISV'=>1,'TRPO'=>1,'UDF'=>1);	
 
     $widgetWidth = $itemWidth if $itemWidth > $widgetWidth;
     my $colHight;
@@ -620,6 +624,7 @@ sub   layoutDbDbg
 	
 	foreach (@$rA_fields)
 	{
+	    next if( defined $recHeadkey{$_});
 	    $rH_Subst->{FIELD} = $_;
 #print "\tFIELD: $_, y=$yPos, col=$colHight y=",$yPos+$colHight,"\t";
 	    my $edl = setWidget($itemContent,$widgetWidth,$itemHight,$rH_Subst,undef,$xPos,$yPos+$colHight);
@@ -792,7 +797,8 @@ sub   parseVars
 # PV="DEVICE:sig"                 | controlPv="$(PV):sig"    | controlPv="DEVICE:sig:sig"
 # 
 sub   parsePV
-{   my ($parseVal,$rH_Attr) = @_;
+{   my ($parseVal,       # the .edl widget
+    	$rH_Attr) = @_;  # the attributes
 
     my $pv = $rH_Attr->{PV};
 # support the old NAME SNAME style in substitutions files for creation of a PV
