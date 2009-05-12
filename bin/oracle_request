@@ -165,6 +165,7 @@ proc parse_requests {} {
 	  puts stderr "request failed!"
 	  puts stderr "ErrNo: [message $cursor rc]"
 	  eval puts stderr [message $cursor error]
+          exit 1;
 	} else {
 	  if {$interactive } {
 	    if { $outfile == "stdout" } {
@@ -253,6 +254,7 @@ if { $argc > 0 } {
       if [catch {set infile [open $i "r"]}] {
 	puts stderr "cannot open '$i' for input"
 	usage
+        exit 1
       } else {
 	parse_requests
 	close $infile
