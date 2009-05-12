@@ -107,6 +107,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(
   std_create_subst_and_req
+  create_subst_and_req
   std_create_subst
   std_open_target
   std_open_target_with_path
@@ -218,23 +219,46 @@ sub with_dbi_handle (&@) {
   $dbh->disconnect;
 }
 
-=item std_dbi_connect_args
+=item dbi_connect_args
 
-Standard arguments for DBI->connect, i.e.
-
-    ("dbi:Oracle:$ENV{ORACLE_SID}",
-    "guest",
-    "bessyguest",
-    {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0})
+Arguments for DBI->connect, parameterized by the database instance.
 
 =cut
 
-use constant std_dbi_connect_args => (
+use constant mirror_dbi_connect_args => (
     "dbi:Oracle:mirror",
     "guest",
     "bessyguest",
     {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0}
   );
+
+use constant devices_dbi_connect_args => (
+    "dbi:Oracle:devices",
+    "anonymous",
+    "bessyguest",
+    {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0}
+  );
+
+sub dbi_connect_args {
+  my ($instance) = @_;
+  if ($instance eq "mirror") {
+    return mirror_dbi_connect_args;
+  } elsif ($instance eq "devices") {
+    return devices_dbi_connect_args;
+  } else {
+    die "unknown database instance '$instance'"
+  }
+}
+
+=item std_dbi_connect_args
+
+Standard arguments for DBI->connect, using database instance "devices".
+
+=cut
+
+sub std_dbi_connect_args () {
+  return dbi_connect_args("devices");
+}
 
 =item std_create_subst_and_req STRING SUB SUB
 
@@ -254,7 +278,11 @@ The passed subroutines in turn both get passed the following four arguments:
 =cut
 
 sub std_create_subst_and_req {
-  my ($arg,$write_subst,$write_req) = @_;
+  create_subst_and_req(@_,std_dbi_connect_args);
+}
+
+sub create_subst_and_req {
+  my ($arg,$write_subst,$write_req,@connect_args) = @_;
 
   my ($app,$ioc) = app_ioc($arg);
 
@@ -268,7 +296,7 @@ sub std_create_subst_and_req {
       my $fh = shift;
       $write_req->($app,$ioc,$fh,$dbh);
     } $app,$ioc,"req" if defined $write_req;
-  } std_dbi_connect_args;
+  } @connect_args;
 }
 
 =item std_create_subst STRING SUB
