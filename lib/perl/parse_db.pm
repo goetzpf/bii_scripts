@@ -60,6 +60,31 @@ our $quoted              = qr/\"(.*?)(?<!\\)\"/;
 our $unquoted_rec_name   = qr/([\w\-:\[\]<>;]+)/;
 our $unquoted_field_name = qr/([\w\-\+:\.\[\]<>;]+)/;
 
+my $template_def= qr/\G
+                      template
+                      $space_or_comment
+                               \(
+                                   $space_or_comment
+                               \)
+                              $space_or_comment
+                              \{
+                      /x;
+
+my $port_def= qr/\G
+                      $space_or_comment
+                      port
+                      $space_or_comment
+                           \(
+                              $space_or_comment
+                              (?:$quoted_word|$unquoted_word)
+                              $space_or_comment
+                              ,
+                              $space_or_comment
+                              (?:$quoted|$unquoted_field_name)
+                              $space_or_comment
+                           \)
+                      /x;
+
 my $record_head= qr/\G
                       record
                       $space_or_comment
@@ -130,7 +155,12 @@ sub parse
 
             last if ($db=~/\G[\s\r\n]*$/gsc);
 
-            if ($db=~ /$record_head/ogscx)
+            if ($db=~ /$template_def/ogscx)
+              { 
+                $level=2;
+                next;
+              }
+            elsif ($db=~ /$record_head/ogscx)
               { 
                 my $type= (empty($2)) ? $1 : $2;
                 my $name= (empty($4)) ? $3 : $4;
@@ -189,6 +219,21 @@ sub parse
 
                 $r_this_record_fields->{$field}= $value;
                 push @{$r_this_record->{'ORDERDFIELDS'}}, $field if ($storeType eq 'asArray');
+		next;
+              };
+            parse_error(__LINE__,\$db,pos($db),$filename);
+          };
+        if ($level==2)
+          { 
+            if ($db=~ /\G
+                      $space_or_comment
+                      \}/ogscx)
+              { $level=0;
+                next;
+              };
+
+            if ($db=~ /$port_def/ogscx)
+              { 
 		next;
               };
             parse_error(__LINE__,\$db,pos($db),$filename);
