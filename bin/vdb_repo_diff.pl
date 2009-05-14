@@ -43,9 +43,13 @@ use File::Spec;
 
 use vars qw($opt_help 
             $opt_summary 
+	    $opt_cvs
 	    $opt_svn
 	    $opt_hg
-	    $opt_revision $opt_revision2
+	    $opt_darcs
+	    @opt_revision
+	    @opt_match
+	    @opt_patch
 	    $opt_textmode);
 
 
@@ -64,8 +68,10 @@ my $tmpdir= "/tmp";
 #Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary",
-                "svn","hg",
-                "revision|r=s","revision2|s=s",
+                "cvs","svn","hg","darcs",
+                "revision|r=s@",
+		"match=s@",
+		"patch=s@",
 		"textmode|t",
                 ))
   { die "parameter error!\n"; };
@@ -82,6 +88,8 @@ if ($opt_summary)
 
 # ------------------------------------------------
 
+check_version_control_opt();
+
 my $filename= shift(@ARGV);
 
 if (!defined $filename)
@@ -89,15 +97,21 @@ if (!defined $filename)
 
 print "file $filename:\ncomparing ";
 
-my $file1= process($filename,$opt_revision,1);
+if (defined $opt_darcs)
+  { $opt_revision[0]= process_darcs_revision($opt_revision[0], 
+                                             $opt_match[0],$opt_patch[0]);
+    $opt_revision[1]= process_darcs_revision($opt_revision[1],
+                                             $opt_match[1],$opt_patch[1]);
+  }
+
+my $file1= process($filename,$opt_revision[0],1);
 
 if (!defined $file1)
   { die; };
 
 print " against ";
 
-$opt_revision2= "local" if (!defined $opt_revision2);
-my $file2= process($filename,$opt_revision2,2);
+my $file2= process($filename,defined($opt_revision[1]) ? $opt_revision[1] : "local",2);
 
 if (!defined $file2)
   { unlink($file1);  
@@ -125,6 +139,34 @@ sub basename
     return($1);
   }
 
+sub check_version_control_opt
+  { my $no= 0;
+    if ($opt_cvs)
+      { $no++; };
+    if ($opt_svn)
+      { $no++; };
+    if ($opt_hg)
+      { $no++; };
+    if ($opt_darcs)
+      { $no++; };
+    if ($no==0)
+      { die "error: version control system must be specified\n"; }
+    if ($no>1)
+      { die "error: more than one version control system is specified\n"; }
+  }
+
+sub process_darcs_revision
+  { my($rev,$match,$patch)= @_;
+   
+    if (defined $match)
+      { return ["match",$match]; }
+    if (defined $patch)
+      { return ["patch",$patch]; }
+    if (defined $rev)
+      { return ["patch",$rev]; }
+    return;
+  }
+
 sub process
   { my($filename,$rev,$no)= @_;
 
@@ -136,14 +178,25 @@ sub process
       { if (!defined $rev)
           { print "trunk"; }
 	else
-	  { print "revision $rev";
+	  { if (ref($rev) eq "")
+	      { print "revision $rev"; }
+	    else
+	      { if (!defined $rev->[1])
+	          { print "trunk"; }
+		else
+		  { print $rev->[0],": ",$rev->[1]; }
+	      }
 	  };
         if (defined ($opt_svn))
 	  { return(svn_process($filename,$rev,$no)); }
         elsif (defined ($opt_hg))
 	  { return(hg_process($filename,$rev,$no)); }
-        else
+        elsif (defined ($opt_darcs))
+	  { return(darcs_process($filename,$rev,$no)); }
+        elsif (defined($opt_cvs))
 	  { return(cvs_process($filename,$rev,$no)); }
+	else
+	  { die "assertion"; }
       }
   }
 
@@ -211,6 +264,28 @@ sub hg_process
     return($base);
   }
 
+sub darcs_process
+  { my($filename,$rev,$no)= @_;
+    my $cmd;
+    my ($type,$rev_exp)= @$rev;
+    my $opt;
+
+    if (!defined $rev_exp)
+      { $opt= ""; }
+    elsif ($type eq "match")
+      { $opt= "--match \"$rev_exp\""; }
+    else
+      { $opt= "--patch \"$rev_exp\""; }
+      
+    my $base= basename($filename) . ".$no.db";
+    $base= File::Spec->catfile($tmpdir,$base);
+
+    if (!sys("darcs show contents $opt $filename 2> /dev/null | " .
+             "dbfilter.pl -e > $base"))
+      { return; };
+    return($base);
+  }
+
 sub show_diff
   { my($f1,$f2)= @_;
 
@@ -252,17 +327,47 @@ sub help
 $l1
 $l2
 
+graphical compare of vdb files with or within a repository
+
 Syntax:
   $sc_name {options} [file]
 
-  options:
+  generic options:
     -h: help
     --summary: give a summary of the script
-    --svn: use subversion instead of cvs
-    --hg: use mercurial instead of cvs
-    -r [revision] (mandatory)
-    -s [2nd revision] (optional)
     -t --textmode : show differences as text
+
+  selection of version control system:
+    --cvs: use cvs
+    --svn: use subversion 
+    --hg: use mercurial 
+    --darcs: use darcs 
+
+  specification of revisions (or "match/patch" with darcs):
+
+    if no revisions are specified, compare the working copy
+    with the trunk (top version in the repository)
+
+    If a single revision is specified, compare the working copy
+    with that version of the repository:
+
+    -r [revision]
+
+    or with darcs:
+    -r [patch-string]
+    --patch [patch-string]
+    --match [match-string]
+
+    If two revisions are specified, compare these two 
+    revisions of the repository:
+
+    -r [revision1] -r [revision2]
+
+    or with darcs:
+    -r [patch-string] -r [patch-string2]
+    --patch [patch-string] --patch [patch-string2]
+    --match [match-string] --match [match-string2]
+
 END
   }
 
