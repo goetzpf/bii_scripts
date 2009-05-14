@@ -227,7 +227,8 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	pcomp.pl \
 	pfind.pl \
 	Sch2db.pl \
-	sch_cvs_diff.pl \
+	sch_repo_diff.pl \
+	vdb_repo_diff.pl \
 	set_ioc_tsrv.pl \
 	subst2exp.pl \
 	substprint.pl
