@@ -54,6 +54,7 @@ our $treat_double_records=1;
 our $space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
 
 our $quoted_word         = qr/\"(\w+)\"/;
+our $quoted_filename     = qr/\"([\w\.]+)\"/;
 our $unquoted_word       = qr/(\w+)/;
 
 our $quoted              = qr/\"(.*?)(?<!\\)\"/;
@@ -73,6 +74,37 @@ my $template_def= qr/\G
 my $port_def= qr/\G
                       $space_or_comment
                       port
+                      $space_or_comment
+                           \(
+                              $space_or_comment
+                              (?:$quoted_word|$unquoted_word)
+                              $space_or_comment
+                              ,
+                              $space_or_comment
+                              (?:$quoted|$unquoted_field_name)
+                              $space_or_comment
+                           \)
+                      /x;
+
+my $expand_def= qr/\G
+                      expand
+                      $space_or_comment
+                               \(
+                                   $space_or_comment
+                                   $quoted_filename
+                                   $space_or_comment
+                                   ,
+                                   $space_or_comment
+                                   (?:$quoted_word|$unquoted_word)
+                                   $space_or_comment
+                               \)
+                              $space_or_comment
+                              \{
+                      /x;
+
+my $macro_def= qr/\G
+                      $space_or_comment
+                      macro
                       $space_or_comment
                            \(
                               $space_or_comment
@@ -160,6 +192,11 @@ sub parse
                 $level=2;
                 next;
               }
+            if ($db=~ /$expand_def/ogscx)
+              { 
+                $level=3;
+                next;
+              }
             elsif ($db=~ /$record_head/ogscx)
               { 
                 my $type= (empty($2)) ? $1 : $2;
@@ -233,6 +270,21 @@ sub parse
               };
 
             if ($db=~ /$port_def/ogscx)
+              { 
+		next;
+              };
+            parse_error(__LINE__,\$db,pos($db),$filename);
+          };
+        if ($level==3)
+          { 
+            if ($db=~ /\G
+                      $space_or_comment
+                      \}/ogscx)
+              { $level=0;
+                next;
+              };
+
+            if ($db=~ /$macro_def/ogscx)
               { 
 		next;
               };
