@@ -44,6 +44,7 @@ use File::Spec;
 use vars qw($opt_help 
             $opt_summary 
 	    $opt_svn
+	    $opt_hg
 	    $opt_revision $opt_revision2
 	    $opt_textmode);
 
@@ -53,7 +54,7 @@ my $sc_version= "1.0";
 my $sc_name= $FindBin::Script;
 my $sc_summary= "compare a capfast file against the repository"; 
 my $sc_author= "Goetz Pfeiffer";
-my $sc_year= "2006";
+my $sc_year= "2009";
 
 my $debug= 0; # global debug-switch
 
@@ -64,7 +65,7 @@ my $sch2db= "Sch2db.pl";
 #Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary",
-                "svn",
+                "svn","hg",
                 "revision|r=s","revision2|s=s",
 		"textmode|t",
                 ))
@@ -146,10 +147,12 @@ sub process
 	else
 	  { print "revision $rev";
 	  };
-        if (!defined ($opt_svn))
-	  { return(cvs_process($filename,$rev,$no)); }
-	else
+        if (defined ($opt_svn))
 	  { return(svn_process($filename,$rev,$no)); }
+        elsif (defined ($opt_hg))
+	  { return(hg_process($filename,$rev,$no)); }
+        else
+	  { return(cvs_process($filename,$rev,$no)); }
       }
   }
 
@@ -195,6 +198,23 @@ sub svn_process
     $base= File::Spec->catfile($tmpdir,$base);
 
     if (!sys("svn cat -r $rev $filename 2> /dev/null | " .
+             "$sch2db -n -o $base"))
+      { return; };
+    return($base);
+  }
+
+sub hg_process
+  { my($filename,$rev,$no)= @_;
+    my $cmd;
+
+    if (!defined $rev)
+      { $rev= 'tip'; }; 
+    # else: leave revision number 
+
+    my $base= basename($filename) . ".$no.db";
+    $base= File::Spec->catfile($tmpdir,$base);
+
+    if (!sys("hg cat -r $rev $filename 2> /dev/null | " .
              "$sch2db -n -o $base"))
       { return; };
     return($base);
@@ -248,6 +268,7 @@ Syntax:
     -h: help
     --summary: give a summary of the script
     --svn: use subversion instead of cvs
+    --hg: use mercurial instead of cvs
     -r [cvs-revision] (mandatory)
     -s [2nd cvs revision] (optional)
     -t --textmode : show differences as text
