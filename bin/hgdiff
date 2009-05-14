@@ -1,0 +1,87 @@
+#!/bin/sh
+
+show_help() {
+         echo 'hgdiff : graphical diff for mercurial'
+         echo 'usage:'
+         echo '    -h        : this help'
+	 echo '    -r [rev]  : show changes of given changeset'
+	 echo '    -k        : use kompare instead of tkdiff'
+	 echo '    <nothing> : show changes in working copy'
+	 exit 1
+}
+
+
+TEMP=`getopt -o hkr: \
+     -n 'hgtd' -- "$@"`
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+while true ; do
+        case "$1" in
+                -h) REVISION=$2; show_help;;
+                -r) REVISION=$2; shift 2 ;;
+                -k) KOMPARE="yes"; shift ;;
+                --) shift ; break ;;
+                *) echo "Internal error!" ; exit 1 ;;
+        esac
+done
+
+FILELIST=$@
+
+if [ $# -ne 1 ] ; then
+LOOP="yes"
+else
+FILE=$@
+fi
+
+# echo "REVISION: $REVISION"
+# echo "FILELIST: $FILELIST"
+# echo "NO: $#"
+# echo "FILE: $FILE"
+# echo "LOOP: $LOOP"
+
+if [ -n "$KOMPARE" ] ; then
+  if [ -n "$REVISION" ] ; then
+    REVOPT="-c $REVISION"
+  fi
+  hg diff -b $REVOPT $FILELIST | kompare -o -
+  exit 0
+fi
+
+if [ -n "$REVISION" ] ; then
+FILELIST=`hg log -r $REVISION -v | perl -ne 'next if (!s/^files:\s+//);$_.="\n";s/\s+/\n/g;print;'`
+PARENT=`hg parents -r $REVISION | perl -ne 'next if (!s/^changeset:\s+(\d+).*/$1/);print;'`
+fi
+
+# no filelist given, take list of changed files from hg
+if [ -z "$FILELIST" ] ; then
+FILELIST=`hg status -n`
+ROOT=`hg root`/
+fi
+
+while [ 1 ] ; do
+if [ -n "$LOOP" ] ; then
+  FILE=`zenity --list --column="File to show diffs for" $FILELIST`
+  if [ -z "$FILE" ] ; then
+	  exit 0
+  fi
+fi
+if [ -z "$REVISION" ] ; then
+echo hg cat $FILE > /tmp/hg.orig.$$
+hg cat $ROOT$FILE > /tmp/hg.orig.$$
+echo tkdiff /tmp/hg.orig.$$ $ROOT$FILE
+tkdiff /tmp/hg.orig.$$ $ROOT$FILE
+rm -f /tmp/hg.orig.$$
+else
+hg cat -r $PARENT $FILE > /tmp/hg.orig1.$$
+hg cat -r $REVISION $FILE > /tmp/hg.orig2.$$
+tkdiff /tmp/hg.orig1.$$ /tmp/hg.orig2.$$
+rm -f /tmp/hg.orig1.$$ /tmp/hg.orig2.$$
+fi
+if [ -z "$LOOP" ] ; then
+  exit 0
+fi
+done

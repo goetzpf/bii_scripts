@@ -204,7 +204,8 @@ PLAINTXT_PL_SCRIPT_LIST= \
 PLAINTXT_H_SCRIPT_LIST= \
 	psh \
 	dbdiff \
-	substdiff
+	substdiff \
+        hgdiff
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.p -h 2>&1; true)
