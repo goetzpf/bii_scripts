@@ -778,7 +778,7 @@ sub   parseVars
 
     my $parseVal = $value;
     my $varName;
-print "\n******VALUE:\n$value******\n", Dumper($rH_Attr);
+#print "\n******VALUE:\n$value******\n", Dumper($rH_Attr);
     my $loops = 0;
     do
     {
@@ -794,7 +794,7 @@ print "\n******VALUE:\n$value******\n", Dumper($rH_Attr);
 	      $vars{$varName} = $varValue
             }
 	}
-	print "Loop: $loops, found: (",join(',',keys(%vars)),")\n";
+	#print "Loop: $loops, found: (",join(',',keys(%vars)),")\n";
 	foreach my $varName(keys(%vars))
 	{
             my $varValue = $vars{$varName};
@@ -802,7 +802,7 @@ print "\n******VALUE:\n$value******\n", Dumper($rH_Attr);
 	}
     }
     while($parseVal ne $value);
-print "\n*****New Value\n$value\n******\n";
+#print "\n*****New Value\n$value\n******\n";
     return $value;
 }
 
