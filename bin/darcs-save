@@ -1,4 +1,6 @@
 #!/bin/sh
+[ "$DARCS_SAVE" = "NO" ] && exit
+
 dest=.darcs-restore
 test -d $dest || mkdir $dest
 cp _darcs/prefs/defaultrepo $dest
