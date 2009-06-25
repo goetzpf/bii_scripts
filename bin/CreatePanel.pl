@@ -778,18 +778,31 @@ sub   parseVars
 
     my $parseVal = $value;
     my $varName;
-#print "\n******VALUE:\n$value******\n", Dumper($rH_Attr);
-    while( $parseVal =~ /\$\((.*?)\)/ ) # check for all occuring varNames: $(VARNAME)
+print "\n******VALUE:\n$value******\n", Dumper($rH_Attr);
+    my $loops = 0;
+    do
     {
-        $varName = $1;
-        $parseVal = $';
-        if (exists $rH_Attr->{$varName}) {
-          my $varValue = $rH_Attr->{$varName};
-          $value =~ s/\$\($varName\)/$varValue/g ;
-#print "\t\$($varName)\t= /'$varValue/'";
-        }
+	$loops += 1;
+	$parseVal = $value;
+	my %vars = ();
+	while( $parseVal =~ /\$\((.*?)\)/ ) # check for all occuring varNames: $(VARNAME)
+	{
+            $varName = $1;
+            $parseVal = $';
+            if (exists $rH_Attr->{$varName}) {
+              my $varValue = $rH_Attr->{$varName};
+	      $vars{$varName} = $varValue
+            }
+	}
+	print "Loop: $loops, found: (",join(',',keys(%vars)),")\n";
+	foreach my $varName(keys(%vars))
+	{
+            my $varValue = $vars{$varName};
+	    $value =~ s/\$\($varName\)/$varValue/g ;
+	}
     }
-#print "\n";
+    while($parseVal ne $value);
+print "\n*****New Value\n$value\n******\n";
     return $value;
 }
 
