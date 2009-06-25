@@ -339,7 +339,7 @@ sub   layoutLine
     return ($prEdl,$panelWidth, $yPos);
 }    
 
-##  Layout by table
+##  Layout by column
 #  ........................
 #
 #  Widget1 | Widget4 | Widget7 
@@ -891,7 +891,7 @@ sub   parsePV
 # *  IMPORTANT  : the function removes the keys 'SCALE' and 'WIDTH' from the substitutions hash, because this 
 # parameters are of no further use in the widget, but would occur in the .mfp macro substitutions!
 #
-sub getWidth
+sub   getWidth
 {   my ($widgetWidth,	# original widget width
     	$rH_Attr) = @_; # substitutions - look for WIDTH and SCALE
 #print "getWidth($widgetWidth),",Dumper($rH_Attr);
@@ -924,13 +924,13 @@ sub getWidth
     delete($rH_Attr->{SCALE});
     delete($rH_Attr->{WIDTH});
 
-## *  Return:  '($scaledWidth, $xScale)' the scaled width of the widget and the scale factor to be used otherwise.
+# *  Return:  '($scaledWidth, $xScale)' the scaled width of the widget and the scale factor to be used otherwise.
 #
     return ($scaledWidth, $xScale)
 }
 
-## Place the widget
-sub setWidget
+# Place the widget
+sub   setWidget
 {   my ($parse,     	    # raw widget content 
     	$xDispWIDTH,	    # scaled widget width
 	$yDispSize, 	    # widget height
@@ -1025,7 +1025,7 @@ sub setWidget
 # substitute all other variables
     	$edl = parseVars($edl,$rH_Attr);
     }
-## *  Return  :
+# *  Return  :
 #
 #  - '$edl' the content of the edl file with correct values for x- y-positions and substituted variables.
 #  - what 'setAdlWidget' returns for 'type=adl'.
@@ -1034,8 +1034,12 @@ sub setWidget
 }
 
 ## Create the title is option '-title' is set
+#  ==========================================
 #
-sub setTitle
+#  The '-title' option may be a widget or a string, that is put to the generic 'text' widget.
+#
+#
+sub   setTitle
 {   my($rH_options,$xPos,$yPos)=@_;
 
 #print "setTitle($xPos,$yPos)",Dumper($rH_options);
@@ -1075,14 +1079,14 @@ sub setTitle
     my $edl = setWidget($titleContent,$titleWidth,$titleHight,\%panelSubst,$xScale,$xPos,$yPos);
     die "Error in setTitle() -> setWidget($titleContent,$titleWidth,$titleHight,panelSubst,$xScale,$xPos,$yPos)" unless defined $edl;
 
-## *  Return  : '($edl,$xPos,$titleHight)' The $edl content and the start position for the panel content
+# *  Return  : '($edl,$xPos,$titleHight)' The $edl content and the start position for the panel content
 #
     return ($edl,$xPos,$titleHight);
 }
 
-## Create .mfp output for '-type adl' option
+# Create .mfp output for '-type adl' option
 #
-sub setAdlWidget
+sub   setAdlWidget
 {   my ($widgetFileName,    # widget file name
     	$widgetWidth,	    # widget width
 	$widgetHeight,	    # widget height
@@ -1187,7 +1191,7 @@ sub   cmpFunc
     $a->{$opt_sort} <=> $a->{$opt_sort} 
 }
 
-## Regexp token parser
+# Regexp token parser
 #  ===================
 #
 #  The Tokens are processed in the defined order.
@@ -1197,7 +1201,7 @@ sub   cmpFunc
 #  - One element: The regexp to rekognize the token
 #  - Three elements: Token begin , Token content, Token limiter
 #
-sub parse
+sub   parse
 {   my ($parse, $rA_tokDefList,$mode)=@_;
     
     my $errStr;
@@ -1275,13 +1279,13 @@ sub parse
     return \@tokList;
 }
 
-## Parse string for name value pairs.
+# Parse string for name value pairs.
 #
 #  * Syntax: NAME="VALUE",NAME2="VALUE2",...
 #
 #  *  Return  : Hash = {NAME=>"VALUE",NAME2=>"VALUE2"}
 #
-sub getSubstitutions
+sub   getSubstitutions
 {   my($parse) = @_;
 
     my @token = (
