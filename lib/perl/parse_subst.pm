@@ -58,7 +58,7 @@ my $RX_quoted_word         = qr/\"(\w+)\"/;
 my $RX_unquoted_word       = qr/(\w+)/;
 
 my $RX_quoted              = qr/\"(.*?)(?<!\\)\"/;
-my $RX_unquoted_filename   = qr/([^\/\s\{\}]+)/;
+my $RX_unquoted_filename   = qr/([^\s\{\}]+)/;
 
 my $RX_unquoted_value      = qr/([^\s\{\},]+)/;
 
