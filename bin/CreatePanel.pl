@@ -18,6 +18,8 @@
 #      -y pixel      		        Y-Position of the panel (default=100)
 #      -w pixel       		        Panel width (default=900)
 #      -I searchPath                    Search paht(s) for panel widgets
+#      -i                               Add ., .., $EPICS_DISPLAY_PATH','$EDMDATAFILES' 
+#      	    	    	    	        variable to search path(s) for panel widgets
 #      -M                               Create make dependencies
 #      -border				extra space to the panel border left,right,bottom in pixel (layout grid only)
 #      -layout line|xy|grid|table       placement of the widgets, (default = by line) 
@@ -29,6 +31,11 @@
 #      -v    	    	    	        verbose
 #  
 #
+# History:
+# ========
+# 
+# *  06/2009: New option '-i' to add $EPICS_DISPLAY_PATH to search path for widgets. -I paths are searced first
+# 
 # Overview
 # ========
 # 
@@ -88,7 +95,7 @@
     use Data::Dumper;
     $|=1;   # print unbuffred
 
-    our($opt_v,$opt_x,$opt_y,$opt_M) = (0, 100, 100,"");
+    our($opt_v,$opt_i,$opt_x,$opt_y,$opt_M) = (0, undef, 100, 100,"");
     my $type = "edl";
     my $title;
     my $layout;
@@ -110,7 +117,9 @@
       -x pixel      		       X-Position of the panel (default=100)
       -y pixel      		       Y-Position of the panel (default=100)
       -w pixel       		       Panel width (default=900)
-      -I searchPath                    Search paht(s) for panel widgets
+      -I searchPath                    Search path(s) for panel widgets
+      -i                               Add ., .., \$EPICS_DISPLAY_PATH','\$EDMDATAFILES' 
+      	    	    	    	       variable to search path(s) for panel widgets
       -M                               Create make dependencies
       -layout xy | grid | table        placement of the widgets,(default: by Line) 
       -border			       extra space to the panel border left,right,
@@ -126,7 +135,8 @@
     my %dependencies;
     my %options;    # store some options to check for it in the layout... functions.
     
-    die unless GetOptions("M","I=s"=>\@searchDlPath,"v","x=i","w=i"=>\$panelWidth,"y=i",
+    Getopt::Long::config(qw(no_ignore_case));
+    die unless GetOptions("M","i","I=s"=>\@searchDlPath,"v","x=i","w=i"=>\$panelWidth,"y=i",
     	    	    	  "type=s"=>\$type,"title=s"=>\$title,"layout=s"=>\$layout, 
 			  "subst=s"=>\$substPar,"sort=s"=>\$opt_sort,"baseW=s"=>\$baseW,
 			  "border=i"=>\$border);
@@ -661,11 +671,21 @@ sub   getTemplate
     { $widgetName = $itemName;
     }
 
+    if(defined $opt_i)
+    {
+    	
+	my @epicsDisplPath = ('.', '..', split(':',$ENV{EPICS_DISPLAY_PATH}));
+	push @searchDlPath,@epicsDisplPath;
+    	my @edmDataPath = split(':',$ENV{EDMDATAFILES});
+	push @searchDlPath,@edmDataPath;
+    }
+#print "opt_i= '$opt_i' searchDlPath:\n\t'",join("'\n\t'",@searchDlPath),"'\n";
     foreach(@searchDlPath)
     {
 	if(-e "$_/$widgetName")
 	{
 	    $widgetPath = "$_/$widgetName";
+    	    print "found widget: $_/$widgetName\n" if $opt_v == 1;
 	    last;
 	}
     }
