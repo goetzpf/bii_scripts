@@ -784,11 +784,12 @@ sub   parseVars
     {
 	$loops += 1;
 	$parseVal = $value;
+        my $srchParseVal = $parseVal;
 	my %vars = ();
-	while( $parseVal =~ /\$\((.*?)\)/ ) # check for all occuring varNames: $(VARNAME)
+	while( $srchParseVal =~ /\$\((.*?)\)/) # check for all occuring varNames: $(VARNAME)
 	{
             $varName = $1;
-            $parseVal = $';
+            $srchParseVal = $';
             if (exists $rH_Attr->{$varName}) {
               my $varValue = $rH_Attr->{$varName};
 	      $vars{$varName} = $varValue
