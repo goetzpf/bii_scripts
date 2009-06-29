@@ -257,7 +257,8 @@ PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py rdump.py putil.py
 
 # scripts that have embedded documentation that can be HTML converted 
 # with makeDocTxt
-DOCTXT_SCRIPT_LIST= CreatePanel.pl 	\
+DOCTXT_SCRIPT_LIST= makeDocTxt.pl \
+	CreatePanel.pl 	\
 	stripUnresolvedDb.pl 		\
 	grepDb.pl			
 
