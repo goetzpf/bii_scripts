@@ -1,7 +1,7 @@
 eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 	if $running_under_some_shell;
 
-##  This software is copyrighted by the BERLINER SPEICHERRING
+#  This software is copyrighted by the BERLINER SPEICHERRING
 #  GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
 #  The following terms apply to all files associated with the software.
 #  
