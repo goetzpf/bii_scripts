@@ -4,4 +4,22 @@ test -r ./O.Common/.vdct && . ./O.Common/.vdct
 
 PATH=$PATH:/opt/java1.4/bin
 
-exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -jar /opt/epics/VisualDCT/current/VisualDCT.jar "$@"
+vsn=current
+
+if [ "$1" = "-n" ]
+then
+  shift
+  vsn=new
+fi
+if [ "$1" = "-o" ]
+then
+  shift
+  vsn=old
+fi
+if [ "$1" = "-v" ]
+then
+  test -d /opt/epics/VisualDCT/$2 && vsn=$2
+  shift; shift
+fi
+
+exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -jar /opt/epics/VisualDCT/$vsn/VisualDCT.jar "$@"
