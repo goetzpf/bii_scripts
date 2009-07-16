@@ -2,6 +2,12 @@
 [ "$DARCS_SAVE" = "NO" ] && exit
 
 dest=.darcs-restore
+if [ ! -e _darcs/prefs/defaultrepo ]
+then
+  echo "No defaultrepo found - skipping darcs-save" 
+  exit
+fi
+
 test -d $dest || mkdir $dest
 cp _darcs/prefs/defaultrepo $dest
 darcs record -a -m NOT-RECORDED
