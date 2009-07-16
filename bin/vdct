@@ -1,8 +1,10 @@
-#!/bin/sh
+#!/usr/bin/zsh -f
 
 test -r ./O.Common/.vdct && . ./O.Common/.vdct
 
 PATH=$PATH:/opt/java1.4/bin
+
+rootdir=/opt/Epics/VisualDCT
 
 vsn=current
 
@@ -18,8 +20,10 @@ then
 fi
 if [ "$1" = "-v" ]
 then
-  test -d /opt/epics/VisualDCT/$2 && vsn=$2
+  test -e $rootdir/$2/VisualDCT.jar && vsn=$2
   shift; shift
 fi
 
-exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -jar /opt/epics/VisualDCT/$vsn/VisualDCT.jar "$@"
+cp=($rootdir/$vsn/VisualDCT.jar $rootdir/plugins/*.jar)
+
+exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -cp ${(j.:.)cp} com.cosylab.vdct.VisualDCT "$@"
