@@ -127,9 +127,9 @@ foreach my $devname (@names) {
 		"PART_NAME" => @parts[0],
 		"PART_INDEX"  => @parts[2],
 		"PART_SUBINDEX" => @parts[3],
-		"FAMILY_KEY" => "device.pkg_bdns.get_family_key('".@parts[4]."')",
+		"DEVICE_FAMILY_KEY" => "device.pkg_bdns.get_family_key('".@parts[4]."')",
 		"PART_COUNTER" => @parts[5],
-		"SUBDOMAIN_KEY" => "device.pkg_bdns.get_subdomain_key('".@parts[6].@parts[11]."')",
+		"NAME_SUBDOMAIN_KEY" => "device.pkg_bdns.get_subdomain_key('".@parts[6].@parts[11]."')",
 	};
 	if ($config->{"description"} >= 0) {
 		$allnames{$devname}{"DESCRIPTION"} = @descs[$counter];
@@ -161,9 +161,9 @@ foreach my $devname (@names) {
 		$sql2 .= $allnames{$devname}{"NAME_KEY"}.", ";
 		$verbose .= " KEY: ".$allnames{$devname}{"NAME_KEY"};
 	}
-	$sql1 .= "part_name, part_index, part_subindex, family_key, part_counter, subdomain_key";
+	$sql1 .= "part_name, part_index, part_subindex, device_family_key, part_counter, name_subdomain_key";
 	$sql2 .= $allnames{$devname}{"PART_NAME"}.", ".$allnames{$devname}{"PART_INDEX"}.", ".$allnames{$devname}{"PART_SUBINDEX"}.", "
-		. $allnames{$devname}{"FAMILY_KEY"}.", ".$allnames{$devname}{"PART_COUNTER"}.", ".$allnames{$devname}{"SUBDOMAIN_KEY"};
+		. $allnames{$devname}{"DEVICE_FAMILY_KEY"}.", ".$allnames{$devname}{"PART_COUNTER"}.", ".$allnames{$devname}{"NAME_SUBDOMAIN_KEY"};
 	if ($config->{"description"}) {
 		$sql1 .= ", description";
 		$sql2 .= ", '".$allnames{$devname}{"DESCRIPTION"}."'";
