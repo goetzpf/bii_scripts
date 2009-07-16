@@ -46,6 +46,7 @@ use canlink;
 
 use vars qw($opt_help $opt_summary
             $opt_dump_internal $opt_recreate
+	    $opt_db
 	    $opt_short
 	    $opt_val_regexp @opt_field 
 	    $opt_name 
@@ -126,7 +127,9 @@ Getopt::Long::config(qw(no_ignore_case));
 
 if (!GetOptions("help|h","summary",
                 "dump_internal|dump-internal|i", 
-		"recreate|r", "val_regexp|v=s",
+		"recreate|r", 
+		"db",
+                "val_regexp|v=s",
 		"short|s",
 		"field=s@", 
 		"name|NAME|n=s", "notname|NOTNAME=s", 
@@ -289,9 +292,15 @@ foreach my $file (@files)
 
     if (defined $opt_record_references)
       { 
+	my $flag= undef;
+	if ($opt_recreate)
+	  { $flag= "add_records"; };
+	if ($opt_db)
+	  { $flag= "only_records"; };
+
         list_record_references($filename,$recs,
 	                       $opt_record_references,
-			       $opt_recreate,
+			       $flag,
 			       $opt_recursive);
         next;
       };  
@@ -497,7 +506,7 @@ sub list_unresolved_variables
 
 sub list_record_references
 # recs: this complete list of records to work on
-  { my ($filename,$recs,$record_name,$recreate,$recursive)= @_;
+  { my ($filename,$recs,$record_name,$flag,$recursive)= @_;
 
     my %references;
     my %referenced_by;
@@ -553,64 +562,61 @@ sub list_record_references
 	print "=" x 40,"\n";
       };
 
-    #if ($recreate)
-    #  { %to_print= map { $_ => 1 } @reclist; };
+    if ($flag ne "only_records")
+      {
+	# <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
+	# separator in-between record-names: $S
+	my $A= "\n";
+	my $B= "  references:";
+	my $C= "\n";
+	my $D= "  referenced by:";
+	my $E= "\n";
+	my $F= "\n";
+	my $S= "\n\t";
 
-    # <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
-    # separator in-between record-names: $S
-
-    my $A= "\n";
-    my $B= "  references:";
-    my $C= "\n";
-    my $D= "  referenced by:";
-    my $E= "\n";
-    my $F= "\n";
-    my $S= "\n\t";
-
-    if ($opt_alternative)
-      { $A='';
-        $B=' ->'; 
-	$C='';
-	$D=' <-';
-	$E='';
-	$F= "\n";
-	$S= " ";
-      };
-
-    foreach my $recname (@reclist)
-      { my @references   = analyse_db::references_list($recs,$recname);
-        my @referenced_by= analyse_db::referenced_by_list($recs,$recname);
-
-        if ((!@references) && (!@referenced_by))
-	  { next; };
-
-	#if (defined $post_filter)
-        #  { @references   = grep { post_name_filter($_) } @references; 
-	#    @referenced_by= grep { post_name_filter($_) } @referenced_by; 
-	#  };	
-
-	print $recname;
-	if ($linkset_hash)
-	  { print "(",$linkset_hash->{$recname},")"; };
-
-	print $A;
-
-	if (@references)
-	  { #if ($recreate)
-	    #  { map{ $to_print{$_}= 1 } @references;
-	    #  };	  
-	    print $B,hjoin($S,@references),$C;
+	if ($opt_alternative)
+	  { $A='';
+	    $B=' ->'; 
+	    $C='';
+	    $D=' <-';
+	    $E='';
+	    $F= "\n";
+	    $S= " ";
 	  };
-	if (@referenced_by)
-	  { #if ($recreate)
-	    #  { map{ $to_print{$_}= 1 } @referenced_by;
-	    #  };	  
-	    print $D,hjoin($S,@referenced_by),$E;
+
+	foreach my $recname (@reclist)
+	  { my @references   = analyse_db::references_list($recs,$recname);
+	    my @referenced_by= analyse_db::referenced_by_list($recs,$recname);
+
+	    if ((!@references) && (!@referenced_by))
+	      { next; };
+
+	    #if (defined $post_filter)
+	    #  { @references   = grep { post_name_filter($_) } @references; 
+	    #    @referenced_by= grep { post_name_filter($_) } @referenced_by; 
+	    #  };	
+
+	    print $recname;
+	    if ($linkset_hash)
+	      { print "(",$linkset_hash->{$recname},")"; };
+
+	    print $A;
+
+	    if (@references)
+	      { 
+		print $B,hjoin($S,@references),$C;
+	      };
+	    if (@referenced_by)
+	      { 
+		print $D,hjoin($S,@referenced_by),$E;
+	      };
+	    print $F;  
 	  };
-	print $F;  
       };
-    if ($recreate)
-      { print "=" x 40,"\nRecords:\n";
+    if (($flag eq "add_records") || ($flag eq "only_records"))
+      { 
+        if ($flag ne "only_records")
+	  { print "=" x 40,"\nRecords:\n"; }
         #my %my_recs= map { $_ => $recs->{$_} } (keys %to_print);
         #parse_db::create(\%my_recs);
         parse_db::create($recs,\@reclist);
@@ -1204,7 +1210,8 @@ Syntax:
       case all records that are connected to other records are
       shown. This option can be combined with "-r", in this case
       all the contents of the shown records are printed in 
-      db-file format 
+      db-file format. With "--db" just the records in db format
+      are printed.
       With option "-a" the references are printed in an alternative
       format, each record combined with all dependant records in a
       single line. 
