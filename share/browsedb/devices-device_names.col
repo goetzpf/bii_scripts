@@ -6,7 +6,7 @@
         'KEY' => 'N',
         'DESCRIPTION' => 'N'
       },
-      'sql' => 'select * from V_NAME_DESCRIPTIONS ',
+      'sql' => 'select * from DEVICE.V_NAME_DESCRIPTIONS ',
       'table_type' => 'view',
       'displayed_cols' => {
         'KEY' => '1',
@@ -18,53 +18,53 @@
         'DESCRIPTION'
       ]
     },
-    'TBL_FAMILY' => {
+    'TBL_DEVICE_FAMILY' => {
       'colmaps' => {},
       'col_map_flags' => {
-        'FAMILY_KEY' => 'N',
+        'DEVICE_FAMILY_KEY' => 'N',
         'DESCRIPTION' => 'N',
         'PART_FAMILY' => 'N'
       },
-      'sql' => 'select * from TBL_FAMILY ',
+      'sql' => 'select * from DEVICE.TBL_DEVICE_FAMILY ',
       'table_type' => 'table',
       'displayed_cols' => {
-        'FAMILY_KEY' => '1',
+        'DEVICE_FAMILY_KEY' => '1',
         'DESCRIPTION' => '1',
         'PART_FAMILY' => '1'
       },
       'geometry' => '395x115+114+588',
       'sort_columns' => [
-        'FAMILY_KEY',
+        'DEVICE_FAMILY_KEY',
         'PART_FAMILY',
         'DESCRIPTION'
       ]
     },
     'TBL_NAME' => {
       'colmaps' => {
-        'FAMILY_KEY' => 'SELECT family_key,part_family FROM tbl_family',
-        'SUBDOMAIN_KEY' => 'SELECT s.subdomain_key, s.part_subdomain || s.part_postfix || d.part_domain AS subdomain FROM tbl_subdomain s, tbl_domain d WHERE s.domain_key=d.domain_key'
+        'DEVICE_FAMILY_KEY' => 'SELECT device_family_key,part_family FROM DEVICE.tbl_device_family',
+        'NAME_SUBDOMAIN_KEY' => 'SELECT s.name_subdomain_key, s.part_subdomain || s.part_postfix || d.part_domain AS subdomain FROM DEVICE.tbl_name_subdomain s, DEVICE.tbl_name_domain d WHERE s.name_domain_key=d.name_domain_key'
       },
       'col_map_flags' => {
         'PART_INDEX' => 'N',
-        'FAMILY_KEY' => 'M',
+        'DEVICE_FAMILY_KEY' => 'M',
         'PART_SUBINDEX' => 'N',
         'PART_NAME' => 'N',
         'NAME_KEY' => 'N',
         'PART_COUNTER' => 'N',
         'DESCRIPTION' => 'N',
-        'SUBDOMAIN_KEY' => 'M'
+        'NAME_SUBDOMAIN_KEY' => 'M'
       },
-      'sql' => 'select * from TBL_NAME ',
+      'sql' => 'select * from DEVICE.TBL_NAME ',
       'table_type' => 'table',
       'displayed_cols' => {
         'PART_INDEX' => '1',
-        'FAMILY_KEY' => '1',
+        'DEVICE_FAMILY_KEY' => '1',
         'PART_SUBINDEX' => '1',
         'PART_NAME' => '1',
         'NAME_KEY' => '1',
         'PART_COUNTER' => '1',
         'DESCRIPTION' => '1',
-        'SUBDOMAIN_KEY' => '1'
+        'NAME_SUBDOMAIN_KEY' => '1'
       },
       'geometry' => '856x115+114+413',
       'sort_columns' => [
@@ -72,60 +72,60 @@
         'PART_NAME',
         'PART_INDEX',
         'PART_SUBINDEX',
-        'FAMILY_KEY',
+        'DEVICE_FAMILY_KEY',
         'PART_COUNTER',
-        'SUBDOMAIN_KEY',
+        'NAME_SUBDOMAIN_KEY',
         'DESCRIPTION'
       ]
     },
-    'TBL_SUBDOMAIN' => {
+    'TBL_NAME_SUBDOMAIN' => {
       'colmaps' => {},
       'col_map_flags' => {
-        'DOMAIN_KEY' => 'N',
+        'NAME_DOMAIN_KEY' => 'N',
         'DESCRIPTION' => 'N',
         'PART_POSTFIX' => 'N',
-        'SUBDOMAIN_KEY' => 'N',
+        'NAME_SUBDOMAIN_KEY' => 'N',
         'PART_SUBDOMAIN' => 'N'
       },
-      'sql' => 'select * from TBL_SUBDOMAIN ',
+      'sql' => 'select * from DEVICE.TBL_NAME_SUBDOMAIN ',
       'table_type' => 'table',
       'displayed_cols' => {
-        'DOMAIN_KEY' => '1',
+        'NAME_DOMAIN_KEY' => '1',
         'DESCRIPTION' => '1',
         'PART_POSTFIX' => '1',
-        'SUBDOMAIN_KEY' => '1',
+        'NAME_SUBDOMAIN_KEY' => '1',
         'PART_SUBDOMAIN' => '1'
       },
       'geometry' => '588x115+519+588',
       'sort_columns' => [
-        'SUBDOMAIN_KEY',
+        'NAME_SUBDOMAIN_KEY',
         'PART_SUBDOMAIN',
         'PART_POSTFIX',
-        'DOMAIN_KEY',
+        'NAME_DOMAIN_KEY',
         'DESCRIPTION'
       ]
     },
-    'TBL_DOMAIN' => {
+    'TBL_NAME_DOMAIN' => {
       'colmaps' => {
-        'FACILITY_KEY' => 'SELECT facility_key,name FROM tbl_facility'
+        'FACILITY_KEY' => 'SELECT facility_key,name FROM DEVICE.tbl_facility'
       },
       'col_map_flags' => {
         'FACILITY_KEY' => 'M',
         'PART_DOMAIN' => 'N',
-        'DOMAIN_KEY' => 'N',
+        'NAME_DOMAIN_KEY' => 'N',
         'DESCRIPTION' => 'N'
       },
-      'sql' => 'select * from TBL_DOMAIN ',
+      'sql' => 'select * from DEVICE.TBL_NAME_DOMAIN ',
       'table_type' => 'table',
       'displayed_cols' => {
         'FACILITY_KEY' => '1',
         'PART_DOMAIN' => '1',
-        'DOMAIN_KEY' => '1',
+        'NAME_DOMAIN_KEY' => '1',
         'DESCRIPTION' => '1'
       },
       'geometry' => '495x115+112+763',
       'sort_columns' => [
-        'DOMAIN_KEY',
+        'NAME_DOMAIN_KEY',
         'PART_DOMAIN',
         'FACILITY_KEY',
         'DESCRIPTION'
@@ -134,16 +134,14 @@
     'TBL_FACILITY' => {
       'colmaps' => {},
       'col_map_flags' => {
-        'BUILDING_KEY' => 'N',
         'PART_FACILITY' => 'N',
         'NAME' => 'N',
         'FACILITY_KEY' => 'N',
         'DESCRIPTION' => 'N'
       },
-      'sql' => 'select * from TBL_FACILITY ',
+      'sql' => 'select * from DEVICE.TBL_FACILITY ',
       'table_type' => 'table',
       'displayed_cols' => {
-        'BUILDING_KEY' => '1',
         'PART_FACILITY' => '1',
         'NAME' => '1',
         'FACILITY_KEY' => '1',
@@ -154,8 +152,7 @@
         'FACILITY_KEY',
         'NAME',
         'PART_FACILITY',
-        'DESCRIPTION',
-        'BUILDING_KEY'
+        'DESCRIPTION'
       ]
     },
     'V_NAMES' => {
@@ -163,7 +160,7 @@
       'col_map_flags' => {
         'KEY' => 'N',
         'NAME' => 'N',
-        'FAMILY_KEY' => 'N',
+        'DEVICE_FAMILY_KEY' => 'N',
         'SUBIND' => 'N',
         'FACILITY' => 'N',
         'MEMBER' => 'N',
@@ -177,23 +174,23 @@
         'SUBDOMAIN_KEY' => 'N',
         'FAMILY' => 'N'
       },
-      'sql' => 'select * from V_NAMES ',
+      'sql' => 'select * from DEVICE.V_NAMES ',
       'table_type' => 'view',
       'displayed_cols' => {
         'KEY' => '1',
         'NAME' => '1',
-        'FAMILY_KEY' => '1',
+        'DEVICE_FAMILY_KEY' => '1',
         'SUBIND' => '1',
         'FACILITY' => '1',
         'MEMBER' => '1',
         'SUBDOMAIN' => '1',
         'FACILITY_KEY' => '1',
         'COUNTER' => '1',
-        'DOMAIN_KEY' => '1',
+        'NAME_DOMAIN_KEY' => '1',
         'NAME_KEY' => '1',
         'IND' => '1',
         'DOMAIN' => '1',
-        'SUBDOMAIN_KEY' => '1',
+        'NAME_SUBDOMAIN_KEY' => '1',
         'FAMILY' => '1'
       },
       'geometry' => '865x115+707+32',
@@ -209,9 +206,9 @@
         'DOMAIN',
         'FACILITY',
         'NAME_KEY',
-        'FAMILY_KEY',
-        'SUBDOMAIN_KEY',
-        'DOMAIN_KEY',
+        'DEVICE_FAMILY_KEY',
+        'NAME_SUBDOMAIN_KEY',
+        'NAME_DOMAIN_KEY',
         'FACILITY_KEY'
       ]
     }
@@ -222,29 +219,29 @@
         'KEY',
         'NAME_KEY'
       ],
-      'TBL_FAMILY' => [
-        'FAMILY_KEY',
-        'FAMILY_KEY'
+      'TBL_DEVICE_FAMILY' => [
+        'DEVICE_FAMILY_KEY',
+        'DEVICE_FAMILY_KEY'
       ],
-      'TBL_SUBDOMAIN' => [
-        'SUBDOMAIN_KEY',
-        'SUBDOMAIN_KEY'
+      'TBL_NAME_SUBDOMAIN' => [
+        'NAME_SUBDOMAIN_KEY',
+        'NAME_SUBDOMAIN_KEY'
       ],
       'V_NAMES' => [
         'KEY',
         'NAME_KEY'
       ]
     },
-    'TBL_SUBDOMAIN' => {
-      'TBL_DOMAIN' => [
-        'DOMAIN_KEY',
-        'DOMAIN_KEY'
+    'TBL_NAME_SUBDOMAIN' => {
+      'TBL_NAME_DOMAIN' => [
+        'NAME_DOMAIN_KEY',
+        'NAME_DOMAIN_KEY'
       ]
     },
-    'TBL_DOMAIN' => {
-      'TBL_FACILITY' => [
-        'FACILITY_KEY',
-        'FACILITY_KEY'
+    'TBL_NAME_DOMAIN' => {
+      'TBL_NAME_FACILITY' => [
+        'NAME_FACILITY_KEY',
+        'NAME_FACILITY_KEY'
       ]
     }
   }
