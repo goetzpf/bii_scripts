@@ -4,7 +4,7 @@ from Tkinter import *
     Notebook IMplemntation started with teh one from http://code.activestate.com/recipes/188537/
     will be enhanced by self for better using GUI elements.
 '''
-class tkNotebook:
+class Notebook:
         ''' initialization. receives the master widget.
             reference and the notebook orientation
 	'''
