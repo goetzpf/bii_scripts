@@ -4,7 +4,8 @@ This module provides utilities and supporting functions that
 are based on the sqlalchemy module. 
 
 It also supports exporting and importing ascii files in the
-dbitable format as it is used by the dbitable.pm perl module.
+dbitable format as it is used by the dbitable.pm perl module,
+this format is called dbitabletext.
 
 The philosophy however, is different from dbitable. This module
 does not define a new class for tables since sqlalchemy already 
@@ -23,7 +24,26 @@ passwd= "your-oracle-password-here"
 (meta,conn)= connect_database(user,passwd)
 tbl=table_object("TBL_INSERTION",meta)
 print_table(tbl,2)
-write_table(tbl)
+dtt_write_table_fh(tbl)
+
+Some notes to the dtt (dbitabletext) format:
+
+dtt or dbitabletext is a way to store tables or results of sql queries
+in simple ascii files and retrieve them later on. This format 
+was introduced by the dbitable perl module. Each file contains
+sections that are marked by a tag, a unique string identifying that
+section. Each section contains a table or a result of a query. 
+Sections in a file can be replaced (updated) by first removing the
+section and then adding an updated version of it. If a dbitabletext
+is altered that way, the order of the sections is changed, so you cannot
+assume a special order of the sections in a file. 
+
+Sqlpotion has functions that write a table directly to a file.
+It also has functions to read back sections of the file, these 
+functions create sqlite tables in memory. 
+
+Since a section may contain just a query and not a whole table, 
+the q
 """
 import re
 import sqlalchemy
@@ -31,9 +51,15 @@ import sys
 import StringIO
 #import typecheck2 as tp;
 import inspect
+import tempfile
+import os
+import shutil
 
-from enum import Enum
+import enum
 import pdict
+
+if sys.version_info<(2,5):
+    raise AssertionError, "this module requires python 2.5 or greater"
 
 xx="""
 
@@ -42,11 +68,17 @@ from pdb_utils import *
 (meta,conn)=connect_database("pfeiffer","*******")
 (mmeta,mconn)=connect_memory()
 tbl_insertion=table_object("TBL_INSERTION",meta)
-txt= table_2_txt(tbl_insertion)
-tbl= read_table_from_txt(mmeta, "tbl_insertion",txt)
+txt= dtt_from_table(tbl_insertion)
+tbl= dtt_to_tables(mmeta, "tbl_insertion",txt)
 q= ordered_query(tbl)
 [row for row in q.execute()]
 """
+
+# ---------------------------------------------------------
+# global constants
+# ---------------------------------------------------------
+
+backup_extension= "bak"
 
 # ---------------------------------------------------------
 # types for typechecking code, currently disabled:
@@ -62,6 +94,8 @@ q= ordered_query(tbl)
 #
 #tp_col_info = tp.ItertypeChecker(tp.PairtypeChecker(tp.unistring))
 #tp_col_info_or_none= tp.OrNoneChecker(tp_col_info)
+#
+#tp_colinfo= tp.ItertypeChecker(tp.pair)
 #
 #tp_stringlist= tp.ItertypeChecker(tp.unistring)
 #tp_stringlist_or_none= tp.OrNoneChecker(tp_stringlist)
@@ -99,7 +133,7 @@ def _empty(string):
     False
     """
     if string=="":
-	return True
+        return True
     return string.isspace()
 
 #@tp.Check(str,tp_re)
@@ -224,8 +258,8 @@ def _is_in_rangelist(i,ranges):
     False
     """
     for start,end in ranges:
-	if start<=i and i<=end:
-	    return True
+        if start<=i and i<=end:
+            return True
     return False
 
 #@tp.Check(str,tp_intpair_list)
@@ -274,8 +308,8 @@ def _split_pq(line):
     first=0
     splitlist=[]
     for p in actual_splits:
-	splitlist.append((first,p-1))
-	first= p+1
+        splitlist.append((first,p-1))
+        first= p+1
     splitlist.append((first,len(line)-1))
     return _cut_at(line, splitlist)
 
@@ -354,16 +388,81 @@ def _unquote(string,dbitable_compatible= False):
     string= string.replace("\\\\","\\")
     # if dbitable_compatible, remove enclosing single quotes:
     if dbitable_compatible:
-	if string[0]=="'" and string[-1]=="'":
-	    string= string[1:-1]
+        if string[0]=="'" and string[-1]=="'":
+            string= string[1:-1]
     return string
+
+# ---------------------------------------------------------
+# file utilities
+# ---------------------------------------------------------
+
+def _copyperm(src,dest):
+    """copy file permission and GID from one file to another.
+    
+    """
+    statinfo = os.stat(src)
+    # st_mode , st_ino , st_dev , st_nlink , st_uid ,
+    # st_gid , st_size , st_atime , st_mtime , st_ctime
+    os.chown(dest,-1,statinfo[5])
+    os.chmod(dest, statinfo[0])
+
+def _mk_temp_file():
+    r"""create a temporary file and open it for writing.
+
+    returns:
+        a tuple consisting of the filehandle and the filename
+        of the new temporary file.
+
+    Here is an example:
+    # import ptestlib as t
+    >>> (fh,tempname)=_mk_temp_file()
+    >>> fh.write("hello, world!\n")
+    >>> fh.close()
+    >>> t.catfile(tempname)
+    hello, world!
+    >>> os.remove(tempname)
+    """
+    (fd,tempname)= tempfile.mkstemp()
+    # print "tempfile:",self._tempname
+    fh= os.fdopen(fd,"w")
+    return(fh,tempname)
+
+def _replace_with_temp(filename,tempfilename,replace_ext="bak"):
+    r"""replace a file with the tempfile, make a backup of the old file.
+
+    Here is an example:
+    # import ptestlib as t
+    >>> t.inittestdir()
+    >>> filename=t.mkfile("Hello, world\n","testfile")
+    >>> tempfilename= t.mkfile("Hello, new world\n","testfile2")
+    >>> _replace_with_temp(filename,tempfilename)
+    >>> t.ls()
+    testfile
+    testfile.bak
+    <BLANKLINE>
+    >>> t.catfile("testfile.bak")
+    Hello, world
+    >>> t.catfile("testfile")
+    Hello, new world
+    >>> t.cleanuptestdir()
+    """
+    _copyperm(filename,tempfilename)
+    if replace_ext=="":
+        os.remove(filename)
+    else:
+        newname= "%s.%s" % (filename,replace_ext)
+        if os.path.exists(newname):
+            os.remove(newname)
+        os.rename(filename, newname)
+    shutil.copy2(tempfilename,filename)
+    os.remove(tempfilename)
 
 # ---------------------------------------------------------
 # pdb column types
 # ---------------------------------------------------------
 
 # list of column types
-pdb_coltypes= Enum(
+pdb_coltypes= enum.Enum(
                     "PDB_INT",
                     "PDB_FLOAT",
                     "PDB_STRING",
@@ -449,16 +548,16 @@ def _pdb_match_type_str(string):
     """
     match= _rx_typename.match(string)
     if match is None:
-	raise ValueError, "string \"%s\" doesn't seem to be a column type" % string
+        raise ValueError, "string \"%s\" doesn't seem to be a column type" % string
     matched= match.groups()
     if len(matched)!=2:
-	raise AssertionError, "internal error"
+        raise AssertionError, "internal error"
     if matched[1] is None:
-	return (matched[0],)
+        return (matched[0],)
     if len(matched)==2:
-	args= _split_csv(matched[1])
-	args.insert(0,matched[0])
-	return tuple(args)
+        args= _split_csv(matched[1])
+        args.insert(0,matched[0])
+        return tuple(args)
 
 #@tp.Check(str)
 def pdb_type_from_str(string):
@@ -486,19 +585,19 @@ def pdb_type_from_str(string):
 
     """
     def convert_arg(a):
-	if a=='0':
-	    return a
-	return '*'
+        if a=='0':
+            return a
+        return '*'
     matched= _pdb_match_type_str(string)
     if len(matched)==1:
-	typestr= matched[0]
+        typestr= matched[0]
     else:
-	# change "NUMERIC(28,0)" to "NUMERIC(*,0)":
-	gen_args= map(convert_arg, matched[1:])
-	typestr="%s(%s)" % (matched[0],",".join(gen_args))
+        # change "NUMERIC(28,0)" to "NUMERIC(*,0)":
+        gen_args= map(convert_arg, matched[1:])
+        typestr="%s(%s)" % (matched[0],",".join(gen_args))
     tp= _pdb_typemap.get(typestr)
     if tp is None:
-	raise ValueError, "string \"%s\" is not a known a column type" % string
+        raise ValueError, "string \"%s\" is not a known a column type" % string
     return tp
 
 #@tp.Check(str,str)
@@ -513,11 +612,11 @@ def compare_types(type1, type2):
     the types must be given as strings.
 
     parameters:
-	type1   -- the first type as a string
-	type2   -- the second type as a string
+        type1   -- the first type as a string
+        type2   -- the second type as a string
     returns:
-	True when the two types are basiclly the same
-	False otherwise
+        True when the two types are basiclly the same
+        False otherwise
 
     Here are some examples:
     >>> compare_types("NUMERIC(38, 0)","Integer")
@@ -548,6 +647,36 @@ Boolean, BOOLEAN, SMALLINT
 Interval, INTERVAL or Date
 """
 
+# ---------------------------------------------------------
+# dbi column types
+# ---------------------------------------------------------
+
+# mapping of dbitabletext - types to sqlite column-types:
+dbi_to_sqlite_coltype= { 
+    'number': sqlalchemy.Integer,
+    'string': sqlalchemy.String 
+    }
+
+# mapping of python data types to dbitabletext types:
+python_to_pdb_coltype= {
+    int     : pdb_coltypes.PDB_INT,
+    float   : pdb_coltypes.PDB_FLOAT,
+    str     : pdb_coltypes.PDB_STRING,
+    unicode : pdb_coltypes.PDB_STRING
+    }
+
+pdb_to_dbi_coltype = { 
+    pdb_coltypes.PDB_INT      : "number",
+    pdb_coltypes.PDB_FLOAT    : "number",
+    pdb_coltypes.PDB_STRING   : "string",
+    pdb_coltypes.PDB_BOOLEAN  : "number",
+    pdb_coltypes.PDB_DATE     : "string",
+    pdb_coltypes.PDB_TIME     : "string",
+    pdb_coltypes.PDB_DATETIME : "string",
+    pdb_coltypes.PDB_TEXT     : "string",
+    pdb_coltypes.PDB_BLOB     : "string",
+    }
+
 
 # ---------------------------------------------------------
 # database connection
@@ -556,22 +685,22 @@ Interval, INTERVAL or Date
 #@tp.Check(tp_str_or_none,tp_str_or_none,str,tp_str_or_none,tp_str_or_none,bool,dict)
 def connect_database(user=None, password=None, dialect="oracle",
                      host="devices", dbname=None, 
-		     echo= False, extra_args={}):
+                     echo= False, extra_args={}):
     """returns a metadata object and connection object.
     
     This function creates a sql-engine and a metadata object.
 
     Parameters:
-    	user       -- the user name, may be omitted
-	password   -- the password, may be omitted
-	dialect    -- the type of the database, for example
-	              "sqlite","mysql","postgres" or "oracle"
-	host       -- the hostname where the database instance
-	              is running
-	dbname     -- the name of the database.
-	echo       -- echo all SQL statements to stdout
-	extra_args -- extra arguments that are passed to 
-	              sqlalchemy.create_engine()
+        user       -- the user name, may be omitted
+        password   -- the password, may be omitted
+        dialect    -- the type of the database, for example
+                      "sqlite","mysql","postgres" or "oracle"
+        host       -- the hostname where the database instance
+                      is running
+        dbname     -- the name of the database.
+        echo       -- echo all SQL statements to stdout
+        extra_args -- extra arguments that are passed to 
+                      sqlalchemy.create_engine()
 
     An example how to connect to the bessy oracle database is:
     (meta, conn)= connect_database(username,password,host="devices")
@@ -597,6 +726,7 @@ def connect_database(user=None, password=None, dialect="oracle",
     conn= db_engine.connect()
     return(metadata,conn)
 
+#@tp.Check(bool,dict)
 def connect_memory(echo=False,extra_args={}):
     """returns connection to sqlite database in memory.
 
@@ -604,9 +734,9 @@ def connect_memory(echo=False,extra_args={}):
     dialect and a memory database.
 
     Parameters:
-	echo       -- echo all SQL statements to stdout
-	extra_args -- extra arguments that are passed to 
-	              sqlalchemy.create_engine()
+        echo       -- echo all SQL statements to stdout
+        extra_args -- extra arguments that are passed to 
+                      sqlalchemy.create_engine()
     
     Here is an example:
     >>> (meta,conn)=connect_memory()
@@ -634,11 +764,11 @@ def table_object(table_name, metadata):
     the properties of that table are queried from the database.
 
     parameters:
-	table_name   -- the name of the table
-	metadata     -- the metadata object, to which the table
-	                will be connected.
+        table_name   -- the name of the table
+        metadata     -- the metadata object, to which the table
+                        will be connected.
     returns:
-    	a sqlalchemy table object
+        a sqlalchemy table object
 
     Here is an example:
     We first connect to a sqlite database in memory:
@@ -664,19 +794,6 @@ def table_object(table_name, metadata):
      schema=None)
     """
     return sqlalchemy.Table(table_name,metadata,autoload=True)
-
-# execute arbitrary sql like this:
-# s= sqlalchemy.sql.text("select * from ....")
-# for r in conn.execute(s):
-#     print r
-
-#@tp.Check(sqlalchemy.engine.base.Connection, str)
-def fetchall(conn, sql_text):
-    """executes the statement and return a list of rows.
-    """
-    s= sqlalchemy.sql.text(sql_text)
-    return conn.execute(s).fetchall()
-
 
 # ---------------------------------------------------------
 # primary and foreign key utilities
@@ -730,9 +847,9 @@ def auto_primary_key_possible(table_obj):
     col_types= pdb_column_type_dict(table_obj,col_info)
     pks= primary_keys(table_obj)
     if len(pks)>1:
-	return False
+        return False
     if col_types[pks[0]]!=pdb_coltypes.PDB_INT:
-	return False
+        return False
     return True
 
 #@tp.Check(sqlalchemy.schema.ForeignKey)
@@ -827,26 +944,26 @@ def print_table(table_object, pretty_grade= 0):
     """
     headings= column_name_list(table_object, False)
     if pretty_grade<=0:
-	print str(tuple(headings))
-	for row in ordered_query(table_object).execute():
-	    print row
+        print str(tuple(headings))
+        for row in ordered_query(table_object).execute():
+            print row
     else:
-	widths= [len(e) for e in headings]
-	for row in ordered_query(table_object).execute():
-	    for i in xrange(len(widths)):
-		widths[i]= max(widths[i],len(str(row[i])))
-	sep= " "
-	if pretty_grade>1:
-	    sep= " | "
-	lst= [h.ljust(w) for h,w in zip(headings,widths)]
-	h_line= sep.join(lst)
-	print h_line
-	if pretty_grade>1:
-	    lst= [ "-"*w for w in widths]
-	    print "-+-".join(lst)
-	for row in ordered_query(table_object).execute():
-	    lst= [str(e).ljust(w) for e,w in zip(row,widths)]
-	    print sep.join(lst)
+        widths= [len(e) for e in headings]
+        for row in ordered_query(table_object).execute():
+            for i in xrange(len(widths)):
+                widths[i]= max(widths[i],len(str(row[i])))
+        sep= " "
+        if pretty_grade>1:
+            sep= " | "
+        lst= [h.ljust(w) for h,w in zip(headings,widths)]
+        h_line= sep.join(lst)
+        print h_line
+        if pretty_grade>1:
+            lst= [ "-"*w for w in widths]
+            print "-+-".join(lst)
+        for row in ordered_query(table_object).execute():
+            lst= [str(e).ljust(w) for e,w in zip(row,widths)]
+            print sep.join(lst)
 
 #@tp.Check(sqlalchemy.schema.Table, tp.iterable)
 def set_table(table, rows):
@@ -865,7 +982,7 @@ def set_table(table, rows):
     2  | second
     """
     def todict(headings, rows):
-	return [dict(zip(headings,row)) for row in rows]
+        return [dict(zip(headings,row)) for row in rows]
     result= table.insert().execute(todict(column_name_list(table,False),rows))
 
 #@tp.Check(sqlalchemy.schema.MetaData,str,tp.ItertypeChecker(str))
@@ -883,12 +1000,12 @@ def make_test_table(meta,name,column_spec):
     for foreign key columns.
 
     parameters:
-	meta         -- the metadata object, to which the table
-	                will be connected.
-	name         -- the name of the table
-	column_spec  -- a list of strings specifying the columns.
+        meta         -- the metadata object, to which the table
+                        will be connected.
+        name         -- the name of the table
+        column_spec  -- a list of strings specifying the columns.
     returns:
-    	a sqlalchemy table object
+        a sqlalchemy table object
 
     Here are some examples:
     >>> (meta,conn)=connect_memory()
@@ -920,41 +1037,41 @@ def make_test_table(meta,name,column_spec):
     """
     cols= []
     for c in column_spec:
-	args=[]
+        args=[]
         params= {}
-	elms= c.split(":")
-	params["name"]= elms[0]
-	params["type_"]= sqlalchemy.Integer
-	if len(elms)>1:
-	    ctype= elms[1]
-	    if ctype=="":
-		params["type_"]= None
-	    elif ctype=="int":
-		params["type_"]= sqlalchemy.Integer
-	    elif ctype=="str":
-		params["type_"]= sqlalchemy.String
-	    elif ctype=="unicode":
-		params["type_"]= sqlalchemy.Unicode
-	    else:
-		raise ValueError,"unknown column-type:%s" % ctype
-	if len(elms)>2:
-	    flag= elms[2]
-	    if flag.startswith("primary"):
-		params["primary_key"]= True
-	    elif flag.startswith("foreign("):
-		a= flag.find("(")
-		b= flag.find(")")
-		if a<0 or b<0 or a>b:
-		    raise ValueError,"unknown flag:%s",flag
-		args.append(sqlalchemy.ForeignKey(flag[a+1:b]))
-	    else:
-		raise ValueError,"unknown flag: %s" % flag
-	cols.append(sqlalchemy.Column(*args,**params))
+        elms= c.split(":")
+        params["name"]= elms[0]
+        params["type_"]= sqlalchemy.Integer
+        if len(elms)>1:
+            ctype= elms[1]
+            if ctype=="":
+                params["type_"]= None
+            elif ctype=="int":
+                params["type_"]= sqlalchemy.Integer
+            elif ctype=="str":
+                params["type_"]= sqlalchemy.String
+            elif ctype=="unicode":
+                params["type_"]= sqlalchemy.Unicode
+            else:
+                raise ValueError,"unknown column-type:%s" % ctype
+        if len(elms)>2:
+            flag= elms[2]
+            if flag.startswith("primary"):
+                params["primary_key"]= True
+            elif flag.startswith("foreign("):
+                a= flag.find("(")
+                b= flag.find(")")
+                if a<0 or b<0 or a>b:
+                    raise ValueError,"unknown flag:%s",flag
+                args.append(sqlalchemy.ForeignKey(flag[a+1:b]))
+            else:
+                raise ValueError,"unknown flag: %s" % flag
+        cols.append(sqlalchemy.Column(*args,**params))
     tbl= sqlalchemy.Table(name,meta,*cols)
     meta.create_all()
     return tbl
 
-	
+        
 
 # ---------------------------------------------------------
 # column names and types
@@ -980,15 +1097,15 @@ def column_info(table_obj):
     l= []
     for col in table_obj.columns:
         name= col.name
-	# there is a problem here, get_col_spec() raises,
-	# when applied to the sqlalchemy types Integer, String 
-	# and so on a NotImplementedError exception. In this 
-	# case we just return the string representation of 
-	# the type.
-	try:
-	    type= col.type.get_col_spec()
-	except NotImplementedError, e:
-	    type= str(col.type)
+        # there is a problem here, get_col_spec() raises,
+        # when applied to the sqlalchemy types Integer, String 
+        # and so on a NotImplementedError exception. In this 
+        # case we just return the string representation of 
+        # the type.
+        try:
+            type= col.type.get_col_spec()
+        except NotImplementedError, e:
+            type= str(col.type)
         l.append((name,type))
     return l
 
@@ -1024,68 +1141,18 @@ def column_dict(table_obj):
     return d
 
 #@tp.Check(sqlalchemy.schema.Table,tp_col_info_or_none)
-def dbitable_column_types(table_obj,col_info=None):
-    """returns a list of dbitable compatible column types.
-    
-    currently, the dbitable types are either "number" or "string".
-
-    parameters:
-	table_obj   -- the sqlalchemy table object
-	col_info    -- column info list that was created by
-	               column_info(table_obj). If this parameter is
-		       not given, dbitable_column_types calls 
-		       column_info(table_obj) itself
-
-    returns:
-	a list of strings, representing the column types as they
-	are known by the dbitable.pm perl module.
-
-    Here is an example:
-    We first connect to a sqlite database in memory:
-    >>> (meta,conn)=connect_memory()
-
-    We now create tow table objects in sqlalchemy:
-
-    >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
-
-    dbitable_column_types returns a list of strings, representing
-    the column types:
-    >>> dbitable_column_types(tbl)
-    ['number', 'string']
-    """
-    typemap = { pdb_coltypes.PDB_INT      : "number",
-	        pdb_coltypes.PDB_FLOAT    : "number",
-	        pdb_coltypes.PDB_STRING   : "string",
-	        pdb_coltypes.PDB_BOOLEAN  : "number",
-	        pdb_coltypes.PDB_DATE     : "string",
-	        pdb_coltypes.PDB_TIME     : "string",
-	        pdb_coltypes.PDB_DATETIME : "string",
-	        pdb_coltypes.PDB_TEXT     : "string",
-	        pdb_coltypes.PDB_BLOB     : "string",
-	     }
-    def do_map(string):
-	tp= pdb_type_from_str(string)
-	res= typemap.get(tp)
-	if res is None:
-	    raise ValueError, "unknown type: \"%s\"" % string
-	return res
-    if col_info is None:
-        col_info= column_info(table_obj)
-    return map(lambda x: do_map(x[1]), col_info)
-
-#@tp.Check(sqlalchemy.schema.Table,tp_col_info_or_none)
 def pdb_column_types(table_obj,col_info=None):
     """returns a list of column types.
 
     parameters:
-	table_obj   -- the sqlalchemy table object
-	col_info    -- column info list that was created by
-	               column_info(table_obj). If this parameter is
-		       not given, dbitable_column_types calls 
-		       column_info(table_obj) itself
+        table_obj   -- the sqlalchemy table object
+        col_info    -- column info list that was created by
+                       column_info(table_obj). If this parameter is
+                       not given, pdb_column_types calls 
+                       column_info(table_obj) itself
 
     returns:
-	a list of pdb_coltype values, representing the column types
+        a list of pdb_coltype values, representing the column types
 
     Here is an example:
     We first connect to a sqlite database in memory:
@@ -1115,16 +1182,16 @@ def pdb_column_type_dict(table_obj,col_info=None):
     and it's lowercase name is added to the dictionary.
 
     parameters:
-	table_obj   -- the sqlalchemy table object
-	col_info    -- column info list that was created by
-	               column_info(table_obj). If this parameter is
-		       not given, dbitable_column_types calls 
-		       column_info(table_obj) itself
+        table_obj   -- the sqlalchemy table object
+        col_info    -- column info list that was created by
+                       column_info(table_obj). If this parameter is
+                       not given, pdb_column_type_dict calls 
+                       column_info(table_obj) itself
 
     returns:
-	a dictionary mapping the column names to their types. Note that
-	for each column-name there exist two entries, one for the 
-	upper-case and one for the lower-case name.
+        a dictionary mapping the column names to their types. Note that
+        for each column-name there exist two entries, one for the 
+        upper-case and one for the lower-case name.
 
     Here is an example:
     We first connect to a sqlite database in memory:
@@ -1146,8 +1213,8 @@ def pdb_column_type_dict(table_obj,col_info=None):
     colnames= column_name_list(table_obj,True,col_info)
     d= {}
     for i in xrange(len(colnames)):
-	d[colnames[i]]= types[i]
-	d[colnames[i].lower()]= types[i]
+        d[colnames[i]]= types[i]
+        d[colnames[i].lower()]= types[i]
     return d
 
 #@tp.Check(sqlalchemy.schema.Table,bool,tp_col_info_or_none)
@@ -1155,17 +1222,17 @@ def column_name_list(table_obj,upper_case=True,col_info=None):
     """returns a list of column names in upper- or lower-case.
 
     parameters:
-	table_obj   -- the sqlalchemy table object
-	upper_case  -- if True, convert column names to upper-case,
-	               otherwise convert them to lower-case
-	col_info    -- column info list that was created by
-	               column_info(table_obj). If this parameter is
-		       not given, dbitable_column_types calls 
-		       column_info(table_obj) itself
+        table_obj   -- the sqlalchemy table object
+        upper_case  -- if True, convert column names to upper-case,
+                       otherwise convert them to lower-case
+        col_info    -- column info list that was created by
+                       column_info(table_obj). If this parameter is
+                       not given, column_name_list calls 
+                       column_info(table_obj) itself
 
     returns:
-	a list of strings, representing the column names in
-	upper-case letters
+        a list of strings, representing the column names in
+        upper-case letters
 
     Here is an example:
     We first connect to a sqlite database in memory:
@@ -1183,9 +1250,9 @@ def column_name_list(table_obj,upper_case=True,col_info=None):
     if col_info is None:
         col_info= column_info(table_obj)
     if upper_case:
-	return map(lambda x: x[0].upper(), col_info)
+        return map(lambda x: x[0].upper(), col_info)
     else:
-	return map(lambda x: x[0].lower(), col_info)
+        return map(lambda x: x[0].lower(), col_info)
 
 # ---------------------------------------------------------
 # queries
@@ -1233,7 +1300,7 @@ def ordered_query(table_obj,column_names=None, ascending=True):
     col_dict= column_dict(table_obj)
     column_list= map(lambda x: col_dict[x], column_names)
     if not ascending:
-	column_list= map(lambda x: x.desc(), column_list)
+        column_list= map(lambda x: x.desc(), column_list)
     query= table_obj.select()
     return query.order_by(*column_list)
 
@@ -1266,8 +1333,8 @@ def func_query(table_obj,func,columns):
     """
     coldict= column_dict(table_obj)
     for c in columns:
-	if not coldict.has_key(c):
-	    raise ValueError, "column '%s' is not part of the table" % c
+        if not coldict.has_key(c):
+            raise ValueError, "column '%s' is not part of the table" % c
  
     # Note: appending ".label(myname)" to func(...) would change the
     # column-names from auto-generated names to specified names
@@ -1299,96 +1366,465 @@ def func_query_as_dict(table_obj,func,columns=None):
     {'id': 2, 'name': u'cd'}
     """
     if columns is None:
-	columns= column_name_list(table_obj,False)
+        columns= column_name_list(table_obj,False)
     q= func_query(table_obj,func,columns)
     row= _fetch_one(q,{})
     return dict(zip(columns, row.values()))
+
+# execute arbitrary sql like this:
+# s= sqlalchemy.sql.text("select * from ....")
+# for r in conn.execute(s):
+#     print r
+
+#@tp.Check(sqlalchemy.engine.base.Connection, str)
+def fetchall(conn, sql_text):
+    """executes the statement and return a list of rows.
+    """
+    s= sqlalchemy.sql.text(sql_text)
+    return conn.execute(s).fetchall()
 
 # ---------------------------------------------------------
 # generate dbitabletext 
 # ---------------------------------------------------------
 
-#@tp.Check(sqlalchemy.schema.Table,tp.filetype,bool)
-def write_table(table_obj, fh=sys.stdout, trim_columns=True):
-    r"""write table to a filehandle in dbitabletext format.
+# prefix for helper functions here:
+# _dtt_gen for dbitabletext - generator
+
+#@tp.Check(tp.filetype,tp.unistring,tp.unistring,tp_stringlist,str)
+def _dtt_gen_header(fh,tag,table_name="",pks=[],query_text=""):
+    """write the dbitabletext heading.
+
+    Here are some examples:
+    >>> _dtt_gen_header(sys.stdout,"mytag",
+    ...                 "mytable",["id1","id2"],"select id1 from mytable")
+    [Tag mytag]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable TYPE=file
+    PK="ID1,ID2"
+    FETCH_CMD="select id1 from mytable"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    >>> _dtt_gen_header(sys.stdout,"mytag","mytable",["id1","id2"])
+    [Tag mytag]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable TYPE=file
+    PK="ID1,ID2"
+    FETCH_CMD="select * from mytable"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    >>> _dtt_gen_header(sys.stdout,"mytag","mytable")
+    [Tag mytag]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable TYPE=file
+    FETCH_CMD="select * from mytable"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    >>> _dtt_gen_header(sys.stdout,"mytag",query_text="select id1 from mytable")
+    [Tag mytag]
+    [Version 1.0]
+    [Properties]
+    TYPE=file
+    FETCH_CMD="select id1 from mytable"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    """
+    if query_text=="":
+        if table_name=="":
+            raise ValueError,"either table_name or query_text must"+\
+                             "be specified"
+        query_text= "select * from %s" % table_name
+    lines= []
+    lines.extend(("[Tag %s]" % tag,
+                  "[Version 1.0]",
+                  "[Properties]"))
+    if table_name=="":
+        lines.append("TYPE=file")
+    else:
+        lines.append("TABLE=%s TYPE=file" % table_name)
+    if len(pks)>0:
+        lines.append("PK=\"%s\"" % ",".join(map(lambda x:x.upper(),pks)))
+    lines.append("FETCH_CMD=\"%s\"" % query_text)
+    lines.extend(("","[Aliases]","",""))
+    fh.write("\n".join(lines))
+
+#@tp.Check(tp.filetype,tp_colinfo)
+def _dtt_gen_colinfo(fh,colinfo):
+    """generate dbitabletext column info.
 
     parameters:
-	table_obj    -- an sqlalchemy table object
-	fh           -- an (open) filehandle where the result
-		        is written to
-	trim_columns -- spaces are appended to values in order
-	                to make aligned columns
+        colinfo  -- a list of pairs, consisting of the column
+                    name and it's pdb-type.
     returns:
-	nothing
+        a string
 
-    In order to see an example have a look at table_2_txt(),
-    this function calls write_table().
+    Here is an example:
+    >>> _dtt_gen_colinfo(sys.stdout, 
+    ...                    (("id1",pdb_coltypes.PDB_INT),
+    ...                     ("id2",pdb_coltypes.PDB_STRING)))
+    [Column-Types]
+    number, string
+    [Columns]
+    ID1, ID2
     """
-    def upc(x):
-        return x.upper()
+    lines=["[Column-Types]",
+           ", ".join([pdb_to_dbi_coltype[type_] for name,type_ in colinfo]),
+           "[Columns]",
+           ", ".join([n.upper() for n,type_ in colinfo]),
+           ""]
+    fh.write("\n".join(lines))
+
+#@tp.Check(tp.filetype,tp.function_,bool)
+def _dtt_gen_rows(fh, iterator_generator_func, trim_columns=False):
+    """generate the rows in the dbitabletext.
+    
+    parameters:
+        fh           -- a filehandle
+        iterator_generator_func --
+                        a function that returns an sqlalchemy 
+                        iterator that is used to fetch the rows
+                        of a query
+        trim_columns -- if True, the columns are formatted to an
+                        equal width across the rows
+
+    Here is an example:
+
+    We first connect to a sqlite database in memory:
+    >>> (meta,conn)=connect_memory()
+
+    We now create now table objects in sqlalchemy:
+
+    >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
+    >>> set_table(tbl, ((1,"cd"),(200,"ab")))
+
+    >>> def it_gen():
+    ...    return ordered_query(tbl).execute()
+
+    >>> _dtt_gen_rows(sys.stdout,it_gen,False)
+    [Table]
+    1|cd
+    200|ab
+    #============================================================
+    >>> _dtt_gen_rows(sys.stdout,it_gen,True)
+    [Table]
+    1  |cd
+    200|ab
+    #============================================================
+    """
     def tostr(x):
-	if x is None:
-	    return ""
-	return _quote(str(x))
-    table_name= table_obj.name.lower(),
-    lines= [ "[Tag %s]\n" % table_name,
-             "[Version 1.0]\n",
-             "[Properties]\n",
-             "TABLE=%s TYPE=file\n" % table_name,
-             "PK=\"%s\"\n" % ",".join(map(upc,primary_keys(table_obj))),
-             "FETCH_CMD=\"select * from %s \"\n" % table_name,
-             "\n",
-             "[Aliases]\n",
-             "\n",
-             "[Column-Types]\n"]
-    col_info= column_info(table_obj)
-    fh.writelines(lines)
-    fh.write(", ".join(dbitable_column_types(table_obj,col_info))+"\n")
-    fh.write("[Columns]\n")
-    fh.write(", ".join(column_name_list(table_obj,True,col_info))+"\n")
-    fh.write("[Table]\n")
-    pks= primary_keys(table_obj)
-    # do always a query that is sorted by the primary keys:
-    query= ordered_query(table_obj,pks)
-    no_of_columns= len(col_info)
+        if x is None:
+            return ""
+        return _quote(str(x))
+    column_widths=None
+    no_of_columns= None
     if trim_columns:
-	column_widths=[0] * no_of_columns
-	# we have to do one query just to determine the
-	# column widths. This is a bit slow but it uses 
-	# almost no memory when the table is very large:
-	for row in query.execute():
-	    for i in xrange(no_of_columns-1):
-		l= min(max_column_width,len(tostr(row[i])))
-		column_widths[i]= max(column_widths[i],l)
-	    # special handling of the last column, it is never trimmed:
-	    column_widths[no_of_columns-1]=0
+        # we have to do one query just to determine the
+        # column widths. This is a bit slow but it uses 
+        # almost no memory when the table is very large:
+        it= iterator_generator_func()
+        for row in it:
+            if no_of_columns is None:
+                no_of_columns= len(row)
+            if column_widths is None:
+                column_widths=[0] * no_of_columns
+            for i in xrange(no_of_columns-1):
+                l= min(max_column_width,len(tostr(row[i])))
+                column_widths[i]= max(column_widths[i],l)
+            # special handling of the last column, it is never trimmed:
+            column_widths[no_of_columns-1]=0
+    fh.write("[Table]\n")
     # in a second query, we fetch the rows of the table:
-    for row in query.execute():
+    it= iterator_generator_func()
+    for row in it:
         lst=[]
-	if trim_columns:
-	    for i in xrange(no_of_columns):
-		# "tostr" converts "None" to empty string:
-		lst.append(tostr(row[i]).ljust(column_widths[i]))
-	else:
-	    lst= [tostr(val) for val in row]
+        if trim_columns:
+            for i in xrange(no_of_columns):
+                # "tostr" converts "None" to empty string:
+                lst.append(tostr(row[i]).ljust(column_widths[i]))
+        else:
+            lst= [tostr(val) for val in row]
         fh.write("|".join(lst))
         fh.write("\n")
     fh.write("#"+("="*60))
     fh.write("\n")
 
-#@tp.Check(sqlalchemy.schema.Table,bool)
-def table_2_txt(table_obj,trim_columns=True):
+#@tp.Check(sqlalchemy.schema.Table, tp.filetype, str, bool)
+def dtt_write_table_fh(table_obj, fh=sys.stdout, tag="", trim_columns=True):
+    r"""write table to a filehandle in dbitabletext format.
+
+    parameters:
+        table_obj    -- an sqlalchemy table object
+        fh           -- an (open) filehandle where the result
+                        is written to
+        tag          -- the tag name that is used, if this is 
+                        missing, the name of the table is used
+        trim_columns -- spaces are appended to values in order
+                        to make aligned columns
+    returns:
+        nothing
+
+    In order to see an example have a look at dtt_from_table(),
+    this function calls dtt_write_table_fh().
+    """
+    table_name= table_obj.name.lower()
+    if tag=="":
+        tag= table_name
+    pks= primary_keys(table_obj)
+    _dtt_gen_header(fh,tag,table_name,pks)
+    col_info= column_info(table_obj)
+    _dtt_gen_colinfo(fh, [(name,pdb_type_from_str(type_)) 
+                            for name,type_ in col_info])
+    # do always a query that is sorted by the primary keys:
+    query= ordered_query(table_obj,pks)
+    _dtt_gen_rows(fh,lambda:query.execute(),trim_columns)
+
+#@tp.Check(str,str,tp.function_)
+def _dtt_change_in_file(filename, tag, writer_function):
+    """handle file copying and renaming and tag-filtering.
+    """
+    old_file_exists= False
+    if not os.path.exists(filename):
+        fh= open(filename,"w")
+    else:
+        old_file_exists= True
+        old_fh= open(filename,"r")
+        (fh,tempname)= _mk_temp_file()
+        dtt_filter_fh(old_fh,fh,lambda x: x!=tag)
+        old_fh.close()
+    writer_function(fh)
+    fh.close()
+    if old_file_exists:
+        _replace_with_temp(filename,tempname,backup_extension)
+
+#@tp.Check(sqlalchemy.schema.Table, str, str, bool)
+def dtt_write_table(table_obj, filename, tag="", trim_columns=True):
+    r"""write table to a filehandle in dbitabletext format.
+
+    parameters:
+        table_obj    -- an sqlalchemy table object
+        filename     -- the name of the file where the results are
+                        stored.
+        tag          -- the tag name that is used, if this is 
+                        missing, the name of the table is used
+        trim_columns -- spaces are appended to values in order
+                        to make aligned columns
+    returns:
+        nothing
+
+    Here is an example:
+
+    In this example, we create a dbitabletext collection with a single
+    table. Then we add another table and finally we change the 
+    contents of the first table. Note that the order of the tables
+    within the file changes when we do this. This is the standard
+    behaviour if we re-write tables in a collection.
+    # import ptestlib as t
+    >>> (meta,conn)=connect_memory()
+    >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
+    >>> set_table(tbl, ((1,"cd"),(2,"ab")))
+    >>> t.inittestdir()
+    >>> filename= t.tjoin("table.txt")
+    >>> dtt_write_table(tbl,filename)
+    >>> t.ls()
+    table.txt
+    <BLANKLINE>
+    >>> t.catfile("table.txt")
+    [Tag mytable]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable TYPE=file
+    PK="ID"
+    FETCH_CMD="select * from mytable"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID, NAME
+    [Table]
+    1|cd
+    2|ab
+    #============================================================
+    >>> tbl2= make_test_table(meta,"mytable2",("id2:int:primary","name2:str"))
+    >>> set_table(tbl2, ((1,"cd2"),(2,"ab2")))
+    >>> dtt_write_table(tbl2,filename)
+    >>> t.ls()
+    table.txt
+    table.txt.bak
+    <BLANKLINE>
+    >>> t.catfile("table.txt")
+    [Tag mytable]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable TYPE=file
+    PK="ID"
+    FETCH_CMD="select * from mytable"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID, NAME
+    [Table]
+    1|cd
+    2|ab
+    #============================================================
+    [Tag mytable2]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable2 TYPE=file
+    PK="ID2"
+    FETCH_CMD="select * from mytable2"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID2, NAME2
+    [Table]
+    1|cd2
+    2|ab2
+    #============================================================
+    >>> set_table(tbl, ((3,"ef"),(4,"gh")))
+    >>> dtt_write_table(tbl,filename)
+    >>> t.ls()
+    table.txt
+    table.txt.bak
+    <BLANKLINE>
+    >>> t.catfile("table.txt")
+    [Tag mytable2]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable2 TYPE=file
+    PK="ID2"
+    FETCH_CMD="select * from mytable2"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID2, NAME2
+    [Table]
+    1|cd2
+    2|ab2
+    #============================================================
+    [Tag mytable]
+    [Version 1.0]
+    [Properties]
+    TABLE=mytable TYPE=file
+    PK="ID"
+    FETCH_CMD="select * from mytable"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID, NAME
+    [Table]
+    1|cd
+    2|ab
+    3|ef
+    4|gh
+    #============================================================
+    >>> t.cleanuptestdir()
+    """
+    table_name= table_obj.name.lower()
+    if tag=="":
+        tag= table_name
+    _dtt_change_in_file(filename,tag,
+                        lambda fh: \
+                          dtt_write_table_fh(table_obj,fh,tag,trim_columns))
+
+#@tp.Check(sqlalchemy.engine.base.Connection,str,str,tp.filetype,tp_stringlist,bool)
+def dtt_write_query_fh(conn, query_text, tag, fh=sys.stdout, primary_keys=[],
+                       trim_columns=True):
+    r"""write a query result to a filehandle in dbitabletext format.
+
+    parameters:
+        conn         -- the database connection object
+        query_text   -- the text of the sql query
+        tag          -- the tag name that is used.
+        fh           -- an (open) filehandle where the result
+                        is written to
+        primary_keys -- a list of strings that are the names
+                        of the primary key columns in the list. This
+                        parameter may be omitted.
+        trim_columns -- spaces are appended to values in order
+                        to make aligned columns
+    returns:
+        nothing
+
+    In order to see an example have a look at dtt_from_query(),
+    this function calls dtt_write_query_fh().
+    """
+    query= sqlalchemy.sql.text(query_text)
+    def it_gen():
+        return conn.execute(query)
+    colinfo=None 
+    it= it_gen()
+    for row in it:
+        colinfo= [(name, python_to_pdb_coltype[type(val)]) \
+                  for name, val in row.items()]
+        break
+    if colinfo is None:
+        raise ValueError, "cannot store empty query"
+    _dtt_gen_header(fh,tag,pks=primary_keys,query_text=query_text)
+    _dtt_gen_colinfo(fh, colinfo)
+    _dtt_gen_rows(fh,it_gen,trim_columns)
+
+#@tp.Check(sqlalchemy.engine.base.Connection,str,str,str,tp_stringlist,bool)
+def dtt_write_query(conn, query_text, tag, filename, primary_keys=[],
+                    trim_columns=True):
+    r"""write a query result to a filehandle in dbitabletext format.
+
+    parameters:
+        conn         -- the database connection object
+        query_text   -- the text of the sql query
+        tag          -- the tag name that is used.
+        filename     -- the name of the file where the results are
+                        stored.
+        primary_keys -- a list of strings that are the names
+                        of the primary key columns in the list. This
+                        parameter may be omitted.
+        trim_columns -- spaces are appended to values in order
+                        to make aligned columns
+    returns:
+        nothing
+
+    In order to see an example have a look at dtt_from_query(),
+    this function calls dtt_write_query_fh() which is called by
+    this function.
+    """
+    _dtt_change_in_file(filename,tag,
+                        lambda fh: \
+                          dtt_write_query_fh(conn,query_text,
+                                             tag,fh,primary_keys,
+                                             trim_columns))
+
+#@tp.Check(sqlalchemy.schema.Table,str,bool)
+def dtt_from_table(table_obj,tag="",trim_columns=True):
     r"""convert a table to a dbitabletext format and return a string.
 
-    This function is similar to write_table(), except that it
+    This function is similar to dtt_write_table_fh(), except that it
     returns a string instead of writing to a file.
 
     parameters:
-	table_obj    -- an sqlalchemy table object
-	trim_columns -- spaces are appended to values in order
-	                to make aligned columns
+        table_obj    -- an sqlalchemy table object
+        trim_columns -- spaces are appended to values in order
+                        to make aligned columns
     returns:
-	a string, the table in dbitabletext format
+        a string, the table in dbitabletext format
 
     Here is an example:
     We first connect to a sqlite database in memory:
@@ -1403,13 +1839,13 @@ def table_2_txt(table_obj,trim_columns=True):
     ...                 (30,"'quoted'"),
     ...                 (50,"back\slashed")))
 
-    >>> print table_2_txt(tbl,False)
+    >>> print dtt_from_table(tbl,trim_columns=False)
     [Tag mytable]
     [Version 1.0]
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable "
+    FETCH_CMD="select * from mytable"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -1426,13 +1862,13 @@ def table_2_txt(table_obj,trim_columns=True):
     #============================================================
     <BLANKLINE>
 
-    >>> print table_2_txt(tbl,True)
+    >>> print dtt_from_table(tbl,trim_columns=True)
     [Tag mytable]
     [Version 1.0]
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable "
+    FETCH_CMD="select * from mytable"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -1450,10 +1886,57 @@ def table_2_txt(table_obj,trim_columns=True):
     <BLANKLINE>
     """
     output= StringIO.StringIO()
-    write_table(table_obj, output, trim_columns)
+    dtt_write_table_fh(table_obj, output, tag, trim_columns)
     contents= output.getvalue()
     output.close()
     return contents
+
+#@tp.Check(sqlalchemy.engine.base.Connection,str,str,tp_stringlist,bool)
+def dtt_from_query(conn, query_text, tag, primary_keys=[],
+                    trim_columns=True):
+    r"""convert a query result to dbitabletext and return a string.
+
+    parameters:
+        conn         -- the database connection object
+        query_text   -- the text of the sql query
+        tag          -- the tag name that is used.
+        primary_keys -- a list of strings that are the names
+                        of the primary key columns in the list. This
+                        parameter may be omitted.
+        trim_columns -- spaces are appended to values in order
+                        to make aligned columns
+    returns:
+        a string
+
+    Here is an example:
+    >>> (meta,conn)=connect_memory()
+    >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
+    >>> set_table(tbl, ((1,"cd"),(2,"ab"),(3,"ef")))
+    >>> print dtt_from_query(conn,"select * from mytable where id>1","test")
+    [Tag test]
+    [Version 1.0]
+    [Properties]
+    TYPE=file
+    FETCH_CMD="select * from mytable where id>1"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID, NAME
+    [Table]
+    2|ab
+    3|ef
+    #============================================================
+    <BLANKLINE>
+    """
+    output= StringIO.StringIO()
+    dtt_write_query_fh(conn,query_text,tag,output,primary_keys,trim_columns)
+    contents= output.getvalue()
+    output.close()
+    return contents
+
 
 # ---------------------------------------------------------
 # parse dbitabletext
@@ -1462,12 +1945,13 @@ def table_2_txt(table_obj,trim_columns=True):
 min_version=1.0
 max_column_width=40
 
-# internal functions for the dbitabletext parser:
-
+# internal functions for the dbitabletext parser,
+# prefix for names here:
+# _dtt_parser
 
 _rx_tag  = re.compile(r'^\[tag\s+([^\]]*)\]\s*$',re.IGNORECASE)
 #@tp.Check(str)
-def _match_tag(line):
+def _dtt_parser_match_tag(line):
     """matches "[Tag <name>]".
 
     This function matches a tag definition like in:
@@ -1475,22 +1959,22 @@ def _match_tag(line):
     returned.
 
     Here are some examples:
-    >>> print _match_tag("")
+    >>> print _dtt_parser_match_tag("")
     None
-    >>> print _match_tag("[abc]")
+    >>> print _dtt_parser_match_tag("[abc]")
     None
-    >>> print _match_tag("[Tag xyz]")
+    >>> print _dtt_parser_match_tag("[Tag xyz]")
     xyz
-    >>> print _match_tag("[TAG xyz]")
+    >>> print _dtt_parser_match_tag("[TAG xyz]")
     xyz
-    >>> print _match_tag("[tag xyz]")
+    >>> print _dtt_parser_match_tag("[tag xyz]")
     xyz
     """
     return _match_rx(line, _rx_tag)
 
 _rx_version  = re.compile(r'^\[version\s+([^\]]*)\]\s*$',re.IGNORECASE)
 #@tp.Check(str)
-def _match_version(line):
+def _dtt_parser_match_version(line):
     """matches "[Version <version string>]".
 
     This function matches a version definition. The
@@ -1498,22 +1982,22 @@ def _match_version(line):
     digits but is arbitrary.
 
     Here are some examples:
-    >>> print _match_version("")
+    >>> print _dtt_parser_match_version("")
     None
-    >>> print _match_version("[abc]")
+    >>> print _dtt_parser_match_version("[abc]")
     None
-    >>> print _match_version("[Version 1.2.3]")
+    >>> print _dtt_parser_match_version("[Version 1.2.3]")
     1.2.3
-    >>> print _match_version("[VERSION 1.2.3]")
+    >>> print _dtt_parser_match_version("[VERSION 1.2.3]")
     1.2.3
-    >>> print _match_version("[version 1.2.3]")
+    >>> print _dtt_parser_match_version("[version 1.2.3]")
     1.2.3
     """
     return _match_rx(line,_rx_version)
 
 _rx_simple_tag  = re.compile(r'^\[([\w-]*)\]\s*$',re.IGNORECASE)
 #@tp.Check(str)
-def _match_simple_tag(line):
+def _dtt_parser_match_simple_tag(line):
     """returns True when a "[Tag]" tag is found.
 
     When the line contains a tag definition
@@ -1523,17 +2007,17 @@ def _match_simple_tag(line):
     identifiers.
 
     Here are some examples:
-    >>> print _match_simple_tag("")
+    >>> print _dtt_parser_match_simple_tag("")
     None
-    >>> print _match_simple_tag("[sdf]")
+    >>> print _dtt_parser_match_simple_tag("[sdf]")
     sdf
-    >>> print _match_simple_tag("[saa-dd]")
+    >>> print _dtt_parser_match_simple_tag("[saa-dd]")
     saa-dd
     """
     return _match_rx(line,_rx_simple_tag)
 
 #@tp.Check(str)
-def _end_section(line):
+def _dtt_parser_end_section(line):
     """returns True when an end section ("#===") is found.
 
     This function returns true, when an end-of-section
@@ -1541,34 +2025,34 @@ def _end_section(line):
     string "#===".
 
     Here is an example:
-    >>> _end_section("jsdh")
+    >>> _dtt_parser_end_section("jsdh")
     False
-    >>> _end_section("#=====")
+    >>> _dtt_parser_end_section("#=====")
     True
     """
     return line.startswith("#===")
 
 #@tp.Check(tp_stringlist,tp_stringlist,tp_stringlist)
-def _convert_row(column_names, column_types, row):
+def _dtt_parser_convert_row(column_names, column_types, row):
     """utility for read_table, convert a row to a dict.
 
     parameters:
-	column_names  -- a list of strings that represent the 
-			 names of the columns
-	column_types  -- a list of strings with the (dbitable-)
-			 column types
-	row           -- a list of values, a single row of a
-	                 database table
+        column_names  -- a list of strings that represent the 
+                         names of the columns
+        column_types  -- a list of strings with the (dbitable-)
+                         column types
+        row           -- a list of values, a single row of a
+                         database table
     returns:
-	a dictionary, where column names are mapped to (converted) values.
-	Numbers are converted to float or int, depending on their
-	numerical value. Empty strings are converted to the python
-	"None" type.
+        a dictionary, where column names are mapped to (converted) values.
+        Numbers are converted to float or int, depending on their
+        numerical value. Empty strings are converted to the python
+        "None" type.
 
     Here is an example:
     >>> column_names=["a","b","c","d"]
     >>> column_types=["number","string","number","number"]
-    >>> d= _convert_row(column_names,column_types,["1","xy","1.2", ""])
+    >>> d= _dtt_parser_convert_row(column_names,column_types,["1","xy","1.2", ""])
     >>> for k in sorted(d.keys()):
     ...   print k,":",d[k]
     ... 
@@ -1576,7 +2060,7 @@ def _convert_row(column_names, column_types, row):
     b : xy
     c : 1.2
     d : None
-    >>> _convert_row(column_names,column_types,["1","xy","1.0j"])
+    >>> _dtt_parser_convert_row(column_names,column_types,["1","xy","1.0j"])
     Traceback (most recent call last):
        ...
     ValueError: invalid literal for float(): 1.0j
@@ -1586,138 +2070,158 @@ def _convert_row(column_names, column_types, row):
         val= row[i]
         tp= column_types[i]
         if (tp=="number"):
-	    if _empty(val):
-		val=None
-	    else:
-		try:
-		    new=int(val)
-		except ValueError, e:
-		    new=float(val)
-		val= new
+            if _empty(val):
+                val=None
+            else:
+                try:
+                    new=int(val)
+                except ValueError, e:
+                    new=float(val)
+                val= new
         d[column_names[i]]= val
     return d
 
-#@tp.Check(str,str,tp.maptype,int)
-def _dbi_search_tag(table_tag, line, properties, state):
+#@tp.Check(tp_func_or_none,str)
+def _dtt_parser_search_tag(tag_filter, line):
     """utility for read_table, searches for the table_tag.
 
-    stores the tag in properties["tag"] and
-    returns the new state.
+    If a table tag is found and matched by tag_filter(), a new
+    property-dictionary is created and the found tag is stored there
+    under the key "tag". The string returned by tag_filter() is stored in
+    the property dictionary under the key "tag_filter". The new property 
+    dictionary is then returned. If the tag was not matched, "None" is
+    returned.
 
     parameters:
-	table_tag    -- the name of the table tag that is to be
-			matched
-	line	     -- the line to parse
-	properties   -- if the tag is found, it is stored in this dictionary
-	state	     -- the parser state before the call of the function
+        tag_filter   -- None or a function that is called with each found tag.
+                        None means that any tag is accepted, otherwise the function
+                        is called with the tag name and it's return value
+                        determines wether the tag is accepted. If the function
+                        returns None, the tag is regarded as not matched and 
+                        _dtt_parser_search_tag returns None. Otherwise
+                        the a new created property dictionary is returned.
+        line         -- the line to parse
     returns:
-	the new parser state. If the tag was found, the state _DBICHECK_VERSION
-	is returned.
+        a new property dictionary or None.
 
-    Here is an example:
-    >>> properties= {}
-    >>> _parse_state_str(_dbi_search_tag("abc","",properties,_DBISEARCH))
-    '_DBISEARCH'
-    >>> _parse_state_str(_dbi_search_tag("abc","[xyz]",properties,_DBISEARCH))
-    '_DBISEARCH'
-    >>> _parse_state_str(_dbi_search_tag("abc","[Tag abc]",properties,_DBISEARCH))
-    '_DBICHECK_VERSION'
-    >>> properties["tag"]
-    'abc'
+    Here are some examples:
+    >>> def filter1(t):
+    ...   if t in ["abc","def"]:
+    ...     return t.upper()
+    ...   return None
+
+    >>> print _dtt_parser_search_tag(filter1,"")
+    None
+    >>> print _dtt_parser_search_tag(filter1,"[abc]")
+    None
+    >>> print _dtt_parser_search_tag(filter1,"[Tag abc]")
+    {'tag': 'abc', 'tag_filter': 'ABC'}
+    >>> print _dtt_parser_search_tag(filter1,"[Tag xyz]")
+    None
+    >>> print _dtt_parser_search_tag(filter1,"[Tag def]")
+    {'tag': 'def', 'tag_filter': 'DEF'}
     """
     if _empty(line):
-	return state
-    tag= _match_tag(line)
+        return None
+    tag= _dtt_parser_match_tag(line)
     if tag is None:
-	return state
-    if tag!=table_tag:
-	return state
-    properties["tag"]= tag
-    return _DBICHECK_VERSION
+        return None
+    filtered= ""
+    if tag_filter is not None:
+        filtered= tag_filter(tag)
+        if filtered is None:
+            return None
+    properties= {"tag":tag, "tag_filter": filtered}
+    return properties
 
-#@tp.Check(str,int,tp.maptype,int)
-def _dbi_check_version(line, lineno, properties, state):
+#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+def _dtt_parser_check_version(line, lineno, properties, state):
     """utility for read_table, checks version information.
     
     checks if a version information is found and returns the 
     new state.
 
     parameters:
-	line	     -- the line to parse
-	lineno	     -- the line number, used for error messages
-	properties   -- if the version is found, it is stored in this dictionary
-	state	     -- the parser state before the call of the function
+        line         -- the line to parse
+        lineno       -- the line number, used for error messages
+        properties   -- if the version is found, it is stored in this dictionary
+        state        -- the parser state before the call of the function
     returns:
-	the new parser state. If the tag was found, the state _DBISEARCH_PROPERTIES
-	is returned.
+        the new parser state. If the tag was found, the state 
+        _dtt_parserstate._DBISEARCH_PROPERTIES is returned.
 
     Here is an example:
     >>> properties= {}
-    >>> _parse_state_str(_dbi_check_version("abc",0,properties,_DBICHECK_VERSION))
+    >>> print _dtt_parser_check_version("abc",0,properties,_dtt_parserstate._DBICHECK_VERSION)
     Traceback (most recent call last):
        ...
     ValueError: Version information missing in line 0
-    >>> _parse_state_str(_dbi_check_version("[Version 1.x]",0,properties,_DBICHECK_VERSION))
+    >>> print _dtt_parser_check_version("[Version 1.x]",0,
+    ...                          properties,_dtt_parserstate._DBICHECK_VERSION)
     Traceback (most recent call last):
        ...
     ValueError: Version not a number in line 0
-    >>> _parse_state_str(_dbi_check_version("[Version 1.1]",0,properties,_DBICHECK_VERSION))
-    '_DBISEARCH_PROPERTIES'
+    >>> print _dtt_parser_check_version("[Version 1.1]",0,
+    ...                          properties,_dtt_parserstate._DBICHECK_VERSION)
+    _DBISEARCH_PROPERTIES
     >>> properties["version"]
     '1.1'
     >>> 
     """
     if _empty(line):
-	return state
-    version= _match_version(line)
+        return state
+    version= _dtt_parser_match_version(line)
     if version is None:
-	raise ValueError,\
-	      "Version information missing in line %d" % lineno
+        raise ValueError,\
+              "Version information missing in line %d" % lineno
     try:
-	verno= float(version)
+        verno= float(version)
     except ValueError, e:
-	    raise ValueError,"Version not a number in line %d" % lineno
+            raise ValueError,"Version not a number in line %d" % lineno
     if float(version)<min_version:
-	raise ValueError,"line %d: format version(%s) too small" % (lineno,version)
+        raise ValueError,"line %d: format version(%s) too small" % (lineno,version)
     properties["version"]= version
-    return _DBISEARCH_PROPERTIES
+    return _dtt_parserstate._DBISEARCH_PROPERTIES
 
-#@tp.Check(str,int,int)
-def _dbi_search_properties(line, lineno, state):
+#@tp.Check(str,int,enum.EnumValue)
+def _dtt_parser_search_properties(line, lineno, state):
     """search for the "properties" section.
     
     parameters:
-	line	     -- the line to parse
-	lineno	     -- the line number, used for error messages
-	state	     -- the parser state before the call of the function
+        line         -- the line to parse
+        lineno       -- the line number, used for error messages
+        state        -- the parser state before the call of the function
     returns:
-	the new parser state. If the tag was found, the state _DBISCAN_PROPERTIES
-	is returned.
+        the new parser state. If the tag was found, the state 
+        _dtt_parserstate._DBISCAN_PROPERTIES is returned.
 
     Here is an example:
     >>> properties= {}
-    >>> _parse_state_str(_dbi_search_properties("abc",0,_DBISEARCH_PROPERTIES))
+    >>> print _dtt_parser_search_properties("abc",0,
+    ...                              _dtt_parserstate._DBISEARCH_PROPERTIES)
     Traceback (most recent call last):
        ...
     ValueError: file format error in line 0
-    >>> _parse_state_str(_dbi_search_properties("[blah]",0,_DBISEARCH_PROPERTIES))
+    >>> print _dtt_parser_search_properties("[blah]",0,
+    ...                              _dtt_parserstate._DBISEARCH_PROPERTIES)
     Traceback (most recent call last):
        ...
     ValueError: file format error in line 0
-    >>> _parse_state_str(_dbi_search_properties("[Properties]",0,_DBISEARCH_PROPERTIES))
-    '_DBISCAN_PROPERTIES'
+    >>> print _dtt_parser_search_properties("[Properties]",0,
+    ...                              _dtt_parserstate._DBISEARCH_PROPERTIES)
+    _DBISCAN_PROPERTIES
     """
     if _empty(line):
-	return state
-    tag= _match_simple_tag(line)
+        return state
+    tag= _dtt_parser_match_simple_tag(line)
     if tag is None:
-	raise ValueError, "file format error in line %d" % lineno
+        raise ValueError, "file format error in line %d" % lineno
     if tag.upper() != "PROPERTIES":
-	raise ValueError, "file format error in line %d" % lineno
-    return _DBISCAN_PROPERTIES
+        raise ValueError, "file format error in line %d" % lineno
+    return _dtt_parserstate._DBISCAN_PROPERTIES
 
-#@tp.Check(str,int,tp.maptype,int)
-def _dbi_scan_properties(line, lineno, properties, state):
+#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+def _dtt_parser_scan_properties(line, lineno, properties, state):
     """scan the property section.
 
     This function scans below the "[Properties]" section. 
@@ -1727,56 +2231,59 @@ def _dbi_scan_properties(line, lineno, properties, state):
     corresponding state is returned.
 
     parameters:
-	line	     -- the line to parse
-	lineno	     -- the line number, used for error messages
-	properties   -- if properties are found, they are stored in this dictionary
-	state	     -- the parser state before the call of the function
+        line         -- the line to parse
+        lineno       -- the line number, used for error messages
+        properties   -- if properties are found, they are stored in this dictionary
+        state        -- the parser state before the call of the function
     returns:
-	the new parser state. If one of the three expected sections is found,
-	the corresponding state is returned.
+        the new parser state. If one of the three expected sections is found,
+        the corresponding state is returned.
 
     Here are some examples:
     >>> properties= {}
-    >>> _parse_state_str(_dbi_scan_properties("TABLE=mytable TYPE=file",
-    ...                0,properties,_DBISCAN_PROPERTIES))
-    '_DBISCAN_PROPERTIES'
+    >>> print _dtt_parser_scan_properties("TABLE=mytable TYPE=file",
+    ...                            0,properties,_dtt_parserstate._DBISCAN_PROPERTIES)
+    _DBISCAN_PROPERTIES
     >>> properties["TABLE"]
     'mytable'
     >>> properties["TYPE"]
     'file'
-    >>> _parse_state_str(_dbi_scan_properties("[Aliases]",0,properties,_DBISCAN_PROPERTIES))
-    '_DBISCAN_ALIASES'
-    >>> _parse_state_str(_dbi_scan_properties("[Column-Types]",0,
-    ...                                    properties,_DBISCAN_PROPERTIES))
-    '_DBISCAN_COLUMN_TYPES'
-    >>> _parse_state_str(_dbi_scan_properties("[Columns]",0,properties,_DBISCAN_PROPERTIES))
-    '_DBISCAN_COLUMNS'
-    >>> _parse_state_str(_dbi_scan_properties("[blah]",0,properties,_DBISCAN_PROPERTIES))
+    >>> print _dtt_parser_scan_properties("[Aliases]",0,
+    ...                            properties,_dtt_parserstate._DBISCAN_PROPERTIES)
+    _DBISCAN_ALIASES
+    >>> print _dtt_parser_scan_properties("[Column-Types]",0,
+    ...                            properties,_dtt_parserstate._DBISCAN_PROPERTIES)
+    _DBISCAN_COLUMN_TYPES
+    >>> print _dtt_parser_scan_properties("[Columns]",0,
+    ...                            properties,_dtt_parserstate._DBISCAN_PROPERTIES)
+    _DBISCAN_COLUMNS
+    >>> print _dtt_parser_scan_properties("[blah]",0,
+    ...                            properties,_dtt_parserstate._DBISCAN_PROPERTIES)
     Traceback (most recent call last):
        ...
     ValueError: unexpected tag "blah" in line 0
     """
     if _empty(line):
-	return state
-    tag= _match_simple_tag(line)
+        return state
+    tag= _dtt_parser_match_simple_tag(line)
     if tag is not None:
-	utag= tag.upper()
-	if utag=="ALIASES":
-	    return _DBISCAN_ALIASES
-	if utag=="COLUMN-TYPES":
-	    return _DBISCAN_COLUMN_TYPES
-	if utag=="COLUMNS":
-	    return _DBISCAN_COLUMNS
-	raise ValueError,"unexpected tag \"%s\" in line %d" % (tag,lineno)
+        utag= tag.upper()
+        if utag=="ALIASES":
+            return _dtt_parserstate._DBISCAN_ALIASES
+        if utag=="COLUMN-TYPES":
+            return _dtt_parserstate._DBISCAN_COLUMN_TYPES
+        if utag=="COLUMNS":
+            return _dtt_parserstate._DBISCAN_COLUMNS
+        raise ValueError,"unexpected tag \"%s\" in line %d" % (tag,lineno)
     scanned= _scan_definitions(line)
     if len(scanned)==0:
-	raise ValueError,"format error in line %d" % lineno
+        raise ValueError,"format error in line %d" % lineno
     for (name,value) in scanned:
-	properties[name]= value
+        properties[name]= value
     return state
 
-#@tp.Check(str,int,int)
-def _dbi_scan_aliases(line, lineno, state):
+#@tp.Check(str,int,enum.EnumValue)
+def _dtt_parser_scan_aliases(line, lineno, state):
     """scan the aliases section.
     
     This function scans below the "[Aliases]" section, currently
@@ -1785,40 +2292,40 @@ def _dbi_scan_aliases(line, lineno, state):
     [Columns]. If that happens, a new corresponding state is returned.
 
     parameters:
-	line	     -- the line to parse
-	lineno	     -- the line number, used for error messages
-	state	     -- the parser state before the call of the function
+        line         -- the line to parse
+        lineno       -- the line number, used for error messages
+        state        -- the parser state before the call of the function
     returns:
-	the new parser state. If one of the two expected sections is found,
-	the corresponding state is returned.
+        the new parser state. If one of the two expected sections is found,
+        the corresponding state is returned.
 
     Here are some examples:
-    >>> _parse_state_str(_dbi_scan_aliases("abc",0,_DBISCAN_ALIASES))
-    '_DBISCAN_ALIASES'
-    >>> _parse_state_str(_dbi_scan_aliases("[Column-Types]",0,_DBISCAN_ALIASES))
-    '_DBISCAN_COLUMN_TYPES'
-    >>> _parse_state_str(_dbi_scan_aliases("[Columns]",0,_DBISCAN_ALIASES))
-    '_DBISCAN_COLUMNS'
-    >>> _parse_state_str(_dbi_scan_aliases("[blah]",0,_DBISCAN_ALIASES))
+    >>> print _dtt_parser_scan_aliases("abc",0,_dtt_parserstate._DBISCAN_ALIASES)
+    _DBISCAN_ALIASES
+    >>> print _dtt_parser_scan_aliases("[Column-Types]",0,_dtt_parserstate._DBISCAN_ALIASES)
+    _DBISCAN_COLUMN_TYPES
+    >>> print _dtt_parser_scan_aliases("[Columns]",0,_dtt_parserstate._DBISCAN_ALIASES)
+    _DBISCAN_COLUMNS
+    >>> print _dtt_parser_scan_aliases("[blah]",0,_dtt_parserstate._DBISCAN_ALIASES)
     Traceback (most recent call last):
        ...
     ValueError: unexpected tag "blah" in line 0
     """
     # just skip the alias section for now
     if _empty(line):
-	return state
-    tag= _match_simple_tag(line)
+        return state
+    tag= _dtt_parser_match_simple_tag(line)
     if tag is not None:
-	utag= tag.upper()
-	if utag=="COLUMN-TYPES":
-	    return _DBISCAN_COLUMN_TYPES
-	if utag=="COLUMNS":
-	    return _DBISCAN_COLUMNS
-	raise ValueError,"unexpected tag \"%s\" in line %d" % (tag,lineno)
+        utag= tag.upper()
+        if utag=="COLUMN-TYPES":
+            return _dtt_parserstate._DBISCAN_COLUMN_TYPES
+        if utag=="COLUMNS":
+            return _dtt_parserstate._DBISCAN_COLUMNS
+        raise ValueError,"unexpected tag \"%s\" in line %d" % (tag,lineno)
     return state
 
-#@tp.Check(str,int,tp.maptype,int)
-def _dbi_scan_column_types(line, lineno, properties, state):
+#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+def _dtt_parser_scan_column_types(line, lineno, properties, state):
     """scan the column types.
 
     This function scans the column-type definition, a comma-separated
@@ -1826,79 +2333,80 @@ def _dbi_scan_column_types(line, lineno, properties, state):
     one of the known dbitable column types (currently "number" or "string").
 
     parameters:
-	line	     -- the line to parse
-	lineno	     -- the line number, used for error messages
-	properties   -- if column-types are found, they are stored in this dictionary
-	state	     -- the parser state before the call of the function
+        line         -- the line to parse
+        lineno       -- the line number, used for error messages
+        properties   -- if column-types are found, they are stored in this dictionary
+        state        -- the parser state before the call of the function
     returns:
-	the new parser state, which is always _DBISEARCH_COLUMNS
+        the new parser state, which is always _dtt_parserstate._DBISEARCH_COLUMNS
 
     Here are some examples:
     >>> properties= {}
-    >>> _parse_state_str(_dbi_scan_column_types("number, string,number",0,
-    ...                                      properties, _DBISCAN_COLUMN_TYPES))
-    '_DBISEARCH_COLUMNS'
+    >>> print _dtt_parser_scan_column_types("number, string,number",0,
+    ...                              properties, _dtt_parserstate._DBISCAN_COLUMN_TYPES)
+    _DBISEARCH_COLUMNS
     >>> properties["column-types"]
     ['number', 'string', 'number']
-    >>> _parse_state_str(_dbi_scan_column_types("number",0,
-    ...                                      properties, _DBISCAN_COLUMN_TYPES))
-    '_DBISEARCH_COLUMNS'
+    >>> print _dtt_parser_scan_column_types("number",0,
+    ...                              properties, _dtt_parserstate._DBISCAN_COLUMN_TYPES)
+    _DBISEARCH_COLUMNS
     >>> properties["column-types"]
     ['number']
-    >>> _parse_state_str(_dbi_scan_column_types("number, abc",0,
-    ...                                      properties, _DBISCAN_COLUMN_TYPES))
+    >>> print _dtt_parser_scan_column_types("number, abc",0,
+    ...                              properties, _dtt_parserstate._DBISCAN_COLUMN_TYPES)
     Traceback (most recent call last):
        ...
     ValueError: format error in line 0
     """
     if _empty(line):
-	return state
+        return state
     known_words= set(("number","string"))
     column_types= _split_csv(line)
     for t in column_types:
-	if t not in known_words:
-	    raise ValueError,"format error in line %d" % lineno
+        if t not in known_words:
+            raise ValueError,"format error in line %d" % lineno
     properties["column-types"]= column_types
-    return _DBISEARCH_COLUMNS
+    return _dtt_parserstate._DBISEARCH_COLUMNS
 
-#@tp.Check(str,int,int)
-def _dbi_search_columns(line, lineno, state):
+#@tp.Check(str,int,enum.EnumValue)
+def _dtt_parser_search_columns(line, lineno, state):
     """look for the columns part.
     
     This function looks for the [Columns] tag. If it is found,
-    it returns the _DBISCAN_COLUMNS type, otherwise an exception is 
+    it returns the _dtt_parserstate._DBISCAN_COLUMNS type, otherwise an exception is 
     raised.
 
     parameters:
-	line	     -- the line to parse
-	lineno	     -- the line number, used for error messages
-	state	     -- the parser state before the call of the function
+        line         -- the line to parse
+        lineno       -- the line number, used for error messages
+        state        -- the parser state before the call of the function
     returns:
-	the new parser state, which is always _DBISCAN_COLUMNS
+        the new parser state, which is always _dtt_parserstate._DBISCAN_COLUMNS
 
     Here are some examples:
     >>> properties= {}
-    >>> _parse_state_str(_dbi_search_columns("[Columns]",0,_DBISEARCH_COLUMNS))
-    '_DBISCAN_COLUMNS'
-    >>> _parse_state_str(_dbi_search_columns("[blah]",0,_DBISEARCH_COLUMNS))
+    >>> print _dtt_parser_search_columns("[Columns]",0,
+    ...                           _dtt_parserstate._DBISEARCH_COLUMNS)
+    _DBISCAN_COLUMNS
+    >>> print _dtt_parser_search_columns("[blah]",0,_dtt_parserstate._DBISEARCH_COLUMNS)
     Traceback (most recent call last):
        ...
     ValueError: format error in line 0
-    >>> _parse_state_str(_dbi_search_columns("xx",0,_DBISEARCH_COLUMNS))
+    >>> print _dtt_parser_search_columns("xx",0,_dtt_parserstate._DBISEARCH_COLUMNS)
     Traceback (most recent call last):
        ...
     ValueError: format error in line 0
     """
     if _empty(line):
-	return state
-    tag= _match_simple_tag(line)
+        return state
+    tag= _dtt_parser_match_simple_tag(line)
     if tag is not None:
-	if tag.upper()=="COLUMNS":
-	    return _DBISCAN_COLUMNS
+        if tag.upper()=="COLUMNS":
+            return _dtt_parserstate._DBISCAN_COLUMNS
     raise ValueError,"format error in line %d" % lineno
 
-#@tp.Check(str,int,tp.maptype,int)
-def _dbi_scan_columns(line, lineno, properties, state):
+#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+def _dtt_parser_scan_columns(line, lineno, properties, state):
     """scan columns.
     
     This function scans the lines with the colum-names. Note
@@ -1906,26 +2414,30 @@ def _dbi_scan_columns(line, lineno, properties, state):
     Note too, that the column names are converted to lower-case.
 
     parameters:
-	line	     -- the line to parse
-	lineno	     -- the line number, used for error messages
-	properties   -- if column names are found, they are stored in this dictionary
-	state	     -- the parser state before the call of the function
+        line         -- the line to parse
+        lineno       -- the line number, used for error messages
+        properties   -- if column names are found, they are stored in this dictionary
+        state        -- the parser state before the call of the function
     returns:
-	the new parser state, which is always _DBISCAN_TABLE
+        the new parser state, which is always _dtt_parserstate._DBISCAN_TABLE
 
     Here are some examples:
     >>> properties= {}
-    >>> _parse_state_str(_dbi_scan_columns("ID, NAME",0,properties,_DBISCAN_COLUMNS))
-    '_DBISCAN_COLUMNS'
-    >>> _parse_state_str(_dbi_scan_columns("NAME2, NAME3",1,properties,_DBISCAN_COLUMNS))
-    '_DBISCAN_COLUMNS'
-    >>> _parse_state_str(_dbi_scan_columns("[Table]",1,properties,_DBISCAN_COLUMNS))
-    '_DBISCAN_TABLE'
+    >>> print _dtt_parser_scan_columns("ID, NAME",
+    ...                         0,properties,_dtt_parserstate._DBISCAN_COLUMNS)
+    _DBISCAN_COLUMNS
+    >>> print _dtt_parser_scan_columns("NAME2, NAME3",
+    ...                         1,properties,_dtt_parserstate._DBISCAN_COLUMNS)
+    _DBISCAN_COLUMNS
+    >>> print _dtt_parser_scan_columns("[Table]",1,
+    ...                         properties,_dtt_parserstate._DBISCAN_COLUMNS)
+    _DBISCAN_TABLE
     >>> properties["columns"]
     ['id', 'name', 'name2', 'name3']
 
     Here we show that tags that are not "[Table]" lead to an error:
-    >>> _parse_state_str(_dbi_scan_columns("[abc]",1,properties,_DBISCAN_COLUMNS))
+    >>> print _dtt_parser_scan_columns("[abc]",1,
+    ...                         properties,_dtt_parserstate._DBISCAN_COLUMNS)
     Traceback (most recent call last):
        ...
     ValueError: unexpected tag in line 1
@@ -1934,46 +2446,47 @@ def _dbi_scan_columns(line, lineno, properties, state):
     column name definitions, an exception is raised. To simulate this,
     we first delete the properties dictionary:
     >>> properties= {}
-    >>> _parse_state_str(_dbi_scan_columns("[Table]",1,properties,_DBISCAN_COLUMNS))
+    >>> print _dtt_parser_scan_columns("[Table]",1,
+    ...                          properties,_dtt_parserstate._DBISCAN_COLUMNS)
     Traceback (most recent call last):
        ...
     ValueError: no column name definition (line 1)
     """
     
     if _empty(line):
-	return state
-    tag= _match_simple_tag(line)
+        return state
+    tag= _dtt_parser_match_simple_tag(line)
     if tag is not None:
-	#print "TAG FOUND:",tag
-	if tag.upper()=="TABLE":
-	    #print "new state: scan_table"
-	    if not properties.has_key("columns"):
-		raise ValueError, "no column name definition (line %d)" % lineno
-	    return _DBISCAN_TABLE
-	else:
-	    raise ValueError, "unexpected tag in line %d" % lineno
+        #print "TAG FOUND:",tag
+        if tag.upper()=="TABLE":
+            #print "new state: scan_table"
+            if not properties.has_key("columns"):
+                raise ValueError, "no column name definition (line %d)" % lineno
+            return _dtt_parserstate._DBISCAN_TABLE
+        else:
+            raise ValueError, "unexpected tag in line %d" % lineno
     parts= _split_csv(line)
     if len(parts)==0:
-	raise ValueError,"format error in line %d" % lineno
+        raise ValueError,"format error in line %d" % lineno
     parts= [x.lower() for x in parts]
     if not properties.has_key("columns"):
-	properties["columns"]= parts
+        properties["columns"]= parts
     else:
-	properties["columns"].extend(parts)
+        properties["columns"].extend(parts)
     return state
 
 #@tp.Check(sqlalchemy.schema.MetaData,tp.maptype)
-def _properties_to_table(metadata, properties):
+def _dtt_parser_properties_to_table(metadata, properties):
     r"""convert a properties dictionary to a real table.
 
     parameters:
-	metadata     -- the metadata object, to which the table
-	                will be connected.
-	properties   -- the properties dictionary as it is
-	                created by the various _dbi_ functions that
-			are called in read_table()
+        metadata     -- the metadata object, to which the table
+                        will be connected.
+        properties   -- the properties dictionary as it is
+                        created by the various _dbi_ functions that
+                        are called in read_table()
     returns:
-	a sqlalchemy table object
+        a sqlalchemy table object
 
     Here is an example:
     >>> (meta,conn)=connect_memory()
@@ -1981,7 +2494,7 @@ def _properties_to_table(metadata, properties):
     ...              "column-types":["number","string"],
     ...              "PK":"id"
     ...            }
-    >>> tbl= _properties_to_table(meta, properties)
+    >>> tbl= _dtt_parser_properties_to_table(meta, properties)
 
     The table object contains no data, but we can print
     it's repr-string here:
@@ -2001,16 +2514,17 @@ def _properties_to_table(metadata, properties):
     table=<mytable>),
     schema=None)
     """
-    typemap= { 'number': sqlalchemy.Integer,
-               'string': sqlalchemy.String }
     columns=[]
     # "PK" may be a comma-separated list of primary keys
-    pks= set([st.strip().upper() 
-              for st in properties["PK"].split(",")])
+    if properties.has_key("PK"):
+        pks= set([st.strip().upper() 
+                  for st in properties["PK"].split(",")])
+    else:
+        pks= set()
     for i in xrange(len(properties["columns"])):
         col_name= properties["columns"][i]
         arg_list= [ col_name.lower(),
-                    typemap[properties["column-types"][i]],
+                    dbi_to_sqlite_coltype[properties["column-types"][i]],
                   ]
         arg_dict= {}
         if col_name.upper() in pks:
@@ -2025,190 +2539,405 @@ def _properties_to_table(metadata, properties):
     return table
 
 # parse state constants
-_DBISEARCH            =1
-_DBICHECK_VERSION     =2
-_DBISEARCH_PROPERTIES =3
-_DBISCAN_PROPERTIES   =4
-_DBISCAN_ALIASES      =5
-_DBISCAN_COLUMN_TYPES =6
-_DBISEARCH_COLUMNS    =7
-_DBISCAN_COLUMNS      =8
-_DBISCAN_TABLE        =9
+_dtt_parserstate= enum.Enum(
+    "_DBISEARCH",
+    "_DBICHECK_VERSION",
+    "_DBISEARCH_PROPERTIES",
+    "_DBISCAN_PROPERTIES",
+    "_DBISCAN_ALIASES",
+    "_DBISCAN_COLUMN_TYPES",
+    "_DBISEARCH_COLUMNS",
+    "_DBISCAN_COLUMNS",
+    "_DBISCAN_TABLE")
 
-#@tp.Check(int)
-def _parse_state_str(i):
-    """just for debugging, print the parse-state as a string.
+
+#@tp.Check(tp.filetype,tp.filetype,tp.function_)
+def dtt_filter_fh(in_fh, out_fh, filter_func):
+    """remove tables from a dbitable collection file.
+
+    This function is used to remove tables from a dbitable collection.
+    This is a file with several tables in it stored in the dbitable
+    format. All lines from the input-file are read, and all filtered
+    lines are written to the output-file. A typical application of 
+    this function is to re-write some but not all tables in a dbitable 
+    collection file. 
+
+    parameters:
+        in_fh        -- filehandle of the opened input-file
+        out_fh       -- filehandle of the opened output-file
+        filter_func  -- this function is called with each tag found.
+                        If the function returns True, the table remains
+                        in the file, otherwise the table is removed.
+
+    Here is an example:
+
+    >>> txt_3_tables='''
+    ... [Tag table1]
+    ... [Version 1.0]
+    ... [Properties]
+    ... TABLE=table1 TYPE=file
+    ... PK="ID1"
+    ... FETCH_CMD="select * from table1"
+    ... 
+    ... [Aliases]
+    ... 
+    ... [Column-Types]
+    ... number, string
+    ... [Columns]
+    ... ID1, NAME1
+    ... [Table]
+    ... 1|ab1
+    ... 2|cd1
+    ... #============================================================
+    ... [Tag table2]
+    ... [Version 1.0]
+    ... [Properties]
+    ... TABLE=table2 TYPE=file
+    ... PK="ID2"
+    ... FETCH_CMD="select * from table2"
+    ... 
+    ... [Aliases]
+    ... 
+    ... [Column-Types]
+    ... number, string
+    ... [Columns]
+    ... ID2, NAME2
+    ... [Table]
+    ... 1|ab2
+    ... 2|cd2
+    ... #============================================================
+    ... [Tag table3]
+    ... [Version 1.0]
+    ... [Properties]
+    ... TABLE=table3 TYPE=file
+    ... PK="ID3"
+    ... FETCH_CMD="select * from table3"
+    ... 
+    ... [Aliases]
+    ... 
+    ... [Column-Types]
+    ... number, string
+    ... [Columns]
+    ... ID3, NAME3
+    ... [Table]
+    ... 1|ab3
+    ... 2|cd3
+    ... #============================================================
+    ... '''
+
+    >>> input= StringIO.StringIO(txt_3_tables)
+    >>> dtt_filter_fh(input,sys.stdout,lambda x:x in ["table1","table3"])
+    <BLANKLINE>
+    [Tag table1]
+    [Version 1.0]
+    [Properties]
+    TABLE=table1 TYPE=file
+    PK="ID1"
+    FETCH_CMD="select * from table1"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID1, NAME1
+    [Table]
+    1|ab1
+    2|cd1
+    #============================================================
+    [Tag table3]
+    [Version 1.0]
+    [Properties]
+    TABLE=table3 TYPE=file
+    PK="ID3"
+    FETCH_CMD="select * from table3"
+    <BLANKLINE>
+    [Aliases]
+    <BLANKLINE>
+    [Column-Types]
+    number, string
+    [Columns]
+    ID3, NAME3
+    [Table]
+    1|ab3
+    2|cd3
+    #============================================================
     """
-    strs=[
-	"_DBISEARCH",
-	"_DBICHECK_VERSION",
-	"_DBISEARCH_PROPERTIES",
-	"_DBISCAN_PROPERTIES",
-	"_DBISCAN_ALIASES",
-	"_DBISCAN_COLUMN_TYPES",
-	"_DBISEARCH_COLUMNS",
-	"_DBISCAN_COLUMNS",
-	"_DBISCAN_TABLE",
-	  ]
-    if (i<1) or (i>len(strs)):
-	raise ValueError, "parse state number out of range (%d)" % i
-    return strs[i-1]
+    def myfilter(t):
+        if filter_func(t):
+            return ""
+        return None
+    properties=None
+    state= _dtt_parserstate._DBISEARCH
+    lineno=0
+    pks= []
+    flags_dict= {}
+    keep= True
+    for line in in_fh:
+        lineno+= 1
+        if line.isspace():
+            if keep:
+                out_fh.write("\n")
+            continue
+        line= line.rstrip()
+        tag= _dtt_parser_match_tag(line)
+        if tag is not None:
+            keep= filter_func(tag)
+        if keep:
+            out_fh.write(line)
+            out_fh.write("\n")
 
-#@tp.Check(sqlalchemy.schema.MetaData, str, tp.filetype, str, bool,bool,tp_func_or_none)
-def read_table(metadata, table_tag, fh, 
-	       table_name= "",
-               rstrip_mode= True, quote_mode=False,
-	       filter_func= None):
+#@tp.Check(str,tp.function_,str)
+def dtt_filter_file(filename, filter_func, replace_ext="bak"):
+    """remove tables from a dbitable collection file.
+
+    This function is used to remove tables from a dbitable collection.
+    This is a file with several tables in it stored in the dbitable
+    format. All lines from the input-file are read, and all filtered
+    lines are written to the output-file. A typical application of 
+    this function is to re-write some but not all tables in a dbitable 
+    collection file. 
+    """
+    input_fh= open(filename,"r")
+    (output_fh,tempname)= _mk_temp_file()
+    dtt_filter_fh(input_fh,output_fh,filter_func)
+    input_fh.close()
+    output_fh.close()
+    _replace_with_temp(filename,tempname,replace_ext)
+
+#@tp.Check(sqlalchemy.schema.MetaData, tp.filetype, tp_func_or_none, bool,bool,tp_func_or_none)
+def dtt_read_tables_fh(metadata, fh, tag_filter=None, 
+                rstrip_mode= True, quote_mode=False,
+                row_filter= None):
     """reads a table from a dbitable compatible format.
 
     This function creates a new table from a text in a dbitabletext
     format that is read from a file.
 
     parameters:
-	metadata    -- the metadata object which is used to create 
-		       a new table
-	table_tag   -- the table tag that is searched in the file.
-	fh          -- a file-handle to an open file.
-	table_name  -- the optional name of the created table. It may be 
-	               different from table_tag
-	rstrip_mode -- if True, rstrip is performed on each read
-	               value
-	quote_mode  -- if True, single quotes around values are
-	               removed and pipe "|" characters within 
-		       quoted sections are ignored.
-	filter_func -- This function is called with (flags_dict, value_dict).
-		       The flags_dict provides some information about the table.
-		       Currently only "pks" is defined, which is a list of 
-		       primary key columns in lower-case. The value_dict is 
-		       a dictionary of all values in the current row, together
-		       with their column names. The function should return
-		       a (possibly modified) value_dict or "None", in which 
-		       case the row is skipped.
+        metadata    -- the metadata object which is used to create 
+                       a new table
+        fh          -- a file-handle to an open file.
+        tag_filter  -- a function that is called with each found tag.
+                       If it returns None, that table is skipped. If it returns
+                       an empty string, the table is read. If it returns a non-empty
+                       string, the table is read and is stored with a name that is 
+                       equal to that string.
+                       If this parameter is None, all tables are read from the file.
+        rstrip_mode -- if True, rstrip is performed on each read
+                       value
+        quote_mode  -- if True, single quotes around values are
+                       removed and pipe "|" characters within 
+                       quoted sections are ignored.
+        row_filter -- This function is called with (flags_dict, value_dict).
+                       The flags_dict provides some information about the table,
+                       "tag" is the tag-name, "table" the table name and
+                       "pks" is a list of primary key columns in lower-case. 
+                       The value_dict is a dictionary of all values in the
+                       current row, together with their column names. The
+                       function should return a (possibly modified) value_dict
+                       or "None", in which case the row is skipped.
     returns:
-	a sqlalchemy table object
+        a dictionary mapping table names to table objects. All table objects
+        are new tables that are created in sqlite:memory. Note that the 
+        table object names are all in lower-case.
 
-    for examples have a look at read_table_from_txt().
+    for examples have a look at dtt_to_tables().
     """
+    def _flush(table,value_cache,maxlen):
+        if len(value_cache)<=maxlen:
+            return
+        table.insert().execute(value_cache)
+        del value_cache[:]
+    table_dict= {}
     table_obj= None
-    properties={}
+    table_name=""
+    properties=None
     value_cache=[]
-    state= _DBISEARCH
+    state= _dtt_parserstate._DBISEARCH
     lineno=0
     pks= []
     flags_dict= {}
-    for line in fh:
-        lineno+= 1
+    get_next_line= True
+    while True:
+        if get_next_line:
+            line= fh.readline()
+            lineno+= 1
+            if line=="": # EOF
+                break
+        else:
+            get_next_line= True
         if line.isspace():
             continue
         line= line.rstrip()
-        if state==_DBISEARCH:
-	    state= _dbi_search_tag(table_tag, line, properties, state)
+        if state==_dtt_parserstate._DBISEARCH:
+            properties= _dtt_parser_search_tag(tag_filter, line)
+            if properties is not None:
+                state= _dtt_parserstate._DBICHECK_VERSION
             continue
-        if state==_DBICHECK_VERSION:
-	    state= _dbi_check_version(line, lineno, properties, state)
+        if state==_dtt_parserstate._DBICHECK_VERSION:
+            state= _dtt_parser_check_version(line, lineno, properties, state)
             continue
-        if state==_DBISEARCH_PROPERTIES:
-	    state= _dbi_search_properties(line, lineno, state)
+        if state==_dtt_parserstate._DBISEARCH_PROPERTIES:
+            state= _dtt_parser_search_properties(line, lineno, state)
             continue
-        if state==_DBISCAN_PROPERTIES:
-	    state= _dbi_scan_properties(line, lineno, properties, state)
+        if state==_dtt_parserstate._DBISCAN_PROPERTIES:
+            state= _dtt_parser_scan_properties(line, lineno, properties, state)
             continue
-        if state==_DBISCAN_ALIASES:
-	    state= _dbi_scan_aliases(line, lineno, state)
+        if state==_dtt_parserstate._DBISCAN_ALIASES:
+            state= _dtt_parser_scan_aliases(line, lineno, state)
             continue
-        if state==_DBISCAN_COLUMN_TYPES:
-	    state= _dbi_scan_column_types(line, lineno, properties, state)
+        if state==_dtt_parserstate._DBISCAN_COLUMN_TYPES:
+            state= _dtt_parser_scan_column_types(line, lineno, properties, state)
             continue
-        if state==_DBISEARCH_COLUMNS:
-	    state= _dbi_search_columns(line, lineno, state)
+        if state==_dtt_parserstate._DBISEARCH_COLUMNS:
+            state= _dtt_parser_search_columns(line, lineno, state)
             continue
-        if state==_DBISCAN_COLUMNS:
-	    state= _dbi_scan_columns(line, lineno, properties, state)
-	    # column-names in properties-hash are lower-case !
-	    if state==_DBISCAN_TABLE:
-		# prepare scanning of the table
-	        if table_name!="":
-		    properties["TABLE"]= table_name
-		table_obj= _properties_to_table(metadata, properties)
-		pks= [p.lower() for p in primary_keys(table_obj)]
-		flags_dict["pks"]= pks
+        if state==_dtt_parserstate._DBISCAN_COLUMNS:
+            state= _dtt_parser_scan_columns(line, lineno, properties, state)
+            # column-names in properties-hash are lower-case !
+            if state==_dtt_parserstate._DBISCAN_TABLE:
+                # prepare scanning of the table
+                if properties["tag_filter"]!="":
+                    properties["TABLE"]= properties["tag_filter"]
+                if not properties.has_key("TABLE"):
+                    # it may happen for queries stored in the file
+                    # that there is no property "TABLE", use the tag
+                    # name as a table name in that case:
+                    properties["TABLE"]= properties["tag"]
+                table_obj= _dtt_parser_properties_to_table(metadata, properties)
+                table_dict[properties["TABLE"].lower()]= table_obj
+                pks= [p.lower() for p in primary_keys(table_obj)]
+                flags_dict= {"pks":pks, "tag":properties["tag"],
+                             "table": properties["TABLE"]}
+                value_cache=[]
             continue
-        if state==_DBISCAN_TABLE:
-	    #break #@@@
+        if state==_dtt_parserstate._DBISCAN_TABLE:
+            #break #@@@
             #print "line:|",line,"|"
-	    if _empty(line):
-		continue
-	    if _match_tag(line) is not None:
-		# "[Tag xxx]" marks the begin of the
-		# next table section
-		break
-            if _end_section(line):
+            if _empty(line):
+                continue
+            if _dtt_parser_match_tag(line) is not None:
+                # "[Tag xxx]" marks the begin of the
+                # next table section
+                # get_next_line=False supresses the loading of a 
+                # new line at the start of the loop:
+                _flush(table_obj, value_cache, 0)
+                get_next_line= False
+                state= _dtt_parserstate._DBISEARCH
+                continue
+            if _dtt_parser_end_section(line):
                 # print "END SECTION FOUND"
-                break
-	    if quote_mode:
-		values= _split_pq(line)
-	    else:
-		values= _split_p(line)
-	    values= [_unquote(v,quote_mode) for v in values]
-	    if rstrip_mode:
-		values= [v.rstrip() for v in values]
-	    # kann man eine memory-SQL Tabelle 
-	    # ohne primary key definieren ???
-	    rowdict= _convert_row(properties["columns"],
-	                                    properties["column-types"],
-					    values)
-	    if filter_func is not None:
-		rowdict= filter_func(flags_dict, rowdict)
-		if rowdict is None:
-		    continue
+                _flush(table_obj, value_cache, 0)
+                state= _dtt_parserstate._DBISEARCH
+                continue
+            if quote_mode:
+                values= _split_pq(line)
+            else:
+                values= _split_p(line)
+            values= [_unquote(v,quote_mode) for v in values]
+            if rstrip_mode:
+                values= [v.rstrip() for v in values]
+            # kann man eine memory-SQL Tabelle 
+            # ohne primary key definieren ???
+            rowdict= _dtt_parser_convert_row(properties["columns"],
+                                            properties["column-types"],
+                                            values)
+            if row_filter is not None:
+                rowdict= row_filter(flags_dict, rowdict)
+                if rowdict is None:
+                    continue
 
-	    value_cache.append(rowdict)
-	    if len(value_cache)>20:
-		#print "VALUEcache",value_cache
-		table_obj.insert().execute(value_cache)
-		value_cache= []
-    if len(value_cache)>0:
-	table_obj.insert().execute(value_cache)
-	value_cache= []
-    return table_obj
+            value_cache.append(rowdict)
+            _flush(table_obj, value_cache, 20)
+    _flush(table_obj, value_cache, 0)
+    return table_dict
 
+#@tp.Check(sqlalchemy.schema.MetaData, str, tp_func_or_none, bool,bool,tp_func_or_none)
+def dtt_read_tables(metadata, filename, tag_filter=None, 
+                rstrip_mode= True, quote_mode=False,
+                row_filter= None):
+    """reads a table from a dbitable compatible format.
 
-#@tp.Check(sqlalchemy.schema.MetaData, str, str, str, bool,bool,tp_func_or_none)
-def read_table_from_txt(metadata, table_tag, txt,
-	                table_name= "",
+    This function creates a new table from a text in a dbitabletext
+    format that is read from a file.
+
+    parameters:
+        metadata    -- the metadata object which is used to create 
+                       a new table
+        filename    -- the name of the dbitabletext file
+        tag_filter  -- a function that is called with each found tag.
+                       If it returns None, that table is skipped. If it returns
+                       an empty string, the table is read. If it returns a non-empty
+                       string, the table is read and is stored with a name that is 
+                       equal to that string.
+                       If this parameter is None, all tables are read from the file.
+        rstrip_mode -- if True, rstrip is performed on each read
+                       value
+        quote_mode  -- if True, single quotes around values are
+                       removed and pipe "|" characters within 
+                       quoted sections are ignored.
+        row_filter -- This function is called with (flags_dict, value_dict).
+                       The flags_dict provides some information about the table,
+                       "tag" is the tag-name, "table" the table name and
+                       "pks" is a list of primary key columns in lower-case. 
+                       The value_dict is a dictionary of all values in the
+                       current row, together with their column names. The
+                       function should return a (possibly modified) value_dict
+                       or "None", in which case the row is skipped.
+    returns:
+        a dictionary mapping table names to table objects. All table objects
+        are new tables that are created in sqlite:memory. Note that the 
+        table object names are all in lower-case.
+
+    for examples have a look at dtt_to_tables().
+    """
+    fh= open(filename,"r")
+    result= dtt_read_tables_fh(metadata,fh,tag_filter,rstrip_mode,
+                               quote_mode,row_filter)
+    fh.close()
+    return result
+
+#@tp.Check(sqlalchemy.schema.MetaData, str, tp_func_or_none, bool,bool,tp_func_or_none)
+def dtt_to_tables(metadata, txt, tag_filter=None, 
                         rstrip_mode= True, quote_mode=False,
-	                filter_func= None):
+                        row_filter= None):
     r"""read a dbitable compatible text, return property list.
 
     This function creates a new table from a text in a dbitabletext
     format that is read from a file.
 
     parameters:
-	metadata   -- the metadata object which is used to create 
-		      a new table
-	table_tag  -- the table tag that is searched in the file.
-	txt        -- a string containing the file.
-	table_name  -- the optional name of the created table. It may be 
-	               different from table_tag
-	rstrip_mode -- if True, rstrip is performed on each read
-	               value
-	quote_mode  -- if True, single quotes around values are
-	               removed and pipe "|" characters within 
-		       quoted sections are ignored.
-	filter_func -- This function is called with (flags_dict, value_dict).
-		       The flags_dict provides some information about the table.
-		       Currently only "pks" is defined, which is a list of 
-		       primary key columns in lower-case. The value_dict is 
-		       a dictionary of all values in the current row, together
-		       with their column names. The function should return
-		       a (possibly modified) value_dict or "None", in which 
-		       case the row is skipped.
+        metadata   -- the metadata object which is used to create 
+                      a new table
+        txt         -- a string containing the data.
+        tag_filter  -- a function that is called with each found tag.
+                       If it returns None, that table is skipped. If it returns
+                       an empty string, the table is read. If it returns a non-empty
+                       string, the table is read and is stored with a name that is 
+                       equal to that string.
+                       If this parameter is None, all tables are read from the file.
+        rstrip_mode -- if True, rstrip is performed on each read
+                       value
+        quote_mode  -- if True, single quotes around values are
+                       removed and pipe "|" characters within 
+                       quoted sections are ignored.
+        row_filter -- This function is called with (flags_dict, value_dict).
+                       The flags_dict provides some information about the table.
+                       Currently only "pks" is defined, which is a list of 
+                       primary key columns in lower-case. The value_dict is 
+                       a dictionary of all values in the current row, together
+                       with their column names. The function should return
+                       a (possibly modified) value_dict or "None", in which 
+                       case the row is skipped.
     returns:
-	a sqlalchemy table object
+        a dictionary mapping table names to table objects. All table objects
+        are new tables that are created in sqlite:memory. Note that the 
+        table object names are all in lower-case.
 
     Here are some examples:
 
-    First we defined a dbitable-text:
+    First we define a dbitable-text:
 
     >>> txt='''
     ... [Tag mytable]
@@ -2216,7 +2945,7 @@ def read_table_from_txt(metadata, table_tag, txt,
     ... [Properties]
     ... TABLE=mytable TYPE=file
     ... PK="ID"
-    ... FETCH_CMD="select * from mytable "
+    ... FETCH_CMD="select * from mytable"
     ... 
     ... [Aliases]
     ... 
@@ -2238,14 +2967,152 @@ def read_table_from_txt(metadata, table_tag, txt,
     and we read the table from the text, note that
     escaped characters (leading "\") are taken literally:
 
-    >>> tbl=read_table_from_txt(meta,"mytable",txt)
-    >>> print_table(tbl)
+    >>> tdict=dtt_to_tables(meta,txt,lambda x:"" if x=="mytable" else None)
+    >>> print_table(tdict["mytable"])
     ('id', 'name')
     (1, u'cd')
     (2, u'ab')
     (3, u"'quoted'")
     (4, u'p|ped')
     (5, u'back\\slashed')
+
+    Now we show how to read single tables from a dbitabletext collection,
+    this is a dbitabletext with several tables in it:
+
+    >>> txt_3_tables='''
+    ... [Tag table1]
+    ... [Version 1.0]
+    ... [Properties]
+    ... TABLE=table1 TYPE=file
+    ... PK="ID1"
+    ... FETCH_CMD="select * from table1"
+    ... 
+    ... [Aliases]
+    ... 
+    ... [Column-Types]
+    ... number, string
+    ... [Columns]
+    ... ID1, NAME1
+    ... [Table]
+    ... 1|ab1
+    ... 2|cd1
+    ... #============================================================
+    ... [Tag table2]
+    ... [Version 1.0]
+    ... [Properties]
+    ... TABLE=table2 TYPE=file
+    ... PK="ID2"
+    ... FETCH_CMD="select * from table2"
+    ... 
+    ... [Aliases]
+    ... 
+    ... [Column-Types]
+    ... number, string
+    ... [Columns]
+    ... ID2, NAME2
+    ... [Table]
+    ... 1|ab2
+    ... 2|cd2
+    ... #============================================================
+    ... [Tag table3]
+    ... [Version 1.0]
+    ... [Properties]
+    ... TABLE=table3 TYPE=file
+    ... PK="ID3"
+    ... FETCH_CMD="select * from table3"
+    ... 
+    ... [Aliases]
+    ... 
+    ... [Column-Types]
+    ... number, string
+    ... [Columns]
+    ... ID3, NAME3
+    ... [Table]
+    ... 1|ab3
+    ... 2|cd3
+    ... #============================================================
+    ... '''
+
+    Now we fetch just "table2" from this text:
+    >>> tdict= dtt_to_tables(meta,txt_3_tables,
+    ...                             lambda x: "" if x=="table2" else None)
+    >>> print tdict.keys()
+    ['table2']
+    >>> print_table(tdict["table2"])
+    ('id2', 'name2')
+    (1, u'ab2')
+    (2, u'cd2')
+    
+    Now we do the same but this time we change the name of the table:
+    >>> tdict= dtt_to_tables(meta,txt_3_tables,
+    ...                             lambda x: x+"xx" if x=="table2" else None)
+    >>> print tdict.keys()
+    ['table2xx']
+    >>> print_table(tdict["table2xx"])
+    ('id2', 'name2')
+    (1, u'ab2')
+    (2, u'cd2')
+
+    Now we fetch all tables, we create a new metadata object in
+    order to dispose the tables created so far:
+    >>> (meta,conn)=connect_memory()
+    >>> tdict= dtt_to_tables(meta,txt_3_tables,None)
+
+    >>> print sorted(tdict.keys())
+    ['table1', 'table2', 'table3']
+
+    >>> for t in sorted(tdict.keys()):
+    ...   print "\nTable %s:" % t
+    ...   print_table(tdict[t],2)
+    <BLANKLINE>
+    Table table1:
+    id1 | name1
+    ----+------
+    1   | ab1  
+    2   | cd1  
+    <BLANKLINE>
+    Table table2:
+    id2 | name2
+    ----+------
+    1   | ab2  
+    2   | cd2  
+    <BLANKLINE>
+    Table table3:
+    id3 | name3
+    ----+------
+    1   | ab3  
+    2   | cd3  
+
+    Now we demonstrate how the row_filter function can be used to
+    filter or change the rows that are read. First we define a
+    dbitabletext with a single table in it:
+
+    >>> txt='''
+    ... [Tag mytable]
+    ... [Version 1.0]
+    ... [Properties]
+    ... TABLE=mytable TYPE=file
+    ... PK="ID"
+    ... FETCH_CMD="select * from mytable"
+    ... 
+    ... [Aliases]
+    ... 
+    ... [Column-Types]
+    ... number, string
+    ... [Columns]
+    ... ID, NAME
+    ... [Table]
+    ... 1|cd
+    ... 2|ab
+    ... '''
+
+    We define a simple tag-filter function:
+    >>> def filter_tag(tag_wanted,new_name=""):
+    ...     def f(t):
+    ...         if t==tag_wanted:
+    ...             return new_name
+    ...         return None
+    ...     return f
 
     We now use a filter-function to read only lines
     where the id is smaller than 4:
@@ -2257,12 +3124,11 @@ def read_table_from_txt(metadata, table_tag, txt,
     ... 
     >>> (meta,conn)=connect_memory()
     >>> 
-    >>> tbl=read_table_from_txt(meta,"mytable",txt,filter_func= below4)
-    >>> print_table(tbl)
+    >>> tdict=dtt_to_tables(meta,txt,filter_tag("mytable"),row_filter= below4)
+    >>> print_table(tdict["mytable"])
     ('id', 'name')
     (1, u'cd')
     (2, u'ab')
-    (3, u"'quoted'")
 
     For the next tests, we need a source where some 
     rows have an empty primary key. We show different ways
@@ -2274,7 +3140,7 @@ def read_table_from_txt(metadata, table_tag, txt,
     ... [Properties]
     ... TABLE=mytable TYPE=file
     ... PK="ID"
-    ... FETCH_CMD="select * from mytable "
+    ... FETCH_CMD="select * from mytable"
     ... 
     ... [Aliases]
     ... 
@@ -2310,8 +3176,8 @@ def read_table_from_txt(metadata, table_tag, txt,
     ...     return values
     ... 
     >>> (meta,conn)=connect_memory()
-    >>> tbl=read_table_from_txt(meta,"mytable",txt,filter_func= pk_get)
-    >>> print_table(tbl)
+    >>> tdict=dtt_to_tables(meta,txt,filter_tag("mytable"),row_filter= pk_get)
+    >>> print_table(tdict["mytable"])
     ('id', 'name')
     (1, u'ab')
     (2, u'p|ped')
@@ -2328,8 +3194,9 @@ def read_table_from_txt(metadata, table_tag, txt,
     ...     return values
     ... 
     >>> (meta,conn)=connect_memory()
-    >>> tbl_with_pks= read_table_from_txt(meta,"mytable",txt,filter_func= pk_defined)
-    >>> print_table(tbl_with_pks)
+    >>> tdict= dtt_to_tables(meta,txt,filter_tag("mytable"),
+    ...                                         row_filter= pk_defined)
+    >>> print_table(tdict["mytable"])
     ('id', 'name')
     (1, u'ab')
     (2, u'p|ped')
@@ -2355,20 +3222,20 @@ def read_table_from_txt(metadata, table_tag, txt,
     ...     return pk_gen
     ... 
     >>> (meta,conn)=connect_memory()
-    >>> tbl_new_pks= read_table_from_txt(meta,"mytable",txt,table_name="mytable2",
-    ...                                  filter_func= pk_gen_gen(tbl_with_pks))
+    >>> tdict= dtt_to_tables(meta,txt,filter_tag("mytable","mytable2"),
+    ...                             row_filter= pk_gen_gen(tdict["mytable"]))
 
     In the following lines we see, that this table starts with a primary key
     that is just one bigger than the largest primary key in "mytable" (see above):
 
-    >>> print_table(tbl_new_pks)
+    >>> print_table(tdict["mytable2"])
     ('id', 'name')
     (3, u'cd')
     (4, u"'quoted'")
     """
     input= StringIO.StringIO(txt)
-    result= read_table(metadata, table_tag, input, table_name,
-                       rstrip_mode, quote_mode, filter_func)
+    result= dtt_read_tables_fh(metadata, input, tag_filter, 
+                       rstrip_mode, quote_mode, row_filter)
     input.close()
     return result
 
@@ -2385,25 +3252,25 @@ def _tables_compatible(src_coltypes, dst_coltypes, column_mapping):
     key is the same.
 
     parameters:
-	src_coltypes   -- column types of the source table
-	dst_coltypes   -- column types of the destination table
-	column_mapping -- a dictionary mapping source columns to
-	                  dest-columns. Destination columns that are
-			  not present are set to later on set 
-			  to "None".
+        src_coltypes   -- column types of the source table
+        dst_coltypes   -- column types of the destination table
+        column_mapping -- a dictionary mapping source columns to
+                          dest-columns. Destination columns that are
+                          not present are set to later on set 
+                          to "None".
 
     returns:
-	True if the column types match, False otherwise.
+        True if the column types match, False otherwise.
 
     Here is an example:
     """
     for (src_col,dst_col) in column_mapping.items():
-	src_col= src_col.lower()
-	dst_col= dst_col.lower()
-	src_tp= src_coltypes[src_col]
-	dst_tp= dst_coltypes[dst_col]
-	if src_tp!=dst_tp:
-	    return False
+        src_col= src_col.lower()
+        dst_col= dst_col.lower()
+        src_tp= src_coltypes[src_col]
+        dst_tp= dst_coltypes[dst_col]
+        if src_tp!=dst_tp:
+            return False
     return True
 
 #@tp.Check(tp_stringlist,tp_stringlist)
@@ -2424,9 +3291,9 @@ def _mk_column_map(source_column_names, dest_column_names):
     dest_col_set= set( map(lambda x: x.lower(), dest_column_names))
     new= pdict.OneToOne()
     for n in source_cols:
-	if n not in dest_col_set:
-	    raise ValueError, "column '%s' not existent in destination table" % n
-	new[n]= n
+        if n not in dest_col_set:
+            raise ValueError, "column '%s' not existent in destination table" % n
+        new[n]= n
     return new
 
 #@tp.Check(tp_str_str_map)
@@ -2481,10 +3348,10 @@ def _fetch_one(query, value_dict):
     found= False
     Row= None
     for row in query.execute(value_dict):
-	if found:
-	    raise ValueError,"more than one row found for the query"
-	found= True
-	Row= row
+        if found:
+            raise ValueError,"more than one row found for the query"
+        found= True
+        Row= row
     return Row
 
 #@tp.Check(sqlalchemy.sql.expression.Select, tp_str_map)
@@ -2521,7 +3388,7 @@ def _at_least_one(query, value_dict):
     True
     """
     for row in query.execute(value_dict):
-	return True
+        return True
     return False
 
 #@tp.Check(tp_stringlist,sqlalchemy.engine.base.RowProxy)
@@ -2606,9 +3473,9 @@ def _update_dict(source_dict, dest_dict):
     """
     changed= False
     for col in source_dict.keys():
-	if source_dict[col]!=dest_dict[col]:
-	    dest_dict[col]= source_dict[col]
-	    changed= True
+        if source_dict[col]!=dest_dict[col]:
+            dest_dict[col]= source_dict[col]
+            changed= True
     return changed
 
 #@tp.Check(sqlalchemy.schema.Table)
@@ -2651,7 +3518,7 @@ def _pk_where_part(table):
     # query for specific primary keys:
     and_query= sqlalchemy.and_(
         *map(lambda pk: table.c[pk]==sqlalchemy.bindparam(pk), pks)
-	                         )
+                                 )
     return and_query
 
 #@tp.Check(sqlalchemy.schema.Table,sqlalchemy.schema.Table,tp_str_str_map)
@@ -2702,7 +3569,7 @@ def _mapped_pk_query(source_table, dest_table, column_mapping):
     # query for specific primary keys in destination:
     and_query= sqlalchemy.and_(
         *map(lambda pk: dest_table.c[pk]==sqlalchemy.bindparam(pk), mapped_pks)
-	                         )
+                                 )
     return ordered_query(dest_table).where(and_query)
 
 #@tp.Check(sqlalchemy.schema.Table,sqlalchemy.schema.Table,tp_str_str_map_or_none,bool)
@@ -2714,17 +3581,17 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     key is the same.
 
     parameters:
-	source         -- the source table object
-	dest           -- the source table object
-	column_mapping -- a dictionary mapping source columns to
-	                  dest-columns. Destination columns that are
-			  not present are set to later on set 
-			  to "None". If this parameter is not given,
-			  it is expected that all columns in source
-			  must be matched to columns of the same name
-			  in dest.
-	do_deletes     -- delete rows that are not present in source 
-	                  from dest
+        source         -- the source table object
+        dest           -- the source table object
+        column_mapping -- a dictionary mapping source columns to
+                          dest-columns. Destination columns that are
+                          not present are set to later on set 
+                          to "None". If this parameter is not given,
+                          it is expected that all columns in source
+                          must be matched to columns of the same name
+                          in dest.
+        do_deletes     -- delete rows that are not present in source 
+                          from dest
 
     We first connect to a sqlite database in memory:
     >>> (meta,conn)=connect_memory()
@@ -2796,11 +3663,11 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     dest_column_names= column_name_list(dest,upper_case=False)
     # a column-mapping with lower case column names:
     if column_mapping is None:
-	column_mapping= _mk_column_map(source_column_names,dest_column_names)
+        column_mapping= _mk_column_map(source_column_names,dest_column_names)
     else:
-	column_mapping= _lowercase_column_map(column_mapping)
+        column_mapping= _lowercase_column_map(column_mapping)
     if not _tables_compatible(source_column_types, dest_column_types, column_mapping):
-	raise ValueError, "tables are not type-compatible"
+        raise ValueError, "tables are not type-compatible"
     # query for specific primary keys in destination:
     dest_pk_query= _mapped_pk_query(source, dest, column_mapping)
     # prepare a insert statement:
@@ -2811,34 +3678,34 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     dest_pk_condition= _pk_where_part(dest)
     # iterate over all rows in the source:
     for source_row in ordered_query(source).execute():
-	# values in source row mapped to dest column names (a dictionary):
-	mapped_source_row_values= _mappedrow2dict(source_column_names,column_mapping,source_row)
-	dest_row= _fetch_one(dest_pk_query,mapped_source_row_values)
-	if dest_row is None:
-	    # destination row not found
-	    # --> INSERT
-	    dest_insert.execute(mapped_source_row_values)
-	else:
-	    # destination row found
-	    # --> possible UPDATE
-	    dest_row_values= _row2dict(dest_column_names,dest_row)
-	    if _update_dict(mapped_source_row_values,dest_row_values):
-	    	# an update took place, execute UPDATE command
-		dest_update.where(dest_pk_condition).execute(dest_row_values)
+        # values in source row mapped to dest column names (a dictionary):
+        mapped_source_row_values= _mappedrow2dict(source_column_names,column_mapping,source_row)
+        dest_row= _fetch_one(dest_pk_query,mapped_source_row_values)
+        if dest_row is None:
+            # destination row not found
+            # --> INSERT
+            dest_insert.execute(mapped_source_row_values)
+        else:
+            # destination row found
+            # --> possible UPDATE
+            dest_row_values= _row2dict(dest_column_names,dest_row)
+            if _update_dict(mapped_source_row_values,dest_row_values):
+                # an update took place, execute UPDATE command
+                dest_update.where(dest_pk_condition).execute(dest_row_values)
     if do_deletes:
-	rev_column_mapping= column_mapping.inverted()
-	# a reduced list of dest columns, only columns of the destination
-	# table that are specified in the column_mapping:
-	reduced_dest_column_names= [n for n in dest_column_names if n in rev_column_mapping]
-	# query for specific primary keys in source:
-	source_pk_query= _mapped_pk_query(dest, source, rev_column_mapping)
-	dest_pk_condition= _pk_where_part(dest)
-	for dest_row in ordered_query(dest).execute():
-	    # values in dest mapped to source column names (a dictionary):
-	    mapped_dest_row_values= _mappedrow2dict(dest_column_names,rev_column_mapping,dest_row)
-	    if not _at_least_one(source_pk_query,mapped_dest_row_values):
-		# not in source, delete at dest:
-		dest.delete().where(dest_pk_condition).execute(_row2dict(dest_column_names,dest_row))
+        rev_column_mapping= column_mapping.inverted()
+        # a reduced list of dest columns, only columns of the destination
+        # table that are specified in the column_mapping:
+        reduced_dest_column_names= [n for n in dest_column_names if n in rev_column_mapping]
+        # query for specific primary keys in source:
+        source_pk_query= _mapped_pk_query(dest, source, rev_column_mapping)
+        dest_pk_condition= _pk_where_part(dest)
+        for dest_row in ordered_query(dest).execute():
+            # values in dest mapped to source column names (a dictionary):
+            mapped_dest_row_values= _mappedrow2dict(dest_column_names,rev_column_mapping,dest_row)
+            if not _at_least_one(source_pk_query,mapped_dest_row_values):
+                # not in source, delete at dest:
+                dest.delete().where(dest_pk_condition).execute(_row2dict(dest_column_names,dest_row))
 
 
 #@tp.Check(sqlalchemy.schema.Table,sqlalchemy.schema.Table,tp_str_str_map_or_none,bool)
@@ -2850,15 +3717,15 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     have to be of type integer and there must only be one single primary key.
 
     parameters:
-	source         -- the source table object
-	dest           -- the source table object
-	column_mapping -- a dictionary mapping source columns to
-	                  dest-columns. Destination columns that are
-			  not present are set to later on set 
-			  to "None". If this parameter is not given,
-			  it is expected that all columns in source
-			  must be matched to columns of the same name
-			  in dest.
+        source         -- the source table object
+        dest           -- the source table object
+        column_mapping -- a dictionary mapping source columns to
+                          dest-columns. Destination columns that are
+                          not present are set to later on set 
+                          to "None". If this parameter is not given,
+                          it is expected that all columns in source
+                          must be matched to columns of the same name
+                          in dest.
 
     We first connect to a sqlite database in memory:
     >>> (meta,conn)=connect_memory()
@@ -2896,14 +3763,14 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     (5, u'2new', None)
     """
     if not auto_primary_key_possible(dest):
-	raise TypeError, "dest must have a single integer primary key!"
+        raise TypeError, "dest must have a single integer primary key!"
 
     # from here it is ensured that dest has only a single primary
     # key which is an integer:
     dest_pk_name= primary_keys(dest)[0]
     def max_dest_pk():
-	d= func_query_as_dict(dest,sqlalchemy.func.max)
-	return d[dest_pk_name]
+        d= func_query_as_dict(dest,sqlalchemy.func.max)
+        return d[dest_pk_name]
 
     source_column_types= pdb_column_type_dict(source)
     dest_column_types= pdb_column_type_dict(dest)
@@ -2912,11 +3779,11 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     dest_column_names= column_name_list(dest,upper_case=False)
     # a column-mapping with lower case column names:
     if column_mapping is None:
-	column_mapping= _mk_column_map(source_column_names,dest_column_names)
+        column_mapping= _mk_column_map(source_column_names,dest_column_names)
     else:
-	column_mapping= _lowercase_column_map(column_mapping)
+        column_mapping= _lowercase_column_map(column_mapping)
     if not _tables_compatible(source_column_types, dest_column_types, column_mapping):
-	raise ValueError, "tables are not type-compatible"
+        raise ValueError, "tables are not type-compatible"
 
     # prepare a insert statement:
     dest_insert= dest.insert()
@@ -2925,41 +3792,47 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     #errcount= 0
 
     if not catch_exception:
-	# iterate over all rows in the source:
-	for source_row in ordered_query(source).execute():
-	    mapped_source_row_values= _mappedrow2dict(source_column_names,
-	                                              column_mapping,source_row)
-	    mapped_source_row_values[dest_pk_name]= dest_pk
-	    dest_insert.execute(mapped_source_row_values)
-	    dest_pk+= 1
+        # iterate over all rows in the source:
+        for source_row in ordered_query(source).execute():
+            mapped_source_row_values= _mappedrow2dict(source_column_names,
+                                                      column_mapping,source_row)
+            mapped_source_row_values[dest_pk_name]= dest_pk
+            dest_insert.execute(mapped_source_row_values)
+            dest_pk+= 1
     else:
-	# iterate over all rows in the source:
-	# if query.execute() is used without fetchall() 
-	# (as an iterator), if an exception occures, that
-	# exception somehow breaks the query iterator. In
-	# tries I made the query iterator returned the contents
-	# of the source table two times. So we must fetch all rows 
-	# now with a single call to avoid this.
-	rows= ordered_query(source).execute().fetchall()
-	for source_row in rows:
-	    mapped_source_row_values= _mappedrow2dict(source_column_names,
-	                                              column_mapping,source_row)
-	    tries= 0
-	    while True:
-		try:
-		    mapped_source_row_values[dest_pk_name]= dest_pk
-		    dest_insert.execute(mapped_source_row_values)
-		    dest_pk+= 1
-		    break
-		except sqlalchemy.exc.IntegrityError,e:
-		    tries+= 1
-		    if tries>=3:
-			raise
-		    dest_pk= max_dest_pk() +1
+        # iterate over all rows in the source:
+        # if query.execute() is used without fetchall() 
+        # (as an iterator), if an exception occures, that
+        # exception somehow breaks the query iterator. In
+        # tries I made the query iterator returned the contents
+        # of the source table two times. So we must fetch all rows 
+        # now with a single call to avoid this.
+        rows= ordered_query(source).execute().fetchall()
+        for source_row in rows:
+            mapped_source_row_values= _mappedrow2dict(source_column_names,
+                                                      column_mapping,source_row)
+            tries= 0
+            while True:
+                try:
+                    mapped_source_row_values[dest_pk_name]= dest_pk
+                    dest_insert.execute(mapped_source_row_values)
+                    dest_pk+= 1
+                    break
+                except sqlalchemy.exc.IntegrityError,e:
+                    tries+= 1
+                    if tries>=3:
+                        raise
+                    dest_pk= max_dest_pk() +1
 
 def _test():
+    print "performing self test..."
+    # importing modules that are only needed for
+    # testing is a bit tricky here, due to the way
+    # doctest works...
+    globals()["t"] = __import__("ptestlib") # import ptestlib as t
     import doctest
     doctest.testmod()
+    print "done!"
 
 if __name__ == "__main__":
     _test()
