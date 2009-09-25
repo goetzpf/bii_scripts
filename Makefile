@@ -254,7 +254,7 @@ POD_PERLLIB_LIST= \
 
 # python libraries with embedded pydoc documentation
 PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py rdump.py putil.py \
-	enum.py pdict.py sqlpotion.py
+	enum.py pdict.py sqlpotion.py ptestlib.py
 
 # scripts that have embedded documentation that can be HTML converted 
 # with makeDocTxt
