@@ -34,11 +34,11 @@ class FilterFile(object):
 					default: None
 		opennow		     -- if True, open the file just after
 					object creation. default: False
-		mode		     -- the filemode as is is described for
+		mode		     -- the filemode as it is described for
 					the python open() function.
 					when filename is None, mode "r" opens
 					stdin, mode "w" or mode "u" opens
-					stdout. A special case in mode "u",
+					stdout. A special case is mode "u",
 					with python open() doesn't know of.
 					When filename is not None, mode "u"
 					opens a temporary-file that is
