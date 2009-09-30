@@ -671,6 +671,10 @@ sub   getTemplate
     elsif( $itemName =~ /^.*\.$type/ )
     { $widgetName = $itemName;
     }
+    else
+    {    
+      die "error: widget named '$itemName' does not match option -type=${type}\n";
+    }
 
     if(defined $opt_i)
     {
