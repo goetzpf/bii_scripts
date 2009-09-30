@@ -698,7 +698,7 @@ sub   getTemplate
     }
     elsif( $opt_M == 1)
     {
-    	$dependencies{$widgetName} = 1;
+    	$dependencies{$widgetPath} = 1;
 #print "-M Widget = $widgetName\n";
 	return undef;
     }
