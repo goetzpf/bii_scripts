@@ -73,6 +73,11 @@
 # _VAR: kind of "local" variable whose definition
 #       should not be edited
 
+# programs
+
+PYDOC:=$(shell python -V 2>&1 | \
+perl -ne '($$v)=/ (\d+(\.\d+)?)/; if($$v<2.5){print "pydoc2.5"}else{print "pydoc"}')
+
 # groups ....................................................
 
 # default group of all directories and
@@ -706,7 +711,7 @@ build_html_pythonlib: build_html_pythonlib_pydocs
 build_html_pythonlib_pydocs: $(PYTHONLIB_HTML_BUILD_DIR) $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST)
 
 $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTHONLIB_SRC_DIR)/%.py
-	d=`pwd` && cd $(@D) && pydoc -w $$d/$<
+	d=`pwd` && cd $(@D) && $(PYDOC) -w $$d/$<
 
 # directory creation.........................................
 
