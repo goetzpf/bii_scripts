@@ -44,7 +44,7 @@ while ( <FIN> )
   chop;
   next if m/^\s*#/;
   s/^\s+/\t/;
-  if (m/record\s*\(\s*\w+\s*,\s*("[^"]+"|[)]+)/) {
+  if (m/record\s*\(\s*\w+\s*,\s*(?:"([^"]+)"|([\w\-:\[\]<>;]+))\s*\)/) {
     $record->{text} = $_;
     $record->{name} = $1;
   }
