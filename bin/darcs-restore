@@ -1,6 +1,6 @@
 #!/bin/sh
 if test $# -ne 2; then
-  echo "usage: darcs_restore [user@host:]source-dir dest-dir"
+  echo "usage: $0 [user@host:]source-dir dest-dir"
   exit
 fi
 test -d $2 && echo "$0: target directory already exists!" && exit
