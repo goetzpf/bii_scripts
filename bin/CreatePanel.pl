@@ -225,8 +225,9 @@
       
     if( $opt_M == 1)
     {
-    	$inFileName = "../O.Common/$1.edl" if $inFileName =~ /.*\/(.*)\..*$/;
-	print FILE "$inFileName: ",join(' ',keys(%dependencies)),"\n";
+        my $target = $outFileName;
+        $target =~ s/.depends$//;
+	print FILE "$target: ",join(' ',keys(%dependencies)),"\n";
     }
     elsif($type eq 'adl')
     {
