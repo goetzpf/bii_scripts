@@ -559,7 +559,7 @@ build: build_shared build_scripts build_perl_libs build_python_libs build_html
 build_shared: $(SHARE_BUILD_DIR) $(_SHARE_BUILD_DIRLIST) $(_SHARE_BUILD_LIST)
 
 $(_SHARE_BUILD_DIRLIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/%
-	mkdir $@
+	mkdir -p $@
 
 $(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/%
 	cp $< $(@D)
