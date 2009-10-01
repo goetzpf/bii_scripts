@@ -27,7 +27,7 @@ package BDNS;
 require Exporter;
 
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(parse $MAXLENGTH %pfam %psdom %pdom);
+our @EXPORT_OK = qw(parse setOrder cmpNames sortNames $MAXLENGTH %pfam %psdom %pdom);
 our $VERSION = 1.00;
 
 use strict;
@@ -160,4 +160,69 @@ sub parse {
     $allsubdomain, $subdomain, $subdompre, $subdomnumber, $domain, $facility);
 }
 
+my %namePart2idx = (
+    "MEMBER"=>0, 
+    "INDEX"=>2,
+    "SUBINDEX"=>3,
+    "FAMILY"=>4,
+    "COUNTER"=>5,
+    "SUBDOMPRE"=>8,
+    "SUBDOMNUMBER"=>9,
+    "DOMAIN"=>10,
+    "FACILITY"=>11
+    );
+
+my $rA_order = [11,10,8,9,0,2,3,4,5]; # default order
+sub setOrder
+{   my ($o) = @_;
+    use Data::Dumper; print ref($o), Dumper($o);
+    if( ref($o) eq 'ARRAY')
+    {
+    	$rA_order = [map{ $namePart2idx{$_}; } @$o];
+    }
+    else
+    {
+    	$rA_order = [map{ $namePart2idx{$_}; } split /[,\s]+/, $o];
+    }
+    warn "illegal order parameter" if(scalar(@$rA_order)<=0);
+}
+
+sub cmpNames
+{   my($a,$b)=@_;
+
+    $a =~ /([\w\d-]*)$/;    # this matches a DEVICENAME and a /GADGET/PATH/DEVICENAME 
+    $a = $1;
+    $b =~ /([\w\d-]*)$/;
+    $b = $1;
+#print "compare ($a,$b): ";
+    my @A= parse($a);
+    my @B= parse($b);
+#print "compare ($a,$b): A=(",join(',',@A),") B=(",join(',',@B),") \n\t";
+    my $cmp=0;
+    foreach my $i (@$rA_order)
+    {
+    	$a = $A[$i];
+    	$b = $B[$i];
+#print "($a,$b) ";
+	$a = "" unless defined $a;
+	$b = "" unless defined $b;
+    	if( ($a=~ /\d+/) && ($b=~ /\d+/))
+	{
+	    $cmp = $a <=> $b;
+	    last unless $cmp == 0;
+	}
+	else
+	{
+	    $cmp = $a cmp $b;
+	    last unless $cmp == 0;
+	}
+    }
+#print "return: $cmp\n";
+    return $cmp;
+}
+
+sub sortNames
+{   my($rA_names) = @_;
+    return sort {BDNS::cmpNames($a,$b)} @$rA_names;
+}
 1;

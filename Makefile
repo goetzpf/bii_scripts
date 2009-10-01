@@ -266,6 +266,7 @@ PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py rdump.py putil.py \
 DOCTXT_SCRIPT_LIST= makeDocTxt.pl \
 	CreatePanel.pl 	\
 	stripUnresolvedDb.pl 		\
+	bdns_sort.pl \
 	grepDb.pl			
 
 # perl libraries with embedded documentation that can be HTML converted
