@@ -100,7 +100,7 @@ use vars qw($opt_help
             $opt_last_dist
             $opt_one_filesystem
             $opt_preserve_links
-	    $opt_dereference_links
+            $opt_dereference_links
             $opt_exclude_list
             $opt_checksum
             $opt_progress
@@ -110,7 +110,7 @@ use vars qw($opt_help
             $opt_version
             $opt_create_missing_links
             $opt_ssh_back_tunnel
-	    $opt_single_host
+            $opt_single_host
             $opt_filter_output
             );
 
@@ -258,7 +258,19 @@ my $my_errcode= 67;
 # ssh-command already did print a sensible error message
 # to the screen 
 
-my $gbl_rsync_opts="-a -u -z --delete";
+my $gbl_rsync_opts="-a -z --delete";
+# -a: equivalent to -rlptgoD:
+#     -r: recursive
+#     -l: copy symlinks as symlinks
+#     -p: preserve permissions
+#     -t: preserve modification times
+#     -g: preserve group
+#     -o: preserve owner
+#     -D: preserve deices files (super user only), 
+#         preserve special files
+# -z: compress file data during transfer
+# --delete: delete extraneous files from dest dirs
+#           (receiver deletes before transfer)
 
 # the following datastructure is used to take data from
 # environment variables. This is done even when the "--env"
@@ -494,7 +506,7 @@ if (!GetOptions("help|h",
                 "world_readable|world-readable|w",
                 "create_missing_links|create-missing-links",
                 "ssh_back_tunnel|ssh-back-tunnel=i",
-		"single_host|single-host",
+                "single_host|single-host",
 
                 "filter_output|filter-output",
 # undocumented:
@@ -542,7 +554,10 @@ if ($opt_config)
   { read_config($opt_config); }
 
 if (defined $opt_progress)
-  { $gbl_rsync_opts .= " --progress"; };
+  { 
+    $gbl_rsync_opts .= " --progress"; 
+    # --progress: show progress during transfer
+  };
 
 # unconditionally read variables from the environment:
 read_env(\%gbl_env_map_hash1);
@@ -815,11 +830,25 @@ sub dist
     else
       { if ($opt_preserve_links)
           { $rsync_opts.= " -l"; }
-	if ($opt_dereference_links)
-	  { $rsync_opts.= " -L"; }
+        if ($opt_dereference_links)
+          { $rsync_opts.= " -L"; }
       }
 
-    $rsync_opts.= " -c" if ($opt_checksum);
+    # Note: -u and -c combined do a different thing, than each option
+    # alone. When combined, files newer on receiver are skipped, 
+    # from the then remaining list of files, files with equal 
+    # checksum are skipped.
+    if (!$opt_checksum)
+      {
+        $rsync_opts.= " -u";
+        # -u: skip files that are newer on the receiver
+      }
+    else
+      {
+        $rsync_opts.= " -c";
+        # -c: skip based on checksum, not mod-time & size
+      }
+
     $rsync_opts.= " -x" if ($opt_one_filesystem);
 
     my $log= DIST_LOG;
@@ -1085,7 +1114,7 @@ sub change_link
 
                 if (!(($opt_prefix_distdir) && ($opt_last_dist)))
                   { # take first argument as remote_source
-		    if ($link_action != do_remove)
+                    if ($link_action != do_remove)
                       { $remote_source= shift @files; }
                   };
               };
@@ -1309,16 +1338,16 @@ sub cat_file_
             my $r_h= maillike::parse($r_lines,recordseparator=>"%%");
             my $name= $filename;
             $name=~ s/-/_/g;
-	    if ($scheme eq "perl")
+            if ($scheme eq "perl")
               { print Data::Dumper->Dump([$r_h],[$name]); }
-	    else
-	      { my $st= Data::Dumper->Dump([$r_h],[$name]); 
-	        $st=~ s/\$LOG_LINKS\s*=\s*//;
-		$st=~ s/=>/:/g;
-		$st=~ s/'/"""/g;
-		$st=~ s/;\s*$//;
-		print $st;
-	      }
+            else
+              { my $st= Data::Dumper->Dump([$r_h],[$name]); 
+                $st=~ s/\$LOG_LINKS\s*=\s*//;
+                $st=~ s/=>/:/g;
+                $st=~ s/'/"""/g;
+                $st=~ s/;\s*$//;
+                print $st;
+              }
           }
         else
           { 
@@ -1631,10 +1660,10 @@ sub ls_version
     my $rcmd= "if ! test -e $log; then ".
                 "echo file $log not found ;" .
               'else ' .
-	        "tr \"\\n\" \"\\r\" < $log | " .
-		"sed -e \"s/%%\\r/%%\\n/g\" | " .
-		"grep \"VERSION: $version\" | " .
-		"tr \"\\r\" \"\\n\"; " . 
+                "tr \"\\n\" \"\\r\" < $log | " .
+                "sed -e \"s/%%\\r/%%\\n/g\" | " .
+                "grep \"VERSION: $version\" | " .
+                "tr \"\\r\" \"\\n\"; " . 
                 'if test $? -eq 1; ' .
                 'then echo not found;' .
                 'fi; ' .
@@ -1674,10 +1703,10 @@ sub ls_tag
     my $rcmd= "if ! test -e $log; then ".
                 "echo file $log not found ;" .
               'else ' .
-	        "tr \"\\n\" \"\\r\" < $log | " .
-		"sed -e \"s/%%\\r/%%\\n/g\" | " .
-		"grep \"TAG: $tag\" | " .
-		"tr \"\\r\" \"\\n\"; " . 
+                "tr \"\\n\" \"\\r\" < $log | " .
+                "sed -e \"s/%%\\r/%%\\n/g\" | " .
+                "grep \"TAG: $tag\" | " .
+                "tr \"\\r\" \"\\n\"; " . 
                 'if test $? -eq 1; ' .
                 'then echo not found;' .
                 'fi; ' .
@@ -1736,7 +1765,10 @@ sub sh_copy_to_hosts_l
           { $userpart= "-l $r_users->[$i] "; }
 
         push @lines,
-             "rsync $gbl_rsync_opts -H -e \"ssh $userpart\" . $hostpart;";
+             "rsync $gbl_rsync_opts -c -H -e \"ssh $userpart\" . $hostpart;";
+        # -c: skip based on checksum, not mod-time & size
+        # -H: preserve hard links
+        # -e: specify remote shell to use
       }
     return(@lines);
   }   
@@ -1745,9 +1777,6 @@ sub sh_copy_to_hosts_s
   { my($indent)= shift;
     return(sh_indent_and_join($indent,sh_copy_to_hosts_l(@_))); 
   }
-
-sub sh_copy_to_hosts
-  { return(sh_backwards_compatible(sh_copy_to_hosts_l(@_))); }
 
 sub sh_add_log_l
   { my($logfile,$from,$message,$tag, $branch)= @_;
@@ -1975,13 +2004,13 @@ sub get_last_log_entries
           { # store more for "dist" actions:
             my $date= $entry->{LOCALDATE};
             
-	    my $hosts= $entry->{REMOTEHOSTS};
-	    my $path = $entry->{REMOTEPATH};
-	    $hosts=~ s/^\s*(\S+)\s*$/$1/; 
-	    # use a sorted list of hosts:
-	    $hosts= join(",",sort(split(",",$hosts)));
-	    $path =~ s/^\s*(\S+)\s*$/$1/; 
-	    $h{join("|",$action,$path,$hosts)}= $entry;
+            my $hosts= $entry->{REMOTEHOSTS};
+            my $path = $entry->{REMOTEPATH};
+            $hosts=~ s/^\s*(\S+)\s*$/$1/; 
+            # use a sorted list of hosts:
+            $hosts= join(",",sort(split(",",$hosts)));
+            $path =~ s/^\s*(\S+)\s*$/$1/; 
+            $h{join("|",$action,$path,$hosts)}= $entry;
           }; 
         # by the following lines we can collect
         # "similar actions" under a single action-label
@@ -3214,10 +3243,10 @@ Syntax:
                   when set to 1, do not cross filesystem boundaries on the
                   local host. See also --one-filesystem 
                 RSYNC_DIST_PRESERVE_LINKS
-		  when set to 1, symbolic links are never dereferenced and
-		  always copied as links
+                  when set to 1, symbolic links are never dereferenced and
+                  always copied as links
                 RSYNC_DIST_REMOVE_LINKS
-		  when set to 1, symbolic links always dereferenced
+                  when set to 1, symbolic links always dereferenced
                 RSYNC_DIST_EXCLUDE_LIST
                   specify a file on the local host that contains files that
                   are to be excluded
@@ -3225,8 +3254,8 @@ Syntax:
                   when set to 1, use checksums to detect changes in files.
                   see also --checksum 
                 RSYNC_DIST_BRANCH
-		  when this variable is defined, use this branch
-		  for distributing files. Seet also the --branch option.
+                  when this variable is defined, use this branch
+                  for distributing files. Seet also the --branch option.
                 RSYNC_DIST_PARTIAL
                   when set to 1, make a complete copy of the last version on the
                   server but distribute only some files from the client
@@ -3373,8 +3402,8 @@ Syntax:
                 ssh -N -L <port>:<localhost>:22 <localuser>@<tunnel-host>
 
     --single-host
-    		perform "ls" or "cat-log" or "tail-log" command
-		only on the first remote host.
+                perform "ls" or "cat-log" or "tail-log" command
+                only on the first remote host.
 
 END
   }
