@@ -3,19 +3,19 @@
 
 _xx="""
 tests:
-python dbutil.py -c db2screen -s 'table=tbl_insertion'
-python dbutil.py -c db2screen -s 'table=tbl_insertion,order=name_key' 
-python dbutil.py -c db2screen -s 'table=tbl_insertion,order=application_name:name_key'
-python dbutil.py -c db2file -s 'table=tbl_insertion' 
-python dbutil.py -c db2screen -s "table=tbl_insertion,filter=application_name!='idcp'"
-python dbutil.py -c db2screen -s "table=tbl_insertion,filter=application_name='idcp'"python dbutil.py  -c file2sqlite -s 'table=tbl_insertion' -f X.dtt -o X.db
-python dbutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' 
- python dbutil.py  -c file2file -s 'table=tbl_insertion,filter=insertion_key>30' -f X.dtt 
-python dbutil.py  -c file2screen -s 'table=tbl_insertion,filter=insertion_key>30' -f X.dtt 
+python sqlutil.py -c db2screen -s 'table=tbl_insertion'
+python sqlutil.py -c db2screen -s 'table=tbl_insertion,order=name_key' 
+python sqlutil.py -c db2screen -s 'table=tbl_insertion,order=application_name:name_key'
+python sqlutil.py -c db2file -s 'table=tbl_insertion' 
+python sqlutil.py -c db2screen -s "table=tbl_insertion,filter=application_name!='idcp'"
+python sqlutil.py -c db2screen -s "table=tbl_insertion,filter=application_name='idcp'"python sqlutil.py  -c file2sqlite -s 'table=tbl_insertion' -f X.dtt -o X.db
+python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' 
+ python sqlutil.py  -c file2file -s 'table=tbl_insertion,filter=insertion_key>30' -f X.dtt 
+python sqlutil.py  -c file2screen -s 'table=tbl_insertion,filter=insertion_key>30' -f X.dtt 
 # edit X.dtt, change some lines, append some lines
-python dbutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' > A
-python dbutil.py -d sqlite::X.db -c file2db -s 'table=tbl_insertion' --echo -f X.dtt
-python dbutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' > B
+python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' > A
+python sqlutil.py -d sqlite::X.db -c file2db -s 'table=tbl_insertion' --echo -f X.dtt
+python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' > B
 tkdiff A B
 
 """
