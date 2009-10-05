@@ -1172,7 +1172,9 @@ Syntax:
     -e --empty remove empty fields
 
     -E --rm-capfast-defaults
-      remove fields that have still their capfast default value
+      remove fields that have still their capfast default value.
+      CAUTION: used together with "-v" or "--fields" this option
+      may remove the very fields you are looking for.
 
   regular expressions:
     [regexp] stands for a perl regular expression. A leading '!'
