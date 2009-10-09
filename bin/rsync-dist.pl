@@ -2957,6 +2957,8 @@ sub filter_output
   { return grep(!/^$/, map
       { if (m{(\S+) -\> .*/([T\d-:]+)})
           { sprintf("%-20s %s\n",$1,$2) }
+        elsif (m{error})
+          { "$_" }
         else
           { "" }
       } @_);
