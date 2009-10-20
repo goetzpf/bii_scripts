@@ -160,6 +160,7 @@ SHARE_SRC_DIRLIST=$(filter-out CVS,$(call find_subdirs,$(SHARE_SRC_DIR),1))
 # match *.col and *.txt in and below $(SHARE_SRC_DIR), depth 1
 SHARE_SRC_LIST=$(call find_files,$(SHARE_SRC_DIR),*.col,2) \
                $(call find_files,$(SHARE_SRC_DIR),*.txt,2) \
+               $(addprefix rsync-dist/,$(call find_files,$(SHARE_SRC_DIR)/rsync-dist,*,1))
 
 # scripts that have to be installed
 # match all files in $(SCRIPT_SRC_DIR) with name [A-Za-z]*
