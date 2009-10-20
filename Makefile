@@ -248,7 +248,7 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 RST_DOC_PY_SCRIPT_LIST= \
 	txtcleanup.py \
 	archiver2camonitor.py \
-	rsync-linklog-stat.py
+	rsync-dist-info.py
 
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
@@ -260,7 +260,8 @@ POD_PERLLIB_LIST= \
 
 # python libraries with embedded pydoc documentation
 PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py rdump.py putil.py \
-	enum.py pdict.py sqlpotion.py ptestlib.py
+	enum.py pdict.py sqlpotion.py ptestlib.py boottime.py dateutils.py \
+        lslparser.py maillike.py rsync_dist_lib.py
 
 # scripts that have embedded documentation that can be HTML converted 
 # with makeDocTxt
