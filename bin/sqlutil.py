@@ -110,15 +110,14 @@ def dtt_read(meta,filename,taglist,auto_pk_gen=False,new_pk_separate=False):
     mytable
     >>> tdict.keys()
     ['mytable']
-    >>> import sqlpotion
-    >>> sqlpotion.print_table(tdict["mytable"])
+    >>> sqlpotion.print_table(tdict["mytable"].table_obj, sqlpotion.Format.PLAIN)
     ('id', 'name')
     (1, u'ab')
     (2, u'p|ped')
     (3, u'back\\slashed')
     >>> (meta,conn)=sqlpotion.connect_memory()
     >>> tdict=dtt_read(meta,t.tjoin("test.dtt"),["mytable"],True)
-    >>> sqlpotion.print_table(tdict["mytable"])
+    >>> sqlpotion.print_table(tdict["mytable"].table_obj, sqlpotion.Format.PLAIN)
     ('id', 'name')
     (1, u'ab')
     (2, u'p|ped')
@@ -129,12 +128,12 @@ def dtt_read(meta,filename,taglist,auto_pk_gen=False,new_pk_separate=False):
     >>> tdict=dtt_read(meta,t.tjoin("test.dtt"),["mytable"],True,True)
     >>> tdict.keys()
     ['_GEN_mytable', 'mytable']
-    >>> sqlpotion.print_table(tdict["mytable"])
+    >>> sqlpotion.print_table(tdict["mytable"].table_obj, sqlpotion.Format.PLAIN)
     ('id', 'name')
     (1, u'ab')
     (2, u'p|ped')
     (3, u'back\\slashed')
-    >>> sqlpotion.print_table(tdict["_GEN_mytable"])
+    >>> sqlpotion.print_table(tdict["_GEN_mytable"].table_obj, sqlpotion.Format.PLAIN)
     ('id', 'name')
     (4, u'cd')
     (5, u'quoted')
@@ -168,7 +167,7 @@ def dtt_read(meta,filename,taglist,auto_pk_gen=False,new_pk_separate=False):
         else:
             tags_to_process=[]
             for tag in sorted(tags_with_undef_pks):
-                if not sqlpotion.auto_primary_key_possible(tdict[tag]):
+                if not sqlpotion.auto_primary_key_possible(tdict[tag].table_obj):
                     print "warning: for tag",tag,"there were rows with "+\
                           "undefined primary keys but since the type of "+\
                           "the primary key is not integer or since there "+\
@@ -181,7 +180,7 @@ def dtt_read(meta,filename,taglist,auto_pk_gen=False,new_pk_separate=False):
             # in tags_to_process:
             max_values={}
             for tag in tags_to_process:
-                max_values[tag]= sqlpotion.func_query_as_dict(tdict[tag],
+                max_values[tag]= sqlpotion.func_query_as_dict(tdict[tag].table_obj,
                                                               sqlalchemy.func.max)
             # a row filter that selects only rows with undefined 
             # primary keys. It generates primary keys on the fly:
@@ -206,7 +205,7 @@ def dtt_read(meta,filename,taglist,auto_pk_gen=False,new_pk_separate=False):
                 tf= sqlpotion.dtt_tag_filter(tags_to_process)
                 ts= tdict      # add rows to existing tables
             n_tdict= sqlpotion.dtt_read_tables(meta,filename,
-                                               tf, table_dict=ts,
+                                               tf, dtt_dict=ts,
                                                rstrip_mode= True, quote_mode= True,
                                                row_filter=row_filter_pk_undef)
             if new_pk_separate:
@@ -275,12 +274,14 @@ def parse_specs(specs):
     """
     specdict= {}
     for s in specs:
-        d= parse_definitions(s,["tag","table","order","filter"])
+        d= parse_definitions(s,["tag","table","query","order","filter"])
         if d.has_key("order"):
             l= d["order"].split(":")
             d["order"]= l
         if not d.has_key("tag"):
             d["tag"]= d["table"]
+        if not d.has_key("tag"):
+            raise ValueError,"either tag or table must be specified"
         specdict[d["tag"]]= d
     return specdict
 
@@ -318,7 +319,7 @@ def mk_qsource_dict(tdict,specdict):
     """create a dict of qsource objects.
 
     parameters:
-        tdict    -- a dictionary mapping tags to tables
+        tdict    -- a dictionary mapping tags to DttResult objects
         specdict -- a dictionary mapping tags to specification
                     dictionaries
     returns:
@@ -326,8 +327,10 @@ def mk_qsource_dict(tdict,specdict):
 
     Here are some examples:
     In order to show the principle we do not use real table
-    objects here but simple string literals:
-    >>> tdict={"tag1":"table-obj1","tag2":"table-obj2"}
+    objects here but simple string literals and we use the simple
+    Container class instead of the DttResult class:
+    >>> tdict={"tag1":Container(tag="tag1", table_obj="table-obj1", is_table=True),
+    ...        "tag2":Container(tag="tag2", table_obj="table-obj2", is_table=True)}
     >>> specdict={"tag1":{"order":["col1","col2"]},
     ...           "tag2":{"filter":"id>10"}
     ...          }
@@ -339,9 +342,18 @@ def mk_qsource_dict(tdict,specdict):
     tag2 : Qsource(table='table-obj2',where='id>10')
     """
     qsource_dict= {}
-    for (tag,table) in tdict.items():
-        qs_options={"table":table}
+    for tag in specdict.keys():
+        qs_options= {}
         spec= specdict[tag]
+        dttresult= tdict[tag]
+        if spec.has_key("query"):
+            qs_options["query"]= spec["query"]
+        else:
+            qs_options["table"]= dttresult.table_obj
+            if not dttresult.is_table:
+                qs_options["query"]= dttresult.query_text
+        #else:
+        #    raise AssertionError,"query or table must be specified"
         if spec.has_key("order"):
             qs_options["order_by"]= spec["order"]
         if spec.has_key("filter"):
@@ -384,7 +396,7 @@ def file2file(options):
     ... [Properties]
     ... TABLE=mytable TYPE=file
     ... PK="ID"
-    ... FETCH_CMD="select * from mytable"
+    ... FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     ... 
     ... [Aliases]
     ... 
@@ -409,7 +421,7 @@ def file2file(options):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -433,7 +445,7 @@ def file2file(options):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -456,7 +468,7 @@ def file2file(options):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable WHERE id>=3 ORDER BY mytable.name, mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -480,7 +492,7 @@ def file2file(options):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -541,7 +553,7 @@ def file2sqlite(options):
     ...                                        host="",
     ...                                        dbname=t.tjoin("out.db"))
     >>> tbl= sqlpotion.table_object("mytable",meta)
-    >>> sqlpotion.print_table(tbl,1)
+    >>> sqlpotion.print_table(tbl, sqlpotion.Format.TABLE_SPC)
     id name
     1  cd  
     2  ab  
@@ -591,7 +603,7 @@ def db2file(options):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -613,7 +625,10 @@ def db2file(options):
     tdict= {}
     for tag in sorted(specdict.keys()):
         specs= specdict[tag]
-        tdict[tag]= sqlpotion.table_object(specs["table"], meta_db)
+        if specs.has_key("table"):
+            tdict[tag]= sqlpotion.DttResult(tag=tag,
+                                  table_obj=sqlpotion.table_object(specs["table"], 
+                                                                   meta_db))
     qsource_dict= mk_qsource_dict(tdict,specdict)
     sqlpotion.dtt_write_qsources(conn_db,qsource_dict,
                                  options.outfile,trim_columns=True)
@@ -654,7 +669,7 @@ def file2db(options):
     ...                   user=None,password=None,
     ...                   database="sqlite::"+t.tjoin("x.db"),
     ...                   delete=None, no_auto_pk=None, echo=None))
-    >>> sqlpotion.print_table(tbl,2)
+    >>> sqlpotion.print_table(tbl, sqlpotion.Format.TABLE)
     id | name
     ---+-----
     1  | cd  
@@ -671,7 +686,7 @@ def file2db(options):
 
     dest_tables= {}
     for t in sorted(tdict.keys()):
-        source= tdict[t]
+        source= tdict[t].table_obj
         tablename= source.name.lower()
         add_table= False
         if tablename.startswith("_gen_"):
@@ -733,11 +748,11 @@ def file2screen(options):
                     new_pk_separate=False)
     for tag in sorted(tdict.keys()):
         specs= specdict[tag]
-        table= tdict[tag]
+        table= tdict[tag].table_obj
         print "Tag %s\n" % tag
         order= specs.get("order",[])
         where= specs.get("filter","")
-        sqlpotion.print_table(table, 2, order, where)
+        sqlpotion.print_table(table, sqlpotion.Format.TABLE, order, where)
 
 def db2screen(options):
     """copy database tables to screen.
@@ -771,11 +786,16 @@ def db2screen(options):
     (meta_db,conn_db)= connect(options)
     for tag in sorted(specdict.keys()):
         specs= specdict[tag]
-        table= sqlpotion.table_object(specs["table"], meta_db)
-        print "Tag %s\n" % tag
         order= specs.get("order",[])
         where= specs.get("filter","")
-        sqlpotion.print_table(table, 2, order, where)
+        print "Tag %s\n" % tag
+        if specs.has_key("table"):
+            table= sqlpotion.table_object(specs["table"], meta_db)
+            sqlpotion.print_table(table, sqlpotion.Format.TABLE, order, where)
+        elif spec.has_key("query"):
+            sqlpotion.print_query(conn, spec["query"], 2, order, where)
+        else:
+            raise ValueError, "table or query must be specified"
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -851,7 +871,7 @@ def main():
                       help="specify the TABLESPEC, a string in the "+\
                            "form 'key1=value1,key2=value2...'. "+\
                            "These are the known keys: 'tag,table,"+\
-                           "order,filter'. order is a list of COLON "+\
+                           "query,order,filter'. order is a list of COLON "+\
                            "separated column names, filter is the "+\
                            "where-part of the sql query.",
                       metavar="TABLESPEC"  

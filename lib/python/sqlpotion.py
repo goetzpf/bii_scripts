@@ -23,7 +23,7 @@ user="you-oracle-username-here"
 passwd= "your-oracle-password-here"
 (meta,conn)= connect_database(user,passwd)
 tbl=table_object("TBL_INSERTION",meta)
-print_table(tbl,2)
+print_table(tbl,Format.PLAIN)
 dtt_write_table_fh(tbl)
 
 Some notes to the dtt (dbitabletext) format:
@@ -684,6 +684,18 @@ pdb_to_dbi_coltype = {
     pdb_coltypes.PDB_BLOB     : "string",
     }
 
+pdb_to_sqlalchemy_coltype = { 
+    pdb_coltypes.PDB_INT      : sqlalchemy.Integer,
+    pdb_coltypes.PDB_FLOAT    : sqlalchemy.Float,
+    pdb_coltypes.PDB_STRING   : sqlalchemy.String,
+    pdb_coltypes.PDB_BOOLEAN  : sqlalchemy.Integer,
+    pdb_coltypes.PDB_DATE     : sqlalchemy.Date,
+    pdb_coltypes.PDB_TIME     : sqlalchemy.Time,
+    pdb_coltypes.PDB_DATETIME : sqlalchemy.DateTime,
+    pdb_coltypes.PDB_TEXT     : sqlalchemy.Text,
+    pdb_coltypes.PDB_BLOB     : sqlalchemy.Binary,
+    }
+
 
 # ---------------------------------------------------------
 # database connection
@@ -922,10 +934,127 @@ def foreign_keys(table_obj):
 # debugging tools
 # ---------------------------------------------------------
 
-#@tp.Check(sqlalchemy.schema.Table, int, tp_stringlist, str)
-def print_table(table_object, pretty_grade= 0, 
-                order_by=[], where_part=""):
+Format= enum.Enum("PLAIN","TABLE_SPC","TABLE","CSV")
+
+def _csv_quote(string,separator):
+    r"""prepare a value to be printed in csv format.
+
+    Here are some examples:
+    >>> _csv_quote("abc,def|hij",",")
+    'abc\\,def|hij'
+    >>> print _csv_quote("abc,def|hij",",")
+    abc\,def|hij
+    >>> print _csv_quote("abc,def|hij\\kl",",")
+    abc\,def|hij\\kl
+    >>> print _csv_quote("abc,def|hij\\kl","|")
+    abc,def\|hij\\kl
+    """
+    string= string.replace("\\","\\\\")
+    string= string.replace(separator,"\\"+separator)
+    return string
+
+#@tp.Check(tp.function_, tp_stringlist, int, bool)
+def _print_query(it_gen, headings=[], format= Format.PLAIN, do_print=True):
+    """pretty-prints a query.
+
+    parameters:
+
+        it_gen    -- a function that returns an sqlalchemy 
+                     iterator that is used to fetch the rows
+                     of a query
+        headings  -- a list of headings for the table that is 
+                     printed. If this list is empty, the table
+                     headings are taken from the query result.
+        format    -- This enumeration type determines the output format,
+                     Format.PLAIN    : simple row format with repr() strings
+                     Format.TABLE_SPC: table with spaces
+                     Format.TABLE    : table with column lines
+                     Format.CSV      : comma-separated values,
+                                       commas within fields are escaped with
+                                       "\", all in fields "\" are doubled
+        do_print  -- if True, print result to console, else
+                     return a list of lines (without trailing "\n")
+    returns
+        a list of strings or None, depending on the do_print parameter
+    """
+    result= []
+    if do_print:
+        def prn(st):
+            print st
+    else:
+        def prn(st):
+            result.append(st)
+    if format==Format.PLAIN:
+        heading_printed= False
+        it= it_gen()
+        for row in it:
+            if not heading_printed:
+                if len(headings)<=0:
+                    headings= row.keys()
+                prn(str(tuple(headings)))
+                heading_printed= True
+            prn(str(row))
+    elif format==Format.CSV:
+        separator= ","
+        def csv_pr(lst):
+            return separator.join([_csv_quote(str(x),separator) for x in lst])
+        heading_printed= False
+        it= it_gen()
+        for row in it:
+            if not heading_printed:
+                if len(headings)<=0:
+                    headings= row.keys()
+                prn(csv_pr(headings))
+                heading_printed= True
+            prn(csv_pr(row))
+    else:
+        widths= None
+        it= it_gen()
+        for row in it:
+            if widths is None:
+                if len(headings)<=0:
+                    headings= row.keys()
+                widths= [len(e) for e in headings]
+            for i in xrange(len(widths)):
+                widths[i]= max(widths[i],len(str(row[i])))
+        sep= " "
+        if format==Format.TABLE:
+            sep= " | "
+        lst= [h.ljust(w) for h,w in zip(headings,widths)]
+        h_line= sep.join(lst)
+        prn(h_line)
+        if format==Format.TABLE:
+            lst= [ "-"*w for w in widths]
+            prn("-+-".join(lst))
+        it= it_gen()
+        for row in it:
+            lst= [str(e).ljust(w) for e,w in zip(row,widths)]
+            prn(sep.join(lst))
+    if do_print:
+        return None
+    return result
+
+#@tp.Check(sqlalchemy.schema.Table, int, tp_stringlist, str, bool)
+def print_table(table_object, format= Format.TABLE, 
+                order_by=[], where_part="", do_print= True):
     """pretty-prints a table.
+
+    parameters:
+        table_object -- the sqlalchemy table object
+        format       -- This enumeration type determines the output format,
+                        Format.PLAIN    : simple row format with repr() strings
+                        Format.TABLE_SPC: table with spaces
+                        Format.TABLE    : table with column lines
+                        Format.CSV      : comma-separated values,
+                                          commas within fields are escaped with
+                                          "\", all in fields "\" are doubled
+        order_by     -- a list of column names by which the results are ordered
+        where_part   -- the "WHERE" part of the sql query, this can be used
+                        to filter the results
+        do_print     -- if True, print to the screen, otherwise
+                        return a list of lines.
+    returns:
+        a list of strings or None, depending on the value of do_print
 
     Here are some examples:
     We first connect to a sqlite database in memory:
@@ -936,45 +1065,101 @@ def print_table(table_object, pretty_grade= 0,
     >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
     >>> set_table(tbl, ((1,"cd"),(2,"ab")))
 
-    >>> print_table(tbl)
+    >>> print_table(tbl, Format.PLAIN)
     ('id', 'name')
     (1, u'cd')
     (2, u'ab')
-    >>> print_table(tbl,1)
+    >>> print_table(tbl, Format.TABLE_SPC)
     id name
     1  cd  
     2  ab  
-    >>> print_table(tbl,2)
+    >>> print_table(tbl, Format.TABLE)
     id | name
     ---+-----
     1  | cd  
     2  | ab  
+    >>> print_table(tbl, Format.CSV)
+    id,name
+    1,cd
+    2,ab
+    >>> print_table(tbl,Format.PLAIN,do_print=False)
+    ["('id', 'name')", "(1, u'cd')", "(2, u'ab')"]
+    >>> print_table(tbl,Format.TABLE_SPC,do_print=False)
+    ['id name', '1  cd  ', '2  ab  ']
+    >>> print_table(tbl,Format.TABLE,do_print=False)
+    ['id | name', '---+-----', '1  | cd  ', '2  | ab  ']
+    >>> print_table(tbl,Format.CSV,do_print=False)
+    ['id,name', '1,cd', '2,ab']
     """
     headings= column_name_list(table_object, False)
     query= ordered_query(table_object, order_by)
     if where_part!="":
         query= query.where(where_part)
-    if pretty_grade<=0:
-        print str(tuple(headings))
-        for row in query.execute():
-            print row
-    else:
-        widths= [len(e) for e in headings]
-        for row in query.execute():
-            for i in xrange(len(widths)):
-                widths[i]= max(widths[i],len(str(row[i])))
-        sep= " "
-        if pretty_grade>1:
-            sep= " | "
-        lst= [h.ljust(w) for h,w in zip(headings,widths)]
-        h_line= sep.join(lst)
-        print h_line
-        if pretty_grade>1:
-            lst= [ "-"*w for w in widths]
-            print "-+-".join(lst)
-        for row in query.execute():
-            lst= [str(e).ljust(w) for e,w in zip(row,widths)]
-            print sep.join(lst)
+    return _print_query(lambda:query.execute(), headings, 
+                        format, do_print)
+
+#@tp.Check(sqlalchemy.engine.base.Connection, str, int, tp_stringlist, str, bool)
+def print_query(conn, query_text, format= Format.TABLE,
+                order_by=[], where_part="", do_print= True):
+    """pretty-prints a query.
+
+    parameters:
+        conn         -- a sqlalchemy connection object
+        query_text   -- the SQL query as a string
+        format       -- This enumeration type determines the output format,
+                        Format.PLAIN    : simple row format with repr() strings
+                        Format.TABLE_SPC: table with spaces
+                        Format.TABLE    : table with column lines
+                        Format.CSV      : comma-separated values,
+                                          commas within fields are escaped with
+                                          "\", all in fields "\" are doubled
+        order_by     -- a list of column names by which the results are ordered
+        where_part   -- the "WHERE" part of the sql query, this can be used
+                        to filter the results
+        do_print     -- if True, print to the screen, otherwise
+                        return a list of lines.
+    returns:
+        a list of strings or None, depending on the value of do_print
+
+    Here are some examples:
+
+    We first connect to a sqlite database in memory:
+    >>> (meta,conn)=connect_memory()
+
+    We now create now table objects in sqlalchemy:
+
+    >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
+    >>> set_table(tbl, ((1,"cd"),(2,"ab")))
+    >>> print_query(conn,"select * from mytable",Format.PLAIN)
+    (u'id', u'name')
+    (1, u'cd')
+    (2, u'ab')
+    >>> print_query(conn,"select * from mytable",Format.TABLE_SPC)
+    id name
+    1  cd  
+    2  ab  
+    >>> print_query(conn,"select * from mytable",Format.TABLE)
+    id | name
+    ---+-----
+    1  | cd  
+    2  | ab  
+    >>> print_query(conn,"select * from mytable",Format.CSV)
+    id,name
+    1,cd
+    2,ab
+    >>> print_query(conn,"select id as id2, name as myname from mytable",
+    ...             Format.TABLE)
+    id2 | myname
+    ----+-------
+    1   | cd    
+    2   | ab    
+    """
+    query= sqlalchemy.sql.text(query_text)
+    if len(order_by)>0:
+        query= query.order_by(*order_by)
+    if where_part!="":
+        query= query.where(where_part)
+    return _print_query(lambda:conn.execute(query), [], format, do_print)
 
 #@tp.Check(sqlalchemy.schema.Table, tp.iterable)
 def set_table(table, rows):
@@ -986,7 +1171,7 @@ def set_table(table, rows):
 
     >>> set_table(tbl, ((1,"first"),(2,"second")))
 
-    >>> print_table(tbl,2)
+    >>> print_table(tbl,Format.TABLE)
     id | name  
     ---+-------
     1  | first 
@@ -1024,7 +1209,7 @@ def make_test_table(meta,name,column_spec):
 
     >>> set_table(tbl, ((1,"test"),))
 
-    >>> print_table(tbl,2)
+    >>> print_table(tbl,Format.TABLE)
     id | name
     ---+-----
     1  | test
@@ -1572,7 +1757,7 @@ def _dtt_gen_rows(fh, iterator_generator_func, trim_columns=False):
 
 #@tp.Check(str, sqlalchemy.schema.Table, tp.filetype, bool, tp_stringlist, str)
 def dtt_write_table_fh(tag, table_obj, fh=sys.stdout, trim_columns=True,
-                       order_by=[], where_part=""):
+                       order_by=[], where_part="", query_text=""):
     r"""write table to a filehandle in dbitabletext format.
 
     parameters:
@@ -1587,21 +1772,33 @@ def dtt_write_table_fh(tag, table_obj, fh=sys.stdout, trim_columns=True,
                            primary keys.
         where_part      -- an optional string, the where_part part that
                            is added to query the table
-    returns:
+        query_text      -- if this parameter is given, the table is 
+                           written "as if" it would be a query, that
+                           means the table-name is not written, but
+                           the query_text. However, ALL rows of the
+                           table are written, the query text is not
+                           really executed. If where_part is specified,
+                           the resulting query overrides query_text.
+   returns:
         nothing
 
     In order to see an example have a look at dtt_from_tables(),
     this function calls dtt_write_tables_fh().
     """
     pks= primary_keys(table_obj)
-    _dtt_gen_header(fh,tag,table_obj.name.lower(),pks)
-    col_info= column_info(table_obj)
-    _dtt_gen_colinfo(fh, [(name,pdb_type_from_str(type_)) 
-                            for name,type_ in col_info])
     # do always a query that is sorted by the primary keys:
     query= ordered_query(table_obj,order_by)
     if where_part!="":
         query= query.where(where_part)
+    table_name= ""
+    if query_text=="" or where_part!="":
+        if query_text=="":
+            table_name= table_obj.name.lower()
+        query_text= " ".join([s.strip() for s in str(query).splitlines()])
+    _dtt_gen_header(fh,tag,table_name,pks,query_text)
+    col_info= column_info(table_obj)
+    _dtt_gen_colinfo(fh, [(name,pdb_type_from_str(type_)) 
+                            for name,type_ in col_info])
     _dtt_gen_rows(fh,lambda:query.execute(),trim_columns)
 
 #@tp.Check(sqlalchemy.engine.base.Connection,str,str,tp_stringlist,tp.filetype,bool)
@@ -1698,7 +1895,7 @@ def dtt_from_qsource(conn,tag,qsource_obj,trim_columns= True):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable WHERE id>1 ORDER BY mytable.name"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -1805,7 +2002,7 @@ def dtt_write_qsources(conn, qsource_dict, filename="", trim_columns=True):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -1830,7 +2027,7 @@ def dtt_write_qsources(conn, qsource_dict, filename="", trim_columns=True):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -1847,7 +2044,7 @@ def dtt_write_qsources(conn, qsource_dict, filename="", trim_columns=True):
     [Properties]
     TABLE=mytable2 TYPE=file
     PK="ID2"
-    FETCH_CMD="select * from mytable2"
+    FETCH_CMD="SELECT mytable2.id2, mytable2.name2 FROM mytable2 ORDER BY mytable2.id2"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -1871,7 +2068,7 @@ def dtt_write_qsources(conn, qsource_dict, filename="", trim_columns=True):
     [Properties]
     TABLE=mytable TYPE=file
     PK="ID"
-    FETCH_CMD="select * from mytable"
+    FETCH_CMD="SELECT mytable.id, mytable.name FROM mytable ORDER BY mytable.id"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -1890,7 +2087,7 @@ def dtt_write_qsources(conn, qsource_dict, filename="", trim_columns=True):
     [Properties]
     TABLE=mytable2 TYPE=file
     PK="ID2"
-    FETCH_CMD="select * from mytable2"
+    FETCH_CMD="SELECT mytable2.id2, mytable2.name2 FROM mytable2 ORDER BY mytable2.id2"
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
@@ -2460,13 +2657,13 @@ def _dtt_parser_scan_columns(line, lineno, properties, state):
     return state
 
 #@tp.Check(sqlalchemy.schema.MetaData,tp.maptype)
-def _dtt_parser_properties_to_table(metadata, properties):
-    r"""convert a properties dictionary to a real table.
+def _dtt_parser_dttresult_to_table(metadata, dttresult):
+    r"""convert a dttresult dictionary to a real table.
 
     parameters:
         metadata     -- the metadata object, to which the table
                         will be connected.
-        properties   -- the properties dictionary as it is
+        dttresult   -- the dttresult dictionary as it is
                         created by the various _dbi_ functions that
                         are called in read_table()
     returns:
@@ -2474,11 +2671,12 @@ def _dtt_parser_properties_to_table(metadata, properties):
 
     Here is an example:
     >>> (meta,conn)=connect_memory()
-    >>> properties={ "TABLE":"mytable", "columns":["id","name"], 
-    ...              "column-types":["number","string"],
-    ...              "PK":"id"
-    ...            }
-    >>> tbl= _dtt_parser_properties_to_table(meta, properties)
+    >>> dttresult=DttResult({ "tag":"mytable","TABLE":"mytable", 
+    ...                       "columns":["id","name"], 
+    ...                       "column-types":["number","string"],
+    ...                       "PK":"id"
+    ...                     })
+    >>> tbl= _dtt_parser_dttresult_to_table(meta, dttresult)
 
     The table object contains no data, but we can print
     it's repr-string here:
@@ -2500,77 +2698,75 @@ def _dtt_parser_properties_to_table(metadata, properties):
     """
     columns=[]
     # "PK" may be a comma-separated list of primary keys
-    if properties.has_key("PK"):
-        pks= set([st.strip().upper() 
-                  for st in properties["PK"].split(",")])
-    else:
+    pks= dttresult.primary_keys
+    if pks is None:
         pks= set()
-    for i in xrange(len(properties["columns"])):
-        col_name= properties["columns"][i]
-        arg_list= [ col_name.lower(),
-                    dbi_to_sqlite_coltype[properties["column-types"][i]],
+    for col_name,col_type in zip(dttresult.column_names,dttresult.column_types):
+        arg_list= [ col_name,
+                    pdb_to_sqlalchemy_coltype[col_type],
                   ]
         arg_dict= {}
-        if col_name.upper() in pks:
+        if col_name.lower() in pks:
             arg_dict["primary_key"]= True
         #print "arg_list:",arg_list
         #print "arg_dict:",arg_dict
         columns.append(sqlalchemy.Column(*arg_list,**arg_dict))
-    #print "table-name:",properties["TABLE"]
-    table= sqlalchemy.Table(properties["TABLE"], metadata,
+    #print "table-name:",dttresult["TABLE"]
+    table= sqlalchemy.Table(dttresult.table_name, metadata,
                             *columns)
     metadata.create_all(tables=[table])
     return table
 
 #@tp.Check(sqlalchemy.schema.MetaData,tp.maptype,sqlalchemy.schema.Table)
-def _dtt_parser_properties_check_table(metadata, properties, table):
-    """check if the given table is compatible with the found properties.
+def _dtt_parser_dttresult_check_table(metadata, dttresult, table):
+    """check if the given table is compatible with the found dttresult.
 
     Here are some examples:
     >>> (meta,conn)=connect_memory()
     >>> tbl = make_test_table(meta,"mytable" ,("id:int:primary","name:str"))
-    >>> _dtt_parser_properties_check_table(meta,{"PK":"id",
-    ...                                          "columns":["id","name"],
-    ...                                          "column-types":["number","string"]},
-    ...                                    tbl)
+    >>> _dtt_parser_dttresult_check_table(meta,
+    ...                                   DttResult({"tag":"mytable",
+    ...                                              "PK":"id",
+    ...                                              "columns":["id","name"],
+    ...                                              "column-types":["number","string"]}),
+    ...                                   tbl)
     True
-    >>> _dtt_parser_properties_check_table(meta,{"columns":["id","name"],
-    ...                                          "column-types":["number","string"]},
-    ...                                    tbl)
+    >>> _dtt_parser_dttresult_check_table(meta,
+    ...                                   DttResult({"tag":"mytable",
+    ...                                              "columns":["id","name"],
+    ...                                              "column-types":["number","string"]}),
+    ...                                   tbl)
     False
-    >>> _dtt_parser_properties_check_table(meta,{"PK":"id",
-    ...                                          "columns":["id","name"],
-    ...                                          "column-types":["number","number"]},
-    ...                                    tbl)
+    >>> _dtt_parser_dttresult_check_table(meta,
+    ...                                   DttResult({"tag":"mytable",
+    ...                                              "PK":"id",
+    ...                                              "columns":["id","name"],
+    ...                                              "column-types":["number","number"]}),
+    ...                                   tbl)
     False
-    >>> _dtt_parser_properties_check_table(meta,{"PK":"id",
-    ...                                          "columns":["id","namex"],
-    ...                                          "column-types":["number","string"]},
-    ...                                    tbl)
+    >>> _dtt_parser_dttresult_check_table(meta,
+    ...                                   DttResult({"tag":"mytable",
+    ...                                              "PK":"id",
+    ...                                              "columns":["id","namex"],
+    ...                                              "column-types":["number","string"]}),
+    ...                                   tbl)
     False
     """
     t_pks= set(primary_keys(table))
-    if properties.has_key("PK"):
-        pks= set([st.strip().lower() 
-                  for st in properties["PK"].split(",")])
+    if dttresult.primary_keys is not None:
+        pks= dttresult.primary_keys
     else:
         pks= set()
     if pks!=t_pks:
         return False
     t_coltypes= pdb_column_type_dict(table)
-    coltypes= dict( zip(properties["columns"],
-                        [dbi_to_pdb_coltype[c] \
-                           for c in properties["column-types"]]))
+    coltypes= dict( zip(dttresult.column_names, dttresult.column_types) )
     for c in coltypes.keys():
         if not t_coltypes.has_key(c):
             return False
         if t_coltypes[c]!=coltypes[c]:
             return False
     return True
-
-
-
-    
 
 # parse state constants
 _dtt_parserstate= enum.Enum(
@@ -2584,6 +2780,66 @@ _dtt_parserstate= enum.Enum(
     "_DBISCAN_COLUMNS",
     "_DBISCAN_TABLE")
 
+class DttResult(object):
+    """a class that is used by the dtt_read... functions to return results.
+    """
+    lst=["tag","table_name","dtt_table_name","table_obj", "query_text"]
+    def __init__(self, properties={}, tag="",table_obj=None):
+        if len(properties)!=0:
+            if tag!="" or table_obj!=None:
+                raise TypeError, "you may specify <properties> or <tag,table_obj> "+\
+                                 "but not both"
+            return self._init_from_properties(properties)
+        else:
+            if tag=="" or table_obj==None:
+                raise TypeError, "you have to specify tag AND table_obj"
+            return self._init_from_table(tag,table_obj)
+    def _init_from_table(self,tag,table_obj):
+        self.tag= tag
+        self.is_table= True
+        self.dtt_table_name= table_obj.name
+        self.table_name= self.dtt_table_name
+        self.query_text="select * from %s" % self.table_name
+        self.primary_keys= primary_keys(table_obj)
+        col_info= column_info(table_obj)
+        self.column_names= column_name_list(table_obj,False,col_info)
+        self.column_types= pdb_column_types(table_obj, col_info)
+        self.table_obj= table_obj
+    def _init_from_properties(self,properties):
+        self.tag= properties["tag"]
+        self.is_table= properties.has_key("TABLE")
+        self.dtt_table_name= properties.get("TABLE")
+        if properties.get("tag_filter","")!="":
+            # if tag_filter is not empty, take that as table-name:
+            self.table_name= properties["tag_filter"]
+        elif properties.has_key("TABLE"):
+            self.table_name= properties["TABLE"].lower()
+        else:
+            self.table_name= self.tag.lower()
+        self.query_text= properties.get("FETCH_CMD")
+        self.primary_keys= None
+        if properties.has_key("PK"):
+            self.primary_keys= set([x.strip().lower() \
+                                   for x in properties["PK"].split(",")])
+        self.column_names= properties["columns"]
+        self.column_types= [ dbi_to_pdb_coltype[c] \
+                             for c in properties["column-types"] ]
+        self.table_obj= None
+    def __str__(self):
+        lst= ["tag","is_table","dtt_table_name","table_name",
+              "query_text","primary_keys","column_names","column_types",
+              "table_obj"]
+        parts= []
+        for attr in lst:
+            if getattr(self,attr) is not None:
+                if attr=="column_types":
+                    val= ",".join([str(x) for x in getattr(self,attr)])
+                elif attr=="table_obj":
+                    val= "table_obj<%s>" % str(getattr(self,attr))
+                else:
+                    val= str(getattr(self,attr))
+                parts.append("%s=%s" % (attr,val))
+        return "DttResult:\n    " + ("\n    ".join(parts)) + "\n"
 
 #@tp.Check(tp.filetype,tp.filetype,tp.function_)
 def dtt_filter_fh(in_fh, out_fh, filter_func):
@@ -2760,7 +3016,7 @@ def dtt_tag_filter(tags):
     return f
 
 #@tp.Check(sqlalchemy.schema.MetaData, tp.filetype, tp_func_or_none, tp.maptype, bool,bool,tp_func_or_none)
-def dtt_read_tables_fh(metadata, fh, tag_filter=None, table_dict={},
+def dtt_read_tables_fh(metadata, fh, tag_filter=None, dtt_dict={},
                        rstrip_mode= True, quote_mode=False,
                        row_filter= None):
     """reads a table from a dbitable compatible format.
@@ -2779,9 +3035,10 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, table_dict={},
                        equal to that string.
                        If this parameter is None, all tables are read from the file.
                        Each table is stored with it's tag in the table dictionary.
-        table_dict  -- a dictionary mapping tags to tables. If a table from
-                       the dbitabletext source is already present here, all 
-                       data is, after a compability check, added there.
+        dtt_dict    -- a dictionary mapping tags to DttResult objects.
+                       If a table from the dbitabletext source is already
+                       present here, all data is, after a compability check,
+                       added there.
         rstrip_mode -- if True, rstrip is performed on each read
                        value
         quote_mode  -- if True, single quotes around values are
@@ -2807,7 +3064,7 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, table_dict={},
             return
         table.insert().execute(value_cache)
         del value_cache[:]
-    tdict= table_dict.copy()
+    tdict= dtt_dict.copy()
     table_obj= None
     table_name=""
     properties=None
@@ -2858,30 +3115,25 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, table_dict={},
                 # prepare scanning of the table
                 # "tag" is always defined. "tag_filter" is a string that
                 # may be empty, "TABLE" may be defined or not
-                if properties["tag_filter"]!="":
-                    # if tag_filter is not empty, take that as table-name:
-                    properties["TABLE"]= properties["tag_filter"]
-                if not properties.has_key("TABLE"):
-                    # it may happen for queries stored in the file
-                    # that there is no property "TABLE", use the tag
-                    # name as a table name in that case:
-                    properties["TABLE"]= properties["tag"]
-                tag= properties["tag"]
+                dttresult= DttResult(properties)
+                tag= dttresult.tag
                 if tdict.has_key(tag):
-                    table_obj= tdict[tag]
-                    if not _dtt_parser_properties_check_table(metadata,
-                                                              properties,
-                                                              table_obj):
+                    table_obj= tdict[tag].table_obj
+                    if not _dtt_parser_dttresult_check_table(metadata,
+                                                             dttresult,
+                                                             table_obj):
                         raise ValueError,"error: table with tag '%s' is "+\
                                          "not compatible with table in "+\
                                          "dbitabletext file"
+                    dttresult= tdict[tag]
                 else:
-                    table_obj= _dtt_parser_properties_to_table(metadata, 
-                                                               properties)
-                    tdict[tag]= table_obj
-                pks= [p.lower() for p in primary_keys(table_obj)]
-                flags_dict= {"pks":pks, "tag":properties["tag"],
-                             "table": properties["TABLE"].lower()}
+                    tdict[tag]= dttresult
+                    table_obj= _dtt_parser_dttresult_to_table(metadata, 
+                                                              dttresult)
+                    dttresult.table_obj= table_obj
+                pks= dttresult.primary_keys
+                flags_dict= {"pks":pks, "tag":dttresult.tag,
+                             "table": dttresult.table_name}
                 value_cache=[]
             continue
         if state==_dtt_parserstate._DBISCAN_TABLE:
@@ -2926,7 +3178,7 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, table_dict={},
     return tdict
 
 #@tp.Check(sqlalchemy.schema.MetaData, str, tp_func_or_none, tp.maptype, bool,bool,tp_func_or_none)
-def dtt_read_tables(metadata, filename, tag_filter=None, table_dict={},
+def dtt_read_tables(metadata, filename, tag_filter=None, dtt_dict={},
                     rstrip_mode= True, quote_mode=False,
                     row_filter= None):
     """reads a table from a dbitable compatible format.
@@ -2944,9 +3196,10 @@ def dtt_read_tables(metadata, filename, tag_filter=None, table_dict={},
                        string, the table is read and is stored with a name that is 
                        equal to that string.
                        If this parameter is None, all tables are read from the file.
-        table_dict  -- a dictionary mapping tags to tables. If a table from
-                       the dbitabletext source is already present here, all 
-                       data is, after a compability check, added there.
+        dtt_dict    -- a dictionary mapping tags to DttResult objects.
+                       If a table from the dbitabletext source is already
+                       present here, all data is, after a compability check,
+                       added there.
         rstrip_mode -- if True, rstrip is performed on each read
                        value
         quote_mode  -- if True, single quotes around values are
@@ -2968,14 +3221,14 @@ def dtt_read_tables(metadata, filename, tag_filter=None, table_dict={},
     for examples have a look at dtt_to_tables().
     """
     fh= open(filename,"r")
-    result= dtt_read_tables_fh(metadata,fh,tag_filter,table_dict,
+    result= dtt_read_tables_fh(metadata,fh,tag_filter,dtt_dict,
                                rstrip_mode,
                                quote_mode,row_filter)
     fh.close()
     return result
 
 #@tp.Check(sqlalchemy.schema.MetaData, str, tp_func_or_none, tp.maptype, bool,bool,tp_func_or_none)
-def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
+def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
                         rstrip_mode= True, quote_mode=False,
                         row_filter= None):
     r"""read a dbitable compatible text, return property list.
@@ -2993,9 +3246,10 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
                        string, the table is read and is stored with a name that is 
                        equal to that string.
                        If this parameter is None, all tables are read from the file.
-        table_dict  -- a dictionary mapping tags to tables. If a table from
-                       the dbitabletext source is already present here, all 
-                       data is, after a compability check, added there.
+        dtt_dict    -- a dictionary mapping tags to DttResult objects.
+                       If a table from the dbitabletext source is already
+                       present here, all data is, after a compability check,
+                       added there.
         rstrip_mode -- if True, rstrip is performed on each read
                        value
         quote_mode  -- if True, single quotes around values are
@@ -3047,7 +3301,22 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     escaped characters (leading "\") are taken literally:
 
     >>> tdict=dtt_to_tables(meta,txt,dtt_tag_filter(["mytable"]))
-    >>> print_table(tdict["mytable"])
+    >>> tdict.keys()
+    ['mytable']
+    >>> print tdict["mytable"]
+    DttResult:
+        tag=mytable
+        is_table=True
+        dtt_table_name=mytable
+        table_name=mytable
+        query_text=select * from mytable
+        primary_keys=set(['id'])
+        column_names=['id', 'name']
+        column_types=PDB_INT,PDB_STRING
+        table_obj=table_obj<mytable>
+    <BLANKLINE>
+
+    >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
     (1, u'cd')
     (2, u'ab')
@@ -3076,7 +3345,7 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     ... 7|zz
     ... '''
     >>> tdict=dtt_to_tables(meta,txt2,dtt_tag_filter(["mytable"]),tdict)
-    >>> print_table(tdict["mytable"])
+    >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
     (1, u'cd')
     (2, u'ab')
@@ -3148,7 +3417,7 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     >>> tdict= dtt_to_tables(meta,txt_3_tables,dtt_tag_filter(["table2"]))
     >>> print tdict.keys()
     ['table2']
-    >>> print_table(tdict["table2"])
+    >>> print_table(tdict["table2"].table_obj, Format.PLAIN)
     ('id2', 'name2')
     (1, u'ab2')
     (2, u'cd2')
@@ -3158,9 +3427,9 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     ...                      lambda x: x+"xx" if x=="table2" else None)
     >>> print tdict.keys()
     ['table2']
-    >>> tdict["table2"].name
+    >>> tdict["table2"].table_name
     'table2xx'
-    >>> print_table(tdict["table2"])
+    >>> print_table(tdict["table2"].table_obj, Format.PLAIN)
     ('id2', 'name2')
     (1, u'ab2')
     (2, u'cd2')
@@ -3175,7 +3444,7 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
 
     >>> for t in sorted(tdict.keys()):
     ...   print "\nTable %s:" % t
-    ...   print_table(tdict[t],2)
+    ...   print_table(tdict[t].table_obj,Format.TABLE)
     <BLANKLINE>
     Table table1:
     id1 | name1
@@ -3237,7 +3506,7 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     >>> (meta,conn)=connect_memory()
     >>> 
     >>> tdict=dtt_to_tables(meta,txt,filter_tag("mytable"),row_filter= below4)
-    >>> print_table(tdict["mytable"])
+    >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
     (1, u'cd')
     (2, u'ab')
@@ -3289,7 +3558,7 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     ... 
     >>> (meta,conn)=connect_memory()
     >>> tdict=dtt_to_tables(meta,txt,filter_tag("mytable"),row_filter= pk_get)
-    >>> print_table(tdict["mytable"])
+    >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
     (1, u'ab')
     (2, u'p|ped')
@@ -3308,7 +3577,7 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     >>> (meta,conn)=connect_memory()
     >>> tdict= dtt_to_tables(meta,txt,filter_tag("mytable"),
     ...                                         row_filter= pk_defined)
-    >>> print_table(tdict["mytable"])
+    >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
     (1, u'ab')
     (2, u'p|ped')
@@ -3335,18 +3604,18 @@ def dtt_to_tables(metadata, txt, tag_filter=None, table_dict={},
     ... 
     >>> (meta,conn)=connect_memory()
     >>> tdict= dtt_to_tables(meta,txt,filter_tag("mytable","mytable2"),
-    ...                             row_filter= pk_gen_gen(tdict["mytable"]))
+    ...                      row_filter= pk_gen_gen(tdict["mytable"].table_obj))
 
     In the following lines we see, that this table starts with a primary key
     that is just one bigger than the largest primary key in "mytable" (see above):
 
-    >>> print_table(tdict["mytable"])
+    >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
     (3, u'cd')
     (4, u"'quoted'")
     """
     input= StringIO.StringIO(txt)
-    result= dtt_read_tables_fh(metadata, input, tag_filter, table_dict,
+    result= dtt_read_tables_fh(metadata, input, tag_filter, dtt_dict,
                        rstrip_mode, quote_mode, row_filter)
     input.close()
     return result
@@ -3722,13 +3991,13 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     >>> set_table(tbl2,((1,1,u"xx",u"a"),(1,2,u"1-2",u"b"),(2,3,u"2-3",u"c")))
 
     This is the content of the two tables:
-    >>> print_table(tbl)
+    >>> print_table(tbl, Format.PLAIN)
     ('id', 'loc', 'name')
     (1, 1, u'1-1')
     (1, 2, u'1-2')
     (2, 2, u'2-2')
 
-    >>> print_table(tbl2)
+    >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
     (1, 1, u'xx', u'a')
     (1, 2, u'1-2', u'b')
@@ -3740,7 +4009,7 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     now we update tbl2 without delete:
 
     >>> update_table(tbl,tbl2,column_mapping)
-    >>> print_table(tbl2)
+    >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
     (1, 1, u'1-1', u'a')
     (1, 2, u'1-2', u'b')
@@ -3750,20 +4019,20 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     now we reset tbl2 to it's previous state and update with delete:
     >>> result= tbl2.delete().execute()
     >>> set_table(tbl2,((1,1,u"xx",u"a"),(1,2,u"1-2",u"b"),(2,3,u"2-3",u"c")))
-    >>> print_table(tbl2)
+    >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
     (1, 1, u'xx', u'a')
     (1, 2, u'1-2', u'b')
     (2, 3, u'2-3', u'c')
 
     >>> update_table(tbl,tbl2,column_mapping,do_deletes=True)
-    >>> print_table(tbl)
+    >>> print_table(tbl, Format.PLAIN)
     ('id', 'loc', 'name')
     (1, 1, u'1-1')
     (1, 2, u'1-2')
     (2, 2, u'2-2')
 
-    >>> print_table(tbl2)
+    >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
     (1, 1, u'1-1', u'a')
     (1, 2, u'1-2', u'b')
@@ -3852,11 +4121,11 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     >>> set_table(tbl ,((1,"1new"),(2,"2new")))
 
     This is the content of the two tables:
-    >>> print_table(tbl2)
+    >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-name', 'my-other')
     (1, u'1', u'a')
     (3, u'3', u'c')
-    >>> print_table(tbl)
+    >>> print_table(tbl, Format.PLAIN)
     ('id', 'name')
     (1, u'1new')
     (2, u'2new')
@@ -3868,7 +4137,7 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     >>> add_table(tbl, tbl2, column_mapping)
 
     This is the result:
-    >>> print_table(tbl2)
+    >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-name', 'my-other')
     (1, u'1', u'a')
     (3, u'3', u'c')
