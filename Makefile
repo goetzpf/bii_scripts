@@ -10,6 +10,7 @@
 
 # in order to generate documentation to for the script
 # do the following:
+
 # for scripts with name *.pl and POD documentation:
 #    add scriptname to the POD_SCRIPT_LIST variable
 
@@ -60,6 +61,12 @@
 # for python modules with embedded pydoc documentation 
 #    add scriptname to the PYDOC_PYTHONLIB_LIST variable
 
+# scripts that do only run with python 2.5 or newer should 
+#    be specified in the variable PYTHON_2_5_SCRIPTS.
+#    This is needed for antique debian-linux systems where
+#    python 2.5 is installed, but the binary is named
+#    "python2.5" instead of "python".
+
 #############################################################
 
 # variables
@@ -75,9 +82,12 @@
 
 # programs
 
-PYDOC=pydoc
-#PYDOC:=$(shell python -V 2>&1 | \
-#perl -ne '($$v)=/ (\d+(\.\d+)?)/; if($$v<2.5){print "pydoc2.5"}else{print "pydoc"}')
+# the basename of the python binary:
+PYTHON25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "python2.5") || echo "python")
+
+# the basename of the pydoc utility:
+PYDOC:=$(shell python -V 2>&1 | \
+perl -ne '($$v)=/ (\d+(\.\d+)?)/; if($$v<2.5){print "pydoc2.5"}else{print "pydoc"}')
 
 # groups ....................................................
 
@@ -263,6 +273,9 @@ POD_PERLLIB_LIST= \
 PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py rdump.py putil.py \
 	enum.py pdict.py sqlpotion.py ptestlib.py boottime.py dateutils.py \
         lslparser.py maillike.py rsync_dist_lib.py
+
+# python scripts that need python 2.5
+PYTHON_2_5_SCRIPTS= rsync-dist-info.py sqlutil.py
 
 # scripts that have embedded documentation that can be HTML converted 
 # with makeDocTxt
@@ -588,6 +601,12 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 	cp $< $(@D) 
 	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR)/browsedb \
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
+
+# extra rules for python 2.5 scripts:
+_PYTHON_2_5_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(PYTHON_2_5_SCRIPTS))
+
+$(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%.py: $(SCRIPT_SRC_DIR)/%.py
+	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
 
 # build perl libs............................................
 
