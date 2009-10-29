@@ -576,10 +576,12 @@ class LLogByName(object):
         """returns a string representation of the object."""
         return self._str()
     def _str(self,brief=False,last=None):
+        return "\n".join(self._strs(brief,last))
+    def _strs(self,brief=False,last=None):
         """pretty-prints the object.  """
         if brief:
             lines= [str(n) for n in self.keys()]
-            return "\n".join(lines)
+            return lines
         lines=["name date                   version"]
         first= True
         for n,lst in self.items():
@@ -609,7 +611,7 @@ class LLogByName(object):
                 else:
                     ilines.append(" %23s    %s" % (elm[0],ver))
             lines.extend(reversed(ilines))
-        return "\n".join(lines)
+        return lines
 
 class LLogByVersion(object):
     """this class holds link-log information sorted by version.
