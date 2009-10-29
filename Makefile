@@ -693,11 +693,11 @@ build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST
 
 $(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 ifdef DOCUTILS_AVAILABLE
-	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $< --doc | \
+	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< --doc | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/zope.css > $@
 else
 	@echo "<PRE>"      >  $@
-	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR)  $< --doc >> $@
+	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< --doc >> $@
 	@echo "</PRE>"     >> $@
 endif
 
