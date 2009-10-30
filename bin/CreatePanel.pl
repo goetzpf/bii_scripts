@@ -386,15 +386,15 @@ sub   layoutTable
  
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
 	my %pv_attr;
-	my $widthMax;
+	my $groupMaxWidth;
 	foreach my $rH_Attr (@$group)
 	{
 	    my ($scaledWidgetWidth, $xScale) = getWidth($widgetWidth,$rH_Attr);
-	    $widthMax = ($scaledWidgetWidth > $widthMax) ? $scaledWidgetWidth : $widthMax;
+	    $groupMaxWidth = ($scaledWidgetWidth > $groupMaxWidth) ? $scaledWidgetWidth : $groupMaxWidth;
 	}
-#print "\tTable   item widthMax=$widthMax, (display width=$panelWidth)\n";
-
-	my $cols = int($panelWidth / $widthMax);
+#print "\tTable   item widthMax=$groupMaxWidth, (display width=$panelWidth)\n";
+    	$panelWidth = $groupMaxWidth if ($panelWidth < $groupMaxWidth);
+	my $cols = int($panelWidth / $groupMaxWidth);
 	my $rows = scalar(@$group) / $cols;
 	$rows = int($rows+1) if( $rows - int( $rows) );
 
@@ -403,7 +403,7 @@ sub   layoutTable
 	my $idx;
 	foreach my $rH_Attr (@$group)
 	{   
-	    my $x = int ($idx / $rows) * $widthMax;
+	    my $x = int ($idx / $rows) * $groupMaxWidth;
 	    my $y = ($idx - int($idx / $rows) * $rows) * $widgetHeight;
 	    
 	    my $edl;
