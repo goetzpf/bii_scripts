@@ -2,8 +2,6 @@
 
 test -r ./O.Common/.vdct && . ./O.Common/.vdct
 
-PATH=$PATH:/opt/java1.4/bin
-
 rootdir=/opt/Epics/VisualDCT
 
 vsn=current
