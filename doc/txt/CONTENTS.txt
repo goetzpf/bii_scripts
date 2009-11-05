@@ -2,11 +2,13 @@
 bii_scripts
 ===========
 
+.. contents:: :backlinks: none
+
 -------
 Remarks
 -------
 
-This is a collection of usefly scripts and libraries for the Bessy control
+This is a collection of useful scripts and libraries for the Bessy control
 system. Some of the scripts and libraries can be downloaded here. 
 
 If you are interested in getting scripts or libraries that cannot be
@@ -463,7 +465,7 @@ Perl Libraries
   | `documentation <perllib/ODB.html>`__
 
 **Options.pm**
-  | a Perl module for handling programm arguments, commandline in
+  | a Perl module for handling programm arguments, command line in
     and output inclusive login requests.
   | `documentation <perllib/Options.html>`__
 
