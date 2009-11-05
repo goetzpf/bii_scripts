@@ -1,462 +1,576 @@
-bii_scripts 
-**************************
+===========
+bii_scripts
+===========
 
-ist eine Sammlung von nützlichen Scripten und Libraries rund 
-um das Bessy Kontrollsystem.
+-------
+Remarks
+-------
 
+This is a collection of usefly scripts and libraries for the Bessy control
+system. Some of the scripts and libraries can be downloaded here. 
+
+If you are interested in getting scripts or libraries that cannot be
+downloaded from this page please send an email to one of the authors:
+
+Goetz.Pfeiffer@helmholtz-berlin.de
+
+Benjamin.Franksen@helmholtz-berlin.de
+
+Berhard.Kuner@helmholtz-berlin.de
+
+Thomas.Birke@helmholtz-berlin.de
+
+-------
 Scripts
-========
-
-*  accLaunch  :
-	launch panels for the BESSY II control system. All
-	panels are read-only, so you can not interfere with 
-	the control system.
-
-*  addPVtoArchiver  :
-	script to add a PV to the channel access archiver.
-
-*  adl_cvs_diff.pl  :
-	show differences between the working and the repository
-	version of an dm2k panel (*.adl) file. Supports CVS and
-	subversion as version control systems.
-	(URL=scripts/adl_cvs_diff.html)
-
-*  adlsort.pl  :
-	Print dm2k panel (*.adl) files sorted to standard out.
-	This can be used to compare two dm2k panel files.
-	(URL=scripts/adlsort.html)
-
-*  archiver2camonitor.py  :
-	This tool converts data from the Channel access archiver
-        (retrieved via CGI, "plot" command, then clicking on "plot")
-        to a sorted list of values compatible with the format
-        of the camonitor tool.
-	(URL=scripts/archiver2camonitor.html)
-
-*  bdns_import.pl  :
-	import BESSY device names into the oracle database.
-	(URL=scripts/bdns_import.html)
-
-*  bdns_lookup.pl  :
-	lookup BESSY device names in the oracle database.
-	(URL=scripts/bdns_lookup.html)
-
-*  browsedb.pl  :
-	a perl-script with a graphical user interface to 
-        browse the oracle database. The program can be used to view 
-	and change data in the database as well as show relations 
-	between the tables.
-
-*  buds_lookup.pl  :
-	lookup BESSY units in the oracle database.
-
-*  camonitor_sort.pl  :
-	sort and filer files created by the EPICS camonitor command.
-	The filtering can be specified with regular expressions.
-	This tool is especially useful when many different PV's 
-	are monitored at a time.
-	(URL=scripts/camonitor_sort.html)
-
-*  canlink.pl  :
-	encode and decode the lowCAL hardware link as it is 
-	used in the BESSY MultiCAN device support for EPICS.
-	(URL=scripts/canlink.html)
-
-*  CreatePanel.pl  :
-    	Create Panels for 'dm2k' or 'edm' from EPICS-Database '.substitution' files and 
-	widgets for each item of the '.substitution' file.
-	(URL=scripts/CreatePanel.html)
-	
-*  cvs_diff.pl  :
-	compare versions of a file in a CVS repository. This tool
-	can remove emtpy lines and c-comments before comparing.
-	(URL=scripts/cvs_diff.html)
-
-*  cvsGuru  :
-	CVS wrapper script - for ctlguru only
-
-*  cvs_log_diff.pl  :
-	compares the all log-messages between two revisions or tags
-	in a CVS repository. 
-	(URL=scripts/cvs_log_diff.html)
-
-*  darcs-kompare  :
-	start KDE kompare to compare the working copy with the
-	repository copy of a file
-
-*  darcs-moni  :
-	small wrapper around darcs-monitor
-
-*  dbcount  :
-	count the number of records in a file
-	(URL=scripts/dbcount.html)
-
-*  dbdiff  :
-	display the difference between two *.db files using tkdiff
-	(URL=scripts/dbdiff.html)
-
-*  dbfilter.pl  :
-	A tool to filter db files or to find information in db 
-	files. Regular expression matches can be done on 
-	record names, record types or values of record-fields.
-	Connections between records can be shown, lowCAL and
-	SDO CAN links can be decoded.
-	(URL=scripts/dbfilter.html)
-
-*  dbscan.pl  :
-	This script is from Rolf Keitel <rolf@triumf.ca>. It scans
-	db and sch files and has lots of options, the most interesting
-        being '-d' which searches for 'dangling links'. I.e. it lists
-        all records which have links that point somewhere outside the
-        given db file (along with the target record). Unfortunately
-        does not tell which link field and which target field.
-	Note that dbfilter.pl can do the same with it's "--unresolved_links" 
-	option.
-	(URL=scripts/dbscan.html)
-
-*  dbsort  :
-	print an EPICS database sorted. Note that dbfilter.pl does exactly
-	the same when called with a database file and no options at all.
-	(URL=scripts/dbsort.html)
-
-*  dbutil.p  :
-	A tool that can export oracle database-tables to ASCII files and 
-	re-import these files. Useful if you want to change many parts
-	of a database-table with your favorite text-editor...
-	(URL=scripts/dbutil.html)
-
-*  dumpdb  :
-	dump a database (*.db) file, one record-name combined with one
-	field name in a single line.
-
-*  expander.pl  :
-	macro expander for text-files. Since this tool allows
-	the execution of arbitrary perl-expressions, it is 
-	quite powerful and (if you want this) a programming
-	language of its own. It features 
-	if-statements, complex expressions and for-loops among others.
-	This script is a simple application of the expander.pm module.
-	(URL=scripts/expander.html)
-
-*  filter_can_links.pl  :
-	extract CAN links from a .db file (for the 
-	BESSY lowCAL protocol). Note that dbfilter.pl can
-	do the same with it's "--lowcal" option.
-	(URL=scripts/filter_can_links.html)
-
-*  flatdb  :
-	expands and vdctdb db-file into a "flat" db file. 
-
-*  gadgetbrowser  :
-	database browser for the new gadget database.
-
-*  grab_xkeys.pl  :
-	a little X11 utility that displays scan codes of pressed keys.
-
-*  grepDb.pl  :
-	A tool to search in EPICS-db files. It allows to define regular
-	expressions as triggers in its commandline options for record-name, 
-	record-type, field-name and field value if a record or a field matches 
-	the trigger, it causes a print of the record. To control the printed 
-	output there are options to define the record names, record types or 
-	field types that have to be printed.
-        (URL=scripts/grepDb.html)
-
-*  hgen.pl  :
-	a header-generator for c and c++.
-        (URL=scripts/hgen.html)
-
-*  lockGuru  :
-	Check and/or create the mutex file lock, probably used together
-	with cvsGuru.
-
-*  makeDocCommonIndex.pl  :
-	create an html index for documentation generated with makeDoc.	
-
-*  makeDocPerl.pl  :
-	create html documentation for perl scripts that contain
-	embedded documentation according to "makeDoc" rules. 
-
-*  makeDocTxt.pl  :
-	create html documentation for ascii files that contain
-	documentation according to "makeDoc" rules. 
-        (URL=scripts/makeDocTxt.html)
-
-*  makeRegistrar  :
-	create EPICS 3.14 registrar code (generates c-code).
-
-*  multi-commit.pl  :
-	perform multiple commits (cvs|svn|darcs) with a prepared command-file.
-        (URL=scripts/multi-commit.html)
-
-*  oracle_request  :
-	command line tool to make database queries on the oracle database.
-
-*  paths2.pl  :
-	like paths.pl but uses the global installation directories
-	of the bii_scripts project.
-
-*  paths.pl  :
-	prints commands to set your perl-environment in order to use
-	the perl-modules and scripts of bii_scripts 
-
-*  pcomp.pl  :
-	recursivly compare two directories. Shows which files or directories
-	have different dates, different sizes or are missing. The files or 
-	directories can be filtered. The kind comparisons can also be filtered.
-	Can remove CVS tags or <CR> characters before comparing.
-        (URL=scripts/pcomp.html)
-
-*  pfind.pl  :
-	a perl-script for powerful recursive file pattern search, like
-	a recursive grep, but better. Features among other things
-        text-file search, c-file search, regular expressions that 
-	match across line-ends.
-        (URL=scripts/pfind.html)
-
-*  psh  :
-        a perl-shell. Useful for testing small functions or expressions
-	in an interactive shell.
-	(URL=scripts/psh.html)
-
-*  rsync-deploy  :
-	tool for management for distribution of binary files with.
-	The successor of this script is rsync-dist.pl.
-
-*  rsync-dist.pl  :
-	manages binary distributions to remote servers. No old version
-	is ever lost. Uses hard-links to save storage space. Manages
-	also symbolic links that point to the distribution directories
-	on the server.
-        (URL=scripts/rsync-dist.html)
-
-*  Sch2db.pl  :
-	a perl sch to db converter. Converts capfast(*.sch) files
-	to the db file format as it is used in EPICS. This is faster
-	and more flexible that the combination of sch2edif and e2db...
-	(URL=scripts/Sch2db.html)
-
-*  sch_cvs_diff.pl  :
-	shows the difference between a modified capfast (*.sch) file
-	and it's version on the top-trunk in the cvs repository.
-	The difference of the resulting *.db files is shown, which
-	is much clearer when you want to find out what was really 
-	changed.
-        (URL=scripts/sch_cvs_diff.html)
-
-*  set_ioc_tsrv.pl  :
-	set terminal_server and optionally port to connect to 
-	console of an ioc. Probably no longer needed since the
-	conserver is now used for all IOCs.
-        (URL=scripts/set_ioc_tsrv.html)
-
-*  SetPerms  :
-	a semi-automatic shell-script for setting file and 
-	directory permissions in the CVS repository, in 
-	epics, vxworks or development related directories.
-
-*  stripUnresolvedDb.pl  :
-    	remove all unresolved fields from a database. Means all fields 
-	that contain some variables $(VARIABLE).
-	
-*  subst2exp.pl  :
-	convert substitution-files to expander format for usage
-	with the expander.pl script. This can be used on the fly
-	as an alternative to EPICS msi, or to convert
-	substitution files to expander format in order to use
-	the much more powerful commands of the expander format
-	when replacing values in EPICS template files. 
-        (URL=scripts/subst2exp.html)
-
-*  substdiff  :
-	compares two substitution files.
-        (URL=scripts/substdiff.html)
-
-*  substprint.pl  :
-	pretty-print a substitution file.
-        (URL=scripts/substprint.html)
-
-*  tkSQL  :
-	query the oracle database by directly entering SQL requests.
-
-*  txtcleanup.py  :
-        a cleanup tool for text files. Removes tabs and trailing
-	spaces in files. Can also be used as a filter.
-        (URL=scripts/txtcleanup.html)
-
-*  unlockGuru  :
-	Remove the mutex file lock, probably used together
-	with cvsGuru.
-
-*  vdct  :
-	starts the VisualDCT database editor.	
-
-*  darcs-save, darcs-restore  :
-        These tools can be used to save and later restore a source tree
-        that is under darcs control. The idea is to call darcs-save
-        immediately before (binary) distribution. The generated directory
-        named '.darcs-restore' should then be distributed, too. In order
-        to restore the sources for such a distribution, call darcs-restore
-        with the distribution directory (which may be a remote path,
-        darcs-restore uses scp) as first, and the name of the directory to
-        be created as second argument. Special feature: it is not
-        necessary to record pending changes prior to distribution.
-        Not-recorded changes and not-yet-added files and directories are
-        restored just fine.
-
-
-Perl Libraries:
-========================
-
-*  analyse_db.pm  :
-	a Perl module to analyse databases parsed with parse_db.
-        (URL=perllib/analyse_db.html)
-
-*  BDNS.pm  :
-	BESSY device name parser.
-
-*  bessy_module.pm  :
-	This performs a "module <command> <args...>" in the z-shell 
-	environment and re-imports the environment-variables to the 
-	perl-process, so they are available in the %ENV-hash
-        (URL=perllib/bessy_module.html)
-
-*  BrowseDB/TkUtils.pm  : 
-	Tk-utilities for browsedb.pl
-
-*  browsedb_conf.PL  :
-	this file is only needed for "make install" in order to 
-	patch browsedb.pl. It hat no use, once bii_scripts is installed
-
-*  canlink.pm  :
-	a perl-module that can be used to encode or decode the
-	"cryptic can link" as it is used in the BESSY CAN Bus
-	device support for EPICS.
-        (URL=perllib/canlink.html)
-
-*  capfast_defaults.pm  :
-	a Perl module that contains capfast defaults for
-        record-fields.
-        (URL=perllib/capfast_defaults.html)
-
-*  cfgfile.pm  :
-	simple module to read or write a configuration file. Probably
-	unfinished and in alpha-release state. 
-        (URL=perllib/cfgfile.html)
-
-*  container.pm  :
-	This provides routines to import and export perl variables into 
-	a single hash. A map-hash defines what hash-key is connected
-	to what variable. Importing and exporting is performed by
-	copying scalars, arrays and hashes. This is not a simple copy
-	of references. Note that deeply nested structures are
-	deeply copied.  
-        (URL=perllib/container.html)
-
-*  CreateX.pm  :
-	Routines that help to write CreateX.pl scripts. Not quite sure
-	what this does. Connects to the oracle database.
-        (URL=perllib/CreateX.html)
-
-*  dbdrv_lite.pm  :
-	low level routines for sqlite. Used by dbdrv.
-
-*  dbdrv_oci  :
-	low level routines for the ORACLE database. Needed by dbdrv.
-
-*  dbdrv_pg.pm  :
-	low level routines for a PostgreSQL database. Needed by dbdrv.
-
-*  dbdrv  :
-	low level utilities for SQL database access, needed by
-	dbitable.
-        (URL=perllib/dbdrv.html)
-
-*  dbdrv_test.pl  : 
-	test-script for dbdrv. This shouldn't be in the repository!     
-
-*  dbitable  :
-	an object-oriented Perl module for handling single tables
-        from an SQL database
-        (URL=perllib/dbitable.html)
-
-*  expander.pm  :
-	a module to perform macro-replacements in text files. Features
-	if-statements, complex expressions and for-loops among others
-        (URL=perllib/expander.html)
-
-*  extended_glob.pm  :
-	a Perl module for extended filename globbing.
-        (URL=perllib/extended_glob.html)
-
-*  maillike.pm  :
-	This module is used to parse and create data files in a 
-	format similar to mail (RFC822). The data is organized in
-	records, each record has a number of fields and to each 
-	field of a record an certain content is associated.
-        (URL=perllib/maillike.html)
-
-*  makeDocStyle.pm  :
-	module for the makeDoc* scripts.
-
-*  ODB.pm  :
-	a Perl module for accessing database via DBI.  Means easier 
-	handling of the DBI routines via this layer.
-        (URL=perllib/ODB.html)
-
-*  Options.pm  :
-	a Perl module for handling programm arguments, commandline in
-        and output inclusive login requests.
-        (URL=perllib/Options.html)
-
-*  parse_db  :
-	a perl-module for parsing EPICS db-files.
-        (URL=perllib/parse_db.html)
-
-*  parse_subst  :
-	a perl-module for parsing EPICS substitution-files.
-        (URL=perllib/parse_subst.html)
-
-*  Pezca  :
-	a perl-module that implements the channel-access protocol
-	and gives access to EPICS variables ((-1-:#footnote_1))
-	HTML documentation available!
-
-*  scan_makefile.pm  :
-	This module scans one or more than one makefile and returns 
-	a hash reference containing all variables that are set within
-	the makefile together with all environment variables.
-        (URL=perllib/scan_makefile.html)
-
-*  simpleconf.pm  :
-	This module is used to parse and create configuration files
-	in a very simple format. The data is typically organized in
-	lines where each line contains a field-name and the contents
-	of the field. Empty lines and lines starting with a "#" character
-	(which are usually a comment) are ignored.
-        (URL=perllib/simpleconf.html)
-
-Python Libraries:
-========================
-
-*  FilterFile.py  :
-	a python module for scripts that read or write to files
-	or read or write to standard-in or standard-out. Can also
-	be used to modify a file in a safe way by creating a temporary
-	file and renaming the original file and the temporary file
-	upon close.
-        (URL=perllib/FilterFile.html)
-
-
------------------------------------------------------------------------
-
-Footnotes:
-...........
-
-(anchor: #footnote_1)
-
-*  (1)  This is a CPAN-like module which has to be installed via
-	"make". This module needs a working C-compiler in order to
-	be installed. The source is in "bii_scipts/src/perl/[module]",
-	the documentation in "bii_scipts/doc/man/man3/[module].3",
+-------
+
+**accLaunch**
+  | launch panels for the BESSY II control system. All panels are read-only, so
+    you can not interfere with the control system.
+
+**addPVtoArchiver**
+  | script to add a PV to the channel access archiver.
+
+**adl_cvs_diff.pl**
+  | show differences between the working and the repository version of an dm2k
+    panel (\*.adl) file. Supports CVS and subversion as version control systems.
+  | `documentation <scripts/adl_cvs_diff.html>`__
+
+**adlsort.pl**
+  | Print dm2k panel (\*.adl) files sorted to standard out.  This can be used to
+    compare two dm2k panel files.  
+  | `documentation <scripts/adlsort.html>`__
+
+**archiver2camonitor.py**
+  | This tool converts data from the Channel access archiver (retrieved via CGI,
+    "plot" command, then clicking on "plot") to a sorted list of values
+    compatible with the format of the camonitor tool.  
+  | `documentation <scripts/archiver2camonitor.html>`__
+
+**bdns_import.pl**
+  | import BESSY device names into the oracle database.
+  | `documentation <scripts/bdns_import.html>`__
+
+**bdns_lookup.pl**
+  | lookup BESSY device names in the oracle database.
+  | `documentation <scripts/bdns_lookup.html>`__
+
+**bdns_sort.pl**
+  | sort BESSY device names according to their
+    member,index,subindex,family,counter,subdomain, subdomainnumber,domain and
+    facility.
+  | `documentation <scripts/bdns_sort.html>`__
+
+**browsedb.pl**
+  | a perl-script with a graphical user interface to browse the oracle database.
+    The program can be used to view and change data in the database as well as
+    show relations between the tables.
+
+**buds_lookup.pl**
+  | lookup BESSY units in the oracle database.
+  | `documentation <scripts/buds_lookup.html>`__
+
+**camonitor_sort.pl**
+  | sort and filer files created by the EPICS camonitor command.  The filtering
+    can be specified with regular expressions.  This tool is especially useful
+    when many different PV's are monitored at a time.  
+  | `documentation <scripts/camonitor_sort.html>`__
+
+**canlink.pl**
+  | encode and decode the lowCAL hardware link as it is used in the BESSY
+    MultiCAN device support for EPICS.
+  | `documentation <scripts/canlink.html>`__
+
+**copyrename**
+  | copies files and changes the extension
+  | `documentation <scripts/copyrename.html>`__
+
+**CreatePanel.pl**
+  | Create Panels for 'dm2k' or 'edm' from EPICS-Database '.substitution' files
+    and widgets for each item of the '.substitution' file.
+  | `documentation <scripts/CreatePanel.html>`__
+
+**cvs_diff.pl**
+  | compare versions of a file in a CVS repository. This tool can remove emtpy
+  | lines and c-comments before comparing.
+  | `documentation <scripts/cvs_diff.html>`__
+
+**cvsGuru**
+  | CVS wrapper script - for ctlguru only
+
+**cvs_log_diff.pl**
+  | compares the all log-messages between two revisions or tags in a CVS
+    repository.  
+  | `documentation <scripts/cvs_log_diff.html>`__
+
+**darcs-kompare**
+  | start KDE kompare to compare the working copy with the repository copy of a
+    file
+
+**darcs-moni**
+  | small wrapper around darcs-monitor
+
+**darcs-restore**
+  | see darcs-save
+
+**darcs-save**
+  | darcs-save and darcs-restore can be used to save and later restore a source
+    tree that is under darcs control. The idea is to call darcs-save immediately
+    before (binary) distribution. The generated directory named '.darcs-restore'
+    should then be distributed, too.
+    
+  | In order to restore the sources for such a distribution, call darcs-restore
+    with the distribution directory (which may be a remote path, darcs-restore
+    uses scp) as first, and the name of the directory to be created as second
+    argument. Special feature: it is not necessary to record pending changes
+    prior to distribution.  Not-recorded changes and not-yet-added files and
+    directories are restored just fine.
+
+**dbcount**
+  | count the number of records in a file
+  | `documentation <scripts/dbcount.html>`__
+
+**dbdiff**
+  | display the difference between two \*.db files using tkdiff
+  | `documentation <scripts/dbdiff.html>`__
+
+**dbfilter.pl**
+  | A tool to filter db files or to find information in db files. Regular
+    expression matches can be done on record names, record types or values of
+    record-fields.  Connections between records can be shown, lowCAL and SDO CAN
+    links can be decoded.
+  | `documentation <scripts/dbfilter.html>`__
+
+**db_request.py**
+  | a tool to perform SQL requests on the oracle database.
+  | `documentation <scripts/db_request.html>`__
+
+**dbscan.pl**
+  | This script is from Rolf Keitel <rolf@triumf.ca>. It scans db and sch files
+    and has lots of options, the most interesting being '-d' which searches for
+    'dangling links'. I.e. it lists all records which have links that point
+    somewhere outside the given db file (along with the target record).
+    Unfortunately does not tell which link field and which target field.  Note
+    that dbfilter.pl can do the same with it's "--unresolved_links" option.
+  | `documentation <scripts/dbscan.html>`__
+
+**dbsort**
+  | print an EPICS database sorted. Note that dbfilter.pl does exactly the same
+    when called with a database file and no options at all.
+  | `documentation <scripts/dbsort.html>`__
+
+**dbutil.p**
+  | A tool that can export oracle database-tables to ASCII files and re-import
+    these files. Useful if you want to change many parts of a database-table
+    with your favorite text-editor...
+  | `documentation <scripts/dbutil.html>`__
+
+**dumpdb**
+  | dump a database (\*.db) file, one record-name combined with one field name
+    in a single line.
+
+**expander.pl**
+  | macro expander for text-files. Since this tool allows the execution of
+    arbitrary perl-expressions, it is quite powerful and (if you want this) a
+    programming language of its own. It features if-statements, complex
+    expressions and for-loops among others.  This script is a simple application
+    of the expander.pm module.
+  | `documentation <scripts/expander.html>`__
+  | `source <scripts/expander.pl>`__
+
+**filter_can_links.pl**
+  | extract CAN links from a .db file (for the BESSY lowCAL protocol). Note that
+    dbfilter.pl can do the same with it's "--lowcal" option.
+  | `documentation <scripts/filter_can_links.html>`__
+
+**flatdb**
+  | expands and vdctdb db-file into a "flat" db file. 
+
+**gadgetbrowser**
+  | database browser for the new gadget database.
+
+**grab_xkeys.pl**
+  | a little X11 utility that displays scan codes of pressed keys.
+
+**grepDb.pl**
+  | A tool to search in EPICS-db files. It allows to define regular expressions
+    as triggers in its commandline options for record-name, record-type,
+    field-name and field value if a record or a field matches the trigger, it
+    causes a print of the record. To control the printed output there are
+    options to define the record names, record types or field types that have to
+    be printed.
+  | `documentation <scripts/grepDb.html>`__
+
+**hgdiff**
+  | compare files or directory trees in a working copy with the mercurial
+    repository or compare files of different versions in the mercurial
+    repository.
+  | `documentation <scripts/hgdiff.html>`__
+  | `source <scripts/hgdiff>`__
+
+**hgen.pl**
+  | a header-generator for c and c++.
+  | `documentation <scripts/hgen.html>`__
+
+**latin1toutf8.sh**
+  | convert latin-1 texts to utf-8 (calls the iconv utility).
+
+**lockGuru**
+  | Check and/or create the mutex file lock, probably used together
+    with cvsGuru.
+
+**makeDocCommonIndex.pl**
+  | create an html index for documentation generated with makeDoc.  
+
+**makeDocPerl.pl**
+  | create html documentation for perl scripts that contain embedded
+    documentation according to "makeDoc" rules. 
+
+**makeDocTxt.pl**
+  | create html documentation for ascii files that contain documentation
+    according to "makeDoc" rules.  
+  | `documentation <scripts/makeDocTxt.html>`__
+
+**makeRegistrar**
+  | create EPICS 3.14 registrar code (generates c-code).
+
+**mlsLaunch**
+  | launches the operator main panel for the MLS storage ring
+
+**multi-commit.pl**
+  | perform multiple commits (cvs, svn, darcs or mercurial) with a prepared
+    command-file.
+  | `documentation <scripts/multi-commit.html>`__
+
+**oracle_request**
+  | command line tool to make database queries on the oracle database.
+
+**paths2.pl**
+  | like paths.pl but uses the global installation directories of the
+    bii_scripts project.
+
+**paths.pl**
+  | prints commands to set your perl-environment in order to use the
+    perl-modules and scripts of bii_scripts 
+
+**pcomp.pl**
+  | recursivly compare two directories. Shows which files or directories have
+    different dates, different sizes or are missing. The files or directories
+    can be filtered. The kind comparisons can also be filtered.  Can remove CVS
+    tags or <CR> characters before comparing.
+  | `documentation <scripts/pcomp.html>`__
+  | `source <scripts/pcomp.pl>`__
+
+**pfind.pl**
+  | a perl-script for powerful recursive file pattern search, like a recursive
+    grep, but better. Features among other things text-file search, c-file
+    search, regular expressions that match across line-ends.
+  | `documentation <scripts/pfind.html>`__
+
+**psh**
+  | a perl-shell. Useful for testing small functions or expressions in an
+    interactive shell.
+  | `documentation <scripts/psh.html>`__
+
+**pyone.py**
+  | python One-liner helper.
+  | `documentation <scripts/pyone.html>`__
+
+**rsync-deploy**
+  | tool for management for distribution of binary files with. The successor of
+    this script is rsync-dist.pl.
+
+**rsync-dist-info.pl**
+  | this program prints summaries and statistics of rsync-dist link-log files.
+  | `documentation <scripts/rsync-dist-info.html>`__
+
+**rsync-dist.pl**
+  | manages binary distributions to remote servers. No old version is ever lost.
+    Uses hard-links to save storage space. Manages also symbolic links that
+    point to the distribution directories on the server.
+  | `documentation <scripts/rsync-dist.html>`__
+
+**Sch2db.pl**
+  | a perl sch to db converter. Converts capfast(\*.sch) files to the db file
+    format as it is used in EPICS. This is faster and more flexible that the
+    combination of sch2edif and e2db...
+  | `documentation <scripts/Sch2db.html>`__
+  | `source <scripts/Sch2db.pl>`__
+
+**sch_repo_diff.pl**
+  | shows the difference between a modified capfast (\*.sch) file and it's
+    version on the top-trunk in the repository.  The difference of the resulting
+    \*.db files is shown, which is much clearer when you want to find out what
+    was really changed. Supports cvs, subversion and mercurial.
+  | `documentation <scripts/sch_repo_diff.html>`__
+
+**set_ioc_tsrv.pl**
+  | set terminal_server and optionally port to connect to console of an ioc.
+    Probably no longer needed since the conserver is now used for all IOCs.
+  | `documentation <scripts/set_ioc_tsrv.html>`__
+
+**SetPerms**
+  | a semi-automatic shell-script for setting file and directory permissions in
+    the CVS repository, in epics, vxworks or development related directories.
+
+**sqlutil.py**
+  | this program copies data between a database, a dbitabletext file, the
+    screen.
+  | `documentation <scripts/sqlutil.html>`__
+
+**stripUnresolvedDb.pl**
+  | remove all unresolved fields from a database. Means all fields that contain
+    some variables $(VARIABLE).
+  | `documentation <scripts/stripUnresolvedDb.html>`__
+
+**subst2exp.pl**
+  | convert substitution-files to expander format for usage with the expander.pl
+    script. This can be used on the fly as an alternative to EPICS msi, or to
+    convert substitution files to expander format in order to use the much more
+    powerful commands of the expander format when replacing values in EPICS
+    template files. 
+  | `subst2exp.html <scripts/subst2exp.html>`__
+
+**substdiff**
+  | compares two substitution files.
+  | `documentation <scripts/substdiff.html>`__
+
+**substprint.pl**
+  | pretty-print a substitution file.
+  | `documentation <scripts/substprint.html>`__
+
+**tkSQL**
+  | query the oracle database by directly entering SQL requests.
+
+**txt2html.pl**
+  | trivial html encoding of normal text
+
+**txtcleanup.py**
+  | a cleanup tool for text files. Removes tabs and trailing spaces in files.
+    Can also be used as a filter.
+  | `documentation <scripts/txtcleanup.html>`__
+
+**unlockGuru**
+  | Remove the mutex file lock, probably used together with cvsGuru.
+
+**vdb_repo_diff**
+  | graphical compare of vdb files with or within a repository.  Supports cvs,
+    subversion and mercurial.
+  | `documentation <scripts/vdb_repo_diff.html>`__
+
+**vdct**
+  | starts the VisualDCT database editor.   
+
+--------------
+Perl Libraries
+--------------
+
+**analyse_db.pm**
+  | a Perl module to analyse databases parsed with parse_db.
+  | `documentation <perllib/analyse_db.html>`__
+
+**BDNS.pm**
+  | BESSY device name parser.
+
+**bessy_module.pm**
+  | This performs a "module <command> <args...>" in the z-shell 
+    environment and re-imports the environment-variables to the 
+    perl-process, so they are available in the %ENV-hash
+  | `documentation <perllib/bessy_module.html>`__
+
+**BrowseDB/TkUtils.pm**
+  | Tk-utilities for browsedb.pl
+
+**browsedb_conf.PL**
+  | this file is only needed for "make install" in order to 
+    patch browsedb.pl. It hat no use, once bii_scripts is installed
+
+**canlink.pm**
+  | a perl-module that can be used to encode or decode the
+    "cryptic can link" as it is used in the BESSY CAN Bus
+    device support for EPICS.
+  | `documentation <perllib/canlink.html>`__
+
+**capfast_defaults.pm**
+  | a Perl module that contains capfast defaults for
+    record-fields.
+  | `documentation <perllib/capfast_defaults.html>`__
+
+**cfgfile.pm**
+  | simple module to read or write a configuration file. Probably
+    unfinished and in alpha-release state. 
+  | `documentation <perllib/cfgfile.html>`__
+
+**container.pm**
+  | This provides routines to import and export perl variables into 
+    a single hash. A map-hash defines what hash-key is connected
+    to what variable. Importing and exporting is performed by
+    copying scalars, arrays and hashes. This is not a simple copy
+    of references. Note that deeply nested structures are
+    deeply copied.  
+  | `documentation <perllib/container.html>`__
+
+**CreateX.pm**
+  | Routines that help to write CreateX.pl scripts. Not quite sure
+    what this does. Connects to the oracle database.
+  | `documentation <perllib/CreateX.html>`__
+
+**dbdrv_lite.pm**
+  | low level routines for sqlite. Used by dbdrv.
+
+**dbdrv_oci**
+  | low level routines for the ORACLE database. Needed by dbdrv.
+
+**dbdrv_pg.pm**
+  | low level routines for a PostgreSQL database. Needed by dbdrv.
+
+**dbdrv**
+  | low level utilities for SQL database access, needed by
+    dbitable.
+  | `documentation <perllib/dbdrv.html>`__
+
+**dbdrv_test.pl**
+  | test-script for dbdrv. This shouldn't be in the repository!     
+
+**dbitable**
+  | an object-oriented Perl module for handling single tables
+    from an SQL database
+  | `documentation <perllib/dbitable.html>`__
+
+**expander.pm**
+  | a module to perform macro-replacements in text files. Features
+    if-statements, complex expressions and for-loops among others
+  | `documentation <perllib/expander.html>`__
+  | `source <perllib/expander.pm>`__
+
+**extended_glob.pm**
+  | a Perl module for extended filename globbing.
+  | `documentation <perllib/extended_glob.html>`__
+
+**maillike.pm**
+  | This module is used to parse and create data files in a 
+    format similar to mail (RFC822). The data is organized in
+    records, each record has a number of fields and to each 
+    field of a record an certain content is associated.
+  | `documentation <perllib/maillike.html>`__
+
+**makeDocStyle.pm**
+  | module for the makeDoc* scripts.
+
+**ODB.pm**
+  | a Perl module for accessing database via DBI.  Means easier 
+    handling of the DBI routines via this layer.
+  | `documentation <perllib/ODB.html>`__
+
+**Options.pm**
+  | a Perl module for handling programm arguments, commandline in
+    and output inclusive login requests.
+  | `documentation <perllib/Options.html>`__
+
+**parse_db**
+  | a perl-module for parsing EPICS db-files.
+  | `documentation <perllib/parse_db.html>`__
+  | `source <perllib/parse_db.pm>`__
+
+**parse_subst**
+  | a perl-module for parsing EPICS substitution-files.
+  | `documentation <perllib/parse_subst.html>`__
+  | `source <perllib/parse_subst.pm>`__
+
+**Pezca**
+  | a perl-module that implements the channel-access protocol
+    and gives access to EPICS variables [#]_.
+  | `source and documentation <http://www-csr.bessy.de/control/SoftDist/Pezca>`__
+
+**printData.pm**
+  | some console print utilities.
+
+**scan_makefile.pm**
+  | This module scans one or more than one makefile and returns 
+    a hash reference containing all variables that are set within
+    the makefile together with all environment variables.
+  | `documentation <perllib/scan_makefile.html>`__
+
+**simpleconf.pm**
+  | This module is used to parse and create configuration files
+    in a very simple format. The data is typically organized in
+    lines where each line contains a field-name and the contents
+    of the field. Empty lines and lines starting with a "#" character
+    (which are usually a comment) are ignored.
+  | `documentation <perllib/simpleconf.html>`__
+
+**tokParse.pm**
+  | token parser utilities (for makeDocTxt).
+
+----------------
+Python Libraries
+----------------
+
+**boottime.py**
+  | get the boot time of an BESSY IOC by querying a certain pv.
+  | `documentation <pythonlib/boottime.html>`__
+
+**dateutils.py**
+  | utilities for string <-> datetime conversions.
+  | `documentation <pythonlib/dateutils.html>`__
+
+**enum.py**
+  | enumeration types for python.
+  | `documentation <pythonlib/enum.html>`__
+
+**FilterFile.py**
+  | a python module for scripts that read or write to files
+    or read or write to standard-in or standard-out. Can also
+    be used to modify a file in a safe way by creating a temporary
+    file and renaming the original file and the temporary file
+    upon close.
+  | `documentation <pythonlib/FilterFile.html>`__
+
+**lslparser.py**
+  | a module to parse the output of "ls -l".
+  | `documentation <pythonlib/lslparser.html>`__
+
+**maillike.py**
+  | parse texts that have a mail-like format.
+  | `documentation <pythonlib/maillike.html>`__
+
+**pdict.py**
+  | implements a dictionary for one-to-one relations.
+  | `documentation <pythonlib/pdict.html>`__
+
+**pfunc.py**
+  | utilities for python functions and lambda statements.
+  | `documentation <pythonlib/pfunc.html>`__
+
+**ptestlib.py**
+  | a module providing routines for doctest testcode.
+  | `documentation <pythonlib/ptestlib.html>`__
+
+**putil.py**
+  | This module provides functions for working
+    with lists among other utilities.
+  | `documentation <pythonlib/putil.html>`__
+
+**rdump.py**
+  | a module for dumping of nested structures.
+  | `documentation <pythonlib/rdump.html>`__
+
+**rsync_dist_lib.py**
+  | sync_dist_info classes for parsing rsync-dist log files.
+  | `documentation <pythonlib/rsync_dist_lib.html>`__
+
+**sqlpotion.py**
+  | a module with utilities and support functions for sqlalchemy.
+  | `documentation <pythonlib/sqlpotion.html>`__
+
+**typecheck.py**
+  | a module with type-tests and type-assertions.
+  | `documentation <pythonlib/typecheck.html>`__
+
+--------
+
+.. [#] This is a CPAN-like module which has to be installed via
+       "make". This module needs a working C-compiler in order to
+       be installed. The source is in "bii_scripts/src/perl/[module]",
+       the documentation in "bii_scripts/doc/man/man3/[module].3",
 

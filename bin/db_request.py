@@ -20,7 +20,7 @@ Quick reference
 ===============
 
 Reference of commandline argOptionList
-================================
+======================================
 
 -t, --test
    perform a self-test for some functions
@@ -30,12 +30,16 @@ Reference of commandline argOptionList
    use: "db_request.py --doc | rst2html" for a HTML output
 """
 
-import adodb
 import sys
 import os
-import getpass
 import re
+import getpass
 from optparse import OptionParser
+try:
+    import adodb
+except ImportError,e:
+    if len(sys.argv)<=1 or sys.argv[1]!="--doc":
+        raise
 
 myversion = "0.1"
 

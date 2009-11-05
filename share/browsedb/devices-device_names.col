@@ -41,8 +41,13 @@
     },
     'TBL_NAME' => {
       'colmaps' => {
+v v v v v v v
+        'DEVICE_FAMILY_KEY' => 'SELECT DEVICE_FAMILY_KEY,part_family FROM tbl_family',
+        'NAME_SUBDOMAIN_KEY' => 'SELECT s.NAME_SUBDOMAIN_KEY, s.part_subdomain || s.part_postfix || d.part_domain AS subdomain FROM tbl_subdomain s, tbl_domain d WHERE s.NAME_DOMAIN_KEY=d.NAME_DOMAIN_KEY'
+*************
         'DEVICE_FAMILY_KEY' => 'SELECT device_family_key,part_family FROM DEVICE.tbl_device_family',
         'NAME_SUBDOMAIN_KEY' => 'SELECT s.name_subdomain_key, s.part_subdomain || s.part_postfix || d.part_domain AS subdomain FROM DEVICE.tbl_name_subdomain s, DEVICE.tbl_name_domain d WHERE s.name_domain_key=d.name_domain_key'
+^ ^ ^ ^ ^ ^ ^
       },
       'col_map_flags' => {
         'PART_INDEX' => 'N',
@@ -152,7 +157,11 @@
         'FACILITY_KEY',
         'NAME',
         'PART_FACILITY',
+v v v v v v v
         'DESCRIPTION'
+*************
+        'DESCRIPTION',
+^ ^ ^ ^ ^ ^ ^
       ]
     },
     'V_NAMES' => {
@@ -167,11 +176,11 @@
         'SUBDOMAIN' => 'N',
         'FACILITY_KEY' => 'N',
         'COUNTER' => 'N',
-        'DOMAIN_KEY' => 'N',
+        'NAME_DOMAIN_KEY' => 'N',
         'NAME_KEY' => 'N',
         'IND' => 'N',
         'DOMAIN' => 'N',
-        'SUBDOMAIN_KEY' => 'N',
+        'NAME_SUBDOMAIN_KEY' => 'N',
         'FAMILY' => 'N'
       },
       'sql' => 'select * from DEVICE.V_NAMES ',
@@ -219,23 +228,42 @@
         'KEY',
         'NAME_KEY'
       ],
+v v v v v v v
       'TBL_DEVICE_FAMILY' => [
         'DEVICE_FAMILY_KEY',
         'DEVICE_FAMILY_KEY'
+*************
+      'TBL_FAMILY' => [
+        'DEVICE_FAMILY_KEY',
+        'DEVICE_FAMILY_KEY'
+^ ^ ^ ^ ^ ^ ^
       ],
+v v v v v v v
       'TBL_NAME_SUBDOMAIN' => [
         'NAME_SUBDOMAIN_KEY',
         'NAME_SUBDOMAIN_KEY'
+*************
+      'TBL_SUBDOMAIN' => [
+        'NAME_SUBDOMAIN_KEY',
+        'NAME_SUBDOMAIN_KEY'
+^ ^ ^ ^ ^ ^ ^
       ],
       'V_NAMES' => [
         'KEY',
         'NAME_KEY'
       ]
     },
+v v v v v v v
     'TBL_NAME_SUBDOMAIN' => {
       'TBL_NAME_DOMAIN' => [
         'NAME_DOMAIN_KEY',
         'NAME_DOMAIN_KEY'
+*************
+    'TBL_SUBDOMAIN' => {
+      'TBL_DOMAIN' => [
+        'NAME_DOMAIN_KEY',
+        'NAME_DOMAIN_KEY'
+^ ^ ^ ^ ^ ^ ^
       ]
     },
     'TBL_NAME_DOMAIN' => {

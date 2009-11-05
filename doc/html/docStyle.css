@@ -1,0 +1,84 @@
+html{
+    background-color:#FFFFFF;
+    color:#000; /*T1*/
+    margin-left:8%;
+    margin-right:2%;
+    font-family:"Lucida Grande", verdana, arial, sans-serif;
+}
+body {
+    font-size:110%;
+}
+table {
+    font-size:110%;
+}
+hr {
+    color:#ccc; /*BO7*/
+    background-color:#ccc; /*BO7*/
+    height:1px;
+    border:none;
+    margin-left:-6%;
+}
+b {
+    color:#6E7175;
+}
+
+pre, code, tt {
+    background-color:#F6F6F6;
+    color:#7A4707; /*T6*/
+    width:100%;
+    font-size:140%;
+}
+
+h1 {
+    font-size:160%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color:#a00;
+}
+h2,h3, h4, h5, h6 {
+    border-color:#E9E4D2;
+    border-width:0 0 1px 0;
+    border-style:solid;
+    margin-left:-4%;
+}
+h1{
+    margin-left:-6%;
+}
+h2{
+    background-color:#FDFAF1;
+}
+a:link,
+a:visited {
+       color:#0000ff; /*T5*/
+       text-decoration:none
+}
+a:hover {
+       color:#8888FF; /*T3*/
+}
+.footer {
+    color:#6E7175; /*T8*/
+    font-size:120%;
+    margin-left:-6%;
+}
+.backGround {
+    background-color:#FDFAF1;
+}
+.grayText {
+    color:#6E7175; /*T8*/
+    font-size:120%;
+}
+.grayText a:link,
+.grayText a:visited {
+}
+.grayText a:hover {
+    color:#FBF7E8; /*C3*/
+}
+html>body pre { /* hide from IE */
+	 /**/ overflow:auto !important; /* */ overflow:scroll; width:auto; /* for Mac Safari */
+}
+/* IE behavior for pre is defined in twiki.pattern.tmpl in conditional comment */
+
+ol li, ul li {
+	 line-height:1.4em; /*S1*/
+}

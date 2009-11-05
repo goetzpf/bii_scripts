@@ -7,7 +7,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
 # $Log: dbsort,v $
 # Revision 1.2  2007-10-23 07:52:42  pfeiffer
-# The BESSY license was added to scripts that
+# The HZB license was added to scripts that
 # were developed here.
 #
 # Revision 1.1  2003/10/22 11:11:51  franksen

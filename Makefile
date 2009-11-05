@@ -76,11 +76,12 @@
 # variable naming schema: ELEMENT_GROUP_TYPE
 # TYPE: DIR: a directory
 #       LIST: a list of files
+#       FILE: a single file path
 #       DIRLIST: a list of directories
 # _VAR: kind of "local" variable whose definition
 #       should not be edited
 
-# programs
+# programs ..................................................
 
 # the basename of the python binary:
 PYTHON25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "python2.5") || echo "python")
@@ -88,6 +89,9 @@ PYTHON25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "python2.5") || echo "py
 # the basename of the pydoc utility:
 PYDOC:=$(shell python -V 2>&1 | \
 perl -ne '($$v)=/ (\d+(\.\d+)?)/; if($$v<2.5){print "pydoc2.5"}else{print "pydoc"}')
+
+# variables for programs.....................................
+PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
 
 # groups ....................................................
 
@@ -161,6 +165,9 @@ SHARE_SRC_DIR=share
 
 # sources ...................................................
 
+# the standard css file:
+CSS_SRC_FILE=docStyle.css
+
 # directories below $(SHARE_SRC_DIR) that have to be installed in
 # the share-directory,
 # search all directories below $(SHARE_SRC_DIR), depth 1, omit "CVS"
@@ -219,10 +226,10 @@ PLAINTXT_PL_SCRIPT_LIST= \
 # scripts with no embedded documentation 
 # create online help by executing "(script -h 2>&1; true)
 PLAINTXT_H_SCRIPT_LIST= \
-	psh \
 	dbdiff \
-	substdiff \
-        hgdiff
+        hgdiff \
+	psh \
+	substdiff
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.p -h 2>&1; true)
@@ -234,6 +241,7 @@ PLAINTXT_H_P_SCRIPT_LIST= \
 PLAINTXT_H_PL_SCRIPT_LIST= \
 	adl_cvs_diff.pl\
 	adlsort.pl \
+	buds_lookup.pl \
 	camonitor_sort.pl \
 	canlink.pl \
 	cvs_diff.pl \
@@ -246,10 +254,10 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	pfind.pl \
 	Sch2db.pl \
 	sch_repo_diff.pl \
-	vdb_repo_diff.pl \
 	set_ioc_tsrv.pl \
 	subst2exp.pl \
-	substprint.pl
+	substprint.pl \
+	vdb_repo_diff.pl 
 
 # scripts with no embedded documentation 
 # create online help by executing "(script.pl -h 2>&1; true)
@@ -257,22 +265,48 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 	pyone.py sqlutil.py
 
 RST_DOC_PY_SCRIPT_LIST= \
-	txtcleanup.py \
 	archiver2camonitor.py \
-	rsync-dist-info.py
+	db_request.py \
+	rsync-dist-info.py \
+	txtcleanup.py 
 
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
-	parse_db.pm dbitable.pm parse_subst.pm \
-	cfgfile.pm dbdrv.pm canlink.pm expander.pm CreateX.pm \
-	scan_makefile.pm container.pm maillike.pm \
-	simpleconf.pm extended_glob.pm \
-	analyse_db.pm bessy_module.pm \
+	analyse_db.pm \
+	bessy_module.pm \
+	canlink.pm \
+	capfast_defaults.pm \
+	cfgfile.pm \
+	container.pm \
+	CreateX.pm \
+	dbdrv.pm \
+	dbitable.pm \
+	expander.pm \
+	extended_glob.pm \
+	maillike.pm \
+	ODB.pm \
+	Options.pm \
+	parse_db.pm \
+	parse_subst.pm \
+	scan_makefile.pm \
+	simpleconf.pm 
 
 # python libraries with embedded pydoc documentation
-PYDOC_PYTHONLIB_LIST=typecheck.py pfunc.py FilterFile.py rdump.py putil.py \
-	enum.py pdict.py sqlpotion.py ptestlib.py boottime.py dateutils.py \
-        lslparser.py maillike.py rsync_dist_lib.py
+PYDOC_PYTHONLIB_LIST= \
+	boottime.py \
+	dateutils.py \
+	enum.py \
+	FilterFile.py \
+	lslparser.py \
+	maillike.py \
+	pdict.py \
+	pfunc.py \
+	ptestlib.py \
+	putil.py \
+	rdump.py \
+	rsync_dist_lib.py \
+	sqlpotion.py \
+	typecheck.py
 
 # python scripts that need python 2.5
 PYTHON_2_5_SCRIPTS= rsync-dist-info.py sqlutil.py
@@ -292,7 +326,11 @@ DOCTXT_PERLLIB_LIST= printData.pm \
 
 # files in the doc/txt directory that can be HTML converted 
 # with makedoctext
-DOCTXT_TXT_LIST= USE_PERL.txt INSTALL.txt CONTENTS.txt
+DOCTXT_TXT_LIST= USE_PERL.txt INSTALL.txt
+
+# files in the doc/txt directory that can be HTML converted 
+# with rst2html
+RST_TXT_LIST= CONTENTS.txt
 
 #############################################################
 
@@ -395,9 +433,15 @@ _PYTHONLIB_INSTALL_DIRLIST=$(addprefix $(PYTHONLIB_INSTALL_DIR)/,$(PYTHONLIB_DIR
 _HTML_DOCTXT_TXT_BUILD_LIST=\
   $(addprefix $(HTML_BUILD_DIR)/,$(call force_extension_list,html,$(DOCTXT_TXT_LIST)))
 
+# list of all (generated) html files belonging to txt files with reStructuredText documentation
+_HTML_RST_TXT_BUILD_LIST=\
+  $(addprefix $(HTML_BUILD_DIR)/,$(call force_extension_list,html,$(RST_TXT_LIST)))
+
 # list of all html files belonging to txt that are to be installed
-_HTML_DOCTXT_TXT_INSTALL_LIST=\
-  $(addprefix $(HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(DOCTXT_TXT_LIST)))
+#  first: a helper variable:
+_HTML_TXT_LIST= $(DOCTXT_TXT_LIST) $(RST_TXT_LIST)
+_HTML_TXT_INSTALL_LIST=\
+  $(addprefix $(HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_HTML_TXT_LIST)))
 
 # list of all (POD generated) html files belonging to perl libs
 _HTML_POD_PERLLIB_BUILD_LIST=\
@@ -504,9 +548,9 @@ all: build
 install: install_html_txt install_shared install_scripts \
 	 install_perl_libs install_python_libs install_html
 
-install_html_txt: build_html_txt_doc $(_HTML_DOCTXT_TXT_INSTALL_LIST)
+install_html_txt: build_html_txt_doc $(_HTML_TXT_INSTALL_LIST)
 
-$(_HTML_DOCTXT_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% 
+$(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% 
 	install -g $(DEFAULT_GROUP) -m 0775 $< $@
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
@@ -547,8 +591,12 @@ $(_PYTHONLIB_INSTALL_DIRLIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR
 	chmod 0775 $@
 	chgrp $(DEFAULT_GROUP) $@	
 
-install_html: install_html_script install_html_perllib install_html_pythonlib
+install_html: install_css install_html_script install_html_perllib install_html_pythonlib
 
+install_css: $(HTML_INSTALL_DIR)/$(CSS_SRC_FILE)
+
+$(HTML_INSTALL_DIR)/docStyle.css: $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
+	install -g $(DEFAULT_GROUP) -m 0775 $< $@
 
 install_html_script: build_html_script $(SCRIPT_HTML_INSTALL_DIR) $(_HTML_ALL_SCRIPT_INSTALL_LIST)
 
@@ -634,10 +682,19 @@ build_html: build_html_txt_doc build_html_script build_html_perllib build_html_p
 
 # ...........................................................
 # build documentation from plain text files
-build_html_txt_doc: $(HTML_BUILD_DIR) $(_HTML_DOCTXT_TXT_BUILD_LIST)
+build_html_txt_doc: $(HTML_BUILD_DIR) $(_HTML_DOCTXT_TXT_BUILD_LIST) $(_HTML_RST_TXT_BUILD_LIST)
 
 $(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt	
-	PERL5LIB=$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
+	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
+
+$(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt	
+ifdef DOCUTILS_AVAILABLE
+	rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) --cloak-email-addresses $< $@
+else
+	@echo "<PRE>"      >  $@
+	cat $< >> $@
+	@echo "</PRE>"     >> $@
+endif
 
 # ...........................................................
 # build documentation for perl scripts
@@ -649,7 +706,7 @@ build_html_script: \
 build_html_script_pods: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_POD_SCRIPT_BUILD_LIST) 
 
 $(_HTML_POD_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
-	pod2html $< > $@
+	pod2html --css ../$(CSS_SRC_FILE) $< > $@
 
 build_html_script_plaintxt: $(SCRIPT_HTML_BUILD_DIR) \
 			    $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST) \
@@ -661,32 +718,32 @@ build_html_script_plaintxt: $(SCRIPT_HTML_BUILD_DIR) \
 
 $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERLLIB_SRC_DIR) $<  2>&1; true)   >> $@
+	(PERL5LIB=$(PERL5LIBNEW) $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.p
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERLLIB_SRC_DIR) $< -h 2>&1; true) >> $@
+	(PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERLLIB_SRC_DIR) $<  2>&1; true)   >> $@
+	(PERL5LIB=$(PERL5LIBNEW) $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
 build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST)
@@ -694,7 +751,7 @@ build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST
 $(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 ifdef DOCUTILS_AVAILABLE
 	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< --doc | \
-	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/zope.css > $@
+	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
 	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< --doc >> $@
@@ -705,8 +762,8 @@ endif
 build_html_script_doctxt: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_DOCTXT_SCRIPT_BUILD_LIST)
 
 $(_HTML_DOCTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
-	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
@@ -717,13 +774,13 @@ build_html_perllib: build_html_perllib_pods build_html_perllib_doctxt
 build_html_perllib_pods: $(PERLLIB_HTML_BUILD_DIR) $(_HTML_POD_PERLLIB_BUILD_LIST)
 
 $(_HTML_POD_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm
-	pod2html $< > $@
+	pod2html --css ../$(CSS_SRC_FILE) $< > $@
 
 build_html_perllib_doctxt: $(PERLLIB_HTML_BUILD_DIR) $(_HTML_DOCTXT_PERLLIB_BUILD_LIST)
 
 $(_HTML_DOCTXT_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm
-	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	PERL5LIB=$(PERL5LIB):$(PERLLIB_SRC_DIR) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
@@ -764,6 +821,10 @@ $(_ALL_ALWAYS_INSTALL_DIRLIST): %:
 	fi
 
 # debugging .................................................
+
+t:
+	@echo _HTML_RST_TXT_INSTALL_LIST:
+	@echo $(_HTML_RST_TXT_INSTALL_LIST)
 
 found:
 	@echo SHARE_SRC_DIRLIST:
