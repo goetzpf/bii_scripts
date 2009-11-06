@@ -301,7 +301,7 @@ The corresponding "maillike" format may look like this
   Name: John Doe
   Profession: Engineer
   Age: 55
-
+  %%
   Name: Mary Steward
   Profession: CEO
   Age: 42

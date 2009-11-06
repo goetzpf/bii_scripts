@@ -196,8 +196,8 @@ Reference of command line options
   print idle versions, versions that are not in 
   use and never have been.
 
---version-info [versions]
-  show logfile information for [versions]. [versions] 
+--version-info VERSIONS
+  show logfile information for VERSIONS. VERSIONS 
   is a comma-separated list of version strings.
 
 --boot-times
@@ -208,17 +208,17 @@ Reference of command line options
   brief output, with -n just show link names,
   with -v and -l just show version names
 
---last [no]
-  with --names, print only the last [no] versions
+--last NO
+  with --names, print only the last NO versions
   for each name
   
---filter-names [names]
-  [names] may be a comma separated list. Only these
+--filter-names NAMES
+  NAMES may be a comma separated list. Only these
   names and their versions are printed.
 
---filter-versions [versions]
+--filter-versions VERSIONS
   show only information for versions specified by
-  [versions], which may be a comma-separated list of
+  VERSIONS, which may be a comma-separated list of
   versions.
 
 --filter-active
@@ -255,11 +255,11 @@ Reference of command line options
   that is defined in non pipe mode (when option -c
   is given).
   
---fallback-info [linkname]
+--fallback-info LINKNAME
   show a short list of recommended versions for
   the given linkname. This option corresponds to
   -n --filter-lifetime-bigger 2 --last 3 --filter-names 
-  [linkname].
+  LINKNAME.
 """
 
 from optparse import OptionParser

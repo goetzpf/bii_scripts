@@ -15,11 +15,9 @@ If you are interested in getting scripts or libraries that cannot be
 downloaded from this page please send an email to one of the authors:
 
 Goetz.Pfeiffer@helmholtz-berlin.de
-
-Benjamin.Franksen@helmholtz-berlin.de
-
 Berhard.Kuner@helmholtz-berlin.de
-
+Patrick.Laux@helmholtz-berlin.de
+Benjamin.Franksen@helmholtz-berlin.de
 Thomas.Birke@helmholtz-berlin.de
 
 -------
@@ -136,12 +134,20 @@ Scripts
   | display the difference between two \*.db files using tkdiff
   | `documentation <scripts/dbdiff.html>`__
 
+.. _dbfilter.pl:
+
 **dbfilter.pl**
   | A tool to filter db files or to find information in db files. Regular
     expression matches can be done on record names, record types or values of
     record-fields.  Connections between records can be shown, lowCAL and SDO CAN
     links can be decoded.
+  | The script needs the following perl modules:
+  | `parse_db.pm`_ 
+  | `analyse_db.pm`_ 
+  | `canlink.pm`_ 
+  | Here is the documentation and the source of the script itself:
   | `documentation <scripts/dbfilter.html>`__
+  | `source <scripts/dbfilter.pl>`__
 
 **db_request.py**
   | a tool to perform SQL requests on the oracle database.
@@ -153,11 +159,11 @@ Scripts
     'dangling links'. I.e. it lists all records which have links that point
     somewhere outside the given db file (along with the target record).
     Unfortunately does not tell which link field and which target field.  Note
-    that dbfilter.pl can do the same with it's "--unresolved_links" option.
+    that `dbfilter.pl`_ can do the same with it's "--unresolved_links" option.
   | `documentation <scripts/dbscan.html>`__
 
 **dbsort**
-  | print an EPICS database sorted. Note that dbfilter.pl does exactly the same
+  | print an EPICS database sorted. Note that `dbfilter.pl`_ does exactly the same
     when called with a database file and no options at all.
   | `documentation <scripts/dbsort.html>`__
 
@@ -175,14 +181,15 @@ Scripts
   | macro expander for text-files. Since this tool allows the execution of
     arbitrary perl-expressions, it is quite powerful and (if you want this) a
     programming language of its own. It features if-statements, complex
-    expressions and for-loops among others.  This script is a simple application
-    of the expander.pm module.
+    expressions and for-loops among others.  This script needs the
+    `expander.pm`_ module. See the `expander documentation <perllib/expander.html>`__
+    for a more comprehensive description of the expander file format.
   | `documentation <scripts/expander.html>`__
   | `source <scripts/expander.pl>`__
 
 **filter_can_links.pl**
   | extract CAN links from a .db file (for the BESSY lowCAL protocol). Note that
-    dbfilter.pl can do the same with it's "--lowcal" option.
+    `dbfilter.pl`_ can do the same with it's "--lowcal" option.
   | `documentation <scripts/filter_can_links.html>`__
 
 **flatdb**
@@ -200,8 +207,9 @@ Scripts
     field-name and field value if a record or a field matches the trigger, it
     causes a print of the record. To control the printed output there are
     options to define the record names, record types or field types that have to
-    be printed.
+    be printed. This script needs the `parse_db.pm`_ module.
   | `documentation <scripts/grepDb.html>`__
+  | `source <scripts/grepDb.pl>`__
 
 **hgdiff**
   | compare files or directory trees in a working copy with the mercurial
@@ -213,6 +221,7 @@ Scripts
 **hgen.pl**
   | a header-generator for c and c++.
   | `documentation <scripts/hgen.html>`__
+  | `source <scripts/hgen.pl>`__
 
 **latin1toutf8.sh**
   | convert latin-1 texts to utf-8 (calls the iconv utility).
@@ -268,15 +277,18 @@ Scripts
     grep, but better. Features among other things text-file search, c-file
     search, regular expressions that match across line-ends.
   | `documentation <scripts/pfind.html>`__
+  | `source <scripts/pfind.pl>`__
 
 **psh**
   | a perl-shell. Useful for testing small functions or expressions in an
     interactive shell.
   | `documentation <scripts/psh.html>`__
+  | `source <scripts/psh>`__
 
 **pyone.py**
   | python One-liner helper.
   | `documentation <scripts/pyone.html>`__
+  | `source <scripts/pyone.py>`__
 
 **rsync-deploy**
   | tool for management for distribution of binary files with. The successor of
@@ -284,18 +296,33 @@ Scripts
 
 **rsync-dist-info.pl**
   | this program prints summaries and statistics of rsync-dist link-log files.
+  | The script needs the following perl modules:
+  | `dateutils.py`_ 
+  | `rsync_dist_lib.py`_ 
+  | `boottime.py`_ 
+  | `PythonCA <http://www-acc.kek.jp/EPICS_Gr/products.html>`__
+  | Here is the documentation and the source of the script itself:
   | `documentation <scripts/rsync-dist-info.html>`__
+  | `source <scripts/rsync-dist-info.py>`__
 
 **rsync-dist.pl**
   | manages binary distributions to remote servers. No old version is ever lost.
     Uses hard-links to save storage space. Manages also symbolic links that
     point to the distribution directories on the server.
+  | The script needs the following perl modules:
+  | `simpleconf.pm`_ 
+  | `container.pm`_ 
+  | `maillike.pm`_ 
+  | `extended_glob.pm`_ 
+  | Here is the documentation and the source of the script itself:
   | `documentation <scripts/rsync-dist.html>`__
+  | `source <scripts/rsync-dist.pl>`__
 
 **Sch2db.pl**
   | a perl sch to db converter. Converts capfast(\*.sch) files to the db file
     format as it is used in EPICS. This is faster and more flexible that the
-    combination of sch2edif and e2db...
+    combination of sch2edif and e2db. This script needs the 
+    `capfast_defaults.pm`_ module.
   | `documentation <scripts/Sch2db.html>`__
   | `source <scripts/Sch2db.pl>`__
 
@@ -329,8 +356,8 @@ Scripts
   | convert substitution-files to expander format for usage with the expander.pl
     script. This can be used on the fly as an alternative to EPICS msi, or to
     convert substitution files to expander format in order to use the much more
-    powerful commands of the expander format when replacing values in EPICS
-    template files. 
+    powerful commands of the `expander <perllib/expander.html>`__ 
+    format when replacing values in EPICS template files. 
   | `subst2exp.html <scripts/subst2exp.html>`__
 
 **substdiff**
@@ -367,9 +394,12 @@ Scripts
 Perl Libraries
 --------------
 
+.. _analyse_db.pm:
+
 **analyse_db.pm**
   | a Perl module to analyse databases parsed with parse_db.
   | `documentation <perllib/analyse_db.html>`__
+  | `source <perllib/analyse_db.pm>`__
 
 **BDNS.pm**
   | BESSY device name parser.
@@ -387,21 +417,29 @@ Perl Libraries
   | this file is only needed for "make install" in order to 
     patch browsedb.pl. It hat no use, once bii_scripts is installed
 
+.. _canlink.pm:
+
 **canlink.pm**
   | a perl-module that can be used to encode or decode the
     "cryptic can link" as it is used in the BESSY CAN Bus
     device support for EPICS.
   | `documentation <perllib/canlink.html>`__
+  | `source <perllib/canlink.pm>`__
+
+.. _capfast_defaults.pm:
 
 **capfast_defaults.pm**
   | a Perl module that contains capfast defaults for
     record-fields.
   | `documentation <perllib/capfast_defaults.html>`__
+  | `source <perllib/capfast_defaults.pm>`__
 
 **cfgfile.pm**
   | simple module to read or write a configuration file. Probably
     unfinished and in alpha-release state. 
   | `documentation <perllib/cfgfile.html>`__
+
+.. _container.pm:
 
 **container.pm**
   | This provides routines to import and export perl variables into 
@@ -411,6 +449,7 @@ Perl Libraries
     of references. Note that deeply nested structures are
     deeply copied.  
   | `documentation <perllib/container.html>`__
+  | `source <perllib/container.pm>`__
 
 **CreateX.pm**
   | Routines that help to write CreateX.pl scripts. Not quite sure
@@ -439,15 +478,22 @@ Perl Libraries
     from an SQL database
   | `documentation <perllib/dbitable.html>`__
 
-**expander.pm**
+.. _expander.pm:
+
+**expander.pm** 
   | a module to perform macro-replacements in text files. Features
     if-statements, complex expressions and for-loops among others
   | `documentation <perllib/expander.html>`__
   | `source <perllib/expander.pm>`__
 
+.. _extended_glob.pm:
+
 **extended_glob.pm**
   | a Perl module for extended filename globbing.
   | `documentation <perllib/extended_glob.html>`__
+  | `source <perllib/extended_glob.pm>`__
+
+.. _maillike.pm:
 
 **maillike.pm**
   | This module is used to parse and create data files in a 
@@ -455,6 +501,7 @@ Perl Libraries
     records, each record has a number of fields and to each 
     field of a record an certain content is associated.
   | `documentation <perllib/maillike.html>`__
+  | `source <perllib/maillike.pm>`__
 
 **makeDocStyle.pm**
   | module for the makeDoc* scripts.
@@ -468,6 +515,8 @@ Perl Libraries
   | a Perl module for handling programm arguments, command line in
     and output inclusive login requests.
   | `documentation <perllib/Options.html>`__
+
+.. _parse_db.pm:
 
 **parse_db**
   | a perl-module for parsing EPICS db-files.
@@ -493,6 +542,8 @@ Perl Libraries
     the makefile together with all environment variables.
   | `documentation <perllib/scan_makefile.html>`__
 
+.. _simpleconf.pm:
+
 **simpleconf.pm**
   | This module is used to parse and create configuration files
     in a very simple format. The data is typically organized in
@@ -500,6 +551,7 @@ Perl Libraries
     of the field. Empty lines and lines starting with a "#" character
     (which are usually a comment) are ignored.
   | `documentation <perllib/simpleconf.html>`__
+  | `source <perllib/simpleconf.html>`__
 
 **tokParse.pm**
   | token parser utilities (for makeDocTxt).
@@ -508,13 +560,19 @@ Perl Libraries
 Python Libraries
 ----------------
 
+.. _boottime.py:
+
 **boottime.py**
   | get the boot time of an BESSY IOC by querying a certain pv.
   | `documentation <pythonlib/boottime.html>`__
+  | `source <pythonlib/boottime.py>`__
+
+.. _dateutils.py:
 
 **dateutils.py**
   | utilities for string <-> datetime conversions.
   | `documentation <pythonlib/dateutils.html>`__
+  | `source <pythonlib/dateutils.py>`__
 
 **enum.py**
   | enumeration types for python.
@@ -557,9 +615,12 @@ Python Libraries
   | a module for dumping of nested structures.
   | `documentation <pythonlib/rdump.html>`__
 
+.. _rsync_dist_lib.py:
+
 **rsync_dist_lib.py**
   | sync_dist_info classes for parsing rsync-dist log files.
   | `documentation <pythonlib/rsync_dist_lib.html>`__
+  | `source <pythonlib/rsync_dist_lib.py>`__
 
 **sqlpotion.py**
   | a module with utilities and support functions for sqlalchemy.
