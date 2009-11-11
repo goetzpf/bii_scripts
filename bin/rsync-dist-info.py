@@ -267,6 +267,7 @@ import sys
 
 import ca
 
+import datetime
 import dateutils
 import rsync_dist_lib as rd
 import boottime
@@ -275,14 +276,41 @@ import boottime
 # version of the program:
 my_version= "1.1"
 
-def boot_times(objs):
+def boot_times(objs, verbose=False):
     """print boot-times overview."""
-    names= objs.logByName.keys()
+    def daydiff(d1, d2):
+        """returns the difference (d2-d1) between two dates in days."""
+        if d1 is None:
+            return "-"
+        d= d2-d1
+        return "%6.1f" % (d.days+d.seconds/86400.0)
+    def dash(x):
+        """returns "-" if x is undef."""
+        if x is None:
+            return "-"
+        return x
+    # get all names, but only the names that are not deleted:
+    names= filter(lambda n: objs.logByName.name_exists(n), objs.logByName.keys())
     act_dist= {}
     for name, entries in objs.logByName.items():
         act_dist[name]= entries[-1]
-    print "name            version              activated"+\
-          "            booted               comment"
+    if verbose:
+        h_format= "%(name)-15s %(version)-19s  %(activated)-19s  "+\
+                        "%(booted)-19s  %(days)-12s  %(comment)s"
+        r_format= "%(name)-15s %(version)-19s  %(activated)-19s  "+\
+                        "%(booted)-19s  %(days)12s  %(comment)s"
+    else:
+        h_format= "%(name)-15s %(version)-19s  %(activated)-19s  "+\
+                        "%(booted)-19s  %(comment)s"
+        r_format= h_format
+    print h_format % {"name":"name",
+                      "version":"version",
+                      "activated":"activated",
+                      "booted":"booted",
+                      "days":"days running",
+                      "comment":"comment"
+                     }
+    today= datetime.datetime.today()
     for name in names:
         (activated,version)= act_dist[name]
         try:
@@ -303,14 +331,18 @@ def boot_times(objs):
             if booted is not None:
                 if booted<=activated:
                     comment="IOC doesn't run with active version"
+                    if verbose:
+                        comment+= " (for %s days)" % daydiff(activated,today).strip()
                 else:
                     comment=""
-        print "%-15s %-19s  %-19s  %-19s  %s" % \
-              (name, 
-               version if version is not None else "-",
-               dateutils.isodatetime(activated),
-               dateutils.isodatetime(booted) if booted is not None else "-",
-               comment)
+        print r_format % \
+               { "name":name,
+                 "version": str(version) if version is not None else "-",
+                 "activated": dateutils.isodatetime(activated),
+                 "booted": dateutils.isodatetime(booted) if booted is not None else "-",
+                 "days": daydiff(booted,today),
+                 "comment": comment,
+               }
 
 
 def process(options):
@@ -431,7 +463,7 @@ def process(options):
         objs.filter_by_version(keep)
 
     if options.boot_times:
-        boot_times(objs)
+        boot_times(objs,options.verbose)
     elif options.names:
         objs.logByName.print_(options.brief,options.last) 
         #for n,l in objs.logByName.items():
@@ -541,6 +573,10 @@ def main():
                       action="store_true", # default: None
                       help="check boot-times in relation with "+\
                            "times a version was activated",
+                      )
+    parser.add_option("--verbose",   # implies dest="switch"
+                      action="store_true", # default: None
+                      help="make boot-times printout more verbose",
                       )
     parser.add_option("-b", "--brief",   # implies dest="switch"
                       action="store_true", # default: None

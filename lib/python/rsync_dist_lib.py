@@ -404,6 +404,11 @@ class LLogByName(object):
     >>> nlog.has_key("idcp10")
     False
 
+    >>> nlog.name_exists("idcp9")
+    True
+    >>> nlog.name_exists("idcp8")
+    False
+
     >>> nlog.versions_set()
     set(['2008-10-16T12:42:03', '2006-10-09T10:28:13'])
 
@@ -495,6 +500,9 @@ class LLogByName(object):
     def keys(self):
         """returns the sorted list of keys (names)."""
         return sorted(self._dict.keys())
+    def name_exists(self,name):
+	"""returns True if the name is not deleted."""
+	return self._dict[name][-1][1] is not None
     def versions_set(self):
         """returns a set with all versions."""
         v= set()
