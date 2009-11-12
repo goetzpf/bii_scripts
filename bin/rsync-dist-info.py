@@ -315,6 +315,9 @@ def boot_times(objs, verbose=False):
         (activated,version)= act_dist[name]
         try:
             booted= boottime.boottime(name)
+        except _ca.error, e:
+            booted= None
+            comment="IOC cannot be contacted!"
         except ca.caError,e:
             booted= None
             comment="IOC cannot be contacted!"
