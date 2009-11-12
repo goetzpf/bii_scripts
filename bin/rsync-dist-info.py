@@ -265,6 +265,7 @@ Reference of command line options
 from optparse import OptionParser
 import sys
 
+from ca import _ca
 import ca
 
 import datetime

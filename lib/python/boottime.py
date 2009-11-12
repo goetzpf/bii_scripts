@@ -46,7 +46,6 @@ def caget(pv,type_=float, tmo=0.01, maxtmo=3):
         a tuple consisting of the value and a datetime.datetime
         object that is the epics timestamp.
     """
-    print "caget('%s')" % pv
     typemap= { int : ca.DBR_TIME_LONG,
                float: ca.DBR_TIME_DOUBLE,
                str: ca.DBR_TIME_STRING
