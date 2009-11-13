@@ -68,6 +68,10 @@ def caget(pv,type_=float, tmo=0.01, maxtmo=3):
     ch.clear()
     return (ch.val, datetime.datetime.fromtimestamp(ca.TS2UTC(ch.ts)))
 
+def datetime_from_string(st):
+    """parse a string like "09-OCT-2009 16:27:09"."""
+    return datetime.datetime.strptime(st,"%d-%b-%Y %H:%M:%S")
+
 def boot_time_from_uptime(pv_prefix):
     """return the time when the IOC was rebooted.
 
@@ -81,6 +85,21 @@ def boot_time_from_uptime(pv_prefix):
     (uptime, timestamp)= caget(pv_prefix+":uptime",int)
     td= datetime.timedelta(seconds=uptime)
     return timestamp-td
+
+def boot_time_from_rebootTime(pv_prefix):
+    """return the time when the IOC was rebooted.
+
+    parameters:
+        pv_prefix -- the PV prefix for PV's on the IOC
+    returns:
+        the boottime as a datetime.datetime object
+
+    This requires that the IOC has a record named "pv_prefix:rebootTime"
+    that contains the reboot time in the format "%d-%b-%Y %H:%M:%S", 
+    e.g. "09-OCT-2009 16:27:09".
+    """
+    (val, timestamp)= caget(pv_prefix+":rebootTime",str)
+    return datetime_from_string(val)
 
 def boot_time_from_vxstats(pv_prefix):
     """return the time when the IOC was rebooted.
@@ -142,9 +161,12 @@ def boottime(link_name):
         """returns everything up to the first dot."""
         return st.split(".",1)[0]
     link_name= link_name.lower()
-    if link_name.startswith("ioc") or link_name.startswith("sioc"):
+    if link_name.startswith("ioc") or \
+       link_name.startswith("sioc") or \
+       link_name.startswith("testi"):
         # machine control system ioc
-        return boot_time_from_vxstats(until_dot(link_name).upper())
+        # return boot_time_from_vxstats(until_dot(link_name).upper())
+        return boot_time_from_rebootTime(until_dot(link_name).upper())
     if link_name.startswith("idcp"):
         # undulator IOC
         return boot_time_from_uptime(idcp_prefix(until_dot(link_name)))
