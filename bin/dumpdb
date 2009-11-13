@@ -31,7 +31,7 @@ package require Tclx
 foreach file $argv {
   for_file line $file {
       regexp "record\\(.*,\[ 	\]*\"?(\[^\"\]*)\"?\[ 	\]*\\)" $line all rnam
-      if [regexp "field\\((.*),\[ 	\]*\"(.*)\"\\)" $line all fnam fval] {
+      if [regexp "field\\(\[ 	\]*(.*)\[ 	\]*,\[ 	\]*\"(.*)\"\\)" $line all fnam fval] {
       puts "$rnam.$fnam $fval"
     }
   }
