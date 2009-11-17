@@ -238,22 +238,17 @@ Reference of command line options
 
 --filter-existent
   show only version that are still existent in the 
-  distribution directory. Note that in pipe-mode 
-  you have call rsync-dist twice to get a listing of 
-  the remote distribution directory.
+  distribution directory. 
 
 --filter-nonexistent
   show only version that are not existent in the 
-  distribution directory. Note that in pipe-mode 
-  you have call rsync-dist twice to get a listing of 
-  the remote distribution directory.
+  distribution directory. 
 
 --filter-ignexistent
   show versions no matter if they exist or exist not
   in the distribution directory. This is needed if 
   you want to overturn the implicit --filter-existent
-  that is defined in non pipe mode (when option -c
-  is given).
+  that is otherwise set.
   
 --fallback-info LINKNAME
   show a short list of recommended versions for
@@ -639,22 +634,19 @@ def main():
     parser.add_option("--filter-existent",   # implies dest="switch"
                       action="store_true", # default: None
                       help="show only version that are still existent in the "+\
-                           "distribution directory. Note that in pipe-mode "+\
-                           "you have call rsync-dist twice to get a listing of "+\
-                           "the remote distribution directory. This option is "+\
-                           "true when the program is not run in pipe-mode.",
+                           "distribution directory.",
                       )
     parser.add_option("--filter-nonexistent",   # implies dest="switch"
                       action="store_true", # default: None
                       help="show only version that are not existent in the "+\
-                           "distribution directory. Note that in pipe-mode "+\
-                           "you have call rsync-dist twice to get a listing of "+\
-                           "the remote distribution directory.",
+                           "distribution directory.",
                       )
     parser.add_option("--filter-ignexistent",   # implies dest="switch"
                       action="store_true", # default: None
-                      help="show versions no matter if they exist or not. "+\
-                           "This can be used to override behaviour in non pipe mode.",
+                      help= "show versions no matter if they exist or exist not"+\
+                            "in the distribution directory. This is needed if "+\
+                            "you want to overturn the implicit --filter-existent"+\
+                            "that is otherwise set.",
                       )
     parser.add_option("--fallback-info",   # implies dest="switch"
                       action="store", # default: None
