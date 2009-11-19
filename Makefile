@@ -633,16 +633,16 @@ $(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/%
 build_scripts: $(SCRIPT_BUILD_DIR) $(_SCRIPT_BUILD_LIST)
 
 $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/%
-	chmod u+x $<
 	cp $< $(@D) 
+	chmod u+x $@
 
 # browsedb.pl needs to be patched, so we have an 
 # extra rule here:
 $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
-	chmod u+x $<
 	cp $< $(@D) 
 	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR)/browsedb \
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
+	chmod u+x $@
 
 # extra rules for python 2.5 scripts:
 _PYTHON_2_5_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(PYTHON_2_5_SCRIPTS))
