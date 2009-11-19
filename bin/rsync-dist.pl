@@ -56,6 +56,8 @@ use extended_glob;
 use vars qw($opt_help
             $opt_man
             $opt_summary
+	    $opt_ssh_local
+	    $opt_ssh_remote
             $opt_distpath
             $opt_linkpath
             $opt_localprefix
@@ -297,6 +299,8 @@ my %gbl_env_map_hash2=
 my %gbl_map_hash= 
               (RSYNC_DIST_HOST      => \@opt_hosts,
                RSYNC_DIST_USER      => \@opt_users,
+	       RSYNC_DIST_SSH_LOCAL => \$opt_ssh_local,
+	       RSYNC_DIST_SSH_REMOTE=> \$opt_ssh_remote,
                RSYNC_DIST_PATH      => \$opt_distpath,
                RSYNC_DIST_LINKPATH  => \$opt_linkpath, 
                RSYNC_DIST_PREFIX_DISTDIR => \$opt_prefix_distdir, 
@@ -328,6 +332,8 @@ my %gbl_map_hash=
 my %gbl_config_comments=
               (RSYNC_DIST_HOST => "name of the remote host(s)",
                RSYNC_DIST_USER => "name of the remote user(s)",
+	       RSYNC_DIST_SSH_LOCAL  => "the local ssh command that is used",
+	       RSYNC_DIST_SSH_REMOTE => "the remote ssh command that is used",
                RSYNC_DIST_PATH => "remote distribution directory",
                RSYNC_DIST_LINKPATH =>
                                   "remote link directory",
@@ -383,6 +389,8 @@ my %gbl_config_comments=
 my @gbl_config_order=qw(
 RSYNC_DIST_HOST
 RSYNC_DIST_USER
+RSYNC_DIST_SSH_LOCAL
+RSYNC_DIST_SSH_REMOTE
 RSYNC_DIST_PATH  
 RSYNC_DIST_LINKPATH
 RSYNC_DIST_PREFIX_DISTDIR
@@ -447,6 +455,9 @@ if (!GetOptions("help|h",
 
                 "host|H=s" => \@opt_hosts,
                 "user|u=s" => \@opt_users, 
+
+		"ssh_local|ssh-local=s",
+		"ssh_remote|ssh-remote=s",
 
                 "distpath|p=s",
                 "linkpath|P=s",
@@ -553,6 +564,11 @@ if ($opt_env)
 
 if ($opt_config)
   { read_config($opt_config); }
+
+if (!defined $opt_ssh_local)
+  { $opt_ssh_local= "ssh"; }
+if (!defined $opt_ssh_remote)
+  { $opt_ssh_remote= "ssh"; }
 
 if (defined $opt_progress)
   { 
@@ -881,7 +897,7 @@ sub dist
               'fi ',
               ' && ');
 
-    my $rsync_ssh_opt= "ssh -A -l $local_user";
+    my $rsync_ssh_opt= "$opt_ssh_remote -A -l $local_user";
     my $rsync_host= $local_host;
     if ($opt_ssh_back_tunnel)
       { $rsync_ssh_opt.= " -p $opt_ssh_back_tunnel";
@@ -1766,7 +1782,7 @@ sub sh_copy_to_hosts_l
           { $userpart= "-l $r_users->[$i] "; }
 
         push @lines,
-             "rsync $gbl_rsync_opts -c -H -e \"ssh $userpart\" . $hostpart;";
+             "rsync $gbl_rsync_opts -c -H -e \"$opt_ssh_remote $userpart\" . $hostpart;";
         # -c: skip based on checksum, not mod-time & size
         # -H: preserve hard links
         # -e: specify remote shell to use
@@ -2456,7 +2472,7 @@ sub myssh_cmd
               "$cmd)"; };
 
     # -A: turn agent forwarding on 
-    my $ssh_cmd= "ssh -A $host \\\n'$cmd'";
+    my $ssh_cmd= "$opt_ssh_local -A $host \\\n'$cmd'";
 
     if ($opt_dry_run)
       { print $ssh_cmd,"\n"; 
@@ -3147,6 +3163,12 @@ Syntax:
                 if this option is not given the script tries to read from
                 the environment variable "RSYNC_DIST_USER"      
 
+  options to specify the ssh command:
+    --ssh-local [ssh command]
+                the way ssh from the local host is started can be overridden this way.
+    --ssh-remote [ssh command]
+                the way ssh from the remote host is started can be overridden this way.
+
   options to specify directories:
 
     --distpath -p [remote-dist-path] 
@@ -3223,6 +3245,10 @@ Syntax:
                   hosts. See also --user. When several hosts (see above)
                   are defined, you can define several (possibly different)
                   users for the hosts
+		RSYNC_DIST_SSH_LOCAL
+		  specify the local ssh command that is used
+		RSYNC_DIST_SSH_REMOTE
+		  specify the remote ssh command that is used
                 RSYNC_DIST_PATH
                   the remote distribution directory. See also
                   --distpath
