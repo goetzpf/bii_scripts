@@ -120,14 +120,27 @@ PYTHON25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "python2.5") || echo "py
 PYDOC:=$(shell python -V 2>&1 | \
 perl -ne '($$v)=/ (\d+(\.\d+)?)/; if($$v<2.5){print "pydoc2.5"}else{print "pydoc"}')
 
-# variables for programs.....................................
+# the standard unix install command
+INSTALL=install $(INSTALL_FLAGS)
+INSTALLX=install $(INSTALL_XFLAGS)
+
+# environment variables for programs.........................
 PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
 
-# groups ....................................................
+# program parameters ........................................
 
-# default group of all directories and
-# files that are installed
-DEFAULT_GROUP=scrptdev
+# parameters for the install command
+INSTALL_FLAGS=-g $(INSTALL_GROUP) -m $(INSTALL_PERMS)
+INSTALL_XFLAGS=-g $(INSTALL_GROUP) -m $(INSTALL_XPERMS)
+
+# group for installed files and directories
+INSTALL_GROUP=scrptdev
+
+# permissions for installed directories and executable files
+INSTALL_XPERMS=ug=rwx,o=rx
+
+# permissions for all other installed files
+INSTALL_PERMS=ug=rw,o=r
 
 # install directories .......................................
 
@@ -545,67 +558,64 @@ install: install_html_txt install_shared install_scripts \
 install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
 
 $(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/%
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALL) $< $@
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
 
 $(_SHARE_INSTALL_DIRLIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	rm -rf $@ && \
-	mkdir -p $@ && \
-	chmod 0775 $@ && \
-	chgrp $(DEFAULT_GROUP) $@
+	mkdir -p -m $(INSTALL_XPERMS) $@ && \
+	chgrp $(INSTALL_GROUP) $@
 
 $(_SHARE_INSTALL_LIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALL) $< $@
 
 install_scripts: build_scripts $(SCRIPT_INSTALL_DIR) $(_SCRIPT_INSTALL_LIST)
 
 $(_SCRIPT_INSTALL_LIST): $(SCRIPT_INSTALL_DIR)/%: $(SCRIPT_BUILD_DIR)/%
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALLX) $< $@
 
 install_perl_libs: build_perl_libs $(PERLLIB_INSTALL_DIR) $(_PERLLIB_INSTALL_DIRLIST) $(_PERLLIB_INSTALL_LIST)
 
 $(_PERLLIB_INSTALL_LIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALL) $< $@
 
 $(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	rm -rf $@ && \
-	mkdir -p $@ && \
-	chmod 0775 $@ && \
-	chgrp $(DEFAULT_GROUP) $@
+	mkdir -p -m $(INSTALL_XPERMS) $@ && \
+	chgrp $(INSTALL_GROUP) $@
 
 install_python_libs: build_python_libs $(PYTHONLIB_INSTALL_DIR) $(_PYTHONLIB_INSTALL_DIRLIST) $(_PYTHONLIB_INSTALL_LIST)
 
 $(_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALL) $< $@
 
 $(_PYTHONLIB_INSTALL_DIRLIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
 	rm -rf $@
-	mkdir -p $@
-	chmod 0775 $@
-	chgrp $(DEFAULT_GROUP) $@
+	mkdir -p -m $(INSTALL_XPERMS) $@
+	chgrp $(INSTALL_GROUP) $@
 
 install_html: install_css install_html_script install_html_perllib install_html_pythonlib
 
 install_css: $(HTML_INSTALL_DIR)/$(CSS_SRC_FILE)
 
 $(HTML_INSTALL_DIR)/docStyle.css: $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALL) $< $@
 
 install_html_script: build_html_script $(SCRIPT_HTML_INSTALL_DIR) $(_HTML_ALL_SCRIPT_INSTALL_LIST)
 
 $(_HTML_ALL_SCRIPT_INSTALL_LIST): $(SCRIPT_HTML_INSTALL_DIR)/%: $(SCRIPT_HTML_BUILD_DIR)/%
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALL) $< $@
 
 install_html_perllib: build_html_perllib $(PERLLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PERLLIB_INSTALL_LIST)
 
 $(_HTML_ALL_PERLLIB_INSTALL_LIST): $(PERLLIB_HTML_INSTALL_DIR)/%: $(PERLLIB_HTML_BUILD_DIR)/%
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	$(INSTALL) $< $@
 
 install_html_pythonlib: build_html_pythonlib $(PYTHONLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PYTHONLIB_INSTALL_LIST)
 
 $(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/%
-	if test -e $<; then install -g $(DEFAULT_GROUP) -m 0775 $< $@; fi
+	if test -e $<; then $(INSTALL) $< $@; fi
 
 # clean......................................................
 
@@ -794,13 +804,12 @@ $(_ALL_BUILD_DIRLIST): %:
 
 ifdef CREATE_INSTALL_DIRS
 $(_ALL_INSTALL_DIRLIST): %:
-	if [  -e $@ ]; \
+	if [ -e $@ ]; \
 	then \
 		touch $@; \
 	else \
-		mkdir -p $@ && \
-		chmod 0775 $@ && \
-		chgrp $(DEFAULT_GROUP) $@ ;\
+		mkdir -p -m $(INSTALL_XPERMS) $@ && \
+		chgrp $(INSTALL_GROUP) $@ ;\
 	fi
 endif
 
@@ -809,9 +818,8 @@ $(_ALL_ALWAYS_INSTALL_DIRLIST): %:
 	then \
 		touch $@; \
 	else \
-		mkdir -p $@ && \
-		chmod 0775 $@ && \
-		chgrp $(DEFAULT_GROUP) $@ ;\
+		mkdir -p -m $(INSTALL_XPERMS) $@ && \
+		chgrp $(INSTALL_GROUP) $@ ;\
 	fi
 
 # debugging .................................................
