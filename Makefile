@@ -542,7 +542,7 @@ all: build
 install: install_html_txt install_shared install_scripts \
 	 install_perl_libs install_python_libs install_html
 
-install_html_txt: build_html_txt_doc $(_HTML_TXT_INSTALL_LIST)
+install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
 
 $(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% 
 	install -g $(DEFAULT_GROUP) -m 0775 $< $@
