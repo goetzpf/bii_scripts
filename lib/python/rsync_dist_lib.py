@@ -91,6 +91,15 @@ def get_dist_log(config_file, extra_opts=""):
     parsed= MailLikeRecords(result)
     return parsed
 
+def get_link_ls(config_file, extra_opts=""):
+    """returns the contents of the link-dir as LslEntries object.
+    """
+    cmd= "rsync-dist.pl -c %s --single-host %s ls l" % \
+          (config_file, extra_opts)
+    result= _system(cmd)
+    return LslEntries(result)
+
+
 def get_dist_ls(config_file, extra_opts=""):
     """returns the contents of the dist-dir as LslEntries object.
     """
@@ -98,6 +107,105 @@ def get_dist_ls(config_file, extra_opts=""):
           (config_file, extra_opts)
     result= _system(cmd)
     return LslEntries(result)
+
+class LinkLs(object):
+    """get directory information on all distributions in the dist-dir.
+
+    A typical application of this class would be:
+
+    d= LinkLs(get_link_ls(config_file))
+
+    A LinkLs object is very similar to a dictionary that maps
+    version strings to LslEntry objects.
+
+    Here is an example. Note that in this example, the "lsl" object
+    simulates the output of get_dist_ls():
+
+    >>> t='''
+    ... drwxr-xr-x 2 iocadm iocs   4096 2007-09-19 11:16 attic
+    ... lrwxrwxrwx 1 iocadm iocs     56 2009-02-18 15:12 BAWATCH -> /dist/2009-02-18T15:12:20
+    ... lrwxrwxrwx 1 iocadm iocs     56 2009-10-06 13:40 IOC1S11G -> /dist/2009-10-06T13:40:40
+    ... lrwxrwxrwx 1 iocadm iocs     56 2009-10-06 13:40 IOC1S13G -> /dist/2009-10-06T13:40:40
+    ... -rw-r--r-- 1 iocadm iocs 569628 2009-11-17 09:37 LOG-LINKS
+    ... '''
+
+    >>> lsl= LslEntries(t)
+    >>> d= LinkLs(lsl)
+    >>> d.has_key("BAWATCH")
+    True
+    >>> d.has_key("attic")
+    False
+    >>> d.keys()
+    ['BAWATCH', 'IOC1S11G', 'IOC1S13G']
+    >>> d["BAWATCH"]
+    LslEntry('lrwxrwxrwx   1   iocadm     iocs        56 2009-02-18 15:12 BAWATCH -> /dist/2009-02-18T15:12:20')
+    >>> d.get("BAWATCH","unknown")
+    LslEntry('lrwxrwxrwx   1   iocadm     iocs        56 2009-02-18 15:12 BAWATCH -> /dist/2009-02-18T15:12:20')
+    >>> d.get("BAWATCHX","unknown")
+    'unknown'
+    >>> for n,l in d.items():
+    ...   print n,":"
+    ...   print "  ",l
+    ... 
+    BAWATCH :
+       lrwxrwxrwx   1   iocadm     iocs        56 2009-02-18 15:12 BAWATCH -> /dist/2009-02-18T15:12:20
+    IOC1S11G :
+       lrwxrwxrwx   1   iocadm     iocs        56 2009-10-06 13:40 IOC1S11G -> /dist/2009-10-06T13:40:40
+    IOC1S13G :
+       lrwxrwxrwx   1   iocadm     iocs        56 2009-10-06 13:40 IOC1S13G -> /dist/2009-10-06T13:40:40
+    >>> print d
+    lrwxrwxrwx   1   iocadm     iocs        56 2009-02-18 15:12 BAWATCH -> /dist/2009-02-18T15:12:20
+    lrwxrwxrwx   1   iocadm     iocs        56 2009-10-06 13:40 IOC1S11G -> /dist/2009-10-06T13:40:40
+    lrwxrwxrwx   1   iocadm     iocs        56 2009-10-06 13:40 IOC1S13G -> /dist/2009-10-06T13:40:40
+
+    >>> print repr(d)
+    LinkLs(LslEntries('''
+    lrwxrwxrwx   1   iocadm     iocs        56 2009-02-18 15:12 BAWATCH -> /dist/2009-02-18T15:12:20
+    lrwxrwxrwx   1   iocadm     iocs        56 2009-10-06 13:40 IOC1S11G -> /dist/2009-10-06T13:40:40
+    lrwxrwxrwx   1   iocadm     iocs        56 2009-10-06 13:40 IOC1S13G -> /dist/2009-10-06T13:40:40'''))
+
+    """
+    def __init__(self, lsl_entries):
+        """initializes the object from an LslEntries object."""
+        def is_iso(st):
+            try:
+                d= dateutils.parse_isodatetime(name)
+                return True
+            except ValueError,e:
+                return False
+        self._dict= {}
+        for name,entry in lsl_entries.items():
+            if not entry.is_symlink():
+                continue
+            self._dict[name]= entry
+    def has_key(self, version):
+        """returns True, if the version is in the DistLs object."""
+        return self._dict.has_key(version)
+    def keys(self):
+        """returns the sorted list of keys (versions)."""
+        return sorted(self._dict.keys())
+    def __getitem__(self,version):
+        """returns the LslEntry for a version."""
+        return self._dict[version]
+    def get(self,k,d=None):
+        """returns the LslEntry for a version or a default."""
+        return self._dict.get(k,d)
+    def items(self):
+        """returns an iterator over all version LslEntry pairs."""
+        for n in self.keys():
+            yield (n, self._dict[n])
+    def _lsl_entries(self):
+        """create a LslEntries object."""
+        lsl= LslEntries()
+        for n,l in self.items():
+            lsl.append(l)
+        return lsl
+    def __str__(self):
+        """returns a string representation of the object."""
+        return str(self._lsl_entries())
+    def __repr__(self):
+        """returns a repr-string representation of the object."""
+        return "LinkLs(%s)" % repr(self._lsl_entries())
 
 class DistLs(object):
     """get directory information on all distributions in the dist-dir.
@@ -501,8 +609,8 @@ class LLogByName(object):
         """returns the sorted list of keys (names)."""
         return sorted(self._dict.keys())
     def name_exists(self,name):
-	"""returns True if the name is not deleted."""
-	return self._dict[name][-1][1] is not None
+        """returns True if the name is not deleted."""
+        return self._dict[name][-1][1] is not None
     def versions_set(self):
         """returns a set with all versions."""
         v= set()

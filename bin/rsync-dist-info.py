@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 """
 ======================
@@ -151,14 +151,23 @@ the *idles* format
 
 the *boottimes* format
   This format displays an overview on all names and the times when the
-  corresponding IOCs were bootet. Here is an example::
+  corresponding IOCs were booted. Here is an example::
 
     name            version              activated            booted               comment
-    BAWATCH         2009-02-18T15:12:20  2009-02-18T15:12:27  -                    dont't known how to find boottime for this name
-    IOC1S11G        2009-10-06T13:40:40  2009-10-06T13:40:49  2009-10-06T13:45:41  
-    IOC1S13G        2009-10-06T13:40:40  2009-10-06T13:40:49  2009-10-06T13:45:28  
-    IOC1S4G         2009-10-06T13:40:40  2009-10-06T13:40:49  2009-10-06T13:45:55  
-    IOC1S9G         2009-10-06T13:40:40  2009-10-06T13:40:49  -                    IOC cannot be contacted!
+    BAWATCHP        2009-02-18T15:10:54  2009-02-18T15:11:06  -                    dont't known how to find boottime for this name
+    IOC1S1GP        2009-10-23T14:06:35  2009-10-23T14:07:06  2009-10-09T16:27:09  IOC doesn't run with active version
+    IOC1S4GP        2009-10-09T14:54:54  2009-10-09T14:55:18  2009-10-09T14:56:54  
+    IOC2S1GP        2009-11-13T11:58:23  2009-11-13T11:58:36  2009-11-13T13:30:15  
+
+  If the option --verbose is used together with --boot-times, the number of days
+  the IOC's are running is also printed::
+
+    name            version              activated            booted               days running  comment
+    BAWATCHP        2009-02-18T15:10:54  2009-02-18T15:11:06  -                               -  dont't known how to find boottime for this name
+    IOC1S1GP        2009-10-23T14:06:35  2009-10-23T14:07:06  2009-10-09T16:27:09          38.8  IOC doesn't run with active version (for 24.9 days)
+    IOC1S4GP        2009-10-09T14:54:54  2009-10-09T14:55:18  2009-10-09T14:56:54          38.9  
+    IOC2S1GP        2009-11-13T11:58:23  2009-11-13T11:58:36  2009-11-13T13:30:15           3.9  
+
 
 Reference of command line options
 =================================
@@ -348,6 +357,7 @@ def process(options):
     """process a single file.
     """
     existent_versions_set= [None]
+    existent_names_set   = [None]
 
     def existent_versions():
         """return existent versions.
@@ -363,6 +373,16 @@ def process(options):
         # version is <None>, that means entries when the name
         # was deleted
         return existent_versions_set[0]
+    def existent_names():
+        """return existent names.
+
+        Note that the returned set contains <None>.
+        """
+        if existent_names_set[0] is not None:
+            return existent_names_set[0]
+        linkLs= rd.LinkLs(rd.get_link_ls(options.config))
+        existent_names_set[0]= set(linkLs.keys())
+        return existent_names_set[0]
 
     class Objs(object):
         def __init__(self):
@@ -416,6 +436,13 @@ def process(options):
 
     if options.filter_names:
         keep= options.filter_names.split(",")
+        objs.filter_by_name(keep)
+
+    if options.filter_existent_names:
+        keep= existent_names()
+        objs.filter_by_name(keep)
+    elif options.filter_nonexistent_names:
+        keep= set(objs.logByName.keys()).difference(existent_names())
         objs.filter_by_name(keep)
 
     objs.versionActivities= rd.LLogActivity(objs.logByVersion)
@@ -633,12 +660,12 @@ def main():
                       )
     parser.add_option("--filter-existent",   # implies dest="switch"
                       action="store_true", # default: None
-                      help="show only version that are still existent in the "+\
+                      help="show only versions that are still existent in the "+\
                            "distribution directory.",
                       )
     parser.add_option("--filter-nonexistent",   # implies dest="switch"
                       action="store_true", # default: None
-                      help="show only version that are not existent in the "+\
+                      help="show only versions that are not existent in the "+\
                            "distribution directory.",
                       )
     parser.add_option("--filter-ignexistent",   # implies dest="switch"
@@ -647,6 +674,16 @@ def main():
                             "in the distribution directory. This is needed if "+\
                             "you want to overturn the implicit --filter-existent"+\
                             "that is otherwise set.",
+                      )
+    parser.add_option("--filter-existent-names",   # implies dest="switch"
+                      action="store_true", # default: None
+                      help="show only names that are existent in the "+\
+                           "distribution directory.",
+                      )
+    parser.add_option("--filter-nonexistent-names",   # implies dest="switch"
+                      action="store_true", # default: None
+                      help="show only names that are not existent in the "+\
+                           "distribution directory.",
                       )
     parser.add_option("--fallback-info",   # implies dest="switch"
                       action="store", # default: None
