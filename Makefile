@@ -182,7 +182,7 @@ SHARE_SRC_LIST=$(call find_files,$(SHARE_SRC_DIR),*.col,2) \
 # scripts that have to be installed
 # match all files in $(SCRIPT_SRC_DIR) with name [A-Za-z]*
 # that are executable, depth 1 (no subdir-search)
-SCRIPT_LIST=$(call find_xfiles,$(SCRIPT_SRC_DIR),[A-Za-z]*,1)
+SCRIPT_LIST=$(call find_files,$(SCRIPT_SRC_DIR),*,1)
 
 # perl libraries that have to be installed
 # match all files in $(PERLLIB_SRC_DIR) with name *.pm
@@ -351,12 +351,6 @@ find_subdirs=$(subst $(1)/,,$(shell find $(1) -mindepth 1 -maxdepth $(2) -type d
 # use with:
 # $(call find_files,$(dir),$(glob-pattern),$(maxdepth))
 find_files=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)'))
-
-# find executable files in a given sub-directory that match a 
-# given name pattern up to a given depth
-# $(call find_xfiles,$(dir),$(glob-pattern),$(maxdepth))
-# find_xfiles=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)' -perm -u+x))
-find_xfiles=$(shell cd $(1) && (file * | grep executable | sed -e 's/:.*//'; grep -l "eval 'exec" *) | sort | uniq)
 
 # remove the extension on all from a list of files
 # use with:
