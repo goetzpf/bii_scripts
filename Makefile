@@ -69,6 +69,36 @@
 
 #############################################################
 
+# functions
+
+#############################################################
+
+# find all sub-directories in a given directory
+# up to a given depth. Strip the results returned by
+# "find" from the directory that was searched
+# use with:
+# $(call find_subdirs,$(dir),$(maxdepth))
+find_subdirs=$(subst $(1)/,,$(shell find $(1) -mindepth 1 -maxdepth $(2) -type d))
+
+
+# find files in a given sub-directory that match a 
+# given name pattern up to a given depth
+# use with:
+# $(call find_files,$(dir),$(glob-pattern),$(maxdepth))
+find_files=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)'))
+
+# remove the extension on all from a list of files
+# use with:
+# $(call rm_extension_list,space_separated_filenames) 
+rm_extension_list=$(basename $(1))
+
+# force the file-extension on all from a list of files
+# use with:
+# $(call force_extension_list,space_separated_filenames) 
+force_extension_list=$(addsuffix .$(1),$(basename $(2)))
+
+#############################################################
+
 # variables
 
 #############################################################
@@ -171,40 +201,40 @@ CSS_SRC_FILE=docStyle.css
 # directories below $(SHARE_SRC_DIR) that have to be installed in
 # the share-directory,
 # search all directories below $(SHARE_SRC_DIR), depth 1, omit "CVS"
-SHARE_SRC_DIRLIST=$(filter-out CVS,$(call find_subdirs,$(SHARE_SRC_DIR),1))
+SHARE_SRC_DIRLIST:=$(filter-out CVS,$(call find_subdirs,$(SHARE_SRC_DIR),1))
 
 # files within the share directory,
 # match *.col and *.txt in and below $(SHARE_SRC_DIR), depth 1
-SHARE_SRC_LIST=$(call find_files,$(SHARE_SRC_DIR),*.col,2) \
+SHARE_SRC_LIST:=$(call find_files,$(SHARE_SRC_DIR),*.col,2) \
                $(call find_files,$(SHARE_SRC_DIR),*.txt,2) \
                $(addprefix rsync-dist/,$(call find_files,$(SHARE_SRC_DIR)/rsync-dist,*,1))
 
 # scripts that have to be installed
 # match all files in $(SCRIPT_SRC_DIR) with name [A-Za-z]*
 # that are executable, depth 1 (no subdir-search)
-SCRIPT_LIST=$(call find_files,$(SCRIPT_SRC_DIR),*,1)
+SCRIPT_LIST:=$(call find_files,$(SCRIPT_SRC_DIR),*,1)
 
 # perl libraries that have to be installed
 # match all files in $(PERLLIB_SRC_DIR) with name *.pm
 # depth 100 (all sub and sub-subdirs), omit "i386-linux-thread-multi/Pezca.pm"
-PERLLIB_LIST=$(filter-out i386-linux-thread-multi/Pezca.pm,\
+PERLLIB_LIST:=$(filter-out i386-linux-thread-multi/Pezca.pm,\
 	      $(call find_files,$(PERLLIB_SRC_DIR),*.pm,100))
 
 # python libraries that have to be installed
 # match all files in $(PYTHONLIB_SRC_DIR) with name *.pm
 # depth 100 (all sub and sub-subdirs)
-PYTHONLIB_LIST=$(call find_files,$(PYTHONLIB_SRC_DIR),*.py,100)
+PYTHONLIB_LIST:=$(call find_files,$(PYTHONLIB_SRC_DIR),*.py,100)
 
 # a list of sub-directories within the perl-lib directory
 # find all directories below $(PERLLIB_SRC_DIR), depth 1
 # (up to one dir below), omit "i386-linux-thread-multi" and "CVS"
-PERLLIB_DIRLIST=$(filter-out i386-linux-thread-multi CVS,\
+PERLLIB_DIRLIST:=$(filter-out i386-linux-thread-multi CVS,\
 		$(call find_subdirs,$(PERLLIB_SRC_DIR),1))
  
 # a list of sub-directories within the python-lib directory
 # find all directories below $(PYTHONLIB_SRC_DIR), depth 1
 # (up to one dir below), omit "i386-linux-thread-multi" and "CVS"
-PYTHONLIB_DIRLIST=$(filter-out CVS,\
+PYTHONLIB_DIRLIST:=$(filter-out CVS,\
 		  $(call find_subdirs,$(PYTHONLIB_SRC_DIR),1))
  
 # scripts with embedded POD documentation
@@ -331,36 +361,6 @@ DOCTXT_TXT_LIST= USE_PERL.txt INSTALL.txt
 # files in the doc/txt directory that can be HTML converted 
 # with rst2html
 RST_TXT_LIST= CONTENTS.txt
-
-#############################################################
-
-# functions
-
-#############################################################
-
-# find all sub-directories in a given directory
-# up to a given depth. Strip the results returned by
-# "find" from the directory that was searched
-# use with:
-# $(call find_subdirs,$(dir),$(maxdepth))
-find_subdirs=$(subst $(1)/,,$(shell find $(1) -mindepth 1 -maxdepth $(2) -type d))
-
-
-# find files in a given sub-directory that match a 
-# given name pattern up to a given depth
-# use with:
-# $(call find_files,$(dir),$(glob-pattern),$(maxdepth))
-find_files=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)'))
-
-# remove the extension on all from a list of files
-# use with:
-# $(call rm_extension_list,space_separated_filenames) 
-rm_extension_list=$(basename $(1))
-
-# force the file-extension on all from a list of files
-# use with:
-# $(call force_extension_list,space_separated_filenames) 
-force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
 #############################################################
 
