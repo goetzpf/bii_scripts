@@ -17,27 +17,27 @@
 # for scripts with name *.pl and makeDocTxt documentation:
 #    add scriptname to the DOCTXT_SCRIPT_LIST variable
 
-# for scripts with name * that generate help when called 
+# for scripts with name * that generate help when called
 # with no parameters at all
 #    add scriptname to the PLAINTXT_SCRIPT_LIST variable
 
-# for scripts with name *.pl that generate help when called 
+# for scripts with name *.pl that generate help when called
 # with no parameters at all
 #    add scriptname to the PLAINTXT_PL_SCRIPT_LIST variable
 
-# for scripts with name *.pl that generate help when called 
+# for scripts with name *.pl that generate help when called
 # with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_PL_SCRIPT_LIST variable
 
-# for scripts with name *.p that generate help when called 
+# for scripts with name *.p that generate help when called
 # with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_P_SCRIPT_LIST variable
 
-# for scripts with name *.py that generate help when called 
+# for scripts with name *.py that generate help when called
 # with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_PY_SCRIPT_LIST variable
 
-# for scripts with name * (no file extension) that generate 
+# for scripts with name * (no file extension) that generate
 # help when called with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_SCRIPT_LIST variable
 
@@ -52,16 +52,16 @@
 # in order to generate documentation to for the library
 # do the following:
 
-# for perl modules with embedded POD documentation 
+# for perl modules with embedded POD documentation
 #    add module name to the POD_PERLLIB_LIST variable
 
-# for perl modules with embedded makeDocTxt documentation 
+# for perl modules with embedded makeDocTxt documentation
 #    add scriptname to the DOCTXT_PERLLIB_LIST variable
 
-# for python modules with embedded pydoc documentation 
+# for python modules with embedded pydoc documentation
 #    add scriptname to the PYDOC_PYTHONLIB_LIST variable
 
-# scripts that do only run with python 2.5 or newer should 
+# scripts that do only run with python 2.5 or newer should
 #    be specified in the variable PYTHON_2_5_SCRIPTS.
 #    This is needed for antique debian-linux systems where
 #    python 2.5 is installed, but the binary is named
@@ -81,7 +81,7 @@
 find_subdirs=$(subst $(1)/,,$(shell find $(1) -mindepth 1 -maxdepth $(2) -type d))
 
 
-# find files in a given sub-directory that match a 
+# find files in a given sub-directory that match a
 # given name pattern up to a given depth
 # use with:
 # $(call find_files,$(dir),$(glob-pattern),$(maxdepth))
@@ -89,12 +89,12 @@ find_files=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)')
 
 # remove the extension on all from a list of files
 # use with:
-# $(call rm_extension_list,space_separated_filenames) 
+# $(call rm_extension_list,space_separated_filenames)
 rm_extension_list=$(basename $(1))
 
 # force the file-extension on all from a list of files
 # use with:
-# $(call force_extension_list,space_separated_filenames) 
+# $(call force_extension_list,space_separated_filenames)
 force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
 #############################################################
@@ -149,7 +149,7 @@ PERLLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/perllib
 
 PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
 
-# define this macro when make should 
+# define this macro when make should
 # create the installation directories in
 # case the do not exist already
 # CREATE_INSTALL_DIRS=1
@@ -230,30 +230,30 @@ PYTHONLIB_LIST:=$(call find_files,$(PYTHONLIB_SRC_DIR),*.py,100)
 # (up to one dir below), omit "i386-linux-thread-multi" and "CVS"
 PERLLIB_DIRLIST:=$(filter-out i386-linux-thread-multi CVS,\
 		$(call find_subdirs,$(PERLLIB_SRC_DIR),1))
- 
+
 # a list of sub-directories within the python-lib directory
 # find all directories below $(PYTHONLIB_SRC_DIR), depth 1
 # (up to one dir below), omit "i386-linux-thread-multi" and "CVS"
 PYTHONLIB_DIRLIST:=$(filter-out CVS,\
 		  $(call find_subdirs,$(PYTHONLIB_SRC_DIR),1))
- 
+
 # scripts with embedded POD documentation
 POD_SCRIPT_LIST=rsync-dist.pl multi-commit.pl bdns_lookup.pl
 
-# scripts with no embedded documentation 
+# scripts with no embedded documentation
 # create online help by executing "(script 2>&1; true)
 PLAINTXT_SCRIPT_LIST= \
 	dbcount \
-	dbsort 
+	dbsort
 
-# scripts with no embedded documentation 
+# scripts with no embedded documentation
 # create online help by executing "(script.pl 2>&1; true)
 PLAINTXT_PL_SCRIPT_LIST= \
 	bdns_import.pl \
 	dbscan.pl \
         copyrename.pl
 
-# scripts with no embedded documentation 
+# scripts with no embedded documentation
 # create online help by executing "(script -h 2>&1; true)
 PLAINTXT_H_SCRIPT_LIST= \
 	dbdiff \
@@ -261,12 +261,12 @@ PLAINTXT_H_SCRIPT_LIST= \
 	psh \
 	substdiff
 
-# scripts with no embedded documentation 
+# scripts with no embedded documentation
 # create online help by executing "(script.p -h 2>&1; true)
 PLAINTXT_H_P_SCRIPT_LIST= \
 	dbutil.p
 
-# scripts with no embedded documentation 
+# scripts with no embedded documentation
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PL_SCRIPT_LIST= \
 	adl_cvs_diff.pl\
@@ -287,9 +287,9 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	set_ioc_tsrv.pl \
 	subst2exp.pl \
 	substprint.pl \
-	vdb_repo_diff.pl 
+	vdb_repo_diff.pl
 
-# scripts with no embedded documentation 
+# scripts with no embedded documentation
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PY_SCRIPT_LIST= \
 	pyone.py sqlutil.py
@@ -298,7 +298,7 @@ RST_DOC_PY_SCRIPT_LIST= \
 	archiver2camonitor.py \
 	db_request.py \
 	rsync-dist-info.py \
-	txtcleanup.py 
+	txtcleanup.py
 
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
@@ -319,7 +319,7 @@ POD_PERLLIB_LIST= \
 	parse_db.pm \
 	parse_subst.pm \
 	scan_makefile.pm \
-	simpleconf.pm 
+	simpleconf.pm
 
 # python libraries with embedded pydoc documentation
 PYDOC_PYTHONLIB_LIST= \
@@ -341,24 +341,24 @@ PYDOC_PYTHONLIB_LIST= \
 # python scripts that need python 2.5
 PYTHON_2_5_SCRIPTS= rsync-dist-info.py sqlutil.py
 
-# scripts that have embedded documentation that can be HTML converted 
+# scripts that have embedded documentation that can be HTML converted
 # with makeDocTxt
 DOCTXT_SCRIPT_LIST= makeDocTxt.pl \
 	CreatePanel.pl 	\
 	stripUnresolvedDb.pl 		\
 	bdns_sort.pl \
-	grepDb.pl			
+	grepDb.pl
 
 # perl libraries with embedded documentation that can be HTML converted
 # with makeDocTxt
 DOCTXT_PERLLIB_LIST= printData.pm \
 	tokParse.pm
 
-# files in the doc/txt directory that can be HTML converted 
+# files in the doc/txt directory that can be HTML converted
 # with makedoctext
 DOCTXT_TXT_LIST= USE_PERL.txt INSTALL.txt
 
-# files in the doc/txt directory that can be HTML converted 
+# files in the doc/txt directory that can be HTML converted
 # with rst2html
 RST_TXT_LIST= CONTENTS.txt
 
@@ -455,11 +455,11 @@ _DOC_ALL_PERLLIB_LIST= $(POD_PERLLIB_LIST)
 # all python-libs for which documentation is generated
 _DOC_ALL_PYTHONLIB_LIST= $(PYDOC_PYTHONLIB_LIST)
 
-# all html files for perl-libs that are installed 
+# all html files for perl-libs that are installed
 _HTML_ALL_PERLLIB_INSTALL_LIST= \
   $(addprefix $(PERLLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PERLLIB_LIST)))
 
-# all html files for python-libs that are installed 
+# all html files for python-libs that are installed
 _HTML_ALL_PYTHONLIB_INSTALL_LIST= \
   $(addprefix $(PYTHONLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PYTHONLIB_LIST)))
 
@@ -504,7 +504,7 @@ _HTML_DOCTXT_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(DOCTXT_SCRIPT_LIST)))
 
 
-# all scripts for which documentation is generated 
+# all scripts for which documentation is generated
 _DOC_ALL_SCRIPT_LIST=  \
 	$(POD_SCRIPT_LIST) $(_PLAINTXT_ALL_SCRIPT_LIST) \
 	$(RST_DOC_PY_SCRIPT_LIST) $(DOCTXT_SCRIPT_LIST)
@@ -544,7 +544,7 @@ install: install_html_txt install_shared install_scripts \
 
 install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
 
-$(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% 
+$(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/%
 	install -g $(DEFAULT_GROUP) -m 0775 $< $@
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
@@ -553,7 +553,7 @@ $(_SHARE_INSTALL_DIRLIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	rm -rf $@ && \
 	mkdir -p $@ && \
 	chmod 0775 $@ && \
-	chgrp $(DEFAULT_GROUP) $@	
+	chgrp $(DEFAULT_GROUP) $@
 
 $(_SHARE_INSTALL_LIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	install -g $(DEFAULT_GROUP) -m 0775 $< $@
@@ -572,7 +572,7 @@ $(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	rm -rf $@ && \
 	mkdir -p $@ && \
 	chmod 0775 $@ && \
-	chgrp $(DEFAULT_GROUP) $@	
+	chgrp $(DEFAULT_GROUP) $@
 
 install_python_libs: build_python_libs $(PYTHONLIB_INSTALL_DIR) $(_PYTHONLIB_INSTALL_DIRLIST) $(_PYTHONLIB_INSTALL_LIST)
 
@@ -583,7 +583,7 @@ $(_PYTHONLIB_INSTALL_DIRLIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR
 	rm -rf $@
 	mkdir -p $@
 	chmod 0775 $@
-	chgrp $(DEFAULT_GROUP) $@	
+	chgrp $(DEFAULT_GROUP) $@
 
 install_html: install_css install_html_script install_html_perllib install_html_pythonlib
 
@@ -599,24 +599,24 @@ $(_HTML_ALL_SCRIPT_INSTALL_LIST): $(SCRIPT_HTML_INSTALL_DIR)/%: $(SCRIPT_HTML_BU
 
 install_html_perllib: build_html_perllib $(PERLLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PERLLIB_INSTALL_LIST)
 
-$(_HTML_ALL_PERLLIB_INSTALL_LIST): $(PERLLIB_HTML_INSTALL_DIR)/%: $(PERLLIB_HTML_BUILD_DIR)/% 
+$(_HTML_ALL_PERLLIB_INSTALL_LIST): $(PERLLIB_HTML_INSTALL_DIR)/%: $(PERLLIB_HTML_BUILD_DIR)/%
 	install -g $(DEFAULT_GROUP) -m 0775 $< $@
- 
+
 install_html_pythonlib: build_html_pythonlib $(PYTHONLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PYTHONLIB_INSTALL_LIST)
 
-$(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/% 
+$(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/%
 	if test -e $<; then install -g $(DEFAULT_GROUP) -m 0775 $< $@; fi
- 
+
 # clean......................................................
 
-clean: 
+clean:
 	rm -rf $(LOCAL_BUILD_DIR)
 	rm -f pod2htmd.tmp pod2htmi.tmp
 	rm -f $(PYTHONLIB_SRC_DIR)/*.pyc
 
 # build......................................................
 
-build: build_shared build_scripts build_perl_libs build_python_libs build_html 
+build: build_shared build_scripts build_perl_libs build_python_libs build_html
 
 # build shared files ........................................
 
@@ -633,13 +633,13 @@ $(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/%
 build_scripts: $(SCRIPT_BUILD_DIR) $(_SCRIPT_BUILD_LIST)
 
 $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/%
-	cp $< $(@D) 
+	cp $< $(@D)
 	chmod u+x $@
 
-# browsedb.pl needs to be patched, so we have an 
+# browsedb.pl needs to be patched, so we have an
 # extra rule here:
 $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
-	cp $< $(@D) 
+	cp $< $(@D)
 	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR)/browsedb \
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
 	chmod u+x $@
@@ -655,7 +655,7 @@ $(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%.py: $(SCRIPT_SRC_DIR)/%.py
 build_perl_libs: $(PERLLIB_BUILD_DIR) $(_PERLLIB_BUILD_DIRLIST) $(_PERLLIB_BUILD_LIST)
 
 $(PERLLIB_BUILD_DIR)/%: $(PERLLIB_SRC_DIR)/%
-	cp $< $(@D) 
+	cp $< $(@D)
 
 $(_PERLLIB_BUILD_DIRLIST): $(PERLLIB_BUILD_DIR)/%:
 	mkdir -p $@
@@ -665,7 +665,7 @@ $(_PERLLIB_BUILD_DIRLIST): $(PERLLIB_BUILD_DIR)/%:
 build_python_libs: $(PYTHONLIB_BUILD_DIR) $(_PYTHONLIB_BUILD_DIRLIST) $(_PYTHONLIB_BUILD_LIST)
 
 $(PYTHONLIB_BUILD_DIR)/%: $(PYTHONLIB_SRC_DIR)/%
-	cp $< $(@D) 
+	cp $< $(@D)
 
 $(_PYTHONLIB_BUILD_DIRLIST): $(PYTHONLIB_BUILD_DIR)/%:
 	mkdir -p $@
@@ -678,10 +678,10 @@ build_html: build_html_txt_doc build_html_script build_html_perllib build_html_p
 # build documentation from plain text files
 build_html_txt_doc: $(HTML_BUILD_DIR) $(_HTML_DOCTXT_TXT_BUILD_LIST) $(_HTML_RST_TXT_BUILD_LIST)
 
-$(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt	
+$(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt
 	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
 
-$(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt	
+$(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt
 ifdef DOCUTILS_AVAILABLE
 	rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) --cloak-email-addresses $< $@
 else
@@ -697,7 +697,7 @@ build_html_script: \
 	build_html_script_rst \
 	build_html_script_doctxt
 
-build_html_script_pods: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_POD_SCRIPT_BUILD_LIST) 
+build_html_script_pods: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_POD_SCRIPT_BUILD_LIST)
 
 $(_HTML_POD_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
 	pod2html --css ../$(CSS_SRC_FILE) $< > $@
@@ -842,4 +842,4 @@ found:
 	@echo PYTHONLIB_DIRLIST:
 	@echo $(PYTHONLIB_DIRLIST)
 	@echo "-------------------------------"
-	
+
