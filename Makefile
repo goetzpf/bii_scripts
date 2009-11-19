@@ -679,7 +679,7 @@ build_html: build_html_txt_doc build_html_script build_html_perllib build_html_p
 build_html_txt_doc: $(HTML_BUILD_DIR) $(_HTML_DOCTXT_TXT_BUILD_LIST) $(_HTML_RST_TXT_BUILD_LIST)
 
 $(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt	
-	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
+	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
 
 $(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt	
 ifdef DOCUTILS_AVAILABLE
@@ -712,22 +712,22 @@ build_html_script_plaintxt: $(SCRIPT_HTML_BUILD_DIR) \
 
 $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) $<  2>&1; true)   >> $@
+	(PERL5LIB=$(PERL5LIBNEW) perl $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) $< -h 2>&1; true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) perl $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.p
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) $< -h 2>&1; true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) perl $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) $< -h 2>&1; true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) perl $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
@@ -737,7 +737,7 @@ $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCR
 
 $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) $<  2>&1; true)   >> $@
+	(PERL5LIB=$(PERL5LIBNEW) perl $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
 build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST)
@@ -756,8 +756,8 @@ endif
 build_html_script_doctxt: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_DOCTXT_SCRIPT_BUILD_LIST)
 
 $(_HTML_DOCTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
-	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
@@ -773,8 +773,8 @@ $(_HTML_POD_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC
 build_html_perllib_doctxt: $(PERLLIB_HTML_BUILD_DIR) $(_HTML_DOCTXT_PERLLIB_BUILD_LIST)
 
 $(_HTML_DOCTXT_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm
-	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	PERL5LIB=$(PERL5LIBNEW) $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
