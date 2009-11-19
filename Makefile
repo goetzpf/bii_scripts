@@ -459,7 +459,7 @@ _DOC_ALL_PYTHONLIB_LIST= $(PYDOC_PYTHONLIB_LIST)
 _HTML_ALL_PERLLIB_INSTALL_LIST= \
   $(addprefix $(PERLLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PERLLIB_LIST)))
 
-# all html files for perl-libs that are installed 
+# all html files for python-libs that are installed 
 _HTML_ALL_PYTHONLIB_INSTALL_LIST= \
   $(addprefix $(PYTHONLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PYTHONLIB_LIST)))
 
