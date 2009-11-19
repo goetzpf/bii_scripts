@@ -605,7 +605,7 @@ $(_HTML_ALL_PERLLIB_INSTALL_LIST): $(PERLLIB_HTML_INSTALL_DIR)/%: $(PERLLIB_HTML
 install_html_pythonlib: build_html_pythonlib $(PYTHONLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PYTHONLIB_INSTALL_LIST)
 
 $(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/% 
-	install -g $(DEFAULT_GROUP) -m 0775 $< $@
+	if test -e $<; then install -g $(DEFAULT_GROUP) -m 0775 $< $@; fi
  
 # clean......................................................
 
