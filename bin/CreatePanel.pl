@@ -673,7 +673,9 @@ sub   getTemplate
     }
     else
     {    
-      die "error: widget named '$itemName' does not match option -type=${type}\n";
+      $itemName =~ /^(.*)\.\w+$/;
+      $widgetName = $1.".".$type;
+      warn "Warning: widget named '$itemName' does not match option -type=${type}\n	set widget name to: $widgetName";
     }
 
     if(defined $opt_i)
