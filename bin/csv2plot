@@ -1,0 +1,175 @@
+#!/usr/bin/python
+import re
+import os
+import math
+from optparse import OptionParser
+
+my_version = "1.0"
+
+    
+#if __name__ == "__main__":
+
+usage = " %prog [options] files\n\
+\n\
+Combine and convert numerical data from .csv files for gnuplot use\n\
+\n\
+- Pick an arbitrary column for the 'x' value and an arbitrary \n\
+  column for 'y' value (-u option, default=0:1).\n\
+- Look for x-values until the first file ends or the x-value is repeating.\n\
+  If the set of x-values is found new occuring x-values will exit the program\n\
+- Pick all occuring y-values to the set of x-value and store it.\n\
+  Format: x, y0,y1,...yn\n\
+- Process the data with the numeric options. Difference, Normalize...\n\
+- Format output to option -f\n\
+- Print to STDOUT or option -o OUTFILE"
+
+parser = OptionParser(usage=usage,
+		 version="%%prog %s" % my_version,
+    		)
+parser.add_option("-u","--using", 
+		action="store",
+    		type="string",
+		help="pick 2 columns from input file(s) USING='colX:colY'",
+    		)
+parser.add_option("-n","--normalized", 
+		action="store",
+    		type="float",
+		help="normalize to this value: Yn = Yn / NORMALIZED", 
+    		)
+parser.add_option("-d","--difference", 
+		action="store",
+    		type="int",
+		help="Difference to col n, Yn = Ydiff - Yn e.g -d 0 diff to x,  -d 2 diff. to col 2", 
+    		)
+parser.add_option("-o","--outfile", 
+		action="store",
+    		type="string",
+		help="output file, default is STDOUT", 
+    		)
+parser.add_option("-f","--format", 
+		action="store",
+    		type="string",
+		help="output file format: 'default=x, y0,y1,...yn', 'yerr=x,yMean.,xLow,yHigh'", 
+    		)
+parser.add_option("-c","--delimiterChar", 
+		action="store",
+    		type="string",
+		help="character for column delimiter. Default is '\\t'", 
+    		)
+parser.add_option("-v","--verbose", 
+		action="store_true",
+		help="Tell You what I do now",
+    		)
+(options, args) = parser.parse_args()
+
+def toStr():
+    s = ""
+    for x in xVector:
+    	s = s + str(x)+delimiter+delimiter.join(map(lambda x: str(x), xDict[x]))+"\n"
+    return s
+    
+if options.delimiterChar is not None:
+    delimiter = options.delimiterChar
+else:
+    delimiter = '\t'
+if options.verbose: print "Option delimiter:  '",delimiter,"'"
+if options.using is not None:
+    cols=options.using.split(':')
+    try:
+    	xCol=int(cols[0])
+    	yCol=int(cols[1])
+    except ValueError:
+	exit("Illegal value, Not a Number for -u option")
+else:
+    xCol=0
+    yCol=1
+if options.verbose: print "Use in file cols:  x=col-"+str(xCol)+" y=col-"+str(yCol)
+
+xDict = {}
+xVector = []
+
+inFirstSet = True
+if options.verbose: print "read File:"
+for inFile in args:
+    if options.verbose: print "\t\t  ",inFile
+    f = open(inFile,"r")
+    dBlock = f.read()
+    f.close()
+    lineIdx = 0
+    for line in dBlock.split('\n'):
+    	lineIdx += 1
+	line=line.strip()
+	if line.startswith('#') is True:
+	    continue
+	data = line.split(delimiter)
+	#print data
+	if len(data[0]) == 0:
+	    continue 
+	try:
+	    x = float(data[xCol])
+	    y = float(data[yCol])
+	except ValueError:
+	    exit("Illegal value (Not a Number) '"+line+"'\nin File: "+inFile+" Line:"+str(lineIdx))
+	
+	if xDict.has_key(x) is True:
+	    yVector = xDict[x]
+	    yVector.append(y)
+	    inFirstSet = False
+	else:
+    	    if inFirstSet == True:
+    	    	yVector = [y]
+    	    	xDict[x] = yVector
+    	    	xVector.append(x)
+    	    else:
+    	    	print "illegalValue x=",x," first set doesn't conatain this value"
+    	    	raise ValueError
+    inFirstSet = False
+
+if options.verbose: print "Done Input-files  \nFound x-Positions:","\n\t\t   ".join(map(lambda x: str(x), xVector))
+
+if options.difference is not None:
+    idx=options.difference
+    if options.verbose: 
+    	if(idx==0): s="x"
+	else: s="Y["+str(idx-1)
+	print "Option difference: Yn = Yn -"+s+"]"
+    for x in xVector:
+	yVector = xDict[x]
+	if idx==0:
+	    y0 = x
+	else:
+	    y0 = yVector[idx-1]
+	xDict[x] = map(lambda x: y0-x, yVector)
+	#print x,y0,yVector
+
+if options.normalized is not None:
+    if options.verbose: print "Option normalize:  Yn = Yn /",options.normalized
+    for x in xVector:
+	yVector = xDict[x]
+	n = float(options.normalized)
+	if n == 0.0: exit("ZERO is an illegal value for normalize")
+	xDict[x] = map(lambda x: x/n, yVector)
+
+if options.format is not None:
+    if options.format == 'yerr':
+        if options.verbose: print "write format       yerr = 'x, yMean, yLow, yHigh'"
+    	for x in xVector:
+            yVector = xDict[x]
+            yMin = min(yVector)
+            yMax = max(yVector)
+            yMean = reduce(lambda x,y: x+y,yVector)/len(yVector) 
+            xDict[x] = [yMean,yMin,yMax]
+else:
+    if options.verbose: print "write format       default = 'x, y0, y1,...yn'"
+
+
+out = toStr()
+if options.outfile is None:
+    print out
+else:
+    f = open(options.outfile,"w")
+    if options.verbose: print "Write file:       ",options.outfile
+    f.write(out+"\n")
+
+if options.outfile is not None:
+    f.close()

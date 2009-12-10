@@ -272,7 +272,8 @@ PLAINTXT_H_SCRIPT_LIST= \
 	dbdiff \
         hgdiff \
 	psh \
-	substdiff
+	substdiff\
+	csv2plot
 
 # scripts with no embedded documentation
 # create online help by executing "(script.p -h 2>&1; true)

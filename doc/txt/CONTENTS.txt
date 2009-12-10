@@ -90,6 +90,10 @@ Scripts
     and widgets for each item of the '.substitution' file.
   | `documentation <scripts/CreatePanel.html>`__
 
+**csv2plot**
+  | Combine and convert numerical data from .csv files for gnuplot use.
+  | `documentation <scripts/csv2plot.html>`__
+
 **cvs_diff.pl**
   | compare versions of a file in a CVS repository. This tool can remove emtpy
   | lines and c-comments before comparing.
