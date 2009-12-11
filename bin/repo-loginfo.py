@@ -63,7 +63,7 @@ Quick reference
 
     repo-loginfo.py --darcs --newer [year]-01-01 --changes --author [author] --dir [repository-directory]
 
-Note that the author is a regular expression, so you can specify something like "[Ss]mitch" in
+Note that the author is a regular expression, so you can specify something like "[Ss]mith" in
 order to catch all of "Smith", "smith", "smith@somecompany.com".
 
 Examples

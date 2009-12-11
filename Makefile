@@ -354,7 +354,7 @@ PYDOC_PYTHONLIB_LIST= \
 	typecheck.py
 
 # python scripts that need python 2.5
-PYTHON_2_5_SCRIPTS= rsync-dist-info.py sqlutil.py
+PYTHON_2_5_SCRIPTS= rsync-dist-info.py sqlutil.py repo-loginfo.py
 
 # scripts that have embedded documentation that can be HTML converted
 # with makeDocTxt
