@@ -120,10 +120,6 @@ examples/client.pl
 examples/server.pl
 examples/tclient.pl
 examples/tserver.pl
-ezca/.cvsignore
-ezca/CVS/Entries
-ezca/CVS/Repository
-ezca/CVS/Root
 ezca/Makefile.Host
 ezca/Makefile.PL
 ezca/Makefile.Unix

@@ -9,8 +9,10 @@
 
 <body style="background-color: white">
 
-<p><a name="__index__"></a></p>
+
 <!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
 
 <ul>
 
@@ -21,15 +23,17 @@
 
 		<li><a href="#preface">Preface</a></li>
 		<li><a href="#implemented_functions_">Implemented Functions:</a></li>
-		<li><a href="#functions_for_backwardscompability_">functions for backwards-compability:</a></li>
+		<li><a href="#functions_for_backwards_compability_">functions for backwards-compability:</a></li>
 	</ul>
 
 	<li><a href="#author">AUTHOR</a></li>
 	<li><a href="#see_also">SEE ALSO</a></li>
 </ul>
+
+<hr name="index" />
+</div>
 <!-- INDEX END -->
 
-<hr />
 <p>
 </p>
 <h1><a name="name">NAME</a></h1>
@@ -273,6 +277,23 @@ up with Pezca::SetMonitorString().</p>
 <p>Switch ezca error-messages to stdout off</p>
 </li>
 <li>
+<p><strong>Perror</strong></p>
+<pre>
+  Pezca::Perror($prefix)</pre>
+<p>Print the status and possible error string of the last
+Channel Access call. The prefix string is prepended to the
+string.</p>
+</li>
+<li>
+<p><strong>GetErrorString</strong></p>
+<pre>
+  ($ret,$string)= Pezca::GetErrorString($prefix)</pre>
+<p>Return the status and possible error string of the last
+Channel Access call. The prefix string is prepended to the
+string that is returned. The return value &quot;$ret&quot; is the return code
+of <code>ezcaGetErrorString()</code>.</p>
+</li>
+<li>
 <p><strong>Delay</strong></p>
 <pre>
   $errcode= Pezca::Delay($time)</pre>
@@ -291,7 +312,7 @@ which Pend_Event returns.</p>
 </ul>
 <p>
 </p>
-<h2><a name="functions_for_backwardscompability_">functions for backwards-compability:</a></h2>
+<h2><a name="functions_for_backwards_compability_">functions for backwards-compability:</a></h2>
 <p>These functions are here for backwards compability only. Do not
 use them in future applications.</p>
 <ul>
@@ -365,7 +386,7 @@ use them in future applications.</p>
 </p>
 <hr />
 <h1><a name="see_also">SEE ALSO</a></h1>
-<p>perl(1),</p>
+<p><code>perl(1)</code>,</p>
 <p>EPICS-documentation (especially ezca, the easy channel access library)</p>
 
 </body>

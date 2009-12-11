@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 
 );
-$VERSION = '0.4';
+$VERSION = '0.5';
 
 bootstrap Pezca $VERSION;
 
@@ -316,6 +316,27 @@ B<AutoErrorMessageOff>
   Pezca::AutoErrorMessageOff()    
 
 Switch ezca error-messages to stdout off
+
+=item *
+
+B<Perror>
+
+  Pezca::Perror($prefix)    
+
+Print the status and possible error string of the last
+Channel Access call. The prefix string is prepended to the
+string.
+
+=item *
+
+B<GetErrorString>
+
+  ($ret,$string)= Pezca::GetErrorString($prefix)    
+
+Return the status and possible error string of the last
+Channel Access call. The prefix string is prepended to the
+string that is returned. The return value "$ret" is the return code
+of ezcaGetErrorString().
 
 =item *
 

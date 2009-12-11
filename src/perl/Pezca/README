@@ -5,7 +5,8 @@ license:
 The software license is documented in the file LICENSE. 
 Note that this package contains code from the EPICS distribution
 in form of c source-code. Note that these files have their own copyright
-and were NOT developed at BESSY GmbH.
+and were NOT developed at the 
+Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB).
 
 compiling the module when EPICS is already installed:
 --------------------

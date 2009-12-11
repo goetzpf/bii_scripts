@@ -1,26 +1,27 @@
 /*
-  This software is copyrighted by the BERLINER SPEICHERRING
-  GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
-  The following terms apply to all files assiciated with the software.
-
-  BESSY hereby grants permission to use, copy and modify this
-  software and its documentation for non-commercial, educational or
-  research purposes provided that existing copyright notices are
-  retained in all copies.
-
-  The receiver of the software provides BESSY with all enhancements,
-  including complete translations, made by the receiver.
-
-  IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
-  SPECIAL, INCIDENTIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
-  OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN
-  IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  BESSY SPECIFICALLY DISPLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
-  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-  PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
-  BASIS, AND BESSY HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
-  UPDATES, ENHANCEMENTS OF MODIFICTAIONS.
+ This software is copyrighted by the
+ Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),
+ Berlin, Germany.
+ The following terms apply to all files associated with the software.
+ 
+ HZB hereby grants permission to use, copy and modify this
+ software and its documentation for non-commercial, educational or
+ research purposes provided that existing copyright notices are
+ retained in all copies.
+ 
+ The receiver of the software provides HZB with all enhancements, 
+ including complete translations, made by the receiver.
+ 
+ IN NO EVENT SHALL HZB BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+ SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+ OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN 
+ IF HZB HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ HZB SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
+ BASIS, AND HZB HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+ UPDATES, ENHANCEMENTS OR MODIFICATIONS.
 */
 
 #ifdef __cplusplus
@@ -621,6 +622,30 @@ AutoErrorMessageOff()
         PROTOTYPE:
         CODE:
         ezcaAutoErrorMessageOff();
+
+void 
+Perror(prefix)
+	char *prefix
+        PROTOTYPE: $
+        CODE:
+        ezcaPerror(prefix);
+
+int 
+GetErrorString(prefix)
+	char *prefix
+	PROTOTYPE: $
+	PPCODE:
+	char *buf;
+	int ret;
+	ret= ezcaGetErrorString(prefix,&buf);
+	EXTEND(sp, 2);
+        PUSHs(sv_2mortal(newSViv(ret)));
+	PUSHs(sv_2mortal(newSVpv(buf,0)));
+	ezcaFree(buf);
+
+
+
+
 
 #void
 #Test(pvname)
