@@ -294,6 +294,10 @@ Scripts
   | `documentation <scripts/pyone.html>`__
   | `source <scripts/pyone.py>`__
 
+**repo-loginfo.py**
+  | print log summaries for darcs or mercurial repositories.
+  | `documentation <scripts/repo-loginfo.html>`__
+
 **rsync-deploy**
   | tool for management for distribution of binary files with. The successor of
     this script is rsync-dist.pl.

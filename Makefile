@@ -311,8 +311,9 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 RST_DOC_PY_SCRIPT_LIST= \
 	archiver2camonitor.py \
 	db_request.py \
+	repo-loginfo.py \
 	rsync-dist-info.py \
-	txtcleanup.py
+	txtcleanup.py 
 
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
