@@ -53,7 +53,7 @@ def caget(pv,type_=float, tmo=0.01, maxtmo=3):
     ch= ca.channel(pv)
     ch.wait_conn()
     if not ch.isConnected():
-        raise caError, "no connection to PV '%s'" % pv
+        raise ca.caError, "no connection to PV '%s'" % pv
     epicstype= typemap.get(type_)
     if epicstype is None:
         raise ValueError, "unsupported type: '%s'" % type_
@@ -63,7 +63,8 @@ def caget(pv,type_=float, tmo=0.01, maxtmo=3):
         time.sleep(tmo)
         maxtmo -=tmo
         if maxtmo <=0:
-            raise caError,"unable to get value for PV '%s'" % pv
+	    ch.clear()
+            raise ca.caError,"unable to get value for PV '%s'" % pv
     # garbage collection of ch will remove the channel access connection
     ch.clear()
     return (ch.val, datetime.datetime.fromtimestamp(ca.TS2UTC(ch.ts)))
