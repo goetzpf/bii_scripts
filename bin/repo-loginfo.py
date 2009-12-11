@@ -433,6 +433,8 @@ def GetDarcsLogs(directory=None, reponame= None, count_changes= False,
     parameters:
         directory  -- the start directory.
     """
+    def tomorrow():
+        return datetime.datetime.today()+datetime.timedelta(days=1)
     olddir= my_chdir(directory, dry_run)
 
     cmd_add= ""
@@ -440,7 +442,7 @@ def GetDarcsLogs(directory=None, reponame= None, count_changes= False,
         if (from_date is None):
             from_date= "2000-01-01"
         if (to_date is None):
-            to_date= datetime.datetime.today().strftime("%Y-%m-%d")
+            to_date= tomorrow().strftime("%Y-%m-%d")
         cmd_add= " --match \"date %s/%s\"" % (from_date, to_date)
     counter_dict= {}
     if count_changes:
