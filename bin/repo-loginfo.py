@@ -66,31 +66,85 @@ Quick reference
 Note that the author is a regular expression, so you can specify something like "[Ss]mith" in
 order to catch all of "Smith", "smith", "smith@somecompany.com".
 
-Examples
+Command Examples
 =================================
 
 The following examples can be executed on host aragon.acc.bessy.de.
 
-Query the MultiCAN repository, show all changes of 2009::
+all changes from last year
+--------------------------
+
+This command queries the MultiCAN repository and shows all changes of 2009::
 
   repo-loginfo.py --newer 2009-01-01 --darcs --dir /opt/repositories/controls/darcs/epics/support/mcan/base-3-14
 
-Query the BII-Controls repository, show all changes of 2009 with the number of changed lines::
+These are some lines from the output of this command::
+
+  2009-04-27 11:52 benjamin.franksen@bessy.de          upgraded module soft to version R2-5 (which no longer contains cvtRecordApp)
+  2009-04-27 11:53 benjamin.franksen@bessy.de          TAG R2-3-9
+  2009-05-11 11:03 benjamin.franksen@bessy.de          re-enable CI_LOST_IRQ_FIX (in vcan driver)
+
+all changes from last year with deleted and added lines
+-------------------------------------------------------
+
+This command queries the BII-Controls repository and shows all changes from 2009 
+with the number of changed lines::
 
   repo-loginfo.py --newer 2009-01-01 --darcs --changes --dir /opt/repositories/controls/darcs/epics/ioc/BII-Controls/base-3-14
+
+These are some lines from the output of this command::
+
+  2009-01-06 11:29 Bernhard.Kuner@bessy.de                -3     3 Update: remove GPNIs from all panels, Fix: remove debug output (VacuumApp)
+  2009-01-07 11:47 Thomas.Birke@bessy.de                -317    19 fixed vacuum sub-panels for W7* (WLS7App, HMIApp)
+  2009-01-07 18:47 Thomas.Birke@bessy.de                  -4     7 cleaned up command-bit handling - esp. for kicker/septa (PowerSupApp)
+  2009-01-08 13:30 Bernhard.Kuner@bessy.de                -1    71 Add laserMotorServicePanel.mfp (MotorApp)
+
+
+all changes since a given date for a single user
+------------------------------------------------
 
 Query the MultiCAN repository, show all changes of 2007 made by user "pfeiffer"::
 
   repo-loginfo.py --newer 2007-01-01 --older 2008-01-01 --author '[Pp]feiffer' --darcs --dir /opt/repositories/controls/darcs/epics/support/mcan/base-3-13
+
+These are some lines from the output of this command::
+
+  2007-01-18 15:54 pfeiffer@mail.bessy.de              TAG R1-17-1
+  2007-02-06 12:08 Goetz.Pfeiffer@bessy.de             The inline documentation had to be changed: the
+  2007-10-09 11:58 Goetz.Pfeiffer,15.8.204,6392-4862,@bessy.de support for VCAN2 and VCAN4 was slightly improved
+
+all changes for a given year for a single user without user name, with deleted and added lines
+------------------------------------------------------------------------------------------------
 
 Query the MultiCAN repository, show all changes of 2007 made by user "pfeiffer" without printing the author and
 with changed lines::
 
   repo-loginfo.py --newer 2007-01-01 --older 2008-01-01 --author '[Pp]feiffer' --no-author --changes --darcs --dir /opt/repositories/controls/darcs/epics/support/mcan/base-3-13
 
+These are some lines from the output of this command::
+
+  2007-01-18 14:45    -2    24 time stamps of monitored objects are now printed too
+  2007-01-18 15:17    -2     4 a simple type error was corrected
+  2007-01-18 15:54     0     0 TAG R1-17-1
+  2007-02-06 12:08   -25    21 The inline documentation had to be changed: the
+
+all changes since a given date for two repositories
+---------------------------------------------------
+
 Query both MultiCAN repositories, base-3-13 and base-3-14 and show all changes of 2007::
 
   repo-loginfo.py --newer 2007-01-01 --older 2008-01-01 --repos 'MCAN-3.13:/opt/repositories/controls/darcs/epics/support/mcan/base-3-13:darcs,MCAN-3.14:/opt/repositories/controls/darcs/epics/support/mcan/base-3-14:darcs'
+
+These are some lines from the output of this command::
+
+  2007-01-10 14:48 benjamin.franksen@bessy.de          MCAN-3.14    beautified info messages (mCANSupport)
+  2007-01-12 15:03 benjamin.franksen@bessy.de          MCAN-3.14    TAG R2-0
+  2007-01-18 14:45 pfeiffer@mail.bessy.de              MCAN-3.13    time stamps of monitored objects are now printed too
+  2007-02-06 14:35 Goetz.Pfeiffer@bessy.de             MCAN-3.13    TAG R1-17-2
+  2007-10-09 12:08 Bernhard.Kuner@bessy.de             MCAN-3.13    Add vtest.o to MultiCAN library in base3-13
+
+all changes for a given year for two repositories with specification file
+-------------------------------------------------------------------------
 
 Query both MultiCAN repositories, base-3-13 and base-3-14 and show all changes of 2007 but this time
 using a REPOSPECIFICATIONFILE::
@@ -98,6 +152,19 @@ using a REPOSPECIFICATIONFILE::
   echo "MCAN-3.13 /opt/repositories/controls/darcs/epics/support/mcan/base-3-13 darcs" >  /tmp/REPOSPEC
   echo "MCAN-3.14 /opt/repositories/controls/darcs/epics/support/mcan/base-3-14 darcs" >> /tmp/REPOSPEC
   repo-loginfo.py --newer 2007-01-01 --older 2008-01-01 --repos-file /tmp/REPOSPEC
+
+This is the content of the REPOSPEC file::
+
+  MCAN-3.13 /opt/repositories/controls/darcs/epics/support/mcan/base-3-13 darcs
+  MCAN-3.14 /opt/repositories/controls/darcs/epics/support/mcan/base-3-14 darcs
+
+And these are some lines from the output of this command::
+
+  2007-01-12 15:03 benjamin.franksen@bessy.de          MCAN-3.14    TAG R2-0
+  2007-01-18 14:45 pfeiffer@mail.bessy.de              MCAN-3.13    time stamps of monitored objects are now printed too
+  2007-01-18 15:17 pfeiffer@mail.bessy.de              MCAN-3.13    a simple type error was corrected
+  2007-11-26 09:51 Ralf Hartmann <Ralf.Hartmann@bessy.de> MCAN-3.14    TAG R2-2-1
+
 
 Reference of command line options
 =================================
@@ -152,10 +219,10 @@ Reference of command line options
   you collect log information of several repositories and want to
   collect them in a single file.
 
---newer DATE
+--newer DATESPEC
   print only changes at or after the given date.
 
---older DATE
+--older DATESPEC
   print only changes at or before the given date.
 
 --repos REPOSPECIFICATION
