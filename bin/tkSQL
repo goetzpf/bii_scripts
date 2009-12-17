@@ -163,7 +163,9 @@ proc Exit {{write 1}} {
       append rlm "set autoloadModule($k) \"$autoloadModule($k)\"\n"
     }
 
-    write_file $env(HOME)/.tkSQL-rc "\# $env(HOME)/.tkSQL-rc -*- tcl -*-\n\
+    file delete $env(HOME)/.tkSQL-rc
+    file mkdir $env(HOME)/.tkSQL
+    write_file $env(HOME)/.tkSQL/config "\# $env(HOME)/.tkSQL/config -*- tcl -*-\n\
 \# manually added settings\n\
 ${userRC}\# automatically added settings\n\
 \n\
@@ -187,7 +189,7 @@ $keys\n\n$rlm"
     regsub -all "\n\n" [.history.txt get 0.0 end] "\001" hist
     set hist [join [lrange [split $hist "\001"] end-$HistSize end] "\n\n"]
     regsub "^\n*" $hist "" hist
-    catch {write_file $env(HOME)/.tkSQL-history-$dbuser-$database-$sessnum $hist}
+    catch {write_file $env(HOME)/.tkSQL/$dbuser-$database-$sessnum $hist}
   }
   exit
 }
@@ -804,8 +806,8 @@ if {"$argv0" == [lindex $argv 0]} {
 set connectStrings "$env(USER)@$env(ORACLE_SID)"
 set userRC "\n\n"
 
-set rcfile $env(HOME)/.tkSQL-rc
-set rcfile2 $env(HOME)/.SqlPlus-rc
+set rcfile $env(HOME)/.tkSQL/config
+set rcfile2 $env(HOME)/.tkSQL-rc
 if {![file exists $rcfile] && [file exists $rcfile2]} {
   set rrcfile $rcfile2
 } else {
@@ -1250,16 +1252,15 @@ pack .clipboard.n .clipboard.m -side right -padx 0 -ipadx 0
 
 set hist ""
 set didit 0
-foreach h {tkSQL SqlPlus} {
-  foreach t "-$dbuser-$database-$sessnum {}" {
-    if {!$didit && [file exists $env(HOME)/.$h-history$t] && 
-	![catch {set hist [read_file $env(HOME)/.$h-history$t]}]} {
-      set didit 1
+foreach p {.tkSQL/ .tkSQL-history-} {
+    if {!$didit && [file exists $env(HOME)/$p$dbuser-$database-$sessnum] && 
+        ![catch {set hist [read_file $env(HOME)/$p$dbuser-$database-$sessnum]}]} {
+        set didit 1
+        if { [regexp "history" $p]} {
+            file delete $env(HOME)/$p$dbuser-$database-$sessnum
+        }
     }
-  }
 }
-catch {file delete -force -- $env(HOME)/.SqlPlus-history-$dbuser-$database-$sessnum}
-catch {file delete -force -- $env(HOME)/.SqlPlus-history}
 
 regsub -all ";·" $hist ";" hist
 regsub -all "\n\n\n*" $hist "\n\n" hist
