@@ -311,9 +311,11 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 RST_DOC_PY_SCRIPT_LIST= \
 	archiver2camonitor.py \
 	db_request.py \
+	hg-recover.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
 	txtcleanup.py 
+
 
 # perl libraries with embedded POD documentation
 POD_PERLLIB_LIST= \
@@ -354,13 +356,17 @@ PYDOC_PYTHONLIB_LIST= \
 	typecheck.py
 
 # python scripts that need python 2.5
-PYTHON_2_5_SCRIPTS= rsync-dist-info.py sqlutil.py repo-loginfo.py
+PYTHON_2_5_SCRIPTS= \
+	hg-recover.py \
+	repo-loginfo.py \
+	rsync-dist-info.py \
+	sqlutil.py
 
 # scripts that have embedded documentation that can be HTML converted
 # with makeDocTxt
 DOCTXT_SCRIPT_LIST= makeDocTxt.pl \
 	CreatePanel.pl 	\
-	stripUnresolvedDb.pl 		\
+	stripUnresolvedDb.pl \
 	bdns_sort.pl \
 	grepDb.pl
 
