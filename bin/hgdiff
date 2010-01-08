@@ -36,7 +36,7 @@ show_help() {
 
 
 TEMP=`getopt -o hkr: \
-     -n 'hgtd' -- "$@"`
+     -n 'hgdiff' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 
