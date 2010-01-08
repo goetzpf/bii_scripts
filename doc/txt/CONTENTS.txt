@@ -227,6 +227,18 @@ Scripts
   | `documentation <scripts/hgen.html>`__
   | `source <scripts/hgen.pl>`__
 
+**hg-recover.py**
+  | A backup and recovery tool for mercurial. 
+  | Instead of saving the complete repository this script only saves differences
+    relative to a central mercurial repository. By this, much disk space is saved,
+    the backup file has usually only about 100kBytes or less.
+    This can be used together with rsync-dist.pl to distribute a small recovery
+    file together with the application. If it is needed, it is possible to restore
+    the state of the original working copy and mercurial repository from which the
+    application was built. 
+  | `documentation <scripts/hg-recover.html>`__
+  | `source <scripts/hg-recover.py>`__
+
 **latin1toutf8.sh**
   | convert latin-1 texts to utf-8 (calls the iconv utility).
 
@@ -297,6 +309,7 @@ Scripts
 **repo-loginfo.py**
   | print log summaries for darcs or mercurial repositories.
   | `documentation <scripts/repo-loginfo.html>`__
+  | `source <scripts/repo-loginfo.py>`__
 
 **rsync-deploy**
   | tool for management for distribution of binary files with. The successor of
