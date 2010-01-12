@@ -275,6 +275,15 @@ def search_datafile(data_dir):
         sys.exit("error, neither \"%s\" not \"%s\" found" % (data_dir,base))
     return base
 
+def remove_paths(path_list, paths_to_remove):
+    """removes paths from a list of paths."""
+    new= []
+    paths_to_remove= [os.path.abspath(p) for p in paths_to_remove]
+    for p in path_list:
+	if os.path.abspath(p) not in paths_to_remove:
+	    new.append(p)
+    return new
+
 def is_subdir(parent_dir, dir):
     """test if dir is a sub-directory of parent_dir.
     
@@ -315,10 +324,6 @@ def my_relpath(path, start):
     if len(new)==0:
         return "."
     return os.path.join(*new)
-
-
-
-
 
 def rm_files(filelist, verbose, dry_run):
     """remove all files from the list if they exist."""
@@ -527,7 +532,7 @@ def hg_status(exclude_list, hg_options, verbose):
 def hg_unknown_files(exclude_list, verbose):
     """return a list of files unknown to mercurial.
     
-    Note that the exclude_dir (if given) and it's contents are 
+    Note that files from the exclude_list (if given) are 
     removed from the list of unknown files.
     """
     files= hg_status(exclude_list, "-u", verbose)
@@ -605,14 +610,12 @@ def create_recover_data(working_copy,
     if central_repo is None:
         central_repo= default_repo
     (revision, uncommitted_changes)= hg_revision(verbose or dry_run)
-    if not is_subdir(working_copy,data_dir):
-        exclude_list= []
-    else:
-        exclude_list= [data_dir]
-        if extension!="":
-            exclude_list.append(data_dir+extension)
+    unknown_files= hg_unknown_files([], verbose)
+    exclude_list= [data_dir]
+    if extension!="":
+	exclude_list.append(data_dir+extension)
+    unknown_files= remove_paths(unknown_files, exclude_list)
 
-    unknown_files= hg_unknown_files(exclude_list, verbose)
     source_path= os.getcwd()
     outgoing_patches= hg_outgoing(central_repo, verbose or dry_run)
     bag= { 
