@@ -67,6 +67,16 @@ my $callback;
 
 my @include_paths;
 
+# current line position:
+my $gbl_line_column= 0;
+
+# current line number:
+my $gbl_line_row=0;
+
+my $gbl_last_index=-1;
+my @gbl_byte_positions=();
+my @gbl_line_numbers=();
+
 use constant {
   SM_NO             => 0x00,
 
@@ -120,7 +130,10 @@ my %is_bracket= ( '(' => 1,
                   '}' => 1);
 
 my %simple_keywords= map{ $_ => 1 } 
-              qw (else endif endfor dumphash ifstack silent loud leave begin end);
+              qw (else endif endfor dumphash ifstack 
+                  lineno column
+                  silent loud leave 
+                  begin end);
 
 my %arg_keywords= (set      => KY_STD|KY_BLOCK|KY_REPLACE,
                    eval     => KY_STD|KY_BLOCK|KY_REPLACE|KY_PRINT,
@@ -136,7 +149,7 @@ my %arg_keywords= (set      => KY_STD|KY_BLOCK|KY_REPLACE,
                    debug    => KY_STD,
                    export   => KY_STD,
                    list     => KY_STD,
-                   list_new => KY_STD,
+                   list_new => KY_STD
                    );
 
 my %functions;
@@ -196,6 +209,14 @@ sub declare_func
   { my($identifier,$funcname)= @_;
     $functions{$identifier}= $funcname;
   }
+
+sub lineno
+# return the current line number starting with 1
+  { return $gbl_line_row; }
+
+sub column
+# return the current column, starting with 0
+  { return $gbl_line_column; }
 
 sub parse_file
   { my($filename, %options)= @_;
@@ -284,7 +305,7 @@ sub parse_scalar_i
             else
               { open(F, ">$filename") or die "unable to create $filename";
                 $fh= \*F;
-		$must_close_fh= 1;
+                $must_close_fh= 1;
               }
           };
       };
@@ -292,8 +313,11 @@ sub parse_scalar_i
     if (exists $options{callback}) 
       { $callback= $options{callback}; }; 
 
+    # calculate global line-number -> position mapping
+    string_lineno_list($r_line, \@gbl_byte_positions, \@gbl_line_numbers);
 
     my $max= length($$r_line);
+    my $local_match_pos;
 
     for(pos($$r_line)= 0, $p=0;
         $$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\\\$|\\$|\s+|$)/gsm;
@@ -306,10 +330,12 @@ sub parse_scalar_i
         $pre= $1;
         $post= $2;
 
+        $local_match_pos= pos($$r_line)-length($post);
+
         if ($pre ne "")
           { print $fh $pre if ($ifcond[-1]>0); };
 
-        if ($post=~ /\s+/)
+        if ($post=~ /^\s+$/)
           { next if ($silent);
             print $fh $post if ($ifcond[-1]>0);
             next;
@@ -344,15 +370,19 @@ sub parse_scalar_i
 
         if ($post eq "\\") # backslash at end of line
           { 
-            $p= pos($$r_line);
-            if ($$r_line!~ /\G(.*?)^/gsm)
-              { pos($$r_line)= $p; 
-              };
+            #$p= pos($$r_line);
+            #if ($$r_line!~ /\G(.*?)^/gsm)
+            #  { pos($$r_line)= $p; 
+            #  };
             next;  
           }
 
         # from here, $pos must be '$'
         die "internal error" if ($post ne '$'); # assertion
+
+        # row and column are calculated here since the rowcol
+        # call may be a bit expensive
+        ($gbl_line_row,$gbl_line_column)= rowcol($local_match_pos);
 
         $p= pos($$r_line); # pos after "$"
 
@@ -371,7 +401,7 @@ sub parse_scalar_i
             if ($debug)
               { warn "--- \"$ex\" recognized,\n"; };
             $err_line= __LINE__;
-            print $fh eval_func_block($ex,$r_line,$st,$en);;
+            print $fh eval_func_block($ex,$r_line,$st,$en);
             pos($$r_line)= $en+1;
             next;
           };
@@ -516,7 +546,7 @@ sub parse_scalar_i
 #die "res: $res\n";
                     my %local_options= %options;
                     $local_options{filehandle}= $fh;
-		    parse_file($f,%local_options); 
+                    parse_file($f,%local_options); 
                   } 
                 pos($$r_line)= $en+1;
                 next;
@@ -532,14 +562,14 @@ sub parse_scalar_i
                   { # do not actually do the thing 
                     # when we are within an ignore-block
                     close(F) if ($must_close_fh);
-		    if ($ex eq 'write_to')
-		      {  open(F, ">$res")  or die "unable to create $res"; 
-		      }
-		    else
-		      { open(F, ">>$res") or die "unable to create $res"; 
-		      }
+                    if ($ex eq 'write_to')
+                      {  open(F, ">$res")  or die "unable to create $res"; 
+                      }
+                    else
+                      { open(F, ">>$res") or die "unable to create $res"; 
+                      }
                     $fh= \*F;
-		    $must_close_fh= 1;
+                    $must_close_fh= 1;
                   } 
                 pos($$r_line)= $en+1;
                 next;
@@ -583,19 +613,19 @@ sub parse_scalar_i
 
                     my $format= "%-${len}s=\"%s\"";
 
-		    for(my $i=0; $i<=$#l; $i++)
+                    for(my $i=0; $i<=$#l; $i++)
                       { my $k= $l[$i];
-		        my $ref= ref($m{$k});
-			if    ($ref eq "")
-			  { printf $format, $k, $m{$k}; }
-			elsif ($ref eq "ARRAY")
-			  { printf $format, $k, join(",",@{$m{$k}}); }
-			else
-			  { die "unexpected ref type: $ref"; };
-			if ($i<$#l)
-			  { print $sep; };
-			print "\n";
-		      };
+                        my $ref= ref($m{$k});
+                        if    ($ref eq "")
+                          { printf $format, $k, $m{$k}; }
+                        elsif ($ref eq "ARRAY")
+                          { printf $format, $k, join(",",@{$m{$k}}); }
+                        else
+                          { die "unexpected ref type: $ref"; };
+                        if ($i<$#l)
+                          { print $sep; };
+                        print "\n";
+                      };
 
                   };
                 pos($$r_line)= $en+1;
@@ -635,6 +665,17 @@ sub parse_scalar_i
                     %m= %$r_back;
                   }  
                 next;
+              }
+
+            if ($ex eq 'lineno')
+              {
+                print $gbl_line_row;
+                next; 
+              }
+            if ($ex eq 'column')
+              {
+                print $gbl_line_column;
+                next; 
               }
 
             if ($ex eq 'dumphash')
@@ -941,6 +982,143 @@ sub fatal_parse_error
     die $err;
   }
 
+sub bsearch_quick
+  { my($val,$index,$r_lower,$r_upper,$r_list)= @_;
+    my $lval= $r_list->[$index];
+    if ($lval==$val)
+      { return $index; }
+    if ($lval<$val)
+      { $$r_lower= $index; 
+        return -1;
+      }
+    else
+      { $$r_upper= $index;
+        return -1;
+      }
+  }
+    
+sub bsearch
+# binary search in a list
+# returns ($a,$b) with:
+#   $a==$b : $list[$a]==$elm
+#   $a>=0 && $b>=0 && $a!=$b: $list[$a]<$elm<$list[$b]
+#   $a==-1 && $b==0: $elm<$list[0]
+#   $a==length($list)-1 && $b==-1: $list[length($list)-1]<$elm
+  { my($r_list,$elm,$r_last)= @_;
+
+    my $lower=0;
+    my $upper= $#$r_list;
+    my $i;
+    my $val;
+    # print "-------\n"; # @@@ # @@@
+    if ($$r_last>=0)
+      { 
+        # print "TRY QSEARCH ($elm) "; # @@@ # @@@
+        my $result= bsearch_quick($elm, $$r_last, \$lower, \$upper, $r_list);
+        if ($result>=0)
+          { 
+            $$r_last= $result;
+            # print "return:$result\n"; # @@@ # @@@
+            return ($result,$result);
+          }
+        if ($$r_last<$upper)
+          {
+            $result= bsearch_quick($elm, $$r_last+1, \$lower, \$upper, $r_list);
+            if ($result>=0)
+              { 
+                $$r_last= $result;
+                # print "return(2nd):$result\n"; # @@@ # @@@
+                return ($result,$result);
+              }
+          }
+      }
+    # print "DO BINSEARCH ($elm): lower:$lower upper:$upper "; # @@@ # @@@
+    while(1)
+      { 
+        if ($upper-$lower<=1)
+          {
+            if ($r_list->[$lower]==$elm)
+              { 
+                $$r_last= $lower;
+                # print "return:$lower\n"; # @@@ # @@@
+                return ($lower, $lower);
+              }
+            if ($r_list->[$upper]==$elm)
+              { 
+                $$r_last= $upper;
+                # print "return:$upper\n"; # @@@ # @@@
+                return ($upper, $upper);
+              }
+            if ($r_list->[$lower]>$elm)
+              {
+                $$r_last= -1;
+                # print "return:(-1,0)\n"; # @@@ # @@@
+                return (-1, 0);
+              }
+            if ($r_list->[$upper]<$elm)
+              {
+                $$r_last= -1;
+                # print "return:($#$r_list,-1)\n"; # @@@ # @@@
+                return ($#$r_list, -1);
+              }
+            $$r_last= $lower;
+            # print "return:($lower,$upper)\n"; # @@@ # @@@
+            return ($lower, $upper);
+          }
+        $i= int(($upper+$lower)/2);
+        $val= $r_list->[$i];
+        if ($val<$elm)
+          {
+            $lower= $i;
+            next;
+          }
+        if ($val>$elm)
+          {
+            $upper= $i;
+            next;
+          }
+        if ($val==$elm)
+          {
+            $$r_last= $i;
+            # print "return: $i\n"; # @@@ # @@@
+            return($i,$i);
+          }
+      }
+  }
+
+sub string_lineno_list
+  # returns two lists, a list of byte-positions and
+  # a list of corresponding line numbers.
+  { my($r_str,$r_byte_positions,$r_line_numbers)= @_;
+    my $lineno=1;
+
+    @$r_byte_positions= (0);
+    @$r_line_numbers= (1);
+
+    pos($$r_str)=0;
+    my $oldpos=-1;
+#    while($$r_str=~ /\G.*?^(.*?)$/gms)
+    while($$r_str=~ /\G(.*?)\r?\n/gms)
+      { 
+        push @$r_byte_positions, pos($$r_str);
+        push @$r_line_numbers, ++$lineno;
+      };
+  }      
+
+sub rowcol
+# returns the current row and column,
+# note that rows start with 1 but columns start with 0
+  { my($position)= @_;
+
+    my($a,$b) = bsearch(\@gbl_byte_positions, $position, \$gbl_last_index);
+    if ($a<0)
+      {
+        die "assertion in line ",__LINE__;
+      }
+    #print "## pos: $position, gbl-pos:$gbl_byte_positions[$a]\n";
+    return $gbl_line_numbers[$a], $position-$gbl_byte_positions[$a];
+  }
+
 sub find_position_in_string
 # gets a position as returned by pos(..) in a
 # multi-line strings and returns a pair (row,column)
@@ -1079,13 +1257,13 @@ sub variable_expand
           }
 
         # user functions within an ignore-part are:
-	#  ignored ;-)
-	if (($in_ignore_part) && ($type == SM_FUNC))
-	  { pos($$r_line)= $p;
+        #  ignored ;-)
+        if (($in_ignore_part) && ($type == SM_FUNC))
+          { pos($$r_line)= $p;
             return(VE_DONE,'$'); 
           }; 
 
-	return(($type == SM_ARGKEYWORD) ? VE_ARGKEYWORD : VE_FUNC, 
+        return(($type == SM_ARGKEYWORD) ? VE_ARGKEYWORD : VE_FUNC, 
                $var, $m_start, $m_end); 
        }
 
@@ -1168,9 +1346,9 @@ sub variable_expand
           { return(VE_DONE,$m{$var}); }
         else
           { # recursive evaluation: evaluate until there is 
-	    # no more macro to expand:
-	    return(VE_DONE,rec_eval($m{$var},$r_line,$p)); 
-	  };
+            # no more macro to expand:
+            return(VE_DONE,rec_eval($m{$var},$r_line,$p)); 
+          };
       };
 
     # from here: it's an index expression
@@ -1243,7 +1421,7 @@ sub mk_perl_varnames
     if (defined $callback)
       { pos($line)=0;
         # perform callback for all simple variables
-	while ($line=~/\G.*?\$m\{(\w+)\}/g) 
+        while ($line=~/\G.*?\$m\{(\w+)\}/g) 
           { 
             &$callback($1); 
 
@@ -1252,18 +1430,18 @@ sub mk_perl_varnames
         # perform callback for all array variables
         while ($line=~/\G.*?\$m\{(\w+)\}->\[([^\]]+)\]/g) 
           { my $name= $1;
-	    my $index= $2;
+            my $index= $2;
 
-	    if ($index!~/^\d+/)
-	      { # if index is not a simple number but an
-	        # expression, try to evaluate it:
-	        my $res= eval($index);
-		if ((!defined ($res)) && ($@ ne ""))
-		  { 
-        	    $err_pre= "in expression \"$index\":\neval-error:$@";
-        	    fatal_parse_error($r_line,$pos); 
-		  };
-		$index= $res;
+            if ($index!~/^\d+/)
+              { # if index is not a simple number but an
+                # expression, try to evaluate it:
+                my $res= eval($index);
+                if ((!defined ($res)) && ($@ ne ""))
+                  { 
+                    $err_pre= "in expression \"$index\":\neval-error:$@";
+                    fatal_parse_error($r_line,$pos); 
+                  };
+                $index= $res;
               }
             &$callback($name,$index); 
           };
@@ -1298,11 +1476,11 @@ sub find_file
             next;
           };
         $test= File::Spec->catfile($r_paths->[$i], $file);
-	if (-r $test)
-	  { # move the path that matched to the front
-	    my $e=splice(@$r_paths,$i,1); unshift @$r_paths,$e;
+        if (-r $test)
+          { # move the path that matched to the front
+            my $e=splice(@$r_paths,$i,1); unshift @$r_paths,$e;
             return($test);
-	  };
+          };
       };
     return;
   }
@@ -1492,7 +1670,10 @@ $perl(myfunc { my($a,$b)= @; return($a+$b); }). The advantage of
 this construct is, however, that such a function is evaluated 
 without the need to use $eval(). Whenever "$myfunc(..)" is found in
 the source, it is evaluated, e.g. "$myfunc(1,2)" would return "3" in
-the example above. 
+the example above. Note that the real function name (when called
+from within a $perl() statement) is prepended with "m_". This is 
+in order to separate user-defined functions from the functions 
+already defined in this module.
 
 =item I<if>
 
@@ -1604,7 +1785,7 @@ to the state they had before the block started.
 
 This statement can be used within a block (see $begin). It exports
 the local variables (given as a comma-separated list) to
-the variable-settiing outside the block.  
+the variable-setting outside the block.  
 
 =item I<list>
 
@@ -1648,6 +1829,18 @@ This switches back from silent-mode to the normal mode of operation.
   $leave
 
 This immediately leaves the parse-function producing no more output. 
+
+=item I<lineno>
+
+  $lineno
+
+This prints the current line-number in the source file.
+
+=item I<column>
+
+  $column
+
+This prints the current column in the source file.
 
 =item I<debug>
 
@@ -1842,6 +2035,26 @@ Declare (make known) a function to the parser. $identifier is the
 name of the function in the parsed text, $funcname is the 
 perl-name of the function that is called. The function declared this
 way works similar to a function defined with "$func" in the text.
+
+=item *
+
+B<lineno()>
+
+  lineno()
+
+Returns the current line number in the input file, starting with 
+1 for the first line. This function may be convenient to call or
+use from within user-defined functions (see $func statement).
+
+=item *
+
+B<column()>
+
+  column()
+
+Returns the current column number in the input file, starting with 
+0 for the first character in a line. This function may be convenient
+to call or use from within user-defined functions (see $func statement).
 
 =back
 
