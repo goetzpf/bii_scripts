@@ -12,7 +12,9 @@ Usage: $(basename "$0") [-n] [-f] [-s seconds] [-e escape] [-p passwd] (-i iocsg
   -p passwd   : passwd  - console-password to access ioc (default: tsc)
   -i glob     : iocs    - space separated list of glob-patterns matching ioc-names
   -I regex    : iocs    - space separated list of regexps matching ioc-names
-  cmd         : commadn - the actual command to execute on each matching ioc
+  cmd         : command - the actual command to execute on each matching ioc
+
+A simple list of space-separated IOC-names is perfectly OK for both -i and -I...
 EOF
   exit 0
 fi
