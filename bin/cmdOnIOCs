@@ -19,7 +19,7 @@ EOF
   exit 0
 fi
 
-zparseopts -D -A args -- I: i: s: e: h: n
+zparseopts -D -A args -- I: i: s: e: p: f n
 
 noexec=0; force=0
 [[ ${(k)args} = *"n"* ]] && noexec=1
