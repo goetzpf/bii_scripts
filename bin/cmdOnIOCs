@@ -2,14 +2,14 @@
 
 if [[ "$*" = "" ]]; then
 <<EOF
-Usage: $(basename "$0") [-n] [-f] [-s seconds] [-e escape] [-p passwd] (-i iocsglob|-I iocsregex) cmd
+Usage: $(basename "$0") [-n] [-f] [-s seconds] [-e escape] -p passwd (-i iocsglob|-I iocsregex) cmd
 
   -n          : no-exec - just print what would be executed without giving "-n"
   -f          : force   - skip the "do you really..." part, just do it
   -s seconds  : sleep   - sleeptime after sending the command to an ioc (default: 1)
   -e escape   : escape  - escapechars for 'console' (default: XX)
                           must be changed, if XX is part of the command
-  -p passwd   : passwd  - console-password to access ioc (default: tsc)
+  -p passwd   : passwd  - console-password to access ioc
   -i glob     : iocs    - space separated list of glob-patterns matching ioc-names
   -I regex    : iocs    - space separated list of regexps matching ioc-names
   cmd         : command - the actual command to execute on each matching ioc
@@ -27,7 +27,7 @@ noexec=0; force=0
 iocsglob=${args[-i]-xxx}
 iocsre=${args[-I]-xxx}
 sleep=${args[-s]-1}
-password=${args[-p]-tsc}
+password=${args[-p]-xxx}
 esc=${args[-e]-XX}
 
 if [[ $iocsre != "xxx" && $iocsglob != "xxx" ]]; then
@@ -36,6 +36,10 @@ if [[ $iocsre != "xxx" && $iocsglob != "xxx" ]]; then
 fi
 if [[ $iocsre = "xxx" && $iocsglob = "xxx" ]]; then
   echo "ERROR: One of \"-i iocsglob\" and \"-I iocsregex\" has to be given." >&2
+  exit 1
+fi
+if [[ $password = "xxx" ]]; then
+  echo "ERROR: Password has to be provided!" >&2
   exit 1
 fi
 
