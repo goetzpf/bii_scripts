@@ -70,9 +70,9 @@ fi
 foreach ioc ($iocs)
   if [[ $noexec == 1 ]]; then
 <<EOF
-    (echo "$password"; sleep 1; echo $cmd; sleep $sleep; echo "${esc}.") | console -e "$esc" $ioc;
+    (echo "$password"; sleep 1; echo $cmd; sleep $sleep; echo "${esc}.") | console -f -e "$esc" $ioc;
 EOF
   else
-    (echo "$password"; sleep 1; echo $cmd; sleep $sleep; echo "${esc}.") | console -e "$esc" $ioc;
+    (echo "$password"; sleep 1; echo $cmd; sleep $sleep; echo "${esc}.") | console -f -e "$esc" $ioc;
   fi
 end
