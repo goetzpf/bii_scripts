@@ -1,0 +1,67 @@
+#!/usr/bin/zsh -f
+
+if [[ "$*" = "" ]]; then
+<<EOF
+Usage: $(basename "$0") [-n] [-f] [-s seconds] [-e escape] [-p passwd] (-i iocsglob|-I iocsregex) cmd
+
+  -n          : no-exec - just print what would be executed without giving "-n"
+  -f          : force   - skip the "do you really..." part, just do it
+  -s seconds  : sleep   - sleeptime after sending the command to an ioc (default: 1)
+  -e escape   : escape  - escapechars for 'console' (default: XX)
+                          must be changed, if XX is part of the command
+  -p passwd   : passwd  - console-password to access ioc (default: tsc)
+  -i glob     : iocs    - space separated list of glob-patterns matching ioc-names
+  -I regex    : iocs    - space separated list of regexps matching ioc-names
+  cmd         : commadn - the actual command to execute on each matching ioc
+EOF
+  exit 0
+fi
+
+zparseopts -D -A args -- I: i: s: e: h: n
+
+noexec=0; force=0
+[[ ${(k)args} = *"n"* ]] && noexec=1
+[[ ${(k)args} = *"f"* ]] && force=1
+iocsglob=${args[-i]-xxx}
+iocsre=${args[-I]-xxx}
+sleep=${args[-s]-1}
+password=${args[-p]-tsc}
+esc=${args[-e]-XX}
+
+if [[ $iocsre != "xxx" && $iocsglob != "xxx" ]]; then
+  echo "ERROR: Only one of \"-i iocsglob\" and \"-I iocsregex\" can be given." >&2
+  exit 1
+fi
+if [[ $iocsre = "xxx" && $iocsglob = "xxx" ]]; then
+  echo "ERROR: One of \"-i iocsglob\" and \"-I iocsregex\" has to be given." >&2
+  exit 1
+fi
+
+[[ $iocsre = "xxx" ]] && iocsre=".*" && iocsglob=${(j:|:)${=iocsglob}}
+[[ $iocsglob = "xxx" ]] && iocsglob="*" && iocsre=${(j:|:)${=iocsre}}
+
+iocs=()
+foreach ioc (`echo tsc | console -u 2>/dev/null |awk '{print $1}' | sort | egrep ^\($iocsre\)$`)
+  [[ "$ioc" = ${~iocsglob} ]] && iocs=($iocs $ioc)
+end
+
+if [[ $#iocs = 0 ]]; then
+  echo "ERROR: No matching IOCs found" >&2
+  exit 1
+fi
+
+if [[ $noexec == 0 && $force == 0 ]]; then
+  echo -n "Execute command\n\t$@\non IOCs\n\t$iocs\n\nIs that what you really want? (y/N)"
+  read ans
+  [[ $ans:u != "Y" ]] && exit 0
+fi
+
+foreach ioc ($iocs)
+  if [[ $noexec == 1 ]]; then
+<<EOF
+    (echo "$password"; sleep 1; echo $@; sleep $sleep; echo "${esc}.") | console -e "$esc" $ioc;
+EOF
+  else
+    (echo "$password"; sleep 1; echo $@; sleep $sleep; echo "${esc}.") | console -e "$esc" $ioc;
+  fi
+end
