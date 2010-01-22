@@ -90,7 +90,7 @@ my $pcnt = "[0-9]*";
 
 our %psdom;
 $psdom{global} = "BUX";
-$psdom{B} = $psdom{global} . "DST";
+$psdom{B} = $psdom{global} . "DLST";
 $psdom{F} = $psdom{global} . "LCEGMSU";
 $psdom{P} = $psdom{global} . "KLS";
 
@@ -141,6 +141,9 @@ sub parse {
   if (defined $ring) {
     ($family,$counter,$subdomain,$domain) = ($rfamily,$rcounter,$rsubdomain,$rdomain);
     $facility = "";
+    if ($subdomain eq "L" && $domain ne "I" ) {
+      return;
+    }
   }
   elsif (defined $fel) {
     ($family,$counter,$subdomain,$domain) = ($ffamily,$fcounter,$fsubdomain,$fdomain);
