@@ -68,6 +68,10 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     {
         $application = "$1 Application";
     }
+    elsif( $entryFile =~ /.*\/(.*)Doc.*$/)
+    {
+        $application = "$1 Documentation";
+    }
     elsif( $entryFile =~ /(.*)\/.*$/) 
     {
         $application = "$1";
@@ -90,14 +94,15 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
       if($extension eq "html") # check for TITLE tag in html files
       {
         open(ENTRY_FILE, "<$entryFile") or die "can't open output file: $entryFile: $!";
-        while(<ENTRY_FILE>)
-        {
-          if( /<TITLE>(.*)<\/TITLE>/ )
-	  {
-	    $title = $1;
-	  }
-        }
-        close ENTRY_FILE;
+  	{ local $/;
+  	  undef $/;		# ignore /n as line delimiter
+  	  my $parse = <ENTRY_FILE>;
+          if( /<TITLE>(.*)<\/TITLE>/i )
+          {
+            $title = $1;
+          }
+  	}  
+  	close ENTRY_FILE;
       }
 
       $entryFile =~ /$installPath\/(.*)/;
