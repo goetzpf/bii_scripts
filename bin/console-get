@@ -6,16 +6,28 @@
 tempdir=`mktemp -d /tmp/consoleXXXXXXX`
 curdir=`pwd`
 
+# format: <area>:<description>:directory
+map='tsc:control system:gwc2c/tsc\n
+tsc-mls:mls control system:gwc2c-mls/tsc\n
+id:insertion devices:gwc2c/id\n
+mono:monochromators:gwc2c/mono\n
+il:??:gwc2c/il\n
+net:??:gwc2c/net\n
+psd:??:gwc2c/psd\n
+sioc:??:gwc2c/sioc\n
+'
+
+tags=`echo "$map" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
+
+
 if [ -z "$1" ] || [ "$1" = "-h" ]; then
-        echo "usage: $0 [directory] {pattern}"
+        echo "usage: $0 [area] {pattern}"
         echo "  downloads and concatenates console log files"
         echo
-        echo "  [directory] is a mandatory parameter. It specifies the"
-        echo "      name of the console-server directory."
-        echo "      examples for [directory] are:"
-        echo "      id, il, mono, tsc."
-        echo "      See http://gwc2c.acc.bessy.de/conserver/gwc2c"
-        echo "      for a complete list of possible directory names."
+        echo "  [area] is a mandatory parameter. For each area"
+        echo "      there is a specific directory on the console server."
+        echo "      These are the known areas:"
+        echo -e "$tags" | expand -t 10
         echo "  {pattern} is an optional parameter. If it is is given,"
         echo "      only files starting with that name are processed. "
         echo "      It may be a simple string or a file-glob expression."
@@ -29,7 +41,16 @@ if [ -z "$1" ] || [ "$1" = "-h" ]; then
         exit 1
 fi
 
-dir=$1
+area=`echo -e "$map" | egrep "^$1:"`
+
+if [ -z "$area" ]; then
+        echo "unknown area, enter \"$0\" to see the known specs"
+        exit 1
+fi
+
+# last part of found area is the directory:
+dir=`echo $area | sed -e 's/^[^:]\+:[^:]\+://g'`
+
 if [ -z "$2" ]; then
         files="*.log*"
 else
@@ -39,7 +60,7 @@ fi
 
 
 cd $tempdir
-wget --quiet -r -l1 --no-parent -nd http://gwc2c.acc.bessy.de/conserver/gwc2c/$dir
+wget --quiet -r -l1 --no-parent -nd http://gwc2c.acc.bessy.de/conserver/$dir
 mkdir t 
 for f in `sh -c "ls $files"`; do mv $f t; done
 rm -f *.log *.gz index* && mv t/* . && rmdir t
