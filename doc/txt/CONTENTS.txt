@@ -81,6 +81,10 @@ Scripts
     MultiCAN device support for EPICS.
   | `documentation <scripts/canlink.html>`__
 
+**console-get**
+  | download and concatenate console server files.
+  | `documentation <scripts/console-get.html>`__
+
 **copyrename**
   | copies files and changes the extension
   | `documentation <scripts/copyrename.html>`__

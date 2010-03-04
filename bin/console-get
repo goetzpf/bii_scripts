@@ -1,0 +1,70 @@
+#!/bin/sh
+
+# $1: directory name
+# $2: file glob
+
+tempdir=`mktemp -d /tmp/consoleXXXXXXX`
+curdir=`pwd`
+
+if [ -z "$1" ] || [ "$1" = "-h" ]; then
+        echo "usage: $0 [directory] {pattern}"
+        echo "  downloads and concatenates console log files"
+        echo
+        echo "  [directory] is a mandatory parameter. It specifies the"
+        echo "      name of the console-server directory."
+        echo "      examples for [directory] are:"
+        echo "      id, il, mono, tsc."
+        echo "      See http://gwc2c.acc.bessy.de/conserver/gwc2c"
+        echo "      for a complete list of possible directory names."
+        echo "  {pattern} is an optional parameter. If it is is given,"
+        echo "      only files starting with that name are processed. "
+        echo "      It may be a simple string or a file-glob expression."
+        echo "      If {pattern} is omitted, all log files are processed."
+        echo
+        echo "  examples:"
+        echo "      $0 id eis13g  -> get all files starting with eis13g"
+        echo "      $0 id eis11*  -> get all files starting with \"eis11\""
+        echo "      $0 id \"eis11g* eis8g*\" -> get all files starting "
+        echo "         with \"eis11g\" or \"eis8g\""
+        exit 1
+fi
+
+dir=$1
+if [ -z "$2" ]; then
+        files="*.log*"
+else
+        # add a "*" at the end, if it is not already there
+        files=`echo $2 | sed -e 's/$/\*/;s/\*\*$/\*/;'`
+fi
+
+
+cd $tempdir
+wget --quiet -r -l1 --no-parent -nd http://gwc2c.acc.bessy.de/conserver/gwc2c/$dir
+mkdir t 
+for f in `sh -c "ls $files"`; do mv $f t; done
+rm -f *.log *.gz index* && mv t/* . && rmdir t
+gunzip *.gz
+
+for f in *.log 
+do
+        if [ "$f" = "*.log" ]; then 
+                rmdir t
+                echo "no files!"
+                break
+        fi
+        stem=`basename $f .log`
+        #echo `ls $stem* | sort -n -t . -k 3 -r` 
+        #echo "$stem.sumlog"
+        cat `ls $stem* | sort -n -t . -k 3 -r` > $stem.sumlog
+        rm $stem.log*
+done
+
+cd $curdir
+cp $tempdir/* .
+rm $tempdir/*.sumlog
+rmdir $tempdir
+
+
+
+
+
