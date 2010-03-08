@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # $1: directory name
 # $2: file glob
@@ -60,7 +60,7 @@ fi
 
 
 cd $tempdir
-wget --quiet -r -l1 --no-parent -nd http://gwc2c.acc.bessy.de/conserver/$dir
+wget --quiet -r -l1 --no-parent -nd http://gwc2c.acc.bessy.de/conserver/$dir -A $files
 mkdir t 
 for f in `sh -c "ls $files"`; do mv $f t; done
 rm -f *.log *.gz index* && mv t/* . && rmdir t
@@ -84,8 +84,3 @@ cd $curdir
 cp $tempdir/* .
 rm $tempdir/*.sumlog
 rmdir $tempdir
-
-
-
-
-
