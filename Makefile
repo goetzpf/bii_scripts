@@ -117,8 +117,7 @@ force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 PYTHON25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "python2.5") || echo "python")
 
 # the basename of the pydoc utility:
-PYDOC:=$(shell python -V 2>&1 | \
-perl -ne '($$v)=/ (\d+(\.\d+)?)/; if($$v<2.5){print "pydoc2.5"}else{print "pydoc"}')
+PYDOC25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "pydoc2.5") || echo "pydoc")
 
 # the standard unix install command
 INSTALL=install $(INSTALL_FLAGS)
@@ -126,6 +125,8 @@ INSTALLX=install $(INSTALL_XFLAGS)
 
 # environment variables for programs.........................
 PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
+
+PYTHONPATHNEW=$(PYTHONLIB_SRC_DIR):$(PYTHONPATH)
 
 # program parameters ........................................
 
@@ -175,6 +176,8 @@ DOCUTILS_AVAILABLE:=$(shell (rst2html -h >/dev/null 2>&1 && echo "1") || echo "0
 # build directories..........................................
 
 LOCAL_BUILD_DIR=out
+
+ERRLOG=$(LOCAL_BUILD_DIR)/ERRLOG.TXT
 
 HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html
 
@@ -692,6 +695,11 @@ $(_PYTHONLIB_BUILD_DIRLIST): $(PYTHONLIB_BUILD_DIR)/%:
 # build html ................................................
 
 build_html: build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib
+	@if [ -s $(ERRLOG) ]; then \
+		echo "*************************************"; \
+		echo "errors occured during build, here is the content of $(ERRLOG):"; \
+		cat $(ERRLOG); \
+	fi
 
 # ...........................................................
 # build documentation from plain text files
@@ -751,7 +759,7 @@ $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCR
 
 $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 	@echo "<PRE>"      >  $@
-	(PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< -h 2>&1; true) >> $@
+	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON25) $< -h 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
@@ -763,11 +771,11 @@ build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST
 
 $(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 ifeq (1,$(DOCUTILS_AVAILABLE))
-	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< --doc | \
+	PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON25) $< --doc | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
-	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< --doc >> $@
+	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON25) $< --doc 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 endif
 
@@ -804,7 +812,7 @@ build_html_pythonlib: build_html_pythonlib_pydocs
 build_html_pythonlib_pydocs: $(PYTHONLIB_HTML_BUILD_DIR) $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST)
 
 $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTHONLIB_SRC_DIR)/%.py
-	d=`pwd` && cd $(@D) && $(PYDOC) -w $$d/$<
+	d=`pwd` && cd $(@D) && PYTHONPATH=$$d/$(PYTHONPATHNEW) $(PYDOC25) -w $$d/$< 2>>$$d/$(ERRLOG)
 
 # directory creation.........................................
 
