@@ -99,8 +99,11 @@ my $psdnum = "[0-9]*";
 our %pdom;
 $pdom{global} = "CGLV";
 $pdom{B} = $pdom{global} . "BIMRT";
-$pdom{F} = $pdom{global} . "ADEFS";
+$pdom{F} = $pdom{global} . "DEHLRS";
 $pdom{P} = $pdom{global} . "TMR";
+
+our $pfac;
+$pfac = "FP";
 
 my $re = "\\A($pmem)"
     . "($pind)?"
