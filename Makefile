@@ -170,7 +170,7 @@ PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
 # out-comment the following if
 # docutils (http://docutils.sourceforge.net)
 # are not installed
-DOCUTILS_AVAILABLE=1
+DOCUTILS_AVAILABLE:=$(shell (rst2html -h >/dev/null 2>&1 && echo "1") || echo "0")
 
 # build directories..........................................
 
@@ -701,7 +701,7 @@ $(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.t
 	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
 
 $(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt
-ifdef DOCUTILS_AVAILABLE
+ifeq (1,$(DOCUTILS_AVAILABLE))
 	rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) --cloak-email-addresses $< $@
 else
 	@echo "<PRE>"      >  $@
@@ -762,7 +762,7 @@ $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIP
 build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST)
 
 $(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
-ifdef DOCUTILS_AVAILABLE
+ifeq (1,$(DOCUTILS_AVAILABLE))
 	PYTHONPATH=$(PYTHONPATH):$(PYTHONLIB_SRC_DIR) $(PYTHON25) $< --doc | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
