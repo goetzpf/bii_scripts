@@ -219,12 +219,12 @@ Scripts
   | `documentation <scripts/grepDb.html>`__
   | `source <scripts/grepDb.pl>`__
 
-**hgdiff**
-  | compare files or directory trees in a working copy with the mercurial
-    repository or compare files of different versions in the mercurial
-    repository.
+**hgdiff.py**
+  | A program to do a graphical comparision of files or directory trees in a 
+    working copy with a mercurial repository or compare files of different 
+    versions in the mercurial repository.
   | `documentation <scripts/hgdiff.html>`__
-  | `source <scripts/hgdiff>`__
+  | `source <scripts/hgdiff.py>`__
 
 **hgen.pl**
   | a header-generator for c and c++.
