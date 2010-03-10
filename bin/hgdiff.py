@@ -179,6 +179,8 @@ def diff(revisions, file, verbose, dry_run):
         revlabels= [revisions[0]]
     if len(revisions)<2:
         revlabels.append("working copy")
+    else:
+        revlabels.append(revisions[1])
     labelpar= "-L \"%s:%s\" -L \"%s:%s\"" % (file,revlabels[0],file,revlabels[1])
 
     t1= hgcattemp(revisions[0] if len(revisions)>0 else None, file, verbose, dry_run)
@@ -474,6 +476,11 @@ def main():
     if options.summary:
         print_summary()
         sys.exit(0)
+
+    # change to the working copy's root dir, since
+    # "hg cat" will not work when we are in a different
+    # directory.
+    os.chdir(hgroot(options.verbose, options.dry_run))
 
     if options.kompare:
         kompare(options)
