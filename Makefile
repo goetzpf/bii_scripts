@@ -361,6 +361,7 @@ PYDOC_PYTHONLIB_LIST= \
 # python scripts that need python 2.5
 PYTHON_2_5_SCRIPTS= \
 	hg-recover.py \
+	hgdiff.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
 	sqlutil.py
