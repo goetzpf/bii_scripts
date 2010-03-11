@@ -48,24 +48,25 @@ use constant {
   CVS   => 1,
   SVN   => 2,
   DARCS => 3,
-  HG    => 4
+  HG    => 4,
+  HGMQ  => 5,
 };
 
 use vars qw($opt_help $opt_summary $opt_man 
             $opt_commit
-	    $opt_generate
-	    $opt_svn_log_gen
-            $opt_darcs $opt_cvs $opt_svn $opt_hg
-	    $opt_dry_run);
+            $opt_generate
+            $opt_svn_log_gen
+            $opt_darcs $opt_cvs $opt_svn $opt_hg $opt_hgmq
+            $opt_dry_run);
 
 # the following options are also recognized without
 # a leading "--" since they are commands.
 my %gbl_arg_lst= (generate=> '--generate',
                   check   => '--generate',
                   status  => '--generate',
-		  changes => '--generate',
+                  changes => '--generate',
                   commit  => '--commit',
-		  );
+                  );
 
 
 my $mail_domain= "helmholtz-berlin.de";
@@ -89,8 +90,8 @@ if (!@ARGV)
 preproc_args();
 
 if (!GetOptions("help|h","summary","man","commit=s","generate",
-                "svn_log_gen|svn-log-gen=s",
-                "dry_run|dry-run","darcs","cvs","svn", "hg"
+                "svn_log_gen|svn-log-gen=s", 
+                "dry_run|dry-run","darcs","cvs","svn", "hg", "hgmq"
                 ))
   { die "parameter error!\n"; };
 
@@ -128,6 +129,12 @@ if (defined $opt_hg)
     $vcs= HG;
   };
 
+if (defined $opt_hgmq)
+  { if (defined $vcs)
+      { die "contradicting options\n"; };
+    $vcs= HGMQ;
+  };
+
 if (!defined $vcs)
   { $vcs= SVN; };  
 
@@ -156,27 +163,27 @@ sub scan_filename
 
     if     ($vcs == CVS)
       { if ($line=~/^[A-Z]\s+(.*?)\s*$/) 
-	  { # possibly a filename
-	    return($1);
-	  };
+          { # possibly a filename
+            return($1);
+          };
       }
     elsif  ($vcs == SVN)
       { if ($line=~/^(?:[A-Z~] | [A-Z]|[A-Z~]{2})\s+(.*?)\s*$/) 
-	  { # possibly a filename
-	    return($1);
-	  };
+          { # possibly a filename
+            return($1);
+          };
       }
     elsif  ($vcs == DARCS)
       { if ($line=~/^[A-Z]\s+(.*?)\s*[\+\-0-9 ]*$/) 
-	  { # possibly a filename
-	    return($1);
-	  };
+          { # possibly a filename
+            return($1);
+          };
       }
-    elsif  ($vcs == HG)
+    elsif  (($vcs == HG) || ($vcs == HGMQ))
       { if ($line=~/^[A-Z]\s+(.*?)\s*$/) 
-	  { # possibly a filename
-	    return($1);
-	  };
+          { # possibly a filename
+            return($1);
+          };
       }
     else
       { die "assertion"; };
@@ -200,64 +207,64 @@ sub scan_file
     while(my $line=<F>)
       { $lineno++;
         chomp($line);
-	if ($line=~ /^\s*$/)
-	  { next if (++$last_empty>1); }
-	else
-	  { $last_empty=0; };
+        if ($line=~ /^\s*$/)
+          { next if (++$last_empty>1); }
+        else
+          { $last_empty=0; };
 
 #warn "line:\"$line\"\n";
 
-	my $matched_filename= scan_filename($vcs,$line);
+        my $matched_filename= scan_filename($vcs,$line);
 
-	if (defined $matched_filename)
-	  { 
-	    my @w= quotewords(q(\s+), 1, $matched_filename);
-	    if ($#w==0) # a filename
-	      { 
-	        $last_file= $matched_filename;
-	        push @files, $matched_filename;
-	        next;
-	      };
-	  };      
-	if ($line=~/^-{4,}\s*$/)
-	  { # a separation line
+        if (defined $matched_filename)
+          { 
+            my @w= quotewords(q(\s+), 1, $matched_filename);
+            if ($#w==0) # a filename
+              { 
+                $last_file= $matched_filename;
+                push @files, $matched_filename;
+                next;
+              };
+          };      
+        if ($line=~/^-{4,}\s*$/)
+          { # a separation line
 #warn "separation-line:\n";
-	    if (!@files)
-	      { if ($comment!~ /^[\s\r\n]*$/)
-	          { warn "warning: empty section found in line $lineno, ignored\n"; };
-	      }
-	    else
-	      { # if there is only one file, we skip "file specific comments" and
-	        # merge this with the main comment
-	        if ($#files==0)
-		  { $comment.= $file_comments{$files[0]}; }
-		else
-		  { build_comment(\$comment, \%file_comments, \@files); };
+            if (!@files)
+              { if ($comment!~ /^[\s\r\n]*$/)
+                  { warn "warning: empty section found in line $lineno, ignored\n"; };
+              }
+            else
+              { # if there is only one file, we skip "file specific comments" and
+                # merge this with the main comment
+                if ($#files==0)
+                  { $comment.= $file_comments{$files[0]}; }
+                else
+                  { build_comment(\$comment, \%file_comments, \@files); };
 
-		$comment=~ s/^\s*\n//;
-		commit($vcs,$comment,@files);
-	      };
-	    $comment= undef;
-	    @files=();
-	    $last_file= undef;
-	    %file_comments=();
-	    next; 
-	  };
-	# else: a comment 
-	$line=~ s/\s+$//; 
-	$line.= "\n";
-	if (!defined $last_file)
-	  { $comment.= $line; 
-#warn "global comment:\"$line\"\n";	  
-	  }
-	else
-	  { $file_comments{$last_file}.= $line; 
+                $comment=~ s/^\s*\n//;
+                commit($vcs,$comment,@files);
+              };
+            $comment= undef;
+            @files=();
+            $last_file= undef;
+            %file_comments=();
+            next; 
+          };
+        # else: a comment 
+        $line=~ s/\s+$//; 
+        $line.= "\n";
+        if (!defined $last_file)
+          { $comment.= $line; 
+#warn "global comment:\"$line\"\n";       
+          }
+        else
+          { $file_comments{$last_file}.= $line; 
 
-	  };
+          };
       };
     if (@files)
       { build_comment(\$comment, \%file_comments, \@files);
-	commit($vcs,$comment,@files);
+        commit($vcs,$comment,@files);
       };
     close(F);
   }
@@ -267,9 +274,9 @@ sub print_msg
 
     for(my $i= $#$r_comments; $i>0; $i--)
       { if ($r_comments->[$i]=~ /^\s*$/)
-	  { $r_comments->[$i]= undef; }
-	else
-	  { last; };
+          { $r_comments->[$i]= undef; }
+        else
+          { last; };
       }; 
     print "-" x 40,"\n";
     print join("\n",@$r_comments),"\n\n";
@@ -297,52 +304,52 @@ sub scan_svn_log
       { $lineno++;
         chomp($line);
 
-	if ($line=~ /^-{4,}/)
-	  { next if (!@files);
-	    print_msg(\@files,\@comments);
-	    @files=();
-	    @comments=();
-	    $mode= 'init';
-	    next;
-	  };
+        if ($line=~ /^-{4,}/)
+          { next if (!@files);
+            print_msg(\@files,\@comments);
+            @files=();
+            @comments=();
+            $mode= 'init';
+            next;
+          };
 
-	if ($mode eq 'init')
-	  { if ($line=~/^\s*Changed paths/i)
-	      { $mode= 'filelist';
-	        @files=();
-		@comments=();
-		next;
-	      };
-	    next;
-	  }
-	elsif ($mode eq 'filelist')
-	  { if ($line=~ /^\s*$/)
-	      { $mode= 'comment';
-	        next;
-	      };
-	    my $l= $line; 
-
-	    if ($l!~ /^\s*([A-Z]{1,2})\s+(.*)/)
-	      { die "file not parsable:\n\"$l\"\n"; }
-	    else
-	      { my $c= $1; 
-	        my $f= $2;
-		$f=~ s/$old/$new/;
-		push @files, "$c  $f"; 
+        if ($mode eq 'init')
+          { if ($line=~/^\s*Changed paths/i)
+              { $mode= 'filelist';
+                @files=();
+                @comments=();
+                next;
               };
-	    next;
-	  }
-	elsif ($mode eq 'comment')
-	  { if (!@comments)
-	      { next if ($line=~/^\s*$/); };
-	    push @comments, $line;
-	    next;
-	  }  
+            next;
+          }
+        elsif ($mode eq 'filelist')
+          { if ($line=~ /^\s*$/)
+              { $mode= 'comment';
+                next;
+              };
+            my $l= $line; 
+
+            if ($l!~ /^\s*([A-Z]{1,2})\s+(.*)/)
+              { die "file not parsable:\n\"$l\"\n"; }
+            else
+              { my $c= $1; 
+                my $f= $2;
+                $f=~ s/$old/$new/;
+                push @files, "$c  $f"; 
+              };
+            next;
+          }
+        elsif ($mode eq 'comment')
+          { if (!@comments)
+              { next if ($line=~/^\s*$/); };
+            push @comments, $line;
+            next;
+          }  
       }
 
     if (@files)
-      { print_msg(\@files,\@comments); }     	        
-  }	
+      { print_msg(\@files,\@comments); }                
+  }     
 
 sub build_comment
   { my($r_comment, $r_file_comments, $r_files)= @_;
@@ -351,19 +358,19 @@ sub build_comment
     foreach my $file (@$r_files)
       { my $filecomment= $r_file_comments->{$file};
         next if (!defined $filecomment);
-	next if ($filecomment =~ /^[\s\r\n]*$/);
+        next if ($filecomment =~ /^[\s\r\n]*$/);
 
-	if ($$r_comment!~ /\n\s*\n$/)
-	      { $$r_comment.= "\n"; };
+        if ($$r_comment!~ /\n\s*\n$/)
+              { $$r_comment.= "\n"; };
 
-	if (!$first)
-	  { $first=1; 
+        if (!$first)
+          { $first=1; 
 
-	    $$r_comment.= "File-specific comments:\n\n"; 
-	  };
-	$$r_comment.= $file . ":\n";
-	$filecomment=~ s/^/  /mg;
-	$$r_comment.= $filecomment;
+            $$r_comment.= "File-specific comments:\n\n"; 
+          };
+        $$r_comment.= $file . ":\n";
+        $filecomment=~ s/^/  /mg;
+        $$r_comment.= $filecomment;
       };
   }
 
@@ -378,10 +385,12 @@ sub generate_file_cmd
     elsif ($vcs eq DARCS)
       { $cmd= "darcs whatsnew -s | " .
               "sed -e 's/[+-][0-9][0-9]*//g' | " .
-	      "sort | uniq";
+              "sort | uniq";
       }
     elsif ($vcs eq HG)
       { $cmd= "hg status"; }
+    elsif ($vcs eq HGMQ)
+      { $cmd= "hg status --rev -2"; }
     else
       { die "assertion"; };
     return($cmd);
@@ -415,6 +424,8 @@ sub commit_cmd
       }
     elsif ($vcs eq HG)
       { $cmd= "hg commit -l $temp_file $files"; }
+    elsif ($vcs eq HGMQ)
+      { $cmd= "hg qrefresh -l $temp_file $files"; }
     else
       { die "assertion"; };
     return($cmd);
@@ -433,9 +444,9 @@ sub commit
     if ($opt_dry_run)
       { print "command: \"$cmd\"\n";
         print "content of $temp_file:\n";
-	print "-" x 60,"\n";
-	system("cat $temp_file");
-	print "=" x 60,"\n";
+        print "-" x 60,"\n";
+        system("cat $temp_file");
+        print "=" x 60,"\n";
       }
     else
       { if (!sys($cmd))
@@ -523,10 +534,10 @@ Syntax:
 
   commands:
     generate|check|status|changes:
-	generate a file containing the changes and print to console
+        generate a file containing the changes and print to console
     commit [file]
-    	commit changes to the repository,    
-	the file argument is mandatory 
+        commit changes to the repository,    
+        the file argument is mandatory 
 
   options:
     -h: help
@@ -536,6 +547,7 @@ Syntax:
     --svn  : use subversion (the default)
     --darcs: use darcs 
     --hg   : use mercurial 
+    --hgmq : use mercurial with patch queue (mq) extension
     --cvs  : use cvs
 
 Format of a commit-file:
@@ -568,7 +580,7 @@ END
 
 =head1 NAME
 
-multi-commit.pl - perform multiple commits (cvs|svn|darcs|hg) with a prepared command-file
+multi-commit.pl - perform multiple commits (cvs|svn|darcs|hg|hgmq) with a prepared command-file
 
 =head1 SYNOPSIS
 
@@ -586,7 +598,7 @@ within a working copy directory. Among the programs features are:
 =item *
 
 supports several version control systems, currently supported are: 
-cvs, subversion, darcs and mercurial.
+cvs, subversion, darcs, mercurial and mercurial with patch queue (mq) extension.
 
 =item *
 
@@ -645,6 +657,17 @@ be used. This is also the default.
 =item --darcs
 
 This option specifies that the "darcs" version control system is to be used.
+
+=item --hg
+
+This option specifies that the "mercurial" version control system is to be used.
+
+=item --hgmq
+
+This option specifies that the "mercurial" version control system with patch
+queues is to be used. The difference with respect to "--hg" is that the status
+is generated with "hg status --rev -2" and that "hg qrefresh" is used instead
+of "hg commit".
 
 =item --dry-run
 
