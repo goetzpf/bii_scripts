@@ -390,7 +390,8 @@ sub generate_file_cmd
     elsif ($vcs eq HG)
       { $cmd= "hg status"; }
     elsif ($vcs eq HGMQ)
-      { $cmd= "hg status --rev -2"; }
+      { $cmd= "(hg log -l 1 --template \"{desc}\"\\n; hg status --rev -2)"; 
+      }
     else
       { die "assertion"; };
     return($cmd);
