@@ -111,6 +111,41 @@ def hgidentify(verbose, dry_run):
         _hgidentify= result
     return _hgidentify
 
+def hgparents(revision, verbose, dry_run):
+    """return the parent(s) of a revision."""
+    result= _system("hg parents -r %s --template \"{rev} \"" % revision, 
+                    True,
+                    verbose, dry_run)
+    if result=="" or result.isspace():
+	return []
+    return result.strip().split()
+
+def hgchild(revision, verbose, dry_run):
+    """return the child of a revision."""
+    result= _system("hg log -r %s:tip --template \"{rev} \"" % revision, 
+                    True,
+                    verbose, dry_run)
+    r= result.strip().split()
+    if len(r)<=1:
+	return None
+    return r[1]
+
+def hgplusminus(revision, delta, verbose, dry_run):
+    """return parent or child of a revision."""
+    if delta<0:
+	return hgparents(revision, verbose, dry_run)
+    c= hgchild(revision, verbose, dry_run)
+    if c is None:
+	return []
+    return [c]
+
+def hgtip(verbose, dry_run):
+    """return the parent(s) of a revision."""
+    result= _system("hg tip --template \"{rev}\"",
+                    True,
+                    verbose, dry_run)
+    return result.strip()
+
 def hgstatus(revisions, verbose, dry_run):
     """return the hg status.
     """
@@ -210,8 +245,12 @@ class FrHeadClass(Tix.Frame):
             return ""
         return hgshortlog(rev, self.verbose, self.dry_run)
     def __init__(self, parent, revisions, callback, statuslabel, verbose, dry_run):
+	def balloonhelp(widget,message):
+	    w= Tix.Balloon(self, statusbar= statuslabel)
+	    w.bind_widget(widget, statusmsg=message)
         self.verbose= verbose
         self.dry_run= dry_run
+        self.statuslabel= statuslabel
         Tix.Frame.__init__(self, parent, borderwidth=2,relief='raised') 
         self.label1= Tix.Label(self, text="first rev:")
         self.label2= Tix.Label(self, text="second rev:")
@@ -227,35 +266,19 @@ class FrHeadClass(Tix.Frame):
         self.entry2.insert(0, revisions[1])
         self.desc1= Tix.Label(self, text= self.description(revisions[0]))
         self.desc2= Tix.Label(self, text= self.description(revisions[1]))
-        self.button= Tix.Button(self, text="re-scan", command= lambda: self.mycallback())
+	self.buttonframe= Tix.Frame(self)
+        self.button= Tix.Button(self.buttonframe, text="re-scan", command= lambda: self.mycallback())
+        self.plusbutton= Tix.Button(self.buttonframe, text="+rev", command= lambda: self.chg_revision(1))
+        self.minusbutton= Tix.Button(self.buttonframe, text="-rev", command= lambda: self.chg_revision(-1))
         self.callback= callback
 
-        self.desc1_help= Tix.Balloon(self, statusbar= statuslabel)
-        self.desc1_help.bind_widget(self.desc1, 
-                                     statusmsg="time and log message for first revision"
-                                    )
-
-        self.desc2_help= Tix.Balloon(self, statusbar= statuslabel)
-        self.desc2_help.bind_widget(self.desc2, 
-                                     statusmsg="time and log message for second revision"
-                                    )
-
-        self.entry1_help= Tix.Balloon(self, statusbar= statuslabel)
-        self.entry1_help.bind_widget(self.entry1, 
-                                     statusmsg="the revision against the comparison is done"
-                                    )
-
-        self.entry2_help= Tix.Balloon(self, statusbar= statuslabel)
-        self.entry2_help.bind_widget(self.entry2, 
-                                     statusmsg="the compared revision, enter \"\" for \"working copy\""
-                                    )
-
-        self.button_help= Tix.Balloon(self, statusbar= statuslabel)
-        self.button_help.bind_widget(self.button, 
-                                     statusmsg="re-compute the list of changed files"
-                                    )
-
-
+        balloonhelp(self.desc1, "time and log message for first revision")
+        balloonhelp(self.desc2, "time and log message for second revision")
+        balloonhelp(self.entry1, "the revision against the comparison is done")
+        balloonhelp(self.entry2, "the compared revision, enter \"\" for \"working copy\"")
+        balloonhelp(self.button, "re-compute the list of changed files")
+	balloonhelp(self.plusbutton, "increase both revisions")
+	balloonhelp(self.minusbutton, "decrease both revisions")
 
         self.label1.grid(row=0, column=0, sticky="W")
         self.label2.grid(row=3, column=0, sticky="W")
@@ -264,12 +287,50 @@ class FrHeadClass(Tix.Frame):
         self.entry2.grid(row=3, column=1, sticky="W")
         self.desc1.grid(row=1, column=1, sticky="W")
         self.desc2.grid(row=4, column=1, sticky="W")
-        self.button.grid(row=5, column=0, columnspan=2)
+        self.buttonframe.grid(row=5, column=0, columnspan=2, sticky="W")
+	self.button.pack(side=Tix.LEFT)
+	self.plusbutton.pack(side=Tix.LEFT)
+	self.minusbutton.pack(side=Tix.LEFT)
     def mycallback(self):
         revisions= self.get_revisions()
         self.desc1.config(text= self.description(revisions[0]))
         self.desc2.config(text= self.description(revisions[1]))
         self.callback()
+    def chg_revision(self,delta):
+	def error(msg):
+	    self.statuslabel.config(text= msg)
+	revs= self.get_revisions()
+	if revs[1] is None:
+	    if delta>0:
+		error("error: cannot go beyond working copy")
+		return
+	    rev_now= hgtip(self.verbose,self.dry_run)
+	else:
+	    r= hgplusminus(revs[1], delta, self.verbose, self.dry_run)
+	    if len(r)==0:
+		# last revision
+		rev_now=""
+	    elif len(r)!=1:
+		error("error: %s has more than one parent" % revs[1])
+		return
+	    else:
+		rev_now= r[0]
+	r= hgplusminus(revs[0], delta, self.verbose, self.dry_run)
+	if len(r)!=1:
+	    error("error: %s has more than one parent" % revs[1])
+	    return
+	rev_prev= r[0]
+	self.set_entry(1,rev_prev)
+	self.set_entry(2,rev_now)
+	self.mycallback()
+
+    def set_entry(self, index, value):
+	if index==1:
+	    widget= self.entry1
+	else:
+	    widget= self.entry2
+	widget.delete(0, Tix.END)
+	widget.insert(0, value)
     def get_revisions(self):
         wk= "working copy"
         r1= self.entry1.get()
