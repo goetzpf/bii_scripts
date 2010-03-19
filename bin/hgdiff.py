@@ -425,10 +425,11 @@ def kompare(options):
         if len(options.rev)>2:
             sys.exit("only up to 2 revision numbers may be specified")
         revisions= options.rev
-    extra=""
+    args=["hg","extdiff","-p","kompare"]
     if len(revisions)>0:
-        extra= " "+" ".join(["--rev %s" % r for r in revisions])
-    _system("hg diff -b -B%s | kompare -o -" % extra, False, options.verbose, options.dry_run)
+        for r in revisions:
+	    args.extend(["-r",r])
+    os.execvp("hg",args)
 
 def main():
     """The main function.
