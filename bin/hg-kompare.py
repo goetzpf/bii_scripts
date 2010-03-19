@@ -17,6 +17,36 @@ def print_summary():
     """print a short summary of the scripts function."""
     print "%-20s: a tool for ...\n" % script_shortname()
 
+extdiff_help="""
+hg extdiff [OPT]... [FILE]...
+
+use external program to diff repository (or selected files)
+
+    Show differences between revisions for the specified files, using an
+    external program. The default program used is diff, with default options
+    "-Npru".
+
+    To select a different program, use the -p/--program option. The program
+    will be passed the names of two directories to compare. To pass additional
+    options to the program, use -o/--option. These will be passed before the
+    names of the directories to compare.
+
+    When two revision arguments are given, then changes are shown between
+    those revisions. If only one revision is specified then that revision is
+    compared to the working directory, and, when no revisions are specified,
+    the working directory files are compared to its parent.
+
+options:
+
+ -o --option   pass option to comparison program
+ -r --rev      revision
+ -c --change   change made by revision
+ -I --include  include names matching the given patterns
+ -X --exclude  exclude names matching the given patterns
+
+use "hg -v help extdiff" to show global options
+"""
+
 def main():
     """The main function.
 
@@ -39,9 +69,10 @@ def main():
 		  "    Note that the file $HOME/.hgrc must contain the line:\n",\
 		  "        extdiff=\n",\
                   "    in the [extensions] section.\n\n",\
-                  "    Here is the help from \"hg extdiff\":\n"
-	          
-	    myexec("hg",["help","extdiff"])
+                  "    Here is the help from \"hg extdiff\":"
+	    print extdiff_help
+	    #myexec("hg",["help","extdiff"])
+	    sys.exit(0)
     n_args=["extdiff","-p","kompare"]
     n_args.extend(args)
     myexec("hg",n_args)
