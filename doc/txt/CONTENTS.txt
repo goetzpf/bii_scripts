@@ -219,6 +219,13 @@ Scripts
   | `documentation <scripts/grepDb.html>`__
   | `source <scripts/grepDb.pl>`__
 
+**hg-kompare.py**
+  | A program that calls kompare to do comparisions of the
+    working copy with a mercurial repository or compare files of different 
+    versions in the mercurial repository.
+  | `documentation <scripts/hg-kompare.html>`__
+  | `source <scripts/hg-kompare.py>`__
+
 **hgdiff.py**
   | A program to do a graphical comparision of files or directory trees in a 
     working copy with a mercurial repository or compare files of different 
