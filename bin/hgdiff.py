@@ -415,13 +415,20 @@ class FrStatClass(Tix.Frame):
 class App:
     def __init__(self, Top, options, args):
         self.revisions= []
-        if options.rev is not None:
+        self.verbose= options.verbose
+        self.dry_run= options.dry_run
+	if options.changes is not None:
+	    if options.rev is not None:
+		sys.exit("-c must not be used together with -r")
+	    r= hgparents(options.changes, self.verbose,self.dry_run)
+	    if len(r)!=1:
+		sys.exit("-c cannot be applied to a merge revision")
+	    self.revisions=[r[0],options.changes]
+        elif options.rev is not None:
             self.revisions= options.rev
             if len(options.rev)>2:
                 sys.exit("only up to 2 revision numbers may be specified")
             self.revisions= options.rev
-        self.verbose= options.verbose
-        self.dry_run= options.dry_run
         hg_changes= hgstatus(self.revisions,self.verbose,self.dry_run)
         self.options= options
 
@@ -447,6 +454,7 @@ class App:
         self.FrDn.pack (side='top',fill='x')
         
         self.FrStat.pack (side='top',fill='x')
+	self.process_initial_list(hg_changes, args)
     def display(self, text):
         self.FrStat.display(text)
     def rescan(self):
@@ -459,11 +467,27 @@ class App:
         self.revisions= filter(isset, self.FrHead.get_revisions())
         hg_changes= hgstatus(self.revisions,self.verbose,self.dry_run)
         self.FrTop.change(hg_changes)
+    def process_initial_list(self, changes_list, args):
+	if len(args)<=0:
+	    return
+	files= set()
+	for f in args:
+	    not_found= True
+	    for c in changes_list:
+		if c.endswith(f):
+		    not_found= False
+		    files.add(c)
+	    if not_found:
+		print "warning: path \"%s\" not found in list of changed/added/removed files" % f
+	for f in files:
+	    self.execute_str(f)
     def execute(self):
         """execute selection."""
         selection= self.FrTop.selection()
         if selection is None:
             return
+	self.execute_str(selection)
+    def execute_str(self, selection):
         flag= selection[0]
         file= selection[2:]
         if flag=="?" or flag=="A" or flag=="C" or flag=="I":
@@ -498,12 +522,13 @@ def main():
     parse the command-line options and perform the command
     """
     # command-line options and command-line help:
-    usage = "usage: %prog [options]"
+    usage = "usage: %prog [options] {file list}"
     parser = OptionParser(usage=usage,
                           version="%%prog %s" % my_version,
                           description="graphical display of changes between "+\
                                       "mercurial revisions or a mercurial "+\
-                                      "revision and a working copy")
+                                      "revision and a working copy. If {file list} "+\
+				      "is not empty, run tkdiff or gview on these files")
     parser.add_option("--summary",  # implies dest="nodelete"
                       action="store_true", # default: None
                       help="graphical diff for mercurial", 
@@ -528,6 +553,13 @@ def main():
                       help="specify the REVISION against the comparision is done. "+\
                            "If two --rev options are given, compare these two "+\
                            "revisions.", 
+                      metavar="REVISION"  # for help-generation text
+                      )
+
+    parser.add_option("-c", "--changes", # implies dest="file"
+                      action="store", # OptionParser's default
+                      type="string",  # OptionParser's default
+                      help="show that changes that REVISION did.",
                       metavar="REVISION"  # for help-generation text
                       )
 
