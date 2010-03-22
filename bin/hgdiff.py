@@ -258,6 +258,10 @@ class FrHeadClass(Tix.Frame):
         self.entry1= Tix.Entry(self)
         self.entry2= Tix.Entry(self)
         self.entry1.delete(0, Tix.END)
+	# make a shallow copy of revisions, otherwise
+	# the "append" some lines below would change the
+	# list that was given as parameter to the constructor
+	revisions= revisions[:]
         if len(revisions)<=0:
             revisions= [hgidentify(verbose, dry_run)]
         if len(revisions)<2:
@@ -332,6 +336,7 @@ class FrHeadClass(Tix.Frame):
 	widget.delete(0, Tix.END)
 	widget.insert(0, value)
     def get_revisions(self):
+	"""returns a pair, the 2nd element may be None"""
         wk= "working copy"
         r1= self.entry1.get()
         r2= self.entry2.get()
