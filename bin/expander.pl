@@ -230,6 +230,7 @@ Usage:
     -n allow that variables are not defined
        (usually this aborts the script, but then only an
         error message is printed to stdout)
+    --escaped_at -A "\@" is changed to "@"
 
 Short (incomplete) syntax description (see also manpage of expander.pm)
 
