@@ -320,7 +320,7 @@ sub parse_scalar_i
     my $local_match_pos;
 
     for(pos($$r_line)= 0, $p=0;
-        $$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\\\$|\\$|\s+|$)/gsm;
+        $$r_line=~ /\G(.*?)(\\@|\\\$|\$|\\\\n|\\n|\\\\$|\\$|\s+|$)/gsm;
         #                    \$  $   \\n   \n  \\eol  \eol
         #$$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$)/gsm;
         $p= pos($$r_line))
@@ -346,6 +346,11 @@ sub parse_scalar_i
 #           next if ($silent);
 #           print $fh "\n";
             next;
+          };
+
+        if ($post eq "\\@") # backslashed at
+          { print $fh '@' if ($ifcond[-1]>0);
+            next; 
           };
 
         if ($post eq "\\\$") # backslashed dollar
@@ -1599,6 +1604,12 @@ So
   \$myvar
 
 expands to $myvar.
+
+The same applies to the "@" sign:
+
+  \@myvar
+
+expands to @myvar.
 
 =item line concatenation escape
 
