@@ -57,6 +57,9 @@ my $allow_round_brackets= 0;
 my $forbid_nobracket_vars= 0;
 my $allow_not_defined_vars= 0;
 
+my $escaped_at_chars= 1;
+# convert "\@" to "@"
+
 my @m_stack;
 
 my $silent=0;
@@ -267,6 +270,9 @@ sub parse_scalar_i
 
     my $fh;
 
+    if ($options{no_escaped_at_chars})
+      { $escaped_at_chars= 0; };
+
     if ($options{forbit_nobrackets})
       { $forbid_nobracket_vars= 1; };
 
@@ -349,7 +355,11 @@ sub parse_scalar_i
           };
 
         if ($post eq "\\@") # backslashed at
-          { print $fh '@' if ($ifcond[-1]>0);
+          { 
+            if ($escaped_at_chars) 
+	      { print $fh '@' if ($ifcond[-1]>0); }
+	    else
+	      { print $fh '\@' if ($ifcond[-1]>0); }
             next; 
           };
 
@@ -1968,6 +1978,15 @@ variables, so $(myvar) is treated like ${myvar}.
 Allow recursive variable expansion. Each variable that contains
 a non-quoted '$' sign is evaluated again until that condition
 is no longer true.
+
+=item I<no_escaped_at_chars>
+
+  parse_scalar($myvar, no_escaped_at_chars=> 1)
+
+When this option is not set, "\@" is changed to "@", so
+the at-character may be escaped. If this option is set, the
+expander module is backwards compatible and leaves these
+strings unchanged.
 
 =back
 

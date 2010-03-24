@@ -66,6 +66,7 @@ use expander;
 
 use vars qw($opt_help $opt_summary @opt_file 
             $opt_roundbrackets $opt_force_brackets $opt_allow_not_defined
+	    $opt_escaped_at
 	    $opt_recursive);
 
 
@@ -94,6 +95,7 @@ if (!GetOptions("help|h","summary",
 		"roundbrackets|b",
 		"force_brackets|F",
 		"allow_not_defined|n",
+		"escaped_at|A",
 		"recursive|r",
                 ))
   { die "parameter error!\n"; };
@@ -116,6 +118,9 @@ if ($opt_roundbrackets)
 
 if ($opt_force_brackets)
   { $expand_options{forbit_nobrackets} = 1; }
+
+if (!defined($opt_escaped_at))
+  { $expand_options{no_escaped_at_chars} = 1; }
 
 if (@ipaths)
   { $expand_options{includepaths}= \@ipaths; }
