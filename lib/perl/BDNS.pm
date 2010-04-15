@@ -1,5 +1,9 @@
 package BDNS;
 
+## BDNS Name parser
+# ******************
+#
+
 # This software is copyrighted by the
 # Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),
 # Berlin, Germany.
@@ -35,7 +39,7 @@ use strict;
 
 our $MAXLENGTH = 22;
 
-# Es gibt ein Problem, wenn facility=P und entweder die Subdomain mit K beginnt oder
+## Es gibt ein Problem, wenn facility=P und entweder die Subdomain mit K beginnt oder
 # die Subdomain leer ist, der letzte Buchstabe im Member einer gültigen Family
 # entspricht und die family K ist. In diesem Fall ist ein eindeutiges Parsen nicht möglich!
 #
@@ -111,7 +115,11 @@ my $re = "\\A($pmem)"
     .  "(([$pfam{F}])($pcnt)([$psdom{F}]$psdnum)([$pdom{F}])F)|"
     .  "(([$pfam{P}])($pcnt)([$psdom{P}]$psdnum)?([$pdom{P}])P))\\Z";
 
-sub parse {
+## Parse device name and return array of:
+#
+#    (member,allindex,index,subindex,family,counter,allsubdomain,subdomain,subdompre,subdomnumber,domain,facility)
+sub parse 
+{
   my $devname = shift;
   if (length($devname) > $MAXLENGTH) {
     return; # mismatch
@@ -176,14 +184,49 @@ my %namePart2idx = (
     "SUBDOMPRE"=>8,
     "SUBDOMNUMBER"=>9,
     "DOMAIN"=>10,
-    "FACILITY"=>11
+    "FACILITY"=>11,
+    "0" =>0, 
+    "1" =>1, 
+    "2" =>2, 
+    "3" =>3, 
+    "4" =>4, 
+    "5" =>5, 
+    "6" =>6, 
+    "7" =>7, 
+    "8" =>8, 
+    "9" =>9, 
+    "10"=>10,
+    "11"=>11,
     );
 
-my $rA_order = [11,10,8,9,0,2,3,4,5]; # default order
+my $rA_defaultOrder = [11,10,8,9,0,2,3,4,5]; # default order
+my $rA_order = $rA_defaultOrder; # default order
+## Sort list of names according to the sortorder defined in setOrder or default '[11,10,8,9,0,2,3,4,5]'
+sub sortNames
+{   my($rA_names) = @_;
+    return sort {BDNS::cmpNames($a,$b)} @$rA_names;
+}
+
+## Set sortorder by index or namelist or string
+#
+#    0       1         2      3         4       5        6             7          8          9             10      11
+#    MEMBER, ALLINDEX, INDEX, SUBINDEX, FAMILY, COUNTER, ALLSUBDOMAIN, SUBDOMAIN, SUBDOMPRE, SUBDOMNUMBER, DOMAIN, FACILITY
+#    Name: VMI1-2V5S3M
+#    VMI     1-2       1      2         V       5        S3M           S3         S          3             M
+#
+#  Example for order definition synatx:
+#
+# - BDNS::setOrder([qw(MEMBER ALLINDEX INDEX)])
+# - BDNS::setOrder("0,1,2")
+# - BDNS::setOrder([0,1,2])
 sub setOrder
 {   my ($o) = @_;
     use Data::Dumper; print ref($o), Dumper($o);
-    if( ref($o) eq 'ARRAY')
+    if( $o eq 'DEFAULT')
+    {
+    	$rA_order = $rA_defaultOrder;
+    }
+    elsif( ref($o) eq 'ARRAY')
     {
     	$rA_order = [map{ $namePart2idx{$_}; } @$o];
     }
@@ -191,10 +234,11 @@ sub setOrder
     {
     	$rA_order = [map{ $namePart2idx{$_}; } split /[,\s]+/, $o];
     }
+    print "Order: '",join("','",@$rA_order),"'\n";
     warn "illegal order parameter" if(scalar(@$rA_order)<=0);
 }
 
-sub cmpNames
+sub   cmpNames
 {   my($a,$b)=@_;
 
     $a =~ /([\w\d-]*)$/;    # this matches a DEVICENAME and a /GADGET/PATH/DEVICENAME 
@@ -204,13 +248,13 @@ sub cmpNames
 #print "compare ($a,$b): ";
     my @A= parse($a);
     my @B= parse($b);
-#print "compare ($a,$b): A=(",join(',',@A),") B=(",join(',',@B),") \n\t";
+print "compare ($a,$b): A=(",join(',',@A),") B=(",join(',',@B),") \n\t";
     my $cmp=0;
     foreach my $i (@$rA_order)
     {
     	$a = $A[$i];
     	$b = $B[$i];
-#print "($a,$b) ";
+print "($a,$b) ";
 	$a = "" unless defined $a;
 	$b = "" unless defined $b;
     	if( ($a=~ /\d+/) && ($b=~ /\d+/))
@@ -224,12 +268,8 @@ sub cmpNames
 	    last unless $cmp == 0;
 	}
     }
-#print "return: $cmp\n";
+print "return: $cmp\n";
     return $cmp;
 }
 
-sub sortNames
-{   my($rA_names) = @_;
-    return sort {BDNS::cmpNames($a,$b)} @$rA_names;
-}
 1;

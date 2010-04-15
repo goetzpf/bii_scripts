@@ -377,6 +377,7 @@ DOCTXT_SCRIPT_LIST= makeDocTxt.pl \
 # perl libraries with embedded documentation that can be HTML converted
 # with makeDocTxt
 DOCTXT_PERLLIB_LIST= printData.pm \
+	BDNS.pm \
 	tokParse.pm
 
 # files in the doc/txt directory that can be HTML converted
