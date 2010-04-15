@@ -219,9 +219,13 @@ sub sortNames
 # - BDNS::setOrder([qw(MEMBER ALLINDEX INDEX)])
 # - BDNS::setOrder("0,1,2")
 # - BDNS::setOrder([0,1,2])
+#
+#  Reset to default sortorder:
+#
+#    BDNS::setOrder("DEFAULT")
 sub setOrder
 {   my ($o) = @_;
-    use Data::Dumper; print ref($o), Dumper($o);
+#use Data::Dumper; print ref($o), Dumper($o);
     if( $o eq 'DEFAULT')
     {
     	$rA_order = $rA_defaultOrder;
@@ -234,11 +238,12 @@ sub setOrder
     {
     	$rA_order = [map{ $namePart2idx{$_}; } split /[,\s]+/, $o];
     }
-    print "Order: '",join("','",@$rA_order),"'\n";
+#    print "Order: '",join("','",@$rA_order),"'\n";
     warn "illegal order parameter" if(scalar(@$rA_order)<=0);
 }
 
-sub   cmpNames
+## Compare function, used in function 'sortNames()'
+sub cmpNames
 {   my($a,$b)=@_;
 
     $a =~ /([\w\d-]*)$/;    # this matches a DEVICENAME and a /GADGET/PATH/DEVICENAME 
@@ -248,13 +253,13 @@ sub   cmpNames
 #print "compare ($a,$b): ";
     my @A= parse($a);
     my @B= parse($b);
-print "compare ($a,$b): A=(",join(',',@A),") B=(",join(',',@B),") \n\t";
+#print "compare ($a,$b): A=(",join(',',@A),") B=(",join(',',@B),") \n\t";
     my $cmp=0;
     foreach my $i (@$rA_order)
     {
     	$a = $A[$i];
     	$b = $B[$i];
-print "($a,$b) ";
+#print "($a,$b) ";
 	$a = "" unless defined $a;
 	$b = "" unless defined $b;
     	if( ($a=~ /\d+/) && ($b=~ /\d+/))
@@ -268,7 +273,7 @@ print "($a,$b) ";
 	    last unless $cmp == 0;
 	}
     }
-print "return: $cmp\n";
+#print "return: $cmp\n";
     return $cmp;
 }
 
