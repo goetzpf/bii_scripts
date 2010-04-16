@@ -476,7 +476,7 @@ _HTML_PYDOC_PYTHONLIB_BUILD_LIST=\
   $(addprefix $(PYTHONLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PYDOC_PYTHONLIB_LIST)))
 
 # all perl-libs for which documentation is generated
-_DOC_ALL_PERLLIB_LIST= $(POD_PERLLIB_LIST)
+_DOC_ALL_PERLLIB_LIST= $(POD_PERLLIB_LIST) $(DOCTXT_PERLLIB_LIST)
 
 # all python-libs for which documentation is generated
 _DOC_ALL_PYTHONLIB_LIST= $(PYDOC_PYTHONLIB_LIST)
