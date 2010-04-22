@@ -55,6 +55,8 @@ use constant {
 use vars qw($opt_help $opt_summary $opt_man 
             $opt_commit
             $opt_generate
+            $opt_edit
+            $opt_status
             $opt_svn_log_gen
             $opt_darcs $opt_cvs $opt_svn $opt_hg $opt_hgmq
             $opt_dry_run);
@@ -62,21 +64,22 @@ use vars qw($opt_help $opt_summary $opt_man
 # the following options are also recognized without
 # a leading "--" since they are commands.
 my %gbl_arg_lst= (generate=> '--generate',
-                  check   => '--generate',
-                  status  => '--generate',
-                  changes => '--generate',
+                  status  => '--status',
+                  edit    => '--edit',
                   commit  => '--commit',
                   );
 
 
 my $mail_domain= "helmholtz-berlin.de";
 
+my $description_file= "DIFFS";
+
 my $sc_version= "1.0";
 
 my $sc_name= $FindBin::Script;
 my $sc_summary= "perform multiple commits (cvs|svn|darcs|hg) with a prepared command-file"; 
 my $sc_author= "Goetz Pfeiffer";
-my $sc_year= "2009";
+my $sc_year= "2010";
 
 my $debug= 0; # global debug-switch
 
@@ -89,7 +92,9 @@ if (!@ARGV)
 
 preproc_args();
 
-if (!GetOptions("help|h","summary","man","commit=s","generate",
+if (!GetOptions("help|h","summary","man","commit:s","generate:s",
+                "edit:s",
+                "status",
                 "svn_log_gen|svn-log-gen=s", 
                 "dry_run|dry-run","darcs","cvs","svn", "hg", "hgmq"
                 ))
@@ -138,17 +143,40 @@ if (defined $opt_hgmq)
 if (!defined $vcs)
   { $vcs= SVN; };  
 
+my $cmd_cnt=0;
+if (defined $opt_generate)
+  { $cmd_cnt++; };
+if (defined $opt_edit)
+  { $cmd_cnt++; };
+if (defined $opt_status)
+  { $cmd_cnt++; };
+if (defined $opt_commit)
+  { $cmd_cnt++; };
 
-if ((defined $opt_generate) && (defined $opt_commit))
+if ($cmd_cnt>1)
   { die "contradicting options\n"; };
 
 if (defined $opt_svn_log_gen)
   { scan_svn_log($opt_svn_log_gen); }
-elsif (defined $opt_generate)
-  { generate_file($vcs); }
-elsif (defined $opt_commit)
+elsif ((defined $opt_generate) || (defined $opt_status) || (defined $opt_edit))
   { 
-    scan_file($vcs,$opt_commit);
+    my $editor= undef;
+    my $filepar= undef;
+    if (defined $opt_generate)
+      { $filepar= ($opt_generate eq "") ? $description_file : $opt_generate; }
+    if (defined $opt_edit)
+      { 
+        $editor= $ENV{EDITOR};
+        if (defined $ENV{MULTICOMMIT_EDITOR})
+          { $editor= $ENV{MULTICOMMIT_EDITOR}; };
+        $filepar= ($opt_edit eq "") ? $description_file : $opt_edit; 
+      }
+    generate_file($vcs, $filepar, $editor);
+  }
+elsif (defined $opt_commit)
+  {
+    my $filepar= ($opt_commit eq "") ? $description_file : $opt_commit;
+    scan_file($vcs, $filepar);
   };
 
 
@@ -375,7 +403,7 @@ sub build_comment
   }
 
 sub generate_file_cmd
-  { my($vcs)= @_;
+  { my($vcs, $filename)= @_;
     my $cmd;
 
     if    ($vcs eq CVS)
@@ -394,13 +422,30 @@ sub generate_file_cmd
       }
     else
       { die "assertion"; };
+    if (defined $filename)
+      { $cmd.= " > $filename"; }
     return($cmd);
   }
 
 sub generate_file
-  { my($vcs)= @_;
+  { my($vcs, $filename, $editor)= @_;
 
-    my $cmd= generate_file_cmd($vcs);
+    my $cmd= generate_file_cmd($vcs, $filename);
+    if ($opt_dry_run)
+      { print "command: \"$cmd\"\n";
+      }
+    else
+      { 
+        if (-e $filename)
+          { print "warning: file \"$filename\" already exists, overwrite (y/n)?";
+            my $rep= <>;
+            if ($rep!~ /^\s*(y|yes|ok|j|ja)\s*$/i)
+              { die "aborting...\n"; }
+          }
+        if (!sys($cmd))
+          { die "error: command failed!"; };
+      };    
+    $cmd= "$editor $filename";
     if ($opt_dry_run)
       { print "command: \"$cmd\"\n";
       }
@@ -409,7 +454,6 @@ sub generate_file
           { die "error: command failed!"; };
       };    
   }    
-
 
 sub commit_cmd
   { my($vcs,$files,$temp_file)= @_;
@@ -534,11 +578,21 @@ Syntax:
   $sc_name [command] {options}
 
   commands:
-    generate|check|status|changes:
-        generate a file containing the changes and print to console
-    commit [file]
-        commit changes to the repository,    
-        the file argument is mandatory 
+    edit {file}
+        generate a file containing the changes. If {file} is missing
+        generate a file with name "$description_file". After the file
+        was generated, an editor is started with this file. The 
+        editor program is taken from the "MULTICOMMIT_EDITOR" environment 
+        variable and if this variable does not exist, from the "EDITOR"
+        environment variable.
+    generate {file}
+        generate a file containing the changes. If {file} is missing
+        generate a file with name "$description_file".
+    status:
+        print changes to the console.
+    commit {file}
+        commit changes described in {file} to the repository.
+        If {file} is missing, generate a file with name "$description_file".
 
   options:
     -h: help
@@ -621,22 +675,39 @@ The following commands are known:
 
 =item status
 
-  multi-commit.pl status > MESSAGE.TXT
+  multi-commit.pl status 
 
 This command returns a list of all files in the current 
 directory. For each file the first letter shows the status.
 Usually "M" means modified, "D" deleted, "A" added and
 "?" means that this file is unknown to the repository.
 
+=item generate
+
+  multi-commit.pl generate 
+
 This command is usually used to create a first version of the 
-message file.
+message file. It simply writes the output of the status command
+(see above) into a file. The default name for this file is "DIFFS"
+but it can be specified differently as a parameter for "generate".
+
+=item edit
+
+  multi-commit.pl edit 
+
+This command is similar to "generate" but is starts an editor
+on the generated file. The editor is taken from the MULTICOMMIT_EDITOR
+environment variable, and, if this is not defined, from the 
+EDITOR environment variable.
 
 =item commit
 
-  multi-commit.pl commit MESSAGE.TXT
+  multi-commit.pl commit 
 
 This command performs the commit of all files mentioned in the 
-message-file. For the details of the format of this file see below.
+description-file. For the details of the format of this file see below.
+The name of the description file is "DIFFS" but it can be specified
+differently as a parameter for "commit".
 
 =back
 
@@ -667,7 +738,7 @@ This option specifies that the "mercurial" version control system is to be used.
 
 This option specifies that the "mercurial" version control system with patch
 queues is to be used. The difference with respect to "--hg" is that the status
-is generated with "hg status --rev -2" and that "hg qrefresh" is used instead
+is generated with "hg status --rev -2" and that "hg qrefresh -e" is used instead
 of "hg commit".
 
 =item --dry-run
@@ -683,9 +754,9 @@ repository.
 
 =back
 
-=head2 the message file
+=head2 the description file
 
-The message file is usually created by taking the output of
+The description file is usually created by taking the output of
 the "status" command and adding comments for each changed, modified
 or added file. This is an example of such a file, note that
 (in contrast to this help text) the lines MUST NOT heave leading 
@@ -725,13 +796,13 @@ or "--darcs" for other version control systems.
 
 =over 4
 
-=item generate the message file:
+=item generate the description file:
 
-  multi-commit.pl status --svn > MESSAGE.TXT
+  multi-commit.pl status --svn 
 
-=item add log-messages to the message file:
+=item add log-messages to the description file:
 
-  <my-favorite-editor> MESSAGE.TXT 
+  <my-favorite-editor> DIFFS
 
 Remove all lines marked with "?" here, these are files the repository
 doesn't know of. For each file mentioned, look what has changed
@@ -740,7 +811,7 @@ or "darcs diff <filename>" or your favorite graphical diff program)
 and append a comment below the filename. Leave the line with the 
 filename itself unchanged.
 
-=item group log-messages in the message file:
+=item group log-messages in the description file:
 
 You should now look which commits belong logically together. When
 the log-messages for two files are identical, they belong together.
@@ -755,7 +826,7 @@ file-specific logmessage.
 
 Now save your changes and look what the script would do:
 
-  multi-commit.pl commit MESSAGE.TXT --svn --dry-run | less
+  multi-commit.pl commit --svn --dry-run | less
 
 If log-messages are not properly formatted or wrong go back and
 re-edit the file. If everything looks ok, commit your changes 
@@ -763,7 +834,7 @@ re-edit the file. If everything looks ok, commit your changes
 
 =item commit your changes:
 
-  multi-commit.pl commit MESSAGE.TXT --svn 
+  multi-commit.pl commit --svn 
 
 That should be all!
 
