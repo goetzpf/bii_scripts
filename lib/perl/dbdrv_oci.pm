@@ -157,6 +157,13 @@ sub real_name
         $data= $r_db_objects->{$object_name};
       };
 
+    if ((!defined $data) && ($obj=~/\./))
+      { 
+        # object name contains a dot, assume
+        # that we can access the table.
+	# fake the $data object:
+	$data= [undef,$obj];
+      }
     if (!defined $data)
       { # not in list of synonyms and user objects
         # the object is probably not accessible
