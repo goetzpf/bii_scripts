@@ -682,9 +682,10 @@ def recover_data(working_copy,
         apply_hg_bundle(join(data_dir,"hg-bundle"), verbose, dry_run)
     hg_cmd("update -r %s" % bag["revision"], 
            not verbose, verbose, dry_run=dry_run)
-    _system("patch -p1 < %s" % join(data_dir,"hg-diff"), 
-            catch_stdout= not verbose,
-            verbose=verbose, dry_run=dry_run)
+    if bag["uncommitted changes"]:
+	_system("patch -p1 < %s" % join(data_dir,"hg-diff"), 
+		catch_stdout= not verbose,
+		verbose=verbose, dry_run=dry_run)
     if bag["unknown files"]:
         extract_archive(join(data_dir,"unknown-files.tar.gz"), verbose, dry_run)
 
