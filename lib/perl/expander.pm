@@ -167,6 +167,16 @@ my $gbl_err_pre;
 
 # used modules
 
+sub testget_var
+  { my($name,$index)= @_;
+
+    if (!exists $m{$name})
+      { return; };
+    if (!defined $index)
+      { return($m{$name}); };
+    return($m{$name}->[$index]);
+  }
+
 sub get_var
   { my($name,$index)= @_;
 
@@ -2021,6 +2031,17 @@ B<get_var()>
 
 This function returns the value of the internal variable with the
 name $varname. If $index is given, an index-variable is assumed.
+
+=item *
+
+B<testget_var()>
+
+  testget_var($varname)
+  testget_var($varname,$index)
+
+This function returns the value of the internal variable with the
+name $varname. If $index is given, an index-variable is assumed.
+If the variable does not exist, this function returns <undef>.
 
 =item *
 
