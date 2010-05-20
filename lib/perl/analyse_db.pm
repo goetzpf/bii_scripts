@@ -80,6 +80,15 @@ INPI
 INPJ
 INPK
 INPL
+INPM
+INPN
+INPO
+INPP
+INPQ
+INPR
+INPS
+INPT
+INPU
 LNK1
 LNK2
 LNK3
@@ -91,8 +100,32 @@ LNK8
 LNK9
 LNKA
 OUT
+OUTA
+OUTB
+OUTC
+OUTD
+OUTE
+OUTF
+OUTG
+OUTH
+OUTI
+OUTJ
+OUTK
+OUTL
+OUTM
+OUTN
+OUTO
+OUTP
+OUTQ
+OUTR
+OUTS
+OUTT
+OUTU
 SDIS
-SELL);
+SELL
+SUBL
+TSEL
+);
 
 my %dtyp_link_fields= map{ $_ => 1 } @dtyp_link_fields;
 my %link_fields     = map{ $_ => 1 } @link_fields;
