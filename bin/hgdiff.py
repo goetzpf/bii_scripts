@@ -509,16 +509,17 @@ class App:
 def kompare(options):
     """just call the external kompare program.
     """
-    if options.rev is None:
-        revisions= []
-    else:
+    args=["hg","extdiff","-p","kompare"]
+    if options.changes is not None:
+	if options.rev is not None:
+	    sys.exit("-c must not be used together with -r")
+	args.extend(("-c",options.changes))
+    elif options.rev is not None:
         if len(options.rev)>2:
             sys.exit("only up to 2 revision numbers may be specified")
-        revisions= options.rev
-    args=["hg","extdiff","-p","kompare"]
-    if len(revisions)>0:
-        for r in revisions:
-	    args.extend(["-r",r])
+	for r in options.rev:
+	    args.append("-r")
+	    args.append(r)
     os.execvp("hg",args)
 
 def main():
