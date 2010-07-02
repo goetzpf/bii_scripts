@@ -147,10 +147,10 @@
     $options{TYPE} = $type;
     $options{BORDER} = $border;
     my( $inFileName, $outFileName) = @ARGV;
-    
+    my $rH_subst;
     if( defined $substPar)
     {
-        my $rH_subst = getSubstitutions($substPar);
+        $rH_subst = getSubstitutions($substPar);
 	$options{SUBSTITUTIONS} = $rH_subst;
     }
 
@@ -165,9 +165,9 @@
     my( $file, $r_substData);
     
     if ($inFileName eq '-') # read from stdin
-      { *IN_FILE= *STDIN; }
-    else
-      { open(IN_FILE, "<$inFileName") or die "can't open input file: $inFileName"; }
+    { *IN_FILE= *STDIN; }
+    else 
+    {	open(IN_FILE, "<$inFileName") or die "can't open input file: $inFileName"; }
       
     { local $/;
       undef $/; # ignoriere /n in der Datei als Trenner
@@ -180,14 +180,14 @@
 
     $inFileName =~ /\.(\w+)\s*$/;
     my $fileType = $1;
-    if($fileType eq 'substitutions') {
-    	$r_substData = parse_subst::parse($file,'templateList');
-    }
-    elsif($fileType eq 'db' || $fileType eq 'template' ) {
+    if($fileType eq 'db' || $fileType eq 'template' ) {
     	$layout = 'dbDbg';
     	$r_substData = parse_db::parse($file,$inFileName,'asArray');
     }
-#print "inFileName '$inFileName', fileType '$fileType', ",Dumper($r_substData),"\nSubstitutions '$substPar'):";print Dumper($rH_subst);die;
+    else {
+    	$r_substData = parse_subst::parse($file,'templateList');
+    }
+#print "inFileName '$inFileName', fileType '$fileType', ",Dumper($r_substData),"\nSubstitutions '$substPar'):";#print Dumper($rH_subst);die;
 
 #-- Create layout dependant panel data --
 

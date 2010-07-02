@@ -435,6 +435,7 @@ Perl Libraries
 
 **BDNS.pm**
   | BESSY device name parser.
+  | `documentation <perllib/BDNS.html>`__
 
 **bessy_module.pm**
   | This performs a "module <command> <args...>" in the z-shell 
@@ -567,6 +568,7 @@ Perl Libraries
 
 **printData.pm**
   | some console print utilities.
+  | `documentation <perllib/printData.html>`__
 
 **scan_makefile.pm**
   | This module scans one or more than one makefile and returns 
@@ -587,6 +589,7 @@ Perl Libraries
 
 **tokParse.pm**
   | token parser utilities (for makeDocTxt).
+  | `documentation <perllib/tokParse.html>`__
 
 ----------------
 Python Libraries
