@@ -1415,26 +1415,31 @@ sub mk_perl_varnames
   { my($line,$r_line,$pos)= @_;
 
 #print "in: |$line|\n"; 
+
+    # note: (\w{2,}|[A-Za-z]) is used instead of (\w+) in order to 
+    # avoid matching things like "$_" or "$1" which are special global
+    # variables in perl.
+
     # replace ${a[..]} with \$m{a}->[..]
     #   Note: ".." must NOT contain ']'
-    $line=~ s/(?<!\\)\$\{(\w+)\[([^\]]+)\]\}/\\\$m\{$1\}->\[$2\]/gs;
+    $line=~ s/(?<!\\)\$\{(\w{2,}|[A-Za-z])\[([^\]]+)\]\}/\\\$m\{$1\}->\[$2\]/gs;
 
     #replace @{a} with \@{\$m{a}}
-    $line=~ s/(?<!\\)\@\{(\w+)\}/\@\{\\\$m\{$1\}\}/gs;
+    $line=~ s/(?<!\\)\@\{(\w{2,}|[A-Za-z])\}/\@\{\\\$m\{$1\}\}/gs;
 
     # replace ${a} with \$m{a}
-    $line=~ s/(?<!\\)\$(\{\w+\})/\\\$m$1/gs;
+    $line=~ s/(?<!\\)\$(\{\w{2,}|[A-Za-z]\})/\\\$m$1/gs;
 
 #warn;    
     #replace $a[..] with \$m{a}->[..]
     #   Note: ".." must NOT contain ']'
-    $line=~ s/(?<!\\)\$(\w+)\[([^\]]+)\]/\\\$m\{$1\}->\[$2\]/gs; 
+    $line=~ s/(?<!\\)\$(\w{2,}|[A-Za-z])\[([^\]]+)\]/\\\$m\{$1\}->\[$2\]/gs; 
 
     #replace @a with \@{\$m{a}}
-    $line=~ s/(?<!\\)\@(\w+)/\@\{\\\$m\{$1\}\}/gs;
+    $line=~ s/(?<!\\)\@(\w{2,}|[A-Za-z])/\@\{\\\$m\{$1\}\}/gs;
 
     # replace $a with \$m{a}
-    $line=~ s/(?<!\\)\$(\w+)/\\\$m\{$1\}/gs; 
+    $line=~ s/(?<!\\)\$(\w{2,}|[A-Za-z])/\\\$m\{$1\}/gs; 
 
     # replace \$ with $
     $line=~ s/\\\$/\$/gs;
