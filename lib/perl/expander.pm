@@ -170,6 +170,7 @@ my $gbl_err_pre;
 sub testget_var
   { my($name,$index)= @_;
 
+    warn;
     if (!exists $m{$name})
       { return; };
     if (!defined $index)
@@ -1428,7 +1429,7 @@ sub mk_perl_varnames
     $line=~ s/(?<!\\)\@\{(\w{2,}|[A-Za-z])\}/\@\{\\\$m\{$1\}\}/gs;
 
     # replace ${a} with \$m{a}
-    $line=~ s/(?<!\\)\$(\{\w{2,}|[A-Za-z]\})/\\\$m$1/gs;
+    $line=~ s/(?<!\\)\$(\{(?:\w{2,}|[A-Za-z])\})/\\\$m$1/gs;
 
 #warn;    
     #replace $a[..] with \$m{a}->[..]
@@ -1447,7 +1448,7 @@ sub mk_perl_varnames
     # replace \@ with @
     $line=~ s/\\\@/\@/gs;
 
-#print "here: |$line|\n";
+#warn "here: |$line|";
     if (defined $callback)
       { pos($line)=0;
         # perform callback for all simple variables
