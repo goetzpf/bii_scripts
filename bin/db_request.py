@@ -90,15 +90,16 @@ def main():
 	outFormat = "txt"
 	dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8", "postgres", "sqlite"]
 	outFormatList = {
-		"txt": ["","\"","\"",",",""], 
-		"csv": ["","\"","\"",",",""], 
-		"tab": ["","\"","\"","\t",""],
-		"python": ["(","'","'",", ",")"],
-		"php": ["[","\"","\"",",","],"],
-		"perl": ["[","\"","\"",", ","],"], 
-		"json": ["{","'","'",",","},"], 
-		"xml": ["\n\t<row>","\n\t\t<value>","</value>","","\n\t</row>"], 
-		"html": ["\n\t<tr>","\n\t\t<td>","\n\t\t</td>","","\n\t</tr>"] 
+        "c": ["", "", "", " ", "", "{}"]
+		"txt": ["","\"","\"",",","", "NULL"], 
+		"csv": ["","\"","\"",",","", ""], 
+		"tab": ["","\"","\"","\t","", ""],
+		"python": ["(","'","'",", ",")", "null"],
+		"php": ["[","\"","\"",",","],", "null"],
+		"perl": ["[","\"","\"",", ","],", "\"\""], 
+		"json": ["{","'","'",",","},", "null"], 
+		"xml": ["\n\t<row>","\n\t\t<value>","</value>","","\n\t</row>", ""], 
+		"html": ["\n\t<tr>","\n\t\t<td>","\n\t\t</td>","","\n\t</tr>", "&nbsp;"] 
 	}
 	outFormatNullString = ""
 	
@@ -107,8 +108,7 @@ def main():
  	argParser.add_option ("-u", "--user", type="string", action="store", metavar="dbLoginUsername", help="set username")
  	argParser.add_option ("-p", "--password", type="string", action="store", metavar="dbLoginPassword", help="set password")
  	argParser.add_option ("-d", "--database", type="string",  action="store", metavar="dbInstanceString", help="set password")
- 	helpcontext ="defines connectiontype to database, ("+ ",".join(dbProtocolList)+ ")"
- 	argParser.add_option ("-c", "--connecttype", type="string",  action="store", metavar="dbInstanceTypeString", help=helpcontext)
+ 	argParser.add_option ("-c", "--connecttype", type="string",  action="store", metavar="dbInstanceTypeString", help="defines connectiontype to database, ("+ ","+join(dbProtocolList)+ ")")
  	argParser.add_option ("-g", "--guest", action="store_false", help="set forced anonymous access")
  	argParser.add_option ("-s", "--sql", type="string", action="store", metavar="dbSQLString",  help="sequel command")
  	argParser.add_option ("-n", "--none", type="string", action="store", metavar="dbSQLString",  help="sequel command")
