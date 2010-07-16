@@ -1378,10 +1378,34 @@ sub delete_line
     $self->{_deleted}->{$pk}=1;
   }
 
+sub add_column_aliases
+  { my $self= shift;
+    my $column= shift; $column= uc($column);
+    my %options= @_;
+
+    my $r_a= $self->get_hash("_aliases");
+
+    my $col_index= $self->{_columns}->{$column};
+    if (!defined $col_index)
+      { dbdrv::dberror($mod,'value',__LINE__,
+		       "error: unknown column: $column");
+	return;
+      };
+    while ( my($pk,$line)= each(%{$self->{_lines}}) )
+      { 
+	my $key= $line->[$col_index];
+	if ($options{lowercase})
+	  { $key= lc($key); };
+	if ($options{uppercase})
+	  { $key= uc($key); };
+        $r_a->{$line->[$col_index]}= $pk;
+      }
+  }
+
 sub add_aliases
   { my $self= shift;
     my %aliases= @_;
-    my $r_a= $self->{_aliases};
+    my $r_a= $self->get_hash("_aliases");
     my($alias,$pk);
     my $lines= $self->{_lines};
 
@@ -2165,6 +2189,8 @@ sub load_from_file
 #           generate: only done where pk==0 !!!!
 # new_name=> $name
 #       change $self->{_table} to the new name
+# no_aliases => 1 or 0
+#       if "1", do not read the [Aliases] section
   { my $self= shift;
     my %options= @_;
 
@@ -2302,17 +2328,21 @@ sub load_from_file
           };
 
         if (($part eq 'Aliases') && (!$slim_format))
-          { my @tokens = &parse_line('[\s,]+', 0, $line);
-            foreach my $t (@tokens)
-              { next if (!defined $t); # don't know why this happens
-                my($a,$pk)= ($t=~ /^\s*(.*?)\s*=>\s*(.*?)\s*$/);
-                if (!defined $pk)
-                  { dbdrv::dberror($mod,'load_from_file',__LINE__,
-                                   "unrecognized line: \n\"$line\"");
-                    return;
-                  };
-                $self->{_aliases}->{$a}= $pk;
-              };
+          { 
+	    my @tokens = &parse_line('[\s,]+', 0, $line);
+	    if (!$options{no_aliases})
+	      {
+		foreach my $t (@tokens)
+		  { next if (!defined $t); # don't know why this happens
+		    my($a,$pk)= ($t=~ /^\s*(.*?)\s*=>\s*(.*?)\s*$/);
+		    if (!defined $pk)
+		      { dbdrv::dberror($mod,'load_from_file',__LINE__,
+				       "unrecognized line: \n\"$line\"");
+			return;
+		      };
+		    $self->{_aliases}->{$a}= $pk;
+		  };
+	      };
             next;
           };
 
@@ -2365,8 +2395,9 @@ sub load_from_file
       { $fh->close(); };
 
     if (!$found)
-      { dbdrv::dberror($mod,'load_from_file',__LINE__,
-                       "tag $tag not found in file $filename");
+      { 
+        dbdrv::dberror($mod,'load_from_file',__LINE__,
+                       "tag \"$tag\" not found in file $filename");
         return;
       };
 
@@ -2402,7 +2433,7 @@ sub load_from_file
     $self->{_pkis}= \@pkis;
 
     # 2nd: lines
-    my $r_aliases= $self->{_aliases};
+    my $r_aliases= $self->get_hash("_aliases");
     my %lines_hash;
     my $single_pki= $pkis[0];
     my $pk;
@@ -2445,6 +2476,8 @@ sub store_to_file
 # known options: 'order_by' => column-name
 #            or  'order_by' => [column-name1,column-name2...]
 #                'pretty' => 1 or 0
+#                'no_aliases' => 1 or 0
+#                             if "1", do not store the [Aliases] section
   { my $self= shift;
     my %options= @_;
     my $is_multi_pk= $self->{_multi_pk};
@@ -2579,17 +2612,20 @@ sub store_to_file
         #print $fh_w "TABLE=",$self->{_table}," PK=",$self->{_pk},
         #        " TYPE=",$self->{_type},"\n";
         #print $fh_w "FETCH_CMD=\"",$self->{_fetch_cmd},"\"\n";
-        print $fh_w "[Aliases]\n";
-        my $r_a= $self->{_aliases};
+	if (!$options{no_aliases})
+	  {
+	    print $fh_w "[Aliases]\n";
+	    my $r_a= $self->{_aliases};
 
-        my @text;
-        $Text::Wrap::columns = 72;
-        foreach my $k (sort keys %$r_a)
-          { my $val= $r_a->{$k};
-            next if ($val eq $k);
-            push @text, ($k . "=>" . $val);
-          };
-        print $fh_w wrap('', '', join(", ",@text)),"\n";
+	    my @text;
+	    $Text::Wrap::columns = 72;
+	    foreach my $k (sort keys %$r_a)
+	      { my $val= $r_a->{$k};
+		next if ($val eq $k);
+		push @text, ($k . "=>" . $val);
+	      };
+	    print $fh_w wrap('', '', join(", ",@text)),"\n";
+	  };
       };
 
     if (exists $self->{_types})
@@ -3333,6 +3369,16 @@ with the "pretty" option also active (see C<store>).
 
 =item *
 
+"no_aliases"
+
+  $table->load(no_aliases=>1)
+
+This option can only be used for the type "file". "no_aliases" must be
+either "0" or "1". With "0", the [Aliases] section from the file is not
+read.
+
+=item *
+
 "new_name"
 
   $table->load(new_name=>"my_new_table_name")
@@ -3397,6 +3443,16 @@ format. With "1", spaces are added at the end of fields, to make
 the file more look like a real table. Files that were written
 with the "pretty" option enabled, should only be read (via C<load>)
 with the "pretty" option also enabled.
+
+=item *
+
+"no_aliases"
+
+  $table->store(no_aliases=>1)
+
+This option can only be used for the type "file". "no_aliases" must be
+either "0" or "1". With "0", the file is written with aliases, keys that
+reference single lines of the table. With "1" this section is omitted.
 
 =item *
 
@@ -3737,7 +3793,7 @@ always unique in the table).
 
 =item find()
 
-  my @pk_list= $table->value($column_name, $value, %flags)
+  my @pk_list= $table->find($column_name, $value, %flags)
 
 This method searches the table to find a row where the value
 in the specified column matches the given value. Note that this
@@ -3786,6 +3842,15 @@ it is taken as it is, and no new primary key is generated.
 
 This method deletes a line from the table. Note that this change is
 made in the database or file only at the next call of C<store()>.
+
+=item add_column_aliases()
+
+  $table->add_column_aliases($column_name,%options)
+
+This method is used to add aliases for a specific column to the
+column-aliases. Two options are known, "uppercase" and "lowercase".
+The alias is forced to be upper- or lowercase if one of these 
+options is set.
 
 =item add_aliases()
 

@@ -67,6 +67,7 @@ our $opt_order_by;
 our $opt_new_name;
 our $opt_summary;
 our $opt_no_auto_pk;
+our $opt_no_aliases;
 
 my $version="1.4";
 
@@ -87,7 +88,7 @@ if (!GetOptions("help|h", "summary",
 		"tag|T=s","action|a=s",
 		"filter|F=s","order_by:s",
 		"new_name|n=s",
-		"delete|D", "no_auto_pk"
+		"delete|D", "no_auto_pk|no-auto-pk", "no_aliases|no-aliases",
 
                 ))
   { die(undef,"parameter error, use \"$0 -h\" to display the online-help\n"); 
@@ -190,6 +191,9 @@ if (defined $opt_order_by)
     else
       { $parameters{order_by}=[ split(",",$opt_order_by) ]; };
   }; 
+
+if (defined $opt_no_aliases)
+  { $parameters{no_aliases}= 1; };
 
 if (defined $opt_new_name)
   { $parameters{new_name}= $opt_new_name; };
@@ -424,6 +428,9 @@ options:
   --no_auto_pk (only for file2db)
      do not generate primary keys but take the primary key field
      in the file as it is
+
+  --no-aliases (only file2* and *2file) 
+     do not create or evaluate the "Aliases" section in the file.
 END
   }
 
