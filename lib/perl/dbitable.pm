@@ -1398,7 +1398,7 @@ sub add_column_aliases
 	  { $key= lc($key); };
 	if ($options{uppercase})
 	  { $key= uc($key); };
-        $r_a->{$line->[$col_index]}= $pk;
+        $r_a->{$key}= $pk;
       }
   }
 
