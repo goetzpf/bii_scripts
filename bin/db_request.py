@@ -25,23 +25,36 @@ known protocols: odbc, access, mssql, mysql, mxodbc, oci8, postgres, sqlite
 
 Formats:
 
-xml format:
+xml format::
+
         <row>
                 <value>example</value>
                 <value>123</value><value />
                 <value>4.56</value>
         </row>
-c format: example 123 {} 4.56
 
-php format: ["example","123",null,"4.56"],
+c format:: 
 
-python format: ('example', '123', None, '4.56')
+        example 123 {} 4.56
 
-perl format: ["example", "123", "", "4.56"],
+php format:: 
+      
+        ["example","123",null,"4.56"],
 
-json format: {'example','123',null,'4.56'},
+python format:: 
+      
+        ('example', '123', None, '4.56')
 
-html format:
+perl format:: 
+        
+	["example", "123", "", "4.56"],
+
+json format:: 
+ 
+        {'example','123',null,'4.56'},
+
+html format::
+
         <tr>
                 <td>example</td>
                 <td>123</td>
@@ -49,11 +62,17 @@ html format:
                 <td>4.56</td>
         </tr>
 
-tab format: "example"   "123"           "4.56"
+tab format:: 
 
-txt format: "example","123",NULL,"4.56"
+        "example"   "123"           "4.56"
 
-csv format: "example","123",,"4.56"
+txt format:: 
+  
+         "example","123",NULL,"4.56"
+
+csv format:: 
+
+          "example","123",,"4.56"
 
 
 
