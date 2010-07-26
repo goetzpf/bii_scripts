@@ -43,6 +43,10 @@ differences relative to a central mercurial repository. By this,
 much disk space is saved, the backup file has usually only about 
 100kBytes or less.
 
+If the backed up repository uses mq patch queues, the tool saves
+and restores all *applied* patches, too. Note that the unapplied
+patches, however, are not saved.
+
 Quick reference
 ===============
 
@@ -392,7 +396,7 @@ def extract_archive(tarfile_name, verbose, dry_run, mode="r:gz"):
 # -----------------------------------------------
 
 recover_info="""
-this file shows how to restore the mercurial repository
+This file shows how to restore the mercurial repository
 manually. However, "hg-recover -r -f [filename]" should do
 all these things automatically.
 
@@ -402,47 +406,63 @@ You get this path if you enter "pwd" within the data-dir.
 
 1. clone the central repository
 
-in the file "metadata.yaml", the line starting with "central repository"
-contains the name of the central repository. The line starting with
-"source dir" has the name of the source directory, although this could
-be any arbitrary name.
+In the file "metadata.yaml", the line starting with "central repository"
+contains the name of the central repository. The line starting with "source
+dir" has the name of the source directory, although this could be any arbitrary
+name.
 Clone the central repository with:
+
 "hg clone [central repository] [source dir]"
 "cd [source dir]
 
 2. apply outgoing patches
 
-if in the file "metadata.yaml", the line starting with "outgoing patches"
-is followed by one or more integers (the revision numbers of outgoing patches),
-these patches have to be applied to the repository. They are placed
-in the file "hg-bundle". Apply the patches with:
+If in the file "metadata.yaml", the line starting with "outgoing patches" is
+followed by one or more integers (the revision numbers of outgoing patches),
+these patches have to be applied to the repository. They are placed in the file
+"hg-bundle". Apply the patches with:
 
 "hg unbundle [data-dir]/hg-bundle"
 
 3. set the specified revision
 
-in the file "metadata.yaml", the line starting with "revision" contains
-the revision number that was used in the working copy. Update to this
-revision with:
+In the file "metadata.yaml", the line starting with "revision" contains the
+revision number that was used in the working copy. Update to this revision
+with:
 
 "hg update -r [revision]"
 
 4. apply uncomitted changes
 
-if in the file "metadata.yaml", the line starting with "uncomitted changes"
-contains "true", then there are changes not committed to the repository
-that have to be applied. These are in the file "hg-diff". In this case
-apply these changes with:
+If in the file "metadata.yaml", the line starting with "uncomitted changes"
+contains "true", then there are changes not committed to the repository that
+have to be applied. These are in the file "hg-diff". In this case apply these
+changes with:
 
 "patch -p1 < [data-dir]/hg-diff
 
 5. add files not known to the repository
 
-if in the file "metadata.yaml", the line starting with "unknown files"
-contains "true", then there are additional files not known to the
-repository. Add them with:
+If in the file "metadata.yaml", the line starting with "unknown files" contains
+"true", then there are additional files not known to the repository. Add them
+with:
 
 "tar -xzf [data-dir]/unknown-files.tar.gz"
+
+6. restore the mq patches
+
+If in the file "metadata.yaml", the line starting with "mq patches used"
+contains "true", then there were applied mq patches in the original repository.
+The names of the patches together with the revision numbers can be found in the
+file "metadata.yaml" after "patchname list:".  Each item contains a number and
+a string, separated by a colon ":".
+Now apply:
+
+"hg qimport -r [number] -n [string]" 
+
+For each of the lines from the topmost entry (the biggest revision number) to
+the bottom (with the smallest revision number). This recreates the patches and
+restores their original names.
 """
 
 def mk_readme(filename, verbose, dry_run):
@@ -457,6 +477,36 @@ def mk_readme(filename, verbose, dry_run):
 def hg_cmd(cmd, catch_stdout, verbose, dry_run):
     """get data from a hg command."""
     return _system("hg %s" % cmd, catch_stdout, verbose, dry_run)
+
+def hg_revision_patchname_list(verbose, dry_run):
+    """returns a list of tuples (revision,patchname).
+
+    returns:
+        if there are no applied patches
+	    None
+	Otherwise
+	    a list of tuples (revision,patchname).
+    """
+    filename= os.path.join(".hg","patches","status")
+    if not os.path.exists(filename):
+	return None
+    patchmap= {}
+    f= open(filename)
+    for line in f:
+        line= line.strip()
+        (longrev,patchname)= line.split(":")
+	patchmap[longrev]= patchname
+    f.close()
+    if len(patchmap)==0:
+	return None
+    all= hg_cmd("log -r qbase:tip --template '{rev}:{node}\n'",
+                True,verbose,dry_run)
+    new= []
+    for l in all.splitlines():
+	(rev,longhashkey)= l.split(":")
+	#new.append((rev,hashkey,patchmap[longhashkey]))
+	new.append((rev,patchmap[longhashkey]))
+    return new
 
 rx_section=re.compile(r'^\[(\w+)\]\s*$')
 
@@ -577,6 +627,13 @@ def apply_hg_bundle(filename, verbose, dry_run):
            not verbose,
            verbose=verbose, dry_run=dry_run)
 
+def rebuild_patchdir(patchlist, verbose, dry_run):
+    """rebuild the patches that were in an applied state in the original dir.
+    """
+    hg_cmd("init --mq", False, verbose, dry_run)
+    for (rev,patchname) in patchlist:
+	hg_cmd("qimport -n \"%s\" -r %s" % (patchname,rev), False, verbose, dry_run)
+
 # -----------------------------------------------
 # major functions
 # -----------------------------------------------
@@ -618,6 +675,7 @@ def create_recover_data(working_copy,
 
     source_path= os.getcwd()
     outgoing_patches= hg_outgoing(central_repo, verbose or dry_run)
+    patchlist= hg_revision_patchname_list(verbose or dry_run, False)
     bag= { 
            "source path" : source_path, 
            "source dir" : last_path_element(source_path),
@@ -626,8 +684,11 @@ def create_recover_data(working_copy,
            "outgoing patches" : outgoing_patches,
            "default repository" : default_repo,
            "central repository" : central_repo,
-           "unknown files" : (len(unknown_files)>0)
-         }
+           "unknown files" : (len(unknown_files)>0),
+	   "mq patches used" : (patchlist is not None),
+	 }
+    if patchlist is not None:
+	bag["patchname list"] = ["%s:%s" % i for i in reversed(patchlist)]
     # print yaml.dump(bag)
     s= yaml.dump(bag,default_flow_style=False)
     mkfile(s, join(data_dir,"metadata.yaml"), verbose, dry_run)
@@ -688,6 +749,10 @@ def recover_data(working_copy,
 		verbose=verbose, dry_run=dry_run)
     if bag["unknown files"]:
         extract_archive(join(data_dir,"unknown-files.tar.gz"), verbose, dry_run)
+
+    if bag.get("mq patches used"):
+	rebuild_patchdir( [ i.split(":") for i in bag["patchname list"] ],
+	                  verbose, dry_run)
 
 def script_shortname():
     """return the name of this script without a path component."""
