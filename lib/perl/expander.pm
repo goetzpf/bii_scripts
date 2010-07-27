@@ -537,7 +537,14 @@ sub parse_scalar_i
                         $m_stacked= 1;
                       };
                     eval_part($pre,$r_line,$p);
-                  };
+                    my $res= eval_part($cond,$r_line,$p);
+		    # always add to @ifcond, the condition within
+		    # "for" may be false from the start, in this case
+		    # it behaves like an "if" with a false condition:
+		    push @ifcond, $res ? 1 : 0; 
+                  }
+		else
+		  { push @ifcond, 0; };
                 push @forstack, [$en+1,$cond,$loop,$m_stacked];
                 pos($$r_line)= $en+1;
                 next;   
@@ -766,9 +773,10 @@ sub parse_scalar_i
                     fatal_parse_error($r_line,$p); 
                   };
 
-                if ($ifcond[-1]<=0) 
+                if ($ifcond[-2]<=0) 
                   { # within ignore-block
                     pop @forstack; 
+		    pop @ifcond; # always together with forstack
                     next;
                   };
 
@@ -790,6 +798,7 @@ sub parse_scalar_i
                 else
                   { # leave for-loop:
                     pop @forstack; 
+		    pop @ifcond; # always together with forstack
                     if ($m_stacked)
                       { 
                         if ($#m_stack<0)
