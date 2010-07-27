@@ -495,8 +495,22 @@ class App:
     def execute_str(self, selection):
         flag= selection[0]
         file= selection[2:]
-        if flag=="?" or flag=="A" or flag=="C" or flag=="I":
+        if flag=="?" or flag=="I":
+	    # unknown or ignored files should always be present in the
+	    # working copy:
             show(file, self.verbose, self.dry_run)
+	elif flag=="A" or flag=="C":
+            if len(self.revisions)<=1:
+                r= None
+            else:
+                r= self.revisions[1]
+	    if r is None:
+		# show() can only be used on files present in the working copy:
+		show(file, self.verbose, self.dry_run)
+	    else:
+		# for files (possibly) no longer in the working copy, 
+		# show_revision() has to be used:
+		show_revision(r, file, self.verbose, self.dry_run)
         elif flag=="D" or flag=="!" or flag=="R":
             if len(self.revisions)<=0:
                 r= None
