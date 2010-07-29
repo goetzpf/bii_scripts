@@ -33,6 +33,8 @@ There is a man-page in the man-directory. In the examples directory there
 are 2 examples of a perl ca-gateway (the client reads the data via a 
 raw socket connection).
 
+make_html.sh creates html documentation in blib/html.
+
 
 Support of other platforms:
 ---------------------------
