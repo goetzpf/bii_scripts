@@ -170,7 +170,6 @@ my $gbl_err_pre;
 sub testget_var
   { my($name,$index)= @_;
 
-    warn;
     if (!exists $m{$name})
       { return; };
     if (!defined $index)
