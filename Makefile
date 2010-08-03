@@ -97,6 +97,9 @@ rm_extension_list=$(basename $(1))
 # $(call force_extension_list,space_separated_filenames)
 force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
+# rsync command
+rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(RSYNC_HOST):'$(2)'
+
 #############################################################
 
 # variables
@@ -122,6 +125,21 @@ PYDOC25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "pydoc2.5") || echo "pydo
 # the standard unix install command
 INSTALL=install $(INSTALL_FLAGS)
 INSTALLX=install $(INSTALL_XFLAGS)
+
+# variables that can be used to distribute the documentation files
+# with rsync:
+USE_RSYNC=no
+# ^^^ use "yes" if rsync is to be used, "no" otherwise
+RSYNC_HOST=localhost
+# ^^^ use "user@host" in order to set a specific user
+RSYNC_HTML_DIR=XXX
+# ^^^ this is the directory where rsync puts the documentation
+
+# define this macro when make should
+# create the installation directories in
+# case the do not exist already
+# CREATE_INSTALL_DIRS=1
+
 
 # environment variables for programs.........................
 PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
@@ -155,6 +173,7 @@ PERLLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/perl
 
 PYTHONLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
 
+ifneq "$(USE_RSYNC)" "yes"
 HTML_INSTALL_DIR=$(INSTALL_PREFIX)/share/html/bii_scripts
 
 SCRIPT_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/scripts
@@ -162,11 +181,12 @@ SCRIPT_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/scripts
 PERLLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/perllib
 
 PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
-
-# define this macro when make should
-# create the installation directories in
-# case the do not exist already
-# CREATE_INSTALL_DIRS=1
+else
+HTML_INSTALL_DIR=
+SCRIPT_HTML_INSTALL_DIR=
+PERLLIB_HTML_INSTALL_DIR=
+PYTHONLIB_HTML_INSTALL_DIR=
+endif
 
 # out-comment the following if
 # docutils (http://docutils.sourceforge.net)
@@ -481,6 +501,7 @@ _DOC_ALL_PERLLIB_LIST= $(POD_PERLLIB_LIST) $(DOCTXT_PERLLIB_LIST)
 # all python-libs for which documentation is generated
 _DOC_ALL_PYTHONLIB_LIST= $(PYDOC_PYTHONLIB_LIST)
 
+ifneq "$(USE_RSYNC)" "yes"
 # all html files for perl-libs that are installed
 _HTML_ALL_PERLLIB_INSTALL_LIST= \
   $(addprefix $(PERLLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PERLLIB_LIST)))
@@ -488,6 +509,7 @@ _HTML_ALL_PERLLIB_INSTALL_LIST= \
 # all html files for python-libs that are installed
 _HTML_ALL_PYTHONLIB_INSTALL_LIST= \
   $(addprefix $(PYTHONLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PYTHONLIB_LIST)))
+endif
 
 # list of all (generated) html files belonging to scripts with POD documentation
 _HTML_POD_SCRIPT_BUILD_LIST=\
@@ -535,9 +557,11 @@ _DOC_ALL_SCRIPT_LIST=  \
 	$(POD_SCRIPT_LIST) $(_PLAINTXT_ALL_SCRIPT_LIST) \
 	$(RST_DOC_PY_SCRIPT_LIST) $(DOCTXT_SCRIPT_LIST)
 
+ifneq "$(USE_RSYNC)" "yes"
 # list of all html files that are generated for scripts
 _HTML_ALL_SCRIPT_INSTALL_LIST= \
   $(addprefix $(SCRIPT_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_SCRIPT_LIST)))
+endif
 
 
 #############################################################
@@ -567,11 +591,6 @@ all: build
 
 install: install_html_txt install_shared install_scripts \
 	 install_perl_libs install_python_libs install_html
-
-install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
-
-$(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/%
-	$(INSTALL) $< $@
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
 
@@ -608,7 +627,13 @@ $(_PYTHONLIB_INSTALL_DIRLIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR
 	mkdir -p -m $(INSTALL_XPERMS) $@
 	chgrp $(INSTALL_GROUP) $@
 
+ifneq "$(USE_RSYNC)" "yes"
 install_html: install_css install_html_script install_html_perllib install_html_pythonlib
+
+install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
+
+$(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/%
+	$(INSTALL) $< $@
 
 install_css: $(HTML_INSTALL_DIR)/$(CSS_SRC_FILE)
 
@@ -629,6 +654,16 @@ install_html_pythonlib: build_html_pythonlib $(PYTHONLIB_HTML_INSTALL_DIR) $(_HT
 
 $(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/%
 	if test -e $<; then $(INSTALL) $< $@; fi
+else
+install_html: cp_css build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
+	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(RSYNC_HTML_DIR)/)
+
+cp_css: $(HTML_BUILD_DIR)/$(CSS_SRC_FILE)
+
+$(HTML_BUILD_DIR)/$(CSS_SRC_FILE): $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
+	$(INSTALL) $< $@
+
+endif
 
 # clean......................................................
 
