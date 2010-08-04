@@ -84,7 +84,7 @@ def script_shortname():
           
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: utility for blah blah\n" % script_shortname()
+    print "%-20s: display mercurial patches with tkdiff\n" % script_shortname()
 
 def heading(revisions, verbose, dry_run):
     """generate a heading."""
@@ -94,11 +94,15 @@ def heading(revisions, verbose, dry_run):
         return "rev %s <--> working copy" % revisions[0]
     return "rev %s <--> rev %s" % (revisions[0],revisions[1])
 
-def hgshortlog(revision, verbose, dry_run):
-    """return a one-line description of the revision."""
-    result= _system("hg log -r %s --template '{date|isodate} {desc|firstline}\n'" % revision, 
+def hg_loglist(verbose, dry_run):
+    """return all logs, one tuple per entry."""
+    result= _system("hg log --template '{rev}:{desc|firstline}\n'", 
                     True, verbose, dry_run)
-    return result.strip()
+    new= []
+    for l in result.splitlines():
+	parts= l.split(":")
+	new.append((int(parts[0]),parts[1]))
+    return new
 
 def hgidentify(verbose, dry_run):
     """return current revision number."""
@@ -232,19 +236,94 @@ def diff(revisions, file, verbose, dry_run):
             os.remove(f)
     _system_fork("tkdiff %s %s %s; true" % (t1,t2,labelpar), False, verbose, dry_run, _delete)
 
+class RevisionSelector(Tix.ComboBox):
+    """class for the combobox for the revision selection.
+    """
+    _logs= []
+    _revdict= {}
+    _rx_no= re.compile(r'^\s*(\d+)(?:\s*$|\s*:)')
+    _verbose= False
+    _dry_run= False
+    def __init__(self, parent, verbose, dry_run):
+        Tix.ComboBox.__init__(self, parent, 
+	    dropdown= True, 
+	    editable= True,
+	    validatecmd= lambda val: self.validate_callback(val))
+	self.slb= self.subwidget("slistbox")
+	self.lb= self.subwidget("listbox")
+	self.en= self.subwidget("entry")
+	self.lb.config(width= 80, bg="white")
+	self.en.config(width=80)
+	self.en.config(disabledbackground="grey")
+	self.en.config(disabledforeground="black")
+	RevisionSelector._verbose= verbose
+	RevisionSelector._dry_run= dry_run
+	self.revision= None # working copy
+    def set_change_callback(self, callback):
+	"""call callback when value changes."""
+	self.config(command=lambda x: callback())
+    @staticmethod
+    def get_no(st):
+	"""returns the number the string starts with.
+
+	returns:
+	    None: if not found
+	    integer : otherwise
+	"""
+	m= RevisionSelector._rx_no.match(st)
+	if m is None:
+	    return None
+	return int(m.group(1))
+    @staticmethod
+    def logline(rev,log):
+	"""create a logline string."""
+	return "%4d: %s" % (rev,log)
+    @staticmethod
+    def get_logs():
+	"""get all revision numbers with summary."""
+	RevisionSelector._logs= \
+	    hg_loglist(RevisionSelector._verbose, 
+	               RevisionSelector._dry_run)
+	RevisionSelector._revdict= dict(RevisionSelector._logs)
+
+    def curr_logline(self):
+	"""returns the logline string currently selected."""
+	if self.revision is None:
+	    return "working copy"
+	return RevisionSelector.logline(self.revision, 
+	                                RevisionSelector._revdict[self.revision])
+    def create_selection_list(self):
+	"""rebuilds the selection list.
+	"""
+	loglines= [RevisionSelector.logline(*l) for l in RevisionSelector._logs]
+	self.lb.delete(0, Tix.END)
+	self.lb.insert(0, *loglines)
+	self.lb.insert(0, "working copy")
+    def validate_callback(self,val):
+	"""validate a value, possibly correct it."""
+	if val=="working copy" or val.isspace() or val=="":
+	    self.revision= None
+	else:
+	    new= RevisionSelector.get_no(val)
+	    if new is not None:
+		if RevisionSelector._revdict.has_key(new):
+		    self.revision= new
+	return self.curr_logline()
+    def get_revision(self):
+	"""returns the revision as an integer or <None>."""
+	return self.revision
+    def set_value(self, string):
+	"""sets a new value (as a string)."""
+	self.config(value=string)
+
 class FrHeadClass(Tix.Frame):
     """Class for the top Tix.Frame, derived from Tix.Frame.
     
     Creates the top frame for the menu. The menu currently
     only contains a "quit" button.
     """
-    def description(self,rev):
-        if rev is None:
-            return ""
-        if rev == "" or rev == "working copy":
-            return ""
-        return hgshortlog(rev, self.verbose, self.dry_run)
-    def __init__(self, parent, revisions, callback, statuslabel, verbose, dry_run):
+    def __init__(self, parent, revisions, change_callback, 
+                 statuslabel, verbose, dry_run):
 	def balloonhelp(widget,message):
 	    w= Tix.Balloon(self, statusbar= statuslabel)
 	    w.bind_widget(widget, statusmsg=message)
@@ -252,12 +331,16 @@ class FrHeadClass(Tix.Frame):
         self.dry_run= dry_run
         self.statuslabel= statuslabel
         Tix.Frame.__init__(self, parent, borderwidth=2,relief='raised') 
-        self.label1= Tix.Label(self, text="first rev:")
-        self.label2= Tix.Label(self, text="second rev:")
+
+	self.combo1_label= Tix.Label(self, text="first rev:")
+	self.combo2_label= Tix.Label(self, text="second rev:")
+	self.combo1= RevisionSelector(self, verbose, dry_run)
+	self.combo2= RevisionSelector(self, verbose, dry_run)
+	RevisionSelector.get_logs()
+	self.combo1.create_selection_list()
+	self.combo2.create_selection_list()
+
         self.labelsep= Tix.Label(self, text=" ")
-        self.entry1= Tix.Entry(self)
-        self.entry2= Tix.Entry(self)
-        self.entry1.delete(0, Tix.END)
 	# make a shallow copy of revisions, otherwise
 	# the "append" some lines below would change the
 	# list that was given as parameter to the constructor
@@ -266,44 +349,42 @@ class FrHeadClass(Tix.Frame):
             revisions= [hgidentify(verbose, dry_run)]
         if len(revisions)<2:
             revisions.append("working copy")
-        self.entry1.insert(0, revisions[0])
-        self.entry2.insert(0, revisions[1])
-        self.desc1= Tix.Label(self, text= self.description(revisions[0]))
-        self.desc2= Tix.Label(self, text= self.description(revisions[1]))
+	self.combo1.set_value(revisions[0])
+	self.combo2.set_value(revisions[1])
 	self.buttonframe= Tix.Frame(self)
         self.button= Tix.Button(self.buttonframe, text="re-scan", command= lambda: self.mycallback())
         self.plusbutton= Tix.Button(self.buttonframe, text="+rev", command= lambda: self.chg_revision(1))
         self.minusbutton= Tix.Button(self.buttonframe, text="-rev", command= lambda: self.chg_revision(-1))
-        self.callback= callback
+        self.change_callback= change_callback
 
-        balloonhelp(self.desc1, "time and log message for first revision")
-        balloonhelp(self.desc2, "time and log message for second revision")
-        balloonhelp(self.entry1, "the revision against the comparison is done")
-        balloonhelp(self.entry2, "the compared revision, enter \"\" for \"working copy\"")
-        balloonhelp(self.button, "re-compute the list of changed files")
+        balloonhelp(self.combo1, "the revision against the comparison is done")
+        balloonhelp(self.combo2, "the compared revision, enter \"\" for \"working copy\"")
+        balloonhelp(self.button, "re-compute the list of changed files and the list of revisions")
 	balloonhelp(self.plusbutton, "increase both revisions")
 	balloonhelp(self.minusbutton, "decrease both revisions")
 
-        self.label1.grid(row=0, column=0, sticky="W")
-        self.label2.grid(row=3, column=0, sticky="W")
+        self.combo1_label.grid(row=0, column=0, sticky="W")
+        self.combo2_label.grid(row=3, column=0, sticky="W")
+        self.combo1.grid(row=0, column=1, sticky="W")
+        self.combo2.grid(row=3, column=1, sticky="W")
         self.labelsep.grid(row=2, column=0, sticky="W")
-        self.entry1.grid(row=0, column=1, sticky="W")
-        self.entry2.grid(row=3, column=1, sticky="W")
-        self.desc1.grid(row=1, column=1, sticky="W")
-        self.desc2.grid(row=4, column=1, sticky="W")
+
         self.buttonframe.grid(row=5, column=0, columnspan=2, sticky="W")
 	self.button.pack(side=Tix.LEFT)
 	self.plusbutton.pack(side=Tix.LEFT)
 	self.minusbutton.pack(side=Tix.LEFT)
+	self.combo1.set_change_callback(self.change_callback)
+	self.combo2.set_change_callback(self.change_callback)
     def mycallback(self):
-        revisions= self.get_revisions()
-        self.desc1.config(text= self.description(revisions[0]))
-        self.desc2.config(text= self.description(revisions[1]))
-        self.callback()
+        revisions= self.get_selected_revisions()
+	RevisionSelector.get_logs()
+	self.combo1.create_selection_list()
+	self.combo2.create_selection_list()
+        self.change_callback()
     def chg_revision(self,delta):
 	def error(msg):
 	    self.statuslabel.config(text= msg)
-	revs= self.get_revisions()
+	revs= self.get_selected_revisions()
 	if revs[1] is None:
 	    if delta>0:
 		error("error: cannot go beyond working copy")
@@ -326,25 +407,22 @@ class FrHeadClass(Tix.Frame):
 	rev_prev= r[0]
 	self.set_entry(1,rev_prev)
 	self.set_entry(2,rev_now)
-	self.mycallback()
+	# do not call mycallback here, this would re-initialize the
+	# comboboxes which is not necessary since we just change
+	# the selected revision numbers.
+	self.change_callback()
 
     def set_entry(self, index, value):
 	if index==1:
-	    widget= self.entry1
+	    widget= self.combo1
 	else:
-	    widget= self.entry2
-	widget.delete(0, Tix.END)
-	widget.insert(0, value)
-    def get_revisions(self):
+	    widget= self.combo2
+	widget.set_value(value)
+    def get_selected_revisions(self):
 	"""returns a pair, the 2nd element may be None"""
         wk= "working copy"
-        r1= self.entry1.get()
-        r2= self.entry2.get()
-        if (r2 == ""):
-            self.entry2.delete(0, Tix.END)
-            self.entry2.insert(0, wk)
-        if (r2 == wk):
-            r2= None
+        r1= self.combo1.get_revision()
+        r2= self.combo2.get_revision()
         return (r1,r2)
 
 class FrTopClass(Tix.Frame):
@@ -469,7 +547,7 @@ class App:
             if x == "":
                 return False
             return True
-        self.revisions= filter(isset, self.FrHead.get_revisions())
+        self.revisions= filter(isset, self.FrHead.get_selected_revisions())
         hg_changes= hgstatus(self.revisions,self.verbose,self.dry_run)
         self.FrTop.change(hg_changes)
     def process_initial_list(self, changes_list, args):
@@ -590,6 +668,13 @@ def main():
     if options.summary:
         print_summary()
         sys.exit(0)
+
+    use_fork= (os.name == 'posix')
+    if use_fork:
+	print "starting hgdiff.py..."
+	pid= os.fork()
+	if pid!=0:
+	    sys.exit(0)
 
     # change to the working copy's root dir, since
     # "hg cat" will not work when we are in a different
