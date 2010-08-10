@@ -165,11 +165,36 @@ def main():
     verbose = 0
     outnumbered = 0
 
+    dbInstancePort = None
+    dbInstanceServer = None
     dbInstanceTypeString = "oci8"
     dbLoginUser = "anonymous"
     dbLoginPassword = "bessyguest"
     dbInstanceString = os.environ.get("ORACLE_SID")
     dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8", "postgres", "sqlite"]
+    dbProfiles = {
+        "devices": {
+            "protocol": "oci8",
+            "user": "anonymous",
+            "password": "bessyguest",
+            "instance": "devices",
+        },
+        "mirror": {
+            "protocol": "oci8",
+            "user": "guest",
+            "password": "bessyguest",
+            "instance": "mirror",
+        },
+        "machine": {
+            "protocol": "postgres",
+            "user": "anonymous",
+            "password": "bessyguest",
+            "instance": "machine",
+            "server": "dbgate1.trs.bessy.de",
+            "port": "9999",
+        },
+    }
+    dbProfileString = ""
     outFormatList = {
         "c": ["", "", "", " ", "", "{}"],
         "txt": ["","\"","\"",",","", "NULL"],
@@ -194,12 +219,21 @@ def main():
     argParser.add_option ("-p", "--password", type="string",
                 action="store", metavar="dbLoginPassword",
                 default=dbLoginPassword, help="set password")
+    argParser.add_option ("-r", "--server", type="string",
+                action="store", metavar="dbInstanceServer",
+                default=dbInstanceServer, help="set database server (" + str(dbInstanceServer) + ")")
+    argParser.add_option ("-l", "--port", type="int",
+                action="store", metavar="dbInstancePort",
+                default=dbInstancePort, help="set database server port (" + str(dbInstancePort) + ")")
     argParser.add_option ("-d", "--database", type="string",
                 action="store", metavar="dbInstanceString",
                 default=dbInstanceString, help="set name of database instance (" + str(dbInstanceString) + ")")
     argParser.add_option ("-c", "--connecttype", type="string",
                 action="store", metavar="dbInstanceTypeString",
                 default=dbInstanceTypeString, help="defines connectiontype to database, ("+ ",".join(dbProtocolList) + ")")
+    argParser.add_option ("-x", "--profile", type="string",
+                action="store", metavar="dbProfileString",
+                default=dbProfileString, help="using profile for shortcutted connects to database, ("+ ",".join(dbProfiles.keys()) + ")")
     argParser.add_option ("-g", "--guest",
                 action="store_false", help="set forced anonymous access for the connectiontype")
     argParser.add_option ("-s", "--sql", type="string",
@@ -218,6 +252,9 @@ def main():
                 action="store_true",
                 help="write at first the line number, like a line counter")
     argParser.add_option ("--protocols",
+                action="store_true",
+                help="list of known database protocols")
+    argParser.add_option ("--profiles",
                 action="store_true",
                 help="list of known database protocols")
     argParser.add_option ("--formats",
@@ -239,19 +276,44 @@ def main():
     if argOptionList.protocols:
         print "known protocols: " + ", ".join(dbProtocolList)
         return
+    if argOptionList.profile:
+        print "known profiles:"
+        for i in dbProfiles.keys():
+            print "\n\t" + str(i) + ": "
+            iset = dbProfiles.get(i)
+            for j in iset.keys:
+                if not j == "password":
+                    print str(iset.get(j)) + "\n"
+        return
     if argOptionList.formats:
         for i in outFormatList.keys():
             print "\n" + str(i) + " format: " + format_row(["example", 123, None, 4.56], outFormatList.get(i)) + "\n"
         return
+    if argOptionList.profile:
+        if dbProfile[dbProfileString] is not None:
+            if dbProfile[dbProfileString]["protocol"] is not None:
+                dbInstanceServer = dbProfile[dbProfileString]["protocol"]
+            if dbProfile[dbProfileString]["server"] is not None:
+                dbInstanceServer = dbProfile[dbProfileString]["server"]
+            if dbProfile[dbProfileString]["port"] is not None:
+                dbInstancePort = dbProfile[dbProfileString]["port"]
+            if dbProfile[dbProfileString]["instance"] is not None:
+                dbInstanceString = dbProfile[dbProfileString]["instance"]
+            if dbProfile[dbProfileString]["user"] is not None:
+                dbLoginUser = dbProfile[dbProfileString]["user"]
+            if dbProfile[dbProfileString]["password"] is not None:
+                dbLoginPassword = dbProfile[dbProfileString]["password"]
+        else:
+            print "ERROR: Profile " + argOptionList.profile + " isnt known. See the --profiles option to try a right one.\n"
     if argOptionList.guest is not None:
         if dbInstanceTypeString == "postgres":
             dbInstanceServer = "dbgate1.trs.bessy.de"
             dbInstancePort = 9999
             dbInstanceString = "machine"
+        if dbInstanceString == "mirror":
+            dbLoginUser = "guest"
         else:
-            dbInstanceTypeString = "oci8"
-            dbInstanceString = "devices"
-        dbLoginUser = "anonymous"
+            dbLoginUser = "anonymous"
         dbLoginPassword = "bessyguest"
     else:
         if argOptionList.database is not None: dbInstanceString = argOptionList.database
@@ -275,8 +337,8 @@ def main():
         else:
             dbLoginPassword = getpass.getpass("Password:")
         if dbLoginPassword is None: dbLoginPassword = getpass.getpass("Password:")
-    if argOptionList.connecttype is not None and argOptionList.connecttype in dbProtocolList:
-        dbInstanceTypeString = argOptionList.connecttype
+        if argOptionList.connecttype is not None and argOptionList.connecttype in dbProtocolList:
+            dbInstanceTypeString = argOptionList.connecttype
     if argOptionList.format is not None and argOptionList.format in outFormatList.keys():
         outFormat = argOptionList.format
     if argOptionList.none is not None:
@@ -311,7 +373,7 @@ def main():
     dbSQLCursor = dbConnectHandle.Execute(dbSQLString)
     if dbSQLCursor is not None:
         if verbose == 1:
-            print "fetching " + dbCursor + " as " + dbSQLString
+            print "fetching " + str(dbSQLCursor) + " as " + dbSQLString
         dbSQLRecordInteger = 0
         while not dbSQLCursor.EOF:
             if outnumbered == 1:
