@@ -166,10 +166,9 @@ def main():
     outnumbered = 0
 
     dbInstanceTypeString = "oci8"
-    dbLoginUser = ""
-    dbLoginPassword = ""
+    dbLoginUser = "anonymous"
+    dbLoginPassword = "bessyguest"
     dbInstanceString = os.environ.get("ORACLE_SID")
-    outFormat = "txt"
     dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8", "postgres", "sqlite"]
     outFormatList = {
         "c": ["", "", "", " ", "", "{}"],
@@ -180,28 +179,54 @@ def main():
         "php": ["[","\"","\"",",","],", "null"],
         "perl": ["[","\"","\"",", ","],", "\"\""],
         "json": ["{","'","'",",","},", "null"],
-        "xml": ["\n\t<row>","\n\t\t<value>","</value>","","\n\t</row>", "\n\t<value />"],
+        "xml": ["\n\t<row>","\n\t\t<value>","</value>", "","\n\t</row>", "\n\t\t<value />"],
         "html": ["\n\t<tr>","\n\t\t<td>","</td>","","\n\t</tr>", "\n\t\t<td>&nbsp;</td>"]
     }
+    outFormat = "c"
     outFormatNullString = ""
 
     usage = "usage: %prog [argOptionList]"
-    argParser = OptionParser(usage=usage, version="%%prog 2.5", description="make e request to a rdbms with a sql statement")
-    argParser.add_option ("-u", "--user", type="string", action="store", metavar="dbLoginUsername", help="set username")
-    argParser.add_option ("-p", "--password", type="string", action="store", metavar="dbLoginPassword", help="set password")
-    argParser.add_option ("-d", "--database", type="string",  action="store", metavar="dbInstanceString", help="set password")
-    argParser.add_option ("-c", "--connecttype", type="string",  action="store", metavar="dbInstanceTypeString", help="defines connectiontype to database, ("+ ",".join(dbProtocolList)+ ")")
-    argParser.add_option ("-g", "--guest", action="store_false", help="set forced anonymous access")
-    argParser.add_option ("-s", "--sql", type="string", action="store", metavar="dbSQLString",  help="sequel command")
-    argParser.add_option ("-n", "--none", type="string", action="store", metavar="dbSQLNone",  help="sequel command")
-    argParser.add_option ("-o", "--format", type="string",  action="store", metavar="outputformat", help="decide the output format (c, python, php, perl, html, xml, json, txt, csv, tab, console)")
-    argParser.add_option ("--doc",  action="store_true", help="create online help in restructured text format. Use \"./db_request.py--doc | rst2html\" for creation of html help")
-    argParser.add_option ("-t", "--test",  action="store_false", help="performs simply self-test")
-    argParser.add_option ("--idx",  action="store_true", help="write at first the line number")
-    argParser.add_option ("--protocols",  action="store_true", help="write at first the line number")
-    argParser.add_option ("--formats",  action="store_true", help="write at first the line number")
-    argParser.add_option ("-v", "--verbose",  action="store_true", help="writes additional informations")
-    
+    argParser = OptionParser(usage=usage, version="%%prog 2.5",
+                description="make a request to a rdbms with a sql statement")
+    argParser.add_option ("-u", "--user", type="string",
+                action="store", metavar="dbLoginUser",
+                default=dbLoginUser, help="set username (" + str(dbLoginUser) + ")")
+    argParser.add_option ("-p", "--password", type="string",
+                action="store", metavar="dbLoginPassword",
+                default=dbLoginPassword, help="set password")
+    argParser.add_option ("-d", "--database", type="string",
+                action="store", metavar="dbInstanceString",
+                default=dbInstanceString, help="set name of database instance (" + str(dbInstanceString) + ")")
+    argParser.add_option ("-c", "--connecttype", type="string",
+                action="store", metavar="dbInstanceTypeString",
+                default=dbInstanceTypeString, help="defines connectiontype to database, ("+ ",".join(dbProtocolList) + ")")
+    argParser.add_option ("-g", "--guest",
+                action="store_false", help="set forced anonymous access for the connectiontype")
+    argParser.add_option ("-s", "--sql", type="string",
+                action="store", metavar="dbSQLString",  help="sequel command")
+    argParser.add_option ("-n", "--none", type="string",
+                action="store", metavar="dbSQLNone",  help="dont execute sequel command")
+    argParser.add_option ("-o", "--format", type="string",
+                action="store", metavar="outFormat",
+                default=outFormat, help="decide the output format (" + ",".join(outFormatList.keys()) + ")")
+    argParser.add_option ("--doc",
+                action="store_true", help="create online help in restructured text format. Use \"./db_request.py--doc | rst2html\" for creation of html help")
+    argParser.add_option ("-t", "--test",
+                action="store_false",
+                help="performs simply self-test")
+    argParser.add_option ("--idx",
+                action="store_true",
+                help="write at first the line number, like a line counter")
+    argParser.add_option ("--protocols",
+                action="store_true",
+                help="list of known database protocols")
+    argParser.add_option ("--formats",
+                action="store_true",
+                help="list of known output formats and examples")
+    argParser.add_option ("-v", "--verbose",
+                action="store_true",
+                help="writes additional informations")
+
 
     (argOptionList, argCommandList) = argParser.parse_args()
     if argOptionList.doc:
