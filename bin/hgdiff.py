@@ -100,7 +100,7 @@ def hg_loglist(verbose, dry_run):
                     True, verbose, dry_run)
     new= []
     for l in result.splitlines():
-	parts= l.split(":")
+	parts= l.split(":",1)
 	new.append((int(parts[0]),parts[1]))
     return new
 
