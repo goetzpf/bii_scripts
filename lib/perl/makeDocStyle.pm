@@ -44,12 +44,12 @@ $VERSION     = 1.0;
 sub blabla
 {   my ($title,$filetime,$user) = @_;
 
+  my $user_html = defined $user ? "	<META NAME=\"AUTHOR\" CONTENT=\"$user\">\n" : "";
+  my $filetime_html = defined $filetime ? "	<META NAME=\"CREATED\" CONTENT=\"$filetime\">\n" : "";
   my $fileHeader = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2//EN\">\n".
     "<HTML>\n".
     "<HEAD>\n".
-    "	<TITLE>$title</TITLE>\n".
-    "	<META NAME=\"AUTHOR\" CONTENT=\"$user\">\n".
-    "	<META NAME=\"CREATED\" CONTENT=\"$filetime\">\n".
+    "	<TITLE>$title</TITLE>\n".$user_html.$filetime_html.
     "   <link rel=stylesheet type=\"text/css\" href=\"http://www-csr.bessy.de/control/Docs/MLT/kuner/autoDocs/makeDocs/docStyle.css\">\n".
     "</HEAD>\n".
     "<BODY>\n".
