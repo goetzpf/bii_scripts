@@ -34,7 +34,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 
 
 # [multi-commit] -- perform multiple commits 
-#                   (cvs, subversion, darcs, mercurial)
+#                   (cvs, subversion, darcs, mercurial, mercurial patch queue)
 #                   with a prepared command-file
 
 use strict;
@@ -603,6 +603,7 @@ Syntax:
     --darcs: use darcs 
     --hg   : use mercurial 
     --hgmq : use mercurial with patch queue (mq) extension
+             (apply "hg qrefresh -e" instead of commit)
     --cvs  : use cvs
 
 Format of a commit-file:
@@ -639,7 +640,7 @@ multi-commit.pl - perform multiple commits (cvs|svn|darcs|hg|hgmq) with a prepar
 
 =head1 SYNOPSIS
 
-  multi-commit.pl commit <messages.txt> --svn
+  multi-commit.pl --hg commit 
 
 =head1 DESCRIPTION
 
@@ -662,8 +663,7 @@ all log-messages for all files and commits can be specified in a single file
 =item *
 
 the user can specify which files are committed within a single command.
-Such commits form an indivisable change-set in the repository if subversion
-or darcs are used.
+Such commits form an indivisable change-set in the repository (except for cvs).
 
 =back
 
@@ -791,18 +791,14 @@ line-ends like "-6 +1" are ignored.
 =head2 example of a typical session
 
 We assume that you are in the top-directory of your working copy. 
-We also assume that you use subversion. Replace "--svn" with "--cvs"
-or "--darcs" for other version control systems. 
+We also assume that you use mercurial. Replace "--hg" with 
+"--darcs" if you use darcs or with "--svn" if you use subversion.
 
 =over 4
 
-=item generate the description file:
+=item generate the description file named "DIFFS" and edit it:
 
-  multi-commit.pl status --svn 
-
-=item add log-messages to the description file:
-
-  <my-favorite-editor> DIFFS
+  multi-commit.pl --hg edit
 
 Remove all lines marked with "?" here, these are files the repository
 doesn't know of. For each file mentioned, look what has changed
@@ -822,19 +818,9 @@ appears directly below the line with "-" characters. For all files
 in that group where the generic log message suffices, remove the 
 file-specific logmessage.
 
-=item control the result:
-
-Now save your changes and look what the script would do:
-
-  multi-commit.pl commit --svn --dry-run | less
-
-If log-messages are not properly formatted or wrong go back and
-re-edit the file. If everything looks ok, commit your changes 
-(see below).
-
 =item commit your changes:
 
-  multi-commit.pl commit --svn 
+  multi-commit.pl --hg commit 
 
 That should be all!
 
