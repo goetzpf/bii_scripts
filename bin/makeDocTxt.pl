@@ -88,8 +88,6 @@ my $config = Options::parse($usage, 1);
  my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
    $atime,$mtime,$ctime,$blksize,$blocks) = stat($inFileName);
 
-  my $filetime = strftime("%Y-%m-%d %H:%M:%S", localtime($mtime));
-
 #print header
   my $index;	# index of all headlines
   my $idxFile;	# extra index file of all headlines
@@ -317,7 +315,7 @@ my $config = Options::parse($usage, 1);
     $docContens .= "$preBlockCont\n";
   }
 
-  my ($fileHeader,$fileFooter) = makeDocStyle::blabla($title,$filetime,$ENV{USER});
+  my ($fileHeader,$fileFooter) = makeDocStyle::blabla($title);
 
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
   print OUT_FILE $fileHeader;
