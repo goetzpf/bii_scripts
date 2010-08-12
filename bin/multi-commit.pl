@@ -832,7 +832,7 @@ Goetz Pfeiffer,  Goetz.Pfeiffer@helmholtz-berlin.de
 
 =head1 SEE ALSO
 
-cvs, subversion or darcs documentation
+cvs, subversion, darcs, mercurial documentation
 
 =cut
 
