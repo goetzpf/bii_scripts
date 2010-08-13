@@ -669,7 +669,7 @@ def main():
         print_summary()
         sys.exit(0)
 
-    use_fork= (os.name == 'posix')
+    use_fork= False (os.name == 'posix')
     if use_fork:
 	print "starting hgdiff.py..."
 	pid= os.fork()
