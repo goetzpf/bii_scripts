@@ -1,0 +1,122 @@
+#!/usr/bin/python
+# -*- coding: iso-8859-15 -*-
+
+import os, sys, re
+from optparse import OptionParser
+
+class PostgresWrapper:
+    config = {
+        "verbose": False,
+        "server": None,
+        "port": None,
+        "database": None,
+        "user": None,
+        "password": None,
+        "file": None,
+    }
+
+    error_nums = 0
+
+    def __init__(self):
+        '''
+            Initializing section
+            parsing options
+        '''
+        parser = OptionParser()
+        parser.add_option("-1", "--doc", dest="doc",
+            action="store_true", default=False,
+            help="print a restructured Text documentation")
+        parser.add_option("-S", "--silent", dest="silent",
+            action="store_true", default=False,
+            help="suppress any additional outputs")
+        parser.add_option("-V", "--version", dest="version",
+            action="store_true", default=False,
+            help="suppress any additional outputs")
+        parser.add_option("-L", "--logonce", dest="logonce",
+            action="store_true", default=False,
+            help="make one statement and quit")
+        parser.add_option("-C", "--command", dest="command",
+            action="store", type="string",
+            help="make one statement and quit")
+        parser.add_option("-R", "--interact", dest="blubber",
+            )
+        parser.add_option("-M", "--modifier", dest="modifier",
+            action="store", type="string",
+            help="set formats like HTML (on|off), TABLE text, HEAD text, SPOOL (on|off)")
+
+        (argOptionList, argValueList) = parser.parse_args()
+        breakit = False
+        ret = 0
+        if argOptionList.doc:
+            print_doc()
+            breakit = True
+        if argOptionList.version:
+            print "Wrapping psql:"
+            ret = os.execlp("psql",  "psql", "-V")
+            breakit = True
+        if breakit:
+            sys.exit(ret)
+        if argOptionList.silent:
+            self.config["silence"] = True
+        else:
+            self.config["silence"] = False
+        try:
+            count = 0
+            if len(argValueList) > 0:
+                conn = re.split('[/@:]', argValueList[0])
+                if len(conn) > 0:
+                    self.config["user"] = conn[count]
+                    if re.search(r"/", argValueList[0]):
+                        count = count + 1
+                        self.config["password"] = conn[count]
+                    else :
+                        self.config["password"] = ""
+                    if re.search(r"@", argValueList[0]):
+                        count = count + 1
+                        if re.search(r".*@.*:.*:.*]", argValueList[0]):
+                            self.config["server"] = conn[count]
+                            count = count + 1
+                            self.config["port"] = conn[count]
+                            count = count + 1
+                            self.config["database"] = conn[count]
+                        else :
+                            self.config["port"] = None
+                    else :
+                        self.config["server"] = None
+                        self.config["port"] = None
+                    if len(argValueList) > 1:
+                        self.config["file"] = argValueList[1]
+                    else:
+                        self.config["file"] = None
+        except Exception, e:
+            print "[APP] cannot get arguments (" + str(argValueList) + "): '" + str(e)
+            sys.exit (-2)
+        self.config["option"] = ["psql", "--set \"PROMPT1=%n@%/%R%#\""]
+        if argOptionList.logonce:
+            self.config["option"].append("-1")
+        if argOptionList.command and len(argOptionList.command) > 5:
+            self.config["option"].append("-c " + "\"" + argOptionList.command + "\"")
+        if argOptionList.modifier and len(argOptionList.modifier) > 5:
+            if re.match(r"HTML on", argOptionList.modifier):
+                self.config["option"].append("-H")
+            if re.match(r"SPOOL on", argOptionList.modifier):
+                self.config["option"].append("-o spool.out")
+        if self.config["user"] is not None:
+            self.config["option"].append("-U " + self.config["user"])
+            if self.config["password"] is not None:
+                self.config["option"].append("-W " + self.config["password"])
+            else:
+                self.config["option"].append("-W")
+            if self.config["server"] is not None:
+                self.config["option"].append("-h " + self.config["server"])
+            if self.config["port"] is not None:
+                self.config["option"].append("-p " + self.config["port"])
+            if self.config["file"] is not None:
+                self.config["option"].append("-f " + self.config["file"])
+        try:
+            os.system(" ".join(self.config["option"]))
+        except Exception, e:
+            print "Error calling psql: " + str(e)
+
+if __name__ == "__main__":
+    app = PostgresWrapper()
