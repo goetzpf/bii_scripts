@@ -395,10 +395,10 @@ sub parse_scalar_i
 
         if ($post eq "\\") # backslash at end of line
           { 
-            #$p= pos($$r_line);
-            #if ($$r_line!~ /\G(.*?)^/gsm)
-            #  { pos($$r_line)= $p; 
-            #  };
+            $p= pos($$r_line);
+            if ($$r_line!~ /\G(.*?)^/gsm)
+              { pos($$r_line)= $p; 
+              };
             next;  
           }
 
