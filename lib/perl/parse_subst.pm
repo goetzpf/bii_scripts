@@ -66,6 +66,13 @@ my $RX_unquoted_value      = qr/([^\s\{\},]+)/;
 
 my $RX_comma               = qr/,?/;
 
+my $RX_global_head= 
+            qr/\G
+               global
+               $RX_space_or_comment
+                       \{
+               /x;
+
 my $RX_file_head= 
             qr/\G
                file
@@ -136,6 +143,8 @@ sub get_or_mk_hash
 sub parse
   { my($arg, $mode)= @_;
 
+    my %globals=();
+
     if (!defined $arg)
       { simple_parse_error(__LINE__,"<undef> cannot be parsed"); }
     
@@ -192,6 +201,9 @@ sub parse
     my $instance_no; 
     # only needed for $old_parser= 1
 
+    my $upper_block_type="";
+    # may be "top" or "file"
+
     for(;;)
       { 
 #print "level:$level at\n", 
@@ -201,6 +213,16 @@ sub parse
             # skip comment-lines at level 0:
             $$r_db=~/\G$RX_space_or_comment/ogscx;
             last if ($$r_db=~/\G[\s\r\n]*$/gsc);
+
+            if ($$r_db=~ /$RX_global_head/ogscx)
+	      {
+		$r_instance= \%globals;
+		$level= 'sub-block';
+		$upper_block_type='top';
+		$sub_block_type= undef;
+		$field_index= 0;
+		next;
+	      };
 
             if ($$r_db=~ /$RX_file_head/ogscx)
 	      { my $filename= ($2 eq "") ? $1 : $2;
@@ -250,7 +272,7 @@ sub parse
 	    if ($$r_db=~ /\G
                       $RX_space_or_comment
                       \{/ogscx)
-              { my %h;
+              { my %h= %globals; # import global definitions
 	        if ($old_parser)
 		  { $r_file->{$instance_no++}= \%h; }
 		else
@@ -258,6 +280,7 @@ sub parse
 
 		$r_instance= \%h;
 	        $level= 'sub-block';
+		$upper_block_type='file';
 		$sub_block_type= undef;
                 $field_index= 0;
 	        next;
@@ -285,7 +308,7 @@ sub parse
 	  { if ($$r_db=~ /\G
                       $RX_space_or_comment
                       \}/ogscx)
-	      { $level= 'file';	     
+	      { $level= $upper_block_type; # 'top' or 'file'
 	        next;
               } 
 
@@ -527,11 +550,15 @@ B<parse()>
     or
   my $r_templates= parse_subst::parse(\$st); 
 
-This function parses a given scalar variable that must contain a 
-complete substitution-file. It returns a reference to a hash, where 
-the parsed datais stored. The parameter may either be 
-a scalar variable containing the data or a reference to a 
-scalar variable.
+This function parses a given scalar variable that must contain a complete
+substitution-file. It returns a reference to a hash, where the parsed datais
+stored. The parameter may either be a scalar variable containing the data or a
+reference to a scalar variable.
+
+The new "global" statement in substitution files is also supported. Globals are
+resolved, meaning that definitions of global values are merged in the local
+per-file definitions. Applications that use parse_subst.pm do not have to be
+aware of the global statement.
 
 =item *
 
