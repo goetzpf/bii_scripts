@@ -141,12 +141,12 @@ sub get_or_mk_hash
   }
 
 sub parse
-  { my($arg, $mode)= @_;
+  { my($arg, $mode, $filename)= @_;
 
     my %globals=();
 
     if (!defined $arg)
-      { simple_parse_error(__LINE__,"<undef> cannot be parsed"); }
+      { croak "function parse: parameter \$arg is not defined"; }
     
     my $r_db;
     my $ref = ref($arg);
@@ -155,24 +155,30 @@ sub parse
     elsif ($ref eq "")
       { $r_db= \$arg; }
     else
-      { croak "parse: argument is neither a scalar nor " .
+      { croak "function parse: parameter \$arg is neither a scalar nor " .
               "a reference to a scalar"; 
       };
 
     if (!defined $$r_db)
-      { simple_parse_error(__LINE__,"<undef> cannot be parsed"); }
+      { parse_error(__LINE__,undef,undef,$filename,
+                    "<undef> cannot be parsed");
+      }
     if ($$r_db=~/^\s*$/)
-      { simple_parse_error(__LINE__,"\"\" cannot be parsed"); }
+      { parse_error(__LINE__,undef,undef,$filename,
+                    "\"\" cannot be parsed");
+      }
 
     $mode= "templateHash" if (!defined $mode);
 
     if (($mode ne 'templateHash') && ($mode ne 'templateList'))
-      { die "unknown mode: \"$mode\""; };
+      { croak "function parse: unknown mode: \"$mode\""; };
 
     my $quirks= ($mode eq 'templateList') ? 1 : 0;
 
     if ($old_parser && $quirks)
-      { die "error: old_parser and 'templateList' are mutual exclusive"; };
+      { croak "function parse: old_parser and mode 'templateList' ".
+              "are mutual exclusive"; 
+      };
 
     my $level= 'top';
 
@@ -251,7 +257,7 @@ sub parse
 		$level='file';
 		next;
 	      };
-           parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
+           parse_error(__LINE__,\$$r_db,pos($$r_db), $filename);
 	  };
 
 	if ($level eq 'file')
@@ -285,7 +291,7 @@ sub parse
                 $field_index= 0;
 	        next;
               };
-           parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
+           parse_error(__LINE__,\$$r_db,pos($$r_db), $filename);
 	  }   
 
 	if ($level eq 'pattern_cols')
@@ -327,7 +333,10 @@ sub parse
 		  { my $value= ($2 eq "") ? $1 : $2;
 		    my $colname= $column_names[$field_index++];
 		    if (!defined $colname)
-		      { parse_error(__LINE__,\$$r_db,pos($$r_db),"not enough columns"); 
+		      { 
+                        parse_error(__LINE__,\$$r_db,pos($$r_db),
+			            $filename,
+			            "not enough columns"); 
 		      };
 		    $r_instance->{$colname}= $value;
 		    $sub_block_type= 'pattern' if (!defined $sub_block_type);
@@ -335,7 +344,7 @@ sub parse
 		  };
               };
 
-           parse_error(__LINE__,\$$r_db,pos($$r_db),"level \"$level\"");
+           parse_error(__LINE__,\$$r_db,pos($$r_db), $filename);
 	  }; # for   
 
       };
@@ -348,7 +357,7 @@ sub parse
 
 sub parse_file
 # parse the db file and return the record hash
-  { my($filename)= @_;
+  { my($filename,$mode)= @_;
     local(*F);
     local($/);
     my $st;
@@ -363,7 +372,8 @@ sub parse_file
 
     close(F) if (defined $filename);
 
-    return(parse($st));
+    $filename= "<stdin>" if (!defined $filename);
+    return(parse($st,$mode,$filename));
   }
 
 
@@ -404,22 +414,19 @@ sub create
       }
   }
 
-sub simple_parse_error
-  { my($prg_line, $msg)= @_;
-    my $err= "Parse error at line $prg_line of parse_subst.pm,\n" .
-             $msg . "\n";
-    croak $err;
-  }
-
 sub parse_error
-  { my($prg_line,$r_st,$pos,$filename)= @_;
+  { my($prg_line,$r_st,$pos,$filename,$msg)= @_;
 
     my($line,$column)= find_position_in_string($r_st,$pos);
+    my $err= "PARSE ERROR\n" .
+             "    (found by module parse_subst.pm at program line $prg_line)\n";
     if (defined $filename)
-      { $filename= "in file $filename "; };
-    my $err= "Parse error ${filename} at line $prg_line of parse_subst.pm,\n" .
-             "byte-position $pos\n" .
-             "line $line, column $column in file\n ";
+      { $err.= "    parsed file: \"$filename\"\n"; };
+    if (defined $r_st)
+      { $err.= "    position in parsed text: line $line, column $column\n ";
+      };
+    if (defined $msg)
+      { $err.= "   error type: $msg\n"; }
     croak $err;
   }
 
@@ -446,9 +453,9 @@ sub find_position_in_string
             $lineno++;
             next;
           };
-        return($lineno,$position-$oldpos);
+        return($lineno,$position-$oldpos+1);
       };
-    return($lineno,$position-$oldpos);
+    return($lineno,$position-$oldpos+1);
   }      
 
 
@@ -546,9 +553,9 @@ can then be used for further evaluation.
 
 B<parse()>
 
-  my $r_templates= parse_subst::parse($st); 
+  my $r_templates= parse_subst::parse($st,$mode,$filename); 
     or
-  my $r_templates= parse_subst::parse(\$st); 
+  my $r_templates= parse_subst::parse(\$st,$mode,$filename); 
 
 This function parses a given scalar variable that must contain a complete
 substitution-file. It returns a reference to a hash, where the parsed datais
@@ -560,17 +567,26 @@ resolved, meaning that definitions of global values are merged in the local
 per-file definitions. Applications that use parse_subst.pm do not have to be
 aware of the global statement.
 
+The parameter $mode is optional, it may be 'templateHash' or 'templateList'.
+'templateHash' is the default.
+
+The parameter $filename is also optional, it is only used for error messages,
+if you want to parse a file with a given name, use parse_file instead.
+
 =item *
 
 B<parse_file()>
 
-  my $r_templates= parse_subst::parse_file($filename);
+  my $r_templates= parse_subst::parse_file($filename,$mode);
 
 This function parses the contents of the given filename. If the parameter
 C<$filename> is not given it tries to read form STDIN. If the
 file cannot be opened, it dies with an appropriate error message.
 It returns a reference to a hash, where the parsed data
 is stored.
+
+The parameter $mode is optional, it may be 'templateHash' or 'templateList'.
+'templateHash' is the default.
 
 =item *
 
@@ -594,7 +610,37 @@ substitution format to the screen.
 
 =back
 
-=head2 hash-structure
+=head2 data structures
+
+In all the examples below, this is the substitution data parsed:
+
+  file adimogbl.template
+    {
+      {
+	GBASE="U3IV:",
+	TRIG1="U3IV:AdiMoVGblTrg.PROC",
+      }
+    }
+  file adimovhgbl.template
+    {
+      {
+	GBASE="U3IV:",
+	DRV="V",
+	AdiMopVer="9",
+	TRIG1="U3IV:AdiVGblPvr.PROC",
+      }
+      {
+	GBASE="U3IV:",
+	DRV="H",
+	AdiMopVer="9",
+	TRIG1="U3IV:AdiHGblPvr.PROC",
+      }
+    }
+
+=head3 hash-structure
+
+When the <mode> parameter of the parse function is not defined or set
+to 'templateHash', the parse function returns a hash structure.
 
 Each template-name is a key in the template-hash. It is a reference to 
 an array that contains the data for that template. 
@@ -608,22 +654,62 @@ empty strings (""), not the perl undef-value.
 
 Example of a hash that parse() returns:
 
-  $r_templates= { 'acsm.template' => 
-                          [  {
-                               'MCHAN' => 'A',
-                               'MNAME' => 'PVBU49ID8R:',
-                               'MNUM' => '0',
-                               'BASE' => 'U49ID8R:'
-                             },
-                             {
-                               'MCHAN' => 'B',
-                               'MNAME' => 'PHBU49ID8R:',
-                               'MNUM' => '1',
-                               'BASE' => 'U49ID8R:'
-                             },
-		          ]
+  $r_h= { 
+          'adimovhgbl.template' => [
+                                     {
+                                       'TRIG1' => 'U3IV:AdiVGblPvr.PROC',
+                                       'DRV' => 'V',
+                                       'GBASE' => 'U3IV:',
+                                       'AdiMopVer' => '9'
+                                     },
+                                     {
+                                       'TRIG1' => 'U3IV:AdiHGblPvr.PROC',
+                                       'DRV' => 'H',
+                                       'GBASE' => 'U3IV:',
+                                       'AdiMopVer' => '9'
+                                     }
+                                   ],
+          'adimogbl.template' => [
+                                   {
+                                     'TRIG1' => 'U3IV:AdiMoVGblTrg.PROC',
+                                     'GBASE' => 'U3IV:'
+                                   }
+                                 ]
+        };
 
-=head2 backwards compability:
+=head3 list-structure
+
+When the <mode> parameter of the parse function is set
+to 'templateList', the parse function returns a list containing the data.
+
+Here is an example:
+
+  $r_h= [ 
+          [
+            'adimogbl.template',
+            {
+              'TRIG1' => 'U3IV:AdiMoVGblTrg.PROC',
+              'GBASE' => 'U3IV:'
+            }
+          ],
+          [
+            'adimovhgbl.template',
+            {
+              'TRIG1' => 'U3IV:AdiVGblPvr.PROC',
+              'DRV' => 'V',
+              'GBASE' => 'U3IV:',
+              'AdiMopVer' => '9'
+            },
+            {
+              'TRIG1' => 'U3IV:AdiHGblPvr.PROC',
+              'DRV' => 'H',
+              'GBASE' => 'U3IV:',
+              'AdiMopVer' => '9'
+            }
+          ]
+        ];
+
+=head3 old deprecated data structure
 
 Version 1.0 of the parser used a hash instead of the array as explained
 above, with keys from "0" to .. "n". If you want a template-hash 
@@ -632,6 +718,31 @@ this:
 
   $parse_subst::old_parser=1;
 
+This format should no longer be used, however here is an example of the
+generated output:
+
+  $r_h= { 
+          'adimovhgbl.template' => {
+                                     '1' => {
+                                              'TRIG1' => 'U3IV:AdiHGblPvr.PROC',
+                                              'DRV' => 'H',
+                                              'GBASE' => 'U3IV:',
+                                              'AdiMopVer' => '9'
+                                            },
+                                     '0' => {
+                                              'TRIG1' => 'U3IV:AdiVGblPvr.PROC',
+                                              'DRV' => 'V',
+                                              'GBASE' => 'U3IV:',
+                                              'AdiMopVer' => '9'
+                                            }
+                                   },
+          'adimogbl.template' => {
+                                   '0' => {
+                                            'TRIG1' => 'U3IV:AdiMoVGblTrg.PROC',
+                                            'GBASE' => 'U3IV:'
+                                          }
+                                 }
+        };
 
 =head1 AUTHOR
 
