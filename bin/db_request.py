@@ -292,19 +292,24 @@ def main():
         sys.exit(-1)
     if (type(dbSQLString) == unicode):
         dbSQLString = str(dbSQLString)
-    dbSQLCursor = dbConnectHandle.Execute(dbSQLString)
-    if dbSQLCursor is not None:
+    try:
+        dbSQLCursor = dbConnectHandle.Execute(dbSQLString)
+        if dbSQLCursor is not None:
+            if verbose:
+                print "fetching " + str(dbSQLCursor) + " as " + dbSQLString
+                dbSQLRecordInteger = 0
+            while not dbSQLCursor.EOF:
+                if outnumbered:
+                    print dbSQLRecordInteger,':',format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
+                    dbSQLRecordInteger += 1
+                else:
+                    print format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
+                dbSQLCursor.MoveNext()
+            dbSQLCursor.Close()
+    except Exception, e:
+        print "ERROR execute statement "+dbSQLString+" fails."
         if verbose:
-            print "fetching " + str(dbSQLCursor) + " as " + dbSQLString
-        dbSQLRecordInteger = 0
-        while not dbSQLCursor.EOF:
-            if outnumbered:
-                print dbSQLRecordInteger,':',format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
-                dbSQLRecordInteger += 1
-            else:
-                print format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
-            dbSQLCursor.MoveNext()
-        dbSQLCursor.Close()
+            print "> "+str(e)
     dbConnectHandle.Close()
 
     sys.exit(0)
