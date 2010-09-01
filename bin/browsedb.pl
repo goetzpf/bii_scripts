@@ -190,6 +190,9 @@ if (!@ARGV)
 else
   { $db_table_name= shift; };
 
+my @predefined_databases= ('devices', 
+                           'machine;host=dbgate1.trs.bessy.de;port=9999');
+
 $global_data{database}{db_driver}     = "Oracle";
 #$global_data{database}{db_server}     = "ocean.acc.bessy.de";
 $global_data{database}{db_source}     = "devices";
@@ -474,7 +477,7 @@ sub tk_login
     my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
                                 %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
-    my $e1= $FrTop->Entry(-textvariable => \$r_glbl->{db_source},
+    my $e1= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_source},
                           %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
     my $e2= $FrTop->Entry(-textvariable => \$r_glbl->{user},
@@ -520,6 +523,10 @@ sub tk_login
     foreach my $db_driver (DBI->available_drivers)
       {
         $e0->insert('end', $db_driver);
+      }
+    foreach my $db_name (@predefined_databases)
+      {
+        $e1->insert('end', $db_name);
       }
 
 # an experiment with the Oracle Proxy:
