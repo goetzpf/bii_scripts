@@ -128,12 +128,12 @@ INSTALLX=install $(INSTALL_XFLAGS)
 
 # variables that can be used to distribute the documentation files
 # with rsync:
-USE_RSYNC=no
+USE_RSYNC=yes
 # ^^^ use "yes" if rsync is to be used, "no" otherwise
-RSYNC_HOST=localhost
+RSYNC_HOST=wwwcsr@www-csr.bessy.de
 # ^^^ use "user@host" in order to set a specific user
-RSYNC_HTML_DIR=XXX
-# ^^^ this is the directory where rsync puts the documentation
+RSYNC_DIR=/home/wwwcsr/www/control/bii_scripts
+# ^^^ this is the directory where rsync places files
 
 # define this macro when make should
 # create the installation directories in
@@ -575,6 +575,7 @@ endif
 	install_perl_libs \
 	install_python_libs install_html install_html_script \
 	install_html_perllib install_html_pythonlib \
+	install_sources \
 	clean \
 	build build_shared build_scripts build_perl_libs build_python_libs \
 	build_html build_html_txt_doc build_html_script build_html_script_pods \
@@ -591,7 +592,8 @@ all: build
 # install....................................................
 
 install: install_html_txt install_shared install_scripts \
-	 install_perl_libs install_python_libs install_html
+	 install_perl_libs install_python_libs install_html \
+	 install_sources
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
 
@@ -657,13 +659,21 @@ $(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLI
 	if test -e $<; then $(INSTALL) $< $@; fi
 else
 install_html: cp_css build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
-	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(RSYNC_HTML_DIR)/)
+	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(RSYNC_DIR)/html/)
 
-cp_css: $(HTML_BUILD_DIR)/$(CSS_SRC_FILE)
+cp_css: $(HTML_BUILD_DIR) $(HTML_BUILD_DIR)/$(CSS_SRC_FILE)
 
 $(HTML_BUILD_DIR)/$(CSS_SRC_FILE): $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
 	$(INSTALL) $< $@
 
+endif
+
+ifneq "$(USE_RSYNC)" "yes"
+install_sources:
+else
+install_sources: build_scripts build_perl_libs build_python_libs 
+	$(call rsync_cmd,$(SCRIPT_BUILD_DIR)/,$(RSYNC_DIR)/script/)
+	$(call rsync_cmd,$(LOCAL_BUILD_DIR)/lib/,$(RSYNC_DIR)/lib/)
 endif
 
 # clean......................................................
