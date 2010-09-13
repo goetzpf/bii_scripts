@@ -478,14 +478,14 @@ def hg_cmd(cmd, catch_stdout, verbose, dry_run):
     """get data from a hg command."""
     return _system("hg %s" % cmd, catch_stdout, verbose, dry_run)
 
-def hg_revision_patchname_list(verbose, dry_run):
-    """returns a list of tuples (revision,patchname).
+def hg_hash_patchname_list(verbose, dry_run):
+    """returns a list of tuples (hashkey,patchname).
 
     returns:
         if there are no applied patches
 	    None
 	Otherwise
-	    a list of tuples (revision,patchname).
+	    a list of tuples (hashkey,patchname).
     """
     filename= os.path.join(".hg","patches","status")
     if not os.path.exists(filename):
@@ -499,13 +499,12 @@ def hg_revision_patchname_list(verbose, dry_run):
     f.close()
     if len(patchmap)==0:
 	return None
-    all= hg_cmd("log -r qbase:tip --template '{rev}:{node}\n'",
+    all= hg_cmd("log -r qbase:tip --template '{node|short}:{node}\n'",
                 True,verbose,dry_run)
     new= []
     for l in all.splitlines():
-	(rev,longhashkey)= l.split(":")
-	#new.append((rev,hashkey,patchmap[longhashkey]))
-	new.append((rev,patchmap[longhashkey]))
+	(shorthashkey,longhashkey)= l.split(":")
+	new.append((shorthashkey,patchmap[longhashkey]))
     return new
 
 rx_section=re.compile(r'^\[(\w+)\]\s*$')
@@ -598,19 +597,20 @@ def hg_unknown_files(exclude_list, verbose):
             print "\t%s" % f
     return lst
 
+rx_hashkey=re.compile(r'^\s*([0-9A-Fa-f]{6,})\s*$')
+
 def hg_outgoing(central_repo, verbose):
     """returns a list of patches not yet pushed."""
-    patchdata= _system("hg outgoing --template \"{rev}\\n\" \"%s\" || true" % \
+    patchdata= _system("hg outgoing --template \"{node|short}\\n\" \"%s\" || true" % \
                        central_repo,
                        catch_stdout= True,
                        verbose=verbose, dry_run= False)
     l= []
     for line in patchdata.splitlines():
-        try:
-            i= int(line)
-            l.append(i)
-        except ValueError, e:
-            continue
+        m= rx_hashkey.match(line)
+	if m is None:
+	    continue
+	l.append(m.group(1))
     if verbose:
         print "outgoing patches: ", ",".join([str(e) for e in l])
     return l
@@ -675,7 +675,7 @@ def create_recover_data(working_copy,
 
     source_path= os.getcwd()
     outgoing_patches= hg_outgoing(central_repo, verbose or dry_run)
-    patchlist= hg_revision_patchname_list(verbose or dry_run, False)
+    patchlist= hg_hash_patchname_list(verbose or dry_run, False)
     bag= { 
            "source path" : source_path, 
            "source dir" : last_path_element(source_path),
