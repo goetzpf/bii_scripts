@@ -12,9 +12,8 @@ fast command line requests to a rdbms
 Overview
 ========
 This is a reimplementation of the old oracle_request tool in case of the old
-language tcl. THe argument should be the same and may be some useful enhancements
-for a better flexible usage.
-
+language tcl and oracle only access. The arguments should be the same and may
+be some useful enhancements for a better flexible usage.
 """
 
 import sys
@@ -28,7 +27,52 @@ except ImportError,e:
     if len(sys.argv)<=1 or sys.argv[1]!="--doc":
         raise
 
-myversion = "0.1"
+myversion = "0.2"
+
+dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8", "oci", "postgres", "sqlite"]
+dbProfiles = {
+    "devices": {
+        "connecttype": "oci8",
+        "user": "anonymous",
+        "password": "bessyguest",
+        "instance": "devices",
+        "server": None,
+        "port": None,
+    },
+    "mirror": {
+        "connecttype": "oci8",
+        "user": "guest",
+        "password": "bessyguest",
+        "instance": "mirror",
+        "server": None,
+        "port": None,
+    },
+    "machine": {
+        "connecttype": "postgres",
+        "user": "anonymous",
+        "password": "bessyguest",
+        "instance": "machine",
+        "server": "dbgate1.trs.bessy.de",
+        "port": "9999",
+    },
+}
+
+outFormatList = {
+    "c": ["", "", "", " ", "", "{}"],
+    "txt": ["","\"","\"",",","", "NULL"],
+    "csv": ["","\"","\"",",","", ""],
+    "tab": ["","\"","\"","\t","", ""],
+    "python": ["(","'","'",", ",")", "None"],
+    "php": ["[","\"","\"",",","],", "null"],
+    "perl": ["[","\"","\"",", ","],", "\"\""],
+    "json": ["{","'","'",",","},", "null"],
+    "xml": ["\n\t<row>","\n\t\t<value>","</value>", "","\n\t</row>", "\n\t\t<value />"],
+    "html": ["\n\t<tr>","\n\t\t<td>","</td>","","\n\t</tr>", "\n\t\t<td>&nbsp;</td>"]
+}
+
+argParser = OptionParser(usage="usage: %prog [Options] [Statement]\nif no statement as argument was given, it will be asked from stdin",
+            version="%prog " + myversion,
+            description="make a request to a rdbms with a sql statement")
 
 def format_row(row, fmtList):
     ret = fmtList[0]
@@ -45,9 +89,44 @@ def format_row(row, fmtList):
     ret = ret + str(fmtList[4])
     return ret
 
+def get_profiles ():
+    global dbProfiles
+    ret = []
+    for i in dbProfiles.keys():
+        ret.append("\t" + str(i) + ": ")
+        iset = dbProfiles.get(i)
+        for j in iset.keys():
+            if not j == "password":
+                ret.append("\t\t" + str(j) + "=" + str(iset.get(j)))
+    return "\n".join(ret)
+
+def get_formats():
+    global outFormatList
+    ret = []
+    for i in outFormatList.keys():
+        ret.append("\t" + str(i) + " format:\t" + format_row(["example", 123, None, 4.56], outFormatList.get(i)) + "\n")
+    return "\n".join(ret)
+
+def get_protocols():
+    global dbProtocolList
+    ret = []
+    for i in dbProtocolList:
+        ret.append("\t" + str(i))
+    return "\n".join(ret)
+
 def print_doc():
+    global argParser
     """print embedded restructured text documentation."""
     print __doc__
+    print "\nCommandline Help Output\n=======================\n"
+    argParser.print_help()
+    print "\nKnown Profiles\n==============\n"
+    print "To expand the profiles inside contact the author."
+    print get_profiles()
+    print "\nknown protocols\n===============\n"
+    print get_protocols()
+    print "\nKnown Formats for Output\n========================\n"
+    print get_formats()
 
 def join_list(listobj,  separator = ", "):
     return separator.join(listobj)
@@ -61,6 +140,19 @@ def _test():
     print "done!"
 
 def main():
+    global dbProtocolList, dbProfiles, outformatList
+    dbSQLString = None
+    dbProfileString = None
+    dbProfile = {
+        "connecttype": None,
+        "user": None,
+        "password": None,
+        "instance": None,
+        "server": None,
+        "port": None,
+    }
+    outFormat = "c"
+    outFormatNullString = ""
     """ Here all the action starts up.
 
         It begins with parsing commandline arguments.
@@ -68,61 +160,6 @@ def main():
     verbose = False
     outnumbered = False
 
-    dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8", "oci", "postgres", "sqlite"]
-    dbProfile = {
-            "connecttype": None,
-            "user": None,
-            "password": None,
-            "instance": None,
-            "server": None,
-            "port": None,
-        }
-    dbProfiles = {
-        "devices": {
-            "connecttype": "oci8",
-            "user": "anonymous",
-            "password": "bessyguest",
-            "instance": "devices",
-            "server": None,
-            "port": None,
-        },
-        "mirror": {
-            "connecttype": "oci8",
-            "user": "guest",
-            "password": "bessyguest",
-            "instance": "mirror",
-            "server": None,
-            "port": None,
-        },
-        "machine": {
-            "connecttype": "postgres",
-            "user": "anonymous",
-            "password": "bessyguest",
-            "instance": "machine",
-            "server": "dbgate1.trs.bessy.de",
-            "port": "9999",
-        },
-    }
-    dbSQLString = None
-    dbProfileString = None
-    outFormatList = {
-        "c": ["", "", "", " ", "", "{}"],
-        "txt": ["","\"","\"",",","", "NULL"],
-        "csv": ["","\"","\"",",","", ""],
-        "tab": ["","\"","\"","\t","", ""],
-        "python": ["(","'","'",", ",")", "None"],
-        "php": ["[","\"","\"",",","],", "null"],
-        "perl": ["[","\"","\"",", ","],", "\"\""],
-        "json": ["{","'","'",",","},", "null"],
-        "xml": ["\n\t<row>","\n\t\t<value>","</value>", "","\n\t</row>", "\n\t\t<value />"],
-        "html": ["\n\t<tr>","\n\t\t<td>","</td>","","\n\t</tr>", "\n\t\t<td>&nbsp;</td>"]
-    }
-    outFormat = "c"
-    outFormatNullString = ""
-
-    usage = "usage: %prog [Options] [Statement]\nif no statement as argument was given, it will be asked from stdin"
-    argParser = OptionParser(usage=usage, version="%%prog 2.5",
-                description="make a request to a rdbms with a sql statement")
     argParser.add_option ("-u", "--user", type="string",
                 action="store", 
                 help="set username")
@@ -150,7 +187,7 @@ def main():
                 action="store", 
                 default=outFormat, help="decide the output format (" + ",".join(outFormatList.keys()) + ")")
     argParser.add_option ("--doc",
-                action="store_true", help="create online help in restructured text format. Use \"./db_request.py--doc | rst2html\" for creation of html help")
+                action="store_true", help="create online help in restructured text format. Use \"./db_request.py --doc | rst2html\" for creation of html help")
     argParser.add_option ("-t", "--test",
                 action="store_false",
                 help="performs simply self-test")
@@ -180,21 +217,14 @@ def main():
         return
     if argOptionList.verbose:
         verbose = True
-    if argOptionList.protocols:
-        print "known protocols: " + ", ".join(dbProtocolList)
-        cmdBreak = True
     if argOptionList.profiles:
-        print "known profiles:"
-        for i in dbProfiles.keys():
-            print "\t" + str(i) + ": "
-            iset = dbProfiles.get(i)
-            for j in iset.keys():
-                if not j == "password":
-                    print "\t\t" + str(j) + "=" + str(iset.get(j)) 
+        print "Profiles:\n" + get_profiles()
+        cmdBreak = True
+    if argOptionList.protocols:
+        print "Protocols:\n" + get_protocols()
         cmdBreak = True
     if argOptionList.formats:
-        for i in outFormatList.keys():
-            print "\n" + str(i) + " format: " + format_row(["example", 123, None, 4.56], outFormatList.get(i)) + "\n"
+        print "Formats:\n" + get_formats()
         cmdBreak = True
     if cmdBreak:
         return
