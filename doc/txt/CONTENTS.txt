@@ -34,32 +34,32 @@ Scripts
 **adl_cvs_diff.pl**
   | show differences between the working and the repository version of an dm2k
     panel (\*.adl) file. Supports CVS and subversion as version control systems.
-  | `documentation <../script/adl_cvs_diff.html>`__
+  | `documentation <scripts/adl_cvs_diff.html>`__
 
 **adlsort.pl**
   | Print dm2k panel (\*.adl) files sorted to standard out.  This can be used to
     compare two dm2k panel files.  
-  | `documentation <../script/adlsort.html>`__
+  | `documentation <scripts/adlsort.html>`__
 
 **archiver2camonitor.py**
   | This tool converts data from the Channel access archiver (retrieved via CGI,
     "plot" command, then clicking on "plot") to a sorted list of values
     compatible with the format of the camonitor tool.  
-  | `documentation <../script/archiver2camonitor.html>`__
+  | `documentation <scripts/archiver2camonitor.html>`__
 
 **bdns_import.pl**
   | import BESSY device names into the oracle database.
-  | `documentation <../script/bdns_import.html>`__
+  | `documentation <scripts/bdns_import.html>`__
 
 **bdns_lookup.pl**
   | lookup BESSY device names in the oracle database.
-  | `documentation <../script/bdns_lookup.html>`__
+  | `documentation <scripts/bdns_lookup.html>`__
 
 **bdns_sort.pl**
   | sort BESSY device names according to their
     member,index,subindex,family,counter,subdomain, subdomainnumber,domain and
     facility.
-  | `documentation <../script/bdns_sort.html>`__
+  | `documentation <scripts/bdns_sort.html>`__
 
 **browsedb.pl**
   | a perl-script with a graphical user interface to browse the oracle database.
@@ -68,40 +68,40 @@ Scripts
 
 **buds_lookup.pl**
   | lookup BESSY units in the oracle database.
-  | `documentation <../script/buds_lookup.html>`__
+  | `documentation <scripts/buds_lookup.html>`__
 
 **camonitor_sort.pl**
   | sort and filer files created by the EPICS camonitor command.  The filtering
     can be specified with regular expressions.  This tool is especially useful
     when many different PV's are monitored at a time.  
-  | `documentation <../script/camonitor_sort.html>`__
+  | `documentation <scripts/camonitor_sort.html>`__
 
 **canlink.pl**
   | encode and decode the lowCAL hardware link as it is used in the BESSY
     MultiCAN device support for EPICS.
-  | `documentation <../script/canlink.html>`__
+  | `documentation <scripts/canlink.html>`__
 
 **console-get**
   | download and concatenate console server files.
-  | `documentation <../script/console-get.html>`__
+  | `documentation <scripts/console-get.html>`__
 
 **copyrename**
   | copies files and changes the extension
-  | `documentation <../script/copyrename.html>`__
+  | `documentation <scripts/copyrename.html>`__
 
 **CreatePanel.pl**
   | Create Panels for 'dm2k' or 'edm' from EPICS-Database '.substitution' files
     and widgets for each item of the '.substitution' file.
-  | `documentation <../script/CreatePanel.html>`__
+  | `documentation <scripts/CreatePanel.html>`__
 
 **csv2plot**
   | Combine and convert numerical data from .csv files for gnuplot use.
-  | `documentation <../script/csv2plot.html>`__
+  | `documentation <scripts/csv2plot.html>`__
 
 **cvs_diff.pl**
   | compare versions of a file in a CVS repository. This tool can remove emtpy
   | lines and c-comments before comparing.
-  | `documentation <../script/cvs_diff.html>`__
+  | `documentation <scripts/cvs_diff.html>`__
 
 **cvsGuru**
   | CVS wrapper script - for ctlguru only
@@ -109,7 +109,7 @@ Scripts
 **cvs_log_diff.pl**
   | compares the all log-messages between two revisions or tags in a CVS
     repository.  
-  | `documentation <../script/cvs_log_diff.html>`__
+  | `documentation <scripts/cvs_log_diff.html>`__
 
 **darcs-kompare**
   | start KDE kompare to compare the working copy with the repository copy of a
@@ -136,11 +136,11 @@ Scripts
 
 **dbcount**
   | count the number of records in a file
-  | `documentation <../script/dbcount.html>`__
+  | `documentation <scripts/dbcount.html>`__
 
 **dbdiff**
   | display the difference between two \*.db files using tkdiff
-  | `documentation <../script/dbdiff.html>`__
+  | `documentation <scripts/dbdiff.html>`__
 
 .. _dbfilter.pl:
 
@@ -154,12 +154,12 @@ Scripts
   | `analyse_db.pm`_ 
   | `canlink.pm`_ 
   | Here is the documentation and the source of the script itself:
-  | `documentation <../script/dbfilter.html>`__
+  | `documentation <scripts/dbfilter.html>`__
   | `source <../script/dbfilter.pl>`__
 
 **db_request.py**
   | a tool to perform SQL requests on the oracle database.
-  | `documentation <../script/db_request.html>`__
+  | `documentation <scripts/db_request.html>`__
 
 **dbscan.pl**
   | This script is from Rolf Keitel <rolf@triumf.ca>. It scans db and sch files
@@ -168,18 +168,18 @@ Scripts
     somewhere outside the given db file (along with the target record).
     Unfortunately does not tell which link field and which target field.  Note
     that `dbfilter.pl`_ can do the same with it's "--unresolved_links" option.
-  | `documentation <../script/dbscan.html>`__
+  | `documentation <scripts/dbscan.html>`__
 
 **dbsort**
   | print an EPICS database sorted. Note that `dbfilter.pl`_ does exactly the same
     when called with a database file and no options at all.
-  | `documentation <../script/dbsort.html>`__
+  | `documentation <scripts/dbsort.html>`__
 
 **dbutil.p**
   | A tool that can export oracle database-tables to ASCII files and re-import
     these files. Useful if you want to change many parts of a database-table
     with your favorite text-editor...
-  | `documentation <../script/dbutil.html>`__
+  | `documentation <scripts/dbutil.html>`__
 
 **dumpdb**
   | dump a database (\*.db) file, one record-name combined with one field name
@@ -190,15 +190,15 @@ Scripts
     arbitrary perl-expressions, it is quite powerful and (if you want this) a
     programming language of its own. It features if-statements, complex
     expressions and for-loops among others.  This script needs the
-    `expander.pm`_ module. See the `expander documentation <../lib/perl/expander.html>`__
+    `expander.pm`_ module. See the `expander documentation <modules/expander.html>`__
     for a more comprehensive description of the expander file format.
-  | `documentation <../script/expander.html>`__
+  | `documentation <scripts/expander.html>`__
   | `source <../script/expander.pl>`__
 
 **filter_can_links.pl**
   | extract CAN links from a .db file (for the BESSY lowCAL protocol). Note that
     `dbfilter.pl`_ can do the same with it's "--lowcal" option.
-  | `documentation <../script/filter_can_links.html>`__
+  | `documentation <scripts/filter_can_links.html>`__
 
 **flatdb**
   | expands and vdctdb db-file into a "flat" db file. 
@@ -216,26 +216,26 @@ Scripts
     causes a print of the record. To control the printed output there are
     options to define the record names, record types or field types that have to
     be printed. This script needs the `parse_db.pm`_ module.
-  | `documentation <../script/grepDb.html>`__
+  | `documentation <scripts/grepDb.html>`__
   | `source <../script/grepDb.pl>`__
 
 **hg-kompare.py**
   | A program that calls kompare to do comparisions of the
     working copy with a mercurial repository or compare files of different 
     versions in the mercurial repository.
-  | `documentation <../script/hg-kompare.html>`__
+  | `documentation <scripts/hg-kompare.html>`__
   | `source <../script/hg-kompare.py>`__
 
 **hgdiff.py**
   | A program to do a graphical comparision of files or directory trees in a 
     working copy with a mercurial repository or compare files of different 
     versions in the mercurial repository.
-  | `documentation <../script/hgdiff.html>`__
+  | `documentation <scripts/hgdiff.html>`__
   | `source <../script/hgdiff.py>`__
 
 **hgen.pl**
   | a header-generator for c and c++.
-  | `documentation <../script/hgen.html>`__
+  | `documentation <scripts/hgen.html>`__
   | `source <../script/hgen.pl>`__
 
 **hg-recover.py**
@@ -247,7 +247,7 @@ Scripts
     file together with the application. If it is needed, it is possible to restore
     the state of the original working copy and mercurial repository from which the
     application was built. 
-  | `documentation <../script/hg-recover.html>`__
+  | `documentation <scripts/hg-recover.html>`__
   | `source <../script/hg-recover.py>`__
 
 **latin1toutf8.sh**
@@ -267,7 +267,7 @@ Scripts
 **makeDocTxt.pl**
   | create html documentation for ascii files that contain documentation
     according to "makeDoc" rules.  
-  | `documentation <../script/makeDocTxt.html>`__
+  | `documentation <scripts/makeDocTxt.html>`__
 
 **makeRegistrar**
   | create EPICS 3.14 registrar code (generates c-code).
@@ -278,7 +278,7 @@ Scripts
 **multi-commit.pl**
   | perform multiple commits (cvs, svn, darcs or mercurial) with a prepared
     command-file.
-  | `documentation <../script/multi-commit.html>`__
+  | `documentation <scripts/multi-commit.html>`__
 
 **oracle_request**
   | command line tool to make database queries on the oracle database.
@@ -296,30 +296,30 @@ Scripts
     different dates, different sizes or are missing. The files or directories
     can be filtered. The kind comparisons can also be filtered.  Can remove CVS
     tags or <CR> characters before comparing.
-  | `documentation <../script/pcomp.html>`__
+  | `documentation <scripts/pcomp.html>`__
   | `source <../script/pcomp.pl>`__
 
 **pfind.pl**
   | a perl-script for powerful recursive file pattern search, like a recursive
     grep, but better. Features among other things text-file search, c-file
     search, regular expressions that match across line-ends.
-  | `documentation <../script/pfind.html>`__
+  | `documentation <scripts/pfind.html>`__
   | `source <../script/pfind.pl>`__
 
 **psh**
   | a perl-shell. Useful for testing small functions or expressions in an
     interactive shell.
-  | `documentation <../script/psh.html>`__
+  | `documentation <scripts/psh.html>`__
   | `source <../script/psh>`__
 
 **pyone.py**
   | python One-liner helper.
-  | `documentation <../script/pyone.html>`__
+  | `documentation <scripts/pyone.html>`__
   | `source <../script/pyone.py>`__
 
 **repo-loginfo.py**
   | print log summaries for darcs or mercurial repositories.
-  | `documentation <../script/repo-loginfo.html>`__
+  | `documentation <scripts/repo-loginfo.html>`__
   | `source <../script/repo-loginfo.py>`__
 
 **rsync-deploy**
@@ -334,7 +334,7 @@ Scripts
   | `boottime.py`_ 
   | `PythonCA <http://www-acc.kek.jp/EPICS_Gr/products.html>`__
   | Here is the documentation and the source of the script itself:
-  | `documentation <../script/rsync-dist-info.html>`__
+  | `documentation <scripts/rsync-dist-info.html>`__
   | `source <../script/rsync-dist-info.py>`__
 
 **rsync-dist.pl**
@@ -347,7 +347,7 @@ Scripts
   | `maillike.pm`_ 
   | `extended_glob.pm`_ 
   | Here is the documentation and the source of the script itself:
-  | `documentation <../script/rsync-dist.html>`__
+  | `documentation <scripts/rsync-dist.html>`__
   | `source <../script/rsync-dist.pl>`__
 
 **Sch2db.pl**
@@ -355,7 +355,7 @@ Scripts
     format as it is used in EPICS. This is faster and more flexible that the
     combination of sch2edif and e2db. This script needs the 
     `capfast_defaults.pm`_ module.
-  | `documentation <../script/Sch2db.html>`__
+  | `documentation <scripts/Sch2db.html>`__
   | `source <../script/Sch2db.pl>`__
 
 **sch_repo_diff.pl**
@@ -363,12 +363,12 @@ Scripts
     version on the top-trunk in the repository.  The difference of the resulting
     \*.db files is shown, which is much clearer when you want to find out what
     was really changed. Supports cvs, subversion and mercurial.
-  | `documentation <../script/sch_repo_diff.html>`__
+  | `documentation <scripts/sch_repo_diff.html>`__
 
 **set_ioc_tsrv.pl**
   | set terminal_server and optionally port to connect to console of an ioc.
     Probably no longer needed since the conserver is now used for all IOCs.
-  | `documentation <../script/set_ioc_tsrv.html>`__
+  | `documentation <scripts/set_ioc_tsrv.html>`__
 
 **SetPerms**
   | a semi-automatic shell-script for setting file and directory permissions in
@@ -377,12 +377,12 @@ Scripts
 **sqlutil.py**
   | this program copies data between a database, a dbitabletext file, the
     screen.
-  | `documentation <../script/sqlutil.html>`__
+  | `documentation <scripts/sqlutil.html>`__
 
 **stripUnresolvedDb.pl**
   | remove all unresolved fields from a database. Means all fields that contain
     some variables $(VARIABLE).
-  | `documentation <../script/stripUnresolvedDb.html>`__
+  | `documentation <scripts/stripUnresolvedDb.html>`__
 
 **subst2exp.pl**
   | convert substitution-files to expander format for usage with the expander.pl
@@ -394,11 +394,11 @@ Scripts
 
 **substdiff**
   | compares two substitution files.
-  | `documentation <../script/substdiff.html>`__
+  | `documentation <scripts/substdiff.html>`__
 
 **substprint.pl**
   | pretty-print a substitution file.
-  | `documentation <../script/substprint.html>`__
+  | `documentation <scripts/substprint.html>`__
 
 **tkSQL**
   | query the oracle database by directly entering SQL requests.
@@ -409,7 +409,7 @@ Scripts
 **txtcleanup.py**
   | a cleanup tool for text files. Removes tabs and trailing spaces in files.
     Can also be used as a filter.
-  | `documentation <../script/txtcleanup.html>`__
+  | `documentation <scripts/txtcleanup.html>`__
 
 **unlockGuru**
   | Remove the mutex file lock, probably used together with cvsGuru.
@@ -417,7 +417,7 @@ Scripts
 **vdb_repo_diff**
   | graphical compare of vdb files with or within a repository.  Supports cvs,
     subversion and mercurial.
-  | `documentation <../script/vdb_repo_diff.html>`__
+  | `documentation <scripts/vdb_repo_diff.html>`__
 
 **vdct**
   | starts the VisualDCT database editor.   
@@ -430,18 +430,18 @@ Perl Libraries
 
 **analyse_db.pm**
   | a Perl module to analyse databases parsed with parse_db.
-  | `documentation <../lib/perl/analyse_db.html>`__
+  | `documentation <modules/analyse_db.html>`__
   | `source <../lib/perl/analyse_db.pm>`__
 
 **BDNS.pm**
   | BESSY device name parser.
-  | `documentation <../lib/perl/BDNS.html>`__
+  | `documentation <modules/BDNS.html>`__
 
 **bessy_module.pm**
   | This performs a "module <command> <args...>" in the z-shell 
     environment and re-imports the environment-variables to the 
     perl-process, so they are available in the %ENV-hash
-  | `documentation <../lib/perl/bessy_module.html>`__
+  | `documentation <modules/bessy_module.html>`__
 
 **BrowseDB/TkUtils.pm**
   | Tk-utilities for browsedb.pl
@@ -456,7 +456,7 @@ Perl Libraries
   | a perl-module that can be used to encode or decode the
     "cryptic can link" as it is used in the BESSY CAN Bus
     device support for EPICS.
-  | `documentation <../lib/perl/canlink.html>`__
+  | `documentation <modules/canlink.html>`__
   | `source <../lib/perl/canlink.pm>`__
 
 .. _capfast_defaults.pm:
@@ -464,13 +464,13 @@ Perl Libraries
 **capfast_defaults.pm**
   | a Perl module that contains capfast defaults for
     record-fields.
-  | `documentation <../lib/perl/capfast_defaults.html>`__
+  | `documentation <modules/capfast_defaults.html>`__
   | `source <../lib/perl/capfast_defaults.pm>`__
 
 **cfgfile.pm**
   | simple module to read or write a configuration file. Probably
     unfinished and in alpha-release state. 
-  | `documentation <../lib/perl/cfgfile.html>`__
+  | `documentation <modules/cfgfile.html>`__
 
 .. _container.pm:
 
@@ -481,13 +481,13 @@ Perl Libraries
     copying scalars, arrays and hashes. This is not a simple copy
     of references. Note that deeply nested structures are
     deeply copied.  
-  | `documentation <../lib/perl/container.html>`__
+  | `documentation <modules/container.html>`__
   | `source <../lib/perl/container.pm>`__
 
 **CreateX.pm**
   | Routines that help to write CreateX.pl scripts. Not quite sure
     what this does. Connects to the oracle database.
-  | `documentation <../lib/perl/CreateX.html>`__
+  | `documentation <modules/CreateX.html>`__
 
 **dbdrv_lite.pm**
   | low level routines for sqlite. Used by dbdrv.
@@ -501,7 +501,7 @@ Perl Libraries
 **dbdrv**
   | low level utilities for SQL database access, needed by
     dbitable.
-  | `documentation <../lib/perl/dbdrv.html>`__
+  | `documentation <modules/dbdrv.html>`__
 
 **dbdrv_test.pl**
   | test-script for dbdrv. This shouldn't be in the repository!     
@@ -509,21 +509,21 @@ Perl Libraries
 **dbitable**
   | an object-oriented Perl module for handling single tables
     from an SQL database
-  | `documentation <../lib/perl/dbitable.html>`__
+  | `documentation <modules/dbitable.html>`__
 
 .. _expander.pm:
 
 **expander.pm** 
   | a module to perform macro-replacements in text files. Features
     if-statements, complex expressions and for-loops among others
-  | `documentation <../lib/perl/expander.html>`__
+  | `documentation <modules/expander.html>`__
   | `source <../lib/perl/expander.pm>`__
 
 .. _extended_glob.pm:
 
 **extended_glob.pm**
   | a Perl module for extended filename globbing.
-  | `documentation <../lib/perl/extended_glob.html>`__
+  | `documentation <modules/extended_glob.html>`__
   | `source <../lib/perl/extended_glob.pm>`__
 
 .. _maillike.pm:
@@ -533,7 +533,7 @@ Perl Libraries
     format similar to mail (RFC822). The data is organized in
     records, each record has a number of fields and to each 
     field of a record an certain content is associated.
-  | `documentation <../lib/perl/maillike.html>`__
+  | `documentation <modules/maillike.html>`__
   | `source <../lib/perl/maillike.pm>`__
 
 **makeDocStyle.pm**
@@ -542,23 +542,23 @@ Perl Libraries
 **ODB.pm**
   | a Perl module for accessing database via DBI.  Means easier 
     handling of the DBI routines via this layer.
-  | `documentation <../lib/perl/ODB.html>`__
+  | `documentation <modules/ODB.html>`__
 
 **Options.pm**
   | a Perl module for handling programm arguments, command line in
     and output inclusive login requests.
-  | `documentation <../lib/perl/Options.html>`__
+  | `documentation <modules/Options.html>`__
 
 .. _parse_db.pm:
 
 **parse_db**
   | a perl-module for parsing EPICS db-files.
-  | `documentation <../lib/perl/parse_db.html>`__
+  | `documentation <modules/parse_db.html>`__
   | `source <../lib/perl/parse_db.pm>`__
 
 **parse_subst**
   | a perl-module for parsing EPICS substitution-files.
-  | `documentation <../lib/perl/parse_subst.html>`__
+  | `documentation <modules/parse_subst.html>`__
   | `source <../lib/perl/parse_subst.pm>`__
 
 **Pezca**
@@ -568,13 +568,13 @@ Perl Libraries
 
 **printData.pm**
   | some console print utilities.
-  | `documentation <../lib/perl/printData.html>`__
+  | `documentation <modules/printData.html>`__
 
 **scan_makefile.pm**
   | This module scans one or more than one makefile and returns 
     a hash reference containing all variables that are set within
     the makefile together with all environment variables.
-  | `documentation <../lib/perl/scan_makefile.html>`__
+  | `documentation <modules/scan_makefile.html>`__
 
 .. _simpleconf.pm:
 
@@ -584,12 +584,12 @@ Perl Libraries
     lines where each line contains a field-name and the contents
     of the field. Empty lines and lines starting with a "#" character
     (which are usually a comment) are ignored.
-  | `documentation <../lib/perl/simpleconf.html>`__
+  | `documentation <modules/simpleconf.html>`__
   | `source <../lib/perl/simpleconf.html>`__
 
 **tokParse.pm**
   | token parser utilities (for makeDocTxt).
-  | `documentation <../lib/perl/tokParse.html>`__
+  | `documentation <modules/tokParse.html>`__
 
 ----------------
 Python Libraries
@@ -599,19 +599,19 @@ Python Libraries
 
 **boottime.py**
   | get the boot time of an BESSY IOC by querying a certain pv.
-  | `documentation <../lib/python/boottime.html>`__
+  | `documentation <python/boottime.html>`__
   | `source <../lib/python/boottime.py>`__
 
 .. _dateutils.py:
 
 **dateutils.py**
   | utilities for string <-> datetime conversions.
-  | `documentation <../lib/python/dateutils.html>`__
+  | `documentation <python/dateutils.html>`__
   | `source <../lib/python/dateutils.py>`__
 
 **enum.py**
   | enumeration types for python.
-  | `documentation <../lib/python/enum.html>`__
+  | `documentation <python/enum.html>`__
 
 **FilterFile.py**
   | a python module for scripts that read or write to files
@@ -619,51 +619,51 @@ Python Libraries
     be used to modify a file in a safe way by creating a temporary
     file and renaming the original file and the temporary file
     upon close.
-  | `documentation <../lib/python/FilterFile.html>`__
+  | `documentation <python/FilterFile.html>`__
 
 **lslparser.py**
   | a module to parse the output of "ls -l".
-  | `documentation <../lib/python/lslparser.html>`__
+  | `documentation <python/lslparser.html>`__
 
 **maillike.py**
   | parse texts that have a mail-like format.
-  | `documentation <../lib/python/maillike.html>`__
+  | `documentation <python/maillike.html>`__
 
 **pdict.py**
   | implements a dictionary for one-to-one relations.
-  | `documentation <../lib/python/pdict.html>`__
+  | `documentation <python/pdict.html>`__
 
 **pfunc.py**
   | utilities for python functions and lambda statements.
-  | `documentation <../lib/python/pfunc.html>`__
+  | `documentation <python/pfunc.html>`__
 
 **ptestlib.py**
   | a module providing routines for doctest testcode.
-  | `documentation <../lib/python/ptestlib.html>`__
+  | `documentation <python/ptestlib.html>`__
 
 **putil.py**
   | This module provides functions for working
     with lists among other utilities.
-  | `documentation <../lib/python/putil.html>`__
+  | `documentation <python/putil.html>`__
 
 **rdump.py**
   | a module for dumping of nested structures.
-  | `documentation <../lib/python/rdump.html>`__
+  | `documentation <python/rdump.html>`__
 
 .. _rsync_dist_lib.py:
 
 **rsync_dist_lib.py**
   | sync_dist_info classes for parsing rsync-dist log files.
-  | `documentation <../lib/python/rsync_dist_lib.html>`__
+  | `documentation <python/rsync_dist_lib.html>`__
   | `source <../lib/python/rsync_dist_lib.py>`__
 
 **sqlpotion.py**
   | a module with utilities and support functions for sqlalchemy.
-  | `documentation <../lib/python/sqlpotion.html>`__
+  | `documentation <python/sqlpotion.html>`__
 
 **typecheck.py**
   | a module with type-tests and type-assertions.
-  | `documentation <../lib/python/typecheck.html>`__
+  | `documentation <python/typecheck.html>`__
 
 --------
 
