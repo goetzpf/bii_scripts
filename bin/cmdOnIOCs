@@ -1,8 +1,11 @@
 #!/usr/bin/zsh -f
 
+progname=$0
+
 usage() {
+    echo -n $2 >&2
 <<EOF
-Usage: cmdOnIOCs [-n] [-f] [-s seconds] [-e escape] -p passwd (-i iocsglob|-I iocsregex) cmd [iocs]
+Usage: $progname [-n] [-f] [-s seconds] [-e escape] -p passwd (-i iocsglob|-I iocsregex) cmd [iocs]
 
   -n          : no-exec - just print what would be executed without giving "-n"
   -f          : force   - skip the "do you really..." part, just do it
@@ -36,12 +39,10 @@ esc=${args[-e]-XX}
 cmd=$1; shift
 
 if [[ $# == 0 && $iocsre = "xxx" && $iocsglob = "xxx" ]]; then
-    echo "ERROR: No IOCs specified.\n" >&2
-    usage 1
+    usage 1 "ERROR: No IOCs specified.\n\n"
 fi
 if [[ $password = "xxx" ]]; then
-    echo "ERROR: Password has to be provided!\n" >&2
-    usage 1
+    usage 1 "ERROR: Password has to be provided!\n\n"
 fi
 
 [[ $iocsre = "xxx" ]] && iocsre=".*" && iocsglob=${(j:|:)${=iocsglob}}
@@ -51,14 +52,14 @@ if [[ $# > 0 ]]; then
     iocs=("$@")
 else
     iocs=()
-    foreach ioc (`echo tsc | console -u 2>/dev/null |awk '{print $1}' | sort | egrep ^\($iocsre\)$`)
-    [[ "$ioc" = ${~iocsglob} ]] && iocs=($iocs $ioc)
-    end
+    for ioc in `echo tsc | console -u 2>/dev/null |awk '{print $1}' | sort | egrep ^\($iocsre\)$`
+    do
+        [[ "$ioc" = ${~iocsglob} ]] && iocs=($iocs $ioc)
+    done
 fi
 
 if [[ $#iocs = 0 ]]; then
-    echo "ERROR: No matching IOCs found\n" >&2
-    usage 1
+    usage 1 "ERROR: No matching IOCs found\n\n"
 fi
 
 if [[ $noexec == 0 && $force == 0 ]]; then
