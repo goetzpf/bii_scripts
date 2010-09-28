@@ -43,6 +43,7 @@ use FindBin;
 use Getopt::Long;
 use File::Temp;
 use Text::ParseWords;
+use Cwd;
 
 use constant { 
   CVS   => 1,
@@ -171,11 +172,13 @@ elsif ((defined $opt_generate) || (defined $opt_status) || (defined $opt_edit))
           { $editor= $ENV{MULTICOMMIT_EDITOR}; };
         $filepar= ($opt_edit eq "") ? $description_file : $opt_edit; 
       }
+    chdir_wd_root($vcs);
     generate_file($vcs, $filepar, $editor);
   }
 elsif (defined $opt_commit)
   {
     my $filepar= ($opt_commit eq "") ? $description_file : $opt_commit;
+    chdir_wd_root($vcs);
     scan_file($vcs, $filepar);
   };
 
@@ -436,15 +439,22 @@ sub generate_file
       }
     else
       { 
-        if (-e $filename)
-          { print "warning: file \"$filename\" already exists, overwrite (y/n)?";
-            my $rep= <>;
-            if ($rep!~ /^\s*(y|yes|ok|j|ja)\s*$/i)
-              { die "aborting...\n"; }
+	if (defined $filename)
+	  {
+	    if (-e $filename)
+	      { print "warning: file \"$filename\" already exists, overwrite (y/n)?";
+		my $rep= <>;
+		if ($rep!~ /^\s*(y|yes|ok|j|ja)\s*$/i)
+		  { die "aborting...\n"; }
+	      }
           }
         if (!sys($cmd))
           { die "error: command failed!"; };
       };    
+    if (!defined $editor)
+      { # no editing wanted/needed
+        return;
+      };
     $cmd= "$editor $filename";
     if ($opt_dry_run)
       { print "command: \"$cmd\"\n";
@@ -454,6 +464,66 @@ sub generate_file
           { die "error: command failed!"; };
       };    
   }    
+
+sub lookup_dir
+  { my($dirname, $cwd)= @_;
+    my $ret= undef;
+
+    while(-e $dirname)
+      { $ret= getcwd(); 
+        chdir("..") || die "chdir error at $ret"; 
+      };
+    chdir($cwd) || die "chdir error at $cwd";
+    return $ret;
+  }
+    
+sub cvs_root
+  { return(lookup_dir("CVS",getcwd())); }
+
+sub svn_root
+  { return(lookup_dir(".svn",getcwd())); }
+
+sub darcs_root
+  { my $rep= `darcs show repo | grep Root`;
+    if ($rep !~ /^\s*[Rr]oot\s*:\s*(.*)/)
+      { return; };
+    return $1;
+  }
+
+sub hg_root
+  { 
+    my $rep= `hg root`; 
+    chomp($rep);
+    return($rep);
+  }
+
+sub working_directory_root
+  { my($vcs)= @_;
+
+    my $cwd= getcwd();
+    if ($vcs eq CVS)
+      { return(cvs_root()); }
+    if ($vcs eq SVN)
+      { return(svn_root()); }
+    if ($vcs eq DARCS)
+      { return(darcs_root()); }
+    if ($vcs eq HG)
+      { return(hg_root()); }
+    if ($vcs eq HGMQ)
+      { return(hg_root()); }
+  }
+
+sub chdir_wd_root
+  # change directory to root of working copy
+  { my($vcs)=@_;
+    
+    my $dir= working_directory_root($vcs);
+    if (!defined $dir)
+      { die "error, current directory doesn't contain ".
+            "repository information\n"; 
+      };
+    chdir($dir) or die "unable to chdir to $dir";
+  }
 
 sub commit_cmd
   { my($vcs,$files,$temp_file)= @_;
