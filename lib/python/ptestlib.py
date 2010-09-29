@@ -242,7 +242,14 @@ def rm_rf(d):
 	raise AssertionError, "testdirname() is 'None'"
     if t is "":
 	raise AssertionError, "testdirname() is empty"
-    i_rm_rf(pjoin(t,d))
+    f= pjoin(t,d)
+    if os.path.isdir(f):
+	i_rm_rf(f)
+	return
+    if os.path.isfile(f):
+	os.remove(f)
+	return
+    raise AssertionError, "\"%s\" is neither file nor directory" % f
 
 
 def cleanuptestdir():
