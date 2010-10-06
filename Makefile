@@ -575,7 +575,6 @@ endif
 	install_perl_libs \
 	install_python_libs install_html install_html_script \
 	install_html_perllib install_html_pythonlib \
-	install_sources \
 	clean \
 	build build_shared build_scripts build_perl_libs build_python_libs \
 	build_html build_html_txt_doc build_html_script build_html_script_pods \
@@ -592,8 +591,7 @@ all: build
 # install....................................................
 
 install: install_html_txt install_shared install_scripts \
-	 install_perl_libs install_python_libs install_html \
-	 install_sources
+	 install_perl_libs install_python_libs install_html
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
 
@@ -666,14 +664,6 @@ cp_css: $(HTML_BUILD_DIR) $(HTML_BUILD_DIR)/$(CSS_SRC_FILE)
 $(HTML_BUILD_DIR)/$(CSS_SRC_FILE): $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
 	$(INSTALL) $< $@
 
-endif
-
-ifneq "$(USE_RSYNC)" "yes"
-install_sources:
-else
-install_sources: build_scripts build_perl_libs build_python_libs 
-	$(call rsync_cmd,$(SCRIPT_BUILD_DIR)/,$(RSYNC_DIR)/script/)
-	$(call rsync_cmd,$(LOCAL_BUILD_DIR)/lib/,$(RSYNC_DIR)/lib/)
 endif
 
 # clean......................................................
