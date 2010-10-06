@@ -1,5 +1,7 @@
 #!/usr/bin/zsh -f
 
+env >/tmp/cmdOnIOCs.$$
+
 progname=$0
 
 usage() {
@@ -48,15 +50,21 @@ fi
 [[ $iocsre = "xxx" ]] && iocsre=".*" && iocsglob=${(j:|:)${=iocsglob}}
 [[ $iocsglob = "xxx" ]] && iocsglob="*" && iocsre=${(j:|:)${=iocsre}}
 
+iocpattern='.'
+host=$(hostname -f)
+[[ $host = *".erl.site" ]] && iocpattern='f$'
+[[ $host = *".ctl.bessy.de" ]] && iocpattern='(eis|mdi|ioc).*[bgc]$'
+[[ $host = *".mlscs.bessy.de" ]] && iocpattern='p$'
+
 if [[ $# > 0 ]]; then
-    iocs=("$@")
-else
-    iocs=()
-    for ioc in `echo tsc | console -u 2>/dev/null |awk '{print $1}' | sort | egrep ^\($iocsre\)$`
-    do
-        [[ "$ioc" = ${~iocsglob} ]] && iocs=($iocs $ioc)
-    done
+  iocsglob=${(j:|:)${=@}}
 fi
+
+iocs=()
+for ioc in `echo tsc | console -u 2>/dev/null |awk '{print $1}' | egrep $iocpattern | sort | egrep ^\($iocsre\)$`
+do
+    [[ "$ioc" = ${~iocsglob} ]] && iocs=($iocs $ioc)
+done
 
 if [[ $#iocs = 0 ]]; then
     usage 1 "ERROR: No matching IOCs found\n\n"
