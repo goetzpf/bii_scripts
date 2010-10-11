@@ -21,10 +21,15 @@ import os
 import re
 import getpass
 from optparse import OptionParser
+
+_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--doc"))
 try:
     import adodb
-except ImportError,e:
-    if len(sys.argv)<=1 or sys.argv[1]!="--doc":
+except ImportError:
+    if _no_check:
+        sys.stderr.write("WARNING: (in %s) mandatory module adodb not found\n" % \
+                         sys.argv[0])
+    else:
         raise
 
 myversion = "0.2"

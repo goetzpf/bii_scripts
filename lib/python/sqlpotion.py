@@ -70,8 +70,11 @@ Since a section may contain just a query and not a whole table,
 the q
 """
 import re
-import sqlalchemy
 import sys
+try:
+    import sqlalchemy
+except ImportError:
+    sys.stderr.write("WARNING: (in %s.py) mandatory module sqlalchemy not found\n" % __name__)
 import StringIO
 #import typecheck2 as tp;
 import inspect

@@ -4,7 +4,16 @@ from optparse import OptionParser
 import os
 import sys
 import netrc
-import pexpect
+
+_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary"))
+try:
+    import pexpect
+except ImportError:
+    if _no_check:
+	sys.stderr.write("WARNING: (in %s) mandatory module pexpect not found\n" % \
+			 sys.argv[0])
+    else:
+	raise
 
 my_version= "1.0"
 

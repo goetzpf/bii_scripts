@@ -27,7 +27,16 @@ import sys
 import netrc
 import re
 
-import sqlalchemy
+_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary"))
+try:
+    import sqlalchemy
+except ImportError:
+    if _no_check:
+	sys.stderr.write("WARNING: (in %s) mandatory module sqlalchemy not found\n" % \
+			 sys.argv[0])
+    else:
+	raise
+
 import sqlpotion
 
 # version of the program:

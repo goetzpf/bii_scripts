@@ -26,7 +26,12 @@
 """
 import time
 import datetime
-import ca
+import sys
+try:
+    import ca
+except ImportError:
+    sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
+                     __name__)
 
 #import ptimezone
 

@@ -731,12 +731,18 @@ $(_PYTHONLIB_BUILD_DIRLIST): $(PYTHONLIB_BUILD_DIR)/%:
 
 # build html ................................................
 
-build_html: build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib
-	@if [ -s $(ERRLOG) ]; then \
+build_html: clear_errlog build_html_txt_doc build_html_script build_html_perllib \
+	    build_html_pythonlib
+	@if [ 0 -ne `grep -v WARNING: $(ERRLOG) | wc -l` ]; then \
 		echo "*************************************"; \
-		echo "errors occured during build, here is the content of $(ERRLOG):"; \
+		echo "Errors occured during build. Here is the content of "; \
+		echo "$(ERRLOG), note that lines starting with \"WARNING\" do"; \
+		echo "not count as errors:"; \
 		cat $(ERRLOG); \
 	fi
+
+clear_errlog:
+	rm -f $(ERRLOG)
 
 # ...........................................................
 # build documentation from plain text files

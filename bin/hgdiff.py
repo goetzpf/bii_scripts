@@ -25,14 +25,22 @@
 # BASIS, AND HZB HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
 # UPDATES, ENHANCEMENTS OR MODIFICATIONS.
 
-
 from optparse import OptionParser
 import re
 import tempfile
 import subprocess
-#import Tix
-import Tix
 import sys
+
+_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary"))
+try:
+    import Tix
+except ImportError:
+    if _no_check:
+        sys.stderr.write("WARNING: (in %s) mandatory module Tix not found\n" % \
+                         sys.argv[0])
+    else:
+        raise
+
 import os.path
 import os
 
@@ -100,8 +108,8 @@ def hg_loglist(verbose, dry_run):
                     True, verbose, dry_run)
     new= []
     for l in result.splitlines():
-	parts= l.split(":",1)
-	new.append((int(parts[0]),parts[1]))
+        parts= l.split(":",1)
+        new.append((int(parts[0]),parts[1]))
     return new
 
 def hgidentify(verbose, dry_run):
@@ -121,7 +129,7 @@ def hgparents(revision, verbose, dry_run):
                     True,
                     verbose, dry_run)
     if result=="" or result.isspace():
-	return []
+        return []
     return result.strip().split()
 
 def hgchild(revision, verbose, dry_run):
@@ -131,16 +139,16 @@ def hgchild(revision, verbose, dry_run):
                     verbose, dry_run)
     r= result.strip().split()
     if len(r)<=1:
-	return None
+        return None
     return r[1]
 
 def hgplusminus(revision, delta, verbose, dry_run):
     """return parent or child of a revision."""
     if delta<0:
-	return hgparents(revision, verbose, dry_run)
+        return hgparents(revision, verbose, dry_run)
     c= hgchild(revision, verbose, dry_run)
     if c is None:
-	return []
+        return []
     return [c]
 
 def hgtip(verbose, dry_run):
@@ -246,75 +254,75 @@ class RevisionSelector(Tix.ComboBox):
     _dry_run= False
     def __init__(self, parent, verbose, dry_run):
         Tix.ComboBox.__init__(self, parent, 
-	    dropdown= True, 
-	    editable= True,
-	    validatecmd= lambda val: self.validate_callback(val))
-	self.slb= self.subwidget("slistbox")
-	self.lb= self.subwidget("listbox")
-	self.en= self.subwidget("entry")
-	self.lb.config(width= 80, bg="white")
-	self.en.config(width=80)
-	self.en.config(disabledbackground="grey")
-	self.en.config(disabledforeground="black")
-	RevisionSelector._verbose= verbose
-	RevisionSelector._dry_run= dry_run
-	self.revision= None # working copy
+            dropdown= True, 
+            editable= True,
+            validatecmd= lambda val: self.validate_callback(val))
+        self.slb= self.subwidget("slistbox")
+        self.lb= self.subwidget("listbox")
+        self.en= self.subwidget("entry")
+        self.lb.config(width= 80, bg="white")
+        self.en.config(width=80)
+        self.en.config(disabledbackground="grey")
+        self.en.config(disabledforeground="black")
+        RevisionSelector._verbose= verbose
+        RevisionSelector._dry_run= dry_run
+        self.revision= None # working copy
     def set_change_callback(self, callback):
-	"""call callback when value changes."""
-	self.config(command=lambda x: callback())
+        """call callback when value changes."""
+        self.config(command=lambda x: callback())
     @staticmethod
     def get_no(st):
-	"""returns the number the string starts with.
+        """returns the number the string starts with.
 
-	returns:
-	    None: if not found
-	    integer : otherwise
-	"""
-	m= RevisionSelector._rx_no.match(st)
-	if m is None:
-	    return None
-	return int(m.group(1))
+        returns:
+            None: if not found
+            integer : otherwise
+        """
+        m= RevisionSelector._rx_no.match(st)
+        if m is None:
+            return None
+        return int(m.group(1))
     @staticmethod
     def logline(rev,log):
-	"""create a logline string."""
-	return "%4d: %s" % (rev,log)
+        """create a logline string."""
+        return "%4d: %s" % (rev,log)
     @staticmethod
     def get_logs():
-	"""get all revision numbers with summary."""
-	RevisionSelector._logs= \
-	    hg_loglist(RevisionSelector._verbose, 
-	               RevisionSelector._dry_run)
-	RevisionSelector._revdict= dict(RevisionSelector._logs)
+        """get all revision numbers with summary."""
+        RevisionSelector._logs= \
+            hg_loglist(RevisionSelector._verbose, 
+                       RevisionSelector._dry_run)
+        RevisionSelector._revdict= dict(RevisionSelector._logs)
 
     def curr_logline(self):
-	"""returns the logline string currently selected."""
-	if self.revision is None:
-	    return "working copy"
-	return RevisionSelector.logline(self.revision, 
-	                                RevisionSelector._revdict[self.revision])
+        """returns the logline string currently selected."""
+        if self.revision is None:
+            return "working copy"
+        return RevisionSelector.logline(self.revision, 
+                                        RevisionSelector._revdict[self.revision])
     def create_selection_list(self):
-	"""rebuilds the selection list.
-	"""
-	loglines= [RevisionSelector.logline(*l) for l in RevisionSelector._logs]
-	self.lb.delete(0, Tix.END)
-	self.lb.insert(0, *loglines)
-	self.lb.insert(0, "working copy")
+        """rebuilds the selection list.
+        """
+        loglines= [RevisionSelector.logline(*l) for l in RevisionSelector._logs]
+        self.lb.delete(0, Tix.END)
+        self.lb.insert(0, *loglines)
+        self.lb.insert(0, "working copy")
     def validate_callback(self,val):
-	"""validate a value, possibly correct it."""
-	if val=="working copy" or val.isspace() or val=="":
-	    self.revision= None
-	else:
-	    new= RevisionSelector.get_no(val)
-	    if new is not None:
-		if RevisionSelector._revdict.has_key(new):
-		    self.revision= new
-	return self.curr_logline()
+        """validate a value, possibly correct it."""
+        if val=="working copy" or val.isspace() or val=="":
+            self.revision= None
+        else:
+            new= RevisionSelector.get_no(val)
+            if new is not None:
+                if RevisionSelector._revdict.has_key(new):
+                    self.revision= new
+        return self.curr_logline()
     def get_revision(self):
-	"""returns the revision as an integer or <None>."""
-	return self.revision
+        """returns the revision as an integer or <None>."""
+        return self.revision
     def set_value(self, string):
-	"""sets a new value (as a string)."""
-	self.config(value=string)
+        """sets a new value (as a string)."""
+        self.config(value=string)
 
 class FrHeadClass(Tix.Frame):
     """Class for the top Tix.Frame, derived from Tix.Frame.
@@ -324,34 +332,34 @@ class FrHeadClass(Tix.Frame):
     """
     def __init__(self, parent, revisions, change_callback, 
                  statuslabel, verbose, dry_run):
-	def balloonhelp(widget,message):
-	    w= Tix.Balloon(self, statusbar= statuslabel)
-	    w.bind_widget(widget, statusmsg=message)
+        def balloonhelp(widget,message):
+            w= Tix.Balloon(self, statusbar= statuslabel)
+            w.bind_widget(widget, statusmsg=message)
         self.verbose= verbose
         self.dry_run= dry_run
         self.statuslabel= statuslabel
         Tix.Frame.__init__(self, parent, borderwidth=2,relief='raised') 
 
-	self.combo1_label= Tix.Label(self, text="first rev:")
-	self.combo2_label= Tix.Label(self, text="second rev:")
-	self.combo1= RevisionSelector(self, verbose, dry_run)
-	self.combo2= RevisionSelector(self, verbose, dry_run)
-	RevisionSelector.get_logs()
-	self.combo1.create_selection_list()
-	self.combo2.create_selection_list()
+        self.combo1_label= Tix.Label(self, text="first rev:")
+        self.combo2_label= Tix.Label(self, text="second rev:")
+        self.combo1= RevisionSelector(self, verbose, dry_run)
+        self.combo2= RevisionSelector(self, verbose, dry_run)
+        RevisionSelector.get_logs()
+        self.combo1.create_selection_list()
+        self.combo2.create_selection_list()
 
         self.labelsep= Tix.Label(self, text=" ")
-	# make a shallow copy of revisions, otherwise
-	# the "append" some lines below would change the
-	# list that was given as parameter to the constructor
-	revisions= revisions[:]
+        # make a shallow copy of revisions, otherwise
+        # the "append" some lines below would change the
+        # list that was given as parameter to the constructor
+        revisions= revisions[:]
         if len(revisions)<=0:
             revisions= [hgidentify(verbose, dry_run)]
         if len(revisions)<2:
             revisions.append("working copy")
-	self.combo1.set_value(revisions[0])
-	self.combo2.set_value(revisions[1])
-	self.buttonframe= Tix.Frame(self)
+        self.combo1.set_value(revisions[0])
+        self.combo2.set_value(revisions[1])
+        self.buttonframe= Tix.Frame(self)
         self.button= Tix.Button(self.buttonframe, text="re-scan", command= lambda: self.mycallback())
         self.plusbutton= Tix.Button(self.buttonframe, text="+rev", command= lambda: self.chg_revision(1))
         self.minusbutton= Tix.Button(self.buttonframe, text="-rev", command= lambda: self.chg_revision(-1))
@@ -360,8 +368,8 @@ class FrHeadClass(Tix.Frame):
         balloonhelp(self.combo1, "the revision against the comparison is done")
         balloonhelp(self.combo2, "the compared revision, enter \"\" for \"working copy\"")
         balloonhelp(self.button, "re-compute the list of changed files and the list of revisions")
-	balloonhelp(self.plusbutton, "increase both revisions")
-	balloonhelp(self.minusbutton, "decrease both revisions")
+        balloonhelp(self.plusbutton, "increase both revisions")
+        balloonhelp(self.minusbutton, "decrease both revisions")
 
         self.combo1_label.grid(row=0, column=0, sticky="W")
         self.combo2_label.grid(row=3, column=0, sticky="W")
@@ -370,56 +378,56 @@ class FrHeadClass(Tix.Frame):
         self.labelsep.grid(row=2, column=0, sticky="W")
 
         self.buttonframe.grid(row=5, column=0, columnspan=2, sticky="W")
-	self.button.pack(side=Tix.LEFT)
-	self.plusbutton.pack(side=Tix.LEFT)
-	self.minusbutton.pack(side=Tix.LEFT)
-	self.combo1.set_change_callback(self.change_callback)
-	self.combo2.set_change_callback(self.change_callback)
+        self.button.pack(side=Tix.LEFT)
+        self.plusbutton.pack(side=Tix.LEFT)
+        self.minusbutton.pack(side=Tix.LEFT)
+        self.combo1.set_change_callback(self.change_callback)
+        self.combo2.set_change_callback(self.change_callback)
     def mycallback(self):
         revisions= self.get_selected_revisions()
-	RevisionSelector.get_logs()
-	self.combo1.create_selection_list()
-	self.combo2.create_selection_list()
+        RevisionSelector.get_logs()
+        self.combo1.create_selection_list()
+        self.combo2.create_selection_list()
         self.change_callback()
     def chg_revision(self,delta):
-	def error(msg):
-	    self.statuslabel.config(text= msg)
-	revs= self.get_selected_revisions()
-	if revs[1] is None:
-	    if delta>0:
-		error("error: cannot go beyond working copy")
-		return
-	    rev_now= hgtip(self.verbose,self.dry_run)
-	else:
-	    r= hgplusminus(revs[1], delta, self.verbose, self.dry_run)
-	    if len(r)==0:
-		# last revision
-		rev_now=""
-	    elif len(r)!=1:
-		error("error: %s has more than one parent" % revs[1])
-		return
-	    else:
-		rev_now= r[0]
-	r= hgplusminus(revs[0], delta, self.verbose, self.dry_run)
-	if len(r)!=1:
-	    error("error: %s has more than one parent" % revs[1])
-	    return
-	rev_prev= r[0]
-	self.set_entry(1,rev_prev)
-	self.set_entry(2,rev_now)
-	# do not call mycallback here, this would re-initialize the
-	# comboboxes which is not necessary since we just change
-	# the selected revision numbers.
-	self.change_callback()
+        def error(msg):
+            self.statuslabel.config(text= msg)
+        revs= self.get_selected_revisions()
+        if revs[1] is None:
+            if delta>0:
+                error("error: cannot go beyond working copy")
+                return
+            rev_now= hgtip(self.verbose,self.dry_run)
+        else:
+            r= hgplusminus(revs[1], delta, self.verbose, self.dry_run)
+            if len(r)==0:
+                # last revision
+                rev_now=""
+            elif len(r)!=1:
+                error("error: %s has more than one parent" % revs[1])
+                return
+            else:
+                rev_now= r[0]
+        r= hgplusminus(revs[0], delta, self.verbose, self.dry_run)
+        if len(r)!=1:
+            error("error: %s has more than one parent" % revs[1])
+            return
+        rev_prev= r[0]
+        self.set_entry(1,rev_prev)
+        self.set_entry(2,rev_now)
+        # do not call mycallback here, this would re-initialize the
+        # comboboxes which is not necessary since we just change
+        # the selected revision numbers.
+        self.change_callback()
 
     def set_entry(self, index, value):
-	if index==1:
-	    widget= self.combo1
-	else:
-	    widget= self.combo2
-	widget.set_value(value)
+        if index==1:
+            widget= self.combo1
+        else:
+            widget= self.combo2
+        widget.set_value(value)
     def get_selected_revisions(self):
-	"""returns a pair, the 2nd element may be None"""
+        """returns a pair, the 2nd element may be None"""
         wk= "working copy"
         r1= self.combo1.get_revision()
         r2= self.combo2.get_revision()
@@ -500,13 +508,13 @@ class App:
         self.revisions= []
         self.verbose= options.verbose
         self.dry_run= options.dry_run
-	if options.changes is not None:
-	    if options.rev is not None:
-		sys.exit("-c must not be used together with -r")
-	    r= hgparents(options.changes, self.verbose,self.dry_run)
-	    if len(r)!=1:
-		sys.exit("-c cannot be applied to a merge revision")
-	    self.revisions=[r[0],options.changes]
+        if options.changes is not None:
+            if options.rev is not None:
+                sys.exit("-c must not be used together with -r")
+            r= hgparents(options.changes, self.verbose,self.dry_run)
+            if len(r)!=1:
+                sys.exit("-c cannot be applied to a merge revision")
+            self.revisions=[r[0],options.changes]
         elif options.rev is not None:
             self.revisions= options.rev
             if len(options.rev)>2:
@@ -537,7 +545,7 @@ class App:
         self.FrDn.pack (side='top',fill='x')
         
         self.FrStat.pack (side='top',fill='x')
-	self.process_initial_list(hg_changes, args)
+        self.process_initial_list(hg_changes, args)
     def display(self, text):
         self.FrStat.display(text)
     def rescan(self):
@@ -551,44 +559,44 @@ class App:
         hg_changes= hgstatus(self.revisions,self.verbose,self.dry_run)
         self.FrTop.change(hg_changes)
     def process_initial_list(self, changes_list, args):
-	if len(args)<=0:
-	    return
-	files= set()
-	for f in args:
-	    not_found= True
-	    for c in changes_list:
-		if c.endswith(f):
-		    not_found= False
-		    files.add(c)
-	    if not_found:
-		print "warning: path \"%s\" not found in list of changed/added/removed files" % f
-	for f in files:
-	    self.execute_str(f)
+        if len(args)<=0:
+            return
+        files= set()
+        for f in args:
+            not_found= True
+            for c in changes_list:
+                if c.endswith(f):
+                    not_found= False
+                    files.add(c)
+            if not_found:
+                print "warning: path \"%s\" not found in list of changed/added/removed files" % f
+        for f in files:
+            self.execute_str(f)
     def execute(self):
         """execute selection."""
         selection= self.FrTop.selection()
         if selection is None:
             return
-	self.execute_str(selection)
+        self.execute_str(selection)
     def execute_str(self, selection):
         flag= selection[0]
         file= selection[2:]
         if flag=="?" or flag=="I":
-	    # unknown or ignored files should always be present in the
-	    # working copy:
+            # unknown or ignored files should always be present in the
+            # working copy:
             show(file, self.verbose, self.dry_run)
-	elif flag=="A" or flag=="C":
+        elif flag=="A" or flag=="C":
             if len(self.revisions)<=1:
                 r= None
             else:
                 r= self.revisions[1]
-	    if r is None:
-		# show() can only be used on files present in the working copy:
-		show(file, self.verbose, self.dry_run)
-	    else:
-		# for files (possibly) no longer in the working copy, 
-		# show_revision() has to be used:
-		show_revision(r, file, self.verbose, self.dry_run)
+            if r is None:
+                # show() can only be used on files present in the working copy:
+                show(file, self.verbose, self.dry_run)
+            else:
+                # for files (possibly) no longer in the working copy, 
+                # show_revision() has to be used:
+                show_revision(r, file, self.verbose, self.dry_run)
         elif flag=="D" or flag=="!" or flag=="R":
             if len(self.revisions)<=0:
                 r= None
@@ -603,15 +611,15 @@ def kompare(options):
     """
     args=["hg","extdiff","-p","kompare"]
     if options.changes is not None:
-	if options.rev is not None:
-	    sys.exit("-c must not be used together with -r")
-	args.extend(("-c",options.changes))
+        if options.rev is not None:
+            sys.exit("-c must not be used together with -r")
+        args.extend(("-c",options.changes))
     elif options.rev is not None:
         if len(options.rev)>2:
             sys.exit("only up to 2 revision numbers may be specified")
-	for r in options.rev:
-	    args.append("-r")
-	    args.append(r)
+        for r in options.rev:
+            args.append("-r")
+            args.append(r)
     os.execvp("hg",args)
 
 def main():
@@ -626,7 +634,7 @@ def main():
                           description="graphical display of changes between "+\
                                       "mercurial revisions or a mercurial "+\
                                       "revision and a working copy. If {file list} "+\
-				      "is not empty, run tkdiff or gview on these files")
+                                      "is not empty, run tkdiff or gview on these files")
     parser.add_option("--summary",  # implies dest="nodelete"
                       action="store_true", # default: None
                       help="graphical diff for mercurial", 
@@ -671,10 +679,10 @@ def main():
 
     use_fork= False# (os.name == 'posix')
     if use_fork:
-	print "starting hgdiff.py..."
-	pid= os.fork()
-	if pid!=0:
-	    sys.exit(0)
+        print "starting hgdiff.py..."
+        pid= os.fork()
+        if pid!=0:
+            sys.exit(0)
 
     # change to the working copy's root dir, since
     # "hg cat" will not work when we are in a different

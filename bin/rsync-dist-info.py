@@ -294,8 +294,12 @@ Reference of command line options
 from optparse import OptionParser
 import sys
 
-from ca import _ca
-import ca
+try:
+    from ca import _ca
+    import ca
+except ImportError:
+    sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
+                     __name__)
 
 import datetime
 import dateutils

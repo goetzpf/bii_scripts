@@ -146,7 +146,17 @@ import os
 import os.path
 import shutil
 import tarfile
-import yaml
+
+_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary","--doc"))
+try:
+    import yaml
+except ImportError:
+    if _no_check:
+	sys.stderr.write("WARNING: (in %s) mandatory module yaml not found\n" % \
+			 sys.argv[0])
+    else:
+	raise
+
 import re
 
 # version of the program:
@@ -752,7 +762,7 @@ def recover_data(working_copy,
 
     if bag.get("mq patches used"):
 	rebuild_patchdir( [ i.split(":") for i in bag["patchname list"] ],
-	                  verbose, dry_run)
+			  verbose, dry_run)
 
 def script_shortname():
     """return the name of this script without a path component."""
