@@ -109,7 +109,7 @@ $pdom{P} = $pdom{global} . "TMR";
 our $pfac;
 $pfac = "FP";
 
-my $re = "\\A($pmem)"
+our $re = "\\A($pmem)"
     . "($pind)?"
     . "((([$pfam{B}])($pcnt)([$psdom{B}]$psdnum)?([$pdom{B}]))|"
     .  "(([$pfam{F}])($pcnt)([$psdom{F}]$psdnum)([$pdom{F}])F)|"
@@ -175,7 +175,31 @@ sub parse
     $allsubdomain, $subdomain, $subdompre, $subdomnumber, $domain, $facility);
 }
 
-my %namePart2idx = (
+sub parse_named
+  { my($devname)= @_;
+
+    my @elms= parse($devname);
+    if ($#elms<0)
+      { return {}; };
+    my %d= ( "member"          => $elms[0],
+             "allindex"        => $elms[1],
+             "index"           => $elms[2],
+             "subindex"        => $elms[3],
+             "family"          => $elms[4],
+             "counter"         => $elms[5],
+             "allsubdomain"    => $elms[6],
+             "subdomain"       => $elms[7],
+             "subdompre"       => $elms[8],
+             "subdomnumber"    => $elms[9],
+             "domain"          => $elms[10],
+             "facility"        => $elms[11],
+           );
+   return(\%d);
+  }
+
+    
+
+my %_namePart2idx = (
     "MEMBER"=>0, 
     "INDEX"=>2,
     "SUBINDEX"=>3,
@@ -202,9 +226,15 @@ my %namePart2idx = (
 my $rA_defaultOrder = [11,10,8,9,0,2,3,4,5]; # default order
 my $rA_order = $rA_defaultOrder; # default order
 ## Sort list of names according to the sortorder defined in setOrder or default '[11,10,8,9,0,2,3,4,5]'
+sub sortNamesBy
+{   my($rA_names,$r_order)= @_;
+    my $sortfunc= sub { return(cmpNamesBy(@_,$r_order)); };
+    return sort {$sortfunc->($a,$b)} @$rA_names;
+}
+
 sub sortNames
 {   my($rA_names) = @_;
-    return sort {BDNS::cmpNames($a,$b)} @$rA_names;
+    return sortNamesBy($rA_names,$rA_order);
 }
 
 ## Set sortorder by index or namelist or string
@@ -223,28 +253,35 @@ sub sortNames
 #  Reset to default sortorder:
 #
 #    BDNS::setOrder("DEFAULT")
-sub setOrder
-{   my ($o) = @_;
-#use Data::Dumper; print ref($o), Dumper($o);
-    if( $o eq 'DEFAULT')
+sub mkOrder
+{   my ($order) = @_;
+    my $r_order;
+#use Data::Dumper; print ref($order), Dumper($order);
+    if( $order eq 'DEFAULT')
     {
-    	$rA_order = $rA_defaultOrder;
+    	$r_order = $rA_defaultOrder;
     }
-    elsif( ref($o) eq 'ARRAY')
+    elsif( ref($order) eq 'ARRAY')
     {
-    	$rA_order = [map{ $namePart2idx{$_}; } @$o];
+    	$r_order = [map{ $_namePart2idx{$_}; } @$order];
     }
     else
     {
-    	$rA_order = [map{ $namePart2idx{$_}; } split /[,\s]+/, $o];
+    	$r_order = [map{ $_namePart2idx{$_}; } split /[,\s]+/, $order];
     }
-#    print "Order: '",join("','",@$rA_order),"'\n";
-    warn "illegal order parameter" if(scalar(@$rA_order)<=0);
+#    print "Order: '",join("','",@$r_order),"'\n";
+    warn "illegal order parameter" if(scalar(@$r_order)<=0);
+    return $r_order;
+}
+
+sub setOrder
+{   
+    $rA_order= mkOrder(@_);
 }
 
 ## Compare function, used in function 'sortNames()'
-sub cmpNames
-{   my($a,$b)=@_;
+sub cmpNamesBy
+{   my($a,$b,$r_order)=@_;
 
     $a =~ /([\w\d-]*)$/;    # this matches a DEVICENAME and a /GADGET/PATH/DEVICENAME 
     $a = $1;
@@ -255,7 +292,7 @@ sub cmpNames
     my @B= parse($b);
 #print "compare ($a,$b): A=(",join(',',@A),") B=(",join(',',@B),") \n\t";
     my $cmp=0;
-    foreach my $i (@$rA_order)
+    foreach my $i (@$r_order)
     {
     	$a = $A[$i];
     	$b = $B[$i];
@@ -275,6 +312,11 @@ sub cmpNames
     }
 #print "return: $cmp\n";
     return $cmp;
+}
+
+sub cmpNames
+{   my($a,$b)=@_;
+    return cmpNamesBy($a,$b,$rA_order);
 }
 
 1;

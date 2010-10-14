@@ -567,6 +567,10 @@ Python Libraries
 
 .. _boottime.py:
 
+**BDNS.py**
+  | BESSY device name parser.
+  | `documentation <modules/BDNS.py>`__
+
 **boottime.py**
   | get the boot time of an BESSY IOC by querying a certain pv.
   | `documentation <python/boottime.html>`__

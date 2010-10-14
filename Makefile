@@ -363,6 +363,7 @@ POD_PERLLIB_LIST= \
 
 # python libraries with embedded pydoc documentation
 PYDOC_PYTHONLIB_LIST= \
+	BDNS.py \
 	boottime.py \
 	dateutils.py \
 	enum.py \
