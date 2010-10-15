@@ -1,0 +1,2 @@
+#!/bin/sh
+hg-kompare.py "$@" 2>/dev/null
