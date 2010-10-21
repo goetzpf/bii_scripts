@@ -410,6 +410,8 @@ DOCTXT_TXT_LIST= USE_PERL.txt INSTALL.txt
 # with rst2html
 RST_TXT_LIST= CONTENTS.txt
 
+CGI_LIST= lib/perl/BDNS.pm bin/devname
+
 #############################################################
 
 # created variables
@@ -666,6 +668,9 @@ $(HTML_BUILD_DIR)/$(CSS_SRC_FILE): $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
 	$(INSTALL) $< $@
 
 endif
+
+install_cgi: $(CGI_LIST)
+	-scp $(CGI_LIST) wwwhelp@help.bessy.de:cgi
 
 # clean......................................................
 

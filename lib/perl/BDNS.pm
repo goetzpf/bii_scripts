@@ -101,10 +101,10 @@ $psdom{P} = $psdom{global} . "KLS";
 my $psdnum = "[0-9]*";
 
 our %pdom;
-$pdom{global} = "CGLV";
-$pdom{B} = $pdom{global} . "BIMRT";
-$pdom{F} = $pdom{global} . "DEHLRS";
-$pdom{P} = $pdom{global} . "TMR";
+$pdom{global} = "CGLRV";
+$pdom{B} = $pdom{global} . "BIMST";
+$pdom{F} = $pdom{global} . "DEHLS";
+$pdom{P} = $pdom{global} . "TM";
 
 our $pfac;
 $pfac = "FP";
