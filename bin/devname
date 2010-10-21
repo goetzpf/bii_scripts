@@ -284,7 +284,6 @@ if ($output ne "htmlwizard" || ($output eq "htmlwizard" && $modus > 0))
 		$subdomnumber = "" if not defined $subdomnumber;
 
 		my $sdomtext = $sdom{$subdompre};
-		$sdomtext = $sdom{"$subdompre$facility"} if not defined $sdomtext;
 		if ($output ne "htmlsnippet") {
 			if (($output eq "htmlwizard" && $modus == 1) || $output ne "htmlwizard")
 			{
