@@ -90,10 +90,10 @@ _p["psdom_P"]= _p["psdom_global"] + "KLS"
 
 _p["psdnum"]= "[0-9]*"
 
-_p["pdom_global"]= "CGLV"
-_p["pdom_B"]= _p["pdom_global"] + "BIMRT"
-_p["pdom_F"]= _p["pdom_global"] + "DEHLRS"
-_p["pdom_P"]= _p["pdom_global"] + "TMR"
+_p["pdom_global"]= "CGLRV"
+_p["pdom_B"]= _p["pdom_global"] + "BIMST"
+_p["pdom_F"]= _p["pdom_global"] + "DEHLS"
+_p["pdom_P"]= _p["pdom_global"] + "TM"
 
 _p["pfac"] = "FP"
 
@@ -267,7 +267,7 @@ def mkOrder(order):
         usually given as parameter to sortNamesBy().
     """
     def namepart2index(x):
-        i= _fields_dict[str(x).lower()]
+        i= _fields_dict.get(str(x).lower())
         if i is None:
             i= int(x)
         return i
