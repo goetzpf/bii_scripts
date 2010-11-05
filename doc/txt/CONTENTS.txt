@@ -216,6 +216,15 @@ Scripts
     be printed. This script needs the `parse_db.pm`_ module.
   | `documentation <scripts/grepDb.html>`__
 
+**hg2darcs.py**
+  | A program that calls kompare to do comparisions of the
+
+  | A program that converts mercurial revisions to darcs revisions. The
+    changes, log messages and "author information remain intact, only the
+    record date is set to today. Note that a darcs repository must already be
+    present.
+  | `documentation <scripts/hg2darcs.html>`__
+
 **hg-kompare.py**
   | A program that calls kompare to do comparisions of the
     working copy with a mercurial repository or compare files of different 
