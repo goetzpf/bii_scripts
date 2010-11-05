@@ -43,7 +43,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #      -tr <recName>:   record name
 #      -tf <fieldType>: field type
 #      -tv <value>:     field contains <value>
-#      -tl:             db linkage (other trace options usable to reduce output)
+#      -tl <value>:     Trigger all link fields that contains <value>. 
+#                       Print all link fields of these records.
 #
 #  *  Print options:  defines the output fields. The record name and type is allways shown. 
 #  Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:
@@ -65,7 +66,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
 #       grepDb.pl  -tf '(INP|OUT|LNK|DOL)' file.db
 #
-#  Means Show the record linkage of this file, same as 'grepDb.pl  -tl file.db'.
+#  Means Show the record linkage of this file, same as 'grepDb.pl  -tl "" file.db'.
 #
     use strict;
     use Getopt::Long;
@@ -80,7 +81,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         "    -tr <recName>:   record name\n".
         "    -tf <fieldType>: field type\n".
         "    -tv <value>:     field contains <value>\n".
-        "    -tl:             db linkage (other trace options usable to reduce output)\n\n".
+        "    -tl:<value>      db linkage (other trace options usable to reduce output)\n\n".
         "PRINT OPTIONS:  defines the output fields. The record name and type is allways shown.\n". 
         "   Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:\n\n".
         "    -pt <recType>:   print records of this type\n".
@@ -110,7 +111,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
-                           "i"=>\$ignore,"v"=>\$verbose,"q"=>\$quiet,"tl"=>\$links);
+                           "i"=>\$ignore,"v"=>\$verbose,"q"=>\$quiet,"tl=s"=>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -127,6 +128,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     if( defined $links )
     {
         $trigFieldName = "(INP|OUT|LNK|DOL)";
+	$trigFieldValue = $links;
     }
 
     if( defined $$quiet && defined $verbose )
