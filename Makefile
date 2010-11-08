@@ -740,7 +740,7 @@ $(_PYTHONLIB_BUILD_DIRLIST): $(PYTHONLIB_BUILD_DIR)/%:
 
 build_html: clear_errlog build_html_txt_doc build_html_script build_html_perllib \
 	    build_html_pythonlib
-	@if [ 0 -ne `grep -v WARNING: $(ERRLOG) | wc -l` ]; then \
+	@if [ 0 -ne `grep -v WARNING: $(ERRLOG) 2>/dev/null | wc -l` ]; then \
 		echo "*************************************"; \
 		echo "Errors occured during build. Here is the content of "; \
 		echo "$(ERRLOG), note that lines starting with \"WARNING\" do"; \
