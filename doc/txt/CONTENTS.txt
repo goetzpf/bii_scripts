@@ -98,6 +98,16 @@ Scripts
   | Combine and convert numerical data from .csv files for gnuplot use.
   | `documentation <scripts/csv2plot.html>`__
 
+**cvs-recover.py**
+  | A backup and recovery tool for CVS. 
+  | Instead of saving the complete repository this script only saves
+    differences relative to a central CVS repository. By this, much disk space
+    is saved, the backup file has usually only about 100kBytes or less.  This
+    can be used to distribute a small recovery file together with the
+    application. If it is needed, it is possible to restore the state of the
+    original CVS working copy from which the application was built. 
+  | `documentation <scripts/cvs-recover.html>`__
+
 **cvs_diff.pl**
   | compare versions of a file in a CVS repository. This tool can remove emtpy
   | lines and c-comments before comparing.

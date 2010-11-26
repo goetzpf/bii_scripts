@@ -335,6 +335,7 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 
 RST_DOC_PY_SCRIPT_LIST= \
 	archiver2camonitor.py \
+	cvs-recover.py \
 	db_request.py \
 	hg-recover.py \
 	repo-loginfo.py \
@@ -383,6 +384,7 @@ PYDOC_PYTHONLIB_LIST= \
 
 # python scripts that need python 2.5
 PYTHON_2_5_SCRIPTS= \
+        cvs-recover.py \
 	db_request.py \
 	hg-recover.py \
 	hgdiff.py \
