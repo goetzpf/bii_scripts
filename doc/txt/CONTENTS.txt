@@ -111,6 +111,10 @@ Scripts
     repository.  
   | `documentation <scripts/cvs_log_diff.html>`__
 
+**darcs-compare-repos**
+  | compares the logs of two darcs repositories with tkdiff.
+  | `documentation <scripts/darcs-compare-repos.html>`__
+
 **darcs-kompare**
   | start KDE kompare to compare the working copy with the repository copy of a
     file
