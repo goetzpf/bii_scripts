@@ -1,13 +1,23 @@
 #!/bin/sh
 [ "$DARCS_SAVE" = "NO" ] && exit
-
 dest=.darcs-restore
 if [ ! -e _darcs/prefs/defaultrepo ]
 then
   echo "No defaultrepo found - skipping darcs-save" 
   exit
 fi
-
+cleanup () {
+  #unrecord the tag
+  yes | darcs unrecord -a --last=1
+  #unrecord not-added files
+  yes | darcs unrecord -p'^NOT-ADDED$' -a --last=1
+  #un-add these files
+  darcs whatsnew -s | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove
+  #unrecord not recorded changes
+  yes | darcs unrecord -p'^NOT-RECORDED$' -a --last=1
+  exit
+}
+trap cleanup INT QUIT TERM
 test -d $dest || mkdir $dest
 cp _darcs/prefs/defaultrepo $dest
 darcs record -a -m NOT-RECORDED
@@ -16,11 +26,4 @@ darcs tag "`whoami`@`uname -n`:`pwd`"
 darcs send -a --output=$dest/local-patches --dont-edit-description
 darcs changes --context --repo=`cat _darcs/prefs/defaultrepo` > $dest/remote-context
 darcs changes --context > $dest/local-context
-#unrecord the tag
-yes | darcs unrecord -a --last=1
-#unrecord not-added files
-yes | darcs unrecord -p'^NOT-ADDED$' -a --last=1
-#un-add these files
-darcs whatsnew -s | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove
-#unrecord not recorded changes
-yes | darcs unrecord -p'^NOT-RECORDED$' -a --last=1
+cleanup
