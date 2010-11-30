@@ -11,14 +11,27 @@ Remarks
 This is a collection of useful scripts and libraries for the Bessy control
 system.
 
-If you are interested in getting scripts or libraries that cannot be
-downloaded from this page please send an email to one of the authors:
+| If you are interested in getting the scripts or libraries you can download 
+  them as tar.gz or zip
+| file from the 
+  `repository page <http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts/file>`_ 
+  (click on "bz2", "zip" or "gz").
 
-Goetz.Pfeiffer@helmholtz-berlin.de
-Berhard.Kuner@helmholtz-berlin.de
-Patrick.Laux@helmholtz-berlin.de
-Benjamin.Franksen@helmholtz-berlin.de
-Thomas.Birke@helmholtz-berlin.de
+However, the preferred way is to clone the main darcs repository::
+
+  darcs get http://www-csr.bessy.de/control/bii_scripts/repo/bii_scripts
+
+or to clone the mercurial mirror repository::
+
+  hg clone http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts
+
+For any questions feel free to contact one of the authors:
+
+| Goetz.Pfeiffer@helmholtz-berlin.de
+| Berhard.Kuner@helmholtz-berlin.de
+| Patrick.Laux@helmholtz-berlin.de
+| Benjamin.Franksen@helmholtz-berlin.de
+| Thomas.Birke@helmholtz-berlin.de
 
 -------
 Scripts
