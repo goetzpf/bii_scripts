@@ -363,13 +363,15 @@ class FrHeadClass(Tix.Frame):
         self.button= Tix.Button(self.buttonframe, text="re-scan", command= lambda: self.mycallback())
         self.plusbutton= Tix.Button(self.buttonframe, text="+rev", command= lambda: self.chg_revision(1))
         self.minusbutton= Tix.Button(self.buttonframe, text="-rev", command= lambda: self.chg_revision(-1))
+        self.deltabutton= Tix.Button(self.buttonframe, text="delta:=1", command= lambda: self.delta_revision())
         self.change_callback= change_callback
 
         balloonhelp(self.combo1, "the revision against the comparison is done")
-        balloonhelp(self.combo2, "the compared revision, enter \"\" for \"working copy\"")
+        balloonhelp(self.combo2, "the compared revision, enter a number or \"\" for \"working copy\"")
         balloonhelp(self.button, "re-compute the list of changed files and the list of revisions")
         balloonhelp(self.plusbutton, "increase both revisions")
         balloonhelp(self.minusbutton, "decrease both revisions")
+        balloonhelp(self.deltabutton, "set first revision to second revision - 1")
 
         self.combo1_label.grid(row=0, column=0, sticky="W")
         self.combo2_label.grid(row=3, column=0, sticky="W")
@@ -381,6 +383,7 @@ class FrHeadClass(Tix.Frame):
         self.button.pack(side=Tix.LEFT)
         self.plusbutton.pack(side=Tix.LEFT)
         self.minusbutton.pack(side=Tix.LEFT)
+        self.deltabutton.pack(side=Tix.LEFT)
         self.combo1.set_change_callback(self.change_callback)
         self.combo2.set_change_callback(self.change_callback)
     def mycallback(self):
@@ -389,6 +392,28 @@ class FrHeadClass(Tix.Frame):
         self.combo1.create_selection_list()
         self.combo2.create_selection_list()
         self.change_callback()
+    def delta_revision(self):
+        """sets first revision to second revision - 1."""
+        def error(msg):
+            self.statuslabel.config(text= msg)
+        revs= self.get_selected_revisions()
+        rev_now= revs[1]
+        if revs[1] is None:
+            rev_prev= hgtip(self.verbose,self.dry_run)
+            rev_now= ""
+        else:
+            r= hgplusminus(revs[1], -1, self.verbose, self.dry_run)
+            if len(r)!=1:
+                error("error: %s has more than one parent" % revs[1])
+                return
+            rev_prev= r[0]
+        self.set_entry(1,rev_prev)
+        self.set_entry(2,rev_now)
+        # do not call mycallback here, this would re-initialize the
+        # comboboxes which is not necessary since we just change
+        # the selected revision numbers.
+        self.change_callback()
+
     def chg_revision(self,delta):
         def error(msg):
             self.statuslabel.config(text= msg)
