@@ -631,10 +631,10 @@ class App:
         else:
             diff(self.revisions, file, self.verbose, self.dry_run)
 
-def kompare(options):
-    """just call the external kompare program.
+def ext_compare(options, progname):
+    """just call an external compare program.
     """
-    args=["hg","extdiff","-p","kompare"]
+    args=["hg","extdiff","-p",progname]
     if options.changes is not None:
         if options.rev is not None:
             sys.exit("-c must not be used together with -r")
@@ -677,6 +677,10 @@ def main():
                       action="store_true", # default: None
                       help="show changes with kompare", 
                       )
+    parser.add_option("-m", "--meld",    # implies dest="switch"
+                      action="store_true", # default: None
+                      help="show changes with meld", 
+                      )
 
     parser.add_option("-r", "--rev", # implies dest="file"
                       action="append", # OptionParser's default
@@ -715,7 +719,10 @@ def main():
     os.chdir(hgroot(options.verbose, options.dry_run))
 
     if options.kompare:
-        kompare(options)
+        ext_compare(options,"kompare")
+        sys.exit(0)
+    if options.meld:
+        ext_compare(options,"meld")
         sys.exit(0)
         
     root = Tix.Tk()
