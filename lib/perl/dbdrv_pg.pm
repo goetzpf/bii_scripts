@@ -1351,3 +1351,9 @@ perl -e 'use lib "."; use Data::Dumper; use dbdrv; dbdrv::load("Postgresql");
          dbdrv::connect_database("DBI:Pg:dbname=gpdb","pfeiffer","");
          my $r= dbdrv::view_dependencies("","pfeiffer");
          dbdrv::disconnect_database();'
+
+perl -e 'use lib "."; use Data::Dumper; use dbdrv; $dbdrv::sql_trace=1;
+         dbdrv::load("Postgresql");
+         dbdrv::connect_database("DBI:Pg:dbname=machine;host=dbgate1.trs.bessy.de;port=9999","pfeiffer","*******"); 
+         $res= dbdrv::read_viewtext(undef,"v_insertions","pfeiffer");
+         print $res,"\n";'
