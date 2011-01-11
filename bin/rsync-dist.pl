@@ -351,7 +351,7 @@ my %gbl_config_comments=
                                   "do not cross filesystem boundaries",
                RSYNC_DIST_PRESERVE_LINKS =>
                                   "copy links as they are, do not dereference them",
-               RSYNC_DIST_REMOVE_LINKS =>
+               RSYNC_DIST_DEREFERENCE_LINKS =>
                                   "always remove symbolic links by dereferencing them",
                RSYNC_DIST_EXCLUDE_LIST =>
                                   "specify a file that contains files to exclude from\n" .
@@ -3274,7 +3274,7 @@ Syntax:
                 RSYNC_DIST_PRESERVE_LINKS
                   when set to 1, symbolic links are never dereferenced and
                   always copied as links
-                RSYNC_DIST_REMOVE_LINKS
+                RSYNC_DIST_DEREFERENCE_LINKS
                   when set to 1, symbolic links always dereferenced
                 RSYNC_DIST_EXCLUDE_LIST
                   specify a file on the local host that contains files that
