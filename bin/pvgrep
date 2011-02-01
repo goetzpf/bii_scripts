@@ -1,0 +1,18 @@
+#!/usr/bin/zsh -f
+# -*- shell-script -*-
+
+ext=dbl
+[[ "$1" = "-io" ]] && ext=dbhcr && shift
+
+cd /opt/IOC/log/Database
+#echo /bin/grep --color=auto $1 */*.$ext */*_$ext.txt
+/bin/grep --color=auto $1 */*.$ext */*_$ext.txt | perl -e "
+while (<>) { 
+    (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
+    \$iocs->{\$ioc}->{\$var}=1;
+}; 
+for \$ioc (sort keys %\$iocs) {
+    print \"\$ioc:\\n\"; 
+    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"  \$var\"); }
+}"
+
