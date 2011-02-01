@@ -70,16 +70,15 @@ then
 fi
 
 # Kein Key geladen? -> ssh-add
-[ "$(ssh-add -l | grep 'no ident')" = "" ] || ssh-add </dev/null
+ssh-add -l | grep -q 'no ident' && ssh-add </dev/null
 
 #
 # Vebindung herstellen
 # --------------------
 
-  # Durch ssh getunnelte X-Verbindung
-  # Launch starten
-  #ssh $compress acc@ash.acc.bessy.de "launch"
-  ssh -f -n $compress -Y ctl@ctl-srv.acc.bessy.de "launch2 $@ $withMapper"
+# Durch ssh getunnelte X-Verbindung
+# Launch starten
+ssh -f -n $compress -Y ctl@ctl-srv.acc.bessy.de "launch2 $@ $withMapper"
 
 #
 # Evtl. ssh-agent wieder abwerfen
