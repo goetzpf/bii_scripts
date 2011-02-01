@@ -83,8 +83,14 @@ Scripts
   | lookup BESSY units in the oracle database.
   | `documentation <scripts/buds_lookup.html>`__
 
+**camonitor2table.py**
+  | convert files created by the EPICS camonitor command to tables. This 
+    command can also filter by timestamp and by PV. It can create csv output 
+    and it can differentiate values.
+  | `documentation <scripts/camonitor2table.html>`__
+
 **camonitor_sort.pl**
-  | sort and filer files created by the EPICS camonitor command.  The filtering
+  | sort and filter files created by the EPICS camonitor command.  The filtering
     can be specified with regular expressions.  This tool is especially useful
     when many different PV's are monitored at a time.  
   | `documentation <scripts/camonitor_sort.html>`__

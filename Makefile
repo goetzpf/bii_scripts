@@ -335,6 +335,7 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 
 RST_DOC_PY_SCRIPT_LIST= \
 	archiver2camonitor.py \
+	camonitor2table.py \
 	cvs-recover.py \
 	db_request.py \
 	hg-recover.py \
