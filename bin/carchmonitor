@@ -1,0 +1,42 @@
+#!/usr/bin/python
+
+from optparse import OptionParser
+import sys, os
+
+my_version = "0.2"
+
+parser = OptionParser(usage="%prog [options] PV [PV ...]",
+                      version="%%prog %s" % my_version,
+                      description="""Retrieve archived data and present it in a camonitor-like way.""")
+
+
+parser.set_defaults(start="-1d")
+parser.set_defaults(end="now")
+parser.set_defaults(glob=False)
+parser.set_defaults(regexp=False)
+
+parser.add_option("--start", action="store", type="string", help="start time of query (default: '-1d')", dest="start")
+parser.add_option("--end", action="store", type="string", help="end time of query   (default: 'now')",   dest="end")
+parser.add_option("--glob", action="store_true", help="PV (only one allowed) is a glob-pattern", dest="glob")
+parser.add_option("--re", action="store_true", help="PV (only one allowed) is a regexp", dest="regexp")
+
+(options, args) = parser.parse_args()
+
+if len(args) == 0:
+    parser.print_help()
+    sys.exit(0)
+
+bii="http://archiver.bessy.de/archive/cgi/CGIExport.cgi?INDEX=/opt/Archive/master_index&COMMAND=camonitor"
+mls="http://archiver.bessy.de/MLS/archive/cgi/CGIExport.cgi?INDEX=/opt/Archive/master_index&COMMAND=camonitor"
+hobi="http://archiver.bessy.de/archive/cgi/CGIExport.cgi?INDEX=/opt/Archive/hobicat/master_index&COMMAND=camonitor"
+
+spec="&STRSTART=1&STARTSTR=%s&STREND=1&ENDSTR=%s" % (options.start, options.end)
+
+if (options.glob):
+    spec+="&GLOB=ON"
+if (options.regexp or options.glob):
+    spec+="&PATTERN=%s" % args[0]
+else:
+    spec+="&NAMES=%s" % "+".join(args)
+
+os.system("(wget -q -O - \"%s%s\"; wget -q -O - \"%s%s\"; wget -q -O - \"%s%s\") | egrep -v -e '(Gnuplot|0000-00-00)' -e '^$' | sort -b -k 2,3" % (bii,spec,mls,spec,hobi,spec))
