@@ -218,6 +218,10 @@ _last_str2date_obj= None
 def str2date(st):
     """convert an ascii time to a datetime.datetime object.
 
+    Note that only 6 digits after a dot "." are significant. Extra
+    digits are ignored. Extra characters other than digits raise
+    a ValueError exception.
+
     Note that there is an optimization here that returns THE SAME
     date object when the string "st" given is the same as it was
     at the last call of this function.
@@ -231,15 +235,35 @@ def str2date(st):
     datetime.datetime(2011, 1, 25, 14, 22, 20)
     >>> str2date("2011-01-25T14:22:20.8224")
     datetime.datetime(2011, 1, 25, 14, 22, 20, 822400)
+    >>> str2date("2011-01-25T14:22:20xy.8224")
+    Traceback (most recent call last):
+        ...
+    ValueError: time data '2011-01-25 14:22:20xy.8224' does not match format '%Y-%m-%d %H:%M:%S.%f'
+    >>> str2date("2011-01-25T14:22:20.12345")
+    datetime.datetime(2011, 1, 25, 14, 22, 20, 123450)
+    >>> str2date("2011-01-25T14:22:20.123456")
+    datetime.datetime(2011, 1, 25, 14, 22, 20, 123456)
+    >>> str2date("2011-01-25T14:22:20.1234567")
+    datetime.datetime(2011, 1, 25, 14, 22, 20, 123456)
+    >>> str2date("2011-01-25T14:22:20.12345678")
+    datetime.datetime(2011, 1, 25, 14, 22, 20, 123456)
+    >>> str2date("2011-01-25T14:22:20.12345678x")
+    Traceback (most recent call last):
+        ...
+    ValueError: extra characters found: "78x"
     """
     global _last_str2date_str, _last_str2date_obj
     st_= st.replace("T"," ",1)
     if _last_str2date_str==st_:
         return _last_str2date_obj
-    if -1==st_.find("."):
+    i= st_.find(".")
+    if -1==i:
         date= datetime.datetime.strptime(st_,"%Y-%m-%d %H:%M:%S")
     else:
-        date= datetime.datetime.strptime(st_,"%Y-%m-%d %H:%M:%S.%f")
+        if len(st_)-i > 7:
+            if not st_[i+7:].isdigit():
+                raise ValueError, "extra characters found: \"%s\"" % st_[i+7:]
+        date= datetime.datetime.strptime(st_[0:i+7],"%Y-%m-%d %H:%M:%S.%f")
     _last_str2date_str= st_
     _last_str2date_obj= date
     return date
@@ -881,7 +905,8 @@ def collect_from_file(filename_, hashedlist2d=None,
                         filter_pv, skip_flagged, rm_flags, max_lines,
                         progress)
     except:
-        print "in file %s" % filename
+        if filename_ is not None:
+            print "in file %s" % filename_
         raise
     in_file.close()
     return result
