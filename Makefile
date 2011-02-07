@@ -385,6 +385,7 @@ PYDOC_PYTHONLIB_LIST= \
 
 # python scripts that need python 2.5
 PYTHON_2_5_SCRIPTS= \
+        camonitor2table.py \
         cvs-recover.py \
 	db_request.py \
 	hg-recover.py \

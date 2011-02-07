@@ -204,6 +204,7 @@ from optparse import OptionParser
 #import string
 import sys
 import re
+import time  # actually only needed for Python Version < 2.7
 import datetime
 
 # version of the program:
@@ -211,6 +212,63 @@ my_version= "1.0"
 
 _last_str2date_str= None
 _last_str2date_obj= None
+
+# some functions for compability with python version 2.5
+# unfortunately our development server has only python 2.5 as
+# newest version:
+
+def strptime_p25(st_,format):
+    """simulate datetime.datetime.strptime.
+    """
+    if not format.endswith(".%f"):
+        return datetime.datetime.strptime(st_,format)
+    p= st_.find(".")
+    tp= time.strptime(st_[0:p],format[0:-3])
+    if p==-1:
+        raise ValueError, "date has wrong format: \"%s\"" % st_
+    frac= int(st_[p+1:])
+    date= datetime.datetime(tp[0],tp[1],tp[2],tp[3],tp[4],tp[5],frac)
+    return date
+
+def strftime_p25(date,format):
+    """simulate datetime.datetime.strptime.
+    """
+    if not format.endswith(".%f"):
+        return date.strftime(format)
+    return date.strftime(format[0:-3]) + (".%06s" % date.microsecond)
+
+def strftime(date,format):
+    """returns date.strftime(format)."""
+    return date.strftime(format)
+
+def time_total_seconds_25(td):
+    """return the total seconds in a timedelta object for python 2.5.
+
+    Here is an example:
+    >>> td= datetime.datetime(2011,01,01,13,32,15,250000)-datetime.datetime(2011,01,01,13,30,0)
+    >>> time_total_seconds_25(td)
+    135.25
+    """
+    return float(td.days*86400+td.seconds)+td.microseconds/1E6
+
+def time_total_seconds(td):
+    """return the total seconds in a timedelta object.
+
+    Here is an example:
+    >>> td= datetime.datetime(2011,01,01,13,32,15,250000)-datetime.datetime(2011,01,01,13,30,0)
+    >>> time_total_seconds(td)
+    135.25
+    """
+    return td.total_seconds()
+
+if sys.version_info < (2,7):
+    strptime_= strptime_p25
+    total_seconds_= time_total_seconds_25
+    strftime_= strftime_p25
+else:
+    strptime_= datetime.datetime.strptime
+    total_seconds_= time_total_seconds
+    strftime_= strftime
 
 # date and time utilities
 # ----------------------------------------
@@ -258,12 +316,12 @@ def str2date(st):
         return _last_str2date_obj
     i= st_.find(".")
     if -1==i:
-        date= datetime.datetime.strptime(st_,"%Y-%m-%d %H:%M:%S")
+        date= strptime_(st_,"%Y-%m-%d %H:%M:%S")
     else:
         if len(st_)-i > 7:
             if not st_[i+7:].isdigit():
                 raise ValueError, "extra characters found: \"%s\"" % st_[i+7:]
-        date= datetime.datetime.strptime(st_[0:i+7],"%Y-%m-%d %H:%M:%S.%f")
+        date= strptime_(st_[0:i+7],"%Y-%m-%d %H:%M:%S.%f")
     _last_str2date_str= st_
     _last_str2date_obj= date
     return date
@@ -286,7 +344,7 @@ def date2str(date):
     >>> date2str(d)
     '2011-01-25 14:22:20.822485'
     """
-    return date.strftime("%Y-%m-%d %H:%M:%S.%f")
+    return strftime_(date, "%Y-%m-%d %H:%M:%S.%f")
 
 def float_time(date, start_date):
     """convert timestamps to float-time.
@@ -305,7 +363,7 @@ def float_time(date, start_date):
     ...            str2date("2011-01-24 14:22:20"))
     86400.822485
     """
-    return (date-start_date).total_seconds()
+    return total_seconds_(date-start_date)
 
 # classes 
 # ----------------------------------------
@@ -870,7 +928,7 @@ def differentiate(hashedlist2d):
                 val[0]= 0
             continue
         if isinstance(r,datetime.datetime):
-            t= (r-last_row).total_seconds()
+            t= total_seconds_(r-last_row)
         else:
             t= r-last_row
         for i in xrange(len(columns)):
