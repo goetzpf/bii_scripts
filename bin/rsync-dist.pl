@@ -922,7 +922,7 @@ sub dist
     if ($world_readable)
       { $rcmd.= sh_indent_and_join(0,
                 ' && ',
-                'chmod -R a+rX `cat STAMP`'); 
+                '(chmod -R a+rX `cat STAMP` || true)'); 
       };
     $rcmd.= sh_indent_and_join(0,          
               ' && ',
