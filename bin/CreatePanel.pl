@@ -129,7 +129,7 @@
                                        name of a Name-Value pair in the 
 				       substitution data. This is ignored 
 				       unless for layouts: 'line', 'table'
-      -subst 'NAME=\"VALUE\",...'      Panel substitutions from commandline
+      -subst 'NAME=\"VALUE\",...'      Panel substitutions from commandline (.db debug only)
       -v    	    	    	       verbose
      \n";
     my %dependencies;
@@ -151,6 +151,7 @@
     if( defined $substPar)
     {
         $rH_subst = getSubstitutions($substPar);
+#	print "rH_subst:",Dumper($rH_subst);
 	$options{SUBSTITUTIONS} = $rH_subst;
     }
 
@@ -340,7 +341,7 @@ sub   layoutLine
     return ($prEdl,$panelWidth, $yPos);
 }    
 
-##  Layout by column
+##  Layout by table
 #  ........................
 #
 #  Widget1 | Widget4 | Widget7 
@@ -352,7 +353,7 @@ sub   layoutLine
 #
 #  * The total width of the panel is set by the argument '-width', or set to 900 by default.
 #
-#  * A new linene begins if there is a new  edl-template type.
+#  * A new table begins if there is a new  edl-template type.
 #
 #  * The order of widgets may be set ba the option '-sort NAME'. NAME is any name of a variable in 
 #    the '.substitutions' file
@@ -484,9 +485,11 @@ sub    layoutXY
 #  Widget2.1 | Widget2.2 | Widget2.3 
 #  Widget3.1 | Widget3.2 | Widget3.3 
 #
-#  The option '-layout GRID'  will place each item of the '.substitutions' file to the position defined by
-#  the variable 'GRID="COL,ROW"'. This parameter defines the column and row and has to be set for each edl-template
-#  instance. Parameter SPAN="n-Cols"' may be set to span in horizontal direction.
+#  - The option '-layout grid'  will place each item of the '.substitutions' file to the position defined by
+#  the variable 'GRID'
+#  - 'GRID="COL,ROW"'. This parameter defines the column and row and has to be set for each edl-template
+#  instance. 
+#  - Parameter SPAN="n-Cols"' may be set to span in horizontal direction.
 #
 sub    layoutGrid
 {   my ($r_substData,$rH_options) = @_;
