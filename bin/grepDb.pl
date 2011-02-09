@@ -52,6 +52,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #      -pt <recType>:   print records of this type
 #      -pr <recName>:   print records tha match that name
 #      -pf <fieldType>: print this field/s
+#      -pT :            print as table, default is EPICS.db format\n".
 #
 #  Common options:
 #
@@ -72,6 +73,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     use Getopt::Long;
     use Data::Dumper;
     use parse_db;
+    use printData;
 
     my $usage ="\nUSAGE: grepDb.pl -t<TRIGGER> <match> [-p<PRINT> <match>] filename/s\n\n".
         "TRIGGERS:  defines what fields, records etc are of interest. The values of the trigger \n".
@@ -87,6 +89,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         "    -pt <recType>:   print records of this type\n".
         "    -pr <recName>:   print records tha match that name\n".
         "    -pf <fieldType>: print this field/s\n\n".
+        "    -pT :            print as table, default is EPICS.db format\n".
         "COMMON OPTIONS:\n\n".
         "     -i ignore case\n".
         "     -v verbose\n\n".
@@ -108,10 +111,15 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $links;
     my $verbose;
     my $quiet;
+    my $printStr;
+    my $ptable;
+    my $rH_fields;
+    my $rH_prTable={};
+    my $ptable;
 
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
-                           "i"=>\$ignore,"v"=>\$verbose,"q"=>\$quiet,"tl=s"=>\$links);
+                           "i"=>\$ignore,"pT"=>\$ptable,"v"=>\$verbose,"q"=>\$quiet,"tl=s"=>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -159,7 +167,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
         if( (defined $filename) && defined $verbose )
         {
-            print "File: \"$filename\"\n" unless defined $quiet;
+            $printStr .= "File: \"$filename\"\n" unless defined $quiet;
             $filename = undef;
         }
 
@@ -179,7 +187,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
                     if( (defined $filename) && match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
-                        print "File: \"$filename\"\n" unless defined $quiet;
+                        $printStr .= "File: \"$filename\"\n" unless defined $quiet;
                         $filename = undef;
                     }
                     if( match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
@@ -194,6 +202,37 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     }
     while defined $filename;
 
+    if( defined $ptable )
+    {
+	my $idx=1; # idx 0 is the record name!
+	my $rH_recIdx;
+	my $rA_header;
+	foreach (sort(keys(%$rH_fields)))
+	{
+	    $rA_header->[$idx]=$_;
+	    $rH_fields->{$_} =$idx++ 
+	}
+	$rA_header->[0]="Record";
+	$idx=0;
+	$rH_recIdx->{$_} =$idx++ foreach (sort(keys(%$rH_prTable)));
+    
+	
+	my $rA_table;
+	foreach my $rec (keys(%$rH_prTable))
+	{   
+	    $rA_table->[$rH_recIdx->{$rec}]->[0] = $rec;
+	    foreach my $field (sort(keys( %{$rH_prTable->{$rec}} )))
+	    {
+	    	$rA_table->[$rH_recIdx->{$rec}]->[$rH_fields->{$field}] = $rH_prTable->{$rec}->{$field};
+	    }
+	}
+	
+	printData::printTable($rA_table,$rA_header,0);
+    }
+    else
+    {
+    	print $printStr;
+    }
 
 sub parseDb
 {   my ($st,$filename) = @_;
@@ -217,23 +256,41 @@ sub printRecord
 
     return if $formerRec eq $record;    # print each record just once
     $formerRec = $record;
-
     my $recT = $rH_recName2recType->{$record} ;
 
     my $recordFlag;
+
+    if( defined $ptable )
+    {
+	foreach my $field ( keys( %{$rH_records->{$record}} ) )
+	{
+            my $fVal = $rH_records->{$record}->{$field};
+
+            if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
+            {
+		$recordFlag = 1;
+            }
+            if( (defined $recordFlag) && match($field,$prFieldName) )
+            {   
+    	    	$rH_prTable->{$record}->{$field}=$fVal;
+        	$rH_fields->{$field}=1;
+            }
+	}
+     	return;
+    }
     foreach my $field ( keys( %{$rH_records->{$record}} ) )
     {
         my $fVal = $rH_records->{$record}->{$field};
 
         if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
         {
-            print "record($recT,\"$record\")  {\n";
+            $printStr .= "record($recT,\"$record\")  {\n";
             $recordFlag = 1;
         }
         if( (defined $recordFlag) && match($field,$prFieldName) )
         {   
-            print "\tfield($field,\"$fVal\")\n";
+            $printStr .= "\tfield($field,\"$fVal\")\n";
         }
     }
-    print "}\n" if defined $recordFlag ;
+    $printStr .= "}\n" if defined $recordFlag ;
 }
