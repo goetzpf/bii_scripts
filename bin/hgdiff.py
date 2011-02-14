@@ -631,21 +631,43 @@ class App:
         else:
             diff(self.revisions, file, self.verbose, self.dry_run)
 
-def ext_compare(options, progname):
+def ext_compare(options, args, progname, multi_file_capable):
     """just call an external compare program.
     """
-    args=["hg","extdiff","-p",progname]
+    cmd_args=["hg","extdiff","-p",progname]
+    rev_spec=[]
     if options.changes is not None:
         if options.rev is not None:
             sys.exit("-c must not be used together with -r")
-        args.extend(("-c",options.changes))
+        rev_spec=["","-c", options.changes]
     elif options.rev is not None:
         if len(options.rev)>2:
             sys.exit("only up to 2 revision numbers may be specified")
+        rev_spec=[""]
         for r in options.rev:
-            args.append("-r")
-            args.append(r)
-    os.execvp("hg",args)
+            rev_spec.extend(("-r",r))
+    if multi_file_capable:
+        os.execvp("hg",cmd_args+rev_spec)
+        return
+    stat_revspec= [x.replace("-c","--change") for x in rev_spec]
+    _system("hg status%s" % (" ".join(stat_revspec)), False, True, options.dry_run)
+    if len(args)>0:
+        files= args
+    else:
+        modified= _system("hg status -m -n%s" % (" ".join(stat_revspec)),
+                          True, options.verbose, options.dry_run)
+        if modified=="":
+            sys.exit("no modified files")
+        files= modified.splitlines()
+    if len(files)>20:
+        sys.exit("error, more than 20 files to view, use --kompare or --meld instead")
+    for f in files:
+        os.spawnvp(os.P_NOWAIT,"hg",cmd_args+rev_spec+[f])
+    return
+
+
+
+    print "hg status:"
 
 def main():
     """The main function.
@@ -697,6 +719,14 @@ def main():
                       help="show that changes that REVISION did.",
                       metavar="REVISION"  # for help-generation text
                       )
+    parser.add_option("-q", "--quick",    # implies dest="switch"
+                      action="store_true", # default: None
+                      help="directly show all changes by running "+\
+                           "tkdiff. If you want this to be done only for "+\
+                           "a specific list of files add them after the command, "+\
+                           "otherwise all *modified* files are shown.",
+                      )
+
 
     (options, args) = parser.parse_args()
     # options: the options-object
@@ -719,10 +749,13 @@ def main():
     os.chdir(hgroot(options.verbose, options.dry_run))
 
     if options.kompare:
-        ext_compare(options,"kompare")
+        ext_compare(options,args,"kompare",True)
         sys.exit(0)
     if options.meld:
-        ext_compare(options,"meld")
+        ext_compare(options,args,"meld",True)
+        sys.exit(0)
+    if options.quick:
+        ext_compare(options,args,"tkdiff",False)
         sys.exit(0)
         
     root = Tix.Tk()
