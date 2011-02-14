@@ -109,14 +109,18 @@ def get_formats():
     global outFormatList
     ret = []
     for i in outFormatList.keys():
-        ret.append("\t" + str(i) + " format:\t" + format_row(["example", 123, None, 4.56], outFormatList.get(i)) + "\n")
+            fmr= format_row(["example", 123, None, 4.56], outFormatList.get(i))
+            extra= ""
+            if not fmr.startswith("\n\t"):
+                    extra="\n\t"
+            ret.append("".join(["- ",str(i)," format::\n",extra,fmr,"\n"]))
     return "\n".join(ret)
 
 def get_protocols():
     global dbProtocolList
     ret = []
     for i in dbProtocolList:
-        ret.append("\t" + str(i))
+        ret.append("- " + str(i))
     return "\n".join(ret)
 
 def print_doc():
