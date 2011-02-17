@@ -53,7 +53,7 @@ fi
 iocpattern='.'
 host=$(hostname -f)
 [[ $host = *".erl.site" ]] && iocpattern='f$'
-[[ $host = *".ctl.bessy.de" ]] && iocpattern='(eis|mdi|ioc).*[bgc]$'
+[[ $host = *".ctl.bessy.de" ]] && iocpattern='^(eis|mdi|ioc|sioc).*[bgc]$'
 [[ $host = *".mlscs.bessy.de" ]] && iocpattern='p$'
 
 if [[ $# > 0 ]]; then
@@ -61,10 +61,18 @@ if [[ $# > 0 ]]; then
 fi
 
 iocs=()
-for ioc in `echo tsc | console -u 2>/dev/null |awk '{print $1}' | egrep $iocpattern | sort | egrep ^\($iocsre\)$`
-do
+if [[ -e /opt/IOC/log/IOCs.list ]]
+then
+  for ioc in `egrep $iocpattern </opt/IOC/log/IOCs.list | sort | egrep ^\($iocsre\)$`
+  do
     [[ "$ioc" = ${~iocsglob} ]] && iocs=($iocs $ioc)
-done
+  done
+else
+  for ioc in `echo tsc | perl -e 'alarm shift @ARGV; exec @ARGV' 1 console -u 2>/dev/null |awk '{print $1}' | egrep $iocpattern | sort | egrep ^\($iocsre\)$`
+  do
+    [[ "$ioc" = ${~iocsglob} ]] && iocs=($iocs $ioc)
+  done
+fi
 
 if [[ $#iocs = 0 ]]; then
     usage 1 "ERROR: No matching IOCs found\n\n"
