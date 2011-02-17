@@ -1,12 +1,25 @@
 #!/usr/bin/zsh -f
 # -*- shell-script -*-
 
+usage () {
+    <<EOF
+usage: pvgrep [-io] <regexp>
+
+grep for lines matching <regexp> in dbl-files produced by IOCs
+
+Options:
+        -io    if given, search dbhcr-files instead
+EOF
+    return
+}
+[[ $# -eq 0 ]] && usage
+
 ext=dbl
 [[ "$1" = "-io" ]] && ext=dbhcr && shift
 
 cd /opt/IOC/log/Database
-#echo /bin/grep --color=auto $1 */*.$ext */*_$ext.txt
-/bin/grep --color=auto $1 */*.$ext */*_$ext.txt | perl -e "
+
+/bin/egrep --color=auto $1 */*.$ext */*_$ext.txt | perl -e "
 while (<>) { 
     (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
     \$iocs->{\$ioc}->{\$var}=1;
@@ -15,4 +28,3 @@ for \$ioc (sort keys %\$iocs) {
     print \"\$ioc:\\n\"; 
     for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"  \$var\"); }
 }"
-
