@@ -3,19 +3,30 @@
 
 usage () {
     <<EOF
-usage: pvgrep [-io] <regexp>
+usage: pvgrep [-io] [-flat] [-ext <ext>] <regexp>
 
-grep for lines matching <regexp> in dbl-files produced by IOCs
+grep for lines matching <regexp> in files produced by IOCs
 
 Options:
-        -io    if given, search dbhcr-files instead
+  -flat      supress IOC name, just print output unindented
+  -ext <ext> search files with extension <ext> instead
+             default is dbl, -io sets ext to dbhcr
+             possible extensions are: 
+               activated, dbhcr, dbior, dbl, pwd, version and versions
+  -io        search dbhcr-files (short for -ext dbhcr)
 EOF
     return
 }
 [[ $# -eq 0 ]] && usage
 
+zparseopts -D io=oio flat=oflat ext:=oext
+
+flat=0
+spc="  "
 ext=dbl
-[[ "$1" = "-io" ]] && ext=dbhcr && shift
+[[ "$oio" = "-io" ]] && ext=dbhcr
+[[ "$oflat" = "-flat" ]] && flat=1 spc=""
+[[ $#oext -gt 1 ]] && ext=$oext[2]
 
 cd /opt/IOC/log/Database
 
@@ -25,6 +36,6 @@ while (<>) {
     \$iocs->{\$ioc}->{\$var}=1;
 }; 
 for \$ioc (sort keys %\$iocs) {
-    print \"\$ioc:\\n\"; 
-    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"  \$var\"); }
+    print \"\$ioc:\\n\" unless $flat; 
+    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"$spc\$var\"); }
 }"
