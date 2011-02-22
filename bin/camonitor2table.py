@@ -597,7 +597,11 @@ class HashedList2D(object):
                 continue
             for col in column_list:
                 if is_empty_func(self.lookup(row, col)):
-                    self.set(row, col, self.lookup(last, col))
+                    # note that "[:]" is VERY important here, this copies
+                    # the whole list. Otherwise the resulting structure would 
+                    # contain references to the SAME LIST at several places which
+                    # would break the differentiate() function:
+                    self.set(row, col, self.lookup(last, col)[:])
             last= row
     def __str__(self):
         rows= self._rows.keys()
