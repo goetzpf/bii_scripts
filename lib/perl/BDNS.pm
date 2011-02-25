@@ -152,7 +152,7 @@ sub parse
   if (defined $ring) {
     ($family,$counter,$subdomain,$domain) = ($rfamily,$rcounter,$rsubdomain,$rdomain);
     $facility = "";
-    if ($subdomain eq "L" && $domain ne "I" ) {
+    if (($subdomain =~ /L[0-9]*/) && ($domain ne "I") ) {
       return;
     }
   }
