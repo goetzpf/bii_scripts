@@ -210,6 +210,10 @@
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutDbDbg($r_substData,\%options);
     }
+    elsif($layout eq "lineRaw")
+    {
+        ($printEdl,$panelWidth, $panelHeight) = layoutLineRaw($r_substData,\%options);
+    }
     else
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutLine($r_substData,\%options);
@@ -341,6 +345,68 @@ sub   layoutLine
     return ($prEdl,$panelWidth, $yPos);
 }    
 
+
+##  Layout by line (Default)
+#  ........................
+#
+#  Widget1 | Widget2 | Widget3 
+#  --------+--------------------
+#  Widget4 | Widget5 | Widget6 
+#  Widget7 | Widget8 | Widget9 
+#
+#
+#  * The Widgets are placed from the left to the right - as written in a line - as long as the display 
+#    width is not exceeded. Then a new line begins.
+#
+#  * The total width of the panel is set by the argument '-width', or set to 900 by default.
+#
+#  * There order of widgets is as defined in the substitution file, option '-sort' is ignored.
+# 
+sub   layoutLineRaw
+{   my ($r_substData,$rH_options) = @_;
+
+    my $panelWidth = $rH_options->{PANELWIDTH};
+    print "layout: LineRaw, width: $panelWidth\n" if $opt_v == 1;
+    my $prEdl;
+    my $xPos=0;
+    my $yPos=0;	    	    # put next part of display here 
+    my $yDispMaxSize = 0;   # the highes display in a line, to calc next lines y pos
+    
+    ($prEdl,$xPos,$yPos) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
+    foreach my $group (@$r_substData)
+    { 
+    	
+        my $edlFileName = shift @$group;	# the name of the .template/.edl file 
+    	# get content, width and height of actual edl-template
+	my ($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
+    	next unless defined $edlContent;
+    	$yDispMaxSize = $yDispSize if $yDispSize > $yDispMaxSize;
+#print "Display '$edlFileName': ($xDispSize, $yDispSize), yMax: $yDispMaxSize\n";
+
+	foreach my $rH_Attr (@$group)
+	{ 
+	    my $edl;
+
+    	    my ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
+# setup next position
+	    if( $xPos + $xDispWIDTH > $panelWidth )
+	    { 
+		$xPos = 0;
+    		$yPos += $yDispMaxSize;
+		$yDispMaxSize = $yDispSize;
+	    }
+#print "Set '$edlFileName' width:'$xDispWIDTH' to: '$xPos,$yPos'\n";
+	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
+	    $xPos += $xDispWIDTH;
+	    $prEdl .= "$edl" if defined $edl;
+	    die "Error in file \'$edlFileName\', data line:", Dumper($rH_Attr) unless defined $edl;
+#print "=====>\n$edl\n=====\n";
+	}
+	
+    }
+    $yPos += $yDispMaxSize;
+    return ($prEdl,$panelWidth, $yPos);
+}    
 ##  Layout by table
 #  ........................
 #
