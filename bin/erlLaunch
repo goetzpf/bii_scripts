@@ -1,0 +1,88 @@
+#!/bin/sh
+# -*- shell-script -*-
+
+#  This software is copyrighted by the
+#  Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),
+#  Berlin, Germany.
+#  The following terms apply to all files associated with the software.
+#  
+#  HZB hereby grants permission to use, copy and modify this
+#  software and its documentation for non-commercial, educational or
+#  research purposes provided that existing copyright notices are
+#  retained in all copies.
+#  
+#  The receiver of the software provides HZB with all enhancements, 
+#  including complete translations, made by the receiver.
+#  
+#  IN NO EVENT SHALL HZB BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+#  SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+#  OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN 
+#  IF HZB HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#  
+#  HZB SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+#  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+#  PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
+#  BASIS, AND HZB HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+#  UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+
+
+# 
+# Opens the X-Display and starts launch on ash as user mls
+# 
+# Usage:
+#         mlsLaunch [-t] [-c]
+#
+#         -t : Tunnel X   --- Use ssh X11 forwarding rather than
+#                             direct X connection (useless, since tunneling
+#                             is always used...)
+#         -c : Compress   --- Use compression in ssh connection
+#         -m : withMapper --- provide mapper (needed for orbit display)
+
+# Tested on:   HPUX   (ssh version 1)
+#              Linux  (openssh version 2)
+
+# Weitere Environment-Variablen-Settings kÃ¶nnen in die "" der
+# Launch-Start-Zeilen eingefÃ¼gt werden (mit Leerzeichen getrennt direkt
+# vor das launch-Kommando)
+
+hostName=${HOST:-$HOSTNAME}
+#echo "hostName=$hostName"
+compress=""
+withMapper=""
+
+for cmdArg
+do
+  [ "$cmdArg" = "-c" ] && compress="-C"
+done
+
+#
+# ssh-agent starten und identity laden
+# ------------------------------------
+
+if false
+then
+# Wenn der ssh-agent nicht laeuft, starten
+if [ "$SSH_AUTH_SOCK" = "" ]
+then
+  eval `ssh-agent`
+  agentStartedHere=1
+fi
+
+# Kein Key geladen? -> ssh-add
+[ "$(ssh-add -l | grep 'no ident')" = "" ] || ssh-add </dev/null
+fi
+#
+# Vebindung herstellen
+# --------------------
+
+# Durch ssh getunnelte X-Verbindung
+# Launch starten
+SSH_ASKPASS=/usr/X11R6/bin/ssh-askpass ssh -f -n $compress -Y erl@erl-srv.acc.bessy.de "launch $@ $withMapper"
+
+#
+# Evtl. ssh-agent wieder abwerfen
+# -------------------------------
+
+[ "$agentStartedHere" = "" ] || eval `ssh-agent -k`
+
+exit 0
