@@ -70,15 +70,10 @@ my $callback;
 
 my @include_paths;
 
-# current line position:
-my $gbl_line_column= 0;
-
-# current line number:
-my $gbl_line_row=0;
-
-my $gbl_last_index=-1;
-my @gbl_byte_positions=();
-my @gbl_line_numbers=();
+# current line position (ref):
+my $r_gbl_line_column= undef;
+# current line number (ref):
+my $r_gbl_line_row= undef;
 
 use constant {
   SM_NO             => 0x00,
@@ -225,11 +220,13 @@ sub declare_func
 
 sub lineno
 # return the current line number starting with 1
-  { return $gbl_line_row; }
+  { return $$r_gbl_line_row; }
 
 sub column
 # return the current column, starting with 0
-  { return $gbl_line_column; }
+  { 
+    return $$r_gbl_line_column; 
+  }
 
 sub parse_file
   { my($filename, %options)= @_;
@@ -279,6 +276,20 @@ sub parse_scalar_i
     my $post;
 
     my $fh;
+
+    # current line position:
+    my $line_column= 0;
+    # current line number:
+    my $line_row=0;
+    # last index, used by rowcol():
+    my $last_index=-1;
+    # array of byte positions:
+    my $r_byte_positions=undef;
+    # array of line numbers:
+    my $r_line_numbers=undef;
+
+    $r_gbl_line_column= \$line_column;
+    $r_gbl_line_row   = \$line_row;
 
     if ($options{no_escaped_at_chars})
       { $escaped_at_chars= 0; };
@@ -330,7 +341,7 @@ sub parse_scalar_i
       { $callback= $options{callback}; }; 
 
     # calculate global line-number -> position mapping
-    string_lineno_list($r_line, \@gbl_byte_positions, \@gbl_line_numbers);
+    ($r_byte_positions, $r_line_numbers)= string_lineno_list($r_line);
 
     my $max= length($$r_line);
     my $local_match_pos;
@@ -407,7 +418,9 @@ sub parse_scalar_i
 
         # row and column are calculated here since the rowcol
         # call may be a bit expensive
-        ($gbl_line_row,$gbl_line_column)= rowcol($local_match_pos);
+        ($line_row,$line_column, $last_index)= 
+                   rowcol($local_match_pos, $last_index,
+                          $r_byte_positions, $r_line_numbers);
 
         $p= pos($$r_line); # pos after "$"
 
@@ -579,6 +592,9 @@ sub parse_scalar_i
                     my %local_options= %options;
                     $local_options{filehandle}= $fh;
                     parse_file($f,%local_options); 
+                    # restore references on line_column and line_row:
+                    $r_gbl_line_column= \$line_column;
+                    $r_gbl_line_row   = \$line_row;
                   } 
                 pos($$r_line)= $en+1;
                 next;
@@ -701,12 +717,12 @@ sub parse_scalar_i
 
             if ($ex eq 'lineno')
               {
-                print $gbl_line_row;
+                print $line_row;
                 next; 
               }
             if ($ex eq 'column')
               {
-                print $gbl_line_column;
+                print $line_column;
                 next; 
               }
 
@@ -1123,34 +1139,35 @@ sub bsearch
 sub string_lineno_list
   # returns two lists, a list of byte-positions and
   # a list of corresponding line numbers.
-  { my($r_str,$r_byte_positions,$r_line_numbers)= @_;
+  { my($r_str)= @_;
     my $lineno=1;
 
-    @$r_byte_positions= (0);
-    @$r_line_numbers= (1);
+    my @byte_positions= (0);
+    my @line_numbers= (1);
 
     pos($$r_str)=0;
     my $oldpos=-1;
 #    while($$r_str=~ /\G.*?^(.*?)$/gms)
     while($$r_str=~ /\G(.*?)\r?\n/gms)
       { 
-        push @$r_byte_positions, pos($$r_str);
-        push @$r_line_numbers, ++$lineno;
+        push @byte_positions, pos($$r_str);
+        push @line_numbers, ++$lineno;
       };
+    return (\@byte_positions, \@line_numbers);
   }      
 
 sub rowcol
 # returns the current row and column,
 # note that rows start with 1 but columns start with 0
-  { my($position)= @_;
+  { my($position, $last_index, $r_byte_positions, $r_line_numbers)= @_;
 
-    my($a,$b) = bsearch(\@gbl_byte_positions, $position, \$gbl_last_index);
+    my($a,$b) = bsearch($r_byte_positions, $position, \$last_index);
     if ($a<0)
       {
         die "assertion in line ",__LINE__;
       }
-    #print "## pos: $position, gbl-pos:$gbl_byte_positions[$a]\n";
-    return $gbl_line_numbers[$a], $position-$gbl_byte_positions[$a];
+    #print "## pos: $position, byte-pos:$r_byte_positions->[$a]\n";
+    return $r_line_numbers->[$a], $position-$r_byte_positions->[$a], $last_index;
   }
 
 sub find_position_in_string
