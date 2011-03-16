@@ -175,7 +175,7 @@ def parse(devname):
     if ring != "": 
         (family,counter,subdomain,domain) = (rfamily,rcounter,rsubdomain,rdomain)
         facility = ""
-        if subdomain[0] == "L" and domain != "I":
+        if len(subdomain) > 0 and subdomain[0] == "L" and domain != "I":
             return
     elif fel!= "":
         (family,counter,subdomain,domain) = (ffamily,fcounter,fsubdomain,fdomain)
