@@ -235,7 +235,7 @@ def strftime_p25(date,format):
     """
     if not format.endswith(".%f"):
         return date.strftime(format)
-    return date.strftime(format[0:-3]) + (".%06s" % date.microsecond)
+    return date.strftime(format[0:-3]) + (".%06d" % date.microsecond)
 
 def strftime(date,format):
     """returns date.strftime(format)."""
@@ -601,7 +601,10 @@ class HashedList2D(object):
                     # the whole list. Otherwise the resulting structure would 
                     # contain references to the SAME LIST at several places which
                     # would break the differentiate() function:
-                    self.set(row, col, self.lookup(last, col)[:])
+                    val= self.lookup(last,col)
+                    if val is not None:
+                        val= val[:]
+                    self.set(row, col, val)
             last= row
     def __str__(self):
         rows= self._rows.keys()
