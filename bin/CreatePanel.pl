@@ -916,6 +916,10 @@ sub   parsePV
     {
     	$pv = "$rH_Attr->{NAME}:$rH_Attr->{SNAME}" ;
     }
+    elsif( defined $rH_Attr->{DEVN} && defined $rH_Attr->{SNAME} && not defined $rH_Attr->{PV})
+    {
+    	$pv = "$rH_Attr->{DEVN}:$rH_Attr->{SNAME}" ;
+    }
     
     my $pvTrunc;
     if( $pv =~/(.*)\./)
