@@ -1,0 +1,14 @@
+#!/usr/bin/zsh -f
+
+PATH=/opt/csr/bin:$PATH
+
+print -- "$@" | sed 's/,/ /' | read pv lvl
+
+[[ "$lvl"x == x ]] && lvl=2
+
+grep "^$pv$" /opt/IOC/log/Database/*/*.dbl|read lf
+ioc=$lf:t:r:l
+[[ "$ioc"x == x ]] && echo "PV '$pv' not found."  && exit
+(echo "tsc"; sleep 1; echo "dbpr \"$pv\", $lvl"; sleep 3; echo "XX.") | \
+    console -f -e "XX" $ioc | egrep '(dbpr|:)' | sed "s/^dbpr /${ioc}: dbpr /";
+
