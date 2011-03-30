@@ -285,6 +285,10 @@ Scripts
     application was built. 
   | `documentation <scripts/hg-recover.html>`__
 
+**idcp-dist-info**
+  | Reports for software versions of IDCP (Insertion Device Control Program).
+  | `documentation <scripts/idcp-dist-info.html>`__
+
 **latin1toutf8.sh**
   | convert latin-1 texts to utf-8 (calls the iconv utility).
 

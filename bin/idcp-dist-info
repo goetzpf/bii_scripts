@@ -1,0 +1,144 @@
+#!/bin/sh
+
+CONFIGFILE=/opt/csr/share/rsync-dist/idcp
+
+opts="-c $CONFIGFILE"
+
+function print_short_help {
+    echo "$0: a small wrapper that calls rsync-dist-info.py"
+    echo "options:"
+    echo "  -h: this help"
+    echo "  -H: this text PLUS the help from rsync-dist-info.py"
+    echo "  -id [ID] : filter for this insertion device"
+    echo "  --ids : filter for all ID's that are installed and use"
+    echo "      the rsync-dist.pl (Ue56/2 is not in this list)"
+    echo "  --id-list : show the known insertion devices and their idcp-name"
+    echo "  --dry-run : just show how rsync-dist-info.py would be called"
+}
+
+function print_long_help {
+    print_short_help
+    echo 
+    echo "the following options are known to rsync-dist-info.py and can "
+    echo "also be used here:"
+    echo
+    rsync-dist-info.py -h
+}
+
+# declare all known insertion devices in a hash:
+
+declare -A IDs
+
+IDs[U125/2]=3
+IDs[U125ID2R]=3
+
+IDs[UE56/2]=5
+IDs[UE56ID3R]=5
+
+IDs[U49/1]=7
+IDs[U49ID4R]=7
+
+IDs[UE49]=8
+IDs[UE49IT4R]=8
+
+IDs[UE52]=9
+IDs[UE52ID5R]=9
+
+IDs[UE46]=10
+IDs[UE46IT5R]=10
+
+IDs[UE56/1]=11
+IDs[UE56ID6R]=11
+
+IDs[U139]=110
+IDs[U139ID6R]=110
+
+IDs[U41]=12
+IDs[U41IT6R]=12
+
+IDs[UE112]=13
+IDs[UE112ID7R]=13
+
+IDs[U49/2]=15
+IDs[U49ID8R]=15
+
+installed_ids="^idcp(3|7|8|9|10|11|12|13|15|110)$"
+
+function list_ids {
+    for k in "${!IDs[@]}"; do
+        echo -e "$k\t: idcp${IDs[$k]}" | expand -t 10
+    done
+    exit 0
+}
+
+realargs="$@"
+while [ $# -gt 0 ]; do
+    case "$1" in
+      -h)
+        print_short_help
+        exit 0
+        ;;
+      -H)
+        print_long_help
+        exit 0
+        ;;
+      --id-list)
+        list_ids
+        exit 0
+        ;;
+      --id)
+        no=${IDs[$2]}
+        if [[ -z "$no" ]]; then
+            echo "unknown ID:$2"
+            exit 1
+        fi
+        opts="$opts --filter-names idcp${IDs[$2]}"
+        shift
+        ;;
+      --idcp)
+        opts="$opts --filter-names idcp$2"
+        shift
+        ;;
+      --ids)
+        opts="$opts --filter-names-rx $installed_ids"
+        ;;
+      -n| --names| -v| --versions| -l| --lifetimes| --idle| --boot-times| --version-info)
+        saveme="$saveme $1"
+        cmd_given="yes"
+        ;;
+      --last)
+        saveme="$saveme $1 $2"
+        shift
+        last_given="yes"
+        ;;
+      --dry-run)
+        dryrun="yes"
+        ;;
+      *)
+        saveme="$saveme $1"
+        #break 2
+        ;;
+    esac
+    shift
+done
+
+if [[ -z "$cmd_given" ]]; then
+    opts="$opts -n"
+fi
+if [[ -z "$last_given" ]]; then
+    opts="$opts --last 10"
+fi
+
+opts="$opts $saveme"
+
+#set -- $realargs
+
+#echo saved word: $saveme
+#echo run real command: "$@"
+#echo "opts: $opts"
+if [[ -z "$dryrun" ]]; then
+    rsync-dist-info.py $opts
+else
+    echo "rsync-dist-info.py $opts"
+fi
+
