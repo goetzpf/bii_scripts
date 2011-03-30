@@ -31,6 +31,7 @@ as well as classes to generate reports on link-logs.
 
 import datetime
 import os.path
+import re
 
 from maillike import MailLikeRecord, MailLikeRecords
 from lslparser import LslEntry, LslEntries
@@ -632,11 +633,17 @@ class LLogByName(object):
         """returns an iterator over all pairs of names and list of tuples."""
         for n in self.keys():
             yield(n,self._dict[n])
-    def select_names(self, keys):
+    def select_names(self, keys, use_regexp= False):
         """copy wanted names from another object to this one."""
         new= LLogByName()
-        for n in keys:
-            new._dict[n]= self._dict[n]
+        if not use_regexp:
+            for n in keys:
+                new._dict[n]= self._dict[n]
+        else:
+            for n in self._dict.keys():
+                for rx in keys:
+                    if rx.match(n):
+                        new._dict[n]= self._dict[n]
         new._calc_activated()
         return new
     def select_versions(self, versions):
@@ -866,20 +873,36 @@ class LLogByVersion(object):
         """returns an iterator over (version,datedict) pairs."""
         for n in self.keys():
             yield(n,self._dict[n])
-    def select_names(self, names):
+    def select_names(self, names, use_regexp= False):
         """copy wanted names from another object to this one."""
         new= LLogByVersion()
-        selected_names= set(names)
+        if not use_regexp:
+            selected_names= set(names)
+            def find_names(myset):
+                return myset.intersection(selected_names)
+        else:
+            selected_names= names
+            def find_names(myset):
+                found=set()
+                for elm in myset:
+                    for rx in selected_names:
+                        if rx.match(elm):
+                            found.add(elm)
+                return found
         for version,datedict in self.items():
             old_set= set()
             for date in sorted(datedict.keys()):
                 name_set= datedict[date]
+                # select all changes:
                 diff= name_set.symmetric_difference(old_set)
                 old_set= name_set
-                if len(diff.intersection(selected_names))==0:
+                # none of the wanted names present, continue:
+                if len(find_names(diff))==0:
                     continue
+                # new._dict[version]= {} if it does not yet exist:
                 d= new._dict.setdefault(version,{})
-                d[date]= name_set.intersection(selected_names)
+                # add names that are wanted:
+                d[date]= find_names(name_set)
         return new
     def select_versions(self, versions):
         """copy wanted versions from another object to this one."""

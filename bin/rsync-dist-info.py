@@ -293,6 +293,7 @@ Reference of command line options
 
 from optparse import OptionParser
 import sys
+import re
 
 try:
     from ca import _ca
@@ -419,11 +420,11 @@ def process(options):
             self.logByVersion= None
             self.versionActivities= None
             self.versionLifetimes= None
-        def filter_by_name(self, keep):
+        def filter_by_name(self, keep, use_regexp= False):
             if self.logByName is not None:
-                self.logByName        = self.logByName.select_names(keep)
+                self.logByName        = self.logByName.select_names(keep, use_regexp= use_regexp)
             if self.logByVersion is not None:
-                self.logByVersion     = self.logByVersion.select_names(keep)
+                self.logByVersion     = self.logByVersion.select_names(keep, use_regexp= use_regexp)
         def filter_by_version(self, keep):
             if self.logByName is not None:
                 self.logByName        = self.logByName.select_versions(keep)
@@ -466,6 +467,10 @@ def process(options):
     if options.filter_names:
         keep= options.filter_names.split(",")
         objs.filter_by_name(keep)
+
+    if options.filter_names_rx:
+        keep= [re.compile(rx) for rx in options.filter_names_rx.split(",")]
+        objs.filter_by_name(keep, use_regexp= True)
 
     if options.filter_existent_names:
         keep= existent_names()
@@ -652,6 +657,14 @@ def main():
                            "by LINKNAMES, which may be a comma-separated "+\
                            "list of link names.",
                       metavar="LINKNAMES",
+                      )
+    parser.add_option("--filter-names-rx",   # implies dest="switch"
+                      action="store", # default: None
+                      type="string",
+                      help="show only information for links specified "+\
+                           "by LINKREGEXP, which may be a comma-separated "+\
+                           "list of regular expressions.",
+                      metavar="LINKREGEXP",
                       )
     parser.add_option("--filter-versions",   # implies dest="switch"
                       action="store", # default: None
