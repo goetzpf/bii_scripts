@@ -27,47 +27,35 @@ function print_long_help {
 
 # declare all known insertion devices in a hash:
 
-declare -A IDs
-
-IDs[U125/2]=3
-IDs[U125ID2R]=3
-
-IDs[UE56/2]=5
-IDs[UE56ID3R]=5
-
-IDs[U49/1]=7
-IDs[U49ID4R]=7
-
-IDs[UE49]=8
-IDs[UE49IT4R]=8
-
-IDs[UE52]=9
-IDs[UE52ID5R]=9
-
-IDs[UE46]=10
-IDs[UE46IT5R]=10
-
-IDs[UE56/1]=11
-IDs[UE56ID6R]=11
-
-IDs[U139]=110
-IDs[U139ID6R]=110
-
-IDs[U41]=12
-IDs[U41IT6R]=12
-
-IDs[UE112]=13
-IDs[UE112ID7R]=13
-
-IDs[U49/2]=15
-IDs[U49ID8R]=15
+IDs='U125/2:3\n
+U125ID2R:3\n
+UE56/2:5\n
+UE56ID3R:5\n
+U49/1:7\n
+U49ID4R:7\n
+UE49:8\n
+UE49IT4R:8\n
+UE52:9\n
+UE52ID5R:9\n
+UE46:10\n
+UE46IT5R:10\n
+UE56/1:11\n
+UE56ID6R:11\n
+U139:110\n
+U139ID6R:110\n
+U41:12\n
+U41IT6R:12\n
+UE112:13\n
+UE112ID7R:13\n
+U49/2:15\n
+U49ID8R:15\n
+'
 
 installed_ids="^idcp(3|7|8|9|10|11|12|13|15|110)$"
 
 function list_ids {
-    for k in "${!IDs[@]}"; do
-        echo -e "$k\t: idcp${IDs[$k]}" | expand -t 10
-    done
+    tags=`echo "$IDs" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
+    echo -e "$tags" | expand -t 10
     exit 0
 }
 
@@ -87,12 +75,13 @@ while [ $# -gt 0 ]; do
         exit 0
         ;;
       --id)
-        no=${IDs[$2]}
+        no=`echo -e "$IDs" | egrep "^$2:"`
+        no=`echo $no | sed -e 's/^[^:]\+://g'`
         if [[ -z "$no" ]]; then
             echo "unknown ID:$2"
             exit 1
         fi
-        opts="$opts --filter-names idcp${IDs[$2]}"
+        opts="$opts --filter-names idcp$no"
         shift
         ;;
       --idcp)
