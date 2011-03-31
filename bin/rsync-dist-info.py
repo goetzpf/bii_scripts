@@ -85,7 +85,7 @@ Quick reference
 
    rsync-dist-info.py -c rsync-dist.config -l
 
-* show an overview on IOC boot times:
+* show an overview on IOC boot times::
 
    rsync-dist-info.py -c rsync-dist.config --boot-times
 
