@@ -279,7 +279,14 @@ foreach my $file (@files)
       };
 
     if (defined $opt_unresolved_variables)
-      { list_unresolved_variables($filename,$recs,1);
+      { 
+        my $flag= undef;
+	if ($opt_recreate)
+	  { $flag= "add_records"; };
+	if ($opt_db)
+	  { $flag= "only_records"; };
+
+        list_unresolved_variables($filename,$recs,1,$flag);
         next;
       };
 
@@ -287,7 +294,13 @@ foreach my $file (@files)
       { 
  	if ($opt_unresolved_links eq "")
           { $opt_unresolved_links=2; } # default: 2
-        list_unresolved_links($filename,$recs, $opt_unresolved_links);
+        my $flag= undef;
+	if ($opt_recreate)
+	  { $flag= "add_records"; };
+	if ($opt_db)
+	  { $flag= "only_records"; };
+
+        list_unresolved_links($filename,$recs, $opt_unresolved_links, $flag);
         next;
       };
 
@@ -478,7 +491,7 @@ sub match_fields
   }  
 
 sub list_unresolved_variables
-  { my ($filename,$recs,$do_list)= @_;
+  { my ($filename,$recs,$do_list,$flag)= @_;
     my $res;
     my %mac;
     my %recs;
@@ -494,15 +507,25 @@ sub list_unresolved_variables
       };
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
-    print "=" x 40,"\n";
-    if ($do_list)
-      { print "unresolved macros in these records:\n";
+    if ($flag ne "only_records")
+      {
+        print "=" x 40,"\n";
+        if ($do_list)
+          { print "unresolved macros in these records:\n";
+            print "-" x 40,"\n";
+            print join("\n",sort keys %recs);
+          };
+        print "\n\nList of unresolved macros:\n";
         print "-" x 40,"\n";
-        print join("\n",sort keys %recs);
-      };
-    print "\n\nList of unresolved macros:\n";
-    print "-" x 40,"\n";
-    print join("\n",sort keys %mac),"\n";  
+        print join("\n",sort keys %mac),"\n";  
+      }
+    if (($flag eq "add_records") || ($flag eq "only_records"))
+      {
+        if ($flag ne "only_records")
+	  { print "=" x 40,"\nRecords:\n"; }
+        my @reclist= sort keys %recs;
+        parse_db::create($recs,\@reclist);
+      }
   } 
 
 sub list_record_references
@@ -625,7 +648,7 @@ sub list_record_references
   } 
 
 sub list_unresolved_links
-  { my ($filename,$recs,$verbosity)= @_;
+  { my ($filename,$recs,$verbosity,$flag)= @_;
     my $res;
     my %mac;
     my %found_recs;
@@ -643,34 +666,47 @@ sub list_unresolved_links
       };
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
-    if ($verbosity==0)
-      { # just list all items (values) that are missing
-        my %values;
-        foreach my $recname (keys %found_recs)
-	  { my $r_f= $found_recs{$recname};
-            foreach my $field (keys %$r_f)
-	      { $values{$r_f->{$field}}= 1; };
-	  };
-	print join("\n",sort keys %values),"\n";
-	return;
-      };
 
-    if ($verbosity>1)
-      { 
-        print "=" x 40,"\n";
-        print "unresolved links in these records:\n";
-        print "-" x 40,"\n";
-        print join("\n",sort keys %found_recs);
-        print "\n\n";
+    if ($flag ne "only_records")
+      {
+
+        if ($verbosity==0)
+          { # just list all items (values) that are missing
+            my %values;
+            foreach my $recname (keys %found_recs)
+              { my $r_f= $found_recs{$recname};
+                foreach my $field (keys %$r_f)
+                  { $values{$r_f->{$field}}= 1; };
+              };
+            print join("\n",sort keys %values),"\n";
+          }
+        else
+          {
+            if ($verbosity>1)
+              { 
+                print "=" x 40,"\n";
+                print "unresolved links in these records:\n";
+                print "-" x 40,"\n";
+                print join("\n",sort keys %found_recs);
+                print "\n\n";
+              };
+            print "List of fields with unresolved links\n";
+            print "-" x 40,"\n";
+            foreach my $recname (sort keys %found_recs)
+              { my $r_f= $found_recs{$recname};
+                print "record: $recname\n";
+                foreach my $field (sort keys %$r_f)
+                  { print "\t$field : ",$r_f->{$field},"\n"; };
+              };
+          }
       };
-    print "List of fields with unresolved links\n";
-    print "-" x 40,"\n";
-    foreach my $recname (sort keys %found_recs)
-      { my $r_f= $found_recs{$recname};
-        print "record: $recname\n";
-        foreach my $field (sort keys %$r_f)
-	  { print "\t$field : ",$r_f->{$field},"\n"; };
-      };
+    if (($flag eq "add_records") || ($flag eq "only_records"))
+      {
+        if ($flag ne "only_records")
+	  { print "=" x 40,"\nRecords:\n"; }
+        my @reclist= sort keys %found_recs;
+        parse_db::create($recs,\@reclist);
+      }
   } 
 
 sub add_macros
@@ -1189,11 +1225,15 @@ Syntax:
       if number is negative, filter the LAST n percent of all
       records, otherwise filter the FIRST n percent of all records
 
-    --unresolved_variables 
-      list all unresolved variables like \$(VARNAME) in the db file
+    --unresolved-variables 
+      List all unresolved variables like \$(VARNAME) in the db file.
+      This option can be combined with "-r", in this case
+      all the contents of the shown records are printed in 
+      db-file format. With "--db" just the records in db format
+      are printed.
 
-    --unresolved_links {verbosity} 
-      try to find unresolved links in the db-file.
+    --unresolved-links {verbosity} 
+      Try to find unresolved links in the db-file.
       list all links that cannot be resolved within the
       db file. Currently the followings list of fields is expected to
       contain links:
@@ -1206,6 +1246,11 @@ Syntax:
       1   : list record names and link values
       2   : print a list of record names, then a list of
             record names and link values
+      
+      This option can be combined with "-r", in this case
+      all the contents of the shown records are printed in 
+      db-file format. With "--db" just the records in db format
+      are printed.
 
     --record_references -R [regexp{,regexp2}]
       list which record (whose name matches regexp) is connected 
