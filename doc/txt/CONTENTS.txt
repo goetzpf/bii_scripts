@@ -145,16 +145,17 @@ Scripts
   | `documentation <scripts/darcs-compare-repos.html>`__
 
 **darcs-kompare**
-  | start KDE kompare to compare the working copy with the repository copy of a
-    file
+  | a GUI version of 'darcs diff' (using KDE kompare tool); command line
+    arguments are forwarded to the darcs command, so you can e.g.
+    select certain patches to diff etc.
 
 **darcs-meld**
   | a GUI version of 'darcs diff' (using GNOME meld tool); command line
     arguments are forwarded to the darcs command, so you can e.g.
     select certain patches to diff etc.
 
-**darcs-moni**
-  | small wrapper around darcs-monitor
+**darcs-monitor.sh**
+  | small shell wrapper around darcs-monitor
 
 **darcs-restore**
   | see darcs-save
