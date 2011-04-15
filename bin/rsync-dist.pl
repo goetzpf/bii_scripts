@@ -793,6 +793,20 @@ sub dist
                    take_default('distribute:LOCALPATHS'));
       };
 
+    my($now,$local_host,$local_user,$from)= local_info();
+
+    # create version-file if this is wanted
+    if ($opt_version_file)
+      { # create filename
+        if (!File::Spec->file_name_is_absolute($opt_version_file))
+          { my $pre= $localprefix;
+            $pre= cwd() if (!$pre);
+            $opt_version_file= File::Spec->catfile($pre,$opt_version_file);
+          }
+        my $str= "$opt_version_file_prefix$now\n";
+        write_file($opt_version_file,\$str);
+      }
+
     my $filelist_file;
     my $local_paths;
     #if (has_glob(@$r_local_paths))
@@ -816,20 +830,6 @@ sub dist
         # the current value of the "PWD" environment variable:
         my $pwd= $ENV{PWD};
         $local_paths= join(" ", (map { File::Spec->rel2abs($_,$pwd) } @p));
-      }
-
-    my($now,$local_host,$local_user,$from)= local_info();
-
-    # create version-file if this is wanted
-    if ($opt_version_file)
-      { # create filename
-        if (!File::Spec->file_name_is_absolute($opt_version_file))
-          { my $pre= $localprefix;
-            $pre= cwd() if (!$pre);
-            $opt_version_file= File::Spec->catfile($pre,$opt_version_file);
-          }
-        my $str= "$opt_version_file_prefix$now\n";
-        write_file($opt_version_file,\$str);
       }
 
     # start to create hash for local logfile:
