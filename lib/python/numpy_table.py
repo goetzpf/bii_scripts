@@ -77,6 +77,28 @@ class TabFunction(object):
     0.5
     >>> f(2)
     1.5
+
+    >>> f.y(0)
+    0.0
+    >>> f.y(1)
+    1.0
+    >>> f.y(3)
+    2.0
+    >>> f.y(0.5)
+    0.5
+    >>> f.y(2)
+    1.5
+
+    >>> f.x(0)
+    0.0
+    >>> f.x(1)
+    1.0
+    >>> f.x(2)
+    3.0
+    >>> f.x(0.5)
+    0.5
+    >>> f.x(1.5)
+    2.0
     """
     def __init__(self, tab):
         """creates the callable TabFunction object.
@@ -105,6 +127,14 @@ class TabFunction(object):
           and do a linear interpolation.
         """
         return numpy.interp(x, self._x, self._y)
+    def y(self, x):
+        """returns y=f(x).
+        """
+        return self(x)
+    def x(self, y):
+        """returns x= f^-1(y).
+        """
+        return numpy.interp(y, self._y, self._x)
 
 def TabFunction_from_File(filename):
     """create a TabFunction from a file.
