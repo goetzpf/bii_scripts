@@ -295,7 +295,6 @@ PLAINTXT_PL_SCRIPT_LIST= \
 PLAINTXT_H_SCRIPT_LIST= \
 	dbdiff \
 	darcs-compare-repos \
-	idcp-dist-info \
 	psh \
 	substdiff\
 	csv2plot
@@ -342,6 +341,7 @@ RST_DOC_PY_SCRIPT_LIST= \
 	hg-recover.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
+	tableutil.py \
 	txtcleanup.py 
 
 
@@ -382,6 +382,8 @@ PYDOC_PYTHONLIB_LIST= \
 	rdump.py \
 	rsync_dist_lib.py \
 	sqlpotion.py \
+	numpy_table.py \
+	numpy_util.py \
 	typecheck.py
 
 # python scripts that need python 2.5
@@ -393,6 +395,7 @@ PYTHON_2_5_SCRIPTS= \
 	hgdiff.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
+	tableutil.py \
 	sqlutil.py
 
 # scripts that have embedded documentation that can be HTML converted

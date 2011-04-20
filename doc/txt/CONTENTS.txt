@@ -145,17 +145,11 @@ Scripts
   | `documentation <scripts/darcs-compare-repos.html>`__
 
 **darcs-kompare**
-  | a GUI version of 'darcs diff' (using KDE kompare tool); command line
-    arguments are forwarded to the darcs command, so you can e.g.
-    select certain patches to diff etc.
+  | start KDE kompare to compare the working copy with the repository copy of a
+    file
 
-**darcs-meld**
-  | a GUI version of 'darcs diff' (using GNOME meld tool); command line
-    arguments are forwarded to the darcs command, so you can e.g.
-    select certain patches to diff etc.
-
-**darcs-monitor.sh**
-  | small shell wrapper around darcs-monitor
+**darcs-moni**
+  | small wrapper around darcs-monitor
 
 **darcs-restore**
   | see darcs-save
@@ -290,10 +284,6 @@ Scripts
     the state of the original working copy and mercurial repository from which the
     application was built. 
   | `documentation <scripts/hg-recover.html>`__
-
-**idcp-dist-info**
-  | Reports for software versions of IDCP (Insertion Device Control Program).
-  | `documentation <scripts/idcp-dist-info.html>`__
 
 **latin1toutf8.sh**
   | convert latin-1 texts to utf-8 (calls the iconv utility).
@@ -436,6 +426,12 @@ Scripts
 **substprint.pl**
   | pretty-print a substitution file.
   | `documentation <scripts/substprint.html>`__
+
+**tableutil.py**
+  | A tool to manipulate and print tables of numbers. New columns can be
+    calculated by applying calculation expression. Command scripts can be used
+    to do more complex operations on tables.
+  | `documentation <scripts/tableutil.html>`__
 
 **tkSQL**
   | query the oracle database by directly entering SQL requests.
@@ -652,6 +648,18 @@ Python Libraries
 **maillike.py**
   | parse texts that have a mail-like format.
   | `documentation <python/maillike.html>`__
+
+**numpy_util.py**
+  | Utilities to numpy structured arrays. These arrays can be used to hold the
+    data of number tables. This module is used by numpy_table.py and
+    tableutil.py.
+  | `documentation <python/numpy_util.html>`__
+
+**numpy_table.py**
+  | Implements a table class based on numpy structured arrays. This module is
+    basically an object oriented wrapper for all functions in numpy_util.py. It
+    is used by tableutil.py.
+  | `documentation <python/numpy_util.html>`__
 
 **pdict.py**
   | implements a dictionary for one-to-one relations.
