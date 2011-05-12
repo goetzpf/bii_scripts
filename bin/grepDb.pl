@@ -51,7 +51,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #
 #      -pt <recType>:   print records of this type
 #      -pr <recName>:   print records tha match that name
-#      -pf <fieldType>: print this field/s
+#      -pf -ipf<fieldType>: print/ignore this field/s
 #      -pT :            print as table, default is EPICS.db format\n".
 #
 #  Common options:
@@ -88,7 +88,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         "   Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:\n\n".
         "    -pt <recType>:   print records of this type\n".
         "    -pr <recName>:   print records tha match that name\n".
-        "    -pf <fieldType>: print this field/s\n\n".
+        "    -pf -ipf<fieldType>: print/ignore this field/s\n\n".
         "    -pT :            print as table, default is EPICS.db format\n".
         "COMMON OPTIONS:\n\n".
         "     -i ignore case\n".
@@ -120,10 +120,11 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $trIgRecName = "___";
     my $trIgFieldName = "___";
     my $trIgFieldValue = "___";
+    my $igFieldName = "___";
     
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
     	    	    	    "it=s"=>\$trIgRecType, "ir=s"=>\$trIgRecName, "if=s"=>\$trIgFieldName, "iv=s"=>\$trIgFieldValue,
-                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
+                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName, "ipf=s"=>\$igFieldName,
                             "i"=>\$ignore,"pT"=>\$ptable,"v"=>\$verbose,"q"=>\$quiet,"tl=s"=>\$links);
 
     my( $filename ) = shift @ARGV;
@@ -295,6 +296,7 @@ sub printRecord
         }
         if( (defined $recordFlag) && match($field,$prFieldName) )
         {   
+            next if( match($field,$igFieldName) );
             $printStr .= "\tfield($field,\"$fVal\")\n";
         }
     }
