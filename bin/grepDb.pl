@@ -39,10 +39,10 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #  options  are processed as regular expressions and concatenated with logical AND, 
 #  means all triggers have to match.
 #
-#      -tt <recType>:   record type
-#      -tr <recName>:   record name
-#      -tf <fieldType>: field type
-#      -tv <value>:     field contains <value>
+#      -tt/-it <recType>:   match/ignore record type
+#      -tr/-ir <recName>:   match/ignore record name
+#      -tf/-if <fieldType>: match/ignore field type
+#      -tv/-iv <value>:     match/ignore field contains <value>
 #      -tl <value>:     Trigger all link fields that contains <value>. 
 #                       Print all link fields of these records.
 #
@@ -79,11 +79,11 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         "TRIGGERS:  defines what fields, records etc are of interest. The values of the trigger \n".
         "   options  are processed as regular expressions and concatenated with logical AND, \n".
         "   means all triggers have to match.\n\n".
-        "    -tt <recType>:   record type\n".
-        "    -tr <recName>:   record name\n".
-        "    -tf <fieldType>: field type\n".
-        "    -tv <value>:     field contains <value>\n".
-        "    -tl:<value>      db linkage (other trace options usable to reduce output)\n\n".
+        "    -tt/-it <recType>:   match/ignore record type\n".
+        "    -tr/-ir <recName>:   match/ignore record name\n".
+        "    -tf/-if <fieldType>: match/ignore field type\n".
+        "    -tv/-iv <value>:	  match/ignore field contains <value>\n".
+        "    -tl:<value>	 db linkage (other trace options usable to reduce output)\n\n".
         "PRINT OPTIONS:  defines the output fields. The record name and type is allways shown.\n". 
         "   Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:\n\n".
         "    -pt <recType>:   print records of this type\n".
@@ -116,10 +116,15 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $rH_fields;
     my $rH_prTable={};
     my $ptable;
-
+    my $trIgRecType = "___";
+    my $trIgRecName = "___";
+    my $trIgFieldName = "___";
+    my $trIgFieldValue = "___";
+    
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
-                           "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
-                           "i"=>\$ignore,"pT"=>\$ptable,"v"=>\$verbose,"q"=>\$quiet,"tl=s"=>\$links);
+    	    	    	    "it=s"=>\$trIgRecType, "ir=s"=>\$trIgRecName, "if=s"=>\$trIgFieldName, "iv=s"=>\$trIgFieldValue,
+                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName,
+                            "i"=>\$ignore,"pT"=>\$ptable,"v"=>\$verbose,"q"=>\$quiet,"tl=s"=>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -179,12 +184,14 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
             my $recT = $rH_recName2recType->{$record} ;
 
             if( match($record,$trigRecName) && match($recT,$trigRecType) )
-#            if( $record =~ /$trigRecName/ && $recT =~ /$trigRecType/ )
             {
                 foreach my $field ( keys( %{$rH_records->{$record}} ) )
                 {
                     my $fVal = $rH_records->{$record}->{$field};
-
+		    next if(match($recT,$trIgRecType) );
+		    next if(match($record,$trIgRecName) );
+		    next if(match($field,$trIgFieldName) );
+		    next if(match($fVal,$trIgFieldValue) );
                     if( (defined $filename) && match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
                         $printStr .= "File: \"$filename\"\n" unless defined $quiet;
@@ -192,7 +199,6 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
                     }
                     if( match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
-#print "tr: $record.$field\n";
                         printRecord($record,$rH_records,$rH_recName2recType);
                     }
                 }
