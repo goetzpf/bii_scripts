@@ -606,6 +606,18 @@ class HashedList2D(object):
                         val= val[:]
                     self.set(row, col, val)
             last= row
+    def filter_complete(self, is_empty_func=None):
+        """removes rows where not all columns have a value.
+        """
+        if is_empty_func is None:
+            is_empty_func= lambda x: x is None
+        row_list= self._rows.keys()
+        column_list= self.columns()
+        for row in row_list:
+            for col in column_list:
+                if is_empty_func(self.lookup(row, col)):
+                    self._rows.delete(row)
+                    continue
     def __str__(self):
         rows= self._rows.keys()
         columns= self._column_hashindex.keys()
@@ -671,7 +683,7 @@ def parse_line(line):
 # ----------------------------------------
 
 def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
-            filter_pv= None,
+            filter_pv= None, 
             skip_flagged= None, rm_flags= None,
             max_lines= None,
             progress=False):
@@ -1015,6 +1027,8 @@ def process_files(options,args):
         else:
             start_date= str2date_ui(options.floattime)
         convert_to_float_time(start_date, results)
+    if options.filter_complete:
+        results.filter_complete()
     if options.differentiate:
         differentiate(results)
     if options.raw:
@@ -1136,6 +1150,10 @@ def main():
                       type="string",  # OptionParser's default
                       help="select only PVs that match REGEXP",
                       metavar="REGEXP"  # for help-generation text
+                      )
+    parser.add_option("--filter-complete",     # implies dest="switch"
+                      action="store_true", # default: None
+                      help="select only rows where each column has a value",
                       )
     parser.add_option("--skip-flagged",     # implies dest="switch"
                       action="store", # default: None
