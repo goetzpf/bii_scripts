@@ -49,97 +49,11 @@ except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module numpy not found\n" % __name__)
 from StringIO import StringIO
 import sys
+import inspect
+import math
 
 # version of the program:
 my_version= "1.0"
-
-class TabFunction(object):
-    """implements a function specified by a numpy array.
-    
-    The two dimensional array specifies the values of the partially linear
-    function. Between the points the function does a linear interpolation.
-
-    Here are some examples:
-    >>> f=TabFunction(numpy.array([[0,0],[1,1],[3,2]]))
-    >>> f(0)
-    0.0
-    >>> f(1)
-    1.0
-    >>> f(3)
-    2.0
-    >>> f(0.5)
-    0.5
-    >>> f(2)
-    1.5
-    """
-    def __init__(self, tab):
-        """creates the callable TabFunction object.
-
-        parameters:
-          tab  -- a numpy.array object
-        returns:
-          the new TabFunction object.
-        """
-        self._tab= tab
-        _arrays= numpy.hsplit(self._tab,2)
-        self._x= _arrays[0].transpose()[0]
-        self._y= _arrays[1].transpose()[0]
-    def __call__(self, x):
-        """make the object callable.
-
-        You can simple call a TabFunction object as if it were a simple
-        function f(x).
-
-        parameters:
-          x -- this is the value for which the function is calculated.
-          
-        returns:
-          This function looks up x in the table and returns the corresponding
-          number y. If x is not found in the table take the two nearest points
-          and do a linear interpolation.
-        """
-        return numpy.interp(x, self._x, self._y)
-
-def TabFunction_from_File(filename):
-    """create a TabFunction from a file.
-
-    Use this function like this:
-    f= TabFunction_from_File(filename)
-    
-    Now you can call f as if it were a simple function:
-    f(0)
-    f(1)
-
-    parameters:
-      filename -- the name of the file
-    returns:
-      the new TabFunction object.
-    """
-    return TabFunction( numpy.genfromtxt(filename, delimiter=None))
-
-def TabFunction_from_Lines(lines):
-    """create a TabFunction from a list of lines.
-
-    parameters:
-      lines -- a list of lines defining the table. Each line must contain two
-               numbers separated by spaces.
-    returns:
-      the new TabFunction object.
-    
-    Here is an example:
-    >>> f= TabFunction_from_Lines(["0 0","1 1","3 2"])
-    >>> f(0)
-    0.0
-    >>> f(1)
-    1.0
-    >>> f(3)
-    2.0
-    >>> f(0.5)
-    0.5
-    >>> f(2)
-    1.5
-    """
-    return TabFunction( numpy.genfromtxt(StringIO("\n".join(lines)), delimiter=None))
 
 def to_lines(tab,sep=" ",formats=[],justifications=[]):
     r"""pretty-print Table.
@@ -329,20 +243,20 @@ def print_(tab,sep=" ",formats=[],justifications=[]):
     """
     print "\n".join(to_lines(tab, sep=sep,formats=formats,justifications=justifications))
 
-def rename(tab,newname_dict):
-    """create a new Table, change the names of rows.
+def rename_by_dict(tab,newname_dict):
+    """create a new Table, change the names of columns with a dict.
 
-    This method creates a new Table object where some or all of the rows
-    may have been renamed. The mapping defined in the given dictionary is
-    not required to be complete. Row names not found in the dictionary
-    remain unchanged.
+    This method creates a new Table object where some or all of the columns may
+    have been renamed. The mapping defined in the given dictionary is not
+    required to be complete. Column names not found in the dictionary remain
+    unchanged.
 
     parameters:
       tab          -- a numpy structured array
-      newname_dict -- a dictionary mapping old row names to new row names.
+      newname_dict -- a dictionary mapping old column names to new column names.
 
     returns:
-      a new Table object where the rows are renamed.
+      a new Table object where the columns are renamed.
 
     Here is an example:
     >>> tab= numpy.zeros(3,dtype={"names":["t","x","y"],"formats":["f4","f4","f4"]})
@@ -354,7 +268,7 @@ def rename(tab,newname_dict):
     1.0 2.0 4.0 
     2.0 4.0 8.0 
     3.0 6.0 16.0
-    >>> print_(rename(tab, {"t":"T","y":"New"}))
+    >>> print_(rename_by_dict(tab, {"t":"T","y":"New"}))
     T   x   New 
     1.0 2.0 4.0 
     2.0 4.0 8.0 
@@ -366,6 +280,38 @@ def rename(tab,newname_dict):
     new_tab.dtype= [(newname_dict.get(n,n),tab.dtype[n].__str__()) 
                     for n in tab.dtype.names]
     return new_tab
+
+def rename_by_function(tab,fun):
+    """create a new Table, change the names of columns with a function.
+
+    This method creates a new Table object where some or all of the columns may
+    have been renamed. The new names are determined by applying the given
+    function to each of the old column names. 
+
+    parameters:
+      tab  -- a numpy structured array
+      fun  -- a function mapping old column names to new column names.
+
+    returns:
+      a new Table object where the columns are renamed.
+
+    Here is an example:
+    >>> tab= numpy.zeros(3,dtype={"names":["t","x","y"],"formats":["f4","f4","f4"]})
+    >>> tab["t"]=[1,2,3]
+    >>> tab["x"]=[2,4,6]
+    >>> tab["y"]=[4,8,16]
+    >>> print_(tab)
+    t   x   y   
+    1.0 2.0 4.0 
+    2.0 4.0 8.0 
+    3.0 6.0 16.0
+    >>> print_(rename_by_function(tab, lambda n: n+"_new"))
+    t_new x_new y_new
+    1.0   2.0   4.0  
+    2.0   4.0   8.0  
+    3.0   6.0   16.0 
+    """
+    return rename_by_dict(tab, dict( [(n,fun(n)) for n in tab.dtype.names] ))
 
 def take_columns(tab,row_list):
     """create a new Table, take columns from the list.
@@ -412,7 +358,7 @@ def take_columns(tab,row_list):
             new[r][i]= line[r]
     return new
 
-def fold(tab, fun, initial=None):
+def fold(tab, fun, initial=None, filter_func=None):
     """calculate a single value (or tuple) from the table.
 
     This function can be used to create a value from the table by applying
@@ -423,9 +369,14 @@ def fold(tab, fun, initial=None):
     of the following row.
     
     parameters:
-      tab -- a numpy structured array
-      fun -- the function. It must accept an anonymous first parameter and a
-             list of named parameters, one for each column in the table.
+      tab         -- a numpy structured array
+      fun         -- the function. It must accept an anonymous first parameter
+                     and a list of named parameters, one for each column in the
+                     table.
+      filter_func -- an optional function that is used to filter the lines
+                     where the fold function <fun> is applied. If this function
+                     is given, <fun> is only applied to lines were filter_func
+                     returns True.
     returns:
       a value that is given as anonymous first parameter to the next call
       of the function.
@@ -449,18 +400,102 @@ def fold(tab, fun, initial=None):
     60.0
     >>> fold(tab, lambda s,t,x,y: s*t, 1)
     24.0
+    >>> fold(tab, lambda s,t,x,y: s+x, 0, lambda t,x,y: t>2)
+    14.0
+    >>> fold(tab, lambda s,t,x,y: s*t, 1, lambda t,x,y: t!=3)
+    8.0
     """
     n= tab.dtype.names
     # set fun._bag to an empty dict, this allows fun
     # to use _bag as a store to hold local static variables
-    fun._bag= {}
+    if not inspect.isbuiltin(fun):
+        fun._bag= {}
     for row in tab:
         vd= dict(zip(n,row))
+        if filter_func is not None:
+            if not filter_func(**vd):
+                continue
         # call the function with parameters, one for
         # each column:
         initial= fun(initial, **vd)
     return initial
 
+def fold_dict(tab, fun, initial=None, filter_func=None, column_list=None):
+    """apply a fold function to all columns of a table.
+
+    The fold function is called like this: fun(initial, field_value) for each
+    specified column in each filtered row. The value returned is passed as
+    <initial> parameter the next time the function is called for the same
+    column. The result is a dictionary that contains the latest <initial>
+    values for all specified columns.
+
+    parameters:
+      tab         -- a numpy structured array
+      fun         -- the function to call for each field. It should return a
+                     single value.
+      initial     -- the value that is passed to the function at the first time
+                     it is called.
+      filter_func -- if given, this function specifies which rows to use. It is
+                     called with a dictionary of all values for each row and
+                     should return a boolean value. If it returns True, the row
+                     is selected, otherwise it is skipped.
+      column_list -- if given, this specifies the names of the columns where
+                     the function should be applied. It this parameter is
+                     missing, the function is applied to all columns.
+    
+    Here are some examples:
+    >>> tab= numpy.zeros(4,dtype={"names":["t","x","y"],"formats":["f4","f4","f4"]})
+    >>> tab["t"]=[1,2,3,4]
+    >>> tab["x"]=[2,4,6,8]
+    >>> tab["y"]=[4,8,16,32]
+    >>> print_(tab)
+    t   x   y   
+    1.0 2.0 4.0 
+    2.0 4.0 8.0 
+    3.0 6.0 16.0
+    4.0 8.0 32.0
+    >>> d= fold_dict(tab, lambda s,x: min(s,x) if s is not None else x)
+    >>> for k in sorted(d.keys()):
+    ...     print k,": ",d[k]
+    ... 
+    t :  1.0
+    x :  2.0
+    y :  4.0
+    >>> d= fold_dict(tab, lambda s,x: max(s,x) if s is not None else x)
+    >>> for k in sorted(d.keys()):
+    ...     print k,": ",d[k]
+    ... 
+    t :  4.0
+    x :  8.0
+    y :  32.0
+    >>> d= fold_dict(tab, lambda s,x: min(s,x) if s is not None else x,
+    ...              filter_func= lambda t,x,y: t>2)
+    >>> for k in sorted(d.keys()):
+    ...     print k,": ",d[k]
+    ... 
+    t :  3.0
+    x :  6.0
+    y :  16.0
+    """
+    all_names= tab.dtype.names
+    if column_list is None:
+        names= all_names
+    else:
+        names= column_list
+    result= dict( [(n,initial) for n in names] )
+    # set fun._bag to an empty dict, this allows fun
+    # to use _bag as a store to hold local static variables
+    if not inspect.isbuiltin(fun):
+        fun._bag= {}
+    for row in tab:
+        if filter_func is not None:
+            vd= dict(zip(all_names,row))
+            if not filter_func(**vd):
+                continue
+        for n in names:
+            result[n]= fun(result[n], row[n])
+    return result
+        
 def map_add(tab,new_names,fun):
     """calculate additional columns and return a new table.
 
@@ -503,7 +538,8 @@ def map_add(tab,new_names,fun):
     fun_returns_list= None
     # set fun._bag to an empty dict, this allows fun
     # to use _bag as a store to hold local static variables
-    fun._bag= {}
+    if not inspect.isbuiltin(fun):
+        fun._bag= {}
     for row in tab:
         vd= dict(zip(n,row))
         # call the function with parameters, one for
@@ -561,7 +597,8 @@ def map(tab, names, fun):
     fun_returns_list= None
     # set fun._bag to an empty dict, this allows fun
     # to use _bag as a store to hold local static variables
-    fun._bag= {}
+    if not inspect.isbuiltin(fun):
+        fun._bag= {}
     for row in tab:
         vd= dict(zip(n,row))
         # call the function with parameters, one for
@@ -579,6 +616,245 @@ def map(tab, names, fun):
         # of the last line:
         dtype.append((names[i],type(elm)))
     return numpy.array(new_data, dtype= dtype)
+
+def count(tab, filter_func):
+    """count all rows where filter_func returns True.
+
+    parameters:
+      tab         -- a numpy structured array
+      filter_func -- an optional function that is used to filter the lines
+    returns:
+      the number of rows where filter_func returned True
+
+    Here is an example:
+    >>> tab= numpy.zeros(4,dtype={"names":["t","x","y"],"formats":["f4","f4","f4"]})
+    >>> tab["t"]=[1,2,3,4]
+    >>> tab["x"]=[2,4,6,8]
+    >>> tab["y"]=[4,8,16,32]
+    >>> print_(tab)
+    t   x   y   
+    1.0 2.0 4.0 
+    2.0 4.0 8.0 
+    3.0 6.0 16.0
+    4.0 8.0 32.0
+    >>> count(tab,lambda t,x,y: x>=4)
+    3
+    >>> count(tab,lambda t,x,y: 2*x<y)
+    2
+    """
+    n= tab.dtype.names
+    no=0
+    for row in tab:
+        vd= dict(zip(n,row))
+        if filter_func(**vd):
+            no+=1
+    return no
+
+def sums(tab, filter_func=None, column_list= None):
+    r"""calculate sums of columns and number of rows.
+
+    This function calculates the number of rows and the sum of columns for a
+    given table. It returns the number of rows where filter_func returned True
+    and a dictionary with the sums of values for that rows for each column. If
+    filter_func is omitted, all rows are taken into account.
+
+    parameters:
+      tab         -- a numpy structured array
+      filter_func -- an optional function that is used to filter the lines. If
+                     this function is not given, all lines are take into
+                     account.
+      column_list -- if given, this specifies the names of the columns where
+                     the function should be applied. It this parameter is
+                     missing, the function is applied to all columns.
+    returns:
+      a tuple consisting of the number of rows where filter_func returned True
+      and a dictionary with the sum of values for all specified columns.
+
+    Here is an example:
+    >>> tab= numpy.zeros(4,dtype={"names":["t","x","y"],"formats":["f4","f4","f4"]})
+    >>> tab["t"]=[1,2,3,4]
+    >>> tab["x"]=[2,4,6,8]
+    >>> tab["y"]=[4,8,16,32]
+    >>> print_(tab)
+    t   x   y   
+    1.0 2.0 4.0 
+    2.0 4.0 8.0 
+    3.0 6.0 16.0
+    4.0 8.0 32.0
+    >>> s= sums(tab)
+    >>> print "rows:",s[0]
+    rows: 4
+    >>> for k in sorted(s[1].keys()):
+    ...   print "sum(%s): %s" % (k,s[1][k])
+    ... 
+    sum(t): 10.0
+    sum(x): 20.0
+    sum(y): 60.0
+    >>> s=sums(tab, filter_func=lambda t,x,y:t%2==0)
+    >>> print "rows:",s[0]
+    rows: 2
+    >>> for k in sorted(s[1].keys()):
+    ...   print "sum(%s): %s" % (k,s[1][k])
+    ... 
+    sum(t): 6.0
+    sum(x): 12.0
+    sum(y): 40.0
+    >>> s=sums(tab, column_list=["t","y"])
+    >>> print "rows:",s[0]
+    rows: 4
+    >>> for k in sorted(s[1].keys()):
+    ...   print "sum(%s): %s" % (k,s[1][k])
+    ... 
+    sum(t): 10.0
+    sum(y): 60.0
+    """
+    all_names= tab.dtype.names
+    if column_list is None:
+        names= all_names
+    else:
+        names= column_list
+    def summarize(store, **kwargs):
+        for k in names:
+            store[1][k]+= kwargs[k]
+        return (store[0]+1,store[1])
+    return fold(tab, summarize, (0, dict( [(n,0) for n in names] )), filter_func)
+        
+def averages(tab, filter_func=None, column_list= None):
+    r"""calculate the mean values of all columns.
+
+    This function calculates the mean values for all columns and all selected
+    rows. The selected rows are rows where filter_func returns True, when
+    applied to a dictionary with the values of the row. If filter_func is not
+    given, all rows are taken into account. This function returns a dictionary
+    with the mean value for each column.
+    
+    parameters:
+      tab         -- a numpy structured array
+      filter_func -- an optional function that is used to filter the lines. If
+                     this function is not given, all lines are take into
+                     account.
+      column_list -- if given, this specifies the names of the columns where
+                     the function should be applied. It this parameter is
+                     missing, the function is applied to all columns.
+    returns:
+      a dictionary with the mean values for all columns.
+
+    Here is an example:
+    >>> tab= numpy.zeros(4,dtype={"names":["t","x","y"],"formats":["f4","f4","f4"]})
+    >>> tab["t"]=[1,2,3,4]
+    >>> tab["x"]=[2,4,6,8]
+    >>> tab["y"]=[4,8,16,32]
+    >>> print_(tab)
+    t   x   y   
+    1.0 2.0 4.0 
+    2.0 4.0 8.0 
+    3.0 6.0 16.0
+    4.0 8.0 32.0
+    >>> m= averages(tab)
+    >>> print "averages:\n","\n".join([ "%s: %s" % (n,m[n])
+    ...                            for n in sorted(m.keys())])
+    averages:
+    t: 2.5
+    x: 5.0
+    y: 15.0
+    >>> m= averages(tab, filter_func=lambda t,x,y:t%2==0)
+    >>> print "averages:\n","\n".join([ "%s: %s" % (n,m[n])
+    ...                            for n in sorted(m.keys())])
+    averages:
+    t: 3.0
+    x: 6.0
+    y: 20.0
+    >>> m= averages(tab, column_list=["t","y"])
+    >>> print "averages:\n","\n".join([ "%s: %s" % (n,m[n])
+    ...                            for n in sorted(m.keys())])
+    averages:
+    t: 2.5
+    y: 15.0
+    """
+    s= sums(tab, filter_func, column_list)
+    no= s[0]
+    col_sums= s[1]
+    return dict( [(k,col_sums[k]/no) for k in col_sums.keys()] )
+        
+def sample_standard_deviation(tab, filter_func=None, column_list=None):
+    r"""calculate the sample standard deviation of all columns.
+
+    This function calculates the mean values for all columns and all selected
+    rows. The selected rows are rows where filter_func returns True, when
+    applied to a dictionary with the values of the row. If filter_func is not
+    given, all rows are taken into account. This function returns a dictionary
+    with the mean value for each column.
+    
+    parameters:
+      tab         -- a numpy structured array
+      filter_func -- an optional function that is used to filter the lines. If
+                     this function is not given, all lines are take into
+                     account.
+      column_list -- if given, this specifies the names of the columns where
+                     the function should be applied. It this parameter is
+                     missing, the function is applied to all columns.
+    returns:
+      a dictionary with the mean values for all columns.
+
+    Here is an example:
+    >>> tab= numpy.zeros(4,dtype={"names":["t","x","y"],"formats":["f4","f4","f4"]})
+    >>> tab["t"]=[1,2,3,4]
+    >>> tab["x"]=[2,4,6,8]
+    >>> tab["y"]=[4,8,16,32]
+    >>> print_(tab)
+    t   x   y   
+    1.0 2.0 4.0 
+    2.0 4.0 8.0 
+    3.0 6.0 16.0
+    4.0 8.0 32.0
+    >>> d=sample_standard_deviation(tab)
+    >>> for k in sorted(d.keys()):
+    ...   print "%s: %6.2f" % (k,d[k])
+    ... 
+    t:   1.29
+    x:   2.58
+    y:  12.38
+    >>> d=sample_standard_deviation(tab,filter_func=lambda t,x,y:t>2)
+    >>> for k in sorted(d.keys()):
+    ...   print "%s: %6.2f" % (k,d[k])
+    ... 
+    t:   0.71
+    x:   1.41
+    y:  11.31
+    >>> d=sample_standard_deviation(tab,column_list=["t","y"])
+    >>> for k in sorted(d.keys()):
+    ...   print "%s: %6.2f" % (k,d[k])
+    ... 
+    t:   1.29
+    y:  12.38
+    """
+    # calling sums() instead of averages() optimizes since
+    # the number of elements is returned by sums, too
+    # otherwise we would have to call averages() AND count():
+    s= sums(tab, filter_func, column_list)
+    no= s[0]
+    col_sums= s[1]
+    averages= dict( [(k,col_sums[k]/no) for k in col_sums.keys()] )
+    all_names= tab.dtype.names
+    if column_list is None:
+        names= all_names
+    else:
+        names= column_list
+    def folder(squares, **kwargs):
+        for n in names:
+            # it is important to convert to a float here, otherwise
+            # since types like "numpy.int32" may be used here, an integer
+            # overflow may occur:
+            val= float(kwargs[n]-averages[n])
+            squares[n]+= val*val
+        return squares
+    squares= fold(tab, folder, initial=dict([(n,0) for n in names]), 
+                  filter_func=filter_func)
+    for k in squares:
+        squares[k]= math.sqrt(squares[k]/(no-1))
+        # no-1 is not an error here, see also:
+        # http://en.wikipedia.org/wiki/Standard_deviation
+    return squares
 
 def derive_add(tab,derive_by,derive_these,new_names=None):
     """calculate additional columns with the derivative of values.
