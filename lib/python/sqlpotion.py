@@ -535,94 +535,143 @@ pdb_coltypes= enum.Enum(
                     "PDB_DATE",
                     "PDB_TIME",
                     "PDB_DATETIME",
+                    "PDB_INTERVAL",
                     "PDB_TEXT",
-                    "PDB_BLOB")
+                    "PDB_BLOB",
+                    "PDB_LIST",
+                    "PDB_ENUM")
 
 # internal typemap:
-_pdb_typemap= \
-  { "Unicode"       : pdb_coltypes.PDB_STRING,
-    "Unicode(*)"    : pdb_coltypes.PDB_STRING,
-    "String"        : pdb_coltypes.PDB_STRING,
-    "String(*,*,*)" : pdb_coltypes.PDB_STRING,
-    "CHAR"          : pdb_coltypes.PDB_STRING,
-    "CHAR(*)"       : pdb_coltypes.PDB_STRING,
-    "VARCHAR"       : pdb_coltypes.PDB_STRING,
-    "VARCHAR(*)"    : pdb_coltypes.PDB_STRING,
-    "VARCHAR2"      : pdb_coltypes.PDB_STRING,
-    "VARCHAR2(*)"   : pdb_coltypes.PDB_STRING,
-    "NCHAR"         : pdb_coltypes.PDB_STRING,
-    "NCHAR(*)"      : pdb_coltypes.PDB_STRING,
-    "NVARCHAR"      : pdb_coltypes.PDB_STRING,
-    "NVARCHAR(*)"   : pdb_coltypes.PDB_STRING,
-    "UnicodeText"   : pdb_coltypes.PDB_TEXT,
-    "Text"          : pdb_coltypes.PDB_TEXT,
-    "CLOB"          : pdb_coltypes.PDB_TEXT,
-    "TEXT"          : pdb_coltypes.PDB_TEXT,
-    "Integer"       : pdb_coltypes.PDB_INT,
-    "NUMBER"        : pdb_coltypes.PDB_INT,
-    "INTEGER"       : pdb_coltypes.PDB_INT,
-    "INT"           : pdb_coltypes.PDB_INT,
-    "SmallInteger"  : pdb_coltypes.PDB_INT,
-    "SMALLINT"      : pdb_coltypes.PDB_INT,
-    "Numeric"       : pdb_coltypes.PDB_FLOAT,
-    "DECIMAL"       : pdb_coltypes.PDB_INT,
-    "DECIMAL(*,0)"  : pdb_coltypes.PDB_INT,
-    "DECIMAL(*,*)"  : pdb_coltypes.PDB_FLOAT,
-    "DECIMAL(*)"    : pdb_coltypes.PDB_INT,
-    "NUMERIC"       : pdb_coltypes.PDB_INT,
-    "NUMERIC(*,0)"  : pdb_coltypes.PDB_INT,
-    "NUMERIC(*,*)"  : pdb_coltypes.PDB_FLOAT,
-    "NUMERIC(*)"    : pdb_coltypes.PDB_INT,
-    "Float"         : pdb_coltypes.PDB_FLOAT,
-    "DateTime"      : pdb_coltypes.PDB_DATETIME,
-    "Date"          : pdb_coltypes.PDB_DATE,
-    "Time"          : pdb_coltypes.PDB_TIME,
-    "VARBINARY"     : pdb_coltypes.PDB_BLOB,
-    "VARBINARY(*)"  : pdb_coltypes.PDB_BLOB,
-    "BINARY"        : pdb_coltypes.PDB_BLOB,
-    "BINARY(*)"     : pdb_coltypes.PDB_BLOB,
-    "Binary"        : pdb_coltypes.PDB_BLOB,
-    "BLOB"          : pdb_coltypes.PDB_BLOB,
-    "BYTEA"         : pdb_coltypes.PDB_BLOB,
-    "PickleType"    : pdb_coltypes.PDB_BLOB,
-    "Boolean"       : pdb_coltypes.PDB_BOOLEAN,
-    "BOOLEAN"       : pdb_coltypes.PDB_BOOLEAN,
-    "Interval"      : pdb_coltypes.PDB_DATE,
-    "INTERVAL"      : pdb_coltypes.PDB_DATE,
-  }
+# from sqlalchemy/types.py and
+# http://www.sqlalchemy.org/docs/core/types.html#sqlalchemy.types.TypeDecorator
 
-_rx_typename= re.compile(r'^(\w+)(?:|\(([^\)]*)\))$')
-#@tp.Check(str)
-def _pdb_match_type_str(string):
-    """matches a type in the form "name" or "name(arglist)".
+def _csv_decode(st):
+    """converts a csv like string into a string.
 
-    This function returns a tuple consisting of the type name
-    and an optional list of comma-separated arguments.
+    Here is an example:
+    >>> _csv_decode("  a, b, c")
+    ['a', 'b', 'c']
+    >>> _csv_decode("  a b c")
+    ['a b c']
+    """
+    l= st.split(",")
+    return [e.strip() for e in l]
+
+def _split_args(st):
+    """convert a name+arguments into a list.
 
     Here are some examples:
-    >>> _pdb_match_type_str("ab")
-    ('ab',)
-    >>> _pdb_match_type_str("ab()")
-    ('ab',)
-    >>> _pdb_match_type_str("ab(1)")
-    ('ab', '1')
-    >>> _pdb_match_type_str("ab(1,'x')")
-    ('ab', '1', "'x'")
-    >>> _pdb_match_type_str("ab(1,'x',2)")
-    ('ab', '1', "'x'", '2')
+    >>> _split_args("abc")
+    ('abc', [])
+    >>> _split_args("sin(x)")
+    ('sin', ['x'])
+    >>> _split_args("sin(x, y)")
+    ('sin', ['x', 'y'])
     """
-    match= _rx_typename.match(string)
-    if match is None:
-        raise ValueError, "string \"%s\" doesn't seem to be a column type" % string
-    matched= match.groups()
-    if len(matched)!=2:
-        raise AssertionError, "internal error"
-    if matched[1] is None:
-        return (matched[0],)
-    if len(matched)==2:
-        args= _split_csv(matched[1])
-        args.insert(0,matched[0])
-        return tuple(args)
+    p= st.find("(")
+    q= -1
+    if p>=0:
+      q= st.find(")",p+1)
+    if (p<0) or (q<0):
+      return (st,[])
+    return(st[0:p],_csv_decode(st[p+1:q]))
+
+# extracted from sqlalchemy/dialects:
+# in file __init__.py, __all__ shows the currently
+# supported dialects, there in the sub-directories in
+# __init__.py, __all__ shows the supported column types.
+# The following was created by collecting all column types
+# and do cat LIST | sort | uniq
+
+_pdb_typedict= \
+  { 
+    "ARRAY"            : pdb_coltypes.PDB_LIST, 
+    "BFILE"            : pdb_coltypes.PDB_BLOB, # not sure if this is right
+    "BIGINT"           : pdb_coltypes.PDB_INT, 
+    "BINARY"           : pdb_coltypes.PDB_BLOB, 
+    "BIT"              : pdb_coltypes.PDB_INT, 
+    "BLOB"             : pdb_coltypes.PDB_BLOB, 
+    "BOOLEAN"          : pdb_coltypes.PDB_BOOLEAN, 
+    "BYTEA"            : pdb_coltypes.PDB_BLOB, 
+    "CHAR"             : pdb_coltypes.PDB_STRING, 
+    "CIDR"             : pdb_coltypes.PDB_BLOB, # not sure if this is right
+    "CLOB"             : pdb_coltypes.PDB_BLOB, 
+    "DATE"             : pdb_coltypes.PDB_DATE, 
+    "DATETIME"         : pdb_coltypes.PDB_DATETIME, 
+    "DATETIME2"        : pdb_coltypes.PDB_DATETIME, 
+    "DATETIMEOFFSET"   : pdb_coltypes.PDB_STRING, # not sure if this is right
+    "dialect"          : pdb_coltypes.PDB_STRING, # not sure if this is right
+    "DOUBLE"           : pdb_coltypes.PDB_FLOAT, 
+    "DOUBLE_PRECISION" : pdb_coltypes.PDB_FLOAT, 
+    "ENUM"             : pdb_coltypes.PDB_ENUM, 
+    "FLOAT"            : pdb_coltypes.PDB_FLOAT, 
+    "IMAGE"            : pdb_coltypes.PDB_BLOB, 
+    "INET"             : pdb_coltypes.PDB_STRING, # not sure if this is right
+    "INT"              : pdb_coltypes.PDB_INT, 
+    "INTEGER"          : pdb_coltypes.PDB_INT, 
+    "INTERVAL"         : pdb_coltypes.PDB_INTERVAL, 
+    "LONG"             : pdb_coltypes.PDB_INT, 
+    "LONGBLOB"         : pdb_coltypes.PDB_BLOB, 
+    "LONGTEXT"         : pdb_coltypes.PDB_TEXT, 
+    "MACADDR"          : pdb_coltypes.PDB_STRING, 
+    "MEDIUMBLOB"       : pdb_coltypes.PDB_BLOB, 
+    "MEDIUMINT"        : pdb_coltypes.PDB_INT, 
+    "MEDIUMTEXT"       : pdb_coltypes.PDB_TEXT, 
+    "MONEY"            : pdb_coltypes.PDB_FLOAT, 
+    "NCHAR"            : pdb_coltypes.PDB_STRING, 
+    "NCLOB"            : pdb_coltypes.PDB_BLOB, 
+    "NTEXT"            : pdb_coltypes.PDB_TEXT, 
+    "NUMBER"           : pdb_coltypes.PDB_INT, 
+    "NVARCHAR"         : pdb_coltypes.PDB_STRING, 
+    "NVARCHAR2"        : pdb_coltypes.PDB_STRING, 
+    "RAW"              : pdb_coltypes.PDB_BLOB, 
+    "REAL"             : pdb_coltypes.PDB_FLOAT, 
+    "ROWID"            : pdb_coltypes.PDB_INT, 
+    "SET"              : pdb_coltypes.PDB_STRING, # not sure if this is right
+    "SMALLDATETIME"    : pdb_coltypes.PDB_DATETIME, 
+    "SMALLINT"         : pdb_coltypes.PDB_INT, 
+    "SMALLMONEY"       : pdb_coltypes.PDB_FLOAT, 
+    "SQL_VARIANT"      : pdb_coltypes.PDB_STRING, # not sure if this is right
+    "TEXT"             : pdb_coltypes.PDB_TEXT, 
+    "TIME"             : pdb_coltypes.PDB_TIME, 
+    "TIMESTAMP"        : pdb_coltypes.PDB_TIME, 
+    "TINYBLOB"         : pdb_coltypes.PDB_BLOB, 
+    "TINYINT"          : pdb_coltypes.PDB_INT, 
+    "TINYTEXT"         : pdb_coltypes.PDB_TEXT, 
+    "UNICHAR"          : pdb_coltypes.PDB_STRING, 
+    "UNIQUEIDENTIFIER" : pdb_coltypes.PDB_INT, 
+    "UNITEXT"          : pdb_coltypes.PDB_TEXT, 
+    "UNIVARCHAR"       : pdb_coltypes.PDB_STRING, 
+    "UUID"             : pdb_coltypes.PDB_STRING, 
+    "VARBINARY"        : pdb_coltypes.PDB_BLOB, 
+    "VARCHAR"          : pdb_coltypes.PDB_STRING, 
+    "VARCHAR2"         : pdb_coltypes.PDB_STRING, 
+    "YEAR"             : pdb_coltypes.PDB_INT, 
+    # from here we have added some sqlalchemy standard datatypes
+    # in order to make them comparable with column types:
+    "Binary"           : pdb_coltypes.PDB_BLOB,
+    "Date"             : pdb_coltypes.PDB_DATE,
+    "DateTime"         : pdb_coltypes.PDB_DATETIME,
+    "Enum"             : pdb_coltypes.PDB_ENUM,
+    "Float"            : pdb_coltypes.PDB_FLOAT,
+    "Integer"          : pdb_coltypes.PDB_INT,
+    "Interval"         : pdb_coltypes.PDB_INTERVAL,
+    "String"           : pdb_coltypes.PDB_STRING,
+    "Text"             : pdb_coltypes.PDB_TEXT,
+    "Time"             : pdb_coltypes.PDB_TIME,
+  }
+
+def _test_numeric(st,l):
+    l
+    if l[0] not in ("DECIMAL","NUMERIC"):
+        raise ValueError, "unexpected type: \"%s\"" % st
+    args= l[1]
+    # if the 2nd (scale) parameter is 0, it is an integer:
+    if len(args)<2:
+        return pdb_coltypes.PDB_INT
+    if args[1]=="0":
+        return pdb_coltypes.PDB_INT
+    return pdb_coltypes.PDB_FLOAT
 
 #@tp.Check(str)
 def pdb_type_from_str(string):
@@ -646,24 +695,16 @@ def pdb_type_from_str(string):
     >>> str(pdb_type_from_str('@String'))
     Traceback (most recent call last):
        ...
-    ValueError: string "@String" doesn't seem to be a column type
-
+    ValueError: string "@String" is not a known a column type
     """
-    def convert_arg(a):
-        if a=='0':
-            return a
-        return '*'
-    matched= _pdb_match_type_str(string)
-    if len(matched)==1:
-        typestr= matched[0]
-    else:
-        # change "NUMERIC(28,0)" to "NUMERIC(*,0)":
-        gen_args= map(convert_arg, matched[1:])
-        typestr="%s(%s)" % (matched[0],",".join(gen_args))
-    tp= _pdb_typemap.get(typestr)
-    if tp is None:
+    l= _split_args(string)
+    tp= _pdb_typedict.get(l[0])
+    if tp is not None:
+        return tp
+    try:
+        return _test_numeric(string, l)
+    except ValueError, e:
         raise ValueError, "string \"%s\" is not a known a column type" % string
-    return tp
 
 #@tp.Check(str,str)
 def compare_types(type1, type2):
@@ -716,12 +757,6 @@ Interval, INTERVAL or Date
 # dbi column types
 # ---------------------------------------------------------
 
-# mapping of dbitabletext - types to sqlite column-types:
-dbi_to_sqlite_coltype= { 
-    'number': sqlalchemy.Integer,
-    'string': sqlalchemy.String 
-    }
-
 # mapping of python data types to dbitabletext types:
 python_to_pdb_coltype= {
     int     : pdb_coltypes.PDB_INT,
@@ -742,8 +777,11 @@ pdb_to_dbi_coltype = {
     pdb_coltypes.PDB_DATE     : "string",
     pdb_coltypes.PDB_TIME     : "string",
     pdb_coltypes.PDB_DATETIME : "string",
+    pdb_coltypes.PDB_INTERVAL : "string",
     pdb_coltypes.PDB_TEXT     : "string",
     pdb_coltypes.PDB_BLOB     : "string",
+    pdb_coltypes.PDB_LIST     : "string",
+    pdb_coltypes.PDB_ENUM     : "string",
     }
 
 pdb_to_sqlalchemy_coltype = { 
@@ -754,8 +792,14 @@ pdb_to_sqlalchemy_coltype = {
     pdb_coltypes.PDB_DATE     : sqlalchemy.Date,
     pdb_coltypes.PDB_TIME     : sqlalchemy.Time,
     pdb_coltypes.PDB_DATETIME : sqlalchemy.DateTime,
+    pdb_coltypes.PDB_INTERVAL : sqlalchemy.Interval,
     pdb_coltypes.PDB_TEXT     : sqlalchemy.Text,
     pdb_coltypes.PDB_BLOB     : sqlalchemy.Binary,
+    pdb_coltypes.PDB_LIST     : sqlalchemy.String, 
+           # this is a postgresql datatype, there doesn't seem to be a
+           # generic type in sqlalchemy that corresponds to this so
+           # we use sqlalchemy.String here, but this may be wrong.
+    pdb_coltypes.PDB_ENUM     : sqlalchemy.Enum,
     }
 
 
