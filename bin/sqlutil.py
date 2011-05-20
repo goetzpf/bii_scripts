@@ -48,7 +48,7 @@ database_default="oracle:devices:"
 #password_default="bessyguest"
 commands=("file2file",
           "db2file","file2db","file2sqlite",
-          "file2screen","db2screen")
+          "file2screen","db2screen","db2csv")
 
 # only for the doctest testcode,
 # a generic container class:
@@ -809,6 +809,50 @@ def db2screen(options):
             sqlpotion.print_table(table, sqlpotion.Format.TABLE, order, where)
         elif spec.has_key("query"):
             sqlpotion.print_query(conn, spec["query"], 2, order, where)
+        else:
+            raise ValueError, "table or query must be specified"
+
+def db2csv(options):
+    """copy database tables to screen in csv format.
+
+    Here are some examples:
+    # import ptestlib as t
+
+    We first connect to a sqlite database in memory:
+    >>> t.inittestdir()
+    >>> (meta,conn)= sqlpotion.connect_database(dialect="sqlite",host=None,
+    ...                                         dbname=t.tjoin("x.db"))
+
+    We now create table objects in sqlalchemy:
+    >>> tbl= sqlpotion.make_test_table(meta,"mytable",
+    ...                                ("id:int:primary","name:str"))
+    >>> sqlpotion.set_table(tbl, ((1,"cd"),(2,"ab")))
+    >>> db2csv(Container( spec=["table=mytable"],
+    ...                      user=None,password=None,
+    ...                      database="sqlite::"+t.tjoin("x.db"),
+    ...                      echo= None))
+    Tag mytable
+    <BLANKLINE>
+    id,name
+    1,cd
+    2,ab
+    >>> t.cleanuptestdir()
+    """
+    assert_options(options,("spec","database"),"with command db2csv, ")
+    specdict= parse_specs(options.spec)
+    (meta_db,conn_db)= connect(options)
+    for tag in sorted(specdict.keys()):
+        specs= specdict[tag]
+        order= specs.get("order",[])
+        where= specs.get("filter","")
+        print "Tag %s\n" % tag
+        if specs.has_key("table"):
+            table= sqlpotion.table_object(specs["table"], meta_db,
+                                          schema=specs.get("schema"))
+            sqlpotion.print_table(table, sqlpotion.Format.CSV, order, where)
+        elif spec.has_key("query"):
+            sqlpotion.print_query(conn, spec["query"], sqlpotion.Format.CSV, 
+                                  order, where)
         else:
             raise ValueError, "table or query must be specified"
 
