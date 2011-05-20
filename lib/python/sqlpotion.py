@@ -835,7 +835,9 @@ def table_object(table_name, metadata):
      Column('name',
      String(length=None,
      convert_unicode=False,
-     assert_unicode=None),
+     assert_unicode=None,
+     unicode_error=None,
+     _warn_on_bytestring=False),
      table=<mytable>),
      schema=None)
     """
@@ -867,7 +869,7 @@ def primary_keys(table_obj):
     >>> primary_keys(tbl2)
     ['id', 'id2']
     """
-    return table_obj.primary_key.keys()
+    return [k.name for k in table_obj.primary_key]
 
 #@tp.Check(sqlalchemy.schema.Table)
 def auto_primary_key_possible(table_obj):
@@ -1254,7 +1256,9 @@ def make_test_table(meta,name,column_spec):
      Column('othername',
      String(length=None,
      convert_unicode=False,
-     assert_unicode=None),
+     assert_unicode=None,
+     unicode_error=None,
+     _warn_on_bytestring=False),
      table=<mytable2>),
      schema=None)
     """
@@ -1314,8 +1318,8 @@ def column_info(table_obj):
     >>> for tp in column_info(tbl):
     ...   print tp
     ... 
-    ('id', 'Integer()')
-    ('name', 'String(length=None, convert_unicode=False, assert_unicode=None)')
+    ('id', 'INTEGER')
+    ('name', 'VARCHAR')
     """
     l= []
     for col in table_obj.columns:
@@ -1328,6 +1332,8 @@ def column_info(table_obj):
         try:
             type= col.type.get_col_spec()
         except NotImplementedError, e:
+            type= str(col.type)
+        except AttributeError, e:
             type= str(col.type)
         l.append((name,type))
     return l
@@ -1351,11 +1357,11 @@ def column_dict(table_obj):
     Name: ID
     Value Column('id', Integer(), table=<mytable>, primary_key=True, nullable=False)
     Name: NAME
-    Value Column('name', String(length=None, convert_unicode=False, assert_unicode=None), table=<mytable>)
+    Value Column('name', String(length=None, convert_unicode=False, assert_unicode=None, unicode_error=None, _warn_on_bytestring=False), table=<mytable>)
     Name: id
     Value Column('id', Integer(), table=<mytable>, primary_key=True, nullable=False)
     Name: name
-    Value Column('name', String(length=None, convert_unicode=False, assert_unicode=None), table=<mytable>)
+    Value Column('name', String(length=None, convert_unicode=False, assert_unicode=None, unicode_error=None, _warn_on_bytestring=False), table=<mytable>)
     """
     d= {}
     for col in table_obj.columns:
@@ -2719,9 +2725,12 @@ def _dtt_parser_dttresult_to_table(metadata, dttresult):
     Column('name',
     String(length=None,
     convert_unicode=False,
-    assert_unicode=None),
+    assert_unicode=None,
+    unicode_error=None,
+    _warn_on_bytestring=False),
     table=<mytable>),
     schema=None)
+
     """
     columns=[]
     # "PK" may be a comma-separated list of primary keys
@@ -3890,6 +3899,14 @@ def _update_dict(source_dict, dest_dict):
 def _pk_where_part(table):
     """returns a new query with a where condition for matching mapped primary keys.
 
+    Note that this also returns a list of the primary keys.
+
+    Note that due to limitations in sqlalchemy, the names of the bind
+    parameters used here MUST NOT be the same as the original column names. We
+    use the convention here to prepend a "q_" to the column names for the names
+    of the bind parameters. This is a bit unfortunate and difficult to
+    remember but we can't help it.
+
     Here is an example:
     We first connect to a sqlite database in memory:
     >>> (meta,conn)=connect_memory()
@@ -3903,21 +3920,22 @@ def _pk_where_part(table):
     ...                 (1,3,"ab"),
     ...                 (2,2,"ab")))
 
-    >>> query= ordered_query(tbl).where(_pk_where_part(tbl))
+    >>> (pk_where,pks)= _pk_where_part(tbl)
+    >>> query= ordered_query(tbl).where(pk_where)
     >>> print query
     SELECT mytable.id, mytable.loc, mytable.name 
     FROM mytable 
     WHERE mytable.id = ? AND mytable.loc = ? ORDER BY mytable.id, mytable.loc
 
-    >>> for row in query.execute({"id":1,"loc":3}):
+    >>> for row in query.execute({"q_id":1,"q_loc":3}):
     ...   print row
     ... 
     (1, 3, u'ab')
-    >>> for row in query.execute({"id":1,"loc":2}):
+    >>> for row in query.execute({"q_id":1,"q_loc":2}):
     ...   print row
     ... 
     (1, 2, u'cd')
-    >>> for row in query.execute({"id":1,"loc":1}):
+    >>> for row in query.execute({"q_id":1,"q_loc":1}):
     ...   print row
     ... 
     """
@@ -3925,9 +3943,9 @@ def _pk_where_part(table):
     pks= primary_keys(table)
     # query for specific primary keys:
     and_query= sqlalchemy.and_(
-        *map(lambda pk: table.c[pk]==sqlalchemy.bindparam(pk), pks)
+        *map(lambda pk: table.c[pk]==sqlalchemy.bindparam("q_"+pk), pks)
                                  )
-    return and_query
+    return (and_query,pks)
 
 #@tp.Check(sqlalchemy.schema.Table,sqlalchemy.schema.Table,tp_str_str_map)
 def _mapped_pk_query(source_table, dest_table, column_mapping):
@@ -4084,7 +4102,7 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     # prepare an update statement:
     dest_update= dest.update()
     # prepare a "where" for the primary keys in dest table:
-    dest_pk_condition= _pk_where_part(dest)
+    (dest_pk_condition,dest_pks)= _pk_where_part(dest)
     # iterate over all rows in the source:
     for source_row in ordered_query(source).execute():
         # values in source row mapped to dest column names (a dictionary):
@@ -4100,6 +4118,9 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
             dest_row_values= _row2dict(dest_column_names,dest_row)
             if _update_dict(mapped_source_row_values,dest_row_values):
                 # an update took place, execute UPDATE command
+                # add values for the query part (dest_pk_condition):
+                for pk in dest_pks:
+                    dest_row_values["q_"+pk]= dest_row_values[pk]
                 dest_update.where(dest_pk_condition).execute(dest_row_values)
     if do_deletes:
         rev_column_mapping= column_mapping.inverted()
@@ -4108,13 +4129,17 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
         reduced_dest_column_names= [n for n in dest_column_names if n in rev_column_mapping]
         # query for specific primary keys in source:
         source_pk_query= _mapped_pk_query(dest, source, rev_column_mapping)
-        dest_pk_condition= _pk_where_part(dest)
+        (dest_pk_condition,dest_pks)= _pk_where_part(dest)
         for dest_row in ordered_query(dest).execute():
             # values in dest mapped to source column names (a dictionary):
             mapped_dest_row_values= _mappedrow2dict(dest_column_names,rev_column_mapping,dest_row)
             if not _at_least_one(source_pk_query,mapped_dest_row_values):
                 # not in source, delete at dest:
-                dest.delete().where(dest_pk_condition).execute(_row2dict(dest_column_names,dest_row))
+                dest_row_values= _row2dict(dest_column_names,dest_row)
+                # add values for the query part (dest_pk_condition):
+                for pk in dest_pks:
+                    dest_row_values["q_"+pk]= dest_row_values[pk]
+                dest.delete().where(dest_pk_condition).execute(dest_row_values)
 
 
 #@tp.Check(sqlalchemy.schema.Table,sqlalchemy.schema.Table,tp_str_str_map_or_none,bool)
