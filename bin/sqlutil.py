@@ -3,19 +3,20 @@
 
 _xx="""
 tests:
-python sqlutil.py -c db2screen -s 'table=tbl_insertion'
-python sqlutil.py -c db2screen -s 'table=tbl_insertion,order=name_key' 
-python sqlutil.py -c db2screen -s 'table=tbl_insertion,order=application_name:name_key'
-python sqlutil.py -c db2file -s 'table=tbl_insertion' 
-python sqlutil.py -c db2screen -s "table=tbl_insertion,filter=application_name!='idcp'"
-python sqlutil.py -c db2screen -s "table=tbl_insertion,filter=application_name='idcp'"python sqlutil.py  -c file2sqlite -s 'table=tbl_insertion' -f X.dtt -o X.db
-python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' 
- python sqlutil.py  -c file2file -s 'table=tbl_insertion,filter=insertion_key>30' -f X.dtt 
-python sqlutil.py  -c file2screen -s 'table=tbl_insertion,filter=insertion_key>30' -f X.dtt 
+python sqlutil.py -c db2screen -s 'table=tbl_insertion,schema=device'
+python sqlutil.py -c db2screen -s 'table=tbl_insertion,order=name_key,schema=device'
+python sqlutil.py -c db2screen -s 'table=tbl_insertion,order=application_name:name_key,schema=device'
+python sqlutil.py -c db2file -s 'table=tbl_insertion,schema=device'
+python sqlutil.py -c db2screen -s "table=tbl_insertion,schema=device,filter=application_name!='idcp'"
+python sqlutil.py -c db2screen -s "table=tbl_insertion,schema=device,filter=application_name='idcp'"
+python sqlutil.py  -c file2sqlite -s 'table=tbl_insertion,schema=device' -f X.dtt -o X.db
+python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion,schema=device' 
+python sqlutil.py  -c file2file -s 'table=tbl_insertion,schema=device,filter=insertion_key>30' -f X.dtt 
+python sqlutil.py  -c file2screen -s 'table=tbl_insertion,schema=device,filter=insertion_key>30' -f X.dtt 
 # edit X.dtt, change some lines, append some lines
-python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' > A
-python sqlutil.py -d sqlite::X.db -c file2db -s 'table=tbl_insertion' --echo -f X.dtt
-python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion' > B
+python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion,schema=device' > A
+python sqlutil.py -d sqlite::X.db -c file2db -s 'table=tbl_insertion,schema=device' --echo -f X.dtt
+python sqlutil.py -d sqlite::X.db -c db2screen -s 'table=tbl_insertion,schema=device' > B
 tkdiff A B
 
 """
@@ -283,7 +284,7 @@ def parse_specs(specs):
     """
     specdict= {}
     for s in specs:
-        d= parse_definitions(s,["tag","table","query","order","filter"])
+        d= parse_definitions(s,["tag","table","schema","query","order","filter"])
         if d.has_key("order"):
             l= d["order"].split(":")
             d["order"]= l
@@ -528,7 +529,7 @@ def file2file(options):
     sqlpotion.dtt_write_qsources(conn,qsource_dict,
                                  options.outfile,trim_columns=True)
 def file2sqlite(options):
-    """create a sqlite database from dbitabletext.
+    """create a sqlite database from file.
 
     Here is an example:
     # import ptestlib as t
@@ -636,14 +637,15 @@ def db2file(options):
         specs= specdict[tag]
         if specs.has_key("table"):
             tdict[tag]= sqlpotion.DttResult(tag=tag,
-                                  table_obj=sqlpotion.table_object(specs["table"], 
-                                                                   meta_db))
+                            table_obj=sqlpotion.table_object(specs["table"], 
+                                                meta_db,
+                                                schema=specs.get("schema")))
     qsource_dict= mk_qsource_dict(tdict,specdict)
     sqlpotion.dtt_write_qsources(conn_db,qsource_dict,
                                  options.outfile,trim_columns=True)
 
 def file2db(options):
-    """copy from database to file.
+    """copy file to database.
 
     Here is an example:
     >>> txt='''
@@ -697,13 +699,16 @@ def file2db(options):
     for t in sorted(tdict.keys()):
         source= tdict[t].table_obj
         tablename= source.name.lower()
+        schema= source.schema
+        if schema is not None:
+            schema= schema.lower()
         add_table= False
         if tablename.startswith("_gen_"):
             tablename= tablename.replace("_gen_","",1)
             add_table= True
 
         if not dest_tables.has_key(tablename):
-            dest= sqlpotion.table_object(tablename, meta_db)
+            dest= sqlpotion.table_object(tablename, meta_db, schema= schema)
             dest_tables[tablename]= dest
         else:
             dest= dest_tables[tablename]
@@ -799,7 +804,8 @@ def db2screen(options):
         where= specs.get("filter","")
         print "Tag %s\n" % tag
         if specs.has_key("table"):
-            table= sqlpotion.table_object(specs["table"], meta_db)
+            table= sqlpotion.table_object(specs["table"], meta_db,
+                                          schema=specs.get("schema"))
             sqlpotion.print_table(table, sqlpotion.Format.TABLE, order, where)
         elif spec.has_key("query"):
             sqlpotion.print_query(conn, spec["query"], 2, order, where)
@@ -871,7 +877,7 @@ def main():
                       type="choice",
                       choices=commands,  
                       help="specify the COMMAND to perform, the following "+\
-                           "commands are known: '"+",".join(commands)+"'.",
+                           "commands are known: "+", ".join(commands)+".",
                       metavar="COMMAND"  
                       )
     parser.add_option("-s", "--spec", 
@@ -879,10 +885,11 @@ def main():
                       type="string",  
                       help="specify the TABLESPEC, a string in the "+\
                            "form 'key1=value1,key2=value2...'. "+\
-                           "These are the known keys: 'tag,table,"+\
-                           "query,order,filter'. order is a list of COLON "+\
+                           "These are the known keys: tag, table, schema, "+\
+                           "query, order, filter. Order is a list of COLON "+\
                            "separated column names, filter is the "+\
-                           "where-part of the sql query.",
+                           "where-part of the sql query. More than one "+\
+                           "TABLESPEC is allowed.",
                       metavar="TABLESPEC"  
                       )
     parser.add_option("-f", "--file", 

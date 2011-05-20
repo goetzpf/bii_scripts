@@ -836,7 +836,7 @@ def connect_memory(echo=False,extra_args={}):
                             echo=echo,extra_args=extra_args)
 
 #@tp.Check(str,sqlalchemy.schema.MetaData)
-def table_object(table_name, metadata):
+def table_object(table_name, metadata, schema=None):
     r"""returns a table object.
     
     This function returns a table object associated with
@@ -848,6 +848,8 @@ def table_object(table_name, metadata):
         table_name   -- the name of the table
         metadata     -- the metadata object, to which the table
                         will be connected.
+        schema       -- if this parameter is given, this schema name will be
+                        used to open the table.
     returns:
         a sqlalchemy table object
 
@@ -876,7 +878,7 @@ def table_object(table_name, metadata):
      table=<mytable>),
      schema=None)
     """
-    return sqlalchemy.Table(table_name,metadata,autoload=True)
+    return sqlalchemy.Table(table_name,metadata,autoload=True,schema=schema)
 
 # ---------------------------------------------------------
 # primary and foreign key utilities
@@ -1246,7 +1248,7 @@ def set_table(table, rows):
     result= table.insert().execute(todict(column_name_list(table,False),rows))
 
 #@tp.Check(sqlalchemy.schema.MetaData,str,tp.ItertypeChecker(str))
-def make_test_table(meta,name,column_spec):
+def make_test_table(meta,name,column_spec,schema=None):
     r"""create a table for test-purposes on the fly.
 
     This function is used to create tables for test purposes
@@ -1264,6 +1266,8 @@ def make_test_table(meta,name,column_spec):
                         will be connected.
         name         -- the name of the table
         column_spec  -- a list of strings specifying the columns.
+        schema       -- if this parameter is given, this schema name
+                        will be used to create the table.
     returns:
         a sqlalchemy table object
 
@@ -1329,7 +1333,7 @@ def make_test_table(meta,name,column_spec):
             else:
                 raise ValueError,"unknown flag: %s" % flag
         cols.append(sqlalchemy.Column(*args,**params))
-    tbl= sqlalchemy.Table(name,meta,*cols)
+    tbl= sqlalchemy.Table(name,meta,schema=schema,*cols)
     meta.create_all()
     return tbl
 
@@ -1660,12 +1664,14 @@ def fetchall(conn, sql_text):
 # _dtt_gen for dbitabletext - generator
 
 #@tp.Check(tp.filetype,tp.unistring,tp.unistring,tp_stringlist,str)
-def _dtt_gen_header(fh,tag,table_name="",pks=[],query_text=""):
+def _dtt_gen_header(fh,tag,table_name="",schema=None, 
+                    pks=[],query_text=""):
     """write the dbitabletext heading.
 
     Here are some examples:
     >>> _dtt_gen_header(sys.stdout,"mytag",
-    ...                 "mytable",["id1","id2"],"select id1 from mytable")
+    ...                 "mytable",pks=["id1","id2"],
+    ...                 query_text="select id1 from mytable")
     [Tag mytag]
     [Version 1.0]
     [Properties]
@@ -1675,7 +1681,7 @@ def _dtt_gen_header(fh,tag,table_name="",pks=[],query_text=""):
     <BLANKLINE>
     [Aliases]
     <BLANKLINE>
-    >>> _dtt_gen_header(sys.stdout,"mytag","mytable",["id1","id2"])
+    >>> _dtt_gen_header(sys.stdout,"mytag","mytable",pks=["id1","id2"])
     [Tag mytag]
     [Version 1.0]
     [Properties]
@@ -1716,7 +1722,10 @@ def _dtt_gen_header(fh,tag,table_name="",pks=[],query_text=""):
     if table_name=="":
         lines.append("TYPE=file")
     else:
-        lines.append("TABLE=%s TYPE=file" % table_name)
+        if schema is None:
+            lines.append("TABLE=%s TYPE=file" % table_name)
+        else:
+            lines.append("TABLE=%s SCHEMA=%s TYPE=file" % (table_name,schema))
     if len(pks)>0:
         lines.append("PK=\"%s\"" % ",".join(map(lambda x:x.upper(),pks)))
     lines.append("FETCH_CMD=\"%s\"" % query_text)
@@ -1859,11 +1868,17 @@ def dtt_write_table_fh(tag, table_obj, fh=sys.stdout, trim_columns=True,
     if where_part!="":
         query= query.where(where_part)
     table_name= ""
+    schema= None
     if query_text=="" or where_part!="":
         if query_text=="":
             table_name= table_obj.name.lower()
+            schema= table_obj.schema
+            if schema is not None:
+                schema= schema.lower()
         query_text= " ".join([s.strip() for s in str(query).splitlines()])
-    _dtt_gen_header(fh,tag,table_name,pks,query_text)
+    _dtt_gen_header(fh,tag,table_name=table_name,schema=schema,
+                    pks=pks,
+                    query_text=query_text)
     col_info= column_info(table_obj)
     _dtt_gen_colinfo(fh, [(name,pdb_type_from_str(type_)) 
                             for name,type_ in col_info])
@@ -2784,6 +2799,7 @@ def _dtt_parser_dttresult_to_table(metadata, dttresult):
         columns.append(sqlalchemy.Column(*arg_list,**arg_dict))
     #print "table-name:",dttresult["TABLE"]
     table= sqlalchemy.Table(dttresult.table_name, metadata,
+                            schema= dttresult.dtt_schema,
                             *columns)
     metadata.create_all(tables=[table])
     return table
@@ -2869,6 +2885,7 @@ class DttResult(object):
         self.tag= tag
         self.is_table= True
         self.dtt_table_name= table_obj.name
+        self.dtt_schema= table_obj.schema
         self.table_name= self.dtt_table_name
         self.query_text="select * from %s" % self.table_name
         self.primary_keys= primary_keys(table_obj)
@@ -2880,6 +2897,7 @@ class DttResult(object):
         self.tag= properties["tag"]
         self.is_table= properties.has_key("TABLE")
         self.dtt_table_name= properties.get("TABLE")
+        self.dtt_schema= properties.get("SCHEMA")
         if properties.get("tag_filter","")!="":
             # if tag_filter is not empty, take that as table-name:
             self.table_name= properties["tag_filter"]
@@ -2897,8 +2915,9 @@ class DttResult(object):
                              for c in properties["column-types"] ]
         self.table_obj= None
     def __str__(self):
-        lst= ["tag","is_table","dtt_table_name","table_name",
-              "query_text","primary_keys","column_names","column_types",
+        lst= ["tag","is_table","dtt_table_name","dtt_schema",
+              "table_name", "query_text","primary_keys",
+              "column_names","column_types",
               "table_obj"]
         parts= []
         for attr in lst:
