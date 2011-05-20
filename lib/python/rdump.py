@@ -964,7 +964,7 @@ def set_dumper(func, typename):
     If we print this list, the unknown "T" object is printed 
     with the default dumper which looks a bit ugly:
     >>> list2str(ldump(a,0)) # doctest: +ELLIPSIS
-    "[ 'A', 'B', <OBJ: <__main__.T instance at ...>>, 'C' ]"
+    "[ 'A', 'B', <OBJ: <__main__.T ...>>, 'C' ]"
 
     Now we add our new dumper function to the system:
     >>> set_dumper(tdump,"T")

@@ -58,15 +58,15 @@ class OneToOne(object):
 	myiter= []
 	if l_args:
 	    if len(args)==1:
-		if hasattr(args[0],"iteritems"):
-		    myiter= args[0].iteritems()
-		elif hasattr(args[0],"__iter__"):
-		    for e in args[0]:
-			if len(e)!=2:
-			    raise ValueError, "list elements must be pairs"
-		    myiter= iter(args[0])
-		else:
+		if not hasattr(args[0],"__iter__"):
 		    raise TypeError, "iterable or dict expected"
+                if hasattr(args[0],"items"):
+                    myiter= args[0].items()
+                else:
+                    for e in args[0]:
+                        if len(e)!=2:
+                            raise ValueError, "list elements must be pairs"
+                    myiter= iter(args[0])
 	    else:
 		raise ValueError, "too many unnamed arguments"
 	if l_kwargs:

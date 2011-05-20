@@ -128,6 +128,10 @@ class MailLikeRecord(object):
         """returns a list of keys in the order they were found.
         """
         return self._fieldlist
+    def __contains__(self, field):
+        """returns True, if the field is present.
+        """
+        return field in self._fielddict
     def has_key(self, field):
         """returns True, if the field is present.
         """

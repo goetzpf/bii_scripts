@@ -82,11 +82,12 @@ class ArgFreeze:
     >>> c(10,20,30)
     arg1: 10  arg2: 20  arg3: 30
 
-    I we try to specify too many arguments, we get an error:
-    >>> c(10,20,30,40)
+    I we try to specify too many arguments, we would get an error:
+    > > c(10,20,30,40)
     Traceback (most recent call last):
        ...
     TypeError: test() takes exactly 3 arguments (4 given)
+    (note: no doctest here since python3 produces a different error message)
 
     You can also use named parameters like here:
     >>> c=ArgFreeze(test,arg1=1,arg2=2,arg3=3)

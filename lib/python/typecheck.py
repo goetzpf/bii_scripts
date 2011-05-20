@@ -32,7 +32,7 @@ when a variable is not of the expected type.
 
 """
 
-import string
+#import string
 
 from types import *
 
@@ -137,7 +137,7 @@ def is_dec_string(var):
     if not is_string(var):
 	raise TypeError, "string expected"
     try:
-	a=string.atoi(var,10)
+	a= int(var)
     except ValueError, e:
 	return False
     return True
@@ -162,7 +162,7 @@ def is_hex_string(var):
     if not is_string(var):
 	raise TypeError, "string expected"
     try:
-	a=string.atoi(var,16)
+	a= int(var,16)
     except ValueError, e:
 	return False
     return True
@@ -185,7 +185,7 @@ def is_float_string(var):
     if not is_string(var):
         raise TypeError, "string expected"
     try:
-	a=string.atof(var)
+	a=float(var)
     except ValueError, e:
 	return False
     return True
@@ -205,20 +205,15 @@ def is_listed_string(var,stringlist,ignore_case=False):
     TypeError: 1st parameter:  string expected
 
     The second parameter must be an iterable elements of type string:
-    >>> is_listed_string("A","B")
-    Traceback (most recent call last):
-       ...
-    TypeError: 2nd parameter:  iterable type expected
-
     >>> is_listed_string("A",[1,2])
     Traceback (most recent call last):
        ...
-    TypeError: elements of iterable have type <type 'int'> instead of <type 'str'>
+    TypeError: elements of iterable have type <class 'int'> instead of <class 'str'>
 
     >>> is_listed_string("A",set((1,"2")))
     Traceback (most recent call last):
        ...
-    TypeError: elements of iterable are not all of type <type 'str'>
+    TypeError: elements of iterable are not all of type <class 'str'>
 
     >>> is_listed_string("A",("B","A","C"))
     True
@@ -273,15 +268,15 @@ def is_iterable(var):
     
     Here are some examples:
 
-    >>> is_iterable("A")
+    >>> is_iterable(1)
     False
-    >>> is_iterable(["A"])
+    >>> is_iterable([1])
     True
-    >>> is_iterable(("A"))
+    >>> is_iterable((1))
     False
-    >>> is_iterable(("A",))
+    >>> is_iterable((1,))
     True
-    >>> is_iterable(set("A",))
+    >>> is_iterable(set((1,)))
     True
     """
     return hasattr(var,'__iter__')
@@ -455,24 +450,26 @@ def itertype(var):
     
     Here are some examples:
         
-    >>> itertype(["A","B","C"])
-    <type 'str'>
+    >>> type2str(itertype(["A","B","C"]))
+    "<class 'str'>"
 
-    >>> itertype([1,2,3])
-    <type 'int'>
+    >>> type2str(itertype([1,2,3]))
+    "<class 'int'>"
 
     From a lists with mixed element types, we
     get no basetype: 
-    >>> itertype([1,2,3,"X"])
+    >>> type2str(itertype([1,2,3,"X"]))
+    'None'
 
     If the argument iterable, we get an exception:
-    >>> itertype("A")
+    >>> type2str(itertype(1))
     Traceback (most recent call last):
        ...
     TypeError: iterable type expected
     
     The itertype of an empty list is "None":
-    >>> itertype([])
+    >>> type2str(itertype([]))
+    'None'
     """
     if not is_iterable(var):
         raise TypeError, "iterable type expected"
@@ -511,16 +508,17 @@ def keytype(var):
     
     Here are some examples:
         
-    >>> keytype({"A":1, "B":2})
-    <type 'str'>
-    >>> keytype({1:"A", 2:"B"})
-    <type 'int'>
+    >>> type2str(keytype({"A":1, "B":2}))
+    "<class 'str'>"
+    >>> type2str(keytype({1:"A", 2:"B"}))
+    "<class 'int'>"
 
     If there are keys of different types, 
     None is returned:
-    >>> keytype({"A":1, 2:"B"})
+    >>> type2str(keytype({"A":1, 2:"B"}))
+    'None'
 
-    >>> keytype([1,2])
+    >>> type2str(keytype([1,2]))
     Traceback (most recent call last):
       ...
     TypeError: dict expected
@@ -559,13 +557,13 @@ def has_only_allowed_keys(dict_,keylist,ignore_case=False):
     >>> has_only_allowed_keys({1:2,"B":2},["A","B"])
     Traceback (most recent call last):
        ...
-    TypeError: 1st parameter: keys of dict are not all of type <type 'str'>
+    TypeError: 1st parameter: keys of dict are not all of type <class 'str'>
 
     The elements of the keylist must also be strings:
     >>> has_only_allowed_keys({"A":1,"B":2},["A",1])
     Traceback (most recent call last):
        ...
-    TypeError: 2nd parameter: elements of iterable are not all of type <type 'str'>
+    TypeError: 2nd parameter: elements of iterable are not all of type <class 'str'>
 
     The first parameter must be a dictionary:
     >>> has_only_allowed_keys(1,["A","B"])
@@ -600,13 +598,13 @@ def has_exactly_all_keys(dict_,keylist,ignore_case=False):
     >>> has_exactly_all_keys({1:2,"B":2},["A","B"])
     Traceback (most recent call last):
        ...
-    TypeError: 1st parameter: keys of dict are not all of type <type 'str'>
+    TypeError: 1st parameter: keys of dict are not all of type <class 'str'>
 
     The elements of the keylist must also be strings:
     >>> has_exactly_all_keys({"A":1,"B":2},["A",1])
     Traceback (most recent call last):
        ...
-    TypeError: 2nd parameter: elements of iterable are not all of type <type 'str'>
+    TypeError: 2nd parameter: elements of iterable are not all of type <class 'str'>
 
     The first parameter must be a dictionary:
     >>> has_exactly_all_keys(1,["A","B"])
@@ -639,13 +637,13 @@ def has_at_least_keys(dict_,keylist,ignore_case=False):
     >>> has_at_least_keys({1:1,"B":2,"C":3},["A","B"])
     Traceback (most recent call last):
        ...
-    TypeError: 1st parameter: keys of dict are not all of type <type 'str'>
+    TypeError: 1st parameter: keys of dict are not all of type <class 'str'>
 
     The elements of the keylist must also be strings:
     >>> has_at_least_keys({"A":1,"B":2,"C":3},[1,"B","C"])
     Traceback (most recent call last):
        ...
-    TypeError: 2nd parameter: elements of iterable are not all of type <type 'str'>
+    TypeError: 2nd parameter: elements of iterable are not all of type <class 'str'>
 
     The first parameter must be a dictionary:
     >>> has_at_least_keys(1,["A","B","C"])
@@ -879,13 +877,13 @@ def asrt_iterable(var,pre=None):
     """assert that a variable is iterable.
     
     Here are some examples:
-    >>> asrt_iterable("A")
+    >>> asrt_iterable(1)
     Traceback (most recent call last):
        ...
     TypeError: iterable type expected
-    >>> asrt_iterable(["A"])
-    >>> asrt_iterable(("A",))
-    >>> asrt_iterable(set("A",))
+    >>> asrt_iterable([1])
+    >>> asrt_iterable((1,))
+    >>> asrt_iterable(set((1,)))
     """
     if not is_iterable(var):
         raise TypeError, _pre(pre,"iterable type expected")
@@ -1006,25 +1004,37 @@ def asrt_scalar(var,pre=None):
 # sub-types of composed objects
 # ----------------------------------------------------------
 
+def type2str(t):
+    """represent the type as a string.
+
+    This function is needed since python3 represents type-strings differently. 
+    str(str) in python2 gives "<type 'str'>",
+    str(str) in python3 gives "<class 'str'>".
+
+    In order to have always the same string (and not to break the doctests) this
+    function now always implements the python3 behaviour.
+    """
+    return str(t).replace("<type ","<class ")
+
 def asrt_itertype(var,type_,pre=None):
     asrt_type(type_,"2nd parameter:")
     tp= itertype(var)
     if tp is None:
         raise TypeError, _pre(pre,"elements of iterable are not all of type %s" % \
-			      str(type_))
+			      type2str(type_))
     if tp != type_:
         raise TypeError, _pre(pre,"elements of iterable have type %s instead of %s" % \
-			      (str(tp),str(type_)))
+			      (type2str(tp),type2str(type_)))
 
 def asrt_keytype(var,type_,pre=None):
     asrt_type(type_,"2nd parameter:")
     tp= keytype(var)
     if tp is None:
         raise TypeError, _pre(pre,"keys of dict are not all of type %s" % \
-			      str(type_))
+			      type2str(type_))
     if tp != type_:
         raise TypeError, _pre(pre,"keys of dict have type %s instead of %s" % \
-			      (str(tp),str(type_)))
+			      (type2str(tp),type2str(type_)))
 
 def asrt_compatible_itertypes(a,b,pre=None):
     """assert that all elements of two iterables have the same type.
@@ -1078,13 +1088,13 @@ def asrt_only_allowed_keys(dict_,keylist,ignore_case=False,pre=None):
     >>> asrt_only_allowed_keys({1:2,"B":2},["A","B"])
     Traceback (most recent call last):
        ...
-    TypeError: 1st parameter: keys of dict are not all of type <type 'str'>
+    TypeError: 1st parameter: keys of dict are not all of type <class 'str'>
 
     The keylist must also consist of strings:
     >>> asrt_only_allowed_keys({"A":1,"B":2},["A",1])
     Traceback (most recent call last):
        ...
-    TypeError: 2nd parameter: elements of iterable are not all of type <type 'str'>
+    TypeError: 2nd parameter: elements of iterable are not all of type <class 'str'>
 
     The 1st parameter must be a dictionary:
     >>> asrt_only_allowed_keys(1,["A","B"])
@@ -1131,13 +1141,13 @@ def asrt_exactly_all_keys(dict_,keylist,ignore_case=False,pre=None):
     >>> asrt_exactly_all_keys({1:1,"B":2},["a","b"])
     Traceback (most recent call last):
        ...
-    TypeError: 1st parameter: keys of dict are not all of type <type 'str'>
+    TypeError: 1st parameter: keys of dict are not all of type <class 'str'>
 
     All elements of the iterable must also be strings:
     >>> asrt_exactly_all_keys({"A":1,"B":2},["A",1])
     Traceback (most recent call last):
        ...
-    TypeError: 2nd parameter: elements of iterable are not all of type <type 'str'>
+    TypeError: 2nd parameter: elements of iterable are not all of type <class 'str'>
 
     The first parameter must be a dictionary:
     >>> asrt_exactly_all_keys(1,["A","B"])
@@ -1174,13 +1184,13 @@ def asrt_at_least_keys(dict_,keylist,ignore_case=False,pre=None):
     >>> asrt_at_least_keys({1:1,"B":2,"C":3},["A","B"])
     Traceback (most recent call last):
        ...
-    TypeError: 1st parameter: keys of dict are not all of type <type 'str'>
+    TypeError: 1st parameter: keys of dict are not all of type <class 'str'>
 
     The elements of the keylist must also be strings:
     >>> asrt_at_least_keys({"A":1,"B":2,"C":3},[1,"B","C"])
     Traceback (most recent call last):
        ...
-    TypeError: 2nd parameter: elements of iterable are not all of type <type 'str'>
+    TypeError: 2nd parameter: elements of iterable are not all of type <class 'str'>
 
     The first parameter must be a dictionary:
     >>> asrt_at_least_keys(1,["A","B","C"])

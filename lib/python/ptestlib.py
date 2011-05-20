@@ -204,7 +204,8 @@ def catfile(filename):
     """
     fh= open(tjoin(filename),"r")
     for line in fh:
-	print line,
+	sys.stdout.write(line)
+	#print line,
     fh.close()
 
 def rewritefile(text,filename):
@@ -314,6 +315,11 @@ def system(cmd, catch_stdout=True):
     (child_stdout, child_stderr) = p.communicate()
     if p.returncode!=0:
         raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
+    # python 3 compatibility:
+    # subprocess returns <bytes> instead of <str>, we have to convert this 
+    # with the method "decode":
+    if hasattr(child_stdout,"decode"):
+        child_stdout= child_stdout.decode()
     return(child_stdout)
 
 def msg(st):

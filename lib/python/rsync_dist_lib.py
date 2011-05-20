@@ -60,6 +60,14 @@ def _system(cmd, catch_stdout=True):
         raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
     return(child_stdout)
 
+def _prset(s):
+    """print a set, only for python3 compabitability of the doctests."""
+    print "set(%s)" % repr(list(s))
+
+def _rset(s):
+    """returns repr of a set, only for python3 compabitability of the doctests."""
+    return "set(%s)" % repr(list(s))
+
 def get_link_log(config_file, extra_opts=""):
     """returns the link-log file as a MailLikeRecords object.
 
@@ -179,6 +187,9 @@ class LinkLs(object):
             if not entry.is_symlink():
                 continue
             self._dict[name]= entry
+    def __contains__(self, version):
+        """returns True, if the version is in the DistLs object."""
+        return version in self._dict
     def has_key(self, version):
         """returns True, if the version is in the DistLs object."""
         return self._dict.has_key(version)
@@ -279,6 +290,9 @@ class DistLs(object):
             if not is_iso(name):
                 continue
             self._dict[name]= entry
+    def __contains__(self, version):
+        """returns True, if the version is in the DistLs object."""
+        return version in self._dict
     def has_key(self, version):
         """returns True, if the version is in the DistLs object."""
         return self._dict.has_key(version)
@@ -432,6 +446,9 @@ class DistLog(object):
     def keys(self):
         """returns the sorted list of keys (versions)."""
         return sorted(self._dict.keys())
+    def __contains__(self, key):
+        """returns True, if the version is in the DistLog object."""
+        return key in self._dict
     def has_key(self, key):
         """returns True, if the version is in the DistLog object."""
         return self._dict.has_key(key)
@@ -518,7 +535,7 @@ class LLogByName(object):
     >>> nlog.name_exists("idcp8")
     False
 
-    >>> nlog.versions_set()
+    >>> _prset(nlog.versions_set())
     set(['2008-10-16T12:42:03', '2006-10-09T10:28:13'])
 
     >>> for e in nlog["idcp8"]:
@@ -567,9 +584,9 @@ class LLogByName(object):
     idcp9:
     *    2006-10-09 16:00:54    2006-10-09T10:28:13
 
-    >>> nlog.used_versions(["idcp8"])
+    >>> _prset(nlog.used_versions(["idcp8"]))
     set(['2008-10-16T12:42:03', '2006-10-09T10:28:13'])
-    >>> nlog.used_versions(["idcp9"])
+    >>> _prset(nlog.used_versions(["idcp9"]))
     set(['2006-10-09T10:28:13'])
 
     >>> nlog.print_()
@@ -620,6 +637,9 @@ class LLogByName(object):
                 if ver is not None:
                     v.add(ver)
         return v
+    def __contains__(self, key):
+        """returns True, if the name is in the LLogByName object."""
+        return key in self._dict
     def has_key(self, key):
         """returns True, if the name is in the LLogByName object."""
         return self._dict.has_key(key)
@@ -793,12 +813,12 @@ class LLogByVersion(object):
 
     >>> ddict= vlog["2006-10-09T10:28:13"]
     >>> for d in sorted(ddict.keys()):
-    ...   print d, repr(ddict[d])
+    ...   print d, _rset(ddict[d])
     ...
     2008-10-20 12:00:00 set(['idcp9', 'idcp8'])
     2008-10-20 12:19:30 set(['idcp9'])
-    >>> vlog.get("2006-10-09T10:28:13",{}).keys()
-    [datetime.datetime(2008, 10, 20, 12, 19, 30), datetime.datetime(2008, 10, 20, 12, 0)]
+    >>> sorted(vlog.get("2006-10-09T10:28:13",{}).keys())
+    [datetime.datetime(2008, 10, 20, 12, 0), datetime.datetime(2008, 10, 20, 12, 19, 30)]
     >>> vlog.get("2006-10-09T10:28:14",{}).keys()
     []
 
@@ -860,6 +880,9 @@ class LLogByVersion(object):
     def keys(self):
         """returns the sorted list of keys (versions)."""
         return sorted(self._dict.keys())
+    def __contains__(self, key):
+        """returns True, if the version is in the LLogByVersion object."""
+        return key in self._dict
     def has_key(self, key):
         """returns True, if the version is in the LLogByVersion object."""
         return self._dict.has_key(key)
@@ -1061,18 +1084,18 @@ class LLogActivity(object):
          2008-10-20 12:00:00    2008-10-21 12:00:00
          2008-10-23 12:00:00    2008-10-27 12:00:00
 
-    >>> alog.active_versions()
+    >>> _prset(alog.active_versions())
     set(['2006-11-09T10:28:13'])
 
-    >>> alog.inactive_versions()
+    >>> _prset(alog.inactive_versions())
     set(['2008-10-16T12:42:03'])
 
-    >>> alog.inactive_versions(datetime.datetime(2008,10,27,12,0,0))
+    >>> _prset(alog.inactive_versions(datetime.datetime(2008,10,27,12,0,0)))
     set(['2008-10-16T12:42:03'])
 
     print "idle versions:"
     print "\n".join(sorted(myset))
-    >>> alog.inactive_versions(datetime.datetime(2008,10,27,11,0,0))
+    >>> _prset(alog.inactive_versions(datetime.datetime(2008,10,27,11,0,0)))
     set([])
 
     >>> alog.print_()
@@ -1093,6 +1116,9 @@ class LLogActivity(object):
     def keys(self):
         """returns the sorted list of keys (versions)."""
         return sorted(self._dict.keys())
+    def __contains__(self, key):
+        """returns True, if the version is in the LlogActiveTimes object."""
+        return key in self._dict
     def has_key(self, key):
         """returns True, if the version is in the LlogActiveTimes object."""
         return self._dict.has_key(key)
@@ -1263,9 +1289,9 @@ class LLogLifeTimes(object):
     version                lifetime
     2008-10-16T12:42:03         5.0
 
-    >>> llog.lifetime_bigger(5)
+    >>> _prset(llog.lifetime_bigger(5))
     set(['2006-11-09T10:28:13', '2008-10-16T12:42:03'])
-    >>> llog.lifetime_bigger(6)
+    >>> _prset(llog.lifetime_bigger(6))
     set(['2006-11-09T10:28:13'])
 
     >>> llog.print_with_actives(alog)
@@ -1284,6 +1310,9 @@ class LLogLifeTimes(object):
     def keys(self):
         """returns the sorted list of keys (versions)."""
         return sorted(self._dict.keys())
+    def __contains__(self, key):
+        """returns True, if the version is in the LLogLifeTimes object."""
+        return key in self._dict
     def has_key(self, key):
         """returns True, if the version is in the LLogLifeTimes object."""
         return self._dict.has_key(key)

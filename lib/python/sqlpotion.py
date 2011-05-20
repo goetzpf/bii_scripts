@@ -75,7 +75,10 @@ try:
     import sqlalchemy
 except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module sqlalchemy not found\n" % __name__)
-import StringIO
+if sys.version_info < (3, 0):
+    import StringIO as io
+else:
+    import io
 #import typecheck2 as tp;
 import inspect
 import tempfile
@@ -91,7 +94,7 @@ if sys.version_info<(2,5):
 xx="""
 
 import sqlalchemy
-from pdb_utils import *
+from sqlpotion import *
 (meta,conn)=connect_database("pfeiffer","*******")
 (mmeta,mconn)=connect_memory()
 tbl_insertion=table_object("TBL_INSERTION",meta)
@@ -140,6 +143,38 @@ backup_extension= "bak"
 # tp_gen_or_none= tp.OrNoneChecker(tp.generator_)
 # 
 # tp_intpair_list= tp.ItertypeChecker(tp.PairtypeChecker(int))
+
+# ---------------------------------------------------------
+# python2 - python3 compatibility
+# ---------------------------------------------------------
+
+def _prset(s):
+    """print a set, only for python3 compabitability of the doctests."""
+    print "set(%s)" % repr(list(s))
+def _rset(s):
+    """returns repr of a set, only for python3 compabitability of the doctests."""
+    return "set(%s)" % repr(list(s))
+
+if sys.version_info >= (3,0):
+    _repr= repr
+    _str= str
+else:
+    def _repr(x):
+        """returns repr(x), handles unicode differently.
+
+        This is needed for the doctests since in python2 unicode
+        repr-strings look like this: "u'abc'", in python3 all 
+        is unicode and the repr-strings look like this: "'abc'".
+        """
+        return repr(x).replace("u'","'").replace('u"','"')
+    def _str(x):
+        """returns str(x), handles unicode differently.
+
+        This is needed for the doctests since in python2 unicode
+        repr-strings look like this: "u'abc'", in python3 all 
+        is unicode and the repr-strings look like this: "'abc'".
+        """
+        return str(x).replace("u'","'").replace('u"','"')
 
 # ---------------------------------------------------------
 # generic string functions
@@ -446,7 +481,7 @@ def _mk_temp_file():
     Here is an example:
     # import ptestlib as t
     >>> (fh,tempname)=_mk_temp_file()
-    >>> fh.write("hello, world!\n")
+    >>> written= fh.write("hello, world!\n")
     >>> fh.close()
     >>> t.catfile(tempname)
     hello, world!
@@ -1020,9 +1055,9 @@ def _print_query(it_gen, headings=[], format= Format.PLAIN, do_print=True):
             if not heading_printed:
                 if len(headings)<=0:
                     headings= row.keys()
-                prn(str(tuple(headings)))
+                prn(_str(tuple(headings)))
                 heading_printed= True
-            prn(str(row))
+            prn(_str(row))
     elif format==Format.CSV:
         separator= ","
         def csv_pr(lst):
@@ -1096,8 +1131,8 @@ def print_table(table_object, format= Format.TABLE,
 
     >>> print_table(tbl, Format.PLAIN)
     ('id', 'name')
-    (1, u'cd')
-    (2, u'ab')
+    (1, 'cd')
+    (2, 'ab')
     >>> print_table(tbl, Format.TABLE_SPC)
     id name
     1  cd  
@@ -1112,7 +1147,7 @@ def print_table(table_object, format= Format.TABLE,
     1,cd
     2,ab
     >>> print_table(tbl,Format.PLAIN,do_print=False)
-    ["('id', 'name')", "(1, u'cd')", "(2, u'ab')"]
+    ["('id', 'name')", "(1, 'cd')", "(2, 'ab')"]
     >>> print_table(tbl,Format.TABLE_SPC,do_print=False)
     ['id name', '1  cd  ', '2  ab  ']
     >>> print_table(tbl,Format.TABLE,do_print=False)
@@ -1160,9 +1195,9 @@ def print_query(conn, query_text, format= Format.TABLE,
     >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
     >>> set_table(tbl, ((1,"cd"),(2,"ab")))
     >>> print_query(conn,"select * from mytable",Format.PLAIN)
-    (u'id', u'name')
-    (1, u'cd')
-    (2, u'ab')
+    ('id', 'name')
+    (1, 'cd')
+    (2, 'ab')
     >>> print_query(conn,"select * from mytable",Format.TABLE_SPC)
     id name
     1  cd  
@@ -1505,19 +1540,19 @@ def ordered_query(table_obj,column_names=[], ascending=True):
 
     Now we can use the query to fetch all rows from the table:
     >>> for row in ordered_query(tbl).execute():
-    ...   print row
+    ...   print _repr(row)
     ... 
-    (1, u'cd')
-    (2, u'ef')
-    (3, u'ab')
+    (1, 'cd')
+    (2, 'ef')
+    (3, 'ab')
 
     Or we can order the query by some rows:
     >>> for row in ordered_query(tbl,["name","id"]).execute():
-    ...   print row
+    ...   print _repr(row)
     ... 
-    (3, u'ab')
-    (1, u'cd')
-    (2, u'ef')
+    (3, 'ab')
+    (1, 'cd')
+    (2, 'ef')
 
     The following lines show the SQL statement that the query
     object contains:
@@ -1592,12 +1627,12 @@ def func_query_as_dict(table_obj,func,columns=None):
     >>> set_table(tbl, ((1,"cd"),(2,"ab")))
 
     We now count values:
-    >>> func_query_as_dict(tbl,sqlalchemy.func.count)
+    >>> print _repr(func_query_as_dict(tbl,sqlalchemy.func.count))
     {'id': 2, 'name': 2}
 
     Now we determine "max":
-    >>> func_query_as_dict(tbl,sqlalchemy.func.max)
-    {'id': 2, 'name': u'cd'}
+    >>> print _repr(func_query_as_dict(tbl,sqlalchemy.func.max))
+    {'id': 2, 'name': 'cd'}
     """
     if columns is None:
         columns= column_name_list(table_obj,False)
@@ -1965,7 +2000,7 @@ def dtt_from_qsource(conn,tag,qsource_obj,trim_columns= True):
     #============================================================
     <BLANKLINE>
     """
-    output= StringIO.StringIO()
+    output= io.StringIO()
     dtt_write_qsource_fh(conn,tag,qsource_obj,output,trim_columns)
     contents= output.getvalue()
     output.close()
@@ -2872,6 +2907,8 @@ class DttResult(object):
                     val= ",".join([str(x) for x in getattr(self,attr)])
                 elif attr=="table_obj":
                     val= "table_obj<%s>" % str(getattr(self,attr))
+                elif attr=="primary_keys":
+                    val= _rset(getattr(self,attr))
                 else:
                     val= str(getattr(self,attr))
                 parts.append("%s=%s" % (attr,val))
@@ -2957,7 +2994,7 @@ def dtt_filter_fh(in_fh, out_fh, filter_func):
     ... #============================================================
     ... '''
 
-    >>> input= StringIO.StringIO(txt_3_tables)
+    >>> input= io.StringIO(txt_3_tables) # in python 2 StringIO.StringIO
     >>> dtt_filter_fh(input,sys.stdout,lambda x,fh:x in ["table1","table3"])
     <BLANKLINE>
     [Tag table1]
@@ -3354,11 +3391,11 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
 
     >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
-    (1, u'cd')
-    (2, u'ab')
-    (3, u"'quoted'")
-    (4, u'p|ped')
-    (5, u'back\\slashed')
+    (1, 'cd')
+    (2, 'ab')
+    (3, "'quoted'")
+    (4, 'p|ped')
+    (5, 'back\\slashed')
 
     Now we show how data may be added to the table that was just
     read:
@@ -3383,13 +3420,13 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
     >>> tdict=dtt_to_tables(meta,txt2,dtt_tag_filter(["mytable"]),tdict)
     >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
-    (1, u'cd')
-    (2, u'ab')
-    (3, u"'quoted'")
-    (4, u'p|ped')
-    (5, u'back\\slashed')
-    (6, u'xy')
-    (7, u'zz')
+    (1, 'cd')
+    (2, 'ab')
+    (3, "'quoted'")
+    (4, 'p|ped')
+    (5, 'back\\slashed')
+    (6, 'xy')
+    (7, 'zz')
 
 
     Now we show how to read single tables from a dbitabletext collection,
@@ -3455,8 +3492,8 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
     ['table2']
     >>> print_table(tdict["table2"].table_obj, Format.PLAIN)
     ('id2', 'name2')
-    (1, u'ab2')
-    (2, u'cd2')
+    (1, 'ab2')
+    (2, 'cd2')
     
     Now we do the same but this time we change the name of the table:
     >>> tdict= dtt_to_tables(meta,txt_3_tables,
@@ -3467,8 +3504,8 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
     'table2xx'
     >>> print_table(tdict["table2"].table_obj, Format.PLAIN)
     ('id2', 'name2')
-    (1, u'ab2')
-    (2, u'cd2')
+    (1, 'ab2')
+    (2, 'cd2')
 
     Now we fetch all tables, we create a new metadata object in
     order to dispose the tables created so far:
@@ -3544,8 +3581,8 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
     >>> tdict=dtt_to_tables(meta,txt,filter_tag("mytable"),row_filter= below4)
     >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
-    (1, u'cd')
-    (2, u'ab')
+    (1, 'cd')
+    (2, 'ab')
 
     For the next tests, we need a source where some 
     rows have an empty primary key. We show different ways
@@ -3587,27 +3624,30 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
     >>> m= myit(100)
     >>> 
     >>> def pk_get(flags,values):
-    ...     if reduce(lambda x,y:x or y, [values[c] is None for c in flags["pks"]]):
-    ...         i= m.next()
-    ...         values.update( [(p,i) for p in flags["pks"]] )
+    ...     for c in flags["pks"]:
+    ...         if values[c] is None:
+    ...             i= m.next()
+    ...             values.update( [(p,i) for p in flags["pks"]] )
+    ...             break
     ...     return values
     ... 
     >>> (meta,conn)=connect_memory()
     >>> tdict=dtt_to_tables(meta,txt,filter_tag("mytable"),row_filter= pk_get)
     >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
-    (1, u'ab')
-    (2, u'p|ped')
-    (3, u'back\\slashed')
-    (100, u'cd')
-    (101, u"'quoted'")
+    (1, 'ab')
+    (2, 'p|ped')
+    (3, 'back\\slashed')
+    (100, 'cd')
+    (101, "'quoted'")
 
     In the following example, we read the dbitable-text twice. First we fetch
     all rows where the primary key is defined:
 
     >>> def pk_defined(flags,values):
-    ...     if reduce(lambda x,y:x or y, [values[c] is None for c in flags["pks"]]):
-    ...         return None
+    ...     for c in flags["pks"]:
+    ...         if values[c] is None:
+    ...             return None
     ...     return values
     ... 
     >>> (meta,conn)=connect_memory()
@@ -3615,9 +3655,9 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
     ...                                         row_filter= pk_defined)
     >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
-    (1, u'ab')
-    (2, u'p|ped')
-    (3, u'back\\slashed')
+    (1, 'ab')
+    (2, 'p|ped')
+    (3, 'back\\slashed')
 
     Now we can determine the largest primary key from that table and 
     use this to generate new primary keys for rows where these are 
@@ -3629,8 +3669,9 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
     ...     pks= primary_keys(table)
     ...     max=func_query_as_dict(table,sqlalchemy.func.max)
     ...     def pk_gen(flags,values):
-    ...         if not reduce(lambda x,y:x or y, [values[c] is None for c in flags["pks"]]):
-    ...             return None
+    ...         for c in flags["pks"]:
+    ...             if values[c] is not None:
+    ...                 return None
     ...         values.update( [(p,max[p]) for p in flags["pks"]] )
     ...         for p in flags["pks"]:
     ...             values[p]= max[p]
@@ -3647,10 +3688,10 @@ def dtt_to_tables(metadata, txt, tag_filter=None, dtt_dict={},
 
     >>> print_table(tdict["mytable"].table_obj, Format.PLAIN)
     ('id', 'name')
-    (3, u'cd')
-    (4, u"'quoted'")
+    (3, 'cd')
+    (4, "'quoted'")
     """
-    input= StringIO.StringIO(txt)
+    input= io.StringIO(txt)
     result= dtt_read_tables_fh(metadata, input, tag_filter, dtt_dict,
                        rstrip_mode, quote_mode, row_filter)
     input.close()
@@ -3744,11 +3785,11 @@ def _fetch_one(query, value_dict):
 
     Now _fetch_one is called, note that it returns "None" if
     no matching row was found:
-    >>> print _fetch_one(query_id, {"id":1})
-    (1, u'ab')
-    >>> print _fetch_one(query_id, {"id":2})
-    (2, u'ab')
-    >>> print _fetch_one(query_id, {"id":3})
+    >>> print _repr(_fetch_one(query_id, {"id":1}))
+    (1, 'ab')
+    >>> print _repr(_fetch_one(query_id, {"id":2}))
+    (2, 'ab')
+    >>> print _repr(_fetch_one(query_id, {"id":3}))
     None
 
     We now create a query object with "name" as free variable:
@@ -3823,10 +3864,10 @@ def _row2dict(column_names,row):
 
     >>> column_names= column_name_list(tbl,False)
     >>> for row in ordered_query(tbl).execute():
-    ...   print _row2dict(column_names,row)
+    ...   print _repr(_row2dict(column_names,row))
     ... 
-    {'id': 1, 'name': u'cd'}
-    {'id': 2, 'name': u'ab'}
+    {'id': 1, 'name': 'cd'}
+    {'id': 2, 'name': 'ab'}
     """
     return dict(zip(column_names,row))
 
@@ -3849,20 +3890,20 @@ def _mappedrow2dict(column_names,column_map,row):
     >>> column_names= column_name_list(tbl,False)
     >>> column_map= pdict.OneToOne({"id":"my-id","name":"my-name"})
     >>> for row in ordered_query(tbl).execute():
-    ...   print _mappedrow2dict(column_names,column_map,row)
+    ...   print _repr(_mappedrow2dict(column_names,column_map,row))
     ... 
-    {'my-id': 1, 'my-name': u'cd'}
-    {'my-id': 2, 'my-name': u'ab'}
+    {'my-id': 1, 'my-name': 'cd'}
+    {'my-id': 2, 'my-name': 'ab'}
 
     If the column_map doesn't specify all columns that are present,
     these columns are skipped in the result. Here is an example
     for this:
     >>> column_map= pdict.OneToOne({"name":"my-name"})
     >>> for row in ordered_query(tbl).execute():
-    ...   print _mappedrow2dict(column_names,column_map,row)
+    ...   print _repr(_mappedrow2dict(column_names,column_map,row))
     ... 
-    {'my-name': u'cd'}
-    {'my-name': u'ab'}
+    {'my-name': 'cd'}
+    {'my-name': 'ab'}
     """
     return dict([ (column_map[n],v) for n,v in zip(column_names,row) if n in column_map ])
 
@@ -3928,15 +3969,15 @@ def _pk_where_part(table):
     WHERE mytable.id = ? AND mytable.loc = ? ORDER BY mytable.id, mytable.loc
 
     >>> for row in query.execute({"q_id":1,"q_loc":3}):
-    ...   print row
+    ...   print _repr(row)
     ... 
-    (1, 3, u'ab')
+    (1, 3, 'ab')
     >>> for row in query.execute({"q_id":1,"q_loc":2}):
-    ...   print row
+    ...   print _repr(row)
     ... 
-    (1, 2, u'cd')
+    (1, 2, 'cd')
     >>> for row in query.execute({"q_id":1,"q_loc":1}):
-    ...   print row
+    ...   print _repr(row)
     ... 
     """
     # primary keys in table:
@@ -3978,15 +4019,15 @@ def _mapped_pk_query(source_table, dest_table, column_mapping):
     WHERE mytable2."my-id" = ? AND mytable2."my-loc" = ? ORDER BY mytable2."my-id", mytable2."my-loc"
 
     >>> for row in query.execute({"my-id":1,"my-loc":3}):
-    ...   print row
+    ...   print _repr(row)
     ... 
-    (1, 3, u'ab')
+    (1, 3, 'ab')
     >>> for row in query.execute({"my-id":1,"my-loc":2}):
-    ...   print row
+    ...   print _repr(row)
     ... 
-    (1, 2, u'cd')
+    (1, 2, 'cd')
     >>> for row in query.execute({"my-id":1,"my-loc":1}):
-    ...   print row
+    ...   print _repr(row)
     ... 
     """
     # primary keys in source table:
@@ -4038,15 +4079,15 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     This is the content of the two tables:
     >>> print_table(tbl, Format.PLAIN)
     ('id', 'loc', 'name')
-    (1, 1, u'1-1')
-    (1, 2, u'1-2')
-    (2, 2, u'2-2')
+    (1, 1, '1-1')
+    (1, 2, '1-2')
+    (2, 2, '2-2')
 
     >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
-    (1, 1, u'xx', u'a')
-    (1, 2, u'1-2', u'b')
-    (2, 3, u'2-3', u'c')
+    (1, 1, 'xx', 'a')
+    (1, 2, '1-2', 'b')
+    (2, 3, '2-3', 'c')
 
     now we define a map mapping columns from tbl to tbl2:
     >>> column_mapping= pdict.OneToOne({"id":"my-id","loc":"my-loc","name":"my-name"})
@@ -4056,32 +4097,32 @@ def update_table(source, dest, column_mapping=None, do_deletes= False):
     >>> update_table(tbl,tbl2,column_mapping)
     >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
-    (1, 1, u'1-1', u'a')
-    (1, 2, u'1-2', u'b')
-    (2, 2, u'2-2', None)
-    (2, 3, u'2-3', u'c')
+    (1, 1, '1-1', 'a')
+    (1, 2, '1-2', 'b')
+    (2, 2, '2-2', None)
+    (2, 3, '2-3', 'c')
 
     now we reset tbl2 to it's previous state and update with delete:
     >>> result= tbl2.delete().execute()
     >>> set_table(tbl2,((1,1,u"xx",u"a"),(1,2,u"1-2",u"b"),(2,3,u"2-3",u"c")))
     >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
-    (1, 1, u'xx', u'a')
-    (1, 2, u'1-2', u'b')
-    (2, 3, u'2-3', u'c')
+    (1, 1, 'xx', 'a')
+    (1, 2, '1-2', 'b')
+    (2, 3, '2-3', 'c')
 
     >>> update_table(tbl,tbl2,column_mapping,do_deletes=True)
     >>> print_table(tbl, Format.PLAIN)
     ('id', 'loc', 'name')
-    (1, 1, u'1-1')
-    (1, 2, u'1-2')
-    (2, 2, u'2-2')
+    (1, 1, '1-1')
+    (1, 2, '1-2')
+    (2, 2, '2-2')
 
     >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-loc', 'my-name', 'my-other')
-    (1, 1, u'1-1', u'a')
-    (1, 2, u'1-2', u'b')
-    (2, 2, u'2-2', None)
+    (1, 1, '1-1', 'a')
+    (1, 2, '1-2', 'b')
+    (2, 2, '2-2', None)
     """
     source_column_types= pdb_column_type_dict(source)
     dest_column_types= pdb_column_type_dict(dest)
@@ -4175,12 +4216,12 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     This is the content of the two tables:
     >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-name', 'my-other')
-    (1, u'1', u'a')
-    (3, u'3', u'c')
+    (1, '1', 'a')
+    (3, '3', 'c')
     >>> print_table(tbl, Format.PLAIN)
     ('id', 'name')
-    (1, u'1new')
-    (2, u'2new')
+    (1, '1new')
+    (2, '2new')
 
     now we define a map mapping columns from tbl to tbl2:
     >>> column_mapping= pdict.OneToOne({"id":"my-id","name":"my-name"})
@@ -4191,10 +4232,10 @@ def add_table(source, dest, column_mapping=None, catch_exception=False):
     This is the result:
     >>> print_table(tbl2, Format.PLAIN)
     ('my-id', 'my-name', 'my-other')
-    (1, u'1', u'a')
-    (3, u'3', u'c')
-    (4, u'1new', None)
-    (5, u'2new', None)
+    (1, '1', 'a')
+    (3, '3', 'c')
+    (4, '1new', None)
+    (5, '2new', None)
     """
     if not auto_primary_key_possible(dest):
         raise TypeError, "dest must have a single integer primary key!"
