@@ -162,6 +162,7 @@ def main():
     }
     outFormat = "c"
     outFormatNullString = ""
+    titling = False
     """ Here all the action starts up.
 
         It begins with parsing commandline arguments.
@@ -195,6 +196,9 @@ def main():
     argParser.add_option ("-o", "--format", type="string",
                 action="store", 
                 default=outFormat, help="decide the output format (" + ",".join(outFormatList.keys()) + ")")
+    argParser.add_option ("--titling",
+                action="store_true",
+                help="enable titling of columns")
     argParser.add_option ("--doc",
                 action="store_true", help="create online help in restructured text format. Use \"./db_request.py --doc | rst2html\" for creation of html help")
     argParser.add_option ("-t", "--test",
@@ -285,6 +289,8 @@ def main():
         outputFormat = "txt"
         if verbose:
             print "replace unknown format " + str(argOptionList.format) + " to " + outFormat
+    if argOptionList.titling:
+        titling = True
     if argOptionList.idx:
         outnumbered = True
     if verbose:
@@ -331,25 +337,43 @@ def main():
         sys.exit(-1)
     if (type(dbSQLString) == unicode):
         dbSQLString = str(dbSQLString)
+    run = True
     try:
         dbSQLCursor = dbConnectHandle.Execute(dbSQLString)
-        if dbSQLCursor is not None:
-            if verbose:
-                print "fetching " + str(dbSQLCursor) + " as " + dbSQLString
-                dbSQLRecordInteger = 0
-            while not dbSQLCursor.EOF:
-                if outnumbered:
-                    print dbSQLRecordInteger,':',format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
-                    dbSQLRecordInteger += 1
-                else:
-                    print format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
-                dbSQLCursor.MoveNext()
-            dbSQLCursor.Close()
     except Exception, e:
+        run = False
         print "ERROR execute statement "+dbSQLString+" fails."
         if verbose:
             print "> "+str(e)
-    dbConnectHandle.Close()
+        dbConnectHandle.Close()
+    if run:
+        try:
+            if dbSQLCursor is not None:
+                if verbose:
+                    print "fetching " + str(dbSQLCursor) + " as " + dbSQLString
+                dbSQLRecordInteger = 0
+                if titling:
+                    header = []
+                    for col in xrange(0,len(dbSQLCursor.fields)):
+                        header.append(dbSQLCursor.FetchField(col)[0])
+                    if outnumbered:
+                        print 'T:',format_row (header, outFormatList.get(outFormat))
+                        dbSQLRecordInteger += 1
+                    else:
+                        print format_row (header, outFormatList.get(outFormat))
+                while not dbSQLCursor.EOF:
+                    if outnumbered:
+                        print dbSQLRecordInteger,':',format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
+                        dbSQLRecordInteger += 1
+                    else:
+                        print format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
+                    dbSQLCursor.MoveNext()
+                dbSQLCursor.Close()
+        except Exception, e:
+            print "ERROR formatting and printing content fails."
+            if verbose:
+                print "> "+str(e)
+        dbConnectHandle.Close()
 
     sys.exit(0)
 
