@@ -56,22 +56,24 @@ CreateX - Routines that help to write CreateX.pl scripts
       my ($app,$ioc,$fh,$dbh) = @_;
       #...write stuff obtained using db handle $dbh into req file $fh
     }
-  }
+  );
 
   std_create_subst(ARGV[0],
     sub {
       my ($app,$ioc,$fh,$dbh) = @_;
       #...write stuff obtained using db handle $dbh into subst file $fh
     }
-  }
+  );
 
-  write_subst_line($fh, "NAME=\"VALUE\"");
+  write_subst_line($fh, "$name=\"$value\"");
+
+  sub write_subst_line_from_hashref($fh, {$name=>$value});
 
   write_template($fh,"xyz.template",
     sub {
       my $fh = shift;
-      print $fh " { NAME=DEVICE1, ADDR=0 }\n"
-      print $fh " { NAME=DEVICE2, ADDR=1 }\n"
+      print $fh " { NAME=DEVICE1, ADDR=0 }\n";
+      print $fh " { NAME=DEVICE2, ADDR=1 }\n";
     }
   );
 
@@ -85,7 +87,7 @@ CreateX - Routines that help to write CreateX.pl scripts
       my ($colnames) = @_;
       push(@$colnames, "MY_NEW_COLUMN");
     }
-  )
+  );
 
   write_template_sql($fh,$template,$dbh,$query,
     sub {
@@ -97,7 +99,7 @@ CreateX - Routines that help to write CreateX.pl scripts
       my ($colnames) = @_;
       push(@$colnames, "MY_NEW_COLUMN");
     }
-  }
+  );
 
 =head1 DESCRIPTION
 
@@ -355,6 +357,20 @@ sub write_subst_line {
   # 2nd arg: a string consisting of comma-separated NAME=VALUE definitions
   my ($fh,$line) = @_;
   print $fh " {" . $line . "}\n";
+}
+
+=item write_subst_line_from_hashref FILE HASH
+
+Write one instantiation line inside some file-section of a substitution file
+by using the hash keys as macro names and the hash values as macro values.
+
+=cut
+
+sub write_subst_line_from_hashref {
+  # 1st arg: file handle to write to
+  # 2nd arg: a hash reference
+  my ($fh,$hr) = @_;
+  write_subst_line($fh, join(",", map("$_=\"$hr->{$_}\"", sort(keys(%$hr)))));
 }
 
 =item write_template FILE STRING SUB
