@@ -281,24 +281,37 @@ sub init_tableviewtype
     # if self->{_table} already exists, take this if no table
     # parameter is found in the argument-list
     my $table= shift;
+    my $schema;
+    my $object_name;
+    my $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
+    # caution: if $user is "" and $table contains no "." this may lead
+    # to an error
+
     if ((!defined $table) || ($table eq ""))
       { if (exists $self->{_table})
-          { $table= $self->{_table}; }
-      };
+          { $table = $self->{_table}; }
+        if (exists $self->{_schema})
+          { $schema= $self->{_schema}; }
+        $object_name= "$schema.$table";
+      }
+    else
+      {
+        ($object_name,$schema,$table)= dbdrv::real_name($dbh,$user,$table);
+      }
+
     if (!defined $table)
       { $last_error= "table name missing";
         return;
       };
 
     if ($type eq 'table')
-      { my $user;
-        $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
-        if (!dbdrv::check_existence($dbh,$table,$user))
+      { 
+        if (!dbdrv::check_existence($dbh,$object_name,$user))
           { $last_error= "table \"$table\" doesn\'t exist";
 
             return;
           };
-        $self->{_owner} = $user;
+        $self->{_owner} = $schema;
       };
 
     # if self->{_pks} already exists, take this if no primary-key
@@ -331,10 +344,7 @@ sub init_tableviewtype
             if    ($type eq 'table')
               { # try to determine primary key by a tricky SQL statement:
 
-                my $user;
-                $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
-
-                @primary_keys= dbdrv::primary_keys($dbh,$user,$table);
+                @primary_keys= dbdrv::primary_keys($dbh,$schema,$table);
                 if (!@primary_keys)
                   { $last_error= "error: primary key(s) not found via SQL";
 
@@ -368,12 +378,13 @@ sub init_tableviewtype
     foreach my $p (@primary_keys)
       { $p= uc($p); };
 
-    $self->{_table}= $table;
+    $self->{_table}  = $table;
+    $self->{_schema} = $schema;
     $self->{_pks}   = \@primary_keys;
     if ($#primary_keys>0)
       { $self->{_multi_pk}=1; };
 
-    my $sql_statement= "select * from $table";
+    my $sql_statement= "select * from $schema.$table";
     if ($type eq 'view')
       { $sql_statement= shift;
         if (!defined $sql_statement)
@@ -433,6 +444,7 @@ sub init_tableviewtype
     my @column_list= @{$sth->{NAME_uc}};
 
     my @x= dbdrv::get_simple_column_types($dbh,$sth,$table);
+    # Note: parameter $table is not used in get_simple_column_types !!
 
     if ($proxy_patch)
       { $sth->finish(); };
@@ -442,7 +454,7 @@ sub init_tableviewtype
 #warn join("|",@x);
 #print Dumper($dbh->type_info_all);
     if ($type eq 'table')
-      { my $r_col_prop= dbdrv::column_properties($dbh,$self->{_owner},$table);
+      { my $r_col_prop= dbdrv::column_properties($dbh,$schema,$table);
         $self->{_column_properties}= $r_col_prop if (defined $r_col_prop);
       };
 
@@ -1121,7 +1133,7 @@ sub foreign_keys
     my $user;
     $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
 
-    $r_foreign_keys= dbdrv::foreign_keys($dbh,$user,$self->{_table});
+    $r_foreign_keys= dbdrv::foreign_keys($dbh,$self->{_schema},$self->{_table});
 
     $self->{_foreign_keys}= $r_foreign_keys;
 
@@ -1143,7 +1155,7 @@ sub resident_keys
     my $user;
     $user= $dbdrv::std_username if ($dbh==$dbdrv::std_dbh);
 
-    $r_resident_keys= dbdrv::resident_keys($dbh,$user,$self->{_table});
+    $r_resident_keys= dbdrv::resident_keys($dbh,$self->{_schema},$self->{_table});
 
     $self->{_resident_keys}= $r_resident_keys;
 
@@ -1454,7 +1466,7 @@ sub max_key
         return;
       };
 
-    my $cmd= "select max( $pk ) from $self->{_table}";
+    my $cmd= "select max( $pk ) from $self->{_schema}.$self->{_table}";
     if ($arg eq 'capped')
       { $cmd.= " where $pk<$key_fact"; };
 
@@ -1652,7 +1664,7 @@ sub load_from_db
     my $last_fetch_cmd= $self->{_fetch_cmd};
 
     if ($self->{_type} eq 'table')
-      { $self->{_fetch_cmd}= "select * from $self->{_table} " .
+      { $self->{_fetch_cmd}= "select * from $self->{_schema}.$self->{_table} " .
                              "$select_trailer";
       };
 
@@ -1773,7 +1785,18 @@ sub load_from_db
 
     # change table name if the user wants it:
     if (exists $options{new_name})
-      { $self->{_table}= $options{new_name}; };
+      { 
+        my $n= $options{new_name};
+        if ($n!~/\./)
+          {
+            $self->{_table}= $options{new_name}; 
+          }
+        else
+          { my($schema,$table)= split(/\./,$n);
+            $self->{_schema}= $schema;
+            $self->{_table}= $table;
+          }
+      };
 
     return($self);
   }
@@ -1805,7 +1828,7 @@ sub delete_
     return(1) if (!$self->{_deleted});
 
     if ($sim_delete)
-      { print STDERR "In table $self->{_table} the following\n";
+      { print STDERR "In table $self->{_schema}.$self->{_table} the following\n";
         print STDERR "primary keys from lines would be deleted:\n";
         print STDERR join(",",(keys %{$self->{_deleted}})),"\n";
         print STDERR "set \$dbitable::sim_delete to 0 if you want\n" .
@@ -1823,7 +1846,7 @@ sub delete_
         my @conditions= map { "$_ = ?" } (@{$self->{_column_list}});
         my $condition= join(" AND ",@conditions);
         my $sth= dbdrv::prepare(\$format,$dbh,
-                                "delete from $self->{_table} " .
+                                "delete from $self->{_schema}.$self->{_table} " .
                                 "where $condition ");
         if (!$sth)
           { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
@@ -1845,7 +1868,7 @@ sub delete_
       }
     elsif (!$self->{_multi_pk}) # only one primary key column
       { my $sth= dbdrv::prepare(\$format,$dbh,
-                                "delete from $self->{_table} " .
+                                "delete from $self->{_schema}.$self->{_table} " .
                                 "where $r_pks->[0] = ? ");
         if (!$sth)
           { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
@@ -1870,7 +1893,7 @@ sub delete_
         my @conditions= map { "$_ = ?" } (@$r_pks);
         my $condition= join(" AND ",@conditions);
         my $sth= dbdrv::prepare(\$format,$dbh,
-                                "delete from $self->{_table} " .
+                                "delete from $self->{_schema}.$$self->{_table} " .
                                 "where $condition ");
         if (!$sth)
           { dbdrv::dbwarn($mod,'store_to_db',__LINE__,
@@ -1929,7 +1952,7 @@ sub update
       };
 
     my $sth= dbdrv::prepare(\$format,$dbh,
-                      "update $self->{_table} set " .
+                      "update $self->{_schema}.$self->{_table} set " .
                        join(" = ?, ",@{$self->{_column_list}}) . " = ? " .
                       "where $condition ");
     if (!$sth)
@@ -2052,7 +2075,7 @@ sub insert
       };
 
     my $sth= dbdrv::prepare(\$format,$dbh,
-                            "insert into $self->{_table} " .
+                            "insert into $self->{_schema}.$self->{_table} " .
                             " ( " . join(", ",@fields) . ") " .
                             "values( " .
                             ("?, " x $#fields) . " ? )" );
@@ -2122,7 +2145,7 @@ sub insert
         my $pk= $self->{_pks}->[0];
 
         $sth=    dbdrv::prepare(\$format,$dbh,
-                                "update $self->{_table} set $pk= ? " .
+                                "update $self->{_schema}.$self->{_table} set $pk= ? " .
                                 "where $pk= ?");
         if (!$sth)
           { dbdrv::dbwarn($mod,'insert',__LINE__,
@@ -2307,6 +2330,8 @@ sub load_from_file
               { my $t= $tokens[$i];
                 if    ($t eq 'TABLE')
                   { $self->{_table}= $tokens[$i+1]; }
+                elsif ($t eq 'SCHEMA')
+                  { $self->{_schema}= $tokens[$i+1]; }
                 elsif ($t eq 'PK')
                   { if (!$tokens[$i+1])
                       { # no PK set, this means : counter_pk mode !
@@ -2465,7 +2490,18 @@ sub load_from_file
 
     # change table name if the user wants it:
     if (exists $options{new_name})
-      { $self->{_table}= $options{new_name}; };
+      { 
+        my $n= $options{new_name};
+        if ($n!~/\./)
+          {
+            $self->{_table}= $options{new_name}; 
+          }
+        else
+          { my($schema,$table)= split(/\./,$n);
+            $self->{_schema}= $schema;
+            $self->{_table}= $table;
+          }
+      };
 
     return($self);
   }
@@ -2594,7 +2630,7 @@ sub store_to_file
     if (!$slim_format)
       { print $fh_w "[Properties]\n";
         my @defines;
-        foreach my $prop (qw(_table _type))
+        foreach my $prop (qw(_schema _table _type))
           { my $val= $self->{$prop};
             next if (!defined $val);
             push @defines, (uc(substr($prop,1)) . '=' . $val);
@@ -4140,7 +4176,8 @@ _pkis:        the column-index/indices of the primary key(s)
 _pk_is_numeric 1 if (all) primary key(s) are numeric
 _multi_pk     1 if there's more than one primary key
 _counter_pk   1 if the primary key is just a line-counter
-_table:       the name of the table, as it's used in oracle
+_table:       the name of the table, as it's used in oracle, without "." or schema
+_schema:      the name of the schema, as it's used in oracle
 _type:        the type of the table, "table","view" or "file"
 _types:       the types of the columns, "number" or "string"
 

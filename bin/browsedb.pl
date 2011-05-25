@@ -69,7 +69,6 @@ use Tk::FontDialog;
 use Tk::Balloon;
 
 use Tk::TableMatrix;
-#use Tk::TableMatrix::Spreadsheet;
 use Tk::ProgressBar;
 # use Tk::Date; 
 use Tk::NumEntry;
@@ -109,7 +108,7 @@ $global_data{about} =
         "pfeiffer\@mail.bessy.de",
         "laux\@mail.bessy.de" ];
 
-
+#$global_data{debug} = 1;
 
 $global_data{license}= [ "HZB License"];
 
@@ -194,7 +193,6 @@ my @predefined_databases= ('devices',
                            'machine;host=dbgate1.trs.bessy.de;port=9999');
 
 $global_data{database}{db_driver}     = "Oracle";
-#$global_data{database}{db_server}     = "ocean.acc.bessy.de";
 $global_data{database}{db_source}     = "devices";
 $global_data{database}{user}          = (getpwuid($>))[0];
 $global_data{database}{password}      = "";
@@ -472,8 +470,7 @@ sub tk_login
                                         ($Tk::VERSION >= 804.027) ? 
                                         '-disabledbackground':undef
                                     );
-    # ^^^ -disabledbackground not allowed here in older Tk versions                                 
-
+    # ^^^ -disabledbackground not allowed here in older Tk versions
     my $e0= $FrTop->BrowseEntry(-textvariable => \$r_glbl->{db_driver},
                                 %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
@@ -487,7 +484,30 @@ sub tk_login
                           -show => '*',
                           %entry_opts
                          )->grid(-row=>$row++, -column=>1, -sticky=> "w");
-
+    # handling automatic focussing the cursor to the first empty control
+    my $acte;
+    if (\$r_glbl->{db_driver} ne "")
+      {
+        if (\$r_glbl->{db_source} ne "")
+          {
+            if (\$r_glbl->{db_user} ne "")
+              {
+                $acte = $e3;
+              }
+            else
+              {
+                $acte = $e2;
+              }
+          }
+        else
+          {
+            $acte = $e1;
+          }
+      }
+    else
+      {
+        $acte = $e0;
+      }
 
     my $Button;
     my($e4,$e5);
@@ -532,7 +552,7 @@ sub tk_login
 # an experiment with the Oracle Proxy:
 #$e0->insert('end', "Proxy:hostname=tarn;port=4097;dsn=DBI:Oracle");
 
-    $e0->focus();
+    $acte->focus();
     $e0->bind('<Return>', sub { $e1->focus() } );
     $e0->bind('<Tab>', sub { $e1->focus() } );
     $e1->bind('<Return>', sub { $e2->focus() } );
@@ -802,6 +822,14 @@ sub tk_main_window
                   'checkbutton',
                    -label=> 'auto-generate primary keys',
                    -variable => \$r_glbl->{primary_key_auto_generate},
+                );
+    $MnPref->add('separator');
+    my $MnPrefSchm = $MnPref->Menu();
+    $r_glbl->{MainWindow}->{menu_schema_cascade} = $MnPrefSchm->Menu();
+    $MnPref->add('cascade',
+                  -label=> 'Known schemas',
+                  -underline   => 0,
+                  -menu => $r_glbl->{MainWindow}->{menu_schema_cascade}
                 );
     $MnPref->add('separator');
     my $MnPrefTheme = $MnPref->Menu();
@@ -1382,6 +1410,31 @@ sub tk_main_window_finish
     my $infotext= $r_glbl->{user} . "@" . $r_glbl->{db_driver} . ':' .
                   $r_glbl->{db_source};
 
+    my @schemata=dbdrv::known_schemas($r_glbl->{'dbh'},
+                                  uc($r_glbl->{user}));
+    $r_glbl->{MainWindow}->{menu_schema_cascade}->delete(0, 'end');;
+    foreach my $schema (@schemata)
+      {
+        if (! exists $r_glbl->{schema}->{$schema})
+          {
+            if ($schema eq uc($r_glbl->{user}) || dbdrv::is_public_schema($schema) == 1)
+              {
+                print "|debug| schema $schema on";
+                $r_glbl->{schema}->{$schema} = 1;
+              }
+            else
+              {
+                $r_glbl->{schema}->{$schema} = 0;
+              }
+          }
+        $r_glbl->{MainWindow}->{menu_schema_cascade}->add('checkbutton',
+                         -variable=> \$r_glbl->{schema}->{$schema},
+                         -label=> $schema,
+                         -onvalue=>1, -offvalue=>0,
+                         -command=>  [\&tk_main_window_finish,
+                                      $r_glbl ]
+                        );
+      };
     if ($r_glbl->{use_proxy})
       { $infotext.= " (proxy $r_glbl->{proxy}:$r_glbl->{proxy_port})"; };
 
@@ -1392,7 +1445,7 @@ sub tk_main_window_finish
               dbdrv::accessible_objects($r_glbl->{'dbh'},
                                          $r_glbl->{user},
                                          "TABLE",
-                                         "PUBLIC,USER");
+                                         $r_glbl->{schema});
 
     BrowseDB::TkUtils::Progress($r_glbl,35);
 
@@ -1406,7 +1459,7 @@ sub tk_main_window_finish
                dbdrv::accessible_objects($r_glbl->{'dbh'},
                                          $r_glbl->{user},
                                          "VIEW",
-                                         "PUBLIC,USER");
+                                         $r_glbl->{schema});
 
     BrowseDB::TkUtils::Progress($r_glbl, 55);
 
@@ -1426,7 +1479,7 @@ sub tk_main_window_finish
                dbdrv::accessible_objects($r_glbl->{'dbh'},
                                          $r_glbl->{user},
                                          "FUNCTION,PROCEDURE",
-                                         "PUBLIC,USER");
+                                         $r_glbl->{schema});
 
     my $script_listbox_widget= $r_glbl->{MainWindow}->{script_listbox_widget};
     $script_listbox_widget->delete(0, 'end');
@@ -1785,11 +1838,11 @@ sub tk_execute_new_query
 #_______________________________________________________
 
 sub tk_quit_main
-  {
 # $r_glbl all the globals, if defined top_widget and $r_tbh so it is finally
 # only a closing# table_hash_window, otherwise it is a closing application call
 # returns: <undef> if the window was closed
 #           1 if the window was not closed (on request by the user)
+  {
 
     my($r_glbl)= @_;
 
@@ -1850,10 +1903,10 @@ sub tk_quit_main
 
 
 sub tk_quit_table
-  {
 # returns: <undef> if the window was closed
 #           1 if the window was not closed (on request by the user)
 # action: 'close' or 'reload'
+  {
     my($r_glbl, $r_tbh, $action)= @_;
 
     my $choice;
@@ -2135,7 +2188,7 @@ sub make_table_hash
 
     # the dbitable object:
     $table_hash{dbitable}  = get_dbitable($r_glbl,\%table_hash);
-# warn "get_dbitable($r_glbl,\%table_hash) = $table_hash{dbitable} ";
+    #warn "get_dbitable returns: " . Dumper($table_hash{dbitable});
     BrowseDB::TkUtils::Progress($r_glbl,50);
 
     if (! defined $table_hash{dbitable})
@@ -4235,11 +4288,10 @@ sub tk_references_dialog
     my @lines;
 
     foreach my $col (@cols)
-      { my $fk_table= dbdrv::canonify_name($r_glbl->{dbh},$r_glbl->{user},
-                                           $fkh->{$col}->[0],
-                                           $fkh->{$col}->[2]);
+      { my @fk_table= dbdrv::real_name($r_glbl->{dbh},$fkh->{$col}->[2],
+                                           $fkh->{$col}->[0]);
         push @lines,
-             sprintf("%-" . $maxcolsz . "s -> %s",$col,$fk_table);
+             sprintf("%-" . $maxcolsz . "s -> %s",$col,$fk_table[0]);
 
 #        push @lines,
 #             sprintf("%-" . $maxcolsz . "s -> %s",$col,
@@ -4361,11 +4413,12 @@ sub tk_dependency_dialog
     #                   ]
 
     foreach my $col_name (keys %$r_resident_keys)
-      { my $r_list= $r_resident_keys->{$col_name};
-
+      {
+        my $r_list= $r_resident_keys->{$col_name};
+        #warn "\nresident tables: " . Dumper($r_list);
         foreach my $r_sublist (@$r_list)
           {
-            push @{ $resident_tables{$r_sublist->[0]} },
+            push @{ $resident_tables{$r_sublist->[2].".".$r_sublist->[0]} },
                  [ $r_sublist->[1] , $col_name ];
 
           };
@@ -5181,6 +5234,12 @@ sub popup_enable_disable
       };
   }
 
+# handle known schemas
+#_______________________________________________________
+sub cb_set_known_schemas
+ { my($r_glbl)= @_;
+
+ }
 # manage visible columns:
 #_______________________________________________________
 
@@ -6742,8 +6801,11 @@ sub get_column_map
           };
       };
 
+    # CAUTION: if table name is not an empty string, dbitable
+    # applies real_name() to it. If an object with such a name doesn't exist,
+    # an error occurs.
     my $ntab= dbitable->new('view',$r_glbl->{dbh},
-                             'col_map_query',"",$sql_command
+                             '',"",$sql_command
                            );
 
     return if (!defined $ntab);
@@ -7041,7 +7103,8 @@ sub get_dbitable
 #   table_order => $ORDER_BY_part
 #   sequel       => $sql_statement
 #        only for the type "sql", specifies the SQL fetch command
-  { my($r_glbl,$r_tbh)= @_;
+  {
+    my($r_glbl,$r_tbh)= @_;
 
     if ($sim_oracle_access)
       {
@@ -7058,8 +7121,7 @@ sub get_dbitable
         return($tab);
       };
 
-#warn "get from oracle: $r_tbh->{table_name} as $r_tbh->{table_type} filtered
-#by '$r_tbh->{table_filter}' ordered by '$r_tbh->{table_order}'";
+    #warn "get from oracle: $r_tbh->{table_name} as $r_tbh->{table_type} filtered by '$r_tbh->{table_filter}' ordered by '$r_tbh->{table_order}'";
     my $ntab;
     my %load_options;
 
@@ -7067,8 +7129,7 @@ sub get_dbitable
       { if ($r_tbh->{table_type} eq 'table_or_view')
           {
             if (dbdrv::object_is_table($r_glbl->{dbh},
-                                       $r_tbh->{table_name},
-                                       $r_glbl->{user}))
+                                       $r_glbl->{table_name}))
               { $r_tbh->{table_type}= 'table'; }
             else
               { $r_tbh->{table_type}= 'view'; };

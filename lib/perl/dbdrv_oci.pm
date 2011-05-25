@@ -47,18 +47,18 @@ $sql_capabilities->{"generic"}=
   {
     "alias"=>
       {
-        "objects"=>      "SELECT object_name, status, object_type, owner \
-                                    FROM sys.all_objects \
-                                    WHERE object_name LIKE UPPER('##1##') AND\
+        "objects"=>      "SELECT object_name, status, object_type, owner 
+                                    FROM sys.all_objects 
+                                    WHERE object_name LIKE UPPER('##1##') AND
                                     NOT object_type = 'SYNONYM'",
-        "describe"=>     "SELECT column_name, table_name, owner, data_type, \
-                                        data_length, data_precision, data_scale, nullable, \
-                                        column_id, default_length, data_default, num_distinct, \
+        "describe"=>     "SELECT column_name, table_name, owner, data_type, 
+                                        data_length, data_precision, data_scale, nullable, 
+                                        column_id, default_length, data_default, num_distinct, 
                                         low_value, high_value
-                                    FROM all_tab_columns \
-                                    WHERE table_name = UPPER('##1##') \
+                                    FROM all_tab_columns 
+                                    WHERE table_name = UPPER('##1##') 
                                     ORDER BY column_id",
-        "lookup"=>        "SELECT object_name, object_owner, object_type \
+        "lookup"=>        "SELECT object_name, object_owner, object_type 
                                     FROM all_objects
                                     WHERE object_name like '##1##''",
       },
@@ -67,24 +67,24 @@ $sql_capabilities->{"table"}=
   {
     "alias"=>
       {
-        "depends" =>    "SELECT o.object_id, o.created, o.status, o.object_name, o.owner \
-                                        FROM all_dependencies d, all_objects o \
-                                        WHERE d.name = UPPER('##1##') AND \
-                                            d.referenced_owner = o.owner AND \
-                                            d.referenced_name = o.object_name \
+        "depends" =>    "SELECT o.object_id, o.created, o.status, o.object_name, o.owner 
+                                        FROM all_dependencies d, all_objects o 
+                                        WHERE d.name = UPPER('##1##') AND 
+                                            d.referenced_owner = o.owner AND 
+                                            d.referenced_name = o.object_name 
                                         ORDER BY o.object_name",
-        "triggertext" =>       "SELECT trigger_type, triggering_event, trigger_body \
-                                            FROM dba_triggers \
+        "triggertext" =>       "SELECT trigger_type, triggering_event, trigger_body 
+                                            FROM dba_triggers 
                                             WHERE trigger_name = UPPER('##1##')",
-        "constraints" =>    "SELECT constraint_name, table_name, owner,constraint_type, \
-                                                r_owner, r_constraint_name, search_condition \
-                                            FROM all_constraints \
-                                            WHERE table_name = UPPER('##1##') \
+        "constraints" =>    "SELECT constraint_name, table_name, owner,constraint_type, 
+                                                r_owner, r_constraint_name, search_condition 
+                                            FROM all_constraints 
+                                            WHERE table_name = UPPER('##1##') 
                                             ORDER BY constraint_name, r_owner, r_constraint_name",
-        "triggers" =>           "SELECT DISTINCT trigger_name, owner, table_owner, table_name, \
-                                                trigger_type, triggering_event, status, referencing_names \
-                                            FROM dba_triggers \
-                                            WHERE table_name = UPPER('##1##') \
+        "triggers" =>           "SELECT DISTINCT trigger_name, owner, table_owner, table_name, 
+                                                trigger_type, triggering_event, status, referencing_names 
+                                            FROM dba_triggers 
+                                            WHERE table_name = UPPER('##1##') 
                                             ORDER BY trigger_name, table_owner, table_name",
       },
   };
@@ -105,7 +105,11 @@ $sql_capabilities->{"view"}=
       },
   };
 
+
 our %sql_aliases;
+# has to be exported to a config file
+our @sql_none_users = qw(PUBLIC WEBCALENDAR WWW_LOCAL);
+our @sql_public_users = qw(PUBLIC);
 
 foreach my $cap_aliases (keys %$sql_capabilities)
   {
@@ -158,17 +162,17 @@ sub real_name
       };
 
     if ((!defined $data) && ($obj=~/\./))
-      { 
+      {
         # object name contains a dot, assume
         # that we can access the table.
-	# fake the $data object:
-	$data= [undef,$obj];
+        # fake the $data object:
+        $data= [undef,$obj];
       }
     if (!defined $data)
       { # not in list of synonyms and user objects
         # the object is probably not accessible
         dbwarn($mod_l,'real_name',__LINE__,
-               "warning:no data found for object $obj");
+               "warning:no data found for user \"$user_name\" object \"$obj\"");
         return;
       };
 
@@ -227,25 +231,14 @@ sub canonify_name
             # the "owner" part in the name
             next;
           };
-        if (!defined $other_syn)
-          { $other_syn= $n;
-            # we just remember the first synonym that
-            # is neither PUBLIC nor user 
-            next;
-          };  
-        if ((defined $public_syn) && (defined $user_syn) && 
-            (defined $other_syn))
-          { # if all 3 types of synonyms were found, leave
-            # the loop
-            last; 
-          };    
+        if ((defined $public_syn) && (defined $user_syn))
+          { last;
+          };
       };
     # a kind of priority here: return public-synonym when
     # it was found, else try user-synonym if it was found,
-    # else return other-synonym (if found)  
-    return $public_syn if (defined $public_syn);  
+    return $public_syn if (defined $public_syn);
     return $user_syn   if (defined $user_syn);  
-    return $other_syn  if (defined $other_syn);  
     return($name);
   }
 
@@ -276,7 +269,7 @@ sub get_synonyms
                 "asyn.table_owner NOT IN ('SYS', 'SYSTEM') AND " .
                 "asyn.table_name=ao.object_name AND " .
                 "asyn.table_owner=ao.owner" ;
-    #print Dumper($sql);
+    #warn Dumper($sql);
     sql_trace($sql) if ($sql_trace);
 
     my $res= $dbh->selectall_arrayref($sql);
@@ -299,7 +292,7 @@ sub get_synonyms
         { push @{$r_reverse_syn->{$obj}}, $syn; };
     };
 
-    #print Dumper($r_syn);
+    #warn Dumper($r_syn);
     return(1);
   }
 
@@ -340,16 +333,84 @@ sub load_object_dict
   }
 
 #-------------------------------------------------------------
+# get known schemas
+#-------------------------------------------------------------
+#PLx 2011
+sub get_foreign_schemata
+  { my($dbh,$user_name)= @_;
+    $dbh = check_dbi_handle($dbh);
+    return if (!defined $dbh);
+    my $user = uc($user_name);
+    my $excludeusers = "";
+    foreach my $noneuser (@sql_none_users)
+      {
+        if ($excludeusers ne "")
+          {
+            $excludeusers = $excludeusers.", ";
+          }
+        $excludeusers = $excludeusers."'".$noneuser."'";
+      }
+    my $sql = "SELECT username FROM all_users" .
+              "    WHERE user_id > 100" .
+              " AND username NOT IN (".$excludeusers.") AND NOT username = '".$user."'";
+    sql_trace($sql) if ($sql_trace);
+
+    my $res= $dbh->selectall_arrayref($sql);
+
+    if (!defined $res)
+      { dberror($mod_l,'known_schemas',__LINE__,
+                "selectall_arrayref failed, errcode:\n$DBI::errstr");
+        return;
+      };
+
+    my @return;
+    foreach my $line (@$res)
+    {
+        push @return, $line->[0];
+    };
+    #warn Dumper(\@return),"\n";
+    return @return;
+  }
+
+sub known_schemas
+# EXPORTED
+  {
+    my($dbh,$user_name)= @_;
+    my @schemas = get_foreign_schemata($dbh, $user_name);
+    sort @schemas;
+    unshift @schemas, uc($user_name);
+    push @schemas, "PUBLIC";
+    #warn Dumper(\@schemas),"\n";
+    return @schemas;
+  }
+
+sub is_public_schema
+# EXPORTED
+  {
+    my($schema) = @_;
+    my $ret = 0;
+    foreach my $reguser (@sql_public_users)
+      {
+        if (uc($schema) eq $reguser)
+          {
+            $ret = 1;
+          }
+      }
+      return $ret;
+  }
+        
+#-------------------------------------------------------------
 # get catalog of accessible objects
 #-------------------------------------------------------------
 
 sub accessible_objects
 # EXPORTED 
-  { my($dbh,$user_name,$types,$access)= @_;
+  {
+    my($dbh,$user_name,$types,$access)= @_;
 #    my %known_types= { table => 'T', view => 'V', 
 #                       procedure => 'P', FUNCTION => 'F',
 #                       sequence=> 'S');
-    my %known_acc  = map { $_ =>1 } qw( user public );
+#    my %known_acc  = map { $_ =>1 } qw( user public );
     my %types;
     my %access;
 
@@ -373,52 +434,42 @@ sub accessible_objects
           };
       };
 
+    my @schemata = known_schemas($dbh, $user_name);
+
     load_object_dict($dbh,$user_name);
+
     # loads also functions and procedures
 
-    my @keys= keys %$r_db_objects;
-
-#print Dumper(\%types);
-    my @keys2;
+    my @keys;
     foreach my $dbobj_type (keys %types)
       {
-        push @keys2, (grep { $r_db_objects->{$_}->[0] eq $dbobj_type } @keys);
+        push @keys, (grep { $r_db_objects->{$_}->[0] eq $dbobj_type } keys %$r_db_objects);
       }
 
-    if (!defined $access)
-      { %access= ("public" => 1); }
-    else
-      { $access= lc($access);
-        %access= map { $_ => 1} split(",",$access);
-        foreach my $t (keys %access)
-          { if (!exists $known_acc{$t})
-              { dberror($mod_l,'accessible_objects',__LINE__,
-                    "unknown object access type: $t");
-                return;
-              };
-          };
-      };
+    #warn Dumper(\@result),"\n";
 
-    my @result;
-
-    if (exists $access{public})
-      { push @result,
-             grep { /^PUBLIC\./ } @keys2;
-      };
-
-    if (exists $access{user})
+    my %schemas_wanted=(); #"PUBLIC"=>1, uc($user_name)=>1);
+    foreach my $schema (@schemata)
       {
-        push @result,
-             grep { /^$user_name\./i } @keys2;
-      };
+        if ($access->{$schema})
+          {
+            $schemas_wanted{$schema}= 1;
+          }
+      }
 
-    #warn join("|",@result) . "\n";
+    my %result;
+    foreach my $key (@keys)
+      {
+        if ($key=~ /^([^\.]+)\.(.*)$/)
+          {
+            if (exists $schemas_wanted{$1})
+              {
+                $result{$key}= 1;
+              }
+          }
+      }
+    return sort (keys %result);
 
-    map { $_=~ s/^[^\.]+\.// } @result; # remove "owner"
-
-#print Dumper(\@result);
-
-    return(sort @result);
   }
 
 # INTERNAL-------------------
@@ -430,7 +481,8 @@ sub get_user_objects
 #         'F' (function) or 'Q' (sequence)
 # $t_name: table or view referred to
 # $t_own: owner of referred table or view (equal to the $user-parameter)
-  { my($dbh,$user,$r_tab)= @_;
+  {
+    my($dbh,$user,$r_tab)= @_;
 
     die if (!defined $r_tab);
     die if (ref($r_tab) ne 'HASH');
@@ -445,13 +497,24 @@ sub get_user_objects
 
     my $sql;
     # per database_object_type registration of all known objects
+    my $schema_filter = "";
+    my @schemata = known_schemas($dbh, $user);
+    foreach my $schema (@schemata)
+      {
+        if ($schema_filter ne "")
+          {
+            $schema_filter = $schema_filter.", ";
+          } 
+        $schema_filter = $schema_filter." '$schema'";
+      }
     foreach my $dbobj_type (keys %db_object_types)
       {
-        $sql= "SELECT object_name " .
-              "FROM user_objects " .
-              "WHERE object_type = '".$dbobj_type."'";
+        $sql= "SELECT object_name, owner " .
+              "FROM all_objects " .
+              "WHERE object_type = '".$dbobj_type."'" .
+              "  AND owner IN (" . $schema_filter . ")";
 
-        #print "\n$dbobj_string: $sql";
+        #warn "\nget_obj $dbobj_type: $sql";
         sql_trace($sql) if ($sql_trace);
 
         my $res= $dbh->selectall_arrayref($sql);
@@ -465,12 +528,12 @@ sub get_user_objects
 
         foreach my $line (@$res)
           {
-            $r_tab->{ $user . '.' . $line->[0] } = 
+            $r_tab->{ $line->[1] . '.' . $line->[0] } =
                                   [type_to_typechar($dbobj_type) ];
             };
       }
 
-#    print "rtab:".Dumper($r_tab);
+    #warn "rtab:".Dumper($r_tab);
     return(1);
   }
 
@@ -489,6 +552,7 @@ sub check_existence
     # be made, since it's no public synonym and not in the
     # synonym list
     return(1) if ($table_name=~ /\./);
+    
 
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
@@ -827,6 +891,14 @@ sub foreign_keys
   { my($dbh,$user_name,$table_name)= @_;
     my $table_owner;
 
+    if ($table_name =~ "/\./")
+      {
+        ($table_owner, $table_name) = split ("/\./", $table_name);
+      }
+    else
+      {
+        $table_owner = $user_name;
+      }
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
@@ -895,7 +967,7 @@ sub foreign_keys
         $foreign_keys{ $r_line->[1] } = [ $r_line->[4],
                                           $r_line->[5], $r_line->[7] ];
 
-#warn "$r_line->[1] -> ( $r_line->[4],$r_line->[5] )";
+        #warn "$r_line->[1] -> ( $r_line->[4],$r_line->[5] )";
       };
 
     return( \%foreign_keys);
@@ -912,13 +984,21 @@ sub resident_keys
   { my($dbh,$user_name,$table_name)= @_;
     my $table_owner;
 
+    if ($table_name =~ "/\./")
+      {
+        ($table_owner, $table_name) = split ("/\./", $table_name);
+      }
+    else
+      {
+        $table_owner = $user_name;
+      }
     $dbh= check_dbi_handle($dbh);
     return if (!defined $dbh);
 
     $table_name= uc($table_name);
 
     ($table_owner,$table_name)=
-                (dbdrv::real_name($dbh,$user_name,$table_name))[1,2];
+                (dbdrv::real_name($dbh,$table_owner,$table_name))[1,2];
     if (!defined $table_name)
       { # not in list of synonyms and user objects
         # the object is probably not accessible
@@ -1407,18 +1487,21 @@ WHERE asyn.owner NOT IN ('SYSTEM', 'SYS') AND
   asyn.owner IN ('PUBLIC', 'GUEST') AND
   asyn.table_name=aobj.view_name;
 
-
-
- perl -e 'use lib "."; use dbdrv; dbdrv::load("Oracle"); \
-          dbdrv::connect_database("DBI:Oracle:bii_par","pfeiffer","xxx");\
-          dbdrv::load_object_dict("","pfeiffer"); \
-          dbdrv::dump_object_dict(); \
+ perl -e 'use lib "."; use dbdrv; dbdrv::load("Oracle"); 
+          dbdrv::connect_database("DBI:Oracle:devices","test2","blalaber");
+          dbdrv::known_schemas("", "test2");
           dbdrv::disconnect_database(); print join("|",@a),"\n"; '
 
- perl -e 'use lib "."; use dbdrv; dbdrv::load("Oracle"); \
-          dbdrv::connect_database("DBI:Oracle:bii_par","pfeiffer","xxx");\
-          dbdrv::load_object_dict("","pfeiffer"); \
-          print Data::Dumper($dbdrv::r_db_objects);\
+ perl -e 'use lib "."; use dbdrv; dbdrv::load("Oracle"); 
+          dbdrv::connect_database("DBI:Oracle:devices","test2","blalaber");
+          dbdrv::load_object_dict("","test2");
+          dbdrv::dump_object_dict(); 
+          dbdrv::disconnect_database(); print join("|",@a),"\n"; '
+
+ perl -e 'use lib "."; use dbdrv; dbdrv::load("Oracle"); 
+          dbdrv::connect_database("DBI:Oracle:devices","test2","blalaber");
+          dbdrv::load_object_dict("","test2");
+          print Data::Dumper($dbdrv::r_db_objects);
           dbdrv::disconnect_database(); '
 
 

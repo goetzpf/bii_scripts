@@ -75,7 +75,7 @@ use Text::ParseWords;
 
 our %drivers= ( Oracle => 'dbdrv_oci.pm',
                 Postgresql => 'dbdrv_pg.pm',
-		SQLite => 'dbdrv_lite.pm'
+                SQLite => 'dbdrv_lite.pm'
               );
 our $std_dbh;      # internal standard database-handle
 our $std_username; # internal standard username
@@ -887,7 +887,7 @@ is not a valid DBI handle, it returns C<undef>.
 
 =item dbdrv::check_existence()
 
-  if (dbdrv::check_existence($dbh,$table_name,$user_name))
+  if (dbdrv::check_existence($dbh,$object_name))
     { print "table exists and can be accessed\n"; }
   else
     { print "table does not exist or is not accessible\n"; }
