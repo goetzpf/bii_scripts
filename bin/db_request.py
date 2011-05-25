@@ -162,7 +162,7 @@ def main():
     }
     outFormat = "c"
     outFormatNullString = ""
-    titling = False
+    header = False
     """ Here all the action starts up.
 
         It begins with parsing commandline arguments.
@@ -196,9 +196,9 @@ def main():
     argParser.add_option ("-o", "--format", type="string",
                 action="store", 
                 default=outFormat, help="decide the output format (" + ",".join(outFormatList.keys()) + ")")
-    argParser.add_option ("--titling",
+    argParser.add_option ("--header",
                 action="store_true",
-                help="enable titling of columns")
+                help="enable header of columns")
     argParser.add_option ("--doc",
                 action="store_true", help="create online help in restructured text format. Use \"./db_request.py --doc | rst2html\" for creation of html help")
     argParser.add_option ("-t", "--test",
@@ -289,8 +289,8 @@ def main():
         outputFormat = "txt"
         if verbose:
             print "replace unknown format " + str(argOptionList.format) + " to " + outFormat
-    if argOptionList.titling:
-        titling = True
+    if argOptionList.header:
+        header = True
     if argOptionList.idx:
         outnumbered = True
     if verbose:
@@ -352,15 +352,15 @@ def main():
                 if verbose:
                     print "fetching " + str(dbSQLCursor) + " as " + dbSQLString
                 dbSQLRecordInteger = 0
-                if titling:
-                    header = []
+                if header:
+                    headers = []
                     for col in xrange(0,len(dbSQLCursor.fields)):
-                        header.append(dbSQLCursor.FetchField(col)[0])
+                        headers.append(dbSQLCursor.FetchField(col)[0])
                     if outnumbered:
-                        print 'T:',format_row (header, outFormatList.get(outFormat))
+                        print 'T:',format_row (headers, outFormatList.get(outFormat))
                         dbSQLRecordInteger += 1
                     else:
-                        print format_row (header, outFormatList.get(outFormat))
+                        print format_row (headers, outFormatList.get(outFormat))
                 while not dbSQLCursor.EOF:
                     if outnumbered:
                         print dbSQLRecordInteger,':',format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
