@@ -1419,7 +1419,6 @@ sub tk_main_window_finish
           {
             if ($schema eq uc($r_glbl->{user}) || dbdrv::is_public_schema($schema) == 1)
               {
-                print "|debug| schema $schema on";
                 $r_glbl->{schema}->{$schema} = 1;
               }
             else
