@@ -1,0 +1,172 @@
+%save = (
+  'open_tables' => {
+    'DEVICE.TBL_DEVICE_VALUE' => {
+      'colmaps' => {
+        'UNIT_LIST_KEY' => 'SELECT physical_unit_list_key, sign FROM device.v_physical_units',
+        'DEVICE_KEY' => 'SELECT device_key, device_name FROM device.v_devices'
+      },
+      'col_map_flags' => {
+        'INDEXSORT' => 'N',
+        'UNIT_LIST_KEY' => 'M',
+        'VALUE' => 'N',
+        'NAME' => 'N',
+        'STATUS' => 'N',
+        'DEVICE_VALUE_KEY' => 'N',
+        'DEVICE_KEY' => 'M',
+        'DESCRIPTION' => 'N',
+        'SIGN' => 'N'
+      },
+      'sql' => 'select * from DEVICE.TBL_DEVICE_VALUE ',
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'INDEXSORT' => '1',
+        'UNIT_LIST_KEY' => '1',
+        'VALUE' => '1',
+        'NAME' => '1',
+        'STATUS' => '1',
+        'DEVICE_VALUE_KEY' => '1',
+        'DEVICE_KEY' => '1',
+        'DESCRIPTION' => '1',
+        'SIGN' => '1'
+      },
+      'geometry' => '1116x115+443+607',
+      'sort_columns' => [
+        'DEVICE_VALUE_KEY',
+        'NAME',
+        'SIGN',
+        'VALUE',
+        'UNIT_LIST_KEY',
+        'DEVICE_KEY',
+        'STATUS',
+        'INDEXSORT',
+        'DESCRIPTION'
+      ]
+    },
+    'DEVICE.TBL_DEVICE' => {
+      'colmaps' => {
+        'FACILITY_RACK_KEY' => 'SELECT facility_rack_key, name FROM device.v_facility_racks',
+        'SUPPORT_TEAM_KEY' => 'SELECT device_support_team_key, sign FROM device.tbl_device_support_team',
+        'NAME_KEY' => 'SELECT name_key, name FROM device.v_names',
+        'FACILITY_LOCATION_KEY' => 'SELECT facility_location_key, name FROM device.v_facility_locations',
+        'SUBFAMILY_KEY' => 'SELECT device_subfamily_key, family||\':\'||name name FROM device.v_device_subfamilies',
+        'PARENT_KEY' => 'SELECT device_key, name FROM device.v_devices'
+      },
+      'col_map_flags' => {
+        'SERIALNR' => 'N',
+        'NAME' => 'N',
+        'SUPPORT_TEAM_KEY' => 'M',
+        'STATUS' => 'N',
+        'FACILITY_LOCATION_KEY' => 'M',
+        'SUBFAMILY_KEY' => 'M',
+        'PARENT_KEY' => 'M',
+        'FACILITY_RACK_KEY' => 'M',
+        'DEVICE_KEY' => 'N',
+        'DOCUMENTATION' => 'N',
+        'DESCRIPTION' => 'N',
+        'NAME_KEY' => 'M',
+        'PICTURE' => 'N'
+      },
+      'sql' => 'select * from DEVICE.TBL_DEVICE ',
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'SERIALNR' => '1',
+        'NAME' => '1',
+        'SUPPORT_TEAM_KEY' => '1',
+        'STATUS' => '1',
+        'FACILITY_LOCATION_KEY' => '1',
+        'SUBFAMILY_KEY' => '1',
+        'PARENT_KEY' => '1',
+        'DEVICE_KEY' => '1',
+        'FACILITY_RACK_KEY' => '1',
+        'DOCUMENTATION' => '1',
+        'DESCRIPTION' => '1',
+        'NAME_KEY' => '1',
+        'PICTURE' => '1'
+      },
+      'geometry' => '1528x115+443+432',
+      'sort_columns' => [
+        'DEVICE_KEY',
+        'NAME',
+        'NAME_KEY',
+        'PARENT_KEY',
+        'SUBFAMILY_KEY',
+        'FACILITY_LOCATION_KEY',
+        'FACILITY_RACK_KEY',
+        'STATUS',
+        'SERIALNR',
+        'DESCRIPTION',
+        'SUPPORT_TEAM_KEY',
+        'PICTURE',
+        'DOCUMENTATION'
+      ]
+    },
+    'DEVICE.TBL_DEVICE_APPLICATION' => {
+      'colmaps' => {
+        'FACILITY_KEY' => 'SELECT facility_key, name FROM device.v_facilities'
+      },
+      'col_map_flags' => {
+        'NAME' => 'N',
+        'FACILITY_KEY' => 'M',
+        'STATUS' => 'N',
+        'DESCRIPTION' => 'N',
+        'DEVICE_APPLICATION_KEY' => 'N'
+      },
+      'sql' => 'select * from DEVICE.TBL_DEVICE_APPLICATION ',
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'FACILITY_KEY' => '1',
+        'NAME' => '1',
+        'STATUS' => '1',
+        'DESCRIPTION' => '1',
+        'DEVICE_APPLICATION_KEY' => '1'
+      },
+      'geometry' => '1116x115+443+782',
+      'sort_columns' => [
+        'DEVICE_APPLICATION_KEY',
+        'NAME',
+        'FACILITY_KEY',
+        'DESCRIPTION',
+        'STATUS'
+      ]
+    },
+    'DEVICE.TBL_DEVICE_APPLICATION_LINK' => {
+      'colmaps' => {
+        'DEVICE_VALUE_KEY' => 'SELECT device_value_key, device_name||\':\'||value_sign value FROM device.v_device_values',
+        'DEVICE_APPLICATION_KEY' => 'SELECT device_application_key, facility_name||\':\'||name name FROM device.v_device_applications'
+      },
+      'col_map_flags' => {
+        'DEVICE_VALUE_KEY' => 'M',
+        'DEVICE_APPLICATION_KEY' => 'M'
+      },
+      'sql' => 'select * from DEVICE.TBL_DEVICE_APPLICATION_LINK ',
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'DEVICE_VALUE_KEY' => '1',
+        'DEVICE_APPLICATION_KEY' => '1'
+      },
+      'geometry' => '404x290+1567+607',
+      'sort_columns' => [
+        'DEVICE_VALUE_KEY',
+        'DEVICE_APPLICATION_KEY'
+      ]
+    }
+  },
+  'foreigners' => {
+    'DEVICE.TBL_DEVICE_VALUE' => {
+      'DEVICE.TBL_DEVICE' => [
+        'DEVICE_KEY',
+        'DEVICE_KEY'
+      ]
+    },
+    'DEVICE.TBL_DEVICE_APPLICATION_LINK' => {
+      'DEVICE.TBL_DEVICE_VALUE' => [
+        'DEVICE_VALUE_KEY',
+        'DEVICE_VALUE_KEY'
+      ],
+      'DEVICE.TBL_DEVICE_APPLICATION' => [
+        'DEVICE_APPLICATION_KEY',
+        'DEVICE_APPLICATION_KEY'
+      ]
+    }
+  }
+);

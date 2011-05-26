@@ -831,6 +831,15 @@ sub tk_main_window
                   -underline   => 0,
                   -menu => $r_glbl->{MainWindow}->{menu_schema_cascade}
                 );
+    $MnPref->add('command',
+                  -label=> 'Reload column maps',
+                  -underline   => 0,
+                  -command=> [\&tk_reload_column_maps, $r_glbl]
+                );
+    
+    # read column-map definitions:
+    tk_reload_column_maps($r_glbl);
+
     $MnPref->add('separator');
     my $MnPrefTheme = $MnPref->Menu();
     $MnPref->add(
@@ -912,6 +921,12 @@ sub tk_main_window
                  -underline  => 5,
                  -command => [\&tk_r_object_dict_dump, $r_glbl],
                 );
+    $MnHelp->add('command',
+                -label=> 'Dump global column maps',
+                -underline  => 12,
+                -command => [\&tk_column_maps_dump, $r_glbl],
+            );
+
     $MnHelp->add('separator');
     $MnHelp->add('command',
                  -label=> 'About',
@@ -1374,28 +1389,6 @@ sub tk_main_window
         $DlgHelpListbox->bind('<Button-1>' => $listbox_action);
         $DlgHelpListbox->bind('<Double-1>' => $listbox_action);
 
-       # read column-map definitions:
-        my $r_c;
-        if (defined $r_glbl->{share_dir})
-          { $r_c= load_column_maps($r_glbl,
-                                   File::Spec->catdir($r_glbl->{share_dir},
-                                                      $column_map_file
-                                                     )
-                                   );
-            if (defined $r_c)
-              { $r_glbl->{column_map_definitions_global}= $r_c; };
-          };
-
-        if ((-d $r_glbl->{dir}) and (-r $r_glbl->{dir}))
-          { $r_c= load_column_maps($r_glbl,
-                                   File::Spec->catdir($r_glbl->{dir},
-                                                      $column_map_file
-                                                     )
-                                   );
-            if (defined $r_c)
-              { $r_glbl->{column_map_definitions_local}= $r_c; };
-          };
-
         # dont remove these update, because of .toplevel
         # problems for destroy operations
         $Top->update();
@@ -1595,7 +1588,34 @@ sub tk_r_object_dict_dump
 
    my $r_buffer= dbdrv::dump_r_object_dict_s();
 
-   BrowseDB::TkUtils::MakeTextWidget($r_glbl,"Reverse object dictionary dump",$r_buffer); }
+   BrowseDB::TkUtils::MakeTextWidget($r_glbl,"Reverse object dictionary dump",$r_buffer);
+ }
+
+sub tk_column_maps_dump
+ { my($r_glbl)= @_;
+
+   my $fh= \*STDOUT;
+   my $buffer = "";
+   local(*F);
+   my $filename = $r_glbl->{share_dir}."/".$column_map_file;
+   if (defined $filename)
+     { if (!open(F,"<$filename"))
+         { dberror("ColumnMaps",'dump_column_maps',__LINE__,"unable to open file");
+           return;
+         };
+       $fh= \*F;
+       my $lines = 1;
+       while(<F>) {
+        $buffer = $buffer.sprintf("%6d>%s", $lines, $_);
+        $lines++;
+       }
+       if (!close(F))
+         { dberror("ColumnMaps",'dump_column_maps',__LINE__,"unable to close file");
+           return;
+         };
+     };
+   BrowseDB::TkUtils::MakeTextWidget($r_glbl,"Column maps dump", \$buffer);
+ }
 
 sub tk_update_window_menu
   { my($r_glbl) =@_;
@@ -1649,7 +1669,30 @@ sub tk_reload_all_objects
 
   }
 
+sub tk_reload_column_maps
+  { my($r_glbl)= @_;
+    my $r_c;
+    if (defined $r_glbl->{share_dir})
+        { $r_c= load_column_maps($r_glbl,
+                    File::Spec->catdir($r_glbl->{share_dir},
+                            $column_map_file
+                        )
+                    );
+        if (defined $r_c)
+            { $r_glbl->{column_map_definitions_global}= $r_c; };
+        };
 
+    if ((-d $r_glbl->{dir}) and (-r $r_glbl->{dir}))
+        { $r_c= load_column_maps($r_glbl,
+                    File::Spec->catdir($r_glbl->{dir},
+                            $column_map_file
+                        )
+                    );
+        if (defined $r_c)
+            { $r_glbl->{column_map_definitions_local}= $r_c; };
+        };
+  }
+  
 sub tk_sql_commands
   { my($r_glbl)= @_;
 
@@ -6823,7 +6866,7 @@ sub get_column_map
     foreach my $pk ($ntab->primary_keys())
       { $key= $ntab->value($pk,$c1);
         $str= $ntab->value($pk,$c2);
-        $key_to_str{$key}= $str;
+        $key_to_str{$key}= $str; 
         $str_to_key{$str}= $key;
       };
 
@@ -6848,7 +6891,7 @@ sub load_column_maps
       };
     while(my $line=<F>)
       { chomp($line);
-        my ($table,$col,$sql) = &parse_line('\s+', 0, $line);
+        my ($table,$col,$sql) = &parse_line('[\s\t]+', 0, $line);
         if (!defined $sql)
           { warn "column-map entry ignored:\n$line\n";
             next;
