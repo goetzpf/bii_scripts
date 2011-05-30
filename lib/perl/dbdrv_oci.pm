@@ -144,6 +144,7 @@ sub real_name
     return if (!defined $dbh);
 
     $user_name= uc($user_name);
+    $obj= uc($obj);
 
     load_object_dict($dbh,$user_name);
 
