@@ -287,7 +287,7 @@ sub init_tableviewtype
     # caution: if $user is "" and $table contains no "." this may lead
     # to an error
 
-    if ((!defined $table) || ($table eq ""))
+    if ((!defined $table) || ($table eq "") || ($type eq 'view'))
       { if (exists $self->{_table})
           { $table = $self->{_table}; }
         if (exists $self->{_schema})

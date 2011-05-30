@@ -1,35 +1,90 @@
 %save = (
   'open_tables' => {
+    'SQL:0' => {
+      'colmaps' => {},
+      'col_map_flags' => {
+        'KEY' => 'N',
+        'NAME' => 'N',
+        'UNDULATOR' => 'N',
+        'INSERTION_KEY' => 'N'
+      },
+      'sql' => 'select i.key, i.insertion_key, i.name, pv.value as UNDULATOR from tbl_insertion_value pv, v_insertion_names i where pv.name=\'undulator\' and pv.insertion_key=i.insertion_key',
+      'table_type' => 'sql',
+      'displayed_cols' => {
+        'KEY' => '1',
+        'NAME' => '1',
+        'UNDULATOR' => '1',
+        'INSERTION_KEY' => '1'
+      },
+      'geometry' => '336x214+1069+195',
+      'sort_columns' => [
+        'KEY',
+        'INSERTION_KEY',
+        'NAME',
+        'UNDULATOR'
+      ]
+    },
     'TBL_INSERTION' => {
+      'colmaps' => {
+        'IOC_KEY' => 'SELECT ioc_key,name FROM device.v_ioc_names',
+        'NAME_KEY' => 'SELECT key,name FROM device.v_insertion_names',
+        'PARENT_KEY' => 'SELECT i.insertion_key,n.name FROM device.tbl_insertion i, device.v_insertion_names n WHERE i.insertion_key=n.insertion_key'
+      },
+      'col_map_flags' => {
+        'IOC_KEY' => 'M',
+        'DEVICE_CONDITION' => 'N',
+        'NAME_KEY' => 'M',
+        'APPLICATION_NAME' => 'N',
+        'INSERTION_KEY' => 'N',
+        'PARENT_KEY' => 'M'
+      },
+      'sql' => 'select * from DEVICE.TBL_INSERTION ',
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'IOC_KEY' => '1',
+        'DEVICE_CONDITION' => '1',
+        'NAME_KEY' => '1',
+        'APPLICATION_NAME' => '1',
+        'INSERTION_KEY' => '1',
+        'PARENT_KEY' => '1'
+      },
+      'geometry' => '812x214+249+195',
       'sort_columns' => [
         'INSERTION_KEY',
         'NAME_KEY',
         'APPLICATION_NAME',
         'IOC_KEY',
         'PARENT_KEY',
-        'DEVICE_CONDITION',
-      ],
-      'table_type' => 'table',
-      'geometry' => '812x214+249+195',
-      'sql' => 'select * from TBL_INSERTION ',
-      'col_map_flags' => {
-        'NAME_KEY' => 'M',
-        'DEVICE_CONDITION' => 'N',
-        'IOC_KEY' => 'M',
-        'INSERTION_KEY' => 'N',
-        'APPLICATION_NAME' => 'N',
-        'PARENT_KEY' => 'N'
-      },
-      'displayed_cols' => {
-        'NAME_KEY' => '1',
-        'DEVICE_CONDITION' => '1',
-        'IOC_KEY' => '1',
-        'INSERTION_KEY' => '1',
-        'APPLICATION_NAME' => '1',
-        'PARENT_KEY' => '1'
-      }
+        'DEVICE_CONDITION'
+      ]
     },
     'TBL_INSERTION_VALUE' => {
+      'colmaps' => {
+        'INSERTION_KEY' => 'SELECT insertion_key,value FROM device.tbl_insertion_value WHERE name=\'undulator\''
+      },
+      'col_map_flags' => {
+        'NAME' => 'N',
+        'VALUE' => 'N',
+        'INSERTION_VALUES_KEY' => 'N',
+        'ACTIVE' => 'N',
+        'GROUP_NAME' => 'N',
+        'NAME_INDEX' => 'N',
+        'DESCRIPTION' => 'N',
+        'INSERTION_KEY' => 'M'
+      },
+      'sql' => 'select * from DEVICE.TBL_INSERTION_VALUE ',
+      'table_type' => 'table',
+      'displayed_cols' => {
+        'NAME' => '1',
+        'VALUE' => '1',
+        'INSERTION_VALUES_KEY' => '1',
+        'ACTIVE' => '0',
+        'GROUP_NAME' => '1',
+        'NAME_INDEX' => '1',
+        'DESCRIPTION' => '1',
+        'INSERTION_KEY' => '1'
+      },
+      'geometry' => '1007x321+248+470',
       'sort_columns' => [
         'NAME',
         'INSERTION_KEY',
@@ -39,57 +94,15 @@
         'DESCRIPTION',
         'ACTIVE',
         'NAME_INDEX'
-      ],
-      'table_type' => 'table',
-      'geometry' => '1007x321+248+468',
-      'sql' => 'select * from TBL_INSERTION_VALUE ',
-      'col_map_flags' => {
-        'VALUE' => 'N',
-        'ACTIVE' => 'N',
-        'DESCRIPTION' => 'N',
-        'NAME' => 'N',
-        'INSERTION_KEY' => 'M',
-        'INSERTION_VALUES_KEY' => 'N',
-        'NAME_INDEX' => 'N',
-        'GROUP_NAME' => 'N'
-      },
-      'displayed_cols' => {
-        'VALUE' => '1',
-        'ACTIVE' => '0',
-        'DESCRIPTION' => '1',
-        'NAME' => '1',
-        'INSERTION_KEY' => '1',
-        'INSERTION_VALUES_KEY' => '1',
-        'NAME_INDEX' => '1',
-        'GROUP_NAME' => '1'
-      }
-    },
-    'SQL:0' => {
-      'sort_columns' => [
-        'KEY',
-        'INSERTION_KEY',
-        'NAME',
-        'UNDULATOR'
-      ],
-      'table_type' => 'sql',
-      'geometry' => '336x213+1074+196',
-      'sql' => 'select i.key, i.insertion_key, i.name, pv.value as UNDULATOR from tbl_insertion_value pv, v_insertion_names i where pv.name=\'undulator\' and pv.insertion_key=i.insertion_key',
-      'col_map_flags' => {
-        'INSERTION_KEY' => 'N',
-        'UNDULATOR' => 'N',
-        'NAME' => 'N',
-        'KEY' => 'N'
-      },
-      'displayed_cols' => {
-        'INSERTION_KEY' => '1',
-        'UNDULATOR' => '1',
-        'NAME' => '1',
-        'KEY' => '1'
-      }
+      ]
     }
   },
   'foreigners' => {
     'TBL_INSERTION_VALUE' => {
+      'SQL:0' => [
+        'INSERTION_KEY',
+        'INSERTION_KEY'
+      ],
       'TBL_INSERTION' => [
         'INSERTION_KEY',
         'INSERTION_KEY'

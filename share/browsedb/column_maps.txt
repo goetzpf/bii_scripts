@@ -23,6 +23,7 @@ DEVICE.TBL_DEVICE_HISTORY          DEVICE_KEY              "SELECT device_key, n
 DEVICE.TBL_TERMINAL_SERVER         NAME_KEY                "SELECT name_key,name FROM device.v_names WHERE member='TS'"
 DEVICE.TBL_INSERTION               IOC_KEY                 "SELECT ioc_key,name FROM device.v_ioc_names"
 DEVICE.TBL_INSERTION               NAME_KEY                "SELECT key,name FROM device.v_insertion_names"
+DEVICE.TBL_INSERTION               PARENT_KEY              "SELECT i.insertion_key,n.name FROM device.tbl_insertion i, device.v_insertion_names n WHERE i.insertion_key=n.insertion_key"
 DEVICE.TBL_INSERTION_EPICS_POS     CIOC_PORT_KEY           "SELECT p.port_key, n.name || ',Port ' || p.port AS ioc_port FROM device.tbl_ioc_port p ,device.v_ioc_names n WHERE n.ioc_key=p.ioc_key"
 DEVICE.TBL_INSERTION_EPICS_POS     IDIOC_PORT_KEY          "SELECT p.port_key, n.name || ',Port ' || p.port AS ioc_port FROM device.tbl_ioc_port p ,device.v_ioc_names n WHERE n.ioc_key=p.ioc_key"
 DEVICE.TBL_INSERTION_EPICS_POS     INSERTION_KEY           "SELECT insertion_key,name FROM device.v_insertion_names"

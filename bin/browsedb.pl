@@ -2305,10 +2305,21 @@ sub make_table_hash
       };
 
     # now apply local and global column-maps
+
+    my $table_fullname= $table_hash{table_name};
+    if ($table_hash{table_type} ne 'sql')
+      {
+        $table_fullname= (dbdrv::real_name($dbh,
+                                           $r_glbl->{user},
+                                           $table_hash{table_name}))[0];
+      }
+
     foreach my $k (qw(local global))
       { $r_col_maps= $r_glbl->{"column_map_definitions_$k"};
         if (defined $r_col_maps)
-          { $r_col_maps= $r_col_maps->{$table_hash{table_name}};
+          { 
+            #$r_col_maps= $r_col_maps->{$table_hash{table_name}};
+            $r_col_maps= $r_col_maps->{$table_fullname};
             if (defined $r_col_maps)
               { foreach my $c ( keys %$r_col_maps )
                   { next if (column_has_a_map(\%table_hash,$c));
