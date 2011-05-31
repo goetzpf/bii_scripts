@@ -346,13 +346,8 @@ sub   layoutLine
 }    
 
 
-##  Layout by line (Default)
+##  Layout by lineRaw
 #  ........................
-#
-#  Widget1 | Widget2 | Widget3 
-#  --------+--------------------
-#  Widget4 | Widget5 | Widget6 
-#  Widget7 | Widget8 | Widget9 
 #
 #
 #  * The Widgets are placed from the left to the right - as written in a line - as long as the display 
@@ -360,7 +355,7 @@ sub   layoutLine
 #
 #  * The total width of the panel is set by the argument '-width', or set to 900 by default.
 #
-#  * There order of widgets is as defined in the substitution file, option '-sort' is ignored.
+#  * There order of widgets is as read from the substitution file, option '-sort' is ignored.
 # 
 sub   layoutLineRaw
 {   my ($r_substData,$rH_options) = @_;
@@ -564,13 +559,14 @@ sub    layoutGrid
     my @table;	    # rH_data = table[col]->[row]
     my @colMaxWidth;
     my @rowMaxHeight;
+    my @spannedRow;
+    
     foreach my $group (@$r_substData)
     { 
     	
         my $edlFileName = shift @$group;	# the name of the .template/.edl file 
 	my ($edlContent, $widgetWidth, $widgetHeight) = getDisplay($edlFileName);
     	next unless defined $edlContent;
-#print "Display $edlFileName: $widgetWidth, $widgetHeight\n";
 
 	foreach my $rH_Attr (@$group)
 	{ 
@@ -582,91 +578,109 @@ sub    layoutGrid
 	    }
 	    my $edl;
     	    my ($widgetWidth, $xScale) = getWidth($widgetWidth,$rH_Attr);
-#print "  GRID($xGrid,$yGrid) /$edlFileName/ $widgetWidth/$widgetHeight, $xScale\n";
+#print "  GRID($xGrid,$yGrid)\t$widgetWidth/$widgetHeight,\tScale=$xScale,\tSPAN=$rH_Attr->{SPAN} '$edlFileName/ \n";
+	    my %panelItem;
+	    $panelItem{widgetWidth} = $widgetWidth;
+	    $panelItem{xScale}	  = $xScale;
+	    $panelItem{yGrid}	  = $yGrid;
+	    $panelItem{xGrid}	  = $xGrid;
+	    $panelItem{widgetHeight}  = $widgetHeight;
+	    $panelItem{rH_Attr}    = $rH_Attr;
+	    $panelItem{edlContent} = $edlContent;
+
+    	    my $posVal = $table[$yGrid]->[$xGrid];
+	    if( $posVal) {
+	    	delete($posVal->{edlContent});
+	    	delete($panelItem{edlContent});
+		print "$posVal,GRID=$xGrid,$yGrid is:",Dumper($posVal), "Illegal redefinition by:",Dumper(\%panelItem);
+		die "Multiple definition of GRID=$xGrid,$yGrid" if $posVal;
+    	    }
+	    $table[$yGrid]->[$xGrid]=\%panelItem;
 
 	    if(defined $rH_Attr->{SPAN} )
 	    {
-	    	$table[$xGrid]->[$yGrid]->{SPAN} = $rH_Attr->{SPAN};
+		$panelItem{SPAN} = $rH_Attr->{SPAN};
+		$spannedRow[$xGrid] = \%panelItem;
 	    }
 	    else
 	    {
 	    	$colMaxWidth[$xGrid] = ($widgetWidth > $colMaxWidth[$xGrid]) ? $widgetWidth : $colMaxWidth[$xGrid] ;
 	    }
 	    $rowMaxHeight[$yGrid] = ($widgetHeight > $rowMaxHeight[$yGrid]) ? $widgetHeight : $rowMaxHeight[$yGrid];
-
-	    $table[$xGrid]->[$yGrid]->{widgetWidth} = $widgetWidth;
-	    $table[$xGrid]->[$yGrid]->{xScale}     = $xScale;
-	    $table[$xGrid]->[$yGrid]->{xGrid}      = $xGrid;
-	    $table[$xGrid]->[$yGrid]->{yGrid}      = $yGrid;
-	    $table[$xGrid]->[$yGrid]->{widgetHeight}  = $widgetHeight;
-	    $table[$xGrid]->[$yGrid]->{rH_Attr}    = $rH_Attr;
-	    $table[$xGrid]->[$yGrid]->{edlContent} = $edlContent;
+	    delete($rH_Attr->{GRID}) if defined $rH_Attr->{GRID};
+	    delete($rH_Attr->{SPAN}) if defined $rH_Attr->{SPAN};
 	}
     }
-    
-#print "row [",join(',',@rowMaxHeight),"]\ncol [",join(',',@colMaxWidth),"]\n";
-    my $prEdl;
+# process span parameter: 
+#print "yMax [",join(',',@rowMaxHeight),"]\nxMax [",join(',',map{(defined $_)?$_:"undef"}@colMaxWidth),"]\n";
+#print "spannedRows [",join(',',map{"\"pos: ".$_->{xGrid}.",".$_->{yGrid}." span=".$_->{SPAN}."\""}@spannedRow),"]\n";
+    foreach my $rH_spannedItem (reverse(@spannedRow))
+    {
+    	next unless defined $rH_spannedItem;
+	my $x           = $rH_spannedItem->{xGrid};
+	my $span        = $rH_spannedItem->{SPAN};
+    	my $widgetWidth = $rH_spannedItem->{widgetWidth};
+	my @spannedcols = @colMaxWidth[$x..($x+$span-1)];
+    	my $spannedWidth;
+	foreach my $w (@spannedcols) {
+	    $spannedWidth += (defined $w)?$w:0; 
+	}
+#print "$x, SPAN $span maxW=:",join(',',@spannedcols)," spanned:",$spannedWidth," widget:",$widgetWidth,"\n";
+	if ($spannedWidth <  $widgetWidth)   	    	    	# if spanned widget exceeds collumnwidth:
+	{
+	    $colMaxWidth[$x] += $widgetWidth - $spannedWidth;	# add it to the first element!
+	    print "\tset colMaxWidth[$x]=$colMaxWidth[$x]\n";
+	}
+    }
 
-    my $border = (defined $rH_options->{BORDER}) ? $rH_options->{BORDER}:undef;
+#print "yMax [",join(',',@rowMaxHeight),"]\nxMax [",join(',',map{(defined $_)?$_:"undef"}@colMaxWidth),"]\n";
+
+    my $prEdl;
+    my $border = (defined $rH_options->{BORDER}) ? $rH_options->{BORDER}:0;
     my $xPos=0;	    	    # put next part of display here 
     my $yPos=0;
     my $yPosNull=0;   	    # start position of a column
 
-#print "layout: Grid\n",Dumper($r_substData),Dumper($rH_options);
-
     # dummy set to get the title height
     my $dummy;
     ($dummy,$xPos,$yPosNull) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE}; 
+    $prEdl .= $dummy if defined $dummy;
     
-    $xPos += $border;
-    my $col  = 0;
-    foreach (@table)
+    my $y=0;
+    $yPos = $yPosNull;
+    foreach my $row (@table)
     {   
-	my $row=0;
-    	$yPos = $yPosNull;
-	foreach my $rH ( @{$table[$col]} )
+	my $x = 0;
+	$xPos = $border;
+#print "y=$y, yPos=$yPos\n";
+	foreach my $rH ( @$row )
 	{
-	    if( defined $rH )
+	    if( scalar(keys(%$rH)) > 0 )
 	    {
-    	    	my $span = $rH->{SPAN};
-		my $colLast = $col+$span -1;
-		if(defined $span)
-		{
-		    my @s = @colMaxWidth[$col..$colLast-1];
-		    my $spanedWidth;
-		    $spanedWidth += $_ foreach (@s);
-#print "\tspan $col - $colLast = $rH->{widgetWidth} OR [",join('+',@s),",$colMaxWidth[$colLast]] => colMaxWidth[",$colLast,"] = ",$rH->{widgetWidth}  - $spanedWidth,"\n";
-
-		    if( $spanedWidth + $colMaxWidth[$colLast] < $rH->{widgetWidth})
-		    {
-		     	$colMaxWidth[$colLast] = $rH->{widgetWidth}  - $spanedWidth;
-		    }
-		}
-#print "[$col,$row]  $xPos,$yPos  $rH->{widgetWidth},$rH->{widgetHeight}\n";
-	    	delete($rH->{rH_Attr}->{GRID});
-	    	delete($rH->{rH_Attr}->{SPAN});
+#print "[$x,$y]  $xPos,$yPos  w=$rH->{widgetWidth},h=$rH->{widgetHeight}   \t'$rH->{rH_Attr}->{DESC}$rH->{rH_Attr}->{TAG}'\n";
 		my $edl = setWidget($rH->{edlContent},$rH->{widgetWidth},$rH->{widgetHeight},
 	    	    	    	    $rH->{rH_Attr},$rH->{xScale},$xPos,$yPos);
-		die "Error in GRID($col,$row), data line:", Dumper($rH->{rH_Attr}) unless defined $edl;
+		die "Error no edl content for GRID($x,$y), data line:", Dumper($rH->{rH_Attr}) unless defined $edl;
 		$prEdl .= "$edl" if defined $edl;
-#die if($col==1 && $row==1);
     	    }	    
 	    
-	    $yPos += $rowMaxHeight[$row];
-#print "Panel POS:  $xPos, $yPos\n";   
 	    # Set next Position
-	    $row++;
+	    $xPos += $colMaxWidth[$x];
+    	    $x++;
 	}
-	$xPos += $colMaxWidth[$col];
-    	$col++;
+	$yPos += $rowMaxHeight[$y];
+        $y++;
     }
-    my $panelwidth = $xPos + $border;
-
+    my $panelwidth = $border*2;
+    $panelwidth += $_ foreach (@colMaxWidth);
     $rH_options->{PANELWIDTH} = $panelwidth;
-    ($dummy,$xPos,$yPosNull) = setTitle($rH_options,0,0) if defined $rH_options->{TITLE}; 
-    $prEdl .= $dummy if defined $dummy;
-#print "Panel Size:  $xPos, $yPos\n";   
-    return ($prEdl,$panelwidth, $yPos+$border);
+
+    my $panelHeight=0;
+    $panelHeight += $_ foreach (@rowMaxHeight);
+    $panelHeight += $border+$yPosNull;
+
+#print "panel: w=$panelwidth, h=$panelHeight\n";
+    return ($prEdl,$panelwidth, $panelHeight);
 }
 
 sub   layoutDbDbg
@@ -1013,7 +1027,7 @@ sub   getWidth
 	warn "Illegal parameters in substitution file: can't define SCALE and WIDTH!";
 	return; # 'undef' is the error condition
     }
-#print "xDispWidth = $scaledWidth, ".(defined $xScale);
+#print "xDispWidth = $scaledWidth, ".(defined $xScale)."\n";
 
     delete($rH_Attr->{SCALE});
     delete($rH_Attr->{WIDTH});
