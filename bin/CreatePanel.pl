@@ -635,16 +635,17 @@ sub    layoutGrid
 
 #print "yMax [",join(',',@rowMaxHeight),"]\nxMax [",join(',',map{(defined $_)?$_:"undef"}@colMaxWidth),"]\n";
 
-    my $prEdl;
     my $border = (defined $rH_options->{BORDER}) ? $rH_options->{BORDER}:0;
+    my $panelwidth = $border*2;
+
+    $panelwidth += $_ foreach (@colMaxWidth);
+    $rH_options->{PANELWIDTH} = $panelwidth;
+
     my $xPos=0;	    	    # put next part of display here 
     my $yPos=0;
     my $yPosNull=0;   	    # start position of a column
-
-    # dummy set to get the title height
-    my $dummy;
-    ($dummy,$xPos,$yPosNull) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE}; 
-    $prEdl .= $dummy if defined $dummy;
+    my $prEdl;
+    ($prEdl,$xPos,$yPosNull) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE}; 
     
     my $y=0;
     $yPos = $yPosNull;
@@ -671,15 +672,11 @@ sub    layoutGrid
 	$yPos += $rowMaxHeight[$y];
         $y++;
     }
-    my $panelwidth = $border*2;
-    $panelwidth += $_ foreach (@colMaxWidth);
-    $rH_options->{PANELWIDTH} = $panelwidth;
-
     my $panelHeight=0;
     $panelHeight += $_ foreach (@rowMaxHeight);
     $panelHeight += $border+$yPosNull;
 
-#print "panel: w=$panelwidth, h=$panelHeight\n";
+#    print "panelwidth:$panelwidth, panelHeight=$panelHeight",Dumper($rH_options);
     return ($prEdl,$panelwidth, $panelHeight);
 }
 
