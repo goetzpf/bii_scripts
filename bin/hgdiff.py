@@ -112,6 +112,31 @@ def hg_loglist(verbose, dry_run):
         new.append((int(parts[0]),parts[1]))
     return new
 
+def hg_full_loglist(verbose, dry_run):
+    """return all logs, full text.
+    
+    This returns a dictionary with local (short) revision numbers as key and
+    each log message as a list of lines.
+    """
+    result= _system("hg log --template ':REVISION:{rev}\n{desc}\n'", 
+                    True, verbose, dry_run)
+    rev= None
+    nrev= None
+    txt= []
+    logs= {}
+    for l in result.splitlines():
+        if l.startswith(":REVISION:"):
+            idx= l.find(":",1)
+            try:
+                nrev= int(l[idx+1:])
+                txt= []
+                logs[nrev]= txt
+                continue
+            except ValueError, e:
+                pass
+        txt.append(l)
+    return logs
+
 def hgidentify(verbose, dry_run):
     """return current revision number."""
     global _hgidentify
@@ -244,15 +269,48 @@ def diff(revisions, file, verbose, dry_run):
             os.remove(f)
     _system_fork("tkdiff %s %s %s; true" % (t1,t2,labelpar), False, verbose, dry_run, _delete)
 
+class RevisionData(object):
+    def __init__(self, verbose, dry_run):
+        self._logs= None
+        self._verbose= verbose
+        self._dry_run= dry_run
+    def get_logs(self):
+        """get all revision numbers with summary."""
+        self._logs= hg_full_loglist(self._verbose, self._dry_run)
+    @staticmethod
+    def _logline(rev,log):
+        """create a logline string."""
+        return "%4d: %s" % (rev,log)
+    def revision_is_valid(self, revision):
+        if self._logs is None:
+            self.get_logs()
+        return self._logs.has_key(revision)
+    def logline(self, revision):
+        if revision is None:
+            return "working copy"
+        if self._logs is None:
+            self.get_logs()
+        return RevisionData._logline(revision, self._logs[revision][0])
+    def loglines(self):
+        if self._logs is None:
+            self.get_logs()
+        return [RevisionData._logline(k, self._logs[k][0]) \
+                   for k in sorted(self._logs.keys(),reverse=True)]
+    def full_log(self, revision):
+        if self._logs is None:
+            self.get_logs()
+        if revision is None:
+            # None: working copy
+            return None
+        return self._logs[revision]
+
 class RevisionSelector(Tix.ComboBox):
     """class for the combobox for the revision selection.
     """
-    _logs= []
-    _revdict= {}
     _rx_no= re.compile(r'^\s*(\d+)(?:\s*$|\s*:)')
     _verbose= False
     _dry_run= False
-    def __init__(self, parent, verbose, dry_run):
+    def __init__(self, parent, revisiondata, verbose, dry_run):
         Tix.ComboBox.__init__(self, parent, 
             dropdown= True, 
             editable= True,
@@ -264,6 +322,7 @@ class RevisionSelector(Tix.ComboBox):
         self.en.config(width=80)
         self.en.config(disabledbackground="grey")
         self.en.config(disabledforeground="black")
+        self.revisiondata= revisiondata
         RevisionSelector._verbose= verbose
         RevisionSelector._dry_run= dry_run
         self.revision= None # working copy
@@ -282,28 +341,13 @@ class RevisionSelector(Tix.ComboBox):
         if m is None:
             return None
         return int(m.group(1))
-    @staticmethod
-    def logline(rev,log):
-        """create a logline string."""
-        return "%4d: %s" % (rev,log)
-    @staticmethod
-    def get_logs():
-        """get all revision numbers with summary."""
-        RevisionSelector._logs= \
-            hg_loglist(RevisionSelector._verbose, 
-                       RevisionSelector._dry_run)
-        RevisionSelector._revdict= dict(RevisionSelector._logs)
-
     def curr_logline(self):
         """returns the logline string currently selected."""
-        if self.revision is None:
-            return "working copy"
-        return RevisionSelector.logline(self.revision, 
-                                        RevisionSelector._revdict[self.revision])
+        return self.revisiondata.logline(self.revision)
     def create_selection_list(self):
         """rebuilds the selection list.
         """
-        loglines= [RevisionSelector.logline(*l) for l in RevisionSelector._logs]
+        loglines= self.revisiondata.loglines()
         self.lb.delete(0, Tix.END)
         self.lb.insert(0, *loglines)
         self.lb.insert(0, "working copy")
@@ -314,7 +358,7 @@ class RevisionSelector(Tix.ComboBox):
         else:
             new= RevisionSelector.get_no(val)
             if new is not None:
-                if RevisionSelector._revdict.has_key(new):
+                if self.revisiondata.revision_is_valid(new):
                     self.revision= new
         return self.curr_logline()
     def get_revision(self):
@@ -331,20 +375,21 @@ class FrHeadClass(Tix.Frame):
     only contains a "quit" button.
     """
     def __init__(self, parent, revisions, change_callback, 
-                 statuslabel, verbose, dry_run):
+                 statuslabel, revisiondata, verbose, dry_run):
         def balloonhelp(widget,message):
             w= Tix.Balloon(self, statusbar= statuslabel)
             w.bind_widget(widget, statusmsg=message)
+        self.revisiondata= revisiondata
         self.verbose= verbose
         self.dry_run= dry_run
         self.statuslabel= statuslabel
         Tix.Frame.__init__(self, parent, borderwidth=2,relief='raised') 
 
+        self.logwindow= LogWindow()
         self.combo1_label= Tix.Label(self, text="first rev:")
         self.combo2_label= Tix.Label(self, text="second rev:")
-        self.combo1= RevisionSelector(self, verbose, dry_run)
-        self.combo2= RevisionSelector(self, verbose, dry_run)
-        RevisionSelector.get_logs()
+        self.combo1= RevisionSelector(self, revisiondata, verbose, dry_run)
+        self.combo2= RevisionSelector(self, revisiondata, verbose, dry_run)
         self.combo1.create_selection_list()
         self.combo2.create_selection_list()
 
@@ -360,10 +405,11 @@ class FrHeadClass(Tix.Frame):
         self.combo1.set_value(revisions[0])
         self.combo2.set_value(revisions[1])
         self.buttonframe= Tix.Frame(self)
-        self.button= Tix.Button(self.buttonframe, text="re-scan", command= lambda: self.mycallback())
-        self.plusbutton= Tix.Button(self.buttonframe, text="+rev", command= lambda: self.chg_revision(1))
-        self.minusbutton= Tix.Button(self.buttonframe, text="-rev", command= lambda: self.chg_revision(-1))
-        self.deltabutton= Tix.Button(self.buttonframe, text="delta:=1", command= lambda: self.delta_revision())
+        self.button= Tix.Button(self.buttonframe, text="re-scan", command= lambda: self.rescan_callback())
+        self.plusbutton= Tix.Button(self.buttonframe, text="+rev", command= lambda: self.plusminus_rev_callback(1))
+        self.minusbutton= Tix.Button(self.buttonframe, text="-rev", command= lambda: self.plusminus_rev_callback(-1))
+        self.deltabutton= Tix.Button(self.buttonframe, text="delta:=1", command= lambda: self.delta_rev_callback())
+        self.logbutton= Tix.Button(self.buttonframe, text="full-log", command= lambda: self.fulllog())
         self.change_callback= change_callback
 
         balloonhelp(self.combo1, "the revision against the comparison is done")
@@ -372,6 +418,7 @@ class FrHeadClass(Tix.Frame):
         balloonhelp(self.plusbutton, "increase both revisions")
         balloonhelp(self.minusbutton, "decrease both revisions")
         balloonhelp(self.deltabutton, "set first revision to second revision - 1")
+        balloonhelp(self.logbutton, "show full log for second revision")
 
         self.combo1_label.grid(row=0, column=0, sticky="W")
         self.combo2_label.grid(row=3, column=0, sticky="W")
@@ -384,15 +431,32 @@ class FrHeadClass(Tix.Frame):
         self.plusbutton.pack(side=Tix.LEFT)
         self.minusbutton.pack(side=Tix.LEFT)
         self.deltabutton.pack(side=Tix.LEFT)
-        self.combo1.set_change_callback(self.change_callback)
-        self.combo2.set_change_callback(self.change_callback)
-    def mycallback(self):
+        self.logbutton.pack(side=Tix.LEFT)
+        self.combo1.set_change_callback(lambda: self.combo_sel_callback())
+        self.combo2.set_change_callback(lambda: self.combo_sel_callback())
+    def update_logwindow(self):
+        if self.logwindow.is_opened():
+            revs= self.get_selected_revisions()
+            self.logwindow.open(revs[1], self.revisiondata.full_log(revs[1]))
+    def combo_sel_callback(self):
+        """callback when a new item is selected on the combobox."""
+        self.update_logwindow()
+        self.change_callback()
+    def rescan_callback(self):
+        """callback for the re-scan button."""
         revisions= self.get_selected_revisions()
-        RevisionSelector.get_logs()
+        self.revisiondata.get_logs()
         self.combo1.create_selection_list()
         self.combo2.create_selection_list()
+        self.update_logwindow()
         self.change_callback()
-    def delta_revision(self):
+    def fulllog(self):
+        """show full log in a window."""
+        def error(msg):
+            self.statuslabel.config(text= msg)
+        revs= self.get_selected_revisions()
+        self.logwindow.open(revs[1], self.revisiondata.full_log(revs[1]))
+    def delta_rev_callback(self):
         """sets first revision to second revision - 1."""
         def error(msg):
             self.statuslabel.config(text= msg)
@@ -409,12 +473,13 @@ class FrHeadClass(Tix.Frame):
             rev_prev= r[0]
         self.set_entry(1,rev_prev)
         self.set_entry(2,rev_now)
-        # do not call mycallback here, this would re-initialize the
+        # do not call rescan_callback here, this would re-initialize the
         # comboboxes which is not necessary since we just change
         # the selected revision numbers.
+        self.update_logwindow()
         self.change_callback()
 
-    def chg_revision(self,delta):
+    def plusminus_rev_callback(self,delta):
         def error(msg):
             self.statuslabel.config(text= msg)
         revs= self.get_selected_revisions()
@@ -440,9 +505,10 @@ class FrHeadClass(Tix.Frame):
         rev_prev= r[0]
         self.set_entry(1,rev_prev)
         self.set_entry(2,rev_now)
-        # do not call mycallback here, this would re-initialize the
+        # do not call rescan_callback here, this would re-initialize the
         # comboboxes which is not necessary since we just change
         # the selected revision numbers.
+        self.update_logwindow()
         self.change_callback()
 
     def set_entry(self, index, value):
@@ -528,11 +594,44 @@ class FrStatClass(Tix.Frame):
     def display(self, text):
         self.label.config(text= text)
 
-class App:
+class LogWindow(object):
+    def __init__(self, lines=[]):
+        self.opened= False
+    def is_opened(self):
+        return self.opened
+    def open(self, revision, lines):
+        if not self.opened:
+            self.top= Tix.Toplevel()
+            self.top.protocol("WM_DELETE_WINDOW", lambda: self.destroy_handler())
+            self.scrollbar= Tix.Scrollbar(self.top)
+            self.scrollbar.pack(side=Tix.RIGHT, fill="y")
+            self.txt= Tix.Text(self.top, yscrollcommand= self.scrollbar.set)
+            self.txt.pack(side='top', fill='both', expand='y')
+            self.scrollbar.config(command=self.txt.yview)
+            self.opened= True
+        if revision is None:
+            self.top.title("working copy")
+            self._fill([])
+        else:
+            self.top.title("Log of revision %d" % revision)
+            self._fill(lines)
+    def destroy_handler(self):
+        self.top.destroy()
+        self.opened= False
+    def _fill(self, lines):
+        if not self.opened:
+            self.open()
+        self.txt.config(state=Tix.NORMAL)
+        self.txt.delete(1.0,Tix.END)
+        self.txt.insert(Tix.END, "\n".join(lines))
+        self.txt.config(state=Tix.DISABLED)
+
+class App(object):
     def __init__(self, Top, options, args):
         self.revisions= []
         self.verbose= options.verbose
         self.dry_run= options.dry_run
+        self.revisiondata= RevisionData(options.verbose, options.dry_run) # hold data on revisions
         if options.changes is not None:
             if options.rev is not None:
                 sys.exit("-c must not be used together with -r")
@@ -554,6 +653,7 @@ class App:
         self.FrHead= FrHeadClass(Top, self.revisions, 
                                  lambda: self.rescan(),
                                  self.FrStat.label,
+                                 self.revisiondata,
                                  self.verbose, self.dry_run)
         self.FrHead.pack(side='top', fill='x')
         
