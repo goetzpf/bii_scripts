@@ -113,6 +113,10 @@ Scripts
     and widgets for each item of the '.substitution' file.
   | `documentation <scripts/CreatePanel.html>`__
 
+**csv2epicsDb**
+  | Create EPICS data from a spreadsheet: EPICS.db, Panels, Alarm handler, 
+  | Archiver files `documentation <scripts/csv2epicsDb.html>`__
+
 **csv2plot**
   | Combine and convert numerical data from .csv files for gnuplot use.
   | `documentation <scripts/csv2plot.html>`__

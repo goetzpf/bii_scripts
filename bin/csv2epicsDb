@@ -1,0 +1,1732 @@
+#!/usr/bin/python
+## cvs2epicsDb
+# *****************
+#
+# *  Author  B.Kuner
+#            R.Lange
+#
+#  USAGE: cvs2epicsDb [-h -v -t<char>] <csv files ...>
+#  
+# -h: this help
+# -t: column separator []
+# -n: device name [\(DEVICE)]
+# -p: create 'CreatePanel.pl' data for all signal service panel
+# -d: db file name
+# -l: alarm handler config file
+# -a: archiver config file name
+# -r: autoSaveRestore request file name
+# -v: print debug information
+#
+from optparse import OptionParser
+import sys
+import os
+import re
+import math
+import csv
+import BDNS
+import os.path
+
+my_version = "1.0"
+
+def die(errMsg,line=None):
+    from traceback import extract_stack
+    from traceback import format_list
+    
+    st = extract_stack()
+    err = "\n".join(format_list(st[0:-1]))
+    err += "\nERROR: *** "+errMsg+"***"
+    if line is not None:
+    	err += "(Line:"+str(line)+")"
+    err += "\n"
+    sys.exit(err)    
+def hasIndex(lst,idx):
+    """
+    Check if 'idx' exist in list 'lst'
+    """
+    try : 
+    	x = lst[idx]
+    except IndexError:
+    	return False
+    return True
+
+def matchRe(matchStr,reStr) :
+    """
+    Return tupel with matches, maybe empty if reStr contains no '()' 
+        or 'None' if 'matchStr' doesn't match 'reStr'
+	
+    Check for matches:  
+    
+    	if matchRe('huhu','xxx') is not None : 
+	
+    get match data:
+    
+	try:
+	    (a,b) = matchRe('my/file.ext','(.*)\.(.+)')
+	except typeError:
+	    sys.exit()
+    """
+    regx = re.compile(reStr)
+    m = regx.match(matchStr)
+    if m is not None :
+    	return m.groups()
+    else:
+    	return None
+
+def substRe(matchStr,matchRe,replaceStr):
+    """
+    Return substitute 'matchRe' replaced by 'replaceStr' from 'matchStr'
+    """
+    regx = re.compile(matchRe)
+    return regx.sub(replaceStr,matchStr)
+
+def getDisplayLimits(rangeEng,egu,signal=None,lines=None):
+    eng = matchRe(rangeEng,"([-+\d][\d\.eE]*)\s*\-\s*([-+\d][\d\.eE]*)*")
+    if eng == None or len(eng) != 2:
+    	die("Need range Eng. for signal "+signal,lines)
+    return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
+    
+def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=None):
+    """
+    Create limits for analog type records
+
+    - If 'rangeRaw' is defined: Create konversion parameters 
+    - rangeAlhVal has to be in order with rangeAlhSevr to define alarm ranges and severities
+      rangeAlhVal can be followed by arbitrary additional fields to be set for records, so the 
+      rangeAlhVal fields have to be  set outside this function
+    """
+#    print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
+
+    (lopr,hopr) = matchRe(rangeEng,"\s*(.*)\s*\-\s*(.*)\s*")
+    lopr = float(lopr)
+    hopr = float(hopr)
+    dtype = ""	    # for CAN data - s=short, S=unsigned short
+    field = {}
+    if rangeAlhVal != "":
+	aFields=parseParam(rangeAlhVal)
+	field.update(aFields)
+	
+	limitVals = rangeAlhVal.split("|")  	# ATTENTION: preserve the order of alarm and severity fields
+	limitSevr = rangeAlhSevr.split("|")
+	if len(limitSevr[0]) > 0:   # means not empty severities
+	    for (v,s) in zip(limitVals,limitSevr):  
+		(valName,val)     = v.split("=")
+		if valName   == 'LOLO': field['LLSV'] = s
+		elif valName == 'LOW':  field['LSV']  = s
+		elif valName == 'HIGH': field['HSV']  = s
+		elif valName == 'HIHI': field['HHSV'] = s
+		else: die("Illegal Alarm value '"+valName+"' in signal: "+signal,lines)
+    
+    raw = matchRe(rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
+    if raw is not None:
+	lraw=float(raw[0])
+	hraw=float(raw[1])
+	egul  = 0.0
+	eguf  = 0.0
+	slope = 0.0
+	off   = 0.0
+	hyst  = 0.0
+	full  = 0.0
+	minVal=0
+    	convert = 'SLOPE'   # LINEAR not supported yet
+	
+    #  die "CAN data type is unsigned short, so only positive limits supported" if( lopr is not 0 || lraw is not 0 )
+
+	if  (hopr != 0) and ( hraw != 0 ):
+      	    if (lraw < 0) or (hraw < 0 ):         # signed value
+		dtype = "s"
+		full = 32767
+		minVal = -32767
+    	    else:                                 # unsigned
+		dtype = "S"
+		full = 65535
+	    if convert == "LINEAR":
+		egul = lopr - slope * (lraw-minVal)
+		eguf = egul + slope * 65535
+		field['LINR'] = 'LINEAR'
+		field['EGUL'] = egul
+		field['EGUF'] = eguf
+	    elif convert == "SLOPE":
+		slope = (hopr - lopr) / (hraw - lraw)
+		off  = hopr - slope * hraw
+		field['LINR'] = 'SLOPE'
+		field['ESLO'] = slope
+		field['EOFF'] = off
+	    prec =  int(math.log(float(hopr)/10000)/math.log(10.0))
+    #ORGINAL: prec = ( ( prec >= 0 ) ? 0 : -prec ) + 1
+	    if prec < 0 : 
+		prec = (-1 * prec)+1
+	    else:
+		prec = 0
+	    hyst = hopr / hraw * 0.99
+	    field['PREC'] = prec
+	    field['HYST'] = hyst
+	    field['ADEL'] = hyst
+	    field['MDEL'] = hyst
+	else:
+      	    die("Raw/engineering limit mismatch (raw: hraw / eng: hopr)",lines)
+    return (field,dtype)
+
+def printTable(rT,header=None,sortIdx=None) :
+    """
+    Print formated table
+    
+    Parameter:
+    
+    - rT,	# The table, a array reference (rows) of an array reference (columns)
+    - header,	# Header (optional )
+    - sortIdx	# Index of the column the table should be sorted to (optional)
+    """
+    lines = header
+    formatMax = []	    # max item length of a collumn
+    rTable = rT
+    if (sortIdx is not None) and sortIdx < len(rT[0]):
+    	rTable = sorted(rT,key=lambda x: x[sortIdx])
+    if header is not None:
+	idx=0
+	formatMax = map(lambda x: len(x), lines)
+    #print "header: ",formatMax
+    def choose(x):
+	(a,b) = x
+	if x[0] < x[1]: return x[1] 
+	else: return x[0]
+    def length(x):
+    	if x is not None:
+	    return len(str(x))
+	else:
+	    print x
+	    return 0
+    for row in rTable:
+	fLen = map(lambda x: length(x),row)
+	formatMax = map(lambda x: choose(x),zip(formatMax,fLen))
+    #print "rT",formatMax
+    print " | ".join(map(lambda x:("%%%ds"%x[0])%x[1] ,zip(formatMax,header)) )
+    print "-+-".join(map(lambda x: x*'-' ,formatMax) )
+    for line in rTable:
+    	print " | ".join(map(lambda x:("%%%ds"%x[0])%x[1] ,zip(formatMax,line)) )
+
+class Panels(object):
+    """
+    Manage store and print of a group of panels. This class creates panel.substitutions information 
+    to be expanded to a panel with the CreatePanel.pl script of (bii_scripts:http://www-csr.bessy.de/control/bii_scripts/html/scripts/CreatePanel.html)
+    
+    It supports to create several panel files and groups of widgets within a panel
+      
+    Spreadsheet collumns
+    --------------------
+    
+    * EPICS Panel Name Prefix (Col. W): The Panel Name, without the ending .edl
+      
+    * EPICS Panel Group	(Col. X):  The Group within a panel. Omit this will put all signals to a default group.
+    
+      Each group will be shown with a text.edl widget as headline, also with GRID definition!
+
+    * EPICS Panel Sort/Grid (Col. Y): 
+    
+      - Nothing: Sort all signals by device- and signal name
+      - Unique number: Sort within a group by number. 
+        To get the order as defined in the spreadsheet just put an incrementet number here
+      - (GRID="x,y") or (GRID="x,y",SPAN="n"or (XY="n,m"): Just pass the parameter to the panel.substitutions file 
+        to be interpreted by CreatePanel.pl
+        ATTENTION: the Groupname will get the Y position of Ymin-1, so there has to be a free gap of 1 line in grid-Y numbering!
+      
+
+    """
+    class PanelFile(object):
+	"""
+	Store all informations to hold a panel group
+	"""
+	def __init__(self,panelName,widgetPath) :
+    	    self.panelName = panelName    # panel name
+	    self.groups = []    # [groupName_1, groupName_2,...] to get the order of groups
+	    self.items  = {}    # self.items[groupName_n] = [item1, item2,...] the items of a group
+	    self.order = BDNS.mkOrder("MEMBER,DOMAIN,SUBDOMNUMBER,INDEX,SUBINDEX")
+    	    self.widgetPath = widgetPath
+#	    print "PanelFile:",panelName,widgetPath
+	def __str__(self):
+	    return "PanelGroup: '"+self.panelName+"'\nGROUPS:\n"+str(self.groups)+"\nITEMS:\n"+str(self.items)
+	def __repr__(self):
+    	    return self.__str__()
+	def addGroup(self,group):
+#    	    print "PanelFile.addGroup:",group
+	    self.groups.append(group)
+	    self.items[group] = []
+	def addItem(self, group,devNamedata,itemDict,panelWidgetName,sort=None):
+#	    print "PanelFile.addItem:",group,itemDict,panelWidgetName,sort
+	    if self.items.has_key(group)	is False:
+		self.addGroup(group)
+	    self.items[group].append(Panels.PanelWidget(devNamedata,itemDict,panelWidgetName,self.order,sort))
+    	def getWidgetType(self,item):
+    	    if item.widgetName:
+	    	return item.widgetName
+	    elif item.type in ['ai','bi','mbbi','calc']: 
+	    	    return "anyVal"
+	    else:   return item.type
+	def checkWidgetPath(self,widget):
+	    fname = widget+".edl"
+#	    print "checkWidgetPath",widget,fname,"\n\t",self.widgetPath
+	    for path in self.widgetPath:
+	    	if os.path.isfile(path+"/"+fname): 
+#		    print "\t",path+"/"+fname
+		    return True
+	    return False
+	def toSubst(self):
+	    """
+	    Print all panel info in substitution format to be processed by CreatePanel.pl. Sort algorythms 
+	    are defined by the panels sort column (see above):
+	    """
+	    retStr = ""	# hold the substitutions string
+
+	    def cmpWidget(a,b): return a.cmpWidget(b)
+#	    print "Panels.PanelFile.toSubst() of Groups:",self.groups,"\nItems:",self.items
+	    groupList = self.groups
+    	    # first take the default group signals
+	    try:
+	    	idx = groupList.index("Panels DefaultGroup")
+	    	del(groupList[idx])
+		groupList = ["Panels DefaultGroup"]+groupList
+	    except ValueError:
+	    	pass
+	    for pGroup in groupList:
+    	    	
+# if not an empty group, setup widget item list
+		if self.items.has_key(pGroup) and len(self.items[pGroup]) <= 0:
+    	    	    continue 
+		itemList = self.items[pGroup]
+
+# get how to sort and sort items
+    	    	itemList = sorted(itemList,cmpWidget)		    	
+
+		groupWidget = None
+    	    	if pGroup != "Panels DefaultGroup":
+		    gridHead=""
+		    if itemList[0].isSort == "SORT_BY_GRID": 
+			try:
+		    	    widget = itemList[0]
+			    y = int(widget.yPos)
+		    	    if(y <= 0):
+		    		raise ValueError
+    	    		except ValueError:
+		    	    die("Can't set header for group: "+pGroup+"and minimal y parameter: "+widget.sort+", Pos=("+widget.xPos+","+widget.yPos+")")
+			gridHead=", GRID=\"0,"+ str(y-1) +"\""
+
+			xMax = 0
+			for x in itemList:
+			    if x.xPos > xMax:
+				 xMax=x.xPos
+			if xMax > 1: 
+		    	    gridHead = gridHead+", SPAN=\""+xMax+"\""
+
+# Check if this group has a header widget take a text widget
+		    if pGroup != "":
+			groupWidget = itemList[0].widgetName
+			if self.checkWidgetPath(groupWidget+"Header"):
+		    	    retStr += "file "+groupWidget+"Header.edl  {\n  {"+gridHead+"}\n}\n"
+			else:
+		    	    retStr += "file text.edl  {\n  { TEXT=\""+pGroup+"\",WIDTH=\"400\",COLOR=\"28\",TXTCOLOR=\"0\""+gridHead+"}\n}\n"
+
+# process each group
+		actualWidgetType = ""
+		wLst = []	# hold consecutive widgets of the same type
+#		print "Group:",pGroup,itemList
+		actualWidgetType = self.getWidgetType(itemList[0])
+		wLst.append(itemList[0])
+		for item in itemList[1:]:
+		    wType = self.getWidgetType(item)
+		    if actualWidgetType != wType:
+#		    	print "TypeChange: ",actualWidgetType, "->", wType
+			retStr += "file "+actualWidgetType+".edl {\n"+"\n".join(map(lambda x: str(x),wLst))+"\n}\n"
+			actualWidgetType = wType
+			wLst = []
+		    wLst.append(item)
+#		    print actualWidgetType,wType,"\t",item.type,str(item)
+    	    	if len(wLst)>0:
+		    retStr += "file "+wType+".edl {\n"+"\n".join(map(lambda x: str(x),wLst))+"}\n"
+
+		retStr+"}\n"
+		if groupWidget and self.checkWidgetPath(groupWidget+"Footer"):
+		    retStr += "file "+groupWidget+"Footer.edl  {\n  {}\n}\n"
+	    return retStr
+		
+    class PanelWidget(object):
+	def __init__(self,devNamedata,item,panelWidgetName,order,sort=None):
+#	    print "PanelWidget("+panelWidgetName+","+str(devNamedata)+","+str(item)+","+sort+")"
+
+	    self.widgetName = panelWidgetName # may be overwritten by parsed sort parameter!
+
+	    if isinstance(devNamedata,dict) and len(devNamedata.keys())==1:
+    	    	self.devn = devNamedata
+	    else:
+	    	raise TypeError, "Parameter devNamedata="+str(devNamedata)+" is: "+str(type(item))+". Has to be <type 'dict'>"
+	    if isinstance(item,dict):
+	    	self.data = item
+	    else:
+	    	raise TypeError, "Parameter item is: "+type(item)+". Has to be <type 'dict'>"
+
+	    self.isSort = None
+	    self.sort = sort
+	    self.xPos=None
+	    self.yPos=None
+	    self.bdnsOrder = order
+	    if sort == None or len(sort) == 0: 
+		self.isSort = "SORT_BY_BDNS"
+	    else:
+		Sort = parseParam(sort)
+		if isinstance(Sort,str):
+		    int(Sort)
+		    self.isSort = "SORT_BY_NUMBER"
+		elif isinstance(Sort,dict):
+		    if Sort.has_key('GRID'):
+			self.isSort = "SORT_BY_GRID"
+			xy = Sort['GRID']
+			(self.xPos,self.yPos)=xy.split(',')
+			if self.xPos is not None and self.yPos is not None:
+	    		    self.data.update(parseParam(sort))
+			else:
+			    raise ValueError, "No valid grid sort parameter: "+sort
+		    if Sort.has_key('WIDGET'):
+		    	self.widgetName = Sort['WIDGET']
+		else:
+		    raise ValueError, "PanelWidget.__init(): Not a valid sort parameter: "+sort
+
+	def __str__(self):
+	    data = ", ".join(map(lambda x:str(x)+"=\""+str(self.data[x])+"\"" ,self.data.keys()))
+	    if len(data)>0: data = ", "+data
+	    devnTag = self.devn.keys()[0]
+	    return "  { "+devnTag+"=\""+self.devn[devnTag]+"\""+data+"}"
+	def __repr__(self):
+	    data = ", '".join(map(lambda x:str(x)+"':\""+str(self.data[x])+"\"" ,self.data.keys()))
+	    return "\n\tPanelWidget("+str(self.devn)+","+str(data)+","+str(self.widgetName)+")"
+	def cmpWidget(self,pw):
+	    #print "cmpWidget: (",self.devn,self.isSort,") (",pw.devn,pw.isSort,")"
+	    if self.isSort == "SORT_BY_NUMBER" and pw.isSort == "SORT_BY_NUMBER":
+        	try:
+        	    a= int(self.sort)
+        	    b= int(pw.sort)
+        	    return cmp(a,b)
+        	except ValueError:
+        	    return cmp(self.sort,pw.sort)
+	    elif self.isSort == "SORT_BY_BDNS" and pw.isSort == "SORT_BY_BDNS":
+    	    	return BDNS.cmpNamesBy(self.devn.values()[0],pw.devn.values()[0],self.bdnsOrder) 
+	    elif self.isSort == "SORT_BY_GRID" and pw.isSort == "SORT_BY_GRID":
+        	if self.yPos == pw.yPos: 
+		    return cmp(self.xPos,pw.xPos)
+		else:
+		    return cmp(self.yPos,pw.yPos)
+	    else:
+	    	raise ValueError, "No comparable sort types in: sorttype='"+str(self.isSort)+"'\n"+str(self)+"\ncompared to:\n"+str(pw)
+
+    def __init__(self,prePath,widgetPath):
+	self.panels = {} 	     # PanelFile objects for each panel. Panel-name is the key
+	self.prePath = prePath
+    	self.widgetPath = widgetPath.split (":")
+
+    def addItem(self,panelName,panelGroup,devNamedata,substitutionData,panelWidgetName,panelSort=None):
+#	panelInfos[panelGroup].append([signal,egu,DESC,rtype,sortID])   #[pv,plcname,plcaddr,DESC,rtyp,sortID]
+	if panelName is None or len(panelName)==0:     	    	    # if column is undefined take -p argument
+	    raise ValueError, "Missing pannel name"
+
+    	if panelGroup is None or len(panelGroup)==0:
+	    panelGroup="Panels DefaultGroup"
+
+	if self.panels.has_key(panelName) is False:  
+	    panelFile = Panels.PanelFile(panelName,self.widgetPath)
+	    self.panels[panelName] = panelFile
+    	else:
+	    panelFile = self.panels[panelName]
+	panelFile.addItem(panelGroup,devNamedata,substitutionData,panelWidgetName,panelSort)
+    def printAll(self):
+#	print self.panels
+	for pn in self.panels.keys():
+	    if matchRe(pn,"^.*substitutions$") is None:
+		panelName = self.prePath+"/"+pn+".substitutions"
+	    else:
+	    	panelName = self.prePath+"/"+pn
+	    try : 
+   		PANEL_FILE = open(panelName,'w') 
+		print "Creating file:",panelName
+	    except IOError: 
+    		die("can't open panel file: "+panelName)
+	    p = self.panels[pn]
+	    print >> PANEL_FILE,p.toSubst()
+	    PANEL_FILE.close()
+
+class epicsAlh(object):
+    """
+    This class hold all data to  write an alarm handler file.
+    
+    - Each object holds the data to describe one alarmhandler item (see __init__() )
+    - The alarm group structure is stored in an static tree structure.
+    
+    The Collumns for Alarm definition:
+    
+    - BESSY ALH Group (R):  The Path to the alarm group the first element is the name of the alh file!
+    - BESSY ALH Flags(S):  Optional. First the alarm Flags (CDT..) Than a list of additional Items for 
+    	a CHANNEL definition inthis format: ITEM<SPACE>value e.g.
+
+	    "T|ALIAS show this|ACKPV ackPVName ackValue"
+	
+	Not allowed are the Items: 'CHANNEL','INCLUDE','GROUP','END'
+
+    Defaults:
+
+    	Flags: ---T-
+	ALIAS: name signal
+	ALARMCOUNTFILTER: 2 1
+	COMMAND: None or edm epicsPanel if defined in 'EPICS Panel Name' (col. U)
+    """
+    nodeDict={}
+    @staticmethod
+    def toGroupString(grStr): return substRe(grStr,' ','_').upper()
+    @staticmethod
+    def printFiles(prePath): 
+    	for filename in epicsAlh.getRoot():
+	    installFile = prePath+"/"+filename
+	    try : 
+		print "  Creating file",installFile+".alh"
+		f = open(installFile+".alh",'w') 
+		f.write(epicsAlh.strAll(filename))
+		f.close()
+	    except IOError: 
+    		die("IOError in write file: "+filename+".alh")
+    @staticmethod
+    def getRoot(): return epicsAlh.nodeDict.keys()
+    @staticmethod
+    def strAll(root=None):
+	"""
+	Walk the tree and return the alh file as string
+	"""
+    	def printChannel(leaf,path,myPar): 
+	    """
+	    The user defined function to be called for each leaf of the tree - to print 
+	    one alarm channel
+	    """
+	    myPar.append("CHANNEL "+epicsAlh.toGroupString(path[-1])+ " "+str(leaf)+"\n")
+	    return myPar
+    	def printGroup(nodeName,depth,path,myPar): 
+	    """
+	    The user defined function to be called for each node of the tree - to print 
+	    one alarm group
+	    """
+	    if depth == 0: 
+#	    	print "GROUP NULL "+epicsAlh.toGroupString(path[0])+"\n$ALIAS "+path[0]+"\n"
+		myPar.append("GROUP NULL "+epicsAlh.toGroupString(path[0])+"\n$ALIAS "+path[0]+"\n")
+	    else:
+#	    	print "GROUP "+epicsAlh.toGroupString(path[depth-1])+" "+epicsAlh.toGroupString(path[depth])+"\n$ALIAS "+path[depth]+"\n"
+		myPar.append("GROUP "+epicsAlh.toGroupString(path[depth-1])+" "+epicsAlh.toGroupString(path[depth])+"\n$ALIAS "+path[depth]+"\n")
+	    return myPar
+    	def cmpAlhItems(a,b): return a.cmpSortPar(b)
+	def walkTree(nodePath,nodeDict,depth,retPar,leafFunc=None,nodeFunc=None,cmpLeafFunc=None):
+#	    print "walkTree:",depth,len(nodePath),nodePath
+	    for nodeName in nodeDict.keys():
+	    	node = nodeDict[nodeName]
+		if len(nodePath) == depth:
+		    nodePath.append(nodeName)
+		    retPar = nodeFunc(nodeName,depth,nodePath,retPar)
+		else:
+		    nodePath[depth] = nodeName
+#		print "NODE:",nodeName,depth,nodePath
+		if node['LEAFS']:
+		    leafList = node['LEAFS']
+		    if cmpLeafFunc:
+			leafList=sorted(leafList,cmpLeafFunc)
+		    	
+		    for leaf in leafList:
+			retPar = leafFunc(leaf,nodePath[:depth+1],retPar)
+#			print "/".join(nodePath[:(depth+1)]), "LEAF:",str(leaf)
+#			s += "/".join(nodePath[:(depth+1)])+ " LEAF: "+str(leaf)+"\n"
+		if node['NODES']:
+		    retPar=walkTree(nodePath,node['NODES'],depth+1,retPar,leafFunc,nodeFunc,cmpLeafFunc)
+	    	del nodePath[depth]
+	    return retPar
+	nodePath = []
+	retPar = []
+	if root is None: # get all files as string
+	    rootDict = epicsAlh.nodeDict
+    	    return "\n".join(walkTree(nodePath,rootDict,0,retPar,printChannel,printGroup,cmpAlhItems))
+	else:
+	    nodePath = [root] # get single file as string
+	    rootDict = epicsAlh.nodeDict[root]['NODES']
+    	    return "GROUP NULL "+epicsAlh.toGroupString(root)+"\n$ALIAS "+root+"\n\n"+"\n".join(walkTree(nodePath,rootDict,1,retPar,printChannel,printGroup,cmpAlhItems))
+
+    def __init__(self,devname,signal,nodePath,tags=None,panel=None,sort=None,lineNr=None) :
+    	"""Definition of the alarm objects:
+	devname:    The CHANNEL ChannelName is the EPICS PV: "devname:signal"
+	signal:
+	nodePath:   Group definition path, first element is the alh file name
+	sort:	    Optional sort order
+	panel:	    Optional panel name to be executed with the COMMAND item
+	tags:	    Optional items for the channel configuration
+	lineNr:     Optional debug output
+   	"""
+	#print "epicsAlh(",",".join((devname,signal,nodePath,tags,panel,sort,str(lineNr)))+")"
+	self.devName = devname
+	self.signal  = signal
+	self.nodePath= nodePath
+	self.flags   = "---T-"
+	self.panel   = None
+	self.sort    = None
+
+	self.command = None
+
+	if sort and len(sort)>0:
+	    self.sort = sort
+	if panel and len(panel)>0: 
+	    self.command = "edm -x -noedit -noscrl "+panel+".edl"
+
+	self.tags = [("ALIAS",devName+":"+signal),
+	    	     ("ALARMCOUNTFILTER","2 1")
+	    	    ]
+	tagList = tags.split("|")
+	if len(tagList)>0 and len(tagList[0])>0:
+	    for tag in tagList:
+    	    	try:
+		    (name,value) = matchRe(tag,"([\w_]+)\s*=\s*(.*)")
+		    if   name == "COMMAND": self.command = value
+		    elif name == "ALIAS":   self.tags[1]=("ALIAS",value)
+		    elif name == "ALARMCOUNTFILTER":   self.tags[1]=("ALARMCOUNTFILTER",value)
+		    elif name in ('CHANNEL','INCLUDE','GROUP','END'): 
+	    		die("ALH Flag (col. T) '"+name+"' is not supported here",lines)
+		    else: 
+			self.tags.append(("$"+name,value))
+		except TypeError:
+		    if matchRe(tag,"([CDATL])") is not None:
+		    	self.setFlags(tag)
+		    
+	nodePath = nodePath.split("|")
+	if len(nodePath) == 0: die("No ALH Group definition (col. S) for: "+devname,lineNr)
+	self.putToNode(nodePath,0,epicsAlh.nodeDict)
+    def putToNode(self,pathList,depth,nodeDict):
+    	nodeName = pathList[depth]
+#	print "putToNode",pathList[depth],depth,pathList,  len(pathList),depth
+	node = {}
+	try:
+#	    print "try:",nodeName,nodeDict[nodeName]
+	    node = nodeDict[nodeName]
+	except KeyError:
+#	    print "ADD NODE:",pathList[depth]
+	    newNode={}
+	    newNode['NODES'] = {}
+	    newNode['LEAFS'] = []
+	    nodeDict[nodeName]=newNode
+	    node = newNode
+	if len(pathList)-1 == depth: 
+	    node['LEAFS'].append(self)
+#	    print "CHAN:",self
+	else :
+	    self.putToNode(pathList,depth+1,node['NODES'])
+
+    def __str__(self):
+    	objStr = self.devName+":"+self.signal+" "+self.flags
+	if len(self.tags)>0:
+	    objStr += "\n"+"\n".join(map(lambda x: "$"+x[0]+" "+x[1] ,self.tags))
+	if self.command: objStr += "\n$COMMAND "+self.command
+	return objStr
+
+    def __repr__(self):
+	tags = "\""+substRe(self.flags,'-','')+"|"+"|".join(map(lambda x: x[0]+"="+x[1],self.tags))+"\""
+	if self.panel: tags += ","+self.panel
+	if self.sort:  tags += ","+self.sort
+    	return "epicsAlh("+self.devName+","+self.signal+",\""+self.nodePath+"\","+tags+")"
+    def setFlags(self,flags): 
+    	flagList = ['-','-','-','-','-']
+	for flag in list(flags):
+	    if   flag == 'C': flagList[0]=flag
+	    elif flag == 'D': flagList[1]=flag
+	    elif flag == 'A': flagList[2]=flag
+	    elif flag == 'T': flagList[3]=flag
+	    elif flag == 'L': flagList[4]=flag
+	    elif flag == '-': pass
+	    else: raise ValueError, "Illegal Flag list: "+self.flags
+	self.flags="".join(flagList)
+    def cmpSortPar(self, o): 
+	return cmp(self.sort,o.sort)
+
+class epicsTemplate(object):
+    """
+    Store and print an EPICS template with its fields.
+    
+    * Object Data:
+
+    - rtyp  template name or record type
+    - name  devicename 
+    - field <dict> dictionary of name/value pairs
+
+    - _init__(self,rtyp,name,fieldDict) 
+    - __str__()     	# EPICS substitutions format
+    - __repr__()    	# python format: tupel of (rtyp,name,{fieldDict})
+    - getType(): return type name
+    - getName(): return devicename
+    - getFields(): return field dictionary
+    - prAsSubst(): print one line for this template without header 'file ...template  {'
+    - prAsRec(): treat this data as EPICS record and print one line 'record(rtyp,"NAME:SNAME") ... fields without SNAME
+    
+    * Static data
+    
+    - typeDict={}   Dictionary of rtyp s that contain a list of objects with this rtype
+    - deviceList=[] List of objects to preserve the creation order and for search functions
+    
+    - strAll(): print all stored templates in EPICS.substitution format
+    - printAllRecords(): treat all data as EPICS-records and print all stored 
+    	    	templates in EPICS.db format
+    - getDevice(devName): return a list of records with this devicename or None
+    """
+    typeDict={}
+    deviceList=[]
+    def __init__(self,rtyp,nameDict,fieldDict={}) :
+	self.field = fieldDict
+	self.devn   = nameDict
+	self.rtyp   = rtyp
+#	if self.field.has_key('DESCR'):
+#    	    print self.devn,"\tDESCR:",self.field['DESCR']
+	try:
+	    l = epicsTemplate.typeDict[rtyp]
+	except KeyError:
+	    l = []
+	    epicsTemplate.typeDict[rtyp]=l
+	l.append(self)
+	epicsTemplate.deviceList.append(self)
+    def __str__(self) : 
+	rec = "file "+self.rtyp+".template {\n"
+    	rec += self.prAsSubst()
+    	rec += "\n}"
+	return rec
+    def __repr__(self) : 
+    	return ("('"+str(self.rtyp)+"','"+str(self.devn)+"',"+str(self.field)+")\n")
+    def getType(self): return self.rtyp
+    def getDevnTag(self): return self.devn.keys()[0]
+    def getDevn(self): return self.devn.values()[0]
+    def getFields(self): return self.field
+    def prAsSubst(self):
+    	def prItem(x):
+	    val = self.field[x]
+	    if isinstance(val,float):
+		try:
+		    (v,) = matchRe(str(val),"(.*)\.0$") 	# set numeric "n.0" values to "n" 34.0 -> "34"
+		    val = v
+		except TypeError:
+		    pass
+	    pr = x+"=\""+str(val)+"\""
+	    return pr
+	return "  { "+self.getDevnTag()+"=\""+self.getDevn()+"\","+",".join(filter(None,map(lambda x: prItem(x),sorted(self.field.keys()))))+"}"
+    def prAsRec(self):
+    	def prField(x):
+	    val = self.field[x]
+	    if isinstance(val,float):
+		try:
+		    (v,) = matchRe(str(val),"(.*)\.0$") 	# set numeric "n.0" values to "n" 34.0 -> "34"
+		    val = v
+		except TypeError:
+		    pass
+	    pr = "field("+x+",\""+str(val)+"\")"
+	    return pr
+	try:
+	    sname = self.field['SNAME']
+	except KeyError:
+	    print "Warning prAsRec(): no SNAME in ",self.field
+	    return ""
+	del self.field['SNAME']
+	return "record("+self.rtyp+",\""+self.getDevn()+":"+sname+"\") {\n\t"+"\n\t".join(filter(None,map(lambda x: prField(x),sorted(self.field.keys()))))+"\n}"
+
+    @staticmethod
+    def getDevice(devName):
+    	"""
+	Get list of records and template instances that have this device name OR None
+	"""
+    	li = []
+	for item in epicsTemplate.deviceList:
+	    if item.getDevn() == devName: li.append(item)
+	if len(li) > 0 : return li
+	return None
+    @staticmethod
+    def strAll():
+    	"""
+	Treat all objects (EPICS records also) as EPICS substitutions and print in 
+	EPICS.substitutions format
+	"""
+	prStr = ""
+	for template in epicsTemplate.typeDict.keys():
+	    prStr +=  "file "+template+".template {\n"
+	    prStr += "\n".join( map(lambda x: x.prAsSubst(),epicsTemplate.typeDict[template]))
+	    prStr += "\n}\n";
+	return prStr
+    @staticmethod
+    def printAllRecords():
+    	"""
+	Treat all objects as EPICS records and print in EPICS.db format
+	"""
+	prStr = "\n".join( map(lambda x: x.prAsRec(),epicsTemplate.deviceList))
+
+
+	return prStr
+
+class X_Address(object):
+    mbbiTagIndex=0
+    mbboTagIndex=0
+    inTagPrefix  = "inBits"
+    outTagPrefix = "outBits"
+    mbbiDirectLinks = {}  # (OPC|Link,signalName) for all mbbiDirect records
+    mbboDirectLinks  = {} # (OPC|Link,signalName) for all mbboDirect records
+
+    def __init__(self) :
+    	self.link = None
+	self.softLinkTag = None
+
+    def getLink(self):
+    	"""
+	Return the link to the OPC-object or soft link to the mbb_Direct record
+	"""
+    	return self.link
+
+    def getSoftLinkTag(self):
+    	"""
+	Return the tag used in mbb_DirectTags dictionary or None if it has direct 
+	access to the OPC server
+	"""
+	return self.softLinkTag
+
+    @staticmethod
+    def setupTemplates(device_name,dtypHw):
+	"""
+	Create epicsTemplate objects for all mbb_Direct records as indicated in mbb_DirectLinks dictionary
+	"""
+	for tag in X_Address.mbbiDirectLinks.keys():
+	    (link,signalName) = X_Address.mbbiDirectLinks[tag]
+	    epicsTemplate('longin', {'DEVN':device_name},{'SNAME':signalName,
+    	    	      'DESC': tag[len(tag)-20:len(tag)],
+    	    	      'DTYP': dtypHw,
+    	    	      'SCAN': "I/O Intr",
+#    	    	      'NOBT': "16",
+    	    	      'INP':  link})
+	for tag in X_Address.mbboDirectLinks.keys():
+	    (link,signalName) = X_Address.mbboDirectLinks[tag]
+	    epicsTemplate('mbboDirect', {'DEVN':device_name},{'SNAME':signalName,
+    	              'DESC': tag[len(tag)-26:len(tag)],
+    	              'DTYP': dtypHw,
+    	              'NOBT': "16",
+    	              'OUT':  link})
+    def procInOut(self,rtype):
+	if matchRe(rtype,".*o(ut)?(Direct)?") :
+    	    return "OUT"
+	else:
+    	    return "INP"
+ 
+class PLC_Address(X_Address):
+    """
+    Manage a SPS-Symbolname address (col. A)
+    """
+    def __init__(self,PLCLink,rtype,bits,deviceName,lines) :
+	X_Address.__init__(self)
+	if bits == '':
+	    self.link = "@"+PLCLink
+	else:
+ 	    self.softLinkTag = PLCLink
+ 	    (nobt,shft) = getShiftParam(bits)
+ 	    if self.procInOut(rtype) == 'INP':
+ 		if not X_Address.mbbiDirectLinks.has_key(self.softLinkTag) :
+ 		    X_Address.mbbiDirectLinks[self.softLinkTag] = ("@"+PLCLink,X_Address.inTagPrefix+str(X_Address.mbbiTagIndex))
+		    X_Address.mbbiTagIndex += 1
+ 		(hwLink,sTag) = X_Address.mbbiDirectLinks[self.softLinkTag]
+		self.link = deviceName+":"+sTag+" CPP MS"
+ 	    elif self.procInOut(rtype) == 'OUT':
+ 		if not X_Address.mbboDirectLinks.has_key(self.softLinkTag) :
+ 		    X_Address.mbboDirectLinks[self.softLinkTag] = ("@"+PLCLink,X_Address.outTagPrefix+str(X_Address.mbboTagIndex))
+		    X_Address.mbboTagIndex += 1
+ 		(hwLink,sTag) = X_Address.mbboDirectLinks[self.softLinkTag]
+ 		self.link = deviceName+":%s.B%X PP NMS" % (sTag,shft) 
+ 	    else :
+ 		die("Unknown output type for record: "+rType+" in Line: "+str(lines))
+
+class DB_Address(X_Address):
+    """
+    Manage a Siemens PLC adrress (col. B)
+    """
+    def __init__(self,plcAddr,rtype,opc_name,deviceName,lines=None) :
+	"""
+	Align byte addresses to word addresses. Due to strange PLC behaviour, the 
+	endianess of bitfields differs from WORDS, so	address allign swaps endianes  
+
+	- Used for bi/bo are mapped to mbb_Direct 
+	- Means odd Bytes: byte -= 1, other bit += 8
+	
+	Parse 'plcAddr' as something of 'DBn,mo.p' or 'DBn,mo' e.g. 'DB5,X32.4' with:
+	
+	- n = DB number
+	- m = datatype X=byte, W=word
+	- o = byte number
+	- p = bit number
+	"""
+	X_Address.__init__(self)
+    	typ = None
+    	byte =None
+    	bit = None
+    	db  = None
+	if  opc_name is None: die("Missing -m plc-name option")
+	if  rtype is None: die("Missing record type (col N) in Line: "+str(lines))
+
+	l = matchRe(plcAddr,".*DB(\d+),(\w)(\d+)\.(\d+)")  # S7:[S7-Verbindung_1]DB2,X0.0
+
+	if l is not None:
+    	    (db,typ,byte,bit) = l
+
+	    if typ == 'X':
+		byte = int(byte)
+		bit  = int(bit)
+		db   = int(db)
+		if byte%2 != 0:	# align to word boundaries 
+		    byte -= 1
+		else:
+		    bit += 8
+	    else:
+		die("unknown datatype '"+typ+"' in: '"+plcAddr+"'",lines)
+	else:
+    	    #print "plcAddr ", plcAddr
+	    l = matchRe(plcAddr,".*DB(\d+),(\w)(\d+)")  # S7:[S7-Verbindung_1]DB2,X0.0
+
+	    if l is not None:
+    		(db,typ,byte) = l
+		byte = int(byte)
+		db   = int(db)
+
+		if self.typ != 'W':
+	    	    die("unknown datatype '"+self.typ+"' in: '"+plcAddr+"'",lines)
+
+	    else:
+		die("unknown datatype in: '"+plcAddr+"'",lines)
+	
+	self.softLinkTag = str(db)+"_"+str(byte)
+
+	if self.procInOut(rtype) == 'INP':
+	    if not mbbiDirectLinks.has_key(self.softLinkTag) :
+	    	mbbiDirectLinks[self.softLinkTag] = ("@"+opc_name+"DB"+str(db)+"W"+str(byte),X_Address.inTagPrefix+self.softLinkTag)
+ 	    (hwLink,sTag) = mbbiDirectLinks[self.softLinkTag]
+	    self.link = deviceName+"%s.B%X CPP MS" % (sTag,bit) 
+	elif self.procInOut(rtype) == 'OUT':
+	    if not mbboDirectLinks.has_key(self.softLinkTag) :
+	    	mbboDirectLinks[self.softLinkTag] = ("@"+opc_name+"DB"+str(db)+"W"+str(byte),X_Address.outTagPrefix+self.softLinkTag)
+ 	    (hwLink,sTag) = mbboDirectLinks[self.softLinkTag]
+	    self.link = deviceName+"%s.B%X PP NMS" % (sTag,bit) 
+    	else :
+	    die("Unknown output type for record: "+rType+" in Line: "+str(lines))
+		
+def getShiftParam(bits):
+    """
+    Bitrange to paramteres NOBT, SHFT. Parameter bits = 'n' or bits = 'n|n+1|n+2' , 
+    SHIFT = n, NOBT = nr of elements.
+    Return tupel: (NOBT,SHFT),  NOBT=None for bits = 'n'
+    E.G getShiftParam('5|6|7') = (5,3), getShiftParam('7') = (7,1)
+    """
+    nobt = 0
+    shft = 0
+    if bits != '':
+    	li = bits.split('|')
+    	if li != None:
+	    shft = int(li[0].strip())
+    	    if len(li) > 1:
+	    	nobt = len(li)
+    return (nobt,shft)
+def getEcName(port,canId,cardNr,namesEnd):
+    """
+    Embedded controller device, to hold the mbbi/oDirect. Derives its name from 
+    the IOC name to get a unique name for each embedded controller. Remove the
+    characters IO from the IOC name to get this e.g. IOC1S15GP -> C1S15GP 
+    
+    EC<port>-<id><card><IOC derived part>
+    
+    e.g. Port 1 Id5 card 3 on IOC1S15GP -> EC1-53C1S15GP
+    """
+    return "EC%d-%02d%s:C%1d"%(int(port),int(canId),namesEnd,int(cardNr))
+
+def getOpcLink(PLCLink,rtyp,bits,device_name,lines,fileName):
+    fields = {}
+    if rtyp in ('ai','longin','mbbiDirect'):
+    	fields['DTYP'] = "opc"
+    	fields['SCAN'] = "I/O Intr"
+	fields['INP'] = '@'+PLCLink
+    elif rtyp in ['ao','longout','mbboDirect']:
+    	fields['DTYP'] = "opc"
+	fields['OUT'] = '@'+PLCLink
+    elif rtyp in ('bi','mbbi','bo','mbbo'):	# access via mbb_Direct to CAN
+        (nobt,shft) = getShiftParam(bits)
+    	if rtyp in ('bi','mbbi','mbbo'):	# access via mbb_Direct to CAN
+            fields['SHFT']  = shft
+            fields['NOBT']  = nobt
+            fields['DTYP']  = 'opc'
+	    if rtyp == 'mbbi':
+            	fields['SCAN']  = "I/O Intr"
+	dbAddr = PLC_Address(PLCLink,rtype,bits,device_name,lines)
+#    	dbAddr = DB_Address(DBLink,rtype,opc_name,device_name,lines)
+	if rtyp in ('bi','mbbi'):
+    	    fields['INP'] = dbAddr.getLink()
+	else:
+    	    fields['OUT'] = dbAddr.getLink()
+    return (fields)
+
+
+def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
+    """
+    Create an Hardware Link, CAN or VME. The argument canId may be an integer for CAN or 
+    a string for the DTYP of the VME device.
+    """
+    fields = {}
+#    print "getHwLink(",rtyp,port,canId,cardNr,chan,name,fileName,lineNr,")"
+    try:
+    	int(canId)	# CAN link
+	if rtyp in ('ai','longin','mbbiDirect'):
+    	    fields['DTYP'] = "lowcal"
+	    fields['INP'] = createAdaCanLink(port,canId,cardNr,chan)
+	elif rtyp in ['ao','longout','mbboDirect']:
+    	    fields['DTYP'] = "lowcal"
+	    fields['OUT'] = createAdaCanLink(port,canId,cardNr,chan)
+	elif rtyp in ('bi','mbbi','bo','mbbo'):	# access via mbb_Direct to CAN
+	    hwDevice = getEcName(port,canId,cardNr,iocTag)
+	    if rtyp in ('bo','mbbo'):
+	    	linkName ='OUT'
+		mux = 9
+		recType = 'mbboDirect'
+		hwSignal = "outBits"
+	    else:
+	    	linkName ='INP'
+		mux = 8
+		recType = 'mbbiDirect'
+		hwSignal = "inBits"
+	    if epicsTemplate.getDevice(hwDevice) is None: 
+	    	f = {'DESC'  :'Access Port:'+str(port)+", Id:"+str(canId)+", card:"+str(cardNr),
+		     'NOBT'  :'16',
+		     'DTYP'  :'lowcal',
+		     'SNAME' : hwSignal,
+    	    	     linkName: createAdaCanLink(port,canId,cardNr,mux)
+		    }
+	    	epicsTemplate(recType,{'DEVN':hwDevice},f)
+	    
+	    (nobt,shft) = getShiftParam(chan)
+	    fields['SHFT']  = shft
+	    if rtyp in ('bo','bi'):
+	    	fields[linkName]= "%s:%s.B%X CPP MS" % (hwDevice,hwSignal,shft)
+	    else:   # mbbi, mbbo
+	    	fields[linkName]= "%s:%s CPP MS" % (hwDevice,hwSignal)
+	    	fields['NOBT']= nobt
+	    	fields['SHFT']= shft
+    except ValueError:   	    	    	# VME link
+    	if len(canId) > 0:
+	    fields['DTYP'] = canId
+	    (nobt,shft) = getShiftParam(chan)
+	    link = "#C%dS%d"% (int(cardNr),int(shft))
+	    if nobt is not None:
+	    	fields['NOBT'] = nobt
+	    	fields['SHFT'] = shft
+	    
+	    if rtyp in ('bi','mbbi'):	# access direct to card
+    	    	fields['IN'] = link
+	    elif rtyp in ('bo','mbbo',):	# access direct to card
+    	    	fields['OUT'] = link
+    	    if lineNr==54:
+	    	print rtyp, link,fields['OUT']
+	else:
+	    warnings.append([fileName,lineNr,"WARN: ",name,"No CAN-Id/DTYP (Col. E) Can't create link"])
+    return (fields)
+
+def adaCanMux(id,card,chan,typ='hex'):
+    """
+    Calculate Can can parameters from Node-Id, Card and Channel for ADA analog input 
+    channels.
+    
+    Return (OUT_CAN,IN_CAN,MUX)
+    """
+    frmt = "%X"
+    if typ == 'dec': frmt = "%d"
+    outCan = frmt%(320+int(id),)
+    inCan  = frmt%(256+int(id),)
+    mux    = frmt%(int(card)*12+int(chan))
+    return (outCan,inCan,mux)
+
+def createAdaCanLink(port,id,card,chan):
+    (outCan,inCan,mux) = adaCanMux(id,card,chan)
+    return "@f s 5 %X %s %s %s 64 3E8 0" % (int(port),outCan,inCan,mux)
+
+def getBinaryAttributes(rangeEng,rangeRaw,fields,fileName,lines):
+
+    rangeENG = []
+    rangeRAW = []
+    rangeALH = []
+    r = rangeEng.split("|")
+    if isinstance(r,list) is True and len(r)>1:
+	rangeENG = map(lambda x: x.strip(),r)
+	rangeLen = len(r)
+	r = rangeRaw.split("|")
+	if isinstance(r,list) is True and len(r) == rangeLen:
+	    rangeRAW = map(lambda x: x.strip(),r)
+	else:
+	    warnings.append([fileName,lines,"Skip: ",devName,"Illegal rangeRaw (Col: I): \'"+rangeRaw+"\'"])
+	    raise ValueError
+	r = rangeAlhSevr.split("|")
+	if isinstance(r,list) is True and r[0] != '':	# No alarms is ok, but..
+	    if len(r) == rangeLen:
+		rangeALH =  map(lambda x: x.strip(),r)
+	    else:
+		warnings.append([fileName,lines,"Skip: ",devName,"Illegal length of rangeAlh (Col: L): \'"+rangeAlhSevr+"\'"])
+	    	raise ValueError
+	else:  	    	    	    	    	    	# .. fake a NO_ALARM range
+	    rangeALH = map(lambda x: "NO_ALARM",range(rangeLen))
+    else:
+	warnings.append([fileName,lines,"Skip: ",devName,"Illegal rangeEng (Col: J): \'"+rangeEng+"\'"])
+    return (rangeENG,rangeRAW,rangeALH)
+
+def createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines):
+#    print "createAnalogRecord",rtype,devName,signal,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr
+    fields.update(getDisplayLimits(rangeEng,egu,signal,lines))
+    (limitParams,dtype) = createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,devName+":"+signal,lines)
+    fields.update(limitParams)
+    epicsTemplate(rtype,{'DEVN':devName},fields)
+    
+def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
+    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(rangeEng,rangeRaw,fields,fileName,lines)
+
+    # set name and severitie fields
+    idx=0
+    if rtype == 'bi':
+	rtype = 'mbbi'
+    	fields['NOBT'] = '1'
+	fields['DTYP'] = "Raw Soft Channel"
+	for state in ["ZR", "ON"]:
+	    if hasIndex(rangeENG,idx) is None:
+		break
+            namStr = rangeENG[idx]
+	    l = len(namStr)
+	    if l > 19:
+		d = namStr[0:19] +" | " + namStr[19:l]
+		namStr = namStr[0:19]
+		warnings.append([fileName,lines,"Truncate bi/bo string",devName,d])
+	    fields[state+"ST"]=namStr
+	    fields[state+"VL"]=idx
+	    if hasIndex(rangeALH,idx) is True:
+		if rangeALH[idx] != '' and rangeALH[idx] != 'NO_ALARM':
+		    fields[state+"SV"]=rangeALH[idx]
+            idx += 1
+    else:    	
+	for state in ["Z", "O"]:
+	    if hasIndex(rangeENG,idx) is None:
+		break
+            namStr = rangeENG[idx]
+	    l = len(namStr)
+	    if l > 19:
+		d = namStr[0:19] +" | " + namStr[19:l]
+		namStr = namStr[0:19]
+		warnings.append([fileName,lines,"Truncate bi/bo string",devName,d])
+	    fields[state+"NAM"]=namStr
+	    if hasIndex(rangeALH,idx) is True:
+		if rangeALH[idx] != '' and rangeALH[idx] != 'NO_ALARM':
+		    fields[state+"SV"]=rangeALH[idx]
+            idx += 1
+    epicsTemplate(rtype,{'DEVN':devName},fields)
+    return alias_extra
+
+    
+def createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
+    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(rangeEng,rangeRaw,fields,fileName,lines)
+    tooLong = False
+
+    pvName = devName+":"+signal
+    if len(rangeENG) > 16 :
+	warnings.append([fileName,lines,"Truncate mbb modes"+pvName+" "+str(len(rangeENG))+", max=16"])
+
+    idx = 0
+    for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
+	if hasIndex(rangeENG,idx) is True:
+	    if len(rangeENG[idx]) > 15 :
+		tooLong=True
+	else:
+	    break
+        idx += 1
+
+    if (tooLong == False) or (rtype == "mbbo") :
+        dbRec = epicsTemplate(rtype,{'DEVN':devName},fields)
+        idx=0
+        for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"] :
+            if hasIndex(rangeENG,idx) is False:
+		break   # rangeENG[index]
+
+	    namStr = rangeENG[idx]
+	    if len(namStr) > 15:
+		d = namStr[0:15] +" | " + namStr[15:l]
+		namStr = namStr[0:15]
+		warnings.append([fileName,lines,"Truncate mbb string",pvName,d])
+            dbRec.field[state+"ST"]=namStr
+            dbRec.field[state+"VL"]=rangeRAW[idx]
+	    if hasIndex(rangeALH,idx) is True:
+		dbRec.field[state+"SV"]=rangeALH[idx]
+
+            idx +=1 
+    else:   # mbbi with long string names: each string gets a stringout !
+        fields['SNAME'] = fields['SNAME']+'Raw'
+	dbRec = epicsTemplate(rtype,{'DEVN':devName},fields)
+        idx=0
+        stringOuts = ""
+        seq = epicsTemplate('seq',{'DEVN':devName},{'SNAME':signal+"S1",
+		'SELM':"Specified", 
+		'SELL':pvName+"C1 CP NMS",
+		'SDIS':fields['SDIS'],'DISS':fields['DISS']
+		})
+	seqNr=1
+        for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
+            if hasIndex(rangeENG,idx) is False:
+		  break
+            #d = substr(rangeENG[idx],0, 15) ." | " .substr(rangeENG[idx],15, length(rangeENG[idx]) )
+            #push @warnings, [fileName,lines,"Truncate mbb string",pvName,d] if ( length(rangeENG[idx]) > 15 )
+            if idx == 9 :
+        	seq2 = epicsTemplate('seq',{'DEVN':devName},{'SNAME':signal+"S2",
+		    	'SELM':"Specified", 
+			'SELL':pvName+"C2 CP NMS",
+			'SDIS':fields['SDIS'],'DISS':fields['DISS']
+			})
+		seqNr=2
+	    if seqNr==1:
+		seq.field["LNK"+str(idx+1)]   = pvName+"St"+str(idx)+".PROC PP NMS"
+	    else:
+		seq2.field["LNK"+str(idx%9+1)] =  pvName+"St"+str(idx)+".PROC PP NMS"
+            if (hasIndex(rangeRAW,idx) is True) and (rangeRAW[idx] != '0'):
+		dbRec.field[state+"VL"] = rangeRAW[idx]
+	    	if hasIndex(rangeALH,idx) is True:
+		    dbRec.field[state+"SV"] = rangeALH[idx]
+            eng = rangeENG[idx]
+	    l = len(eng)
+	    if l > 39:
+		d = eng[0:39]+" | "+ eng[40:l]
+		eng = eng[0:39]
+		warnings.append([fileName,lines,"Truncate mbb string",pvName,d])
+            epicsTemplate('stringout',{'DEVN':devName},{'SNAME':signal+"St"+str(idx),
+        	    		    'VAL':eng,
+        			    'OUT':pvName+" PP NMS",
+				    'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+	    idx += 1
+
+    	epicsTemplate('calc',{'DEVN':devName},{'SNAME':signal+"C1",
+        		      'CALC': "(A<9)?A+1:0",
+        		      'INPA': pvName+"Raw CP NMS",
+			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+        epicsTemplate('calc', {'DEVN':devName},{'SNAME':signal+"C2",
+        		      'CALC': "(A>=9)?A-8:0",
+        		      'INPA': pvName+"Raw CP NMS",
+			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+	epicsTemplate('stringin', {'DEVN':devName},{'SNAME':signal,
+        		      'DESC': DESC,
+        		      'SIML': pvName+"Raw.SIMM NPP MS",
+			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+
+def parseParam(fieldPar):
+    commFields = {}
+    valList = fieldPar.split("|") # set alarm values and additional fields for a record
+    if len(valList) > 0 and valList[0] != '':
+	for v in valList:
+	    try:
+	    	(valName,val)  = v.split("=")
+	    	commFields[valName] = val
+	    except ValueError:
+	    	if len(valList) == 1:
+		    return valList[0]
+		else:
+		    return valList
+    return commFields
+    
+#******************************* Main program *******************************
+
+separator    =','
+output_db    = None
+output_panel = None
+output_alh   = None
+output_arch  = None
+output_req   = None
+install_path = "."
+display_search_path = ".:.."
+iocName  = None
+devName  = '(DEVICE)'
+opc_name     = None
+usage        = " %prog [options]"
+parser = OptionParser(usage=usage,
+		 version="%%prog %s" % my_version,
+    		 description="USAGE: CreateFromCSV [-h -v -t<char>] <csv files ...>")
+parser.add_option("-v","--verbose",
+		 action="store_true", # default: None
+		 help="print debug information", 
+    		 )
+parser.add_option("-p","--panel",
+		 action="store_true",
+		 help="create 'CreatePanel.pl' data for Items that define EPICS PanelName (col. T, )", 
+    		 )
+parser.add_option("-t","--separator", 
+		 action="store",
+    		 type="string",
+		 help="column separator []", 
+    		 )
+parser.add_option("-d","--output_db", 
+		 action="store",
+    		 type="string",
+		 help="db file name file ending determines the ouptut: '.db' or '.substitutions'",
+    		 )
+parser.add_option("-l","--output_alh", 
+		 action="store_true",
+		 help="create alarm handler config file for Items that define BESSY ALH Group (col. Q, )", 
+    		 )
+parser.add_option("-a","--output_arch", 
+		 action="store",
+    		 type="string",
+		 help="archiver config file name for signals defined n Col. O", 
+    		 )
+parser.add_option("-r","--output_req", 
+		 action="store",
+    		 type="string",
+		 help="autoSaveRestore request file name for signals defined in Col. P", 
+    		 )
+parser.add_option("-n","--devName", 
+		 action="store",
+    		 type="string",
+		 help="device name [\(DEVICE)]", 
+    		 )
+parser.add_option("-m","--opc_name", 
+		 action="store",
+    		 type="string",
+		 help="opc server name", 
+    		 )
+parser.add_option("-c","--can", 
+		 action="store",
+    		 type="string",
+		 help="CAN port Nr., or 'opc' for OPC server access",
+    		 )
+parser.add_option("-i","--iocName", 
+		 action="store",
+    		 type="string",
+		 help="IOC name ",
+    		 )
+parser.add_option("-f","--install_path",
+		 action="store",
+    		 type="string",
+		 help="installation path for output files: .substitutions, .arch, .alh, panels. Default is './'", 
+    		 )
+parser.add_option("-s","--display_search_path",
+		 action="store",
+    		 type="string",
+		 help="for panel generation only, search path for widget header/footer files '.:..'", 
+    		 )
+
+(options, args) = parser.parse_args()
+canport = ""
+if options.separator    is not None: separator    = options.separator
+if options.can   	is not None: canport	  = options.can
+if options.output_db	is not None: output_db    = options.output_db
+if options.panel	is not None: output_panel = options.panel
+if options.install_path	is not None: install_path = options.install_path
+if options.display_search_path	is not None: display_search_path = options.display_search_path
+if options.output_arch	is not None: output_arch  = options.output_arch
+if options.output_req	is not None: output_req   = options.output_req
+if options.iocName	is not None: iocName      = options.iocName
+if options.opc_name	is not None: opc_name	  = options.opc_name
+if options.devName	is not None: devName  	  = options.devName
+
+sdis=""# devName+":disable CPP NMS"
+iocTag = None
+
+if iocName is not None:
+    try:
+    	m = matchRe(iocName,"^\w*IO(C[\w\d]+$)")
+	iocTag = m[0]
+    except TypeError:
+	pass
+
+EPICS_STR_LEN = 28   # warn: truncated DESCription fields
+warnings = []	     # global for warnings in all functions, is printed at end or prog.
+
+lines = None
+table = []  	    # Debug information in verbose mode
+db   = []	    # substitution file lines
+arch = []	    # archive list
+req = []	    # autoSaveRestore list
+panelList = Panels(install_path,display_search_path)
+
+def joinItarch(): return "\n".join(arch)
+def joinItreq():  return "\n".join(req)
+types = { "db"  : [output_db,  epicsTemplate.strAll],
+          "arch": [output_arch,joinItarch],
+          "req" : [output_req, joinItreq ]}
+
+debugInfo = {}
+
+for argument in args:
+    if not os.path.isfile(argument): die("File doesn't exist: "+argument)
+
+    print "   Reading data from "+argument
+
+    try :
+    	(fileName,fileExt) = matchRe(argument,'.*\/(.*)\.(.*)') 
+    except TypeError : 
+    	die("found no filename in: "+argument)
+
+    try :
+	IN_FILE = open(argument) 
+    except IOError: 
+    	die("can't open input file: "+argument)
+    
+    lines = 0
+    reader = csv.reader(IN_FILE, delimiter=separator, quotechar='"',quoting=csv.QUOTE_ALL)
+
+    for device in reader:
+   	try:
+	    lines += 1
+	    if lines <= 1: # is header
+	    	continue
+
+	    try: dev        = device[0].strip() # A  devicname
+	    except IndexError: rtype = ""
+	    try: rtype      = device[1].strip() # B  record-, template type
+	    except IndexError: rtype = ""
+	    try: signal     = device[2].strip() # C  BESSY Signalname
+	    except IndexError: signal = ""
+	    if canport == 'opc':
+		try: PLCLink    = device[3].strip() # D  CAN-Port / SPS Symbolname
+		except IndexError: PLCLink = ""
+		try: DBLink     = device[4].strip()  # E  CAN-Id / Siemens DataType
+		except IndexError: DBLink = ""
+		try: dataType   = device[5].strip()  # F  Card-Nr / Siemens Access rights
+		except IndexError: dataType = ""
+	    else:
+		try: 
+		    canport    = int(str(device[3]).strip()) # D  CAN-Port / SPS Symbolname
+	    	except IndexError: pass
+		except ValueError: 
+		    if len(device[3]) != 0:
+		    	die("ERROR: illegal argument -can: '"+str(device[3])+"' assumed here to be empty or a can port number",lines)
+		    				
+		try: canId     = device[4].strip()  # E  CAN-Id / Siemens DataType
+		except IndexError: DBLink = ""
+		try: cardNr    = device[5].strip()  # F  Card-Nr / Siemens Access rights
+		except IndexError: dataType = ""
+	    try: chan       = device[6].strip()  # G  binary: Inputbits bi/bo: nr, mbbi/o start-stop: e.g. 5-7 -> SHFT=5, NOBT=3 
+	    except IndexError: chan = ""
+	    try: rangeRaw   = device[7].strip()  # H  Datenbereich Rohdaten binary: '2|15|33', ai: '0-65535'
+	    except IndexError: rangeRaw = ""
+	    try: rangeEng   = device[8].strip()  # I  Datenbereich ENG     binary Named:'True|False|Invalid', anlog:' 0-100'
+	    except IndexError: rangeEng = ""
+    	    try: egu        = device[9].strip()  # J  Engeneering unit 
+	    except IndexError: egu = ""
+	    try: rangeAlhVal= device[10].strip() # K  BESSY Alarm-Werte     anlog: LOLO=-5|HIGH=12
+	    except IndexError: rangeAlhVal = ""
+            try: rangeAlhSevr=device[11].strip() # L  BESSY Alarm-Zustand   anlog, bi : 'NO_ALARM|MINOR|MAJOR|INVALID'
+	    except IndexError: rangeAlhSevr = ""
+	    try: DESC       = device[12].strip() # M  BESSY Description
+	    except IndexError: DESC = ""
+	    try: prec       = device[13].strip() # N  BESSY Prec
+	    except IndexError: prec = ""
+	    try: archPeriod = device[14].strip() # O  BESSY Arch
+	    except IndexError: archPeriod = ""
+	    try: reqFlag    = device[15].strip() # P  BESSY SR
+	    except IndexError: reqFlag = ""
+	    try: alhGroup   = device[16].strip() # Q  BESSY ALH Group
+	    except IndexError: alhGroup = ""
+	    try: alhFlagsFlag=device[17].strip() # R  BESSY ALH Flags
+	    except IndexError: snapFlag = ""
+	    try: alhSort    = device[18].strip() # S  BESSY ALH Sort
+	    except IndexError: alhSort = ""
+	    try: panelName  = device[19].strip() # T  BESSY Panel name extended to panel Name: <panel>.edl
+	    except IndexError: panelName = ""
+	    try: panelGroup = device[20].strip() # U  BESSY Panel Group
+	    except IndexError: panelGroup = ""
+    	    try: panelSort  = device[21].strip() # V BESSY Panel Sort
+	    except IndexError: panelSort = ""
+	    alhFlags=''
+
+    	    if len(dev)>0:  	# override -n option
+	    	devName = dev
+	    if len(rtype) == 0: # is empty 
+		continue
+	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
+	    if len(DESC) > EPICS_STR_LEN :
+		lastIdx = EPICS_STR_LEN
+		descTrunc = DESC[0:lastIdx]
+		warnings.append([fileName,lines,"Truncate DESC",devName,descTrunc+" | "+DESC])
+    		DESC = descTrunc
+	    alias_extra = ""
+	    alhSignals = []	    # templates may have a list of signals for alarm handler
+	    arcSignals = []	    # templates may have a list of signals for archiver
+    	    panelDict = {}  	    # panel widget macro data
+	    panelNameDict = {}	    # panel widget PV name in form of {'TAG':pvName} dictionary
+	    panelWidgetName = None
+
+	    fields = {}
+	    fields.update(parseParam(prec))
+    	    if len(signal) > 0: 	    	# is a record
+		alhSignals.append(signal)
+		arcSignals.append(signal)
+		fields.update({'SNAME': signal,
+	    		'DISS': 'INVALID',
+	    		'SDIS': sdis,
+    	    		'DESC': DESC})
+		
+		if canport == 'opc':
+		    fields.update(getOpcLink(PLCLink,rtype,chan,devName,lines,fileName))
+    	    	else:	# ommit parameter or canport number means CAN link
+    	    	    fields.update(getHwLink(rtype,canport,canId,cardNr,chan,devName,fileName,iocTag,lines) )
+		try:
+    		    if rtype in ('ai','ao') :
+	    		fields.update(getDisplayLimits(rangeEng,egu,signal,lines))
+	    		createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
+    		    elif rtype in ('longin','longout') :
+	    		fields.update(getDisplayLimits(rangeEng,egu,signal,lines))
+	    		fields['SNAME']=signal
+	    		createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
+		    elif rtype in ('bi','bo'):
+			    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
+		    elif rtype in ('mbbi','mbbo'):
+    	    		    createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
+    	    	    else:
+			warnings.append([fileName,lines,"Skip unknown record type",devName,rtype])
+		    if len(reqFlag) > 0: req.append(devName+":"+signal)
+
+    		    if rtype in ('bo') :
+			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+			panelWidgetName = "bo"
+    		    elif rtype in ('ao','longout') :
+			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+			panelWidgetName = "ao"
+    		    elif rtype in ('mbbo') :
+			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+			panelWidgetName = "mbbo"
+		    else:
+			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+			panelWidgetName = "anyVal"
+		    panelNameDict.update({'DEVN':devName})
+		except ValueError:
+		    continue
+	    else:	    	    	    	# is a template
+		if len(reqFlag) > 0: 
+	    	    req += map(lambda x: devName+":"+x,reqFlag.split("|"))
+
+		if rtype=="aiFB":
+    	    	    fields.update({'INP' : '@'+PLCLink})
+		    alhSignals.append(devName+":set"+fields['TAG'])
+		    arcSignals.append("set"+fields['TAG'])
+		    panelNameDict.update({'DEVN':devName})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelWidgetName = "aiFB"
+		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
+		elif rtype=="longinFB":
+    	    	    fields.update({'INP' : '@'+PLCLink})
+    	    	    fields.update(parseParam(rangeAlhVal))
+		    alhSignals.append(devName+":cmd"+fields['TAG'])
+		    arcSignals.append("cmd"+fields['TAG'])
+		    panelNameDict.update({'DEVN':devName})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelWidgetName = "aiFB"
+		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
+		elif rtype=="biFB":
+    	    	    fields.update({'INP' : '@'+PLCLink,})
+    	    	    fields.update(parseParam(rangeAlhVal))
+		    alhSignals.append(devName+":cmd"+fields['TAG'])
+		    arcSignals.append("cmd"+fields['TAG'])
+		    panelNameDict.update({'DEVN':devName})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelWidgetName = "biFB"
+		    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
+		elif rtype=="mbbiFB":
+    	    	    fields.update({'INP' : '@'+PLCLink,})
+    	    	    fields.update(parseParam(rangeAlhVal))
+		    alhSignals.append(devName+":cmd"+fields['TAG'])
+		    arcSignals.append("cmd"+fields['TAG'])
+		    panelNameDict.update({'DEVN':devName})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelWidgetName = "biFB"
+		    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
+		elif rtype=="vacuum_OPC":
+    	    	    fields.update({'DESC':DESC, 'INP':'@'+PLCLink,'EGU':egu})
+    	    	    fields.update(parseParam(rangeAlhVal))
+		    alhSignals.append(devName+":lvac")
+		    arcSignals.append(fields['TAG']+":lvac")
+		    arcSignals.append(fields['TAG']+":vac")
+		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC,'EGU':egu})
+		    panelNameDict.update({'DEVN':devName})
+		    panelWidgetName = "vmi"
+		    epicsTemplate(rtype, {'DEVN':devName}, fields)
+    		elif matchRe(rtype,"^vacuum_\w\w\w\d\d\d$") is not None:
+		    (canOut,canIn,mux) = adaCanMux(canId,cardNr,chan)
+		    alhSignals.append("rdPress")
+		    arcSignals.append("rdPress")
+		    panelNameDict.update({'NAME':devName})
+		    panelWidgetName = "Vmi"
+		    epicsTemplate(rtype, {'NAME':devName}, {
+        		'DESC': DESC,
+        		'CANPORT':canport,
+			'OUTCAN': canOut,
+			'INCAN':  canIn,
+			'MUX':    mux,
+			'ASG':    "",
+			'SDIS':   "",})
+		elif rtype=="vacuum_VarianDualController":
+		    alhSignals.append("rdHighVolt")
+		    alhSignals.append("rdPress")
+		    arcSignals.append("rdHighVolt")
+		    arcSignals.append("rdPress")
+		    panelNameDict.update({'NAME':devName})
+		    panelWidgetName = "Gpps"
+		    (canOut,canIn,mux) = adaCanMux(canId,cardNr,chan)
+		    mux1 = "%X"% (int(cardNr)*12+1+int(chan),)
+		    epicsTemplate(rtype, {'NAME':devName}, {
+        		'DESC': DESC,
+        		'CANPORT':canport,
+			'OUTCAN': canOut,
+			'INCAN':  canIn,
+			'MUX':    mux,
+			'MUX2':   mux1,
+			'ASG':    "",
+			'SDIS':   "",})
+    		elif rtype=="valve_VCTRL":
+		    alhSignals.append("stItlHw",)
+		    arcSignals.append("stModOpen",)
+		    arcSignals.append("stItlHw",)
+		    panelNameDict.update({'NAME':devName})
+		    panelWidgetName = "Valve"
+		    canOut = "%X"%(576+int(canId),)
+		    canIn  = "%X"%(512+int(canId),)
+		    muxIn  = "%X"%(int(cardNr)*2,)
+		    muxOut = "%X"%(int(cardNr)*2+1,)
+		    epicsTemplate(rtype, {'NAME':devName}, {
+        		'DESC': DESC,
+        		'CANPORT':canport,
+			'OUTCAN': canOut,
+			'INCAN':  canIn,
+			'MUXIN':  muxIn,
+			'MUXOUT': muxOut,
+			'ASG':    "",
+			'ASGOPEN':    "OPEN",
+			'SDIS':   "",})
+		elif rtype=="aiCAN":
+	    	    fields.update({'DISS': 'INVALID',
+        	    	    'INP':  createAdaCanLink(canport,canId,cardNr,chan),
+    	    	    	    'DESC': DESC})
+		    alhSignals.append("rdVolt")
+		    arcSignals.append("rdVolt")
+		    panelNameDict.update({'DEVN':devName})
+		    panelWidgetName = "aiCAN"
+		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
+    		elif rtype=="pt100temp":
+		    alhSignals.append("rdTemp")
+		    arcSignals.append("rdTemp")
+		    panelNameDict.update({'DEVN':devName})
+		    panelWidgetName = "temp"
+		    try:
+    	    		hwname = getEcName(canport,canId,cardNr,iocTag)
+    	    	    except ValueError:
+    	    		die("ERROR: "+devName+" CAN definition Port=\'"+canport+"\' Id: \'"+canId+"\' Card: \'"+cardNr+"\''",lines)
+
+		    if epicsTemplate.getDevice(hwname) is None:
+			(co,ci,mux) = adaCanMux(canId,cardNr,0,'dec')
+			mux=int(cardNr)*12
+
+			epicsTemplate("pt100dev",{'DEVN':hwname},{
+		    	    'CANPORT': canport,
+			    '0XSINOBJ':"%X"%(128+int(canId)),
+			    '0XSOUTOBJ':"%X"%(192+int(canId)),
+			    '0XSMUX':"%X"%(int(cardNr)*4+17),
+			    'INOBJ':ci,
+			    'OUTOBJ':co,
+			    'C0MUX':mux,
+			    'C1MUX':mux+1,
+			    'C2MUX':mux+2,
+			    'C3MUX':mux+3,
+			    'C4MUX':mux+4,
+			    'C5MUX':mux+5,
+			    'C6MUX':mux+6,
+			    'C7MUX':mux+7
+			    })
+		    if egu == "K":	    # template default is Grad-C
+			fields['EGUF'] = "657.16"
+			fields['EGUL'] = "145.16"
+			fields['EGU'] = "K"
+		    fields['DESCR'] = DESC
+		    fields['SDIS']  = ""
+		    fields['HWNAME']= hwname
+    	    	    chan = int(chan)
+		    if chan<8: 
+			ch  = 1
+			sub = chan
+		    else:      
+			ch  = 2
+			sub = chan-8
+		    statnr = "%X"%(chan)
+		    fields['CHAN']  = ch
+		    fields['STATNR']= statnr
+		    fields['SUB']   = sub
+		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
+    		elif rtype=="foilMonitor":
+		    alhSignals.append("stPos")
+		    arcSignals.append("stPos")
+		    panelNameDict.update({'DEVN':devName})
+		    panelWidgetName = None
+		    ch = chan.split("|")
+		    if int(ch[0])+1 != int(ch[1]):
+	    		warnings.append([fileName,lines,"WARN: ",devName,"No consecutive input parameters: "+chan+", assumed: "+str(ch[0])+"|"+str(int(ch[0])+1)])
+    	    	    epicsTemplate("foilMonitor",{'DEVN':devName},{
+			'CARD': cardNr,
+			'CHAN': ch[0],
+			'DTYP': canId
+			})
+		else:
+		    print "Skip unsupported record/template '"+rtype+"' Line:",lines
+		    continue
+    	    # END search and create record type
+	    # now processing is done, an record is created and we can use the variables, set 
+	    # for this line of the spread sheet to do some optional stuff
+
+	    if options.verbose is True:
+		rangeRawCut = rangeRaw
+		if len(rangeRaw)> 23:
+		      rangeRawCut = rangeRaw[0:20] +"..."
+		rangeEngCut = rangeEng
+		if len(rangeEng)> 23:
+		      rangeEngCut = rangeEng[0:20] +"..."
+		table.append([fileName,lines,rtype,devName,link,rangeEngCut,rangeRawCut,egu,DESC])
+
+	    if output_panel is not None and len(panelName)>0: # for panel creation
+#    		print "panelList.addItem(",panelName,panelGroup,panelNameDict,panelDict,panelWidgetName,panelSort+")"
+		panelList.addItem(panelName,panelGroup,panelNameDict,panelDict,panelWidgetName,panelSort)
+
+	    if archPeriod != '':
+		for signal in arcSignals:
+	    	    arch.append( "<channel><name>"+devName+":"+signal+"</name><period>"+archPeriod+"</period><monitor/></channel>")
+
+	    if alhGroup is not None :
+    		epicsAlh(devName,alhSignals[0],alhGroup,alhFlags,panelName,alhSort,lines)
+    	except :
+	    print "Parse exception in line:",lines
+	    raise
+    IN_FILE.close()
+    # end for
+#########################################################################
+    X_Address.setupTemplates(devName,'opc')
+  # Create files
+    for typ in types.keys():
+      	outfile = types[typ][0]
+      	strOut  = types[typ][1]()
+	if outfile == None or len(strOut) == 0:
+            continue
+      	else:
+	    try:
+	    	outFileName = install_path+"/"+outfile
+		OUT_FILE = open(outFileName,"w") 
+	    except IOError: 
+	    	die("can't open output file: "+outFileName)
+	print "   Creating file "+outFileName
+      	#print "*****************************\n", strOut
+	print >> OUT_FILE, strOut
+	OUT_FILE.close()
+
+    if options.output_alh is True:
+	epicsAlh.printFiles(install_path)
+    	
+    if options.verbose is True:
+	printTable(table,["file","line","record","devName","link","rangeEng","rangeRaw","EGU","DESC"],1 ) 
+
+  #  str  map { str += "\t_\tsoftLinkTag{_}\n" } keys(%softLinkTag) print "mbbiDiret Ids:\nstr\n"
+    if (output_db is not None) and (len(warnings) > 0):
+      	print "\nWARNINGS\n********\n\n"
+      	printTable(warnings, ["file","line","Warning","PV-Name","Value"])
+      	print "\n"
+
+    if output_panel is not None:  # for panel creation panelInfos->{recordType}->[pv1, pv2...
+	panelList.printAll()
