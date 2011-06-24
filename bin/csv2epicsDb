@@ -834,7 +834,7 @@ class PLC_Address(X_Address):
  		(hwLink,sTag) = X_Address.mbboDirectLinks[self.softLinkTag]
  		self.link = deviceName+":%s.B%X PP NMS" % (sTag,shft) 
  	    else :
- 		die("Unknown output type for record: "+rType+" in Line: "+str(lines))
+ 		die("Unknown output type for record: "+rType+" in Line: ",lines)
 
 class DB_Address(X_Address):
     """
@@ -910,19 +910,20 @@ class DB_Address(X_Address):
 		
 def getShiftParam(bits):
     """
-    Bitrange to paramteres NOBT, SHFT. Parameter bits = 'n' or bits = 'n|n+1|n+2' , 
+    Bitrange to paramteres NOBT, SHFT. Parameter bits = 'n' or bits = 'n - m' , 
     SHIFT = n, NOBT = nr of elements.
-    Return tupel: (NOBT,SHFT),  NOBT=None for bits = 'n'
-    E.G getShiftParam('5|6|7') = (5,3), getShiftParam('7') = (7,1)
+    Return tupel: (NOBT,SHFT),  NOBT=1 for bits = 'n'
+    E.G getShiftParam('5 - 7') = (3,5), getShiftParam('7') = (7,1)
     """
     nobt = 0
     shft = 0
     if bits != '':
-    	li = bits.split('|')
+    	li = bits.split('-')
     	if li != None:
 	    shft = int(li[0].strip())
+	    nobt = 1
     	    if len(li) > 1:
-	    	nobt = len(li)
+	    	nobt += int(li[1].strip()) - int(li[0].strip())
     return (nobt,shft)
 def getEcName(port,canId,cardNr,namesEnd):
     """
@@ -938,6 +939,8 @@ def getEcName(port,canId,cardNr,namesEnd):
 
 def getOpcLink(PLCLink,rtyp,bits,device_name,lines,fileName):
     fields = {}
+    if device_name is None:
+    	die("Missign option -n deviceName for common mbb_Direct record",lines)
     if rtyp in ('ai','longin','mbbiDirect'):
     	fields['DTYP'] = "opc"
     	fields['SCAN'] = "I/O Intr"
@@ -950,9 +953,7 @@ def getOpcLink(PLCLink,rtyp,bits,device_name,lines,fileName):
     	if rtyp in ('bi','mbbi','mbbo'):	# access via mbb_Direct to CAN
             fields['SHFT']  = shft
             fields['NOBT']  = nobt
-            fields['DTYP']  = 'opc'
-	    if rtyp == 'mbbi':
-            	fields['SCAN']  = "I/O Intr"
+	    fields['DTYP'] = "Raw Soft Channel"
 	dbAddr = PLC_Address(PLCLink,rtype,bits,device_name,lines)
 #    	dbAddr = DB_Address(DBLink,rtype,opc_name,device_name,lines)
 	if rtyp in ('bi','mbbi'):
@@ -1085,8 +1086,8 @@ def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,
     idx=0
     if rtype == 'bi':
 	rtype = 'mbbi'
-    	fields['NOBT'] = '1'
 	fields['DTYP'] = "Raw Soft Channel"
+    	fields['NOBT'] = '1'
 	for state in ["ZR", "ON"]:
 	    if hasIndex(rangeENG,idx) is None:
 		break
@@ -1243,7 +1244,7 @@ opc_name     = None
 usage        = " %prog [options]"
 parser = OptionParser(usage=usage,
 		 version="%%prog %s" % my_version,
-    		 description="USAGE: CreateFromCSV [-h -v -t<char>] <csv files ...>")
+    		 description="USAGE: csv2epicsDb [-h OPTIONS] <csv files ...>")
 parser.add_option("-v","--verbose",
 		 action="store_true", # default: None
 		 help="print debug information", 
@@ -1319,9 +1320,8 @@ if options.output_arch	is not None: output_arch  = options.output_arch
 if options.output_req	is not None: output_req   = options.output_req
 if options.iocName	is not None: iocName      = options.iocName
 if options.opc_name	is not None: opc_name	  = options.opc_name
-if options.devName	is not None: devName  	  = options.devName
 
-sdis=""# devName+":disable CPP NMS"
+sdis=""# options.devName+":disable CPP NMS"
 iocTag = None
 
 if iocName is not None:
@@ -1406,6 +1406,8 @@ for argument in args:
 	    except IndexError: rangeEng = ""
     	    try: egu        = device[9].strip()  # J  Engeneering unit 
 	    except IndexError: egu = ""
+	    e = egu.decode("UTF-8")     	# konversion to ISO for edm!
+	    egu = e.encode("ISO-8859-1")
 	    try: rangeAlhVal= device[10].strip() # K  BESSY Alarm-Werte     anlog: LOLO=-5|HIGH=12
 	    except IndexError: rangeAlhVal = ""
             try: rangeAlhSevr=device[11].strip() # L  BESSY Alarm-Zustand   anlog, bi : 'NO_ALARM|MINOR|MAJOR|INVALID'
@@ -1434,6 +1436,9 @@ for argument in args:
 
     	    if len(dev)>0:  	# override -n option
 	    	devName = dev
+	    else: 
+		devName = options.devName
+
 	    if len(rtype) == 0: # is empty 
 		continue
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
@@ -1460,7 +1465,7 @@ for argument in args:
     	    		'DESC': DESC})
 		
 		if canport == 'opc':
-		    fields.update(getOpcLink(PLCLink,rtype,chan,devName,lines,fileName))
+		    fields.update(getOpcLink(PLCLink,rtype,chan,options.devName,lines,fileName))
     	    	else:	# ommit parameter or canport number means CAN link
     	    	    fields.update(getHwLink(rtype,canport,canId,cardNr,chan,devName,fileName,iocTag,lines) )
 		try:
@@ -1516,7 +1521,8 @@ for argument in args:
 		    panelWidgetName = "aiFB"
 		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
 		elif rtype=="biFB":
-    	    	    fields.update({'INP' : '@'+PLCLink,})
+		    fld = getOpcLink(PLCLink,'bi',chan,options.devName,lines,fileName)
+		    fields.update(fld)
     	    	    fields.update(parseParam(rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
 		    arcSignals.append("cmd"+fields['TAG'])
@@ -1525,7 +1531,8 @@ for argument in args:
 		    panelWidgetName = "biFB"
 		    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
 		elif rtype=="mbbiFB":
-    	    	    fields.update({'INP' : '@'+PLCLink,})
+		    fld=getOpcLink(PLCLink,'mbbi',chan,options.devName,lines,fileName)
+		    fields.update(fld)
     	    	    fields.update(parseParam(rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
 		    arcSignals.append("cmd"+fields['TAG'])
@@ -1603,6 +1610,15 @@ for argument in args:
 		    arcSignals.append("rdVolt")
 		    panelNameDict.update({'DEVN':devName})
 		    panelWidgetName = "aiCAN"
+		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
+		elif rtype=="pmu":
+	    	    fields.update({'DISS': 'INVALID',
+        	    	    'INP':  createAdaCanLink(canport,canId,cardNr,chan),
+    	    	    	    'DESC': DESC})
+		    alhSignals.append("rdPwr")
+		    arcSignals.append("rdPwr")
+		    panelNameDict.update({'DEVN':devName})
+		    panelWidgetName = "PMU"
 		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
     		elif rtype=="pt100temp":
 		    alhSignals.append("rdTemp")
@@ -1686,12 +1702,13 @@ for argument in args:
 #    		print "panelList.addItem(",panelName,panelGroup,panelNameDict,panelDict,panelWidgetName,panelSort+")"
 		panelList.addItem(panelName,panelGroup,panelNameDict,panelDict,panelWidgetName,panelSort)
 
-	    if archPeriod != '':
+	    if archPeriod is not None and len(archPeriod)>0:
 		for signal in arcSignals:
 	    	    arch.append( "<channel><name>"+devName+":"+signal+"</name><period>"+archPeriod+"</period><monitor/></channel>")
 
-	    if alhGroup is not None :
-    		epicsAlh(devName,alhSignals[0],alhGroup,alhFlags,panelName,alhSort,lines)
+	    if alhGroup is not None and len(alhGroup)>0:
+		for alhSig in alhSignals:
+    		    epicsAlh(devName,alhSig,alhGroup,alhFlags,panelName,alhSort,lines)
     	except :
 	    print "Parse exception in line:",lines
 	    raise
