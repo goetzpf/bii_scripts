@@ -1621,7 +1621,9 @@ for argument in args:
 		    panelWidgetName = "aiCAN"
 		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
 		elif rtype=="pmu":
-	    	    fields.update({'DISS': 'INVALID',
+	    	    createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,devName,None)
+		    fields['RANGE'] = rangeEng+" "+egu
+		    fields.update({'DISS': 'INVALID',
         	    	    'INP':  createAdaCanLink(canport,canId,cardNr,chan),
     	    	    	    'DESC': DESC})
 		    alhSignals.append("rdPwr")
