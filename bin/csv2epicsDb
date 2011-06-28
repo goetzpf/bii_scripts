@@ -95,6 +95,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=No
       rangeAlhVal fields have to be  set outside this function
     """
 #    print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
+#    if lines is None: print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
 
     (lopr,hopr) = matchRe(rangeEng,"\s*(.*)\s*\-\s*(.*)\s*")
     lopr = float(lopr)
@@ -117,6 +118,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=No
 		else: die("Illegal Alarm value '"+valName+"' in signal: "+signal,lines)
     
     raw = matchRe(rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
+#    if lines is None: print lopr, hopr, raw
     if raw is not None:
 	lraw=float(raw[0])
 	hraw=float(raw[1])
@@ -164,6 +166,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=No
 	    field['MDEL'] = hyst
 	else:
       	    die("Raw/engineering limit mismatch (raw: hraw / eng: hopr)",lines)
+#    if lines is None: print field
     return (field,dtype)
 
 def printTable(rT,header=None,sortIdx=None) :
@@ -484,14 +487,14 @@ class epicsAlh(object):
 	    try : 
 		print "  Creating file",installFile+".alh"
 		f = open(installFile+".alh",'w') 
-		f.write(epicsAlh.strAll(filename))
+		f.write(epicsAlh.printAllSubst(filename))
 		f.close()
 	    except IOError: 
     		die("IOError in write file: "+filename+".alh")
     @staticmethod
     def getRoot(): return epicsAlh.nodeDict.keys()
     @staticmethod
-    def strAll(root=None):
+    def printAllSubst(root=None):
 	"""
 	Walk the tree and return the alh file as string
 	"""
@@ -665,7 +668,7 @@ class epicsTemplate(object):
     - typeDict={}   Dictionary of rtyp s that contain a list of objects with this rtype
     - deviceList=[] List of objects to preserve the creation order and for search functions
     
-    - strAll(): print all stored templates in EPICS.substitution format
+    - printAllSubst(): print all stored templates in EPICS.substitution format
     - printAllRecords(): treat all data as EPICS-records and print all stored 
     	    	templates in EPICS.db format
     - getDevice(devName): return a list of records with this devicename or None
@@ -738,7 +741,7 @@ class epicsTemplate(object):
 	if len(li) > 0 : return li
 	return None
     @staticmethod
-    def strAll():
+    def printAllSubst():
     	"""
 	Treat all objects (EPICS records also) as EPICS substitutions and print in 
 	EPICS.substitutions format
@@ -1343,10 +1346,16 @@ panelList = Panels(install_path,display_search_path)
 
 def joinItarch(): return "\n".join(arch)
 def joinItreq():  return "\n".join(req)
-types = { "db"  : [output_db,  epicsTemplate.strAll],
+
+types = { "db"  : [output_db, None],
           "arch": [output_arch,joinItarch],
           "req" : [output_req, joinItreq ]}
-
+if matchRe(output_db,".*\.db$") is not None:
+    types['db'][1] = epicsTemplate.printAllRecords
+elif matchRe(output_db,".*\.substitutions$") is not None:
+    types['db'][1] = epicsTemplate.printAllSubst
+else:
+    die("unknown output format for file -d '"+output_db+"'")
 debugInfo = {}
 
 for argument in args:
