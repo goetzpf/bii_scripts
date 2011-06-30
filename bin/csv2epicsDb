@@ -644,6 +644,29 @@ class epicsAlh(object):
     def cmpSortPar(self, o): 
 	return cmp(self.sort,o.sort)
 
+class docList(object):
+    """
+    Store and print 
+    """
+    dList=[]
+    title = "Title"
+    def __init__(self,fieldList) :
+	def initField(x):
+	    x = substRe(x,'\|','&#124;')
+	    if len(x)==0: x='-'
+	    return x
+	docList.dList.append(map(lambda x:initField(x),fieldList))
+    @staticmethod
+    def printDoc():
+	printStr = docList.title+"\n**********\n\n"
+	for line in docList.dList:
+	    printStr += "|".join(line)+"\n"
+	printStr = substRe(printStr,"\|\|","|-|")
+	return printStr+"\n"
+
+    @staticmethod
+    def setTitle(h):
+    	docList.title = h
 class epicsTemplate(object):
     """
     Store and print an EPICS template with its fields.
@@ -1346,8 +1369,11 @@ panelList = Panels(install_path,display_search_path)
 
 def joinItarch(): return "\n".join(arch)
 def joinItreq():  return "\n".join(req)
-
+output_doc = substRe(output_db,"\.\w+$","Doc.txt")
+docList(["Device Name","BESSY Typ","BESSY Signalname","CAN-Port / PLC Name","CAN-Id / PLC type","CardNr / PLC r/w","Channel Nr / Bits","Raw value range","Engeneering data range (max. 16 characters per item)","Units","BESSY Alarm-Values","BESSY Alarm-State","BESSY Description","BESSY Additional Fields","BESSY Arch","BESSY SR","BESSY ALH Group","BESSY ALH Flags","BESSY ALH Sort","EPICS Panel Name","EPICS Panel Group","EPICS Panel Sort\n----+-----"])
+docList.setTitle( substRe(output_db,"\.\w+$","")+" Devices" )
 types = { "db"  : [output_db, None],
+          "doc":  [output_doc,docList.printDoc],
           "arch": [output_arch,joinItarch],
           "req" : [output_req, joinItreq ]}
 if matchRe(output_db,".*\.db$") is not None:
@@ -1450,6 +1476,7 @@ for argument in args:
 
 	    if len(rtype) == 0: # is empty 
 		continue
+	    
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
 	    if len(DESC) > EPICS_STR_LEN :
 		lastIdx = EPICS_STR_LEN
@@ -1699,7 +1726,7 @@ for argument in args:
     	    # END search and create record type
 	    # now processing is done, an record is created and we can use the variables, set 
 	    # for this line of the spread sheet to do some optional stuff
-
+	    docList(device[0:22])
 	    if options.verbose is True:
 		rangeRawCut = rangeRaw
 		if len(rangeRaw)> 23:
