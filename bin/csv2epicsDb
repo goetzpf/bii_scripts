@@ -1370,8 +1370,13 @@ panelList = Panels(install_path,display_search_path)
 def joinItarch(): return "\n".join(arch)
 def joinItreq():  return "\n".join(req)
 output_doc = substRe(output_db,"\.\w+$","Doc.txt")
-docList(["Device Name","BESSY Typ","BESSY Signalname","CAN-Port / PLC Name","CAN-Id / PLC type","CardNr / PLC r/w","Channel Nr / Bits","Raw value range","Engeneering data range (max. 16 characters per item)","Units","BESSY Alarm-Values","BESSY Alarm-State","BESSY Description","BESSY Additional Fields","BESSY Arch","BESSY SR","BESSY ALH Group","BESSY ALH Flags","BESSY ALH Sort","EPICS Panel Name","EPICS Panel Group","EPICS Panel Sort\n----+-----"])
-docList.setTitle( substRe(output_db,"\.\w+$","")+" Devices" )
+
+if canport == 'opc':
+    docList(["Device Name","BESSY Signalname","PLC Name","Bits","Description","Typ\n----+-----"])
+else:
+    docList(["Device Name","BESSY Signalname","CAN-Port","CAN-Id","CardNr","Channel / Bits","Description","Typ\n----+-----"])
+docList.setTitle( str(matchRe(output_db,"(?:.*/|)(.*)\.\w+$")[0])+" Devices" )
+
 types = { "db"  : [output_db, None],
           "doc":  [output_doc,docList.printDoc],
           "arch": [output_arch,joinItarch],
@@ -1726,7 +1731,10 @@ for argument in args:
     	    # END search and create record type
 	    # now processing is done, an record is created and we can use the variables, set 
 	    # for this line of the spread sheet to do some optional stuff
-	    docList(device[0:22])
+    	    if canport == 'opc':
+	    	docList([devName,device[2],device[3],device[6],device[12],device[1]])
+	    else:
+	    	docList([device[0],device[2],device[3],device[4],device[5],device[6],device[12],device[1]])
 	    if options.verbose is True:
 		rangeRawCut = rangeRaw
 		if len(rangeRaw)> 23:
