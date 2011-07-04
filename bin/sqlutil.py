@@ -77,6 +77,21 @@ def assert_options(options, optionlist, prefix):
             raise AssertionError, "error: %soption '%s' is mandatory" % \
                                   (prefix,o)
 
+rx_where= re.compile(r'\bwhere\s+(.*)',re.IGNORECASE)
+rx_order_by= re.compile(r'\border\s+by\s+.*',re.IGNORECASE)
+
+def simple_extract_where(st):
+    """extract the where clause from an sql statement.
+    """
+    if st is None:
+        return None
+    m= rx_where.search(st)
+    if m is None:
+        return None
+    st= m.group(1)
+    st= rx_order_by.sub("", st)
+    return st
+
 def dtt_read(meta,filename,taglist,auto_pk_gen=False,new_pk_separate=False):
     r"""read tables from a dtt file.
 
@@ -283,16 +298,18 @@ def parse_specs(specs):
        tag : f
     """
     specdict= {}
-    for s in specs:
-        d= parse_definitions(s,["tag","table","schema","query","order","filter"])
-        if d.has_key("order"):
-            l= d["order"].split(":")
-            d["order"]= l
-        if not d.has_key("tag"):
-            d["tag"]= d["table"]
-        if not d.has_key("tag"):
-            raise ValueError,"either tag or table must be specified"
-        specdict[d["tag"]]= d
+    # is specs is None, just return an empty dictionary
+    if specs is not None:
+        for s in specs:
+            d= parse_definitions(s,["tag","table","schema","query","order","filter"])
+            if d.has_key("order"):
+                l= d["order"].split(":")
+                d["order"]= l
+            if not d.has_key("tag"):
+                d["tag"]= d["table"]
+            if not d.has_key("tag"):
+                raise ValueError,"either tag or table must be specified"
+            specdict[d["tag"]]= d
     return specdict
 
 _rx_c= re.compile(r"(?<!\\):")
@@ -325,13 +342,20 @@ def colon_tuple(string,item_no=0,errmsg=""):
             raise ValueError, errmsg
     return result
 
-def mk_qsource_dict(tdict,specdict):
+def mk_qsource_dict(tdict,specdict,extract_where=False):
     """create a dict of qsource objects.
 
     parameters:
         tdict    -- a dictionary mapping tags to DttResult objects
         specdict -- a dictionary mapping tags to specification
-                    dictionaries
+                    dictionaries. An empty specdict is also allowed, 
+                    then all objects from tdict are taken.
+        extract_where --
+                    when this parameter is true, the program tries to extract
+                    the "where" part of the sql query in the DttResult object
+                    with a very simple parser. If the "specdict" parameter
+                    doesn't specify a where clause, but the sql query does,
+                    this is taken as a where part in the new Qsource object. 
     returns:
         returns a 
 
@@ -339,8 +363,10 @@ def mk_qsource_dict(tdict,specdict):
     In order to show the principle we do not use real table
     objects here but simple string literals and we use the simple
     Container class instead of the DttResult class:
-    >>> tdict={"tag1":Container(tag="tag1", table_obj="table-obj1", is_table=True),
-    ...        "tag2":Container(tag="tag2", table_obj="table-obj2", is_table=True)}
+    >>> tdict={"tag1":Container(tag="tag1", table_obj="table-obj1", 
+    ...                         is_table=True, dtt_schema=None),
+    ...        "tag2":Container(tag="tag2", table_obj="table-obj2", 
+    ...                         is_table=True, dtt_schema=None)}
     >>> specdict={"tag1":{"order":["col1","col2"]},
     ...           "tag2":{"filter":"id>10"}
     ...          }
@@ -352,15 +378,26 @@ def mk_qsource_dict(tdict,specdict):
     tag2 : Qsource(table='table-obj2',where='id>10')
     """
     qsource_dict= {}
-    for tag in specdict.keys():
+    taglist= specdict.keys()
+    if len(taglist)<=0:
+        taglist= tdict.keys()
+        if len(taglist)<=0:
+            raise AssertionError, "taglist is empty"
+    for tag in taglist:
         qs_options= {}
-        spec= specdict[tag]
+        spec= specdict.get(tag,{})
         dttresult= tdict[tag]
         if spec.has_key("query"):
             qs_options["query"]= spec["query"]
         else:
             qs_options["table"]= dttresult.table_obj
-            if not dttresult.is_table:
+            if dttresult.is_table:
+                # store the schema in the Qsource object later. This
+                # is needed for sqlite, since sqlite objects cannot
+                # have a schema. In order not to loose the schema name
+                # we put it extra in the Qsource object.
+                qs_options["schema_name"]= dttresult.dtt_schema
+            else:
                 qs_options["query"]= dttresult.query_text
         #else:
         #    raise AssertionError,"query or table must be specified"
@@ -368,6 +405,13 @@ def mk_qsource_dict(tdict,specdict):
             qs_options["order_by"]= spec["order"]
         if spec.has_key("filter"):
             qs_options["where"]= spec["filter"]
+        if extract_where:
+            where_part= simple_extract_where(dttresult.query_text)
+            if where_part is not None:
+                if qs_options.has_key("where"):
+                    raise AssertionError, "--extract-where-clause and "+\
+                            "a filter contradict each other"
+                qs_options["where"]= where_part
         qsource_dict[tag]= sqlpotion.Qsource(**qs_options)
     return qsource_dict
 
@@ -425,7 +469,8 @@ def file2file(options):
     >>> filename=t.mkfile(txt,"test.dtt")
     >>> file2file(Container(file=filename,
     ...                     spec=["tag=mytable"],outfile="",
-    ...                     no_auto_pk=None, echo=None))
+    ...                     no_auto_pk=None, echo=None,
+    ...                     extract_where_clause=None))
     [Tag mytable]
     [Version 1.0]
     [Properties]
@@ -448,7 +493,8 @@ def file2file(options):
     #============================================================
     >>> file2file(Container(file=filename,
     ...                     spec=["tag=mytable"],outfile=t.tjoin("out.txt"),
-    ...                     no_auto_pk=None, echo=None))
+    ...                     no_auto_pk=None, echo=None,
+    ...                     extract_where_clause=None))
     >>> t.catfile("out.txt")
     [Tag mytable]
     [Version 1.0]
@@ -472,7 +518,8 @@ def file2file(options):
     #============================================================
     >>> file2file(Container(file=filename,
     ...                     spec=["tag=mytable,order=name:id,filter=id>=3"],outfile="",
-    ...                     no_auto_pk=None, echo=None))
+    ...                     no_auto_pk=None, echo=None,
+    ...                     extract_where_clause=None))
     [Tag mytable]
     [Version 1.0]
     [Properties]
@@ -494,7 +541,8 @@ def file2file(options):
     >>> 
     >>> file2file(Container(file=filename,
     ...                     spec=["tag=mytable"],outfile="",
-    ...                     no_auto_pk=True, echo=None))
+    ...                     no_auto_pk=True, echo=None,
+    ...                     extract_where_clause=None))
     warning: the following tags had rows with undefined primary keys, these rows were ignored:
     mytable
     [Tag mytable]
@@ -517,17 +565,19 @@ def file2file(options):
     #============================================================
     >>> t.cleanuptestdir()
     """
-    assert_options(options,("file","spec"),"with command file2file, ")
+    assert_options(options,("file",),"with command file2file, ")
     specdict= parse_specs(options.spec)
     (meta,conn)=sqlpotion.connect_memory(echo=options.echo)
     tdict= dtt_read(meta,options.file,specdict.keys(),
                     auto_pk_gen=not options.no_auto_pk,
                     new_pk_separate=False)
 
-    qsource_dict= mk_qsource_dict(tdict,specdict)
+    qsource_dict= mk_qsource_dict(tdict,specdict,
+                                  options.extract_where_clause)
 
     sqlpotion.dtt_write_qsources(conn,qsource_dict,
                                  options.outfile,trim_columns=True)
+
 def file2sqlite(options):
     """create a sqlite database from file.
 
@@ -572,7 +622,7 @@ def file2sqlite(options):
     5  new2
     >>> t.cleanuptestdir()
     """
-    assert_options(options,("file","spec","outfile"),"with command file2file, ")
+    assert_options(options,("file","spec","outfile"),"with command file2sqlite, ")
     specdict= parse_specs(options.spec)
     (meta,conn)=sqlpotion.connect_database(dialect="sqlite",host=None,
                                            dbname=options.outfile,
@@ -601,7 +651,8 @@ def db2file(options):
     ...                   spec=["table=mytable"],
     ...                   user=None,password=None,
     ...                   database="sqlite::"+t.tjoin("x.db"),
-    ...                   echo= None))
+    ...                   echo= None,
+    ...                   extract_where_clause= None))
     >>> t.ls()
     x.db
     x.dtt
@@ -640,7 +691,8 @@ def db2file(options):
                             table_obj=sqlpotion.table_object(specs["table"], 
                                                 meta_db,
                                                 schema=specs.get("schema")))
-    qsource_dict= mk_qsource_dict(tdict,specdict)
+    qsource_dict= mk_qsource_dict(tdict,specdict,
+                                  options.extract_where_clause)
     sqlpotion.dtt_write_qsources(conn_db,qsource_dict,
                                  options.outfile,trim_columns=True)
 
@@ -745,7 +797,8 @@ def file2screen(options):
     >>> filename=t.mkfile(txt,"test.dtt")
     >>> file2screen(Container(file=t.tjoin("test.dtt"),
     ...                       spec=["tag=mytable"],
-    ...                       no_auto_pk=None, echo=None))
+    ...                       no_auto_pk=None, echo=None,
+    ...                       extract_where_clause=None))
     Tag mytable
     <BLANKLINE>
     id | name
@@ -754,18 +807,25 @@ def file2screen(options):
     2  | ab  
     >>> t.cleanuptestdir()
     """
-    assert_options(options,("file","spec"),"with command file2db, ")
+    assert_options(options,("file",),"with command file2screen, ")
     specdict= parse_specs(options.spec)
     (meta,conn)= sqlpotion.connect_memory(echo=options.echo)
     tdict= dtt_read(meta,options.file,specdict.keys(),
                     auto_pk_gen=not options.no_auto_pk,
                     new_pk_separate=False)
     for tag in sorted(tdict.keys()):
-        specs= specdict[tag]
+        specs= specdict.get(tag,{})
         table= tdict[tag].table_obj
         print "Tag %s\n" % tag
         order= specs.get("order",[])
         where= specs.get("filter","")
+        if options.extract_where_clause:
+            where_part= simple_extract_where(tdict[tag].query_text)
+            if where_part is not None:
+                if where!="":
+                    raise AssertionError, "--extract-where-clause and "+\
+                            "a filter contradict each other"
+                where= where_part
         sqlpotion.print_table(table, sqlpotion.Format.TABLE, order, where)
 
 def db2screen(options):
@@ -963,6 +1023,10 @@ def main():
                            "where the primary key is zero, which is the "+\
                            "default behaviour.",
                       )
+    parser.add_option("--extract-where-clause",  
+                      action="store_true", 
+                      help="extract the where clause from the dtt file",
+                      )
     parser.add_option("--echo",
                       action="store_true", 
                       help="echo all SQL commands",
@@ -997,6 +1061,8 @@ def main():
         file2file(options)
     elif options.command=="db2file":
         db2file(options)
+    elif options.command=="db2csv":
+        db2csv(options)
     elif options.command=="file2db":
         file2db(options)
     elif options.command=="file2sqlite":
