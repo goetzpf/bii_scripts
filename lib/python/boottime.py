@@ -28,6 +28,7 @@ import time
 import datetime
 import sys
 try:
+    from ca import _ca
     import ca
 except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
@@ -78,6 +79,10 @@ def datetime_from_string(st):
     """parse a string like "09-OCT-2009 16:27:09"."""
     return datetime.datetime.strptime(st,"%d-%b-%Y %H:%M:%S")
 
+def datetime_from_iso(st):
+    """parse a string like "2009-10-09T16:27:09"."""
+    return datetime.datetime.strptime(st,"%Y-%m-%dT%H:%M:%S")
+
 def boot_time_from_uptime(pv_prefix):
     """return the time when the IOC was rebooted.
 
@@ -106,6 +111,41 @@ def boot_time_from_rebootTime(pv_prefix):
     """
     (val, timestamp)= caget(pv_prefix+":rebootTime",str)
     return datetime_from_string(val)
+
+def boot_time_from_bootTime(pv_prefix):
+    """return the time when the IOC was rebooted.
+
+    parameters:
+        pv_prefix -- the PV prefix for PV's on the IOC
+    returns:
+        the boottime as a datetime.datetime object
+
+    This requires that the IOC has a record named "pv_prefix:bootTime"
+    that contains the reboot time in the format "%Y-%m-%dT%H:%M:%S", 
+    e.g. "2009-10-21T16:27:09".
+    """
+    (val, timestamp)= caget(pv_prefix+":bootTime",str)
+    return datetime_from_iso(val)
+
+def ca_try(funclist, *args):
+    """try funclist, catch ca exceptions.
+    """
+    for i in xrange(len(funclist)):
+        if i>=len(funclist)-1: # last function
+            return funclist[i](*args)
+        try:
+            return funclist[i](*args)
+        except _ca.error, e:
+            # ca error, try next function:
+            pass
+        except ca.caError,e:
+            # ca error, try next function:
+            pass
+        except Exception, e:
+            # any other error, raise exception
+            raise
+    # the program should never get here:
+    raise AssertionError, "this part should not be reached"
 
 def boot_time_from_vxstats(pv_prefix):
     """return the time when the IOC was rebooted.
@@ -172,7 +212,12 @@ def boottime(link_name):
        link_name.startswith("testi"):
         # machine control system ioc
         # return boot_time_from_vxstats(until_dot(link_name).upper())
-        return boot_time_from_rebootTime(until_dot(link_name).upper())
+        if link_name.endswith("p"):
+            funcs=(boot_time_from_rebootTime, boot_time_from_bootTime)
+        else:
+            funcs=(boot_time_from_bootTime, boot_time_from_rebootTime)
+        return ca_try(funcs, until_dot(link_name).upper())
+
     if link_name.startswith("idcp"):
         # undulator IOC
         return boot_time_from_uptime(idcp_prefix(until_dot(link_name)))

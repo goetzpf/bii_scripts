@@ -311,7 +311,7 @@ import boottime
 # version of the program:
 my_version= "1.1"
 
-def boot_times(objs, verbose=False):
+def boot_times(objs, verbose=False, csv=False):
     """print boot-times overview."""
     def daydiff(d1, d2):
         """returns the difference (d2-d1) between two dates in days."""
@@ -334,6 +334,10 @@ def boot_times(objs, verbose=False):
                         "%(booted)-19s  %(days)-12s  %(comment)s"
         r_format= "%(name)-15s %(version)-19s  %(activated)-19s  "+\
                         "%(booted)-19s  %(days)12s  %(comment)s"
+    elif csv:
+        h_format= '"%(name)s","%(version)s","%(activated)s",'+\
+                        '"%(booted)s","%(comment)s"'
+        r_format= h_format
     else:
         h_format= "%(name)-15s %(version)-19s  %(activated)-19s  "+\
                         "%(booted)-19s  %(comment)s"
@@ -358,7 +362,7 @@ def boot_times(objs, verbose=False):
             comment="IOC cannot be contacted!"
         except ValueError,e:
             booted= None
-            comment="dont't known how to find boottime for this name"
+            comment="dont't know how to find boottime for this name"
         if version is None:
             # symlink was deleted
             if booted is not None:
@@ -523,7 +527,7 @@ def process(options):
         objs.filter_by_version(keep)
 
     if options.boot_times:
-        boot_times(objs,options.verbose)
+        boot_times(objs,options.verbose,options.csv)
     elif options.names:
         objs.logByName.print_(options.brief,options.last) 
         #for n,l in objs.logByName.items():
@@ -633,6 +637,10 @@ def main():
                       action="store_true", # default: None
                       help="check boot-times in relation with "+\
                            "times a version was activated",
+                      )
+    parser.add_option("--csv",   # implies dest="switch"
+                      action="store_true", # default: None
+                      help="use csv format for boot-times command",
                       )
     parser.add_option("--verbose",   # implies dest="switch"
                       action="store_true", # default: None
