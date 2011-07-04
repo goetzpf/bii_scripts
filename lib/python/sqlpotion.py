@@ -220,7 +220,8 @@ def _match_rx(string, rx):
         return None
     return match.group(1)
 
-_rx_name_value=re.compile(r'(\w+)\s*=\s*(?:(\w+)|"([^"]*)")')
+# an unquoted value may contain word characters and the dot ".":
+_rx_name_value=re.compile(r'(\w+)\s*=\s*(?:([\w\.]+)|"([^"]*)")')
 #@tp.Check(str)
 def _scan_definitions(line):
     r"""scans "name=value" definitions in a string.
@@ -1878,7 +1879,8 @@ def _dtt_gen_rows(fh, iterator_generator_func, trim_columns=False):
 
 #@tp.Check(str, sqlalchemy.schema.Table, tp.filetype, bool, tp_stringlist, str)
 def dtt_write_table_fh(tag, table_obj, fh=sys.stdout, trim_columns=True,
-                       order_by=[], where_part="", query_text=""):
+                       order_by=[], where_part="", query_text="",
+                       schema_name=None):
     r"""write table to a filehandle in dbitabletext format.
 
     parameters:
@@ -1900,6 +1902,13 @@ def dtt_write_table_fh(tag, table_obj, fh=sys.stdout, trim_columns=True,
                            table are written, the query text is not
                            really executed. If where_part is specified,
                            the resulting query overrides query_text.
+        schema_name     -- An optional schema name that is written to the dtt
+                           file. This parameter is only used when the schema
+                           name of the table object is none. This is for
+                           example needed to keep a schema name in the dtt
+                           file although the database where the table object
+                           was created doesn't know of schemas. An example is
+                           sqlite, this database has no concept of schemas.
    returns:
         nothing
 
@@ -1917,6 +1926,8 @@ def dtt_write_table_fh(tag, table_obj, fh=sys.stdout, trim_columns=True,
         if query_text=="":
             table_name= table_obj.name.lower()
             schema= table_obj.schema
+            if schema is None:
+                schema= schema_name
             if schema is not None:
                 schema= schema.lower()
         query_text= " ".join([s.strip() for s in str(query).splitlines()])
@@ -1966,8 +1977,13 @@ def dtt_write_query_fh(conn, tag, query_text, primary_keys=[], fh=sys.stdout,
 class Qsource(object):
     """a generic query object for dtt_write... functions.
     """
-    def __init__(self,table=None,query="",pks=[],order_by=[],where=""):
-        self.table= table
+    def __init__(self,table=None,schema_name=None,query="",
+                 pks=[],order_by=[],where=""):
+        self.table= table # a table object
+        self.schema= schema_name
+        # the schema name may be used for databases that do not have schema
+        # support, but we sometimes still want to keep a schema name around,
+        # for example for writing it into a dtt file.
         self.query= query
         self.pks= pks
         self.order_by=order_by
@@ -1989,8 +2005,12 @@ def dtt_write_qsource_fh(conn, tag, qsource, fh=sys.stdout, trim_columns= True):
     """write a Qsource object.
     """
     if qsource.table is not None:
+        # we provide the schema name from the qsource object in this case.
+        # Sometimes we want to write a table without schema but still have
+        # the schema name in the dtt file.
         dtt_write_table_fh(tag, qsource.table, fh, trim_columns, 
-                           qsource.order_by, qsource.where)
+                           qsource.order_by, qsource.where,
+                           schema_name= qsource.schema)
     elif qsource.query != "":
         dtt_write_query_fh(conn, tag, qsource.query, qsource.pks, fh, trim_columns)
 
@@ -2347,8 +2367,9 @@ def _dtt_parser_convert_row(column_names, column_types, row):
     parameters:
         column_names  -- a list of strings that represent the 
                          names of the columns
-        column_types  -- a list of strings with the (dbitable-)
-                         column types
+        column_types  -- a list of strings with the (dbitable-) column types.
+                         If None is given here, all columns are assumed to be
+                         of type string.
         row           -- a list of values, a single row of a
                          database table
     returns:
@@ -2376,7 +2397,10 @@ def _dtt_parser_convert_row(column_names, column_types, row):
     d= {}
     for i in xrange(len(column_names)):
         val= row[i]
-        tp= column_types[i]
+        if column_types is None:
+            tp="string"
+        else:
+            tp= column_types[i]
         if (tp=="number"):
             if _empty(val):
                 val=None
@@ -2587,7 +2611,16 @@ def _dtt_parser_scan_properties(line, lineno, properties, state):
     if len(scanned)==0:
         raise ValueError,"format error in line %d" % lineno
     for (name,value) in scanned:
-        properties[name]= value
+        # split schema from table name:
+        if name=="TABLE":
+            elms= value.split(".",1)
+            if len(elms)==2:
+                properties["SCHEMA"]= elms[0]
+                properties["TABLE"] = elms[1]
+            else:
+                properties["TABLE"] = elms[0]
+        else:
+            properties[name]= value
     return state
 
 #@tp.Check(str,int,enum.EnumValue)
@@ -2784,15 +2817,18 @@ def _dtt_parser_scan_columns(line, lineno, properties, state):
     return state
 
 #@tp.Check(sqlalchemy.schema.MetaData,tp.maptype)
-def _dtt_parser_dttresult_to_table(metadata, dttresult):
+def _dtt_parser_dttresult_to_table(metadata, dttresult, use_tag_name= False):
     r"""convert a dttresult dictionary to a real table.
 
     parameters:
         metadata     -- the metadata object, to which the table
                         will be connected.
-        dttresult   -- the dttresult dictionary as it is
+        dttresult    -- the dttresult dictionary as it is
                         created by the various _dbi_ functions that
                         are called in read_table()
+        use_tag_name -- if this parameter is True, the tables are created
+                        with the *tag* name, not the *tablename*. Currently
+                        this feature is not used in this module.
     returns:
         a sqlalchemy table object
 
@@ -2842,8 +2878,25 @@ def _dtt_parser_dttresult_to_table(metadata, dttresult):
         #print "arg_dict:",arg_dict
         columns.append(sqlalchemy.Column(*arg_list,**arg_dict))
     #print "table-name:",dttresult["TABLE"]
-    table= sqlalchemy.Table(dttresult.table_name, metadata,
-                            schema= dttresult.dtt_schema,
+    # if metadata is connected to an sqlite database, 
+    # tables MUST NOT have a schema. If this is ignored, an
+    # exception is raised.
+    if str(metadata.bind.url).startswith("sqlite:"):
+        # sqlite metadata, skip schema parameter:
+        schema= None
+        # Note: this MAY make problems when we later on try to copy
+        # the sqlite table to a table in a database (oracle/postgresql)
+        # that doesn provide schemas, since the table object created
+        # has no schema information.
+    else:
+        schema= dttresult.dtt_schema
+    
+    name= dttresult.table_name
+    if use_tag_name:
+        name= dttresult.tag
+    table= sqlalchemy.Table(name,
+                            metadata,
+                            schema= schema,
                             *columns)
     metadata.create_all(tables=[table])
     return table
@@ -2955,8 +3008,15 @@ class DttResult(object):
             self.primary_keys= set([x.strip().lower() \
                                    for x in properties["PK"].split(",")])
         self.column_names= properties["columns"]
-        self.column_types= [ dbi_to_pdb_coltype[c] \
-                             for c in properties["column-types"] ]
+        coltypes= properties.get("column-types")
+        if coltypes is not None:
+            self.column_types= [ dbi_to_pdb_coltype[c] \
+                                 for c in coltypes ]
+        else:
+            # if no column-types are given, assume that all
+            # columns are of type string:
+            self.column_types= [pdb_coltypes.PDB_STRING] * \
+                               len(self.column_names)
         self.table_obj= None
     def __str__(self):
         lst= ["tag","is_table","dtt_table_name","dtt_schema",
@@ -3189,9 +3249,10 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, dtt_dict={},
                        function should return a (possibly modified) value_dict
                        or "None", in which case the row is skipped.
     returns:
-        a new dictionary mapping table names to table objects. All table objects
-        are new tables that are created in sqlite:memory. Note that the 
-        table object names are all in lower-case.
+        A new dictionary mapping tag names to dttresult objects. These objects
+        contain some of the dtt metadata as well as the created table objects.
+        All table objects are new tables created with the given metadata
+        parameter.  Note that the table object names are all in lower-case.
 
     for examples have a look at dtt_to_tables().
     """
@@ -3200,7 +3261,26 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, dtt_dict={},
             return
         table.insert().execute(value_cache)
         del value_cache[:]
+    def _lower(st):
+        if st is None:
+            return None
+        return st.lower()
+    def table_fqn(dtt):
+        """returns tuple (schema,tablename) from a dtt."""
+        n= dtt.dtt_table_name
+        if n is None:
+            n= dtt.table_name
+        return (_lower(dtt.dtt_schema), _lower(n))
+
     tdict= dtt_dict.copy()
+
+    # collect all table objects in this dict that maps
+    # (schema,name) -> table-object
+    table_dict= {}
+    for (tag,dtt) in tdict.items():
+        t= dtt.table_obj
+        table_dict[(_lower(t.schema),_lower(t.name))]= t
+
     table_obj= None
     table_name=""
     properties=None
@@ -3264,9 +3344,28 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, dtt_dict={},
                     dttresult= tdict[tag]
                 else:
                     tdict[tag]= dttresult
-                    table_obj= _dtt_parser_dttresult_to_table(metadata, 
-                                                              dttresult)
+
+                    (t_schema, t_name)= table_fqn(dttresult)
+                    table_obj= table_dict.get((t_schema,t_name))
+                    if table_obj is not None:
+                        if not _dtt_parser_dttresult_check_table(metadata,
+                                                                 dttresult,
+                                                                 table_obj):
+                            raise ValueError,"error: table with tag '%s' is "+\
+                                             "not compatible with table "+\
+                                             "previously defined in "+\
+                                             "dbitabletext file"
+                    else:
+                        table_obj= _dtt_parser_dttresult_to_table(metadata, 
+                                                                  dttresult)
+                        # note: the table name can be found in
+                        # dttresult.dtt_schema. Since sqlite cannot store
+                        # schemas, the schema name is not (in case of sqlite)
+                        # part of the created table object.
+                        table_dict[(t_schema,t_name)]= table_obj
+                        ##table_dict[(t_schema,dttresult.tag)]= table_obj
                     dttresult.table_obj= table_obj
+                    #print "DTT:",str(dttresult)
                 pks= dttresult.primary_keys
                 flags_dict= {"pks":pks, "tag":dttresult.tag,
                              "table": dttresult.table_name}
@@ -3301,7 +3400,7 @@ def dtt_read_tables_fh(metadata, fh, tag_filter=None, dtt_dict={},
             # kann man eine memory-SQL Tabelle 
             # ohne primary key definieren ???
             rowdict= _dtt_parser_convert_row(properties["columns"],
-                                            properties["column-types"],
+                                            properties.get("column-types"),
                                             values)
             if row_filter is not None:
                 rowdict= row_filter(flags_dict, rowdict)
