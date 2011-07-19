@@ -58,6 +58,8 @@ my $debug= 0; # global debug-switch
 
 my $tmpdir= "$ENV{HOME}/tmp";
 
+my $graphdiff_env_var="DBDIFF_DIFFPRG";
+
 
 Getopt::Long::config(qw(no_ignore_case));
 
@@ -314,7 +316,11 @@ sub diff
     sys("dbsort $f1 > $t1"); 
     sys("dbsort $f2 > $t2"); 
 
-    my $diff= (defined $opt_textmode) ? "diff" : "tkdiff";
+    my $gdiff= $ENV{$graphdiff_env_var};
+    if (!defined $gdiff)
+      { $gdiff= "tkdiff"; };
+
+    my $diff= (defined $opt_textmode) ? "diff" :$gdiff;
 
     sys("$diff $t1 $t2");
 
@@ -377,6 +383,10 @@ Syntax:
     -n [regexp]: apply this regexp to 
       all record names before comparing them
       (only with -p or -P)
+
+  environment variables:
+    the environment variable $graphdiff_env_var can be used to specify
+    a graphical diff viewer other than tkdiff.
 
 END
   }
