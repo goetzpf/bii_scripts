@@ -1114,7 +1114,7 @@ def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,
     # set name and severitie fields
     idx=0
     if rtype == 'bi':
-	rtype = 'mbbi'
+	rtype = 'mbbi'	# no use of mbbiDirect so bits by longin and mbbi SHFT
 	fields['DTYP'] = "Raw Soft Channel"
     	fields['NOBT'] = '1'
 	for state in ["ZR", "ON"]:
@@ -1248,7 +1248,7 @@ def parseParam(fieldPar):
     if len(valList) > 0 and valList[0] != '':
 	for v in valList:
 	    try:
-	    	(valName,val)  = v.split("=")
+	    	(valName,val)  = matchRe(v,'(.*?)=(.+)')
 	    	commFields[valName] = val
 	    except ValueError:
 	    	if len(valList) == 1:
@@ -1449,8 +1449,7 @@ for argument in args:
 	    except IndexError: rangeEng = ""
     	    try: egu        = device[9].strip()  # J  Engeneering unit 
 	    except IndexError: egu = ""
-	    e = egu.decode("UTF-8")     	# konversion to ISO for edm!
-	    egu = e.encode("ISO-8859-1")
+	    egu = egu.decode("UTF-8").encode("ISO-8859-1")     	# konversion to ISO for edm!
 	    try: rangeAlhVal= device[10].strip() # K  BESSY Alarm-Werte     anlog: LOLO=-5|HIGH=12
 	    except IndexError: rangeAlhVal = ""
             try: rangeAlhSevr=device[11].strip() # L  BESSY Alarm-Zustand   anlog, bi : 'NO_ALARM|MINOR|MAJOR|INVALID'
@@ -1525,7 +1524,8 @@ for argument in args:
 		    elif rtype in ('mbbi','mbbo'):
     	    		    createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
     	    	    else:
-			warnings.append([fileName,lines,"Skip unknown record type",devName,rtype])
+			epicsTemplate(rtype, {'DEVN':devName}, fields)
+#			warnings.append([fileName,lines,"Skip unknown record type",devName,rtype])
 		    if len(reqFlag) > 0: req.append(devName+":"+signal)
 
     		    if rtype in ('bo') :
