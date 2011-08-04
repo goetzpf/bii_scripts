@@ -858,7 +858,10 @@ class PLC_Address(X_Address):
  		    X_Address.mbboDirectLinks[self.softLinkTag] = ("@"+PLCLink,X_Address.outTagPrefix+str(X_Address.mbboTagIndex))
 		    X_Address.mbboTagIndex += 1
  		(hwLink,sTag) = X_Address.mbboDirectLinks[self.softLinkTag]
- 		self.link = deviceName+":%s.B%X PP NMS" % (sTag,shft) 
+    	    	if rtype in('mbbo','mbbi'):
+ 		    self.link = deviceName+":%s PP NMS" % (sTag,) 
+		else:	# bi,bo
+		    self.link = deviceName+":%s.B%X PP NMS" % (sTag,shft) 
  	    else :
  		die("Unknown output type for record: "+rType+" in Line: ",lines)
 
