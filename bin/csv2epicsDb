@@ -1249,8 +1249,8 @@ def parseParam(fieldPar):
 	for v in valList:
 	    try:
 	    	(valName,val)  = matchRe(v,'(.*?)=(.+)')
-	    	commFields[valName] = val
-	    except ValueError:
+		commFields[valName] = val
+	    except TypeError:
 	    	if len(valList) == 1:
 		    return valList[0]
 		else:
