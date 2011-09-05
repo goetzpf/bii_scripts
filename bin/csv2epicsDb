@@ -1449,7 +1449,7 @@ for argument in args:
 	    except IndexError: rangeEng = ""
     	    try: egu        = device[9].strip()  # J  Engeneering unit 
 	    except IndexError: egu = ""
-	    egu = egu.decode("UTF-8").encode("ISO-8859-1")     	# konversion to ISO for edm!
+	    egu = egu.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
 	    try: rangeAlhVal= device[10].strip() # K  BESSY Alarm-Werte     anlog: LOLO=-5|HIGH=12
 	    except IndexError: rangeAlhVal = ""
             try: rangeAlhSevr=device[11].strip() # L  BESSY Alarm-Zustand   anlog, bi : 'NO_ALARM|MINOR|MAJOR|INVALID'
@@ -1508,7 +1508,7 @@ for argument in args:
     	    		'DESC': DESC})
 		
 		if canport == 'opc':
-		    fields.update(getOpcLink(PLCLink,rtype,chan,options.devName,lines,fileName))
+		    fields.update(getOpcLink(PLCLink,rtype,chan,devName,lines,fileName))
     	    	else:	# ommit parameter or canport number means CAN link
     	    	    fields.update(getHwLink(rtype,canport,canId,cardNr,chan,devName,fileName,iocTag,lines) )
 		try:
@@ -1565,7 +1565,7 @@ for argument in args:
 		    panelWidgetName = "aiFB"
 		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
 		elif rtype=="biFB":
-		    fld = getOpcLink(PLCLink,'bi',chan,options.devName,lines,fileName)
+		    fld = getOpcLink(PLCLink,'bi',chan,devName,lines,fileName)
 		    fields.update(fld)
     	    	    fields.update(parseParam(rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
@@ -1575,7 +1575,7 @@ for argument in args:
 		    panelWidgetName = "biFB"
 		    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
 		elif rtype=="mbbiFB":
-		    fld=getOpcLink(PLCLink,'mbbi',chan,options.devName,lines,fileName)
+		    fld=getOpcLink(PLCLink,'mbbi',chan,devName,lines,fileName)
 		    fields.update(fld)
     	    	    fields.update(parseParam(rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
