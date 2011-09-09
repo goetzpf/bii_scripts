@@ -325,6 +325,7 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	adl_cvs_diff.pl\
 	adlsort.pl \
 	buds_lookup.pl \
+	buildall.pl \
 	camonitor_sort.pl \
 	canlink.pl \
 	cvs_diff.pl \
