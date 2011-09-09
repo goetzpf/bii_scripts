@@ -79,6 +79,10 @@ Scripts
     The program can be used to view and change data in the database as well as
     show relations between the tables.
 
+**buildall.pl**
+  | Find EPICS support modules and build them in the correct dependency order.
+  | `documentation <scripts/buildall.html>`__
+
 **buds_lookup.pl**
   | lookup BESSY units in the oracle database.
   | `documentation <scripts/buds_lookup.html>`__
