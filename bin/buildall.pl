@@ -12,6 +12,7 @@ my $exclude = '*/mba-templates/*';
 my $opt_clean = 0;
 my $opt_dryrun = 0;
 my $opt_quiet = 0;
+my $opt_debug = 0;
 my $opt_help = 0;
 
 sub HELP_MESSAGE {
@@ -29,10 +30,12 @@ Options are:
  -c --clean         Make clean before building
  -n --dryrun        Do nothing, just say what would be done
  -q --quiet         Don't say what is being done
+ -d --debug         Output debug messages
  -h --help          Display this help message and exit
 EOF
 }
 
+Getopt::Long::Configure ("bundling");
 GetOptions(
   "s|startdir=s"  => \$startdir,
   "m|mindepth=i"  => \$mindepth,
@@ -42,6 +45,7 @@ GetOptions(
   "c|clean"       => \$opt_clean,
   "n|dryrun"      => \$opt_dryrun,
   "q|quiet"       => \$opt_quiet,
+  "d|debug"       => \$opt_debug,
   "h|help"        => \$opt_help,
 ) or HELP_MESSAGE() && exit 2;
 
@@ -50,9 +54,11 @@ HELP_MESSAGE() && exit 0 if ($opt_help);
 my $find_cmd = "find $startdir -mindepth '$mindepth' -maxdepth '$maxdepth' "
              . "-regex '$include' -not -path '$exclude' -type d";
 
+print "$find_cmd\n" if $opt_debug;
+
 die unless $? == 0;
 
-my @tops = split /\s+/, `$find_cmd`;
+my @tops = sort(split(/\s+/,`$find_cmd`));
 
 my %deps = ();
 
@@ -72,12 +78,18 @@ foreach my $top (@tops) {
   delete $macros{TEMPLATE_TOP};
   delete $macros{SUPPORT};
   delete $macros{EPICS_SUPPORT};
+  delete $macros{EPICS_BASE};
 
+  # initialize in case there are no dependencies
+  $deps{$top} = {};
+  print "$top:\n" if $opt_debug;
+
+  # build dependency graph
   foreach my $app (@apps) {
     my $dep = $macros{$app};
     if (-d $dep) {
-      #print "$top: $dep\n";
-      push @{$deps{$top}}, $dep;
+      print "  $dep\n" if $opt_debug;
+      $deps{$top}->{$dep} = 1;
     }
   }
 }
@@ -87,33 +99,32 @@ my %done = ();
 
 sub make {
   my ($top) = @_;
-  if ($mark{$top}) {
-    die "circular dependency: $top";
-  }
-  $mark{$top} = 1;
-  my $topdeps = $deps{$top};
-  foreach my $dep (@$topdeps) {
-    make($dep) if not $done{$dep};
-    $done{$dep} = 1;
-  }
-  unless ($top =~ m|/opt/Epics/R3.14.12/base/3-14-12-1-1|) {
+  if (not $done{$top}) {
+    if ($mark{$top}) {
+      die "circular dependency: $top";
+    }
+    $mark{$top} = 1;
+    my $topdeps = $deps{$top};
+    foreach my $dep (sort(keys(%$topdeps))) {
+        make($dep);
+    }
     my $cmd = "make -sj -C $top";
     if ($opt_clean) {
       $cmd = "make -s -C $top distclean && $cmd";
     }
     if ($opt_dryrun) {
       print "$cmd\n";
-    }
-    else {
+    } else {
       print "building $top..." if not $opt_quiet;
       system($cmd);
       die unless $? == 0;
       print "done\n" if not $opt_quiet;
     }
+    $done{$top} = 1;
   }
 }
 
-foreach my $app (sort(keys(%deps))) {
-  make($app);
+foreach my $tgt (@tops) {
+  make($tgt);
   %mark = ();
 }
