@@ -1372,7 +1372,12 @@ panelList = Panels(install_path,display_search_path)
 
 def joinItarch(): return "\n".join(arch)
 def joinItreq():  return "\n".join(req)
-output_doc = substRe(output_db,"\.\w+$","Doc.txt")
+
+if output_db is None:
+    print "Missing option -d outFile.db"
+    sys.exit()
+else:
+    output_doc = substRe(output_db,"\.\w+$","Doc.txt")
 
 if canport == 'opc':
     docList(["Device Name","BESSY Signalname","PLC Name","Bits","Description","Typ\n----+-----"])
