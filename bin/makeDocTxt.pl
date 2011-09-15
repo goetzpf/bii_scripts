@@ -45,6 +45,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 
 Options::register(
   ["nocontents", "c", "",      "leave out table-of-contents"],
+  ["verbose", "v", "",      "say what is done"],
 );
 
 my $usage = "makeDocTxt.pl [OPTIONS] infile.txt [outfile.html]\n".
@@ -76,7 +77,7 @@ my $config = Options::parse($usage, 1);
     }
   } 
 
-  print "Create html from: '$inFileName' write '$outFileName'\n";
+  print "Create html from: '$inFileName' write '$outFileName'\n" if $config->{"verbose"};
   my $file;
   open(IN_FILE, "<$inFileName") or die "can't open input file $inFileName: $!";
   { local $/;
