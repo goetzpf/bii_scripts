@@ -388,6 +388,7 @@ PYDOC_PYTHONLIB_LIST= \
 	boottime.py \
 	dateutils.py \
 	enum.py \
+	epicsUtils.py\
 	FilterFile.py \
 	lslparser.py \
 	maillike.py \

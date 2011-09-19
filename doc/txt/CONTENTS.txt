@@ -641,6 +641,11 @@ Python Libraries
   | enumeration types for python.
   | `documentation <python/enum.html>`__
 
+**epicsUtils.py**
+  | Utility collection to parse and handle with EPICS data: Database files,
+    Alarm Handler, Panels etc
+  | `documentation <python/epicsUtils.html>`__
+
 **FilterFile.py**
   | a python module for scripts that read or write to files
     or read or write to standard-in or standard-out. Can also
