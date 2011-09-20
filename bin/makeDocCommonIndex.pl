@@ -47,7 +47,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
   chomp $installPath;
   my $outFileName = $installPath."/index.html";
 
-  print "Create index for path: \'$installPath\'\n";
+  #print "Create index for path: \'$installPath\'\n";
   my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime(time()); $mon +=1; $year+=1900;
   my $filetime ="$mday.$mon.$year $hour:$min\'$sec";
   my $files =  `find $installPath -name '*html'`;
