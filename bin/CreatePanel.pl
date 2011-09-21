@@ -1226,6 +1226,13 @@ sub   setAdlWidget
 	    {   $facePlate.=",SNAME=$$rH_Attr{SNAME}";
 	    }
 	}
+	elsif( length( $$rH_Attr{DEVN} ))
+	{   
+	    $facePlate.="\nfaceplateMacro=DEVN=$$rH_Attr{DEVN}";
+	    if( length( $$rH_Attr{SNAME}) )
+	    {   $facePlate.=",SNAME=$$rH_Attr{SNAME}";
+	    }
+	}
 	elsif( length( $$rH_Attr{PV} ))
 	{   
 	    $facePlate.="\nfaceplateMacro=PV=$$rH_Attr{PV}";
