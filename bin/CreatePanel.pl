@@ -779,7 +779,7 @@ sub   getTemplate
 
     if( not defined $widgetPath )
     {
-	warn "Skip '$itemName':  no ${type}-file '$widgetName' found in: '",join(':',@searchDlPath),"'\n";
+	warn "Skip '$itemName':  no ${type}-file '$widgetName' found in: '",join(':',@searchDlPath),"'\n" if not $opt_M;
 	return undef;
     }
     elsif( $opt_M == 1)
