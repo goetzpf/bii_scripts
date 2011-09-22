@@ -394,6 +394,10 @@ parser.add_option("-s","--display_search_path",
     		 type="string",
 		 help="for panel generation only, search path for widget header/footer files '.:..'", 
     		 )
+parser.add_option("-q","--quiet",
+		 action="store_true",
+		 help="be quiet", 
+    		 )
 
 (options, args) = parser.parse_args()
 canport = ""
@@ -458,7 +462,8 @@ debugInfo = {}
 for argument in args:
     if not os.path.isfile(argument): epicsUtils.die("File doesn't exist: "+argument)
 
-    print "   Reading data from "+argument
+    if not options.quiet:
+        print "   Reading data from "+argument
 
     try :
     	(fileName,fileExt) = epicsUtils.matchRe(argument,'.*\/(.*)\.(.*)') 
@@ -840,7 +845,8 @@ for argument in args:
 		OUT_FILE = open(outFileName,"w") 
 	    except IOError: 
 	    	epicsUtils.die("can't open output file: "+outFileName)
-	print "   Creating file "+outFileName
+        if not options.quiet:
+            print "   Creating file "+outFileName
       	#print "*****************************\n", strOut
 	print >> OUT_FILE, strOut
 	OUT_FILE.close()
