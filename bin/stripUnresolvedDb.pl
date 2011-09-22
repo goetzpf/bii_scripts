@@ -15,7 +15,7 @@
 
   die "missing paramter: inputFile\n USAGE:  stripUnresolvedDb.pl inputFile.substitutions \n" unless defined $filename;
 
-  print "strip unresolved fields from: $filename \n";
+  #print "strip unresolved fields from: $filename \n";
 
   my( $file, $r_substData);
   open(IN_FILE, "<$filename");
