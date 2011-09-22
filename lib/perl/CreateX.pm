@@ -170,7 +170,7 @@ sub std_open_target {
   my $filename = (defined $ioc) ? "$app.$ioc.$suffix" : "$app.$suffix";
   open my $filehandle, ">", $filename or confess "Can't open $filename: $!\n";
   my $onioc = " on $ioc" if defined $ioc;
-  print "Creating $suffix file for $app$onioc\n";
+  #print "Creating $suffix file for $app$onioc\n";
   return $filehandle;
 }
 
@@ -180,7 +180,7 @@ sub std_open_target_with_path {
   print "filename = $filename\n";
   open my $filehandle, ">", $filename or confess "Can't open $filename: $!\n";
   my $onioc = " on $ioc" if defined $ioc;
-  print "Creating $suffix file for $app$onioc\n";
+  #print "Creating $suffix file for $app$onioc\n";
   return $filehandle;
 }
 
