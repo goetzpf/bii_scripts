@@ -45,5 +45,5 @@ then
   shift; shift
 fi
 
-echo "flatdb $@" >&2
+#echo "flatdb $@" >&2
 exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH -cp /opt/epics/VisualDCT/$vsn/VisualDCT.jar com.cosylab.vdct.GenerateFlatDatabase "$@"
