@@ -147,12 +147,12 @@ if (defined $org_header)
         unlink($org_header) || die "unable to remove $opt_header\n";
         rename($opt_header,$org_header) ||
 	  die "unable to rename $opt_header to $org_header\n";
-        if ($opt_quiet)
+        if (!$opt_quiet)
           { print "header generated: $opt_header\n"; };
           };
   }
 else
-  { if ($opt_quiet)
+  { if (!$opt_quiet)
       { print "header generated: $opt_header\n"; };
   }
 
