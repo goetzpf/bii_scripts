@@ -45,6 +45,7 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #      -tv/-iv <value>:     match/ignore field contains <value>
 #      -tl <value>:     Trigger all link fields that contains <value>. 
 #                       Print all link fields of these records.
+#      -th                 show hardware access fields (other trace options usable to reduce output)\n\n".
 #
 #  *  Print options:  defines the output fields. The record name and type is allways shown. 
 #  Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:
@@ -52,7 +53,8 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
 #      -pt <recType>:   print records of this type
 #      -pr <recName>:   print records tha match that name
 #      -pf -ipf<fieldType>: print/ignore this field/s
-#      -pT :            print as table, default is EPICS.db format\n".
+#      -pT              print as table, default is EPICS.db format\n".
+#      -pH              print as Hash, override -pT, default is EPICS.db format\n".
 #
 #  Common options:
 #
@@ -79,20 +81,22 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         "TRIGGERS:  defines what fields, records etc are of interest. The values of the trigger \n".
         "   options  are processed as regular expressions and concatenated with logical AND, \n".
         "   means all triggers have to match.\n\n".
-        "    -tt/-it <recType>:   match/ignore record type\n".
-        "    -tr/-ir <recName>:   match/ignore record name\n".
-        "    -tf/-if <fieldType>: match/ignore field type\n".
+        "    -tt/-it <recType>:   match/ignore record <recType>\n".
+        "    -tr/-ir <recName>:   match/ignore record <recName>\n".
+        "    -tf/-if <fieldType>: match/ignore field <fieldType>\n".
         "    -tv/-iv <value>:	  match/ignore field contains <value>\n".
-        "    -tl:<value>	 db linkage (other trace options usable to reduce output)\n\n".
+        "    -tl:<value>	  show db linkage (other trace options usable to reduce output)\n\n".
+        "    -th:                 show hardware access fields (other trace options usable to reduce output)\n\n".
         "PRINT OPTIONS:  defines the output fields. The record name and type is allways shown.\n". 
         "   Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:\n\n".
         "    -pt <recType>:   print records of this type\n".
         "    -pr <recName>:   print records tha match that name\n".
         "    -pf -ipf<fieldType>: print/ignore this field/s\n\n".
         "    -pT :            print as table, default is EPICS.db format\n".
+        "    -pH :            print as Hash, override -pT, default is EPICS.db format\n".
         "COMMON OPTIONS:\n\n".
         "     -i ignore case\n".
-        "     -v verbose\n\n".
+        "     -v verbose\n".
         "     -q quiet:       print just EPICS-db, no additional info as filename etc.\n\n".
         "EXAMPLES:\n\n".
         "     grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP$|OUT|DTYP|NOBT)' *.db\n\n".
@@ -111,8 +115,10 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     my $links;
     my $verbose;
     my $quiet;
+    my $hwFields;
     my $printStr;
     my $ptable;
+    my $pHash;
     my $rH_fields;
     my $rH_prTable={};
     my $ptable;
@@ -125,10 +131,16 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
     	    	    	    "it=s"=>\$trIgRecType, "ir=s"=>\$trIgRecName, "if=s"=>\$trIgFieldName, "iv=s"=>\$trIgFieldValue,
                             "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName, "ipf=s"=>\$igFieldName,
-                            "i"=>\$ignore,"pT"=>\$ptable,"v"=>\$verbose,"q"=>\$quiet,"tl=s"=>\$links);
+                            "i"=>\$ignore,"pT"=>\$ptable,"pH"=>\$pHash,"v"=>\$verbose,"q"=>\$quiet,"th"=>\$hwFields,"tl=s"=>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
+
+    if( defined $quiet && defined $verbose )
+    {
+        warn "Option 'quiet' overrides option 'verbose'";
+	$verbose = undef;
+    }
 
     if( defined $ignore )
     {
@@ -139,17 +151,28 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         eval( "sub match { return( scalar (\$_[0]=~/\$_[1]/) ); }" );
     }
 
-    if( defined $links )
+    if( defined $links && !defined $hwFields)
     {
-        $trigFieldName = "(INP|OUT|LNK|DOL)";
+        $trigFieldName = "INP|OUT|LNK|DOL";
 	$trigFieldValue = $links;
     }
-
-    if( defined $$quiet && defined $verbose )
+    elsif( defined $hwFields && !defined $links)
     {
-        warn "Option 'quiet' overrides option 'verbose'";
-	$verbose = undef;
+        $trigFieldName = "DTYP";
+    	$trIgFieldValue = "Soft|Hw";
+	if( $prFieldName ne "." ) {
+	   $prFieldName = "$prFieldName|DTYP|OUT|INP|PORT|OBJ|MUX\$";
+	}
+	else {
+	    $prFieldName = "DTYP|OUT|INP|PORT|OBJ|MUX\$";
+	}
+	$ptable = 1;
     }
+    else
+    {
+    	die("What a confusion, define just one option: -tl OR -th !");
+    }
+
 # default if NO print options are set: the trigger options!
     if( ($prRecType eq ".") && ($prRecName eq ".") && ($prFieldName eq ".") )
     {
@@ -158,8 +181,10 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
         $prFieldName= $trigFieldName ;
     }
     
-#print "Trigger:\n\tType:\'$trigRecType\',\tname \'$trigRecName\',\tfield \'$trigFieldName\',\t value: \'$trigFieldValue\'\n";
-#print "Print:\n\tType: \'$prRecType\',\tname \'$prRecName\',\tfield \'$prFieldName\'\n";
+    $ptable = "HASH" if defined $pHash;
+#print "Trigger:\tType:\'$trigRecType\',\tname \'$trigRecName\',\tfield \'$trigFieldName\',\t value: \'$trigFieldValue\'\n";
+#print "Ignore:\tType:\'$trIgRecType\',\tname \'$trIgRecName\',\tfield \'$trIgFieldName\',\t value: \'$trIgFieldValue\'\n";
+#print "Print:\tType: \'$prRecType\',\tname \'$prRecName\',\tfield \'$prFieldName\'\n";
 
     do
     {
@@ -225,16 +250,23 @@ eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
     
 	
 	my $rA_table;
-	foreach my $rec (keys(%$rH_prTable))
-	{   
-	    $rA_table->[$rH_recIdx->{$rec}]->[0] = $rec;
-	    foreach my $field (sort(keys( %{$rH_prTable->{$rec}} )))
-	    {
-	    	$rA_table->[$rH_recIdx->{$rec}]->[$rH_fields->{$field}] = $rH_prTable->{$rec}->{$field};
-	    }
-	}
 	
-	printData::printTable($rA_table,$rA_header,0);
+	if($ptable eq "HASH") {
+	    print Dumper($rH_prTable);
+	}
+    	else
+	{	
+	    foreach my $rec (keys(%$rH_prTable))
+	    {   
+		$rA_table->[$rH_recIdx->{$rec}]->[0] = $rec;
+		foreach my $field (sort(keys( %{$rH_prTable->{$rec}} )))
+		{
+	    	    $rA_table->[$rH_recIdx->{$rec}]->[$rH_fields->{$field}] = $rH_prTable->{$rec}->{$field};
+		}
+	    }
+
+	    printData::printTable($rA_table,$rA_header,0);
+    	}
     }
     else
     {
