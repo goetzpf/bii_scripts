@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 ## stripUnresolvedDb.pl
 #  ******************************
 #  
@@ -6,8 +7,6 @@
 #  remove all unresolved fields from a database. Means all fields 
 #  that contain some variables $(VARIABLE).
 #
-  eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
-	if $running_under_some_shell;
   use strict;
   no strict "refs";
   

@@ -1,5 +1,4 @@
-eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
-	if $running_under_some_shell;
+#!/usr/bin/env perl
 
 #  This software is copyrighted by the
 #  Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),

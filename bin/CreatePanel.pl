@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 ## CreatePanel.pl - List Panel Generation
 # ************************************
 # 
@@ -82,10 +83,6 @@
 # CreatePanel.pl -w 1030 -subst 'NAME="FOMZ1M:motor"' -I . -I ~/ctl/apps/genericTemplate/head/dl motorRdb.template test.edl
 #
 #
-
-  eval 'exec perl -S $0 ${1+"$@"}'  # -*- Mode: perl -*-
-	if $running_under_some_shell;
-
     use strict;
     no strict "refs";
     use Text::ParseWords;
