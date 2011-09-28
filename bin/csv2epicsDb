@@ -401,8 +401,9 @@ parser.add_option("-q","--quiet",
 
 (options, args) = parser.parse_args()
 canport = ""
+canOption = ""
 if options.separator    is not None: separator    = options.separator
-if options.can   	is not None: canport	  = options.can
+if options.can   	is not None: canOption	  = options.can
 if options.output_db	is not None: output_db    = options.output_db
 if options.panel	is not None: output_panel = options.panel
 if options.install_path	is not None: install_path = options.install_path
@@ -441,7 +442,7 @@ if output_db is None:
 else:
     output_doc = epicsUtils.substRe(output_db,"\.\w+$","Doc.txt")
 
-if canport == 'opc':
+if canOption == 'opc':
     docList(["Device Name","BESSY Signalname","PLC Name","Bits","Description","Typ\n----+-----"])
 else:
     docList(["Device Name","BESSY Signalname","CAN-Port","CAN-Id","CardNr","Channel / Bits","Description","Typ\n----+-----"])
@@ -491,7 +492,7 @@ for argument in args:
 	    try: signal     = device[2].strip() # C  BESSY Signalname
 	    except IndexError: signal = ""
 	    if canport == 'opc':
-		try: PLCLink    = device[3].strip() # D  CAN-Port / SPS Symbolname
+		try: PLCLink    = device[3].strip() # D  SPS Symbolname (else CAN-Id / VME DTYP)
 		except IndexError: PLCLink = ""
 		try: DBLink     = device[4].strip()  # E  CAN-Id / Siemens DataType
 		except IndexError: DBLink = ""
@@ -502,10 +503,13 @@ for argument in args:
 		    canport    = int(str(device[3]).strip()) # D  CAN-Port / SPS Symbolname
 	    	except IndexError: pass
 		except ValueError: 
-		    if len(device[3]) != 0:
-		    	epicsUtils.die("ERROR: illegal argument -can: '"+str(device[3])+"' assumed here to be empty or a can port number",lines)
+		    try:
+		    	canport = int(canOption)
+		    except ValueError:
+		    	if len(device[3]) != 0:
+		    	    epicsUtils.die("ERROR: illegal argument -can: '"+str(device[3])+"' assumed here to be empty or a can port number",lines)
 		    				
-		try: canId     = device[4].strip()  # E  CAN-Id / Siemens DataType
+		try: canId     = device[4].strip()  # E  CAN-Id / VME DTYP (else SPS Symbolname)
 		except IndexError: DBLink = ""
 		try: cardNr    = device[5].strip()  # F  Card-Nr / Siemens Access rights
 		except IndexError: dataType = ""
@@ -544,14 +548,17 @@ for argument in args:
 	    except IndexError: panelSort = ""
 	    alhFlags=''
 
-    	    if len(dev)>0:  	# override -n option
-	    	devName = dev
-	    else: 
-		devName = options.devName
-
 	    if len(rtype) == 0: # is empty 
 		continue
 	    
+    	    if len(dev)>0:  	# override -n option
+	    	devName = dev
+	    elif options.devName is not None: 
+		devName = options.devName
+	    else:
+	    	eU.die("ERROR: No device name ",lines)
+		continue
+
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
 	    if len(DESC) > EPICS_STR_LEN :
 		lastIdx = EPICS_STR_LEN
@@ -575,10 +582,13 @@ for argument in args:
 	    		'SDIS': sdis,
     	    		'DESC': DESC})
 		
-		if canport == 'opc':
+		if canOption == 'opc':
 		    fields.update(epicsUtils.getOpcLink(PLCLink,rtype,chan,devName,lines,fileName))
     	    	else:	# ommit parameter or canport number means CAN link
-    	    	    fields.update(epicsUtils.getHwLink(rtype,canport,canId,cardNr,chan,devName,fileName,iocTag,lines) )
+    	    	    try:
+		    	fields.update(epicsUtils.getHwLink(rtype,canport,canId,cardNr,chan,devName,fileName,iocTag,lines) )
+		    except ValueError:
+		    	warnings.append([fileName,lineNr,"WARN: ",name,"No CAN-Id/DTYP (Col. E) Can't create link"])
 		try:
     		    if rtype in ('ai','ao') :
 	    		fields.update(getDisplayLimits(rangeEng,egu,signal,lines))
@@ -802,7 +812,7 @@ for argument in args:
     	    # END search and create record type
 	    # now processing is done, an record is created and we can use the variables, set 
 	    # for this line of the spread sheet to do some optional stuff
-    	    if canport == 'opc':
+    	    if canOption == 'opc':
 	    	docList([devName,device[2],device[3],device[6],device[12],device[1]])
 	    else:
 	    	docList([device[0],device[2],device[3],device[4],device[5],device[6],device[12],device[1]])
