@@ -163,11 +163,11 @@
 	   $prFieldName = "$prFieldName|DTYP|OUT|INP|PORT|OBJ|MUX\$";
 	}
 	else {
-	    $prFieldName = "DTYP|OUT|INP|PORT|OBJ|MUX\$";
+	    $prFieldName = "DTYP|OUT|INP|MUX|BTYP|CLAS|OBJ|INHB|PORT|UTYP|ATYP|DLEN\$";
 	}
 	$ptable = 1;
     }
-    else
+    elsif( defined $hwFields && defined $links )
     {
     	die("What a confusion, define just one option: -tl OR -th !");
     }
@@ -246,7 +246,6 @@
 	$rA_header->[0]="Record";
 	$idx=0;
 	$rH_recIdx->{$_} =$idx++ foreach (sort(keys(%$rH_prTable)));
-    
 	
 	my $rA_table;
 	
@@ -297,19 +296,19 @@ sub printRecord
     my $recT = $rH_recName2recType->{$record} ;
 
     my $recordFlag;
-
+    $prFieldName .= '|RTYP' unless $prFieldName =~ /RTYP/;
     if( defined $ptable )
-    {
+    {	$rH_records->{$record}->{'RTYP'} = $recT;
+
 	foreach my $field ( keys( %{$rH_records->{$record}} ) )
 	{
             my $fVal = $rH_records->{$record}->{$field};
-
             if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
             {
 		$recordFlag = 1;
             }
             if( (defined $recordFlag) && match($field,$prFieldName) )
-            {   
+            {
     	    	$rH_prTable->{$record}->{$field}=$fVal;
         	$rH_fields->{$field}=1;
             }
