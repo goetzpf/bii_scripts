@@ -6,6 +6,8 @@ def die(errMsg,line=None):
 def hasIndex(lst,idx):
 def matchRe(matchStr,reStr) :
 def substRe(matchStr,matchRe,replaceStr):
+def substituteVariables(sString,substDict):
+def parseStCmd(stCmdLine):
 def parseParam(fieldPar):
 def printTable(rT,header=None,sortIdx=None) :
 def getShiftParam(bits):
@@ -45,6 +47,8 @@ import math
 import csv
 import BDNS
 import os.path
+import pyparsing as pp
+
 
 def die(errMsg,line=None):
     """
@@ -107,6 +111,49 @@ def substRe(matchStr,matchRe,replaceStr):
     """
     regx = re.compile(matchRe)
     return regx.sub(replaceStr,matchStr)
+
+def substituteVariables(sString,substDict):
+    """
+    Substitute all variables of type '$(VAR)' with the value of substDict,
+    if there is an entry for the tag 'VAR'.
+    """
+    for name in substDict.keys():
+	sString=substRe(sString,"\$\{"+name+"\}",substDict[name])
+    return sString
+    	    		 
+def parseStCmd(stCmdLine):
+    """
+    Parse a st.cmd file by line. Return array ofthe command and the parsed parameters
+
+    * Example: 
+    
+    for line in IN_FILE:
+	parsedLine = epicsUtils.parseStCmd(line)
+	if len(parsedLine)<1: continue
+	cmd = parsedLine[0]
+	if cmd == "epicsEnvSet":
+    	    envDict[parsedLine[1]]=parsedLine[2]
+	if cmd == "putenv":
+	    (name,value)=parsedLine[1].split("=")
+	    envDict[name]=value
+	if cmd == "dbLoadDatabase":
+	    dbdFile += substituteVariables(eU.substRe(parsedLine[1],"dbd/",""),envDict)
+	if cmd == "dbLoadRecords":
+    	    dbFile = substituteVariables(eU.substRe(parsedLine[1],"db/",""),envDict)
+    """
+    cmd     = pp.Word(pp.alphanums)
+    qString = pp.dblQuotedString.setParseAction(pp.removeQuotes) # double quoted String, quotes removed
+    function =pp.Word(pp.alphanums)+pp.Suppress(pp.Word("("))+pp.Optional(pp.delimitedList(pp.Word(pp.alphanums),","))+ pp.Suppress(pp.Word(")"))
+    function.setName("function")
+    arg     = qString ^ function ^ pp.Word(pp.alphanums+"-_|<>/.${}")
+    argGrp  = pp.delimitedList(arg,",")
+    command = (cmd + pp.Suppress("(")+ argGrp + pp.Suppress(")")) ^ \
+	      (cmd + argGrp) ^ \
+    	      (cmd + pp.OneOrMore(arg) )^ \
+	      pp.Empty()
+    comment = pp.Suppress(pp.pythonStyleComment)
+    line =  comment ^ (command + pp.Optional(comment))
+    return line.parseString(stCmdLine)
 
 def parseParam(fieldPar,delim='|'):
     """
@@ -308,8 +355,7 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
     	    	fields['OUT'] = link
     	    if lineNr==54:
 	    	print rtyp, link,fields['OUT']
-	else:
-	    warnings.append([fileName,lineNr,"WARN: ",name,"No CAN-Id/DTYP (Col. E) Can't create link"])
+	    
     return (fields)
 
 def adaCanMux(id,card,chan,typ='hex'):
