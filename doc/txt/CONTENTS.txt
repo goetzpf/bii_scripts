@@ -633,6 +633,11 @@ Python Libraries
 
 .. _dateutils.py:
 
+**canLink.py**
+  | partial python implementation of canlink.pl: decode the lowCAL hardware 
+    link as it is used in the BESSY MultiCAN device support for EPICS.
+  | `documentation <python/canLink.html>`__
+
 **dateutils.py**
   | utilities for string <-> datetime conversions.
   | `documentation <python/dateutils.html>`__
