@@ -491,7 +491,7 @@ for argument in args:
 	    except IndexError: rtype = ""
 	    try: signal     = device[2].strip() # C  BESSY Signalname
 	    except IndexError: signal = ""
-	    if canport == 'opc':
+	    if canOption == 'opc':
 		try: PLCLink    = device[3].strip() # D  SPS Symbolname (else CAN-Id / VME DTYP)
 		except IndexError: PLCLink = ""
 		try: DBLink     = device[4].strip()  # E  CAN-Id / Siemens DataType
