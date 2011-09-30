@@ -49,11 +49,10 @@
 #  *  Print options:  defines the output fields. The record name and type is allways shown. 
 #  Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:
 #
-#      -pt <recType>:   print records of this type
 #      -pr <recName>:   print records tha match that name
 #      -pf -ipf<fieldType>: print/ignore this field/s
-#      -pT              print as table, default is EPICS.db format\n".
-#      -pH              print as Hash, override -pT, default is EPICS.db format\n".
+#      -pt              print as table, default is EPICS.db format\n".
+#      -ph              print as Hash, override -pT, default is EPICS.db format\n".
 #
 #  Common options:
 #
@@ -88,17 +87,16 @@
         "    -th:                 show hardware access fields (other trace options usable to reduce output)\n\n".
         "PRINT OPTIONS:  defines the output fields. The record name and type is allways shown.\n". 
         "   Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:\n\n".
-        "    -pt <recType>:   print records of this type\n".
         "    -pr <recName>:   print records tha match that name\n".
         "    -pf -ipf<fieldType>: print/ignore this field/s\n\n".
-        "    -pT :            print as table, default is EPICS.db format\n".
-        "    -pH :            print as Hash, override -pT, default is EPICS.db format\n".
+        "    -pt :            print as table, default is EPICS.db format\n".
+        "    -ph :            print as Hash, override -pt, default is EPICS.db format\n".
         "COMMON OPTIONS:\n\n".
         "     -i ignore case\n".
         "     -v verbose\n".
         "     -q quiet:       print just EPICS-db, no additional info as filename etc.\n\n".
         "EXAMPLES:\n\n".
-        "     grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP$|OUT|DTYP|NOBT)' *.db\n\n".
+        "     grepDb.pl  -tf DTYP -tv 'EK IO32' -pf '(INP\$|OUT|DTYP|NOBT)' *.db\n\n".
         "   Means Show all records of 'DTYP=EK IO32' print the fields 'INP$.OUT,DTYP' and 'NOBT'.\n\n".
         "     grepDb.pl  -tf '(INP|OUT|LNK|DOL)' file.db\n\n".
         "   Means Show the record linkage of this file, same as 'grepDb.pl  -tl file.db'.\n\n";
