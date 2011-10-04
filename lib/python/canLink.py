@@ -649,14 +649,12 @@ def hwLowcal2canLink(fieldDict,pvName=""):
 	if fieldDict['ATYP'] == 'WO': canPar['access'] = 'w'
 	else:                         canPar['access'] = 'rw'
     else:     	return
-    if check_exists(fieldDict,'NELM','NELM',"hwLowcal2canLink() "+pvName):
-	if int(fieldDict['NELM']) > 0:
-	    canPar['arraysize'] = int(fieldDict['NELM'])
-	    canPar['array'] = 1
-	else:
-	    canPar['arraysize'] = 0
-	    canPar['array'] = 0
-    else:     	return
+    if fieldDict.has_key('NELM') and int(fieldDict['NELM']) > 1:
+	canPar['arraysize'] = int(fieldDict['NELM'])
+	canPar['array'] = 1
+    else:
+	canPar['arraysize'] = 0
+	canPar['array'] = 0
     if check_exists(fieldDict,'DLEN','DLEN',"hwLowcal2canLink() "+pvName):
 	canPar['maxlength'] = int(fieldDict['DLEN'])
     else:     	return
