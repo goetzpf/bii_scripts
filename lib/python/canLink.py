@@ -472,6 +472,12 @@ def calc_cidnidsob(linkParams):
         linkParams['cid']= set_cid
     if set_nid is not None:
         linkParams['nid']= set_nid
+
+    sob_in=None
+    nid_in=None
+    sob_out=None
+    nid_out=None
+
     if needs_r:
     	(sob_in ,nid_in) = cob2sobnid( linkParams['in_cob'] )
     if needs_w:
