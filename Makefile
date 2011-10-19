@@ -804,6 +804,7 @@ _PYTHON_2_5_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(PYTHON_2_5_SCRIPTS))
 
 $(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%.py: $(SCRIPT_SRC_DIR)/%.py
 	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
+	chmod u+x $@
 
 # extra rules for python 3 scripts:
 _PYTHON_2TO3_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(addsuffix 3.py,$(basename $(PYTHON_2TO3_SCRIPTS))))
@@ -814,6 +815,7 @@ $(_PYTHON_2TO3_SCRIPTS): $(SCRIPT_BUILD_DIR)/%3.py: $(SCRIPT_SRC_DIR)/%.py
 	python3-2to3 $@ -w -n >/dev/null 2>&1
 	python3-2to3 $@ -w -n -d >/dev/null 2>&1
 	sed -i'' '1c\#!/usr/bin/env 'python3 $@
+	chmod u+x $@
 
 # build perl libs............................................
 
