@@ -92,7 +92,7 @@
     use Data::Dumper;
     $|=1;   # print unbuffred
 
-    our($opt_v,$opt_i,$opt_x,$opt_y,$opt_M) = (0, undef, 100, 100,"");
+    our($opt_v,$opt_i,$opt_x,$opt_y,$opt_M,$opt_q) = (0, undef, 100, 100, "", 0);
     my $type = "edl";
     my $title;
     my $layout;
@@ -136,7 +136,7 @@
     die unless GetOptions("M","i","I=s"=>\@searchDlPath,"v","x=i","w=i"=>\$panelWidth,"y=i",
     	    	    	  "type=s"=>\$type,"title=s"=>\$title,"layout=s"=>\$layout, 
 			  "subst=s"=>\$substPar,"sort=s"=>\$opt_sort,"baseW=s"=>\$baseW,
-			  "border=i"=>\$border);
+			  "border=i"=>\$border,"q");
 
     die $usage unless scalar(@ARGV) > 1;
 
@@ -776,7 +776,7 @@ sub   getTemplate
 
     if( not defined $widgetPath )
     {
-	warn "Skip '$itemName':  no ${type}-file '$widgetName' found in: '",join(':',@searchDlPath),"'\n" if not $opt_M;
+	warn "Skip '$itemName':  no ${type}-file '$widgetName' found in: '",join(':',@searchDlPath),"'\n" if not $opt_M and not $opt_q;
 	return undef;
     }
     elsif( $opt_M == 1)
@@ -819,7 +819,7 @@ sub   getDisplay
 	}
 	else
 	{
-    	    warn "Skip '$widgetFileName', Cann't find screen width/height";
+    	    warn "Skip '$widgetFileName', Cann't find screen width/height" if not $opt_q;
 	    return undef;
 	}
     }
@@ -831,7 +831,7 @@ sub   getDisplay
     }
     else
     {
-    	warn "Skip '$widgetFileName', Can't find screen properties in ....",substr($widgetContent,80,100),"...";
+    	warn "Skip '$widgetFileName', Can't find screen properties in ....",substr($widgetContent,80,100),"..." if not $opt_q;
 	return undef;
     }
 
