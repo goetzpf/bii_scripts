@@ -398,6 +398,11 @@ parser.add_option("-q","--quiet",
 		 action="store_true",
 		 help="be quiet", 
     		 )
+parser.add_option("--desc-len",
+		 action="store",
+    		 type="int",
+		 help="length of DESC field",
+    		 )
 
 (options, args) = parser.parse_args()
 canport = ""
@@ -412,6 +417,7 @@ if options.output_arch	is not None: output_arch  = options.output_arch
 if options.output_req	is not None: output_req   = options.output_req
 if options.iocName	is not None: iocName      = options.iocName
 if options.opc_name	is not None: opc_name	  = options.opc_name
+if options.desc_len	is None: options.desc_len = 28
 
 sdis=""# options.devName+":disable CPP NMS"
 iocTag = None
@@ -423,7 +429,6 @@ if iocName is not None:
     except TypeError:
 	pass
 
-EPICS_STR_LEN = 28   # warn: truncated DESCription fields
 warnings = []	     # global for warnings in all functions, is printed at end or prog.
 
 lines = None
@@ -560,8 +565,8 @@ for argument in args:
 		continue
 
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
-	    if len(DESC) > EPICS_STR_LEN :
-		lastIdx = EPICS_STR_LEN
+	    if len(DESC) > options.desc_len :
+		lastIdx = options.desc_len
 		descTrunc = DESC[0:lastIdx]
 		warnings.append([fileName,lines,"Truncate DESC",devName,descTrunc+" | "+DESC])
     		DESC = descTrunc
