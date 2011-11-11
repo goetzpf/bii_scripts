@@ -1,4 +1,4 @@
-===========
+f===========
 bii_scripts
 ===========
 
@@ -658,6 +658,10 @@ Python Libraries
     file and renaming the original file and the temporary file
     upon close.
   | `documentation <python/FilterFile.html>`__
+
+**listOfDict.py**
+  | Functions to operate with the combined datatype list of dictionary items.
+  | `documentation <python/listOfDict.html>`__
 
 **lslparser.py**
   | a module to parse the output of "ls -l".

@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+import re
+import sys
+import os
+import pprint
+import epicsUtils as eU
+import listOfDict as lod
+
+usage ="""USAGE: grepDb.pl -t<TRIGGER> <match> [-p<PRINT> <match>] fileName/s
+TRIGGERS:  defines what fields, records etc are of interest. The values of the trigger
+   options  are processed as regular expressions and concatenated with logical AND,
+   means all triggers have to match.
+    -tt/-it <recType>:   match/ignore record <recType>
+    -tr/-ir <recName>:   match/ignore record <recName>
+    -tf/-if <fieldType>: match/ignore field <fieldType>
+    -tv/-iv <value>:     match/ignore field contains <value>
+    -tl:<value>          show db linkage field + <vlaue> fields
+                         other trace options usable to reduce output
+    -th:                 show hardware access fields (other trace options usable to
+                         reduce output)
+PRINT OPTIONS:  define the output fields. The record name and type is allways shown.
+   Default output is the field defined with '-tf' option or all fields if '-tf' isn't
+   defined:
+    -pf/-ipf <fieldName> print only / ignore these field/s
+    -pT :                print as Table, default is EPICS.db format
+COMMON OPTIONS:
+     -i match not case sensitive
+     -v verbose     debug output
+     -q quiet       print just EPICS-db, no additional info as fileName etc
+EXAMPLES:
+     grepdb -tf DTYP -tv 'EK IO32' -pf '[INP\|OUT|DTYP|NOBT]' *.db
+   Means Show all records of 'DTYP=EK IO32' print the fields 'INP.OUT,DTYP' and 'NOBT'.
+
+     grepdb -tf '[INP|OUT|LNK|DOL]' file.db
+   Means Show the record linkage of this file, same as 'grepdb -tl file.db'.\n\n"
+"""
+
+def GetOptions(optList):
+    options = {}
+    for opt in optList:
+        s=opt.split("=")
+        if len(s)==1:       # an option flag
+            options[s[0]]=False
+        if len(s)==2:       # an option parameter
+            options[s[0]]=None
+    idx=1
+    while idx<len(sys.argv):
+        item = sys.argv[idx]
+        if item[0] == '-':
+            item = item[1:]
+            if not options.has_key(item):
+                raise ValueError("Option '-"+item+"' not known")
+            if options[item] == False:
+                options[item]=True
+            elif options[item] == None:
+                idx += 1
+                if s[1]=='s':
+                    options[item]=sys.argv[idx]
+                elif s[1]=='i':
+                    options[item]=int(sys.argv[idx])
+            else:
+                raise ValueError("Option '-"+item+"' allready defined")
+            idx += 1
+        else:
+            break
+    return (options,sys.argv[idx:])
+
+(options,dbFileList) = GetOptions(["h","tt=s", "tr=s", "tf=s", "tv=s","it=s", "ir=s", \
+    "if=s", "iv=s", "pf=s", "ipf=s","i","pT","pH","v","q","th","tl=s"])
+if options['h']:
+    print usage
+    sys.exit()
+if not dbFileList: raise ValueError("Found no record list")
+if not options:    raise ValueError("Found no options")
+
+printMode = "DB"
+
+rH_fields={}
+rH_prTable={}
+
+if options['pT']:   printMode = "TABLE"
+elif options['pH']: printMode = "HASH"
+
+if options['i']:
+    options['i'] = re.I
+else:
+    options['i'] = 0
+
+if options['q'] and options['v']:
+    print "Option '-q' overrides option '-v'"
+    options['v'] = None
+
+if options['th'] and options['tl']:
+    eU.die("What a confusion, define just one option: -tl OR -th !")
+elif options['tl']:
+    trigFieldName = "(INP|OUT|LNK|DOL)"
+    trigFieldValue = options['tl']
+elif options['th']:
+    trigFieldName = "DTYP"
+    trIgFieldValue = "(Soft|Hw)"
+    prFieldName = prFieldName+"(DTYP|OUT|INP|MUX|BTYP|CLAS|OBJ|INHB|PORT|UTYP|ATYP|DLEN\$)"
+    printMode = "TABLE"
+
+#print "Trigger:Type:'"+trigRecType+"',\tname '"+trigRecName+"',\tfield '"+trigFieldName+"',\t value: '"+trigFieldValue+"'"
+#print "Ignore:\tType:'"+trIgRecType+"',\tname '"+trIgRecName+"',\tfield '"+trIgFieldName+"',\t value: 'trIgFieldValue'"
+#print "Print:\tType: '"+prRecType+"',\tfield '"+prFieldName+"'\n"
+
+for fileName in dbFileList:
+    if not os.path.isfile(fileName): eU.die("File doesn't exist: "+fileName)
+
+    if not options['q']:
+        print "Reading data from :'"+fileName+"'"
+
+    try :
+        IN_FILE = open(fileName)
+        content = IN_FILE.read()
+    except IOError:
+        eU.die("can't open input file: "+fileName)
+    dList = eU.parseDb(content)
+    recList = eU.filterDb(dList,options)
+
+    if len(recList) == 0:
+        continue
+
+    if options['v']:
+        print "File: '"+fileName+"'"
+        fileName = None
+    eU.printDb(recList,printMode)

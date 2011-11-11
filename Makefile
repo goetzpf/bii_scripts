@@ -392,6 +392,7 @@ PYDOC_PYTHONLIB_LIST= \
 	epicsUtils.py\
 	FilterFile.py \
 	lslparser.py \
+	listOfDict.py \
 	maillike.py \
 	pdict.py \
 	pfunc.py \

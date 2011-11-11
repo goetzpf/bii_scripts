@@ -6,6 +6,7 @@ import os
 import os.path
 import subprocess
 import epicsUtils as eU
+import listOfDict as lod
 import pprint as pp
 import canLink as cL
 
@@ -85,149 +86,57 @@ def findApplications(topPath):
 	    dbApp[dbFileName] = appName
     return (appDb,dbApp)
 
-class Hardware(object):
-    """ Describes the hardware information of a PV, just the link field or for 
-    	CAN: port, id and card, chan or mux
-    """
-    def __init__(self,filename,iocname,pvname,fieldDict) :
-    	self.iocname = iocname
-    	self.filename = filename
-	self.pvname  = pvname
-	self.hwPar   = {"iocname":iocname,"filename":filename,"pvname":pvname}
-	self.hwPar.update(fieldDict)
+def hardware(filename,iocname,pvname,fieldDict) :
+    fieldDict.update( {"iocname":iocname,"filename":filename,"pvname":pvname} )
 
-	if self.hwPar.has_key('INP'):
-	    self.hwPar['LINK'] = fieldDict['INP']
-	elif self.hwPar.has_key('OUT'):
-	    self.hwPar['LINK'] = fieldDict['OUT']
-	else:
-	    self.hwPar['LINK'] = None
+    if fieldDict.has_key('INP'):
+        fieldDict['LINK'] = fieldDict['INP']
+    elif fieldDict.has_key('OUT'):
+        fieldDict['LINK'] = fieldDict['OUT']
+    else:
+        fieldDict['LINK'] = None
 
-	if self.hwPar['DTYP'] == 'lowcal':
-	    if self.hwPar['RTYP'] == 'hwLowcal':
-	    	self.hwPar['LINK'] = cL.hwLowcal2canLink(fieldDict)
-	    self.hwPar.update(cL.decode(self.hwPar['LINK']))
-	    if self.hwPar.has_key('cid') and self.hwPar['cid'] == 2:	# ADA/IO32 card
-	    	mux = int(self.hwPar['multiplexor'])
-	    	self.hwPar['CARD'] =  mux/12
-	    	self.hwPar['CHAN'] =  mux%12
-	    if self.hwPar.has_key('cid') and self.hwPar['cid'] == 4:	# vctrl card
-	    	mux = int(self.hwPar['multiplexor'])
-	    	self.hwPar['CARD'] =  mux/2
-	    	self.hwPar['CHAN'] =  mux%2
-		
-	else:
-	    vmeLnk = eU.matchRe(self.hwPar['LINK'],"#C\s*(\d+)\s*S\s*(\d+)")
-	    if vmeLnk is not None:
-	    	self.hwPar['CARD'] =  vmeLnk[0]
-	    	self.hwPar['CHAN'] =  vmeLnk[1]
-    def __str__(self):
-    	par = {}
-	par.update(self.hwPar)
-	s = par['filename']+", "+par['iocname']+", "+par['pvname']+", "
-	return s+par['LINK']
-	del(par['filename'])
-	del(par['iocname'])
-	del(par['pvname'])
-	return self.filename+","+self.iocname+","+self.pvname+","+str(self.hwPar)
-    def __repr__(self):
-    	return "Hardware("+self.filename+","+self.iocname+","+self.pvname+","+str(self.hwPar)+")"
-
-    @staticmethod
-    def cmpHardwareByOrder(a,b,order):
-    	o = order[0];
-	result = 0
-	if o == 'iocname':
-	    result = cmp(a.iocname,b.iocname)
-	    if result == 0 and len(order) > 0:
-	    	return Hardware.cmpHardwareByOrder(a,b,order[1:])
-	    else: 
-		return result
-	if o == 'filename':
-	    result = cmp(a.filename,b.filename)
-	    if result == 0 and len(order) > 0:
-	    	return Hardware.cmpHardwareByOrder(a,b,order[1:])
-	    else:
-		return result
-	if o == 'pvname':
-	    result = cmp(a.pvname,b.pvname)
-	    if result == 0 and len(order) > 0:
-	    	return Hardware.cmpHardwareByOrder(a,b,order[1:])
-	    else:
-		return result
-	else:
-	    if a.hwPar.has_key(o) and b.hwPar.has_key(o):
-	    	result = cmp(a.hwPar[o],b.hwPar[o])
-	    	if result != 0:
-		    return result
-		elif len(order) > 0: 
-		    return Hardware.cmpHardwareByOrder(a,b,order[1:])
-	return result
+    if fieldDict['DTYP'] == 'lowcal':
+        if fieldDict['RTYP'] == 'hwLowcal':
+            fieldDict['LINK'] = cL.hwLowcal2canLink(fieldDict)
+        fieldDict.update(cL.decode(fieldDict['LINK']))
+        if fieldDict.has_key('cid') and fieldDict['cid'] == 2:	# ADA/IO32 card
+            mux = int(fieldDict['multiplexor'])
+            fieldDict['CARD'] =  mux/12
+            fieldDict['CHAN'] =  mux%12
+        if fieldDict.has_key('cid') and fieldDict['cid'] == 4:	# vctrl card
+            mux = int(fieldDict['multiplexor'])
+            fieldDict['CARD'] =  mux/2
+            fieldDict['CHAN'] =  mux%2
+    else:
+        vmeLnk = eU.matchRe(fieldDict['LINK'],"#C\s*(\d+)\s*S\s*(\d+)")
+        if vmeLnk is not None:
+            fieldDict['CARD'] =  vmeLnk[0]
+            fieldDict['CHAN'] =  vmeLnk[1]
+    return fieldDict
 
 def checkHardwareAccess(iocDb,topPath):
     hwData = []
     for ioc in iocDb.keys():
-	for db in iocDb[ioc]:
-	    hw = systemCall(['grepDb.pl','-pH','-th',topPath+"/db/"+db]) # return a perl hash of {PVNAME=> {FIELD=>VALUE}}
-	    if not hw:
-	    	continue 
-	    hw = eU.substRe(hw," => ",":")  	# make it python eval uable
-    	    hw = eU.substRe(hw,"\$VAR1\s*=","")
-    	    hw = eU.substRe(hw,";","")
-	    try:
-	    	hwDict = eval(hw)
-	    except:
-	    	pp.pprint(hw)
-		print "ERROR in checkHardwareAccess(",iocDb,topPath,")"
-		sys.exit()
-	    for pv in hwDict.keys():
-		hwObj = Hardware(db,ioc,pv,hwDict[pv])
-		if hwObj: 
-		    hwData.append(hwObj)
+        for db in iocDb[ioc]:
+            hw = systemCall(['grepDb.pl','-pH','-th',topPath+"/db/"+db]) # return a perl hash of {PVNAME=> {FIELD=>VALUE}}
+            if not hw:
+                continue 
+            hw = eU.substRe(hw," => ",":")  	# make it python eval uable
+            hw = eU.substRe(hw,"\$VAR1\s*=","")
+            hw = eU.substRe(hw,";","")
+            try:
+                hwDict = eval(hw)
+            except:
+                pp.pprint(hw)
+                print "ERROR in checkHardwareAccess(",iocDb,topPath,")"
+                sys.exit()
+            for pv in hwDict.keys():
+                hw = hardware(db,ioc,pv,hwDict[pv])
+                if hw: 
+                    hwData.append(hw)
     return hwData
 	    	
-def sortedHardware(hwList,order):
-    def cmp_(a,b):
-    	return Hardware.cmpHardwareByOrder(a,b,order)
-    return sorted(hwList,cmp=cmp_)
-
-def sortedHardwareToTable(hwList,order):
-    """
-    Parameter:
-    	hwList: List of Hardware objects, 
-	order:  List of keys to be filtered and sorted from the Hardware.hwPar dictionary
-    Return list of ordered list of filtered values of Hardware objects
-    """
-    table = []
-    for hw in hwList:
-	col = []
-	for key in order:
-    	    if hw.hwPar.has_key(key):
-    		col.append(str(hw.hwPar[key]))
-	    else:
-    		col.append("-")
-	table.append(col)
-#    eU.printTable(table,order)   
-    return table
-
-def filterHardware(hwList,filterHw):
-    """
-    Parameter:
-    	hwList= list of Hardware objects, 
-    	filterHw= {matchKey:[matchValue,..],..} A match value list for each key in the dict
-
-    Return: tupel of the lists: (filterd, filteredOut)
-    """
-    res = []
-    resOut = []
-    for hw in hwList:
-    	for outKey in filterHw:
-	    if hw.hwPar.has_key(outKey) and hw.hwPar[outKey] not in filterHw[outKey]:
-	    	resOut.append(hw)
-	    else:
-	    	res.append(hw)
-    return (res,resOut)
-    
 ######## Main #######################################################
 usage        = " CreateOpt.py [options] topPath ioc dbOutPath"
 parser = OptionParser(usage=usage,
@@ -250,10 +159,16 @@ except:
 (iocDb,dbIoc) = processStCmd(topPath)
 #pp.pprint(iocDb)
 #pp.pprint(dbIoc)
-##hwList = checkHardwareAccess({'IOC':['hwAccess.IOC2LHF.db']},topPath)
+#order = ('port','nid','cid','CARD','CHAN','LINK','pvname','filename')
+#hwList = checkHardwareAccess({'IOC':['test.db']},topPath)
+#(canList,otherList) = lod.filterMatch(hwList,{'DTYP':['lowcal'],'PORT':[1],'nid':[1]})
+#table = lod.orderToTable(canList,order)
+#eU.printTable(table,order)
+#pp.pprint(otherList)
+#sys.exit()
 iocHw = checkHardwareAccess(iocDb,topPath)
-##pp.pprint(iocHw)
-
+#pp.pprint(iocHw)
+#sys.exit()
 ######## PRINT DATA #######################################################
 htmlHeader = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="de" lang="de">
@@ -277,7 +192,7 @@ except IOError:
 print >> FILE, htmlHeader
 
 # Application Reference:
-print "********** Write File *********"
+if options.verbose is True: print "********** Write File *********"
 print >> FILE, "<H1>Application Reference</H1>\n\n<TABLE BORDER=1>"
 def getIoc(dbIoc,db):
     if dbIoc.has_key(db):   
@@ -288,7 +203,8 @@ def getIoc(dbIoc,db):
 for app in appDb.keys():
     dbList = appDb[app]
     span = ""
-    if len(dbList) > 1: span = "ROWSPAN=\""+str(len(dbList))+"\" "
+    if len(dbList) > 1:
+    	span = "ROWSPAN=\""+str(len(dbList))+"\" "
     print >> FILE, "<TR >\n  <TD "+span+"VALIGN=\"TOP\"><A NAME=\""+app+"\">"+app+"</TD>\n  <TD VALIGN=\"TOP\">"+dbList[0]+"</TD>\n  <TD>"+getIoc(dbIoc,dbList[0])+"</TD></TR>"
     for db in dbList[1:]:
 	print >> FILE,"<TR>\n  <TD VALIGN=\"TOP\">"+db+"</TD>\n  <TD VALIGN=\"TOP\">"+getIoc(dbIoc,db)+"</TD></TR>"
@@ -297,27 +213,37 @@ print >> FILE, "</TABLE>\n"
 print >> FILE, '<H1>IOC Application Reference</H1>\n\n<TABLE BORDER=1>'
 
 def getDb(dbApp,db):
-    if dbApp.has_key(db): return "<DIV TITLE=\""+dbApp[db]+"\"><A HREF=\"#"+dbApp[db]+"\">"+db+"</A></DIV>"
-    else: return "<DIV TITLE=\"got from support module\">"+db+"</DIV>"
+    if dbApp.has_key(db): 
+    	return "<DIV TITLE=\""+dbApp[db]+"\"><A HREF=\"#"+dbApp[db]+"\">"+db+"</A></DIV>"
+    else: 
+    	return "<DIV TITLE=\"got from support module\">"+db+"</DIV>"
 
 for ioc in iocDb.keys():
     dbList = iocDb[ioc]
     span = ""
-    if len(dbList) > 1: span = "ROWSPAN=\""+str(len(dbList))+"\" "
-    print >> FILE, '<TR >\n  <TD '+span+'VALIGN="TOP"><A NAME="'+ioc+'"><A HREF="#HW_'+ioc+'">'+ioc+'</A></TD>\n  <TD>'+getDb(dbApp,db)+'</TD></TR>'
-    for db in dbList[1:]:
-	print >> FILE,"<TR>\n  <TD>"+getDb(dbApp,db)+"</TD></TR>"
+    if len(dbList) > 1:
+    	span = "ROWSPAN=\""+str(len(dbList))+"\" "
+    setIoc = '<TH '+span+'VALIGN="TOP"><A NAME="'+ioc+'"><A HREF="#HW_'+ioc+'">'+ioc+'</A></TH>\n  '
+    for db in dbList:
+	print >> FILE,'<TR>\n  '+setIoc+'<TD>'+getDb(dbApp,db)+'</TD></TR>'
+	if len(setIoc) > 0: 	# first item only
+	    setIoc = ''
 print >> FILE, "</TABLE>\n"
 
 print >> FILE, "<H1>IOC Hardware Reference</H1>\n\n"
 
 def toCol(dList,tag='TD'): 
-    """ create a list of taged list item strings, default is TD, also possible: TH, LI"""
-    return "<"+tag+">"+str("</"+tag+">\n  <"+tag+">").join(dList)+"</"+tag+">"
+    """ create a string of tagged list items, default tag is TD, also possible: TH, LI"""
+    def toStr(x):
+    	if x is None:
+	    return "-"
+	else:
+	    return str(x)
+    return "<"+tag+">"+str("</"+tag+">\n  <"+tag+">").join([toStr(x) for x in dList])+"</"+tag+">"
 
-(forgetThisList,getHw) = filterHardware(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
+(forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
 for ioc in iocDb.keys():
-    (iocHwList,getHw) = filterHardware(getHw,{'iocname':ioc})
+    (iocHwList,getHw) = lod.filterMatch(getHw,{'iocname':ioc})
     if len(iocHwList) == 0: 
     	continue
 
@@ -325,36 +251,36 @@ for ioc in iocDb.keys():
 
     print >> FILE, "<H3>CAN Devices</H3>\n\n"
     order = ('port','nid','cid','CARD','CHAN','LINK','pvname','filename')
-    (canList,otherList) = filterHardware(iocHw,{'DTYP':['lowcal'],})
-    table = sortedHardwareToTable(canList,order)
+    (canList,otherList) = lod.filterMatch(iocHwList,{'DTYP':['lowcal',],})
+    table = lod.orderToTable(canList,order)
     if len(table) > 0:
-	print >> FILE, '<TABLE BORDER=1>\n<TR>'+toCol(['Process Variable','Port','CAN-Id','Card','Chan','Link','cid'],'TH')+'\n</TR>'
-	for (port,nid,cid,CARD,CHAN,LINK,pvname,filename) in table:
-	    c = LINK.split(' ') # c=(@type dataType port in_cob out_cob mux ....)
+        print >> FILE, '<TABLE BORDER=1>\n<TR>'+toCol(['Process Variable','Port','CAN-Id','Card','Chan','Link','cid'],'TH')+'\n</TR>'
+        for (port,nid,cid,CARD,CHAN,LINK,pvname,filename) in table:
+            c = LINK.split(' ') # c=(@type dataType port in_cob out_cob mux ....)
 	    t = "In Cob: %d Out Cob: %d Mux: %d" % (int(c[4],16),int(c[5],16),int(c[6],16))
-	    LINK = '<DIV TITLE="'+t+'">'+LINK+'</DIV>'
-	    pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
-	    print >> FILE, "<TR>"+toCol([pvname,port,nid,CARD,CHAN,LINK,cid])+"\n</TR>"
-	print >> FILE, "</TABLE>\n"
+            LINK = '<DIV TITLE="'+t+'">'+LINK+'</DIV>'
+            pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
+            print >> FILE, "<TR>"+toCol([pvname,port,nid,CARD,CHAN,LINK,cid])+"\n</TR>"
+        print >> FILE, "</TABLE>\n"
 
     print >> FILE, "<H3>VME Devices</H3>\n\n"
-    (vmeList,otherList) = filterHardware(otherList,{'DTYP':['esd AIO16','ADA16','BESSY MuxV','Dyncon','EK IO32','ESRF MuxV','Highland DDG V85x','OMS MAXv','OMS VME58','Rfmux1366','TDU','V375','V680','VHQ','Vpdu']})
+    (vmeList,otherList) = lod.filterMatch(otherList,{'DTYP':['esd AIO16','ADA16','BESSY MuxV','Dyncon','EK IO32','ESRF MuxV','Highland DDG V85x','OMS MAXv','OMS VME58','Rfmux1366','TDU','V375','V680','VHQ','Vpdu']})
     order = ('DTYP','CARD','CHAN','pvname','LINK')
-    table = sortedHardwareToTable(vmeList,order)
+    table = lod.orderToTable(vmeList,order)
     if len(table) > 0:
-	print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Card','Chan','DTYP','Link'],'TH')+"\n</TR>"
-	for (DTYP,CARD,CHAN,pvname,LINK) in table:
-	    print >> FILE, "<TR>"+toCol([pvname,CARD,CHAN,DTYP,LINK])+"\n</TR>"
-	print >> FILE, "</TABLE>\n"
+        print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Card','Chan','DTYP','Link'],'TH')+"\n</TR>"
+        for (DTYP,CARD,CHAN,pvname,LINK) in table:
+            print >> FILE, "<TR>"+toCol([pvname,CARD,CHAN,DTYP,LINK])+"\n</TR>"
+        print >> FILE, "</TABLE>\n"
 
     print >> FILE, "<H3>Other Devices</H3>\n\n"
     order = ('LINK','pvname')
-    table = sortedHardwareToTable(otherList,order)
+    table = lod.orderToTable(otherList,order)
     if len(table) > 0:
-	print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Link'],'TH')+"\n</TR>"
-	for (link,pv) in table:
-	    print >> FILE, "<TR>"+toCol([pv,link])+"\n</TR>"
-	print >> FILE, "</TABLE>\n"
+        print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Link'],'TH')+"\n</TR>"
+        for (link,pv) in table:
+            print >> FILE, "<TR>"+toCol([pv,link])+"\n</TR>"
+        print >> FILE, "</TABLE>\n"
 
 print >> FILE, htmlFooter
 FILE.close()
