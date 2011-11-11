@@ -752,7 +752,7 @@ class Panels(object):
                 panelName = self.prePath+"/"+pn
             try :
                 PANEL_FILE = open(panelName,'w')
-                print "Creating file:",panelName
+#                print "Creating file:",panelName
             except IOError:
                 die("can't open panel file: "+panelName)
             p = self.panels[pn]
@@ -791,7 +791,7 @@ class epicsAlh(object):
         for filename in epicsAlh.getRoot():
             installFile = prePath+"/"+filename
             try :
-                print "  Creating file",installFile+".alh"
+#                print "  Creating file",installFile+".alh"
                 f = open(installFile+".alh",'w')
                 f.write(epicsAlh.printAllSubst(filename))
                 f.close()
