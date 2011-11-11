@@ -43,8 +43,8 @@
   use Options;
 
 Options::register(
-  ["nocontents", "c", "",      "leave out table-of-contents"],
-  ["verbose", "v", "",      "say what is done"],
+  ["nocontents", "c", "", "leave out table-of-contents"],
+  ["quiet", "q", "",      "output only warnings and errors"],
 );
 
 my $usage = "makeDocTxt.pl [OPTIONS] infile.txt [outfile.html]\n".
@@ -76,7 +76,7 @@ my $config = Options::parse($usage, 1);
     }
   } 
 
-  print "Create html from: '$inFileName' write '$outFileName'\n" if $config->{"verbose"};
+  print "Create html from: '$inFileName' write '$outFileName'\n" unless $config->{"quiet"};
   my $file;
   open(IN_FILE, "<$inFileName") or die "can't open input file $inFileName: $!";
   { local $/;

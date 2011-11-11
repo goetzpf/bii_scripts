@@ -27,13 +27,16 @@
 
 #     Usage: prel2txt.pl filename.pl
   use strict;
+  use Getopt::Long;
+  our $opt_q;
+  die unless GetOptions("q");
   my $inFileName = shift @ARGV;
 
 # for creation of outfile name with installpath from infile name
 #  my $installPath=".";
 #  if( @ARGV ){ $installPath = shift @ARGV;}
 
-  print "Create asci documentation text from: $inFileName \n";
+  print "Create asci documentation text from: $inFileName \n" unless $opt_q;
   chomp $inFileName;
   open(IN_FILE, "<$inFileName") or die "can't open input file $inFileName: $!";
 
