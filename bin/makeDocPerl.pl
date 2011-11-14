@@ -189,7 +189,7 @@
 #    $outFileName =~ s/(\w+)\.(\w+$)/$1.txt/;  # omit path
     $outFileName =~ s/(.*)\.\w+$/$1.txt/;     # with path
   } 
-  print "write $outFileName\n";
+  print "write $outFileName\n" unless $opt_q;
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
   print OUT_FILE $out_file;
   close OUT_FILE;
