@@ -46,19 +46,17 @@
   chomp $installPath;
   my $outFileName = $installPath."/index.html";
 
-  #print "Create index for path: \'$installPath\'\n";
-  my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime(time()); $mon +=1; $year+=1900;
-  my $filetime ="$mday.$mon.$year $hour:$min\'$sec";
-  my $files =  `find $installPath -name '*html'`;
-#  $files .=  `find $installPath -name *pdf`;
-  my @files = split(/\n/,$files);
-#print "FILES find $installPath -name *html: $files\n";
+  #find files, sort files and put files from docRoot to front of the list
+  my @files;
+  for my $file (sort(split('\n',`find $installPath -name '*html'`))) { 
+    $file =~ /$installPath\/(.*)/;
+    scalar(split('/',$1))==1?unshift(@files,$file):push(@files,$file);
+  }
+  
   my $docContens = "<UL>\n";
   my $isInApplication;
-  my $firstone=1;
 
-#  foreach my $entryFile (sort(keys(%allEntries)))
-  foreach my $entryFile (sort(@files))
+  foreach my $entryFile (@files)
   { 
 
     next if $entryFile eq $outFileName;
@@ -73,7 +71,7 @@
     }
     elsif( $entryFile =~ /(.*)\/.*$/) 
     {
-        $application = "$1";
+        $application = "";
     }
 
     if( $isInApplication ne $application)
@@ -92,14 +90,11 @@
 
       if($extension eq "html") # check for TITLE tag in html files
       {
-        open(ENTRY_FILE, "<$entryFile") or die "can't open output file: $entryFile: $!";
+	open(ENTRY_FILE, "<$entryFile") or die "can't open output file: $entryFile: $!";
   	{ local $/;
   	  undef $/;		# ignore /n as line delimiter
   	  my $parse = <ENTRY_FILE>;
-          if( /<TITLE>(.*)<\/TITLE>/i )
-          {
-            $title = $1;
-          }
+          $title = $1 if( $parse =~/<TITLE>(.*)<\/TITLE>/i );
   	}  
   	close ENTRY_FILE;
       }
@@ -114,7 +109,6 @@
   }
   $docContens .= "</UL>\n";
 
-
   if( not defined $indexTitle )	# if not allready set by argument
   {
     my $pwd = $ENV{'PWD'};
@@ -122,12 +116,10 @@
     $indexTitle = "Documentation Index of $pwd";
   }
 
+  my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime(time()); $mon +=1; $year+=1900;
+  my $filetime ="$mday.$mon.$year $hour:$min\'$sec";
   my ($fileHeader,$fileFooter) = makeDocStyle::blabla($indexTitle,$filetime,$ENV{USER});
 
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
-
-  print OUT_FILE $fileHeader;
-
-  print OUT_FILE $docContens;
-  print OUT_FILE $fileFooter;
+  print OUT_FILE $fileHeader,$docContens,$fileFooter;
   close OUT_FILE;
