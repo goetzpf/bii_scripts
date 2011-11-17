@@ -117,10 +117,10 @@ rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(RSYNC_HOST):'
 # programs ..................................................
 
 # the basename of the python binary:
-PYTHON25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "python2.5") || echo "python")
+PYTHON25:=$(shell python -V 2>&1 | ( grep -q " 2\.[567]" && echo python || ( python2.5 -V >/dev/null 2>&1 && echo "python2.5" || echo python )))
 
 # the basename of the pydoc utility:
-PYDOC25:=$(shell (python2.5 -V >/dev/null 2>&1 && echo "pydoc2.5") || echo "pydoc")
+PYDOC25:=$(shell python -V 2>&1 | ( grep -q " 2\.[567]" && echo pydoc || ( python2.5 -V >/dev/null 2>&1 && echo "pydoc2.5" || echo pydoc )))
 
 # the standard unix install command
 INSTALL=install $(INSTALL_FLAGS)
