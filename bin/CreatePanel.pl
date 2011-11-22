@@ -626,7 +626,7 @@ sub    layoutGrid
 	if ($spannedWidth <  $widgetWidth)   	    	    	# if spanned widget exceeds collumnwidth:
 	{
 	    $colMaxWidth[$x] += $widgetWidth - $spannedWidth;	# add it to the first element!
-	    print "\tset colMaxWidth[$x]=$colMaxWidth[$x]\n";
+	    print "\tset colMaxWidth[$x]=$colMaxWidth[$x]\n" if $opt_v == 1;
 	}
     }
 
