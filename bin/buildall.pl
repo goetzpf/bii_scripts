@@ -10,6 +10,9 @@ my $maxdepth = 3;
 my $include = '.*/\([0-9]+-\)+[0-9]+';
 my $exclude = '*/mba-templates/*';
 my $opt_clean = 0;
+my $opt_clean_only = 0;
+my $jobs = "";
+my $opt_list = 0;
 my $opt_dryrun = 0;
 my $opt_quiet = 0;
 my $opt_debug = 0;
@@ -28,14 +31,18 @@ Options are:
  -e --exclude=GLOB  Exclude paths matching this glob pattern
                     (default: $exclude)
  -c --clean         Make clean before building
+ -C --clean-only    Only make clean, don't build
+ -j --jobs[=NUM]    Number of jobs to run simultaneously
+ -l --list          List directories in dependency order
  -n --dryrun        Do nothing, just say what would be done
  -q --quiet         Don't say what is being done
  -d --debug         Output debug messages
- -h --help          Display this help message and exit
+ -h --help          Display this help message
 EOF
 }
 
 Getopt::Long::Configure ("bundling");
+Getopt::Long::Configure ("no_ignore_case");
 GetOptions(
   "s|startdir=s"  => \$startdir,
   "m|mindepth=i"  => \$mindepth,
@@ -43,6 +50,9 @@ GetOptions(
   "i|include=s"   => \$include,
   "e|exclude=s"   => \$exclude,
   "c|clean"       => \$opt_clean,
+  "C|clean-only"  => \$opt_clean_only,
+  "j|jobs:s"      => \$jobs,
+  "l|list"        => \$opt_list,
   "n|dryrun"      => \$opt_dryrun,
   "q|quiet"       => \$opt_quiet,
   "d|debug"       => \$opt_debug,
@@ -50,6 +60,12 @@ GetOptions(
 ) or HELP_MESSAGE() && exit 2;
 
 HELP_MESSAGE() && exit 0 if ($opt_help);
+
+if (defined $jobs and $jobs > 0 || $jobs eq "" ) {
+  $jobs = "j$jobs";
+} else {
+  $jobs = "";
+}
 
 my $find_cmd = "find $startdir -mindepth '$mindepth' -maxdepth '$maxdepth' "
              . "-regex '$include' -not -path '$exclude' -type d";
@@ -73,7 +89,6 @@ foreach my $top (@tops) {
   readReleaseFiles($relfile, \%macros, \@apps, undef);
   expandRelease(\%macros, \@apps);
 
-  delete $macros{RULES};
   delete $macros{TOP};
   delete $macros{TEMPLATE_TOP};
   delete $macros{SUPPORT};
@@ -108,17 +123,22 @@ sub make {
     foreach my $dep (sort(keys(%$topdeps))) {
         make($dep);
     }
-    my $cmd = "make -sj -C $top";
+    my $cmd = "make -s$jobs -C $top";
     if ($opt_clean) {
-      $cmd = "make -s -C $top distclean && $cmd";
+      $cmd = "make -s$jobs -C $top distclean && $cmd";
     }
-    if ($opt_dryrun) {
+    if ($opt_clean_only) {
+      $cmd = "make -s$jobs -C $top distclean";
+    }
+    if ($opt_list) {
+      print "$top\n";
+    } elsif ($opt_dryrun) {
       print "$cmd\n";
     } else {
-      print "building $top..." if not $opt_quiet;
+      print "building $top ..." if not $opt_quiet;
       system($cmd);
       die unless $? == 0;
-      print "done\n" if not $opt_quiet;
+      print " done\n" if not $opt_quiet;
     }
     $done{$top} = 1;
   }
