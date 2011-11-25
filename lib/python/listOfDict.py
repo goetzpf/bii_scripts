@@ -108,6 +108,33 @@ def filterAllValuesRegExp(dList,mStr,flags=0):
     	    filteredOut.append(dic)
     return (filtered,filteredOut)
 
+def filterValueRange(dList,key,fromPar,toPar):
+    """
+    Test all items for the value of 'key' to be in range of 'value' >= 'fromPar', 'value' <='toPar'. 
+    - 
+    - Split list to matched and filtered out lists.
+
+    Parameter:
+        dList: list of dictionary items
+        fromPar, toPar :  comparable types like int/int, string/string or 'None'
+
+    Return: tupel of the lists: (filterd, filteredOut)
+    """
+    filtered = []
+    filteredOut = []
+    for dic in dList:
+	value = dic[key]
+	try:
+	    if fromPar and value <  fromPar :
+        	raise ValueError
+	    if toPar and value >  toPar :
+        	raise ValueError
+	except ValueError:
+    	    filteredOut.append(dic)
+   	else:
+    	    filtered.append(dic)
+    return (filtered,filteredOut)
+
 def getAllKeys(dList):
     """ Find all keys that occur in a list of dict.
         Return: a dict of {key:index,..} so each key has an idividula index number
