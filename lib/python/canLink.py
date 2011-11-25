@@ -14,11 +14,13 @@ or copied without permission from HZB.
 Implemented Functions:
 =====================
 
-def warn(x):  print x
+def warn(x):  raise ValueError
 def decode (linkStr):
 def calc_cidnidsob(linkParams):
 def cob2cidnid(cob):
 def cob2sobnid(cob):
+
+* Warnings are thrown as 'ValueError'
 
 The property hash
 =================
@@ -174,7 +176,7 @@ type_list= {  'a': {"type": 'string',"raw": 0,"signed": 0,"array": 0 },
 
 #print char_list,type_list
 
-def warn(x):  print x
+def warn(x):  raise ValueError(x)
 
 def key_from_hash_val(linkParams):
 # needed for package initialization:
@@ -285,7 +287,7 @@ def decode (linkStr):
 
     for (item,itemName) in zip(linkItems[2:],['maxlength','port','out_cob','in_cob','multiplexor','inhibit','timeout','arraysize']):
         if eU.matchRe(item,"^[0-9a-fA-F]+") is None:
-            warn("decode(): error in field no "+str(i)+", not a hex-number, link: "+linkStr)
+            warn("decode(): error in field no "+str(item)+", not a hex-number, link: "+linkStr)
             return None
     	else:
     	    result[itemName] = int(item,16)
