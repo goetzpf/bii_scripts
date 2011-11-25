@@ -119,13 +119,13 @@ def substRe(matchStr,matchRe,replaceStr,flags=0):
     regx = re.compile(matchRe,flags)
     return regx.sub(replaceStr,matchStr)
 
-def substituteVariables(sString,substDict):
     """
     Substitute all variables of type '$(VAR)' with the value of substDict,
     if there is an entry for the tag 'VAR'.
     """
+def substituteVariables(sString,substDict):
     for name in substDict.keys():
-        sString=substRe(sString,"\$\{"+name+"\}",substDict[name])
+	sString = sString.replace(r"${"+name+"}",substDict[name])
     return sString
 
 def parseStCmd(stCmdLine):
