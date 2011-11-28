@@ -110,8 +110,8 @@ def filterAllValuesRegExp(dList,mStr,flags=0):
 
 def filterValueRange(dList,key,fromPar,toPar):
     """
-    Test all items for the value of 'key' to be in range of 'value' >= 'fromPar', 'value' <='toPar'. 
-    - 
+    Test all items for the value of 'key' to be in range of 'value' >= 'fromPar', 'value' <='toPar'.
+    -
     - Split list to matched and filtered out lists.
 
     Parameter:
@@ -251,3 +251,15 @@ def sortToTable(dList):
     order = sorted(keyDictIdx.keys())
     return orderToTable(dList,order),order
 
+def isCopy(aDict,bDict)
+    """ Compare two dictionaries, return 'True' if identical values for all keys
+    """
+    aKeys = sorted(a.keys())
+    bKeys = sorted(b.keys())
+
+    if len(aKeys) != len(bKeys(): return False
+    for (a,b) in zip(aKeys,bKeys):
+        if a != b: return False
+    for a in aKeys:
+        if aDict(a) != bDict(a): return False
+    return True
