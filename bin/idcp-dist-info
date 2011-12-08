@@ -9,7 +9,7 @@ function print_short_help {
     echo "options:"
     echo "  -h: this help"
     echo "  -H: this text PLUS the help from rsync-dist-info.py"
-    echo "  -id [ID] : filter for this insertion device"
+    echo "  --id [ID] : filter for this insertion device"
     echo "  --ids : filter for all ID's that are installed and use"
     echo "      the rsync-dist.pl (Ue56/2 is not in this list)"
     echo "  --id-list : show the known insertion devices and their idcp-name"
@@ -51,7 +51,7 @@ U49/2:15\n
 U49ID8R:15\n
 '
 
-installed_ids="^idcp(3|7|8|9|10|11|12|13|15|110)$"
+installed_ids="^idcp(3|5|7|8|9|10|11|12|13|15|110)$"
 
 function list_ids {
     tags=`echo "$IDs" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
