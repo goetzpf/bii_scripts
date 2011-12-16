@@ -308,7 +308,13 @@ proc Exec {sql {mode plain}} {
   global OutputLocation ntables HistSize OutputBufferSize
   global ResultArr$ntables Sql
   set As [concat $Aliases $sysAliases]
-  set Sql [string trim $sql]
+    set nsql {}
+    foreach line [split $sql "\n"] {
+        regsub -all -- "-- .*" $line "" line
+        lappend nsql $line
+    }
+    set nsql [join $nsql "\n"]
+  set Sql [string trim $nsql]
   if {!$Silent} {
     ### substitute all "<<>>" by current selection
     if {"$mode" != "substitute"} {
