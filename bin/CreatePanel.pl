@@ -93,6 +93,35 @@
     $|=1;   # print unbuffred
 
     our($opt_v,$opt_i,$opt_x,$opt_y,$opt_M,$opt_q) = (0, undef, 100, 100, "", 0);
+    my %db2widget = ('aai' => undef,   # used for layout dbDbg to set a widget for a record type 
+        'aao' => undef,	    	    # unsuported record types are set to undef
+        'ai' => 'ai',
+        'ao' => 'ao',
+        'bi' => 'mbbo',
+        'bo' => 'mbbo',
+        'calc' => 'ai',
+        'calcout' => 'ai',
+        'compress' => undef,
+        'dfanout' => undef,
+        'event' => undef,
+        'fanout' => undef,
+        'histogram' => undef,
+        'hwlowcal' => undef,
+        'longin' => 'ao',
+        'longout' => 'ao',
+        'mbbiDirect' => 'mbiDirect',
+        'mbbi' => 'mbbo',
+        'mbboDirect' => 'ao',
+        'mbbo' => 'mbbo',
+        'permissive' => undef,
+        'sel' => 'ai',
+        'seq' => undef,
+        'state' => undef,
+        'stringin' => 'stringin',
+        'stringout' => 'stringin',
+        'subArray' => undef,
+        'sub' => undef,
+        'waveform' => undef);
     my $type = "edl";
     my $title;
     my $layout;
@@ -178,8 +207,8 @@
 
     $inFileName =~ /\.(\w+)\s*$/;
     my $fileType = $1;
-    if($fileType eq 'db' || $fileType eq 'template' ) {
-    	$layout = 'dbDbg';
+    if( $fileType eq 'db' || $fileType eq 'template' ) {
+    	$layout = 'dbDbgMin';
     	$r_substData = parse_db::parse($file,$inFileName,'asArray');
     }
     else {
@@ -206,6 +235,10 @@
     elsif($layout eq "dbDbg")
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutDbDbg($r_substData,\%options);
+    }
+    elsif($layout eq "dbDbgMin")
+    {
+        ($printEdl,$panelWidth, $panelHeight) = layoutDbDbgMin($r_substData,\%options);
     }
     elsif($layout eq "lineRaw")
     {
@@ -733,6 +766,63 @@ sub   layoutDbDbg
     return ($prEdl,$panelWidth, $yPos+$colMaxHight);
 }
 
+sub   layoutDbDbgMin
+{   my($r_db,$rH_Subst)=@_;
+
+    my $panelWidth = $rH_Subst->{PANELWIDTH};
+    my $prEdl;
+    my $panelHeight;
+    my ($recHeadContent, $widgetWidth, $recHeadHight) = getDisplay('recHeadMin.edl');
+#print "layoutDbDbg(r_db,$panelWidth,subst), $recHeadHight, $itemHight attr=", Dumper($rH_Subst);
+
+    # avoid fields from recHead
+    my %recHeadkey= ( 'NAME'=>1,'STAT'=>1,'VAL'=>1,'DESC'=>1,'DTYP'=>1,'RTYP'=>1,'DISV'=>1,'TRPO'=>1,'UDF'=>1);	
+
+#    $widgetWidth = $itemWidth if $itemWidth > $widgetWidth;
+    my $colHight;
+    my $colMaxHight;
+    my $xPos=0;
+    my $yPos=0;
+    foreach (@$r_db)
+    {
+    	my $recName = $_->{NAME};
+    	my $recType = $_->{TYPE};
+	$recName = parseVars($recName,$rH_Subst);
+	my $rA_fields = $_->{ORDERDFIELDS};
+	$rH_Subst->{DEVNAME} = $recName;
+
+	my $edl = setWidget($recHeadContent,$widgetWidth,$recHeadHight,$rH_Subst,undef,$xPos,$yPos);
+	die "Error setWidget($recHeadContent,$widgetWidth,$recHeadHight,rH_Subst,undef,$xPos,$yPos)" unless defined $edl;
+	$prEdl .= "$edl" if defined $edl;
+	
+	$colHight = $recHeadHight;
+	
+	my $widget = $db2widget{$recType};
+	my $itemContent;
+	my $itemWidth;
+	my $itemHight;
+#print " record: $recName, widget: $widget\n";#,Dumper($_);
+	if( defined $widget) {
+    	    ($itemContent, $itemWidth, $itemHight) = getDisplay($widget.".edl");
+	    $rH_Subst->{PV} = $rH_Subst->{DEVNAME};
+	    my $edl = setWidget($itemContent,$widgetWidth,$itemHight,$rH_Subst,undef,$xPos,$yPos+$colHight);
+	    die "Error setWidget($recHeadContent,$widgetWidth,$recHeadHight,rH_Subst,undef,$xPos,$yPos+$colHight)" unless defined $edl;
+	    $prEdl .= "$edl" if defined $edl;
+	}
+
+	$colHight += $itemHight;
+	$colMaxHight = $colHight if $colHight > $colMaxHight;
+	$xPos += $widgetWidth;
+	if($xPos + $widgetWidth > $panelWidth)
+	{
+	    $xPos = 0;
+	    $yPos += $colMaxHight;
+	    $colMaxHight = 0;
+	}
+    }
+    return ($prEdl,$panelWidth, $yPos+$colMaxHight);
+}
+
 ## The edl templates are searched in the search paths as defined by the -I options
 # 
 sub   getTemplate
@@ -1040,7 +1130,7 @@ sub   setWidget
 	$xScale,    	    # scaling factor use to scale each elements x-position (edl only)
 	$xPos,$yPos) = @_;  # Pixel Pos to place the widget
 
-#print "setWidget(parse,$xDispWIDTH,$yDispSize,rH_Attr, $xScale,$xPos,$yPos)\n";
+#print "setWidget(parse,$xDispWIDTH,$yDispSize,rH_Attr, $xScale,$xPos,$yPos)\n",Dumper($rH_Attr);
     my $edl;
     if($type eq 'adl')
     {
