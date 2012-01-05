@@ -92,7 +92,7 @@ _p["psdnum"]= "[0-9]*"
 
 _p["pdom_global"]= "CGLRV"
 _p["pdom_B"]= _p["pdom_global"] + "BIMST"
-_p["pdom_F"]= _p["pdom_global"] + "DEHLS"
+_p["pdom_F"]= _p["pdom_global"] + "DEIHLRS"
 _p["pdom_P"]= _p["pdom_global"] + "TM"
 
 _p["pfac"] = "FP"

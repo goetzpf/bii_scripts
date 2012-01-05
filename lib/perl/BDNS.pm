@@ -103,7 +103,7 @@ my $psdnum = "[0-9]*";
 our %pdom;
 $pdom{global} = "CGLRV";
 $pdom{B} = $pdom{global} . "BIMST";
-$pdom{F} = $pdom{global} . "DEHLS";
+$pdom{F} = $pdom{global} . "DEIHLRS";
 $pdom{P} = $pdom{global} . "TM";
 
 our $pfac;
