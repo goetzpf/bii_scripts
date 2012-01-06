@@ -1,4 +1,4 @@
-f===========
+===========
 bii_scripts
 ===========
 
@@ -271,12 +271,6 @@ Scripts
     working copy with a mercurial repository or compare files of different 
     versions in the mercurial repository.
   | `documentation <scripts/hg-kompare.html>`__
-
-**hgdiff.py**
-  | A program to do a graphical comparision of files or directory trees in a 
-    working copy with a mercurial repository or compare files of different 
-    versions in the mercurial repository.
-  | `documentation <scripts/hgdiff.html>`__
 
 **hgen.pl**
   | a header-generator for c and c++.
