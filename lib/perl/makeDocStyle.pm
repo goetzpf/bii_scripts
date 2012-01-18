@@ -50,7 +50,7 @@ sub blabla
     "<HTML>\n".
     "<HEAD>\n".
     "	<TITLE>$title</TITLE>\n".$user_html.$filetime_html.
-    "   <link rel=stylesheet type=\"text/css\" href=\"http://www-csr.bessy.de/~kuner/makeDocs/docStyle.css\">\n".
+    "   <link rel=stylesheet type=\"text/css\" href=\"http://www-old.bessy.de/~kuner/makeDocs/docStyle.css\">\n".
     "</HEAD>\n".
     "<BODY>\n".
     "<H1>$title</H1>\n".
