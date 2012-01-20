@@ -22,6 +22,21 @@ then
   shift; shift
 fi
 
-cp=($rootdir/$vsn/VisualDCT.jar $rootdir/plugins/*.jar)
+if [ "$1" = "-v3" ]
+then
+    shift
+    root=/opt/Epics/VisualDCT/3-0-b
+    cfgdir=~/.vdct3
 
-exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -cp ${(j.:.)cp} com.cosylab.vdct.VisualDCT "$@"
+    [[ -d $cfgdir ]] || cp -a $root/config $cfgdir
+
+    export JAVA_HOME=/opt/OPI/jdk1.6.0_27
+    PATH=$JAVA_HOME/bin:$PATH
+
+    exec java -jar $root/vdct_3-0-b.jar -config $cfgdir/db "$@"
+else
+
+    cp=($rootdir/$vsn/VisualDCT.jar $rootdir/plugins/*.jar)
+
+    exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH  -cp ${(j.:.)cp} com.cosylab.vdct.VisualDCT "$@"
+fi
