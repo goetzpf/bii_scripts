@@ -12,11 +12,13 @@ parser = OptionParser(usage="%prog [options] PV [PV ...]",
 
 parser.set_defaults(start="-1d")
 parser.set_defaults(end="now")
+parser.set_defaults(at=None)
 parser.set_defaults(glob=False)
 parser.set_defaults(regexp=False)
 
 parser.add_option("--start", action="store", type="string", help="start time of query (default: '-1d')", dest="start")
-parser.add_option("--end", action="store", type="string", help="end time of query   (default: 'now')",   dest="end")
+parser.add_option("--end",   action="store", type="string", help="end time of query   (default: 'now')",   dest="end")
+parser.add_option("--at",    action="store", type="string", help="start and end time of query (default: '-1d')", dest="at")
 parser.add_option("--glob", action="store_true", help="PV (only one allowed) is a glob-pattern", dest="glob")
 parser.add_option("--re", action="store_true", help="PV (only one allowed) is a regexp", dest="regexp")
 
@@ -27,8 +29,13 @@ if len(args) == 0:
     sys.exit(0)
 
 bii="http://archiver.bessy.de/cgi/CGIExport.cgi?INDEX=/opt/Archive/master_index&COMMAND=camonitor"
+bii2="http://archiver.bessy.de/cgi/CGIExport.cgi?INDEX=/opt/Archive/master_index_09_10&COMMAND=camonitor"
 mls="http://archiver.bessy.de/MLS/cgi/CGIExport.cgi?INDEX=/opt/Archive/master_index&COMMAND=camonitor"
 hobi="http://archiver.bessy.de/cgi/CGIExport.cgi?INDEX=/opt/Archive/hobicat/master_index&COMMAND=camonitor"
+
+if options.at is not None:
+    options.start=options.at
+    options.end=options.at
 
 spec="&STRSTART=1&STARTSTR=%s&STREND=1&ENDSTR=%s" % (options.start, options.end)
 
@@ -39,4 +46,4 @@ if (options.regexp or options.glob):
 else:
     spec+="&NAMES=%s" % "+".join(args)
 
-os.system("(wget -q -O - \"%s%s\"; wget -q -O - \"%s%s\"; wget -q -O - \"%s%s\") | egrep -v -e '(Gnuplot|0000-00-00)' -e '^$' | sort -b -k 2,3" % (bii,spec,mls,spec,hobi,spec))
+os.system("(wget -q -O - \"%s%s\"; wget -q -O - \"%s%s\"; wget -q -O - \"%s%s\"; wget -q -O - \"%s%s\") | egrep -v -e '(Gnuplot|0000-00-00)' -e '^$' | sort -b -k 2,3" % (bii,spec,bii2,spec,mls,spec,hobi,spec))
