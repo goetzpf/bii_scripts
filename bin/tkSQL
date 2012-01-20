@@ -340,7 +340,7 @@ proc Exec {sql {mode plain}} {
     return
   }
 
-  set merkSql $Sql
+    set merkSql [string trim $sql]
 
   set xprs [Split $Sql]
   if {[llength $xprs] > 1} {
