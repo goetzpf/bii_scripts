@@ -9,7 +9,7 @@
  -h: this help
  -t: column separator []
  -n: device name [\(DEVICE)]
- -p: create 'CreatePanel.pl' data for all signal service panel
+ -p: create 'CreatePanel.pl' data for all devObj.signal service panel
  -d: db file name
  -l: alarm handler config file
  -a: archiver config file name
@@ -27,6 +27,7 @@ import csv
 import BDNS
 import os.path
 import epicsUtils
+import csv2epicsFuncs
 
 my_version = "1.0"
 
@@ -56,265 +57,6 @@ class docList(object):
     def setTitle(h):
     	docList.title = h
 
-def getDisplayLimits(rangeEng,egu,signal=None,lines=None):
-    eng = epicsUtils.matchRe(rangeEng,"([-+\d][\d\.eE]*)\s*\-\s*([-+\d][\d\.eE]*)*")
-    if eng == None or len(eng) != 2:
-    	epicsUtils.die("Need range Eng. for signal "+signal,lines)
-    return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
-    
-def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=None):
-    """
-    Create limits for analog type records
-
-    - If 'rangeRaw' is defined: Create konversion parameters 
-    - rangeAlhVal has to be in order with rangeAlhSevr to define alarm ranges and severities
-      rangeAlhVal can be followed by arbitrary additional fields to be set for records, so the 
-      rangeAlhVal fields have to be  set outside this function
-    """
-#    print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
-#    if lines is None: print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
-
-    (lopr,hopr) = epicsUtils.matchRe(rangeEng,"\s*(.*)\s*\-\s*(.*)\s*")
-    lopr = float(lopr)
-    hopr = float(hopr)
-    dtype = ""	    # for CAN data - s=short, S=unsigned short
-    field = {}
-    if rangeAlhVal != "":
-	aFields=epicsUtils.parseParam(rangeAlhVal)
-	field.update(aFields)
-	
-	limitVals = rangeAlhVal.split("|")  	# ATTENTION: preserve the order of alarm and severity fields
-	limitSevr = rangeAlhSevr.split("|")
-	if len(limitSevr[0]) > 0:   # means not empty severities
-	    for (v,s) in zip(limitVals,limitSevr):  
-		(valName,val)     = v.split("=")
-		if valName   == 'LOLO': field['LLSV'] = s
-		elif valName == 'LOW':  field['LSV']  = s
-		elif valName == 'HIGH': field['HSV']  = s
-		elif valName == 'HIHI': field['HHSV'] = s
-		else: epicsUtils.die("Illegal Alarm value '"+valName+"' in signal: "+signal,lines)
-    
-    raw = epicsUtils.matchRe(rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
-#    if lines is None: print lopr, hopr, raw
-    if raw is not None:
-	lraw=float(raw[0])
-	hraw=float(raw[1])
-	egul  = 0.0
-	eguf  = 0.0
-	slope = 0.0
-	off   = 0.0
-	hyst  = 0.0
-	full  = 0.0
-	minVal=0
-    	convert = 'SLOPE'   # LINEAR not supported yet
-	
-    #  die "CAN data type is unsigned short, so only positive limits supported" if( lopr is not 0 || lraw is not 0 )
-
-	if  (hopr != 0) and ( hraw != 0 ):
-      	    if (lraw < 0) or (hraw < 0 ):         # signed value
-		dtype = "s"
-		full = 32767
-		minVal = -32767
-    	    else:                                 # unsigned
-		dtype = "S"
-		full = 65535
-	    if convert == "LINEAR":
-		egul = lopr - slope * (lraw-minVal)
-		eguf = egul + slope * 65535
-		field['LINR'] = 'LINEAR'
-		field['EGUL'] = egul
-		field['EGUF'] = eguf
-	    elif convert == "SLOPE":
-		slope = (hopr - lopr) / (hraw - lraw)
-		off  = hopr - slope * hraw
-		field['LINR'] = 'SLOPE'
-		field['ESLO'] = slope
-		field['EOFF'] = off
-	    prec =  int(math.log(float(hopr)/10000)/math.log(10.0))
-    #ORGINAL: prec = ( ( prec >= 0 ) ? 0 : -prec ) + 1
-	    if prec < 0 : 
-		prec = (-1 * prec)+1
-	    else:
-		prec = 0
-	    hyst = hopr / hraw * 0.99
-	    field['PREC'] = prec
-	    field['HYST'] = hyst
-	    field['ADEL'] = hyst
-	    field['MDEL'] = hyst
-	else:
-      	    epicsUtils.die("Raw/engineering limit mismatch (raw: hraw / eng: hopr)",lines)
-#    if lines is None: print field
-    return (field,dtype)
-
-def getBinaryAttributes(rangeEng,rangeRaw,fields,fileName,lines):
-
-    rangeENG = []
-    rangeRAW = []
-    rangeALH = []
-    r = rangeEng.split("|")
-    if isinstance(r,list) is True and len(r)>1:
-	rangeENG = map(lambda x: x.strip(),r)
-	rangeLen = len(r)
-	r = rangeRaw.split("|")
-	if isinstance(r,list) is True and len(r) == rangeLen:
-	    rangeRAW = map(lambda x: x.strip(),r)
-	else:
-	    warnings.append([fileName,lines,"Skip: ",devName,"Illegal rangeRaw (Col: I): \'"+rangeRaw+"\'"])
-	    raise ValueError
-	r = rangeAlhSevr.split("|")
-	if isinstance(r,list) is True and r[0] != '':	# No alarms is ok, but..
-	    if len(r) == rangeLen:
-		rangeALH =  map(lambda x: x.strip(),r)
-	    else:
-		warnings.append([fileName,lines,"Skip: ",devName,"Illegal length of rangeAlh (Col: L): \'"+rangeAlhSevr+"\'"])
-	    	raise ValueError
-	else:  	    	    	    	    	    	# .. fake a NO_ALARM range
-	    rangeALH = map(lambda x: "NO_ALARM",range(rangeLen))
-    else:
-	warnings.append([fileName,lines,"Skip: ",devName,"Illegal rangeEng (Col: J): \'"+rangeEng+"\'"])
-    return (rangeENG,rangeRAW,rangeALH)
-
-def createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines):
-#    print "createAnalogRecord",rtype,devName,signal,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr
-    fields.update(getDisplayLimits(rangeEng,egu,signal,lines))
-    (limitParams,dtype) = createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,devName+":"+signal,lines)
-    fields.update(limitParams)
-    epicsUtils.epicsTemplate(rtype,{'DEVN':devName},fields)
-    
-def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
-    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(rangeEng,rangeRaw,fields,fileName,lines)
-
-    # set name and severitie fields
-    idx=0
-    if rtype == 'bi':
-	rtype = 'mbbi'	# no use of mbbiDirect so bits by longin and mbbi SHFT
-	fields['DTYP'] = "Raw Soft Channel"
-    	fields['NOBT'] = '1'
-	for state in ["ZR", "ON"]:
-	    if epicsUtils.hasIndex(rangeENG,idx) is False:
-		break
-            namStr = rangeENG[idx]
-	    l = len(namStr)
-	    if l > 19:
-		d = namStr[0:19] +" | " + namStr[19:l]
-		namStr = namStr[0:19]
-		warnings.append([fileName,lines,"Truncate bi/bo string",devName,d])
-	    fields[state+"ST"]=namStr
-	    fields[state+"VL"]=idx
-	    if epicsUtils.hasIndex(rangeALH,idx) is True:
-		if rangeALH[idx] != '' and rangeALH[idx] != 'NO_ALARM':
-		    fields[state+"SV"]=rangeALH[idx]
-            idx += 1
-    else:    	
-	for state in ["Z", "O"]:
-	    if epicsUtils.hasIndex(rangeENG,idx) is None:
-		break
-            namStr = rangeENG[idx]
-	    l = len(namStr)
-	    if l > 19:
-		d = namStr[0:19] +" | " + namStr[19:l]
-		namStr = namStr[0:19]
-		warnings.append([fileName,lines,"Truncate bi/bo string",devName,d])
-	    fields[state+"NAM"]=namStr
-	    if epicsUtils.hasIndex(rangeALH,idx) is True:
-		if rangeALH[idx] != '' and rangeALH[idx] != 'NO_ALARM':
-		    fields[state+"SV"]=rangeALH[idx]
-            idx += 1
-    epicsUtils.epicsTemplate(rtype,{'DEVN':devName},fields)
-    return alias_extra
-
-    
-def createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
-    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(rangeEng,rangeRaw,fields,fileName,lines)
-    tooLong = False
-
-    pvName = devName+":"+signal
-    if len(rangeENG) > 16 :
-	warnings.append([fileName,lines,"Truncate mbb modes"+pvName+" "+str(len(rangeENG))+", max=16"])
-
-    idx = 0
-    for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
-	if epicsUtils.hasIndex(rangeENG,idx) is True:
-	    if len(rangeENG[idx]) > 15 :
-		tooLong=True
-	else:
-	    break
-        idx += 1
-
-    if (tooLong == False) or (rtype == "mbbo") :
-        dbRec = epicsUtils.epicsTemplate(rtype,{'DEVN':devName},fields)
-        idx=0
-        for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"] :
-            if epicsUtils.hasIndex(rangeENG,idx) is False:
-		break   # rangeENG[index]
-
-	    namStr = rangeENG[idx]
-	    if len(namStr) > 15:
-		d = namStr[0:15] +" | " + namStr[15:l]
-		namStr = namStr[0:15]
-		warnings.append([fileName,lines,"Truncate mbb string",pvName,d])
-            dbRec.field[state+"ST"]=namStr
-            dbRec.field[state+"VL"]=rangeRAW[idx]
-	    if epicsUtils.hasIndex(rangeALH,idx) is True:
-		dbRec.field[state+"SV"]=rangeALH[idx]
-
-            idx +=1 
-    else:   # mbbi with long string names: each string gets a stringout !
-        fields['SNAME'] = fields['SNAME']+'Raw'
-	dbRec = epicsUtils.epicsTemplate(rtype,{'DEVN':devName},fields)
-        idx=0
-        stringOuts = ""
-        seq = epicsUtils.epicsTemplate('seq',{'DEVN':devName},{'SNAME':signal+"S1",
-		'SELM':"Specified", 
-		'SELL':pvName+"C1 CP NMS",
-		'SDIS':fields['SDIS'],'DISS':fields['DISS']
-		})
-	seqNr=1
-        for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
-            if epicsUtils.hasIndex(rangeENG,idx) is False:
-		  break
-            #d = substr(rangeENG[idx],0, 15) ." | " .substr(rangeENG[idx],15, length(rangeENG[idx]) )
-            #push @warnings, [fileName,lines,"Truncate mbb string",pvName,d] if ( length(rangeENG[idx]) > 15 )
-            if idx == 9 :
-        	seq2 = epicsUtils.epicsTemplate('seq',{'DEVN':devName},{'SNAME':signal+"S2",
-		    	'SELM':"Specified", 
-			'SELL':pvName+"C2 CP NMS",
-			'SDIS':fields['SDIS'],'DISS':fields['DISS']
-			})
-		seqNr=2
-	    if seqNr==1:
-		seq.field["LNK"+str(idx+1)]   = pvName+"St"+str(idx)+".PROC PP NMS"
-	    else:
-		seq2.field["LNK"+str(idx%9+1)] =  pvName+"St"+str(idx)+".PROC PP NMS"
-            if (epicsUtils.hasIndex(rangeRAW,idx) is True) and (rangeRAW[idx] != '0'):
-		dbRec.field[state+"VL"] = rangeRAW[idx]
-	    	if epicsUtils.hasIndex(rangeALH,idx) is True:
-		    dbRec.field[state+"SV"] = rangeALH[idx]
-            eng = rangeENG[idx]
-	    l = len(eng)
-	    if l > 39:
-		d = eng[0:39]+" | "+ eng[40:l]
-		eng = eng[0:39]
-		warnings.append([fileName,lines,"Truncate mbb string",pvName,d])
-            epicsUtils.epicsTemplate('stringout',{'DEVN':devName},{'SNAME':signal+"St"+str(idx),
-        	    		    'VAL':eng,
-        			    'OUT':pvName+" PP NMS",
-				    'SDIS':fields['SDIS'],'DISS':fields['DISS']})
-	    idx += 1
-
-    	epicsUtils.epicsTemplate('calc',{'DEVN':devName},{'SNAME':signal+"C1",
-        		      'CALC': "(A<9)?A+1:0",
-        		      'INPA': pvName+"Raw CP NMS",
-			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
-        epicsUtils.epicsTemplate('calc', {'DEVN':devName},{'SNAME':signal+"C2",
-        		      'CALC': "(A>=9)?A-8:0",
-        		      'INPA': pvName+"Raw CP NMS",
-			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
-	epicsUtils.epicsTemplate('stringin', {'DEVN':devName},{'SNAME':signal,
-        		      'DESC': DESC,
-        		      'SIML': pvName+"Raw.SIMM NPP MS",
-			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
-
 #******************************* Main program *******************************
 
 separator    =','
@@ -338,7 +80,7 @@ parser.add_option("-v","--verbose",
     		 )
 parser.add_option("-p","--panel",
 		 action="store_true",
-		 help="create 'CreatePanel.pl' data for Items that define EPICS PanelName (col. T, )", 
+		 help="create 'CreatePanel.pl' data for Items that define EPICS devObj.panelName (col. T, )", 
     		 )
 parser.add_option("-t","--separator", 
 		 action="store",
@@ -405,7 +147,6 @@ parser.add_option("--desc-len",
     		 )
 
 (options, args) = parser.parse_args()
-canport = ""
 canOption = ""
 if options.separator    is not None: separator    = options.separator
 if options.can   	is not None: canOption	  = options.can
@@ -450,7 +191,7 @@ else:
 if canOption == 'opc':
     docList(["Device Name","BESSY Signalname","PLC Name","Bits","Description","Typ\n----+-----"])
 else:
-    docList(["Device Name","BESSY Signalname","CAN-Port","CAN-Id","CardNr","Channel / Bits","Description","Typ\n----+-----"])
+    docList(["Device Name","BESSY Signalname","CAN-Port","CAN-Id","devObj.cardNr","Channel / Bits","Description","Typ\n----+-----"])
 docList.setTitle( str(epicsUtils.matchRe(output_db,"(?:.*/|)(.*)\.\w+$")[0])+" Devices" )
 
 types = { "db"  : [output_db, None],
@@ -490,74 +231,14 @@ for argument in args:
 	    if lines <= 1: # is header
 	    	continue
 
-	    try: dev        = device[0].strip() # A  devicname
-	    except IndexError: dev = ""
-	    try: rtype      = device[1].strip() # B  record-, template type
-	    except IndexError: rtype = ""
-	    try: signal     = device[2].strip() # C  BESSY Signalname
-	    except IndexError: signal = ""
-	    if canOption == 'opc':
-		try: PLCLink    = device[3].strip() # D  SPS Symbolname (else CAN-Id / VME DTYP)
-		except IndexError: PLCLink = ""
-		try: DBLink     = device[4].strip()  # E  CAN-Id / Siemens DataType
-		except IndexError: DBLink = ""
-		try: dataType   = device[5].strip()  # F  Card-Nr / Siemens Access rights
-		except IndexError: dataType = ""
-	    else:
-		try: 
-		    canport    = int(str(device[3]).strip()) # D  CAN-Port / SPS Symbolname
-	    	except IndexError: pass
-		except ValueError: 
-		    try:
-		    	canport = int(canOption)
-		    except ValueError:
-		    	if len(device[3]) != 0:
-		    	    epicsUtils.die("ERROR: illegal argument -can: '"+str(device[3])+"' assumed here to be empty or a can port number",lines)
-		    				
-		try: canId     = device[4].strip()  # E  CAN-Id / VME DTYP (else SPS Symbolname)
-		except IndexError: DBLink = ""
-		try: cardNr    = device[5].strip()  # F  Card-Nr / Siemens Access rights
-		except IndexError: dataType = ""
-	    try: chan       = device[6].strip()  # G  binary: Inputbits bi/bo: nr, mbbi/o start-stop: e.g. 5-7 -> SHFT=5, NOBT=3 
-	    except IndexError: chan = ""
-	    try: rangeRaw   = device[7].strip()  # H  Datenbereich Rohdaten binary: '2|15|33', ai: '0-65535'
-	    except IndexError: rangeRaw = ""
-	    try: rangeEng   = device[8].strip()  # I  Datenbereich ENG     binary Named:'True|False|Invalid', anlog:' 0-100'
-	    except IndexError: rangeEng = ""
-    	    try: egu        = device[9].strip()  # J  Engeneering unit 
-	    except IndexError: egu = ""
-	    egu = egu.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
-	    try: rangeAlhVal= device[10].strip() # K  BESSY Alarm-Werte     anlog: LOLO=-5|HIGH=12
-	    except IndexError: rangeAlhVal = ""
-            try: rangeAlhSevr=device[11].strip() # L  BESSY Alarm-Zustand   anlog, bi : 'NO_ALARM|MINOR|MAJOR|INVALID'
-	    except IndexError: rangeAlhSevr = ""
-	    try: DESC       = device[12].strip() # M  BESSY Description
-	    except IndexError: DESC = ""
-	    try: prec       = device[13].strip() # N  BESSY Prec
-	    except IndexError: prec = ""
-	    try: archPeriod = device[14].strip() # O  BESSY Arch
-	    except IndexError: archPeriod = ""
-	    try: reqFlag    = device[15].strip() # P  BESSY SR
-	    except IndexError: reqFlag = ""
-	    try: alhGroup   = device[16].strip() # Q  BESSY ALH Group
-	    except IndexError: alhGroup = ""
-	    try: alhFlagsFlag=device[17].strip() # R  BESSY ALH Flags
-	    except IndexError: snapFlag = ""
-	    try: alhSort    = device[18].strip() # S  BESSY ALH Sort
-	    except IndexError: alhSort = ""
-	    try: panelName  = device[19].strip() # T  BESSY Panel name extended to panel Name: <panel>.edl
-	    except IndexError: panelName = ""
-	    try: panelGroup = device[20].strip() # U  BESSY Panel Group
-	    except IndexError: panelGroup = ""
-    	    try: panelSort  = device[21].strip() # V BESSY Panel Sort
-	    except IndexError: panelSort = ""
+	    devObj = csv2epicsFuncs.csvData(device,canOption,lines)
 	    alhFlags=''
 
-	    if len(rtype) == 0: # is empty 
+	    if len(devObj.rtype) == 0: # is empty 
 		continue
 	    
-    	    if len(dev)>0:  	# override -n option
-	    	devName = dev
+    	    if len(devObj.dev)>0:  	# override -n option
+	    	devName = devObj.dev
 	    elif options.devName is not None: 
 		devName = options.devName
 	    else:
@@ -565,12 +246,11 @@ for argument in args:
 		continue
 
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
-	    if len(DESC) > options.desc_len :
+	    if len(devObj.DESC) > options.desc_len :
 		lastIdx = options.desc_len
-		descTrunc = DESC[0:lastIdx]
-		warnings.append([fileName,lines,"Truncate DESC",devName,descTrunc+" | "+DESC])
-    		DESC = descTrunc
-	    alias_extra = ""
+		descTrunc = devObj.DESC[0:lastIdx]
+		warnings.append([fileName,lines,"Truncate devObj.DESC",devName,descTrunc+" | "+devObj.DESC])
+    		devObj.DESC = descTrunc
 	    alhSignals = []	    # templates may have a list of signals for alarm handler
 	    arcSignals = []	    # templates may have a list of signals for archiver
     	    panelDict = {}  	    # panel widget macro data
@@ -578,150 +258,161 @@ for argument in args:
 	    panelWidgetName = None
 
 	    fields = {}
-	    fields.update(epicsUtils.parseParam(prec))
-    	    if len(signal) > 0: 	    	# is a record
-		alhSignals.append(signal)
-		arcSignals.append(signal)
-		fields.update({'SNAME': signal,
+	    fields.update(epicsUtils.parseParam(devObj.prec))
+    	    if devObj.rtype in ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','aoOroc','calc','calcout']: 	    	# is a record
+		alhSignals.append(devObj.signal)
+		arcSignals.append(devObj.signal)
+		fields.update({'SNAME': devObj.signal,
 	    		'DISS': 'INVALID',
 	    		'SDIS': sdis,
-    	    		'DESC': DESC})
-		
+    	    		'DESC': devObj.DESC})
 		if canOption == 'opc':
-		    fields.update(epicsUtils.getOpcLink(PLCLink,rtype,chan,devName,lines,fileName))
+		    fields.update(epicsUtils.getOpcLink(devObj.port,devObj.rtype,devObj.chan,devName,lines,fileName))
     	    	else:	# ommit parameter or canport number means CAN link
     	    	    try:
-		    	fields.update(epicsUtils.getHwLink(rtype,canport,canId,cardNr,chan,devName,fileName,iocTag,lines) )
+		    	fields.update(epicsUtils.getHwLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,fileName,iocTag,lines) )
 		    except ValueError:
 		    	warnings.append([fileName,lineNr,"WARN: ",name,"No CAN-Id/DTYP (Col. E) Can't create link"])
 		try:
-    		    if rtype in ('ai','ao') :
-	    		fields.update(getDisplayLimits(rangeEng,egu,signal,lines))
-	    		createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
-    		    elif rtype in ('longin','longout') :
-	    		fields.update(getDisplayLimits(rangeEng,egu,signal,lines))
-	    		fields['SNAME']=signal
-	    		createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
-		    elif rtype in ('bi','bo'):
-			    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
-		    elif rtype in ('mbbi','mbbo'):
-    	    		    createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
+    		    if devObj.rtype in ('ai','ao') :
+	    		csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+    		    elif devObj.rtype in ('longin','longout') :
+	    		fields['SNAME']=devObj.signal
+	    		csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+		    elif devObj.rtype in ('bi','bo'):
+			    csv2epicsFuncs.createBiBoRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+		    elif devObj.rtype in ('mbbi','mbbo'):
+    	    		    csv2epicsFuncs.createMbbIoRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+    		    elif devObj.rtype == 'aoOroc':	# treat aoOroc as ao record
+	    		csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+			if canOption == 'opc':
+			    fields.update(epicsUtils.getOpcLink(devObj.port,'ao',devObj.chan,devName,lines,fileName))
+    	    		else:	# ommit parameter or canport number means CAN link
+    	    		    try:
+		    		fields.update(epicsUtils.getHwLink('ao',devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,fileName,iocTag,lines) )
+			    except ValueError:
+		    		warnings.append([fileName,lineNr,"WARN: ",name,"No CAN-Id/DTYP (Col. E) Can't create link"])
+			epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields)
     	    	    else:
-			epicsUtils.epicsTemplate(rtype, {'DEVN':devName}, fields)
-#			warnings.append([fileName,lines,"Skip unknown record type",devName,rtype])
-		    if len(reqFlag) > 0: req.append(devName+":"+signal)
+			epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields)
+#			warnings.append([fileName,lines,"Skip unknown record type",devName,devObj.rtype])
+		    if len(devObj.reqFlag) > 0: req.append(devName+":"+devObj.signal)
 
-    		    if rtype in ('bo') :
-			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+    		    if devObj.rtype in ('bo') :
+			panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
 			panelWidgetName = "bo"
-    		    elif rtype in ('ao','longout') :
-			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+    		    elif devObj.rtype in ('ao','longout') :
+			panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
 			panelWidgetName = "ao"
-    		    elif rtype in ('mbbo') :
-			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+    		    elif devObj.rtype in ('mbbo') :
+			panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
 			panelWidgetName = "mbbo"
+    		    elif devObj.rtype == 'aoOroc' :
+			panelDict.update({'SNAME':devObj.signal,'DESC':devObj.DESC})
+			panelWidgetName = "aoOroc"
 		    else:
-			panelDict.update({'SNAME':signal,'EGU':egu,'DESC':DESC})
+			panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
 			panelWidgetName = "anyVal"
 		    panelNameDict.update({'DEVN':devName})
 		except ValueError:
 		    continue
 	    else:	    	    	    	# is a template
-		if len(reqFlag) > 0: 
-	    	    req += map(lambda x: devName+":"+x,reqFlag.split("|"))
+		if len(devObj.reqFlag) > 0: 
+	    	    req += map(lambda x: devName+":"+x,devObj.reqFlag.split("|"))
+		    print "REG:",devObj.reqFlag, req
 
-		if rtype=="aiFB":
-    	    	    fields.update({'INP' : '@'+PLCLink})
+		if devObj.rtype=="aiFB":
+    	    	    fields.update({'INP' : '@'+devObj.port})
 		    alhSignals.append(devName+":set"+fields['TAG'])
 		    arcSignals.append("set"+fields['TAG'])
 		    panelNameDict.update({'DEVN':devName})
-		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':devObj.DESC})
 		    panelWidgetName = "aiFB"
-		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
-		elif rtype=="longinFB":
-    	    	    fields.update({'INP' : '@'+PLCLink})
-    	    	    fields.update(epicsUtils.parseParam(rangeAlhVal))
+		    csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+		elif devObj.rtype=="longinFB":
+    	    	    fields.update({'INP' : '@'+devObj.port})
+    	    	    fields.update(epicsUtils.parseParam(devObj.rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
 		    arcSignals.append("cmd"+fields['TAG'])
 		    panelNameDict.update({'DEVN':devName})
-		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':devObj.DESC})
 		    panelWidgetName = "aiFB"
-		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
-		elif rtype=="biFB":
-		    fld = epicsUtils.getOpcLink(PLCLink,'bi',chan,devName,lines,fileName)
+		    csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+		elif devObj.rtype=="biFB":
+		    fld = epicsUtils.getOpcLink(devObj.port,'bi',devObj.chan,devName,lines,fileName)
 		    fields.update(fld)
-    	    	    fields.update(epicsUtils.parseParam(rangeAlhVal))
+    	    	    fields.update(epicsUtils.parseParam(devObj.rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
 		    arcSignals.append("cmd"+fields['TAG'])
 		    panelNameDict.update({'DEVN':devName})
-		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':devObj.DESC})
 		    panelWidgetName = "biFB"
-		    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
-		elif rtype=="mbbiFB":
-		    fld=epicsUtils.getOpcLink(PLCLink,'mbbi',chan,devName,lines,fileName)
+		    csv2epicsFuncs.createBiBoRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+		elif devObj.rtype=="mbbiFB":
+		    fld=epicsUtils.getOpcLink(devObj.port,'mbbi',devObj.chan,devName,lines,fileName)
 		    fields.update(fld)
-    	    	    fields.update(epicsUtils.parseParam(rangeAlhVal))
+    	    	    fields.update(epicsUtils.parseParam(devObj.rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
 		    arcSignals.append("cmd"+fields['TAG'])
 		    panelNameDict.update({'DEVN':devName})
-		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':devObj.DESC})
 		    panelWidgetName = "biFB"
-		    createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines)
-		elif rtype=="vacuum_OPC":
-    	    	    fields.update({'DESC':DESC, 'INP':'@'+PLCLink,'EGU':egu})
-    	    	    fields.update(epicsUtils.parseParam(rangeAlhVal))
+		    csv2epicsFuncs.createBiBoRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+		elif devObj.rtype=="vacuum_OPC":
+    	    	    fields.update({'DESC':devObj.DESC, 'INP':'@'+devObj.port,'EGU':devObj.egu})
+    	    	    fields.update(epicsUtils.parseParam(devObj.rangeAlhVal))
 		    alhSignals.append(devName+":lvac")
 		    arcSignals.append(fields['TAG']+":lvac")
 		    arcSignals.append(fields['TAG']+":vac")
-		    panelDict.update({'TAG':fields['TAG'],'DESC':DESC,'EGU':egu})
+		    panelDict.update({'TAG':fields['TAG'],'DESC':devObj.DESC,'EGU':devObj.egu})
 		    panelNameDict.update({'DEVN':devName})
 		    panelWidgetName = "vmi"
-		    epicsUtils.epicsTemplate(rtype, {'DEVN':devName}, fields)
-    		elif epicsUtils.matchRe(rtype,"^vacuum_\w\w\w\d\d\d$") is not None:
-		    (canOut,canIn,mux) = epicsUtils.adaCanMux(canId,cardNr,chan)
+		    epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields)
+    		elif epicsUtils.matchRe(devObj.rtype,"^vacuum_\w\w\w\d\d\d$") is not None:
+		    (canOut,canIn,mux) = epicsUtils.adaCanMux(devObj.canId,devObj.cardNr,devObj.chan)
 		    alhSignals.append("rdPress")
 		    arcSignals.append("rdPress")
 		    panelNameDict.update({'NAME':devName})
 		    panelWidgetName = "Vmi"
-		    epicsUtils.epicsTemplate(rtype, {'NAME':devName}, {
-        		'DESC': DESC,
-        		'CANPORT':canport,
+		    epicsUtils.epicsTemplate(devObj.rtype, {'NAME':devName}, {
+        		'DESC': devObj.DESC,
+        		'port':devObj.port,
 			'OUTCAN': canOut,
 			'INCAN':  canIn,
 			'MUX':    mux,
 			'ASG':    "",
 			'SDIS':   "",})
-		elif rtype=="vacuum_VarianDualController":
+		elif devObj.rtype=="vacuum_VarianDualController":
 		    alhSignals.append("rdHighVolt")
 		    alhSignals.append("rdPress")
 		    arcSignals.append("rdHighVolt")
 		    arcSignals.append("rdPress")
 		    panelNameDict.update({'NAME':devName})
 		    panelWidgetName = "Gpps"
-		    (canOut,canIn,mux) = epicsUtils.adaCanMux(canId,cardNr,chan)
-		    mux1 = "%X"% (int(cardNr)*12+1+int(chan),)
-		    epicsUtils.epicsTemplate(rtype, {'NAME':devName}, {
-        		'DESC': DESC,
-        		'CANPORT':canport,
+		    (canOut,canIn,mux) = epicsUtils.adaCanMux(devObj.canId,devObj.cardNr,devObj.chan)
+		    mux1 = "%X"% (int(devObj.cardNr)*12+1+int(devObj.chan),)
+		    epicsUtils.epicsTemplate(devObj.rtype, {'NAME':devName}, {
+        		'DESC': devObj.DESC,
+        		'port':devObj.port,
 			'OUTCAN': canOut,
 			'INCAN':  canIn,
 			'MUX':    mux,
 			'MUX2':   mux1,
 			'ASG':    "",
 			'SDIS':   "",})
-    		elif rtype=="valve_VCTRL":
+    		elif devObj.rtype=="valve_VCTRL":
 		    alhSignals.append("stItlHw",)
 		    arcSignals.append("stModOpen",)
 		    arcSignals.append("stItlHw",)
 		    panelNameDict.update({'NAME':devName})
 		    panelWidgetName = "Valve"
-		    canOut = "%X"%(576+int(canId),)
-		    canIn  = "%X"%(512+int(canId),)
-		    muxIn  = "%X"%(int(cardNr)*2,)
-		    muxOut = "%X"%(int(cardNr)*2+1,)
-		    epicsUtils.epicsTemplate(rtype, {'NAME':devName}, {
-        		'DESC': DESC,
-        		'CANPORT':canport,
+		    canOut = "%X"%(576+int(devObj.canId),)
+		    canIn  = "%X"%(512+int(devObj.canId),)
+		    muxIn  = "%X"%(int(devObj.cardNr)*2,)
+		    muxOut = "%X"%(int(devObj.cardNr)*2+1,)
+		    epicsUtils.epicsTemplate(devObj.rtype, {'NAME':devName}, {
+        		'DESC': devObj.DESC,
+        		'port':devObj.port,
 			'OUTCAN': canOut,
 			'INCAN':  canIn,
 			'MUXIN':  muxIn,
@@ -729,45 +420,45 @@ for argument in args:
 			'ASG':    "",
 			'ASGOPEN':    "OPEN",
 			'SDIS':   "",})
-		elif rtype=="aiCAN":
+		elif devObj.rtype=="aiCAN":
 	    	    fields.update({'DISS': 'INVALID',
-        	    	    'INP':  epicsUtils.createAdaCanLink(canport,canId,cardNr,chan),
-    	    	    	    'DESC': DESC})
+        	    	    'INP':  epicsUtils.createAdaCanLink(devObj.port,devObj.canId,devObj.cardNr,devObj.chan),
+    	    	    	    'DESC': devObj.DESC})
 		    alhSignals.append("rdVolt")
 		    arcSignals.append("rdVolt")
 		    panelNameDict.update({'DEVN':devName})
 		    panelWidgetName = "aiCAN"
-		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
-		elif rtype=="pmu":
-	    	    createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,devName,None)
-		    fields['RANGE'] = rangeEng+" "+egu
+		    csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+		elif devObj.rtype=="pmu":
+	    	    createLimits(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr,devName,None)
+		    fields['RANGE'] = devObj.rangeEng+" "+devObj.egu
 		    fields.update({'DISS': 'INVALID',
-        	    	    'INP':  epicsUtils.createAdaCanLink(canport,canId,cardNr,chan),
-    	    	    	    'DESC': DESC})
+        	    	    'INP':  epicsUtils.createAdaCanLink(devObj.port,devObj.canId,devObj.cardNr,devObj.chan),
+    	    	    	    'DESC': devObj.DESC})
 		    alhSignals.append("rdPwr")
 		    arcSignals.append("rdPwr")
 		    panelNameDict.update({'DEVN':devName})
 		    panelWidgetName = "PMU"
-		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
-    		elif rtype=="pt100temp":
+		    csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+    		elif devObj.rtype=="pt100temp":
 		    alhSignals.append("rdTemp")
 		    arcSignals.append("rdTemp")
 		    panelNameDict.update({'DEVN':devName})
 		    panelWidgetName = "temp"
 		    try:
-    	    		hwname = epicsUtils.getEcName(canport,canId,cardNr,iocTag)
+    	    		hwname = epicsUtils.getEcName(devObj.port,devObj.canId,devObj.cardNr,iocTag)
     	    	    except ValueError:
-    	    		epicsUtils.die("ERROR: "+devName+" CAN definition Port=\'"+canport+"\' Id: \'"+canId+"\' Card: \'"+cardNr+"\''",lines)
+    	    		epicsUtils.die("ERROR: "+devName+" CAN definition Port=\'"+devObj.port+"\' Id: \'"+devObj.canId+"\' Card: \'"+devObj.cardNr+"\''",lines)
 
 		    if epicsUtils.epicsTemplate.getDevice(hwname) is None:
-			(co,ci,mux) = epicsUtils.adaCanMux(canId,cardNr,0,'dec')
-			mux=int(cardNr)*12
+			(co,ci,mux) = epicsUtils.adaCanMux(devObj.canId,devObj.cardNr,0,'dec')
+			mux=int(devObj.cardNr)*12
 
 			epicsUtils.epicsTemplate("pt100dev",{'DEVN':hwname},{
-		    	    'CANPORT': canport,
-			    '0XSINOBJ':"%X"%(128+int(canId)),
-			    '0XSOUTOBJ':"%X"%(192+int(canId)),
-			    '0XSMUX':"%X"%(int(cardNr)*4+17),
+		    	    'port': devObj.port,
+			    '0XSINOBJ':"%X"%(128+int(devObj.canId)),
+			    '0XSOUTOBJ':"%X"%(192+int(devObj.canId)),
+			    '0XSMUX':"%X"%(int(devObj.cardNr)*4+17),
 			    'INOBJ':ci,
 			    'OUTOBJ':co,
 			    'C0MUX':mux,
@@ -779,40 +470,40 @@ for argument in args:
 			    'C6MUX':mux+6,
 			    'C7MUX':mux+7
 			    })
-		    if egu == "K":	    # template default is Grad-C
+		    if devObj.egu == "K":	    # template default is Grad-C
 			fields['EGUF'] = "657.16"
 			fields['EGUL'] = "145.16"
 			fields['EGU'] = "K"
-		    fields['DESCR'] = DESC
+		    fields['DESCR'] = devObj.DESC
 		    fields['SDIS']  = ""
 		    fields['HWNAME']= hwname
-    	    	    chan = int(chan)
-		    if chan<8: 
+    	    	    devObj.chan = int(devObj.chan)
+		    if devObj.chan<8: 
 			ch  = 1
-			sub = chan
+			sub = devObj.chan
 		    else:      
 			ch  = 2
-			sub = chan-8
-		    statnr = "%X"%(chan)
-		    fields['CHAN']  = ch
+			sub = devObj.chan-8
+		    statnr = "%X"%(devObj.chan)
+		    fields['chan']  = ch
 		    fields['STATNR']= statnr
 		    fields['SUB']   = sub
-		    createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal,fileName,lines)
-    		elif rtype=="foilMonitor":
+		    csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
+    		elif devObj.rtype=="foilMonitor":
 		    alhSignals.append("stPos")
 		    arcSignals.append("stPos")
 		    panelNameDict.update({'DEVN':devName})
 		    panelWidgetName = None
-		    ch = chan.split("|")
+		    ch = devObj.chan.split("|")
 		    if int(ch[0])+1 != int(ch[1]):
-	    		warnings.append([fileName,lines,"WARN: ",devName,"No consecutive input parameters: "+chan+", assumed: "+str(ch[0])+"|"+str(int(ch[0])+1)])
+	    		warnings.append([fileName,lines,"WARN: ",devName,"No consecutive input parameters: "+devObj.chan+", assumed: "+str(ch[0])+"|"+str(int(ch[0])+1)])
     	    	    epicsUtils.epicsTemplate("foilMonitor",{'DEVN':devName},{
-			'CARD': cardNr,
-			'CHAN': ch[0],
-			'DTYP': canId
+			'CARD': devObj.cardNr,
+			'chan': ch[0],
+			'DTYP': devObj.canId
 			})
 		else:
-		    print "Skip unsupported record/template '"+rtype+"' Line:",lines
+		    print "Skip unsupported record/template '"+devObj.rtype+"' Line:",lines
 		    continue
     	    # END search and create record type
 	    # now processing is done, an record is created and we can use the variables, set 
@@ -822,25 +513,24 @@ for argument in args:
 	    else:
 	    	docList([device[0],device[2],device[3],device[4],device[5],device[6],device[12],device[1]])
 	    if options.verbose is True:
-		rangeRawCut = rangeRaw
-		if len(rangeRaw)> 23:
-		      rangeRawCut = rangeRaw[0:20] +"..."
-		rangeEngCut = rangeEng
-		if len(rangeEng)> 23:
-		      rangeEngCut = rangeEng[0:20] +"..."
-		table.append([fileName,lines,rtype,devName,link,rangeEngCut,rangeRawCut,egu,DESC])
+		rangeRawCut = devObj.rangeRaw
+		if len(devObj.rangeRaw)> 23:
+		      rangeRawCut = devObj.rangeRaw[0:20] +"..."
+		rangeEngCut = devObj.rangeEng
+		if len(devObj.rangeEng)> 23:
+		      rangeEngCut = devObj.rangeEng[0:20] +"..."
+		table.append([fileName,lines,devObj.rtype,devName,link,rangeEngCut,rangeRawCut,devObj.egu,devObj.DESC])
 
-	    if output_panel is not None and len(panelName)>0: # for panel creation
-#    		print "panelList.addItem(",panelName,panelGroup,panelNameDict,panelDict,panelWidgetName,panelSort+")"
-		panelList.addItem(panelName,panelGroup,panelNameDict,panelDict,panelWidgetName,panelSort)
+	    if output_panel is not None and len(devObj.panelName)>0: # for panel creation
+		panelList.addItem(devObj.panelName,devObj.panelGroup,panelNameDict,panelDict,panelWidgetName,devObj.panelSort)
 
-	    if archPeriod is not None and len(archPeriod)>0:
-		for signal in arcSignals:
-	    	    arch.append( "<channel><name>"+devName+":"+signal+"</name><period>"+archPeriod+"</period><monitor/></channel>")
+	    if devObj.archPeriod is not None and len(devObj.archPeriod)>0:
+		for devObj.signal in arcSignals:
+	    	    arch.append( "<channel><name>"+devName+":"+devObj.signal+"</name><period>"+devObj.archPeriod+"</period><monitor/></channel>")
 
-	    if alhGroup is not None and len(alhGroup)>0:
+	    if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
 		for alhSig in alhSignals:
-    		    epicsUtils.epicsAlh(devName,alhSig,alhGroup,alhFlags,panelName,alhSort,lines)
+    		    epicsUtils.epicsAlh(devName,alhSig,devObj.alhGroup,alhFlags,devObj.panelName,devObj.alhSort,lines)
     	except :
 	    print "Parse exception in line:",lines
 	    raise
@@ -870,7 +560,7 @@ for argument in args:
 	epicsUtils.epicsAlh.printFiles(install_path)
     	
     if options.verbose is True:
-	epicsUtils.printTable(table,["file","line","record","devName","link","rangeEng","rangeRaw","EGU","DESC"],1 ) 
+	epicsUtils.printTable(table,["file","line","record","devName","link","rangeEng","rangeRaw","egu","DESC"],1 ) 
 
   #  str  map { str += "\t_\tsoftLinkTag{_}\n" } keys(%softLinkTag) print "mbbiDiret Ids:\nstr\n"
     if (output_db is not None) and (len(warnings) > 0):
