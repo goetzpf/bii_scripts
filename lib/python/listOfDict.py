@@ -2,33 +2,37 @@
 
 This are functions to operate with the combined datatype list of dictionary items (dList).
 
-Functions to filter from a dList. Return the tuple of (match,notMatch) dictionaries
+* Functions to filter from a dList. Return the tuple of (match,notMatch) dictionaries
 
 - filterMatch(dList,filterPar): test all items on its keys that are defined by the filter
-  parameter keys. Each value has to match at least one of the filter parameter list.
+    	    	    	    	parameter keys. Each value has to match at least one of the 
+				filter parameter list.
   filterPar = {KEY:[VAL1,VAL2, ..], ..}
 - filterRegExp(dList,mKey,mStr,flags=0): Test all items on one mKey, Value has to match
-  the mStr regulas expression.
+    	    	    	    	the mStr regulas expression.
 - filterAllValuesRegExp(dList,mStr,flags=0): Test all values of all items on the mStr
-  regular expression. Filter only those items that match in at least one value.
+    	    	    	    	regular expression. Filter only those items that match in at 
+				least one value.
+- filterValueRange(dList,mKey,fromPar,toPar) Test all items for the value of 'key' to be 
+    	    	    	    	in range of 'value' >= 'fromPar', 'value' <='toPar'.
 
-Functions operating on the all occuring keys of the whole listOfDict
+* Functions operating on the all occuring keys of the whole listOfDict
 
-- getAllKeys(dList):  List of all occuring keys in the dList
-- filterKeys(dList,keyList)   Filter dictionaries that have all keys from keyList
-- filterOutKeys(dList,keyList) Filter dictionaries that have all keys from keyList.
-  Delete  all not matching keys
+- getAllKeys(dList):            List of all occuring keys in the dList
+- filterKeys(dList,keyList)     Filter dictionaries that have all keys from keyList
+- filterOutKeys(dList,keyList)  Filter dictionaries that have all keys from keyList.
+                                Delete  all not matching keys
 - findKeysMatchingRegExp(dList,mStr): List of all occuring keys that match 'mStr'. The
-  values ar of no concern here.
-- sort(dList,order=None): sort by keys and values in lexical order.
-  Optional parameter order is a list of keys to be respected in the given order.
-  Other keys are ignored. The items are returned unchanged
+                                values ar of no concern here.
+- sort(dList,order=None):       sort by keys and values in lexical order.Optional parameter 
+                                order is a list of keys to be respected in the given order.
+    	    	    	    	Other keys are ignored. The items are returned unchanged
 
 Functions to translate the dList to a table. Not occuring keys are represented
 to None.
 
-- orderToTable(dList,order): Extract and sort all 'order' keys, Ignore others.
-- sortToTable(dList): sort by all keys, don't ignore any key.
+- orderToTable(dList,order): 	Extract and sort all 'order' keys, Ignore others.
+- sortToTable(dList): 	    	sort by all keys, don't ignore any key.
 """
 import re
 def searchRe(matchStr,reStr,flags=0) :
@@ -251,15 +255,3 @@ def sortToTable(dList):
     order = sorted(keyDictIdx.keys())
     return orderToTable(dList,order),order
 
-def isCopy(aDict,bDict)
-    """ Compare two dictionaries, return 'True' if identical values for all keys
-    """
-    aKeys = sorted(a.keys())
-    bKeys = sorted(b.keys())
-
-    if len(aKeys) != len(bKeys(): return False
-    for (a,b) in zip(aKeys,bKeys):
-        if a != b: return False
-    for a in aKeys:
-        if aDict(a) != bDict(a): return False
-    return True

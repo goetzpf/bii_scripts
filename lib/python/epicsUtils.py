@@ -125,7 +125,7 @@ def substRe(matchStr,matchRe,replaceStr,flags=0):
     """
 def substituteVariables(sString,substDict):
     for name in substDict.keys():
-	sString = sString.replace(r"${"+name+"}",substDict[name])
+    	sString = sString.replace(r"$("+name+")",substDict[name])
     return sString
 
 def parseStCmd(stCmdLine):
@@ -152,14 +152,14 @@ def parseStCmd(stCmdLine):
     qString = pp.dblQuotedString.setParseAction(pp.removeQuotes) # double quoted String, quotes removed
     function =pp.Word(pp.alphanums)+pp.Suppress(pp.Word("("))+pp.Optional(pp.delimitedList(pp.Word(pp.alphanums),","))+ pp.Suppress(pp.Word(")"))
     function.setName("function")
-    arg     = qString ^ function ^ pp.Word(pp.alphanums+"-_|<>/.${}")
+    arg     = qString | function | pp.Word(pp.alphanums+"-_|<>/.${}=><")
     argGrp  = pp.delimitedList(arg,",")
-    command = (cmd + pp.Suppress("(")+ argGrp + pp.Suppress(")")) ^ \
-              (cmd + argGrp) ^ \
-              (cmd + pp.OneOrMore(arg) )^ \
+    command = (cmd + pp.Suppress("(")+ argGrp + pp.Suppress(")")) | \
+              (cmd + argGrp) | \
+              (cmd + pp.OneOrMore(arg) )| \
               pp.Empty()
     comment = pp.Suppress(pp.pythonStyleComment)
-    line =  comment ^ (command + pp.Optional(comment))
+    line =  comment | (command + pp.Optional(comment))
     return line.parseString(stCmdLine)
 
 def parseDb(content):
