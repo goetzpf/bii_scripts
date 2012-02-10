@@ -164,7 +164,7 @@ def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
             fieldDict['CHAN'] =  vmeLnk[1]
 	else:
 	    if link.find ("$")>=0:
-	    	print "hardware() $",iocname,"filename",bFile,"pvname",pvname,"link",link
+	    	print "hardware() $",iocname,"filename",dbFile,"pvname",pvname,"link",link
 		
     fieldDict['LINK'] = link    	    
     return fieldDict
