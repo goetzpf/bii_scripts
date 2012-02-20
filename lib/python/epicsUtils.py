@@ -441,7 +441,7 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
             fields['DTYP'] = "lowcal"
             fields['OUT'] = createAdaCanLink(port,canId,cardNr,chan)
         elif rtyp in ('bi','mbbi','bo','mbbo'): # access via mbb_Direct to CAN
-            hwDevice = getEcName(port,canId,cardNr,iocTag)
+            hwDeviceName = getEcName(port,canId,cardNr,iocTag)
             if rtyp in ('bo','mbbo'):
                 linkName ='OUT'
                 mux = 9
@@ -452,21 +452,30 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
                 mux = 8
                 recType = 'mbbiDirect'
                 hwSignal = "inBits"
-            if epicsTemplate.getDevice(hwDevice) is None:
-                f = {'DESC'  :'Access Port:'+str(port)+", Id:"+str(canId)+", card:"+str(cardNr),
+	    hwDeviceObj = epicsTemplate.getDevice(hwDeviceName)
+	    hasPv = None
+	    for dev in hwDeviceObj:
+	    	if dev.field['SNAME'] == hwSignal:
+		    hasPv=1
+		    break
+	    
+	    if not hasPv:
+		f = {'DESC'  :'Access Port:'+str(port)+", Id:"+str(canId)+", card:"+str(cardNr),
                      'NOBT'  :'16',
                      'DTYP'  :'lowcal',
                      'SNAME' : hwSignal,
                      linkName: createAdaCanLink(port,canId,cardNr,mux)
                     }
-                epicsTemplate(recType,{'DEVN':hwDevice},f)
+		if linkName == 'INP':
+		    f['SCAN'] = "1 second"
+                epicsTemplate(recType,{'DEVN':hwDeviceName},f)
 
             (nobt,shft) = getShiftParam(chan)
             fields['SHFT']  = shft
             if rtyp in ('bo','bi'):
-                fields[linkName]= "%s:%s.B%X CPP MS" % (hwDevice,hwSignal,shft)
+                fields[linkName]= "%s:%s.B%X CPP MS" % (hwDeviceName,hwSignal,shft)
             else:   # mbbi, mbbo
-                fields[linkName]= "%s:%s CPP MS" % (hwDevice,hwSignal)
+                fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
                 fields['NOBT']= nobt
                 fields['SHFT']= shft
     except ValueError:                          # VME link
@@ -633,12 +642,13 @@ class Panels(object):
 # process each group
                 actualWidgetType = ""
                 wLst = []       # hold consecutive widgets of the same type
-#               print "Group:",pGroup,itemList
+#                print "Group:",pGroup,itemList
                 actualWidgetType = self.getWidgetType(itemList[0])
                 wLst.append(itemList[0])
                 for item in itemList[1:]:
                     wType = self.getWidgetType(item)
-                    if actualWidgetType != wType:
+#                    print actualWidgetType,wType
+		    if actualWidgetType != wType:
 #                       print "TypeChange: ",actualWidgetType, "->", wType
                         retStr += "file "+actualWidgetType+".edl {\n"+"\n".join(map(lambda x: str(x),wLst))+"\n}\n"
                         actualWidgetType = wType
@@ -646,7 +656,7 @@ class Panels(object):
                     wLst.append(item)
 #                   print actualWidgetType,wType,"\t",item.type,str(item)
                 if len(wLst)>0:
-                    retStr += "file "+wType+".edl {\n"+"\n".join(map(lambda x: str(x),wLst))+"}\n"
+                    retStr += "file "+actualWidgetType+".edl {\n"+"\n".join(map(lambda x: str(x),wLst))+"}\n"
 
                 retStr+"}\n"
                 if groupWidget and self.checkWidgetPath(groupWidget+"Footer"):
@@ -1001,7 +1011,7 @@ class epicsTemplate(object):
         rec += "\n}"
         return rec
     def __repr__(self) :
-        return ("('"+str(self.rtyp)+"','"+str(self.devn)+"',"+str(self.field)+")\n")
+        return ("epicsTemplate('"+str(self.rtyp)+"',"+str(self.devn)+","+str(self.field)+")\n")
     def getType(self): return self.rtyp
     def getDevnTag(self): return self.devn.keys()[0]
     def getDevn(self): return self.devn.values()[0]
@@ -1040,13 +1050,13 @@ class epicsTemplate(object):
     @staticmethod
     def getDevice(devName):
         """
-        Get list of records and template instances that have this device name OR None
+        Get list of records and template instances that have this device name - may be empty for not found
         """
         li = []
         for item in epicsTemplate.deviceList:
             if item.getDevn() == devName: li.append(item)
-        if len(li) > 0 : return li
-        return None
+        return li
+
     @staticmethod
     def printAllSubst():
         """
