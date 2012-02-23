@@ -2837,6 +2837,7 @@ sub make_table_window
             # warn "NO resident_key in table $r_tbh->{table_name} !!!";
         };
 
+    $r_tbh->{fastbar}->{show} = 1;
 
     $MnView->add('checkbutton',
                   -label=> 'Hide/Unhide fastbar',
