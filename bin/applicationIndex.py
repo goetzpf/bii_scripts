@@ -10,7 +10,7 @@ import epicsUtils as eU
 import listOfDict as lod
 import pprint as pp
 import canLink as cL
-
+import tokParse as tP
 # Searching for Hardware means to look at the DTYP field of a record. So here we define
 # the list of known DTYPs get it with:
 # find $(TOP)/db -name *.db|xargs perl -e 'while(<>){print "$1\n" if($_=~/DTYP,\s*\"(.*)\"/);}'|sort -u
@@ -65,6 +65,17 @@ def processStCmd(topPath):
     iocDb = {}
     dbIoc = {}
 
+    tokDefList =( ('B_OPEN', (r'\(',) ),\
+    	('B_CLOSE',     (r'\)',) ),\
+    	('COMMA',    	(r',',) ),\
+    	('QSTRING',(r'(?<!\\)"(.*?)(?<!\\)"',) ), \
+    	('WORD',    	(r'[a-zA-Z0-9_&/\.:=\-\{\}\$]+',) ),\
+    	('COMMENT',   	(r'#.*',) ),\
+    	('LOAD',   	(r'[<|>]',) ),\
+    	('SPACE',(r"\s+",))
+    	)
+    tokReList = tP.compileTokDefList(tokDefList)
+
     for ioc in iocString.split("\n"):
 	i = eU.matchRe(ioc,"ioc(.*)")
 	if i is None:
@@ -81,29 +92,32 @@ def processStCmd(topPath):
 
 	dbdFile=topPath+"/dbd/"
  	envDict={}
-
+    	lineNr = 0
 	for line in IN_FILE:
-	    parsedLine = eU.parseStCmd(line)
-
-	    if len(parsedLine)<1: continue
+	    lineNr += 1
+	    parsedLine = tP.parseStCmd(line,tokReList,lineNr)
+	    if not parsedLine: continue
 	    cmd = parsedLine[0]
-	    #print "PARSE: '%s'" %line, parsedLine
 	    if cmd == "epicsEnvSet":
-       		#print "PARSE: '%s'" %line, parsedLine
+       		#print "epicsEnvSet,PARSE: '%s'" %line, parsedLine
     		envDict[parsedLine[1]]=parsedLine[2]
 	    if cmd == "putenv":
+       		#print "putenv,PARSE: '%s'" %line, parsedLine
 		(name,value)=parsedLine[1].split("=")
 		envDict[name]=value
 	    if cmd == "dbLoadDatabase":
+       		#print "dbLoadDatabase,PARSE: '%s'" %line, parsedLine
     	    	dbdFile += substEnvVariables(eU.substRe(parsedLine[1],"dbd/",""),envDict)
 	    if cmd == "dbLoadRecords":
+       		#print "dbLoadRecords,PARSE: '%s'" %line, parsedLine
     		dbFile = substEnvVariables(eU.substRe(parsedLine[1],"db/",""),envDict)
 		param = ""
 		if len(parsedLine) == 3:
 		    param = parsedLine[2]
+		    #print "param:",param,eU.parseParam(substEnvVariables(param,envDict),',')
 		if not iocDb.has_key(iocName):
 	    	    iocDb[iocName] = []
-		iocDb[iocName].append((iocName,dbFile,eU.parseParam(substEnvVariables(param,envDict),',')))
+		iocDb[iocName].append( (iocName,dbFile,eU.parseParam(substEnvVariables(param,envDict),',')) )
     return (iocDb,dbIoc)
 
 def findApplications(topPath):
@@ -128,8 +142,13 @@ def findApplications(topPath):
     return (appDb,dbApp)
 
 def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
-    
-    pvname = eU.substituteVariables(pvname,param)
+    try:
+    	pvname = eU.substituteVariables(pvname,param)
+    except AttributeError:
+    	print ioc,dbFile,iocname,pvname
+	pp.pprint(param)
+	pp.pprint(fieldDict)
+	sys.exit()
     fieldDict.update( {"iocname":iocname,"filename":dbFile,"pvname":pvname} )
 
     if fieldDict.has_key('INP'):
@@ -164,7 +183,8 @@ def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
             fieldDict['CHAN'] =  vmeLnk[1]
 	else:
 	    if link.find ("$")>=0:
-	    	print "hardware() $",iocname,"filename",dbFile,"pvname",pvname,"link",link
+	    	print "Warning: Unsubstituted values found in IOC:",iocname,"FILE:",dbFile,"PV:",pvname,"LINK:",link
+		sys.exit()
 		
     fieldDict['LINK'] = link    	    
     return fieldDict
