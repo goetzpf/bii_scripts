@@ -90,7 +90,11 @@ def process(options,args):
     if options.dry_run:
         print "ssh %s" % argstr
         sys.exit(0)
-    child= pexpect.spawn("ssh %s" % argstr, timeout=5)
+    if options.timeout is None:
+        timeout= 5
+    else:
+        timeout= options.timeout
+    child= pexpect.spawn("ssh %s" % argstr, timeout=timeout)
     waiting= True
     while waiting:
         try:
@@ -169,6 +173,12 @@ def main():
                       type="string",  # OptionParser's default
                       help="specify the HOST", 
                       metavar="HOST"  # for help-generation text
+                      )
+    parser.add_option("-t", "--timeout", # implies dest="file"
+                      action="store", # OptionParser's default
+                      type="int",  # OptionParser's default
+                      help="specify the connection TIMEOUT.", 
+                      metavar="TIMEOUT"  # for help-generation text
                       )
     parser.add_option("--ssh-args", # implies dest="file"
                       action="store", # OptionParser's default
