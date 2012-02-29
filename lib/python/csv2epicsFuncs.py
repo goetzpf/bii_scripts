@@ -52,6 +52,7 @@ class csvData(object):
 	except IndexError: self.rangeAlhSevr = ""
 	try: self.DESC       = device[12].strip() # M  BESSY Description
 	except IndexError: self.DESC = ""
+	self.DESC = self.DESC.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
 	try: self.prec       = device[13].strip() # N  BESSY Prec
 	except IndexError: self.prec = ""
 	try: self.archPeriod = device[14].strip() # O  BESSY Arch
@@ -60,14 +61,16 @@ class csvData(object):
 	except IndexError: self.reqFlag = ""
 	try: self.alhGroup   = device[16].strip() # Q  BESSY ALH Group
 	except IndexError: self.alhGroup = ""
-	try: self.alhFlagsFlag=device[17].strip() # R  BESSY ALH Flags
-	except IndexError: self.snapFlag = ""
+	self.alhGroup = self.alhGroup.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
+	try: self.alhFlags   =device[17].strip()  # R  BESSY ALH Flags
+	except IndexError: self.alhFlags = ""
 	try: self.alhSort    = device[18].strip() # S  BESSY ALH Sort
 	except IndexError: self.alhSort = ""
 	try: self.panelName  = device[19].strip() # T  BESSY Panel name extended to panel Name: <panel>.edl
 	except IndexError: self.panelName = ""
 	try: self.panelGroup = device[20].strip() # U  BESSY Panel Group
 	except IndexError: self.panelGroup = ""
+	self.panelGroup = self.panelGroup.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
     	try: self.panelSort  = device[21].strip() # V BESSY Panel Sort
 	except IndexError: self.panelSort = ""
     

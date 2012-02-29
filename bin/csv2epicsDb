@@ -4,18 +4,27 @@
  *  Author  B.Kuner
 	    R.Lange
 
-  USAGE: cvs2epicsDb [-h -v -t<char>] <csv files ...>
+  USAGE: cvs2epicsDb [OPTIONS] <csv files ...>
   
- -h: this help
- -t: column separator []
- -n: device name [\(DEVICE)]
- -p: create 'CreatePanel.pl' data for all devObj.signal service panel
- -d: db file name
- -l: alarm handler config file
- -a: archiver config file name
- -r: autoSaveRestore request file name
- -v: print debug information
-
+-c --can:        CAN port Nr., or 'opc' for OPC server access
+-d --output_db:  db file name file ending determines the ouptut: '.db' 
+    	    	 or '.substitutions'
+-f --install_path: installation path for output files: .substitutions, .arch, .alh,
+    	    	 panels. Default is './' 
+-i --iocName:    IOC name 
+-l --output_alh: create alarm handler config file for Items that define BESSY ALH 
+    	    	 Group (col. Q) 
+-m --opc_name:   opc server name 
+-n --devName:    device name [\(DEVICE)] 
+-p --panel:      create 'CreatePanel.pl' data for Items that define EPICS 
+    	    	 devObj.panelName (col. T) 
+-q --quiet:      be quiet
+-r --output_req: autoSaveRestore request file name for signals defined in Col. P 
+-s --display_search_path: for panel generation only, search path for 
+    	    	 widget/header/footer files [.:..]
+-t --separator:  column separator in .csv file[,] 
+-v --verbose:    print debug information 
+   --desc-len:   length of DESC field (dependant on EPICS version)
 """
 
 from optparse import OptionParser
@@ -41,7 +50,7 @@ class docList(object):
     title = "Title"
     def __init__(self,fieldList) :
 	def initField(x):
-	    x = epicsUtils.substRe(x,'\|','&#124;')
+	    x = epicsUtils.substRe(str(x),'\|','&#124;')
 	    if len(x)==0: x='-'
 	    return x
 	docList.dList.append(map(lambda x:initField(x),fieldList))
@@ -74,76 +83,76 @@ usage        = " %prog [options]"
 parser = OptionParser(usage=usage,
 		 version="%%prog %s" % my_version,
     		 description="USAGE: csv2epicsDb [-h OPTIONS] <csv files ...>")
-parser.add_option("-v","--verbose",
-		 action="store_true", # default: None
-		 help="print debug information", 
-    		 )
-parser.add_option("-p","--panel",
-		 action="store_true",
-		 help="create 'CreatePanel.pl' data for Items that define EPICS devObj.panelName (col. T, )", 
-    		 )
-parser.add_option("-t","--separator", 
-		 action="store",
-    		 type="string",
-		 help="column separator []", 
-    		 )
-parser.add_option("-d","--output_db", 
-		 action="store",
-    		 type="string",
-		 help="db file name file ending determines the ouptut: '.db' or '.substitutions'",
-    		 )
-parser.add_option("-l","--output_alh", 
-		 action="store_true",
-		 help="create alarm handler config file for Items that define BESSY ALH Group (col. Q, )", 
-    		 )
 parser.add_option("-a","--output_arch", 
 		 action="store",
     		 type="string",
 		 help="archiver config file name for signals defined n Col. O", 
-    		 )
-parser.add_option("-r","--output_req", 
-		 action="store",
-    		 type="string",
-		 help="autoSaveRestore request file name for signals defined in Col. P", 
-    		 )
-parser.add_option("-n","--devName", 
-		 action="store",
-    		 type="string",
-		 help="device name [\(DEVICE)]", 
-    		 )
-parser.add_option("-m","--opc_name", 
-		 action="store",
-    		 type="string",
-		 help="opc server name", 
     		 )
 parser.add_option("-c","--can", 
 		 action="store",
     		 type="string",
 		 help="CAN port Nr., or 'opc' for OPC server access",
     		 )
-parser.add_option("-i","--iocName", 
+parser.add_option("-d","--output_db", 
 		 action="store",
     		 type="string",
-		 help="IOC name ",
+		 help="db file name file ending determines the ouptut: '.db' or '.substitutions'",
     		 )
 parser.add_option("-f","--install_path",
 		 action="store",
     		 type="string",
 		 help="installation path for output files: .substitutions, .arch, .alh, panels. Default is './'", 
     		 )
-parser.add_option("-s","--display_search_path",
+parser.add_option("-i","--iocName", 
 		 action="store",
     		 type="string",
-		 help="for panel generation only, search path for widget header/footer files '.:..'", 
+		 help="IOC name ",
+    		 )
+parser.add_option("-l","--output_alh", 
+		 action="store_true",
+		 help="create alarm handler config file for Items that define BESSY ALH Group (col. Q, )", 
+    		 )
+parser.add_option("-m","--opc_name", 
+		 action="store",
+    		 type="string",
+		 help="opc server name", 
+    		 )
+parser.add_option("-n","--devName", 
+		 action="store",
+    		 type="string",
+		 help="device name [\(DEVICE)]", 
+    		 )
+parser.add_option("-p","--panel",
+		 action="store_true",
+		 help="create 'CreatePanel.pl' data for Items that define EPICS devObj.panelName (col. T, )", 
     		 )
 parser.add_option("-q","--quiet",
 		 action="store_true",
 		 help="be quiet", 
     		 )
+parser.add_option("-r","--output_req", 
+		 action="store",
+    		 type="string",
+		 help="autoSaveRestore request file name for signals defined in Col. P", 
+    		 )
+parser.add_option("-s","--display_search_path",
+		 action="store",
+    		 type="string",
+		 help="for panel generation only, search path for widget header/footer files '.:..'", 
+    		 )
+parser.add_option("-t","--separator", 
+		 action="store",
+    		 type="string",
+		 help="column separator []", 
+    		 )
+parser.add_option("-v","--verbose",
+		 action="store_true", # default: None
+		 help="print debug information", 
+    		 )
 parser.add_option("--desc-len",
 		 action="store",
     		 type="int",
-		 help="length of DESC field",
+		 help="length of DESC field length of DESC field (dependant on EPICS version)",
     		 )
 
 (options, args) = parser.parse_args()
@@ -179,7 +188,7 @@ arch = []	    # archive list
 req = []	    # autoSaveRestore list
 panelList = epicsUtils.Panels(install_path,display_search_path)
 
-def joinItarch(): return "\n".join(arch)
+def joinItarch(): return "<group>\n<name>"+output_arch.replace(".arch","")+"</name>\n"+"\n".join(arch)+"\n</group>" 
 def joinItreq():  return "\n".join(req)
 
 if output_db is None:
@@ -232,18 +241,17 @@ for argument in args:
 	    	continue
 
 	    devObj = csv2epicsFuncs.csvData(device,canOption,lines)
-	    alhFlags=''
 
-	    if len(devObj.rtype) == 0: # is empty 
-		continue
-	    
+	    if len(devObj.rtype) == 0: # is no device
+	    	continue
+
     	    if len(devObj.dev)>0:  	# override -n option
 	    	devName = devObj.dev
 	    elif options.devName is not None: 
 		devName = options.devName
 	    else:
-	    	eU.die("ERROR: No device name ",lines)
-		continue
+	    	print "ERROR: No device name line:",lines
+		sys.exit()
 
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
 	    if len(devObj.DESC) > options.desc_len :
@@ -267,7 +275,7 @@ for argument in args:
 	    		'SDIS': sdis,
     	    		'DESC': devObj.DESC})
 		if canOption == 'opc':
-		    fields.update(epicsUtils.getOpcLink(devObj.port,devObj.rtype,devObj.chan,devName,lines,fileName))
+		    fields.update(epicsUtils.getOpcLink(devObj.port,devObj.rtype,devObj.chan,devName,opc_name,lines,fileName))
     	    	else:	# ommit parameter or canport number means CAN link
     	    	    try:
 		    	fields.update(epicsUtils.getHwLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,fileName,iocTag,lines) )
@@ -286,7 +294,7 @@ for argument in args:
     		    elif devObj.rtype == 'aoOroc':	# treat aoOroc as ao record
 	    		csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
 			if canOption == 'opc':
-			    fields.update(epicsUtils.getOpcLink(devObj.port,'ao',devObj.chan,devName,lines,fileName))
+			    fields.update(epicsUtils.getOpcLink(devObj.port,'ao',devObj.chan,devName,opc_name,lines,fileName))
     	    		else:	# ommit parameter or canport number means CAN link
     	    		    try:
 		    		fields.update(epicsUtils.getHwLink('ao',devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,fileName,iocTag,lines) )
@@ -295,7 +303,6 @@ for argument in args:
 			epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields)
     	    	    else:
 			epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields)
-#			warnings.append([fileName,lines,"Skip unknown record type",devName,devObj.rtype])
 		    if len(devObj.reqFlag) > 0: req.append(devName+":"+devObj.signal)
 
     		    if devObj.rtype in ('bo') :
@@ -339,7 +346,7 @@ for argument in args:
 		    panelWidgetName = "aiFB"
 		    csv2epicsFuncs.createAnalogRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.egu,devObj.rangeAlhVal,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
 		elif devObj.rtype=="biFB":
-		    fld = epicsUtils.getOpcLink(devObj.port,'bi',devObj.chan,devName,lines,fileName)
+		    fld = epicsUtils.getOpcLink(devObj.port,'bi',devObj.chan,devName,opc_name,lines,fileName)
 		    fields.update(fld)
     	    	    fields.update(epicsUtils.parseParam(devObj.rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
@@ -349,7 +356,7 @@ for argument in args:
 		    panelWidgetName = "biFB"
 		    csv2epicsFuncs.createBiBoRecord(devObj.rtype,devName,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,devObj.signal,fileName,lines)
 		elif devObj.rtype=="mbbiFB":
-		    fld=epicsUtils.getOpcLink(devObj.port,'mbbi',devObj.chan,devName,lines,fileName)
+		    fld=epicsUtils.getOpcLink(devObj.port,'mbbi',devObj.chan,devName,opc_name,lines,fileName)
 		    fields.update(fld)
     	    	    fields.update(epicsUtils.parseParam(devObj.rangeAlhVal))
 		    alhSignals.append(devName+":cmd"+fields['TAG'])
@@ -508,10 +515,11 @@ for argument in args:
     	    # END search and create record type
 	    # now processing is done, an record is created and we can use the variables, set 
 	    # for this line of the spread sheet to do some optional stuff
-    	    if canOption == 'opc':
-	    	docList([devName,device[2],device[3],device[6],device[12],device[1]])
-	    else:
-	    	docList([device[0],device[2],device[3],device[4],device[5],device[6],device[12],device[1]])
+    	    if devObj.signal != "":
+    		if canOption == 'opc':
+	    	    docList([devName,devObj.signal,devObj.port,devObj.chan,devObj.DESC,devObj.rtype])
+		else:
+		    docList([devName,devObj.signal,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devObj.DESC,devObj.rtype])
 	    if options.verbose is True:
 		rangeRawCut = devObj.rangeRaw
 		if len(devObj.rangeRaw)> 23:
@@ -530,14 +538,14 @@ for argument in args:
 
 	    if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
 		for alhSig in alhSignals:
-    		    epicsUtils.epicsAlh(devName,alhSig,devObj.alhGroup,alhFlags,devObj.panelName,devObj.alhSort,lines)
+    		    epicsUtils.epicsAlh(devName,alhSig,devObj,lines)
     	except :
-	    print "Parse exception in line:",lines
+	    print "Parse exception in '"+argument+"' line:",lines
 	    raise
     IN_FILE.close()
     # end for
 #########################################################################
-    epicsUtils.X_Address.setupTemplates(devName,'opc')
+    epicsUtils.PLC_Address.setupTemplates(devName,'opc')
   # Create files
     for typ in types.keys():
       	outfile = types[typ][0]
