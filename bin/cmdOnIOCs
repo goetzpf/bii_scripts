@@ -94,11 +94,12 @@ fi
 
 for ioc in $iocs
 do
+    icmd=`echo $cmd | sed -e "s/%i/$ioc/g" -e "s/%I/$ioc:u/g"`
     if [[ $noexec == 1 ]]; then
         <<EOF
-(echo "$password"; sleep 1; echo $cmd:q; sleep $sleep; echo "${esc}.") | console -f -e "$esc" $ioc;
+(echo "$password"; sleep 1; echo $icmd:q; sleep $sleep; echo "${esc}.") | console -f -e "$esc" $ioc;
 EOF
     else
-        (echo "$password"; sleep 1; echo $cmd; sleep $sleep; echo "${esc}.") | console -f -e "$esc" $ioc;
+        (echo "$password"; sleep 1; echo $icmd; sleep $sleep; echo "${esc}.") | console -f -e "$esc" $ioc;
     fi
 done
