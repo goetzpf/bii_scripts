@@ -472,10 +472,15 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
 
             (nobt,shft) = getShiftParam(chan)
             fields['SHFT']  = shft
-            if rtyp in ('bo','bi'):
+            if rtyp  == 'bi':
                 fields[linkName]= "%s:%s.B%X CPP MS" % (hwDeviceName,hwSignal,shft)
+            if rtyp  == 'bo':
+                fields[linkName]= "%s:%s.B%X PP NMS" % (hwDeviceName,hwSignal,shft)
             else:   # mbbi, mbbo
-                fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
+    	    	if rtyp  == 'mbbi':
+    	    	    fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
+    	    	if rtyp  == 'mbbo':
+    	    	    fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
                 fields['NOBT']= nobt
                 fields['SHFT']= shft
     except ValueError:                          # VME link
