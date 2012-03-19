@@ -514,10 +514,10 @@ def createAdaCanLink(port,id,card,chan):
     """
     Setup a complete CAN link from adaCanMux data:
 
-    Return "@f s 5 PORT OUTCAN INCAN MUX 64 3E8 0" % (int(port),outCan,inCan,mux)
+    Return "@f s 5 PORT OUTCAN INCAN MUX 10 1F8 0" % (int(port),outCan,inCan,mux)
     """
     (outCan,inCan,mux) = adaCanMux(id,card,chan)
-    return "@f s 5 %X %s %s %s 64 3E8 0" % (int(port),outCan,inCan,mux)
+    return "@f s 5 %X %s %s %s 10 1F8 0" % (int(port),outCan,inCan,mux)
 
 class Panels(object):
     """
