@@ -118,6 +118,9 @@ def processStCmd(topPath):
 		if not iocDb.has_key(iocName):
 	    	    iocDb[iocName] = []
 		iocDb[iocName].append( (iocName,dbFile,eU.parseParam(substEnvVariables(param,envDict),',')) )
+		if not dbIoc.has_key(dbFile):
+	    	    dbIoc[dbFile] = []
+		dbIoc[dbFile].append(iocName)
     return (iocDb,dbIoc)
 
 def findApplications(topPath):
@@ -231,6 +234,7 @@ except:
 (appDb,dbApp) = findApplications(topPath)
 (iocDb,dbIoc) = processStCmd(topPath)
 #pp.pprint(iocDb)
+#pp.pprint(dbIoc)
 #sys.exit()
 iocHw = None
 if iocDb:
@@ -305,20 +309,23 @@ if iocHw:
 	(canList,otherList) = lod.filterMatch(iocHwList,{'DTYP':['lowcal',],})
 	table = lod.orderToTable(canList,order)
 	if len(table) > 0:
-            print >> FILE, '<TABLE BORDER=1>\n<TR>'+toCol(['Process Variable','Port','CAN-Id','Card','Chan','Link','cid'],'TH')+'\n</TR>'
+            print >> FILE, '<TABLE BORDER=1>\n<TR>'+toCol(['Process Variable','Port','CAN-Id','Card','Chan','Link','Port, In-, OutCOB, Mux'],'TH')+'\n</TR>'
             try:
 		for (port,nid,cid,CARD,CHAN,LINK,pvname,filename) in table:
 		    if LINK is not None:
 			c = LINK.split(' ') # c=(@type dataType port in_cob out_cob mux ....)
 			t = "In Cob: %d Out Cob: %d Mux: %d" % (int(c[4],16),int(c[5],16),int(c[6],16))
+			cid ="%d %d %d %d"%(int(c[3],16),int(c[4],16),int(c[5],16),int(c[6],16))
 		    else:
 			t = "No INP/OUT"
 			LINK = '-'
+			cid ="-"
         	    LINK = '<DIV TITLE="'+t+'">'+LINK+'</DIV>'
+
 		    pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
 		    print >> FILE, "<TR>"+toCol([pvname,port,nid,CARD,CHAN,LINK,cid])+"\n</TR>"
-            except:
-	    	print "ERROR in print:",filename,pvname
+            except KeyError:
+	    	print "ERROR in print '"+pvname+"', CAN-Devices: '"+filename+"' not found in dbApp"
 	    print >> FILE, "</TABLE>\n"
 
 	print >> FILE, "<H3>VME Devices</H3>\n\n"
@@ -332,8 +339,8 @@ if iocHw:
 		    (DTYP,CARD,CHAN,pvname,LINK) = l
     	    	    pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
         	    print >> FILE, "<TR>"+toCol([pvname,CARD,CHAN,DTYP,LINK])+"\n</TR>"
-            except:
-	    	print "ERROR in print:",filename,pvname
+            except KeyError:
+	    	print "ERROR in print '"+pvname+"', VME-Devices: '"+filename+"' not found in dbApp"
             print >> FILE, "</TABLE>\n"
 
 	print >> FILE, "<H3>Other Devices</H3>\n\n"
@@ -345,8 +352,8 @@ if iocHw:
         	for (link,pv) in table:
         	    pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
 		    print >> FILE, "<TR>"+toCol([pvname,link])+"\n</TR>"
-            except:
-	    	print "ERROR in print:",filename,pvname
+            except KeyError:
+	    	print "ERROR in print '"+pvname+"', Other-Devices: '"+filename+"' not found in dbApp"
             print >> FILE, "</TABLE>\n"
 
 print >> FILE, htmlFooter
