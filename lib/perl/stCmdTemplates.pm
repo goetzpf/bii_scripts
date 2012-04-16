@@ -79,7 +79,6 @@ sub stcmd {
   );
   &unpackArgs;
   return <<EOF;
-#
 # vxWorks Startup File for ${IOC}
 #
 # This file was generated and should NOT be modified by hand!!!
@@ -96,13 +95,15 @@ $version->{USE}copy "../version", "${DB_LOG_DIR}/${IOC}.version"
 pwd
 $version->{USE}copy "../version"
 
+################################################################ Load Binaries
+
 # Change dir to TOP/bin/<target_arch>
 cd "../../bin"
 cd epicsUsrOsTargetName()
 
-################################################################ Load Binaries
-
 ld < ${SUPPORT}
+
+######################################################## Driver Initialization
 
 ${driverInit}
 ################################################ AutoSaveRestore Configuration
@@ -121,19 +122,18 @@ save_restoreUseStatusPVs = 0
 
 #################################################### Load Database Definitions
 
-# Change to database directory
 cd "../../dbd"
 
-# Load IOC specific database definitions
 dbLoadDatabase("${IOC}.dbd")
 ${IOC}_registerRecordDeviceDriver(pdbbase)
 
 ############################################################### Load Databases
 
-# Change to database directory
 cd "../db"
 
 ${loadRecords}
+############################################################# Autosave Restore
+
 ${restore}
 ########################################################### Configure IOC Core
 
@@ -156,8 +156,12 @@ dbl        > ${DB_LOG_DIR}/${IOC}.dbl
 ############################################################### State Machines
 
 ${seq}
+#################################################################### Post Init
+
 # Start caPutLogging
 $caPutLog->{USE}caPutLogInit(getenv("EPICS_CA_PUT_LOG_INET"), 1)
+
+############################################################# Autosave Request
 
 ${request}
 EOF
