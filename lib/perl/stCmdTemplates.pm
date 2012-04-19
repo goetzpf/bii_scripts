@@ -83,9 +83,22 @@ sub stcmd {
 #
 # This file was generated and should NOT be modified by hand!!!
 #
-#################################################### Network and Site Settings
+############################################################# Network Settings
 
-< ../${FILEMODE}Commands.${DOMAIN}
+# Enable route to trs
+routeAdd "192.168.31.0", "${ROUTER}"
+
+# Add NFS host entry
+$nfs->{USE}hostAdd "nfshost", "$nfs->{HOST}"
+$nfs->{USE}nfsAuthUnixSet "nfshost", $nfs->{UID}, $nfs->{GID}, 0, 0
+
+# Mount "/opt/epics", "/opt/IOC" and "/opt/IOC/log" explicitly
+$nfs->{USE}nfsMount "nfshost", "/opt/IOC", "/opt/IOC"
+$nfs->{USE}nfsMount "nfshost", "/srv/IOC_log", "/srv/IOC_log"
+
+# Log Servers
+putenv "EPICS_IOC_LOG_INET=$iocLog->{HOST}"
+$caPutLog->{USE}putenv "EPICS_CA_PUT_LOG_INET=$caPutLog->{HOST}"
 
 ################################################################# Version Info
 
@@ -138,7 +151,7 @@ ${restore}
 ########################################################### Configure IOC Core
 
 # IOC Log Server Connection (0=enabled, 1=disabled)
-iocLogDisable=${LOG_DISABLE}
+iocLogDisable=$iocLog->{DISABLE}
 
 # Set Access Security
 asSetFilename("${ASCF}")
