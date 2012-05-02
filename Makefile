@@ -346,7 +346,7 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 # scripts with no embedded documentation
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PY_SCRIPT_LIST= \
-	hg-kompare.py pyone.py sqlutil.py ssh-pw.py \
+	hg-kompare.py ioc-reboot.py pyone.py sqlutil.py ssh-pw.py \
 	hg2darcs.py
 
 RST_DOC_PY_SCRIPT_LIST= \

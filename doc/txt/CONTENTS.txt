@@ -287,6 +287,9 @@ Scripts
     application was built. 
   | `documentation <scripts/hg-recover.html>`__
 
+**ioc-reboot.py**
+  | Reboots one or several IOCs.
+
 **latin1toutf8.sh**
   | convert latin-1 texts to utf-8 (calls the iconv utility).
 
