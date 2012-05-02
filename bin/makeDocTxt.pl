@@ -195,8 +195,17 @@ my $config = Options::parse($usage, 1);
     $paragraph =~ s|([\w-\d]+)\.jpg|<A HREF=\"$1.jpg\" TARGET="Wimg"><IMG SRC=\"TN$1.jpg\" ALT="$1.jpg"></A>|g;
     $paragraph =~ s|([\w-\d]+)\.JPG|<A HREF=\"$1.JPG\" TARGET="Wimg"><IMG SRC=\"TN$1.JPG\" ALT="$1.JPG"></A>|g;
 
+# is LIST ?
+    if( $paragraph =~ /(^\s{0,1}-\s*)/i )
+    { #print "is 2nd list or HR\n";
+      my $indent = length $1;
+      $paragraph =~ s/\n {$indent}/\n/g;
+      $paragraph =~ s/^\s*-\s*/<UL>\n  <LI>/i;
+      $paragraph =~ s/\n\s*-\s*/<\/LI>\n  <LI>/gi;
+      $paragraph = "$paragraph"."</LI>\n</UL>\n";
+    }
 # is TABLE ?
-    if( $paragraph =~ /\|/i )
+    elsif( $paragraph =~ /\|/i )
     { 
       #print "is Table\n";
       $paragraph =~ s/\n*$//;	# remove \n's at end of table
@@ -261,15 +270,6 @@ my $config = Options::parse($usage, 1);
       $idxFile .="<DT style=\"margin-left:40px\">&bull;<a href=\"$outFileName#cont_$indexNr\" target=\"Wtext\">$paragraph</a></DT>\n";	# set reference in .idx.html file
       $paragraph = "\n<A NAME=\"cont_$indexNr\"></A>\n<H4>"."$paragraph"."</H4>\n";
       $indexNr += 1;
-    }
-# is LIST ?
-    elsif( $paragraph =~ /(^\s{0,1}-\s*)/i )
-    { #print "is 2nd list or HR\n";
-      my $indent = length $1;
-      $paragraph =~ s/\n {$indent}/\n/g;
-      $paragraph =~ s/^\s*-\s*/<UL>\n  <LI>/i;
-      $paragraph =~ s/\n\s*-\s*/<\/LI>\n  <LI>/gi;
-      $paragraph = "$paragraph"."</LI>\n</UL>\n";
     }
 # all other seems to be P 
     else

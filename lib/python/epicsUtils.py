@@ -1,5 +1,5 @@
 """
-This module is a wild collection classes and functions used to handle EPICS data:
+This module is a wild collection of functions and classes to handle EPICS data:
 ===============================================================================
 
 def die(errMsg,line=None):
@@ -8,36 +8,22 @@ def matchRe(matchStr,reStr) :
 def substRe(matchStr,matchRe,replaceStr):
 def substituteVariables(sString,substDict):
 def parseStCmd(stCmdLine):
+def parseDb(content):
+def printDb(recList, printMode = "TABLE"):
+def filterDb(recList,options):
 def parseParam(fieldPar):
 def printTable(rT,header=None,sortIdx=None) :
-def getShiftParam(bits):
-def getEcName(port,canId,cardNr,namesEnd):
-def getOpcLink(PLCLink,rtyp,bits,device_name,lines,fileName):
-    * For binary records the class PLC_Address() helps to manage mbbiDirect records to read
-def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
-def adaCanMux(id,card,chan,typ='hex'):
-def createAdaCanLink(port,id,card,chan):
 
 class Panels(object):
     Manage store and print of a group of panels. This class creates panel.substitutions information
     class PanelFile(object):
-    class PanelWidget(object):
-        Subclass to manage one widget
+    class PanelWidget(object): Subclass to manage one widget
 
 class epicsAlh(object):
-    This class hold all data to  write an alarm handler file.
+    Hold all data to  write an alarm handler file.
 
 class epicsTemplate(object):
-    This class stores and print an EPICS database data for .db or .template files.
-
-class X_Address(object):
-    Base class to manage PLC address names
-
-class PLC_Address(X_Address):
-    This class manages a SPS-Symbolname address used in method getOpcLink()
-
-class DB_Address(X_Address):
-    This class manages a Siemens PLC adrress. Not used now in method getOpcLink()
+    Stores and print an EPICS database data for .db or .template files.
 """
 from optparse import OptionParser
 import sys
@@ -107,7 +93,7 @@ def matchRe(matchStr,reStr,flags=0) :
         return None
 
 def searchRe(searchStr,reStr,flags=0) :
-    """ serarch, means regExp has to bo found somewhere in searchStr, else return None
+    """ serarch, means regExp has to be found somewhere in searchStr, else return None
     """
     regx = re.compile(reStr,flags)
     return regx.search(searchStr)
@@ -313,9 +299,11 @@ def parseParam(fieldPar,delim='|'):
     valList = fieldPar.split(delim) # set alarm values and additional fields for a record
     if len(valList) > 0 and valList[0] != '':
         for v in valList:
-            try:
+	    try:
                 (valName,val)  = matchRe(v,'(.*?)=(.+)')
-                commFields[valName] = val
+		w = matchRe(val,'^"([^"]*)"$')
+		if w: val = w[0]
+		commFields[valName] = val
             except TypeError:
                 if len(valList) == 1:
                     return valList[0]
@@ -479,15 +467,10 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
 
             (nobt,shft) = getShiftParam(chan)
             fields['SHFT']  = shft
-            if rtyp  == 'bi':
+            if rtyp in ('bo','bi'):
                 fields[linkName]= "%s:%s.B%X CPP MS" % (hwDeviceName,hwSignal,shft)
-            if rtyp  == 'bo':
-                fields[linkName]= "%s:%s.B%X PP NMS" % (hwDeviceName,hwSignal,shft)
             else:   # mbbi, mbbo
-    	    	if rtyp  == 'mbbi':
-    	    	    fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
-    	    	if rtyp  == 'mbbo':
-    	    	    fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
+                fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
                 fields['NOBT']= nobt
                 fields['SHFT']= shft
     except ValueError:                          # VME link
@@ -526,10 +509,10 @@ def createAdaCanLink(port,id,card,chan):
     """
     Setup a complete CAN link from adaCanMux data:
 
-    Return "@f s 5 PORT OUTCAN INCAN MUX 10 1F8 0" % (int(port),outCan,inCan,mux)
+    Return "@f s 5 PORT OUTCAN INCAN MUX 64 3E8 0" % (int(port),outCan,inCan,mux)
     """
     (outCan,inCan,mux) = adaCanMux(id,card,chan)
-    return "@f s 5 %X %s %s %s 10 1F8 0" % (int(port),outCan,inCan,mux)
+    return "@f s 5 %X %s %s %s 64 3E8 0" % (int(port),outCan,inCan,mux)
 
 class Panels(object):
     """
@@ -585,9 +568,11 @@ class Panels(object):
         def getWidgetType(self,item):
             if item.widgetName:
                 return item.widgetName
-            elif item.type in ['ai','bi','mbbi','calc']:
-                    return "anyVal"
-            else:   return item.type
+	    else:
+	    	die("No Widget defined for Panel:"+item.__repr__())
+#            elif item.type in ['ai','bi','mbbi','calc']:
+#                    return "anyVal"
+#            else:   return item.type
         def checkWidgetPath(self,widget):
             fname = widget+".edl"
 #           print "checkWidgetPath",widget,fname,"\n\t",self.widgetPath
@@ -658,7 +643,7 @@ class Panels(object):
                 actualWidgetType = self.getWidgetType(itemList[0])
                 wLst.append(itemList[0])
                 for item in itemList[1:]:
-                    wType = self.getWidgetType(item)
+		    wType = self.getWidgetType(item)
 #                    print actualWidgetType,wType
 		    if actualWidgetType != wType:
 #                       print "TypeChange: ",actualWidgetType, "->", wType
@@ -915,7 +900,7 @@ class epicsAlh(object):
 	    if len(devObj.egu) > 0: egu = devObj.egu
 	    self.command = "edm -x -noedit -noscrl -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
 
-        self.tags = [("ALIAS",devname+":"+self.desc),
+        self.tags = [("ALIAS",devname+": "+self.desc),
                      ("ALARMCOUNTFILTER","2 1")
                     ]
         tagList = devObj.alhFlags.split("|")
@@ -1065,8 +1050,7 @@ class epicsTemplate(object):
         try:
             sname = self.field['SNAME']
         except KeyError:
-            print "Warning prAsRec(): no SNAME in ",self.field
-            return ""
+            raise ValueError("Warning prAsRec(): no SNAME in "+str(self.field))
         del self.field['SNAME']
         return "record("+self.rtyp+",\""+self.getDevn()+":"+sname+"\") {\n\t"+"\n\t".join(filter(None,map(lambda x: prField(x),sorted(self.field.keys()))))+"\n}"
 
@@ -1079,6 +1063,20 @@ class epicsTemplate(object):
         for item in epicsTemplate.deviceList:
             if item.getDevn() == devName: li.append(item)
         return li
+
+    @staticmethod
+    def getPV(devName,signalName,signalField='SNAME'):
+        """
+        Search object list for devName AND field SNAME=signalName (signalField tag may be set as third parameter)
+	Return list of matching objects - empty list means not found
+        """
+        #print "getPV(",devName,signalName,signalField,")"
+	li= []
+        for item in epicsTemplate.getDevice(devName):
+            if (not signalField) or (not item.field.has_key(signalField)) or (item.field[signalField] != signalName):
+	    	continue
+	    li.append(item)
+	return li
 
     @staticmethod
     def printAllSubst():
@@ -1101,166 +1099,4 @@ class epicsTemplate(object):
 
 
         return prStr
-
-class PLC_Address(object):
-    """
-    Base class to manage PLC address names
-    
-    * Handle OPC-links (col. D) of type
-      - Just a String
-      - Siemens notation of Servername,Datablock and byte address (e.g. 'S7:[S7-Verbindung_1]DB2,X2.6')
- 
-    * Map bit related records to mbbi/oDirect-Records to access the data and
-    * Store all data to create this mbbi/oDirect-Records with setupTemplates(). 
-      This is the reason why this is a class and not just a function
-    """
-    mbbiTagIndex=0
-    mbboTagIndex=0
-    inTagPrefix  = "inBits"
-    outTagPrefix = "outBits"
-    mbbiDirectLinks = {}  # (OPC|Link,signalName) for all mbbiDirect records
-    mbboDirectLinks  = {} # (OPC|Link,signalName) for all mbboDirect records
-
-    @staticmethod
-    def setupTemplates(device_name,dtypHw):
-        """
-        Create epicsTemplate objects for all mbb_Direct records as indicated in mbb_DirectLinks dictionary
-        """
-        for tag in PLC_Address.mbbiDirectLinks.keys():
-            (link,signalName) = PLC_Address.mbbiDirectLinks[tag]
-            epicsTemplate('longin', {'DEVN':device_name},{'SNAME':signalName,
-                      'DESC': tag[len(tag)-20:len(tag)],
-                      'DTYP': dtypHw,
-                      'SCAN': "I/O Intr",
-#                     'NOBT': "16",
-                      'INP':  link})
-        for tag in PLC_Address.mbboDirectLinks.keys():
-            (link,signalName) = PLC_Address.mbboDirectLinks[tag]
-            epicsTemplate('mbboDirect', {'DEVN':device_name},{'SNAME':signalName,
-                      'DESC': tag[len(tag)-26:len(tag)],
-                      'DTYP': dtypHw,
-                      'NOBT': "16",
-                      'OUT':  link})
-
-    def __init__(self,PLCLink,rtyp,bits,opc_name,deviceName,lines) :
-	""" Check the PLCLink parameter and create a PLC_Address or DB_Address object.
-
-        For Siemesn Notation: 
-	
-	* Parse 'PLCLink' as something of 'ServerNameDBn,mo.p' or 'DBn,mo' (e.g. 'DB5,X32.4')
-
-        - n = DB number
-        - m = datatype X=byte, W=word
-        - o = byte number
-        - p = bit number
-
-        * Align byte addresses to word addresses. Due to strange PLC behaviour, the
-          endianess of bitfields differs from WORDS, so   address allign swaps endianes
-
-        - Used for bi/bo are mapped to mbb_Direct
-        - Means odd Bytes: byte -= 1, other bit += 8
-	"""
-        self.link = None
-        self.softLinkTag = None
-
-        if  rtyp is None: die("Missing record type (col N) in Line: "+str(lines))
-
-        typ = None
-        byte =None
-        bit = None
-        db  = None
-
-        # 1. check for Siemens DB link type with bit definition e.g. S7:[S7-Verbindung_1]DB2,X0.0
-        l = matchRe(PLCLink,".*DB(\d+),(\w)(\d+)\.(\d+)")  # S7:[S7-Verbindung_1]DB2,X0.0
-        if l is not None:
-            (db,typ,byte,bit) = l
-
-            if  opc_name is None: die("Missing -m plc-name option")
-            if typ == 'X':
-                byte = int(byte)
-                bit  = int(bit)
-                db   = int(db)
-                if byte%2 != 0: # align to word boundaries
-                    byte -= 1
-                else:
-                    bit += 8
-		self.initDB_Address(PLCLink,rtyp,opc_name,deviceName,typ,byte,bit,db,lines)
-		return
-            else:
-                die("unknown datatype '"+typ+"' in: '"+PLCLink+"'",lines)
-        # 2. check for Siemens DB link type without bit definition e.g. S7:[S7-Verbindung_1]DB2,X0
-        else:
-            l = matchRe(PLCLink,".*DB(\d+),(\w)(\d+)")  # S7:[S7-Verbindung_1]DB2,X0.0
-
-            if l is not None:
-                (db,typ,byte) = l
-                byte = int(byte)
-                db   = int(db)
-            	if  opc_name is None: die("Missing -m plc-name option")
-                if self.typ != 'W':
-                    die("unknown datatype '"+self.typ+"' in: '"+PLCLink+"'",lines)
-    	    	else:
-		    self.initDB_Address(PLCLink,rtyp,opc_name,deviceName,typ,byte,bit,db,lines)
-		    return
-        # 3. process just a string type
-            else:
-                self.initPLC_Address(PLCLink,rtyp,bits,deviceName,lines)
-
-    def initPLC_Address(self,PLCLink,rtyp,bits,deviceName,lines) :
-	"""
-	This function initializes a SPS-Symbolname address used in method getOpcLink()
-	"""
-        if bits == '':
-            self.link = "@"+PLCLink
-        else:
-            self.softLinkTag = PLCLink
-            (nobt,shft) = getShiftParam(bits)
-            if self.procInOut(rtyp) == 'INP':
-                if not PLC_Address.mbbiDirectLinks.has_key(self.softLinkTag) :
-                    PLC_Address.mbbiDirectLinks[self.softLinkTag] = ("@"+PLCLink,PLC_Address.inTagPrefix+str(PLC_Address.mbbiTagIndex))
-                    PLC_Address.mbbiTagIndex += 1
-                (hwLink,sTag) = PLC_Address.mbbiDirectLinks[self.softLinkTag]
-                self.link = deviceName+":"+sTag+" CPP MS"
-            elif self.procInOut(rtyp) == 'OUT':
-                if not PLC_Address.mbboDirectLinks.has_key(self.softLinkTag) :
-                    PLC_Address.mbboDirectLinks[self.softLinkTag] = ("@"+PLCLink,PLC_Address.outTagPrefix+str(PLC_Address.mbboTagIndex))
-                    PLC_Address.mbboTagIndex += 1
-                (hwLink,sTag) = PLC_Address.mbboDirectLinks[self.softLinkTag]
-                if rtyp in('mbbo','mbbi'):
-                    self.link = deviceName+":%s PP NMS" % (sTag,)
-                else:   # bi,bo
-                    self.link = deviceName+":%s.B%X PP NMS" % (sTag,shft)
-            else :
-                die("Unknown output type for record: "+rtyp+" in Line: ",lines)
-
-    def initDB_Address(self,PLCLink,rtyp,opc_name,deviceName,typ,byte,bit,db,lines=None) :
-        """
-    	This funcion initializes a Siemens PLC address. 
-        """
-        self.softLinkTag = str(db)+"_"+str(byte)
-
-        if self.procInOut(rtyp) == 'INP':
-            if not PLC_Address.mbbiDirectLinks.has_key(self.softLinkTag) :
-                PLC_Address.mbbiDirectLinks[self.softLinkTag] = ("@"+opc_name+"DB"+str(db)+",W"+str(byte),PLC_Address.inTagPrefix+self.softLinkTag)
-            (hwLink,sTag) = PLC_Address.mbbiDirectLinks[self.softLinkTag]
-            self.link = deviceName+":%s.B%X CPP MS" % (sTag,bit)
-        elif self.procInOut(rtyp) == 'OUT':
-            if not PLC_Address.mbboDirectLinks.has_key(self.softLinkTag) :
-                PLC_Address.mbboDirectLinks[self.softLinkTag] = ("@"+opc_name+"DB"+str(db)+",W"+str(byte),PLC_Address.outTagPrefix+self.softLinkTag)
-            (hwLink,sTag) = PLC_Address.mbboDirectLinks[self.softLinkTag]
-            self.link = deviceName+":%s.B%X PP NMS" % (sTag,bit)
-        else :
-            die("Unknown output type for record: "+rtyp+" in Line: "+str(lines))
-
-    def getLink(self):
-        """
-        Return the link to the OPC-object or soft link to the mbb_Direct record
-        """
-        return self.link
-
-    def procInOut(self,rtyp):
-        if matchRe(rtyp,".*o(ut)?(Direct)?") :
-            return "OUT"
-        else:
-            return "INP"
 
