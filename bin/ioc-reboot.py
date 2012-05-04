@@ -26,7 +26,10 @@ def read_until(tn, expected, timeout= None):
 
 def login(ioc, loginname, loginpassword, timeout):
     """login on an ioc."""
-    tn= telnetlib.Telnet(ioc, timeout= timeout)
+    if sys.version_info < (2,6):
+        tn= telnetlib.Telnet(ioc)
+    else:
+        tn= telnetlib.Telnet(ioc, timeout= timeout)
     read_until(tn, "VxWorks login: ", timeout= timeout)
     tn.write(loginname+"\n")
     read_until(tn, "Password: ", timeout= timeout)

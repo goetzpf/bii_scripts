@@ -411,6 +411,7 @@ PYTHON_2_5_SCRIPTS= \
         cvs-recover.py \
 	db_request.py \
 	hg-recover.py \
+	ioc-reboot.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
 	tableutil.py \
