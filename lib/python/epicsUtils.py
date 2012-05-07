@@ -467,10 +467,15 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
 
             (nobt,shft) = getShiftParam(chan)
             fields['SHFT']  = shft
-            if rtyp in ('bo','bi'):
+            if rtyp  == 'bi':
                 fields[linkName]= "%s:%s.B%X CPP MS" % (hwDeviceName,hwSignal,shft)
+            if rtyp  == 'bo':
+                fields[linkName]= "%s:%s.B%X PP NMS" % (hwDeviceName,hwSignal,shft)
             else:   # mbbi, mbbo
-                fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
+    	    	if rtyp  == 'mbbi':
+    	    	    fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
+    	    	if rtyp  == 'mbbo':
+    	    	    fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
                 fields['NOBT']= nobt
                 fields['SHFT']= shft
     except ValueError:                          # VME link
@@ -509,10 +514,10 @@ def createAdaCanLink(port,id,card,chan):
     """
     Setup a complete CAN link from adaCanMux data:
 
-    Return "@f s 5 PORT OUTCAN INCAN MUX 64 3E8 0" % (int(port),outCan,inCan,mux)
+    Return "@f s 5 PORT OUTCAN INCAN MUX 10 1F8 0" % (int(port),outCan,inCan,mux)
     """
     (outCan,inCan,mux) = adaCanMux(id,card,chan)
-    return "@f s 5 %X %s %s %s 64 3E8 0" % (int(port),outCan,inCan,mux)
+    return "@f s 5 %X %s %s %s 10 1F8 0" % (int(port),outCan,inCan,mux)
 
 class Panels(object):
     """

@@ -247,8 +247,7 @@ for argument in args:
 
     	    devObj = None
 	    if devModule is None:
-	    	print lines, len(device),device
-		devObj = csv2epicsFuncs.csvData(device,canOption)
+	    	devObj = csv2epicsFuncs.csvData(device,canOption)
     	    else:
 		try:
 		    devObj = devModule.myCsvData(device,options)
