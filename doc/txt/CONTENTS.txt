@@ -104,6 +104,11 @@ Scripts
     MultiCAN device support for EPICS.
   | `documentation <scripts/canlink.html>`__
 
+**console.py**
+  | Open a console on an IOC by contacting the console server
+    without requesting a password.
+  | `documentation <scripts/console.html>`__
+
 **console-get**
   | download and concatenate console server files.
   | `documentation <scripts/console-get.html>`__
