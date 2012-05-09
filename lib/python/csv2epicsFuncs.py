@@ -605,7 +605,7 @@ def getOpcLink(devObj,devName,opc_name):
     PLCLink = devObj.port
     rtyp    = devObj.rtype
     bits    = devObj.chan
-    print "getOpcLink "+ "%12s %20s %10s %s"%(rtyp,PLCLink,str(bits),(devName+":"+devObj.signal)) 
+# print "getOpcLink "+ "%12s %20s %10s %s"%(rtyp,PLCLink,str(bits),(devName+":"+devObj.signal)) 
     if devName is None:
         raise ValueError("Missign option -n devName for common mbb_Direct record",lines)
     fields = {}
