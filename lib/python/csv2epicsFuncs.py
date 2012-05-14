@@ -818,7 +818,8 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,iocTag):
             elif rtyp  == 'bo':
                 fields[linkName]= "%s:%s.B%X PP NMS" % (hwDeviceName,hwSignal,shft)
             else:   # mbbi, mbbo
-    	    	if rtyp  == 'mbbi':
+    	    	fields['DTYP'] = "Raw Soft Channel" # has to convert with NOBT/SHFT
+		if rtyp  == 'mbbi':
     	    	    fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
     	    	if rtyp  == 'mbbo':
     	    	    fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
