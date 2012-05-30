@@ -293,7 +293,8 @@ Scripts
   | `documentation <scripts/hg-recover.html>`__
 
 **ioc-reboot.py**
-  | Reboots one or several IOCs.
+  | Reboots one or several IOCs via telnet and "reboot" command.
+  | `documentation <scripts/ioc-reboot.html>`__
 
 **latin1toutf8.sh**
   | convert latin-1 texts to utf-8 (calls the iconv utility).
