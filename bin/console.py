@@ -40,11 +40,11 @@ In the line above, "NAME", "USER" and "PASSWORD" are different in each line.
 
 * store a password for a user:
 
-  In this case "NAME" has the form "console.py-by-user-USER".
+  In this case "NAME" has the form "Console-by-user-USER".
 
 * store a password for a specific IOC:
 
-  In this case "NAME" has the form "console.py-by-host-IOC".
+  In this case "NAME" has the form "Console-by-host-IOC".
 
 Note that if you create the file `.netrc`_ for the first time you must ensure
 it is readable only by yourself with this command::
@@ -90,7 +90,7 @@ Reference of command line options
 -u, --user USER
   You can specify the user directly with this command line option. If the
   password is not provided, the program tries to find the entry
-  "console.py-by-user-USER" in the `.netrc`_ file and takes the password from
+  "Console-by-user-USER" in the `.netrc`_ file and takes the password from
   there.
 
 -p, --password PASSWORD
@@ -267,7 +267,9 @@ def main():
                       )
     parser.add_option("--netrc-line",  # implies dest="nodelete"
                       action="store_true", # default: None
-                      help="print a summary of the function of the program", 
+                      help="print the line that would have to be "+\
+                           "added to the .netrc file for the given "+\
+                           "username and password", 
                       )
 
     (options, args) = parser.parse_args()
