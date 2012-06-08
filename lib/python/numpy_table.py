@@ -59,6 +59,10 @@ import numpy_util
 # version of the program:
 my_version= "1.0"
 
+def numpy_seterr(*args, **kwargs):
+    """make function seterr from numpy available."""
+    return numpy_util.numpy_seterr(*args, **kwargs)
+
 class TabFunction(object):
     """implements a function specified by a numpy array.
     

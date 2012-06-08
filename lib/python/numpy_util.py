@@ -55,6 +55,16 @@ import math
 # version of the program:
 my_version= "1.0"
 
+def numpy_seterr(*args, **kwargs):
+    """make function seterr from numpy available."""
+    return numpy.seterr(*args, **kwargs)
+
+# make all numpy errors fatal, meaning that each error
+# raises an exception. See also: 
+# http://docs.scipy.org/doc/numpy/user/misc.html 
+# for documentation on function "seterr" from numpy.
+numpy_seterr(all="raise")
+
 def to_lines(tab,sep=" ",formats=[],justifications=[]):
     r"""pretty-print Table.
 
