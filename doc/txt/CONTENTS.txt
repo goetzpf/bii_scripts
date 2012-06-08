@@ -684,7 +684,7 @@ Python Libraries
   | Implements a table class based on numpy structured arrays. This module is
     basically an object oriented wrapper for all functions in numpy_util.py. It
     is used by tableutil.py.
-  | `documentation <python/numpy_util.html>`__
+  | `documentation <python/numpy_table.html>`__
 
 **pdict.py**
   | implements a dictionary for one-to-one relations.
