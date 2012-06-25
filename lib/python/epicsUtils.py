@@ -921,7 +921,7 @@ class epicsAlh(object):
                     else:
                         self.tags.append(("$"+name,value))
                 except TypeError:
-                    if matchRe(tag,"([CDATL])") is not None:
+                    if matchRe(tag,"([CDATL-])") is not None:
                         self.setFlags(tag)
 
         self.nodePath = self.nodePath.split("|")
