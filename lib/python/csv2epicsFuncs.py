@@ -612,6 +612,9 @@ def getOpcLink(devObj,devName,opc_name):
     linkType = procInOut(rtyp)
     if linkType is None:
     	raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
+    elif linkType == 'INP':
+    	fields['PINI'] = 'YES'
+    	
     if len(bits) == 0:
 # 1. check for Siemens DB link type with bit definition e.g. S7:[S7-Verbindung_1]DB2,X0.0
         l = epicsUtils.matchRe(PLCLink,".*DB(\d+),(\w)(\d+)\.(\d+)")  # S7:[S7-Verbindung_1]DB2,X0.0
@@ -639,7 +642,10 @@ def getOpcLink(devObj,devName,opc_name):
                 raise ValueError("unknown datatype '"+typ+"' in: '"+PLCLink+"'")
 # 2. bits not set: direct access for all record types
         else:
-	    fields['DTYP'] = "opc"
+	    if rtyp == 'bi':
+	    	fields['DTYP'] = "opcRaw"
+	    else:
+	    	fields['DTYP'] = "opc"
             fields[linkType] = '@'+PLCLink
 	    if linkType == 'INP':
         	fields['SCAN'] = "I/O Intr"
