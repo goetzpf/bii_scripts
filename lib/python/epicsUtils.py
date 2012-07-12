@@ -919,7 +919,7 @@ class epicsAlh(object):
                     elif name in ('CHANNEL','INCLUDE','GROUP','END'):
                         die("ALH Flag (col. T) '"+name+"' is not supported here",lines)
                     else:
-                        self.tags.append(("$"+name,value))
+                        self.tags.append((name,value))
                 except TypeError:
                     if matchRe(tag,"([CDATL-])") is not None:
                         self.setFlags(tag)
