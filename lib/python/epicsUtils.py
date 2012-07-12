@@ -914,7 +914,7 @@ class epicsAlh(object):
                 try:
                     (name,value) = matchRe(tag,"([\w_]+)\s*=\s*(.*)")
                     if   name == "COMMAND": self.command = value
-                    elif name == "ALIAS":   self.tags[1]=("ALIAS",value)
+                    elif name == "ALIAS":   self.tags[0]=("ALIAS",value)
                     elif name == "ALARMCOUNTFILTER":   self.tags[1]=("ALARMCOUNTFILTER",value)
                     elif name in ('CHANNEL','INCLUDE','GROUP','END'):
                         die("ALH Flag (col. T) '"+name+"' is not supported here",lines)
