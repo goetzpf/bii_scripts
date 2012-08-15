@@ -147,7 +147,13 @@ parser.add_option("-v","--verbose",
 parser.add_option("--devObj",
 		 action="store",
     		 type="string",
-		 help="python class module that converts the csv data variables needed by the program",
+		 help="python class module that converts non standard csv data to variables needed by the program",
+    		 )
+
+parser.add_option("--dis",
+		 action="store",
+    		 type="string",
+		 help="Name of disable record to be created and used in all SDIS fields",
     		 )
 
 (options, args) = parser.parse_args()
@@ -173,7 +179,6 @@ if options.devObj is not None:
     devModule = __import__(os.path.basename(options.devObj)[:-3])
     if options.verbose: print "Import external device object module: '"+str(devModule)+"' in path: '"+pluginPath+"'"
 
-sdis=""# options.devName+":disable CPP NMS"
 iocTag = None
 
 if iocName is not None:
@@ -248,6 +253,7 @@ for argument in args:
     	    devObj = None
 	    if devModule is None:
 	    	devObj = csv2epicsFuncs.csvData(device,canOption)
+		if options.dis: devObj.disableRec = options.dis
     	    else:
 		try:
 		    devObj = devModule.myCsvData(device,options)
@@ -326,6 +332,9 @@ for argument in args:
     IN_FILE.close()
     # end for
 #########################################################################
+    if options.dis: 
+    	(dev,sname) = epicsUtils.matchRe(options.dis,"(.*):(.*)")
+	epicsUtils.epicsTemplate('bi', {'DEVN':dev}, {'SNAME':sname,'DESC':"Disable: "+dev,'ONAM':"disable",'ZNAM':"enable",'OSV':"MAJOR"})
     csv2epicsFuncs.PLC_Address.setupTemplates(devName,'opc')
   # Create files
     for typ in types.keys():

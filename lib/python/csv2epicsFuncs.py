@@ -71,6 +71,7 @@ class csvData(object):
 	- def getStringVALlen():
     """
     def __init__(self,device,canOption) :
+	self.disableRec = None
 	try: self.dev        = device[0].strip() # A  devicname
 	except IndexError: self.dev = ""
 	try: self.rtype      = device[1].strip() # B  record-, template type
@@ -129,7 +130,7 @@ class csvData(object):
 	self.panelGroup = self.panelGroup.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
     	try: self.panelSort  = device[21].strip() # V BESSY Panel Sort
 	except IndexError: self.panelSort = ""
-
+	
     def __str__(self):
        return "*** csvData Object:\ndev: '"+self.dev+"'\nrtype: '"+self.rtype+"'\nsignal: '"+self.signal+"'\nport: '"+self.port+"'\nport: '"+self.port+"'\ncanId: '"+self.canId+\
        "'\ncardNr: '"+self.cardNr+"'\nchan: '"+self.chan+"'\nrangeRaw: '"+self.rangeRaw+"'\nrangeEng: '"+self.rangeEng+"'\negu: '"+self.egu+\
@@ -186,6 +187,7 @@ def setupPlugins(searchPathList):
 	    (s,f) = mod.getFunc()
 	    funcs[s]=f
 	funcs.update(pt100tempGetFunc())    # add local pt100temp support
+	funcs.update(watchdogGetFunc())    # add local watchdog support
 
     return funcs
 
@@ -513,7 +515,9 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
     """ Is an EPICS record in: ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout'] ?
 	Setup EPICS record and return oter data: (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
     """
-    sdis       = '' 	    # HERE the global ':disable' record. Now unused, but prepared in the records
+    sdis       = ''
+    if devObj.disableRec:
+    	sdis= devObj.disableRec+" CPP NMS"
     alhSignals = []	    # templates may have a list of signals for alarm handler
     arcSignals = []	    # templates may have a list of signals for archiver
     panelDict = {}  	    # panel widget macro data
@@ -825,6 +829,38 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,iocTag):
 
     return (fields)
 
+def watchdogGetFunc():
+    return {"watchdog":watchdog}
+
+def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+    alhSignals = None
+    arcSignals = None
+    panelNameDict={'DEVN':devName}
+    panelDict = {}
+    panelWidgetName = ""
+
+    fields = epicsUtils.parseParam(devObj.prec)
+    toggle_chan=""
+    if fields.has_key('TOGGLE_CHAN'): toggle_chan=fields['TOGGLE_CHAN']
+    else:
+    	raise ValueError, "Missing parameter TOGGLE_CHAN (Col. N)"
+    epicsUtils.epicsTemplate('calcout',{'DEVN':devName},{'SNAME':"counter",
+    	'SCAN':"1 second",
+    	'INPA':"$(DEVN):counter.VAL",
+	'INPB':"10",
+	'CALC':"A+1",'OCAL':"A>B?0:1",
+	'OOPT':"Every Time",
+	'DOPT':"Use OCAL",
+	'OUT': devObj.disableRec+" PP NMS"})
+
+    epicsUtils.epicsTemplate('calcout',{'DEVN':devName},{'SNAME':"rstCounter",
+    	'INPA':toggle_chan+" CPP NMS",
+	'INPB':"$(DEVN):counter.LB",
+	'CALC':"A#B",'OUT':"$(DEVN):counter",
+	'OOPT':"When Non-zero"})
+    return (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
+
+  
 def pt100tempGetFunc():
     return {"pt100temp":pt100temp}
 
