@@ -61,7 +61,7 @@ def substEnvVariables(param,envDict):
 def processStCmd(topPath):
     iocBootPath = topPath+"/iocBoot"
     iocString = systemCall(['ls',iocBootPath])
-    if options.verbose is True: print "processStCmd: ",topPath
+    if options.verbose is True: print "\nprocessStCmd: ",topPath
     iocDb = {}
     dbIoc = {}
 
@@ -194,6 +194,7 @@ def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
 
 def checkHardwareAccess(iocDb,topPath):
     hwData = []
+    if options.verbose is True: print "\ncheckHardwareAccess:"
     for ioc in iocDb.keys():
         for (ioc,dbFile,param) in iocDb[ioc]:
             hw = systemCall(['grepDb.pl','-pH','-th',topPath+"/db/"+dbFile]) # return a perl hash of {PVNAME=> {FIELD=>VALUE}}
@@ -239,6 +240,8 @@ except:
 iocHw = None
 if iocDb:
     iocHw = checkHardwareAccess(iocDb,topPath)
+
+if options.verbose is True: print "Process Data"
 
 ######## PRINT DATA #######################################################
 htmlHeader = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
