@@ -400,6 +400,9 @@ def _quote(string):
     All "\" characters are doubled, all "|" and "'" characters
     are prepended with "\". 
 
+    Note: trailing spaces are removed.
+    Note 2: enclosing single quotes are NOT prepended with backslashes.
+
     Here are some examples:
     >>> print _quote("")
     <BLANKLINE>
@@ -414,10 +417,20 @@ def _quote(string):
     >>> print _quote(r"abc'def\\gh")
     abc\'def\\\\gh
     """
+    string= string.rstrip() # remove trailing spaces
+    quote_stripped= False
+    if string=="":
+        return string
+    if string[0]=="'" and string[-1]=="'":
+        string= string[1:-1]
+        quote_stripped= True
     string= string.replace("\\","\\\\")
     string= string.replace("|","\\|")
     string= string.replace("'","\\'")
-    return string
+    if not quote_stripped:
+        return string
+    else:
+        return "'%s'" % string
 
 #@tp.Check(str,bool)
 def _unquote(string,dbitable_compatible= False):
