@@ -687,8 +687,8 @@ def scalar_dumper(val,indent,options=default_options):
     return str_dump_util(mystr,indent,options)
 
 def list_dumper(val,indent,options=default_options):
-    """dumps a list value.
-
+    """dumps a list or a tuple value.
+    
     parameters:
     val    -- the value to dump
     indent -- the indentation level of each new started line
@@ -769,18 +769,33 @@ def list_dumper(val,indent,options=default_options):
             ], 
             4, 5
     ]
+
+    Finally an example that this function can also dump tuples, in this case
+    the square brackets in the output are replaced with round brackets:
+
+    >>> a=(1,2,3)
+    >>> list_dumper(a,0)
+    ['( ', [['1'], [', '], ['2'], [', '], ['3']], ' )']
+    >>> list2str(list_dumper(a,0))
+    '( 1, 2, 3 )'
     """
-    if not of_list(val):
+    if of_list(val):
+        br_opn= '['
+        br_cls= ']'
+    elif of_tuple(val):
+        br_opn= '('
+        br_cls= ')'
+    else:
         return None
     if options.format==REPR:
-        opn= "[ "   # opening string
-        cls= " ]"   # closing string
+        opn= "%s " % br_opn  # opening string
+        cls= " %s" % br_cls   # closing string
         inb= ", "  # in-between string
         opt= options
 	oopt= options
     elif options.format==STR_D:
-        opn= ["\n",_ispc(indent),"["]
-        cls= ["\n",_ispc(indent),"]"]
+        opn= ["\n",_ispc(indent),br_opn]
+        cls= ["\n",_ispc(indent),br_cls]
 	if options.start:
 	    opn.pop(0)
             opt= Options(other=options,start=False)
@@ -789,8 +804,8 @@ def list_dumper(val,indent,options=default_options):
         inb= ", "
         oopt= Options(other=opt,format=STR,start=False)
     elif options.format==STR:
-        opn= ["\n",_ispc(indent),"["]
-        cls= ["\n",_ispc(indent),"]"]
+        opn= ["\n",_ispc(indent),br_opn]
+        cls= ["\n",_ispc(indent),br_cls]
 	if options.start:
 	    opn.pop(0)
 	    opt= Options(other=options,start=False)
@@ -1022,6 +1037,7 @@ def set_dumper(func, typename):
 # set all dumpers (except the default-dumper):
 set_dumper(scalar_dumper,"scalar")
 set_dumper(list_dumper,"list")
+set_dumper(list_dumper,"tuple")
 set_dumper(dict_dumper,"dict")
 set_dumper(dumpable_dumper,"Dumpable")
 
