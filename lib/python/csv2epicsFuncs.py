@@ -642,6 +642,12 @@ def getOpcLink(devObj,devName,opc_name):
 		softLinkTag = str(db)+"_"+str(byte)
 		fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,bit,devName).getLink()
         	fields['DTYP'] = "Soft Channel"
+		if devObj.rtype == 'bi':    	    	# OPCIOCBUG: map bi with set bits to mbbi and longin
+		    devObj.rtype = 'mbbi'   	    	#
+        	    fields['SHFT'] = bit    	    	#
+		    fields['DTYP'] = "Raw Soft Channel" #
+        	    fields['NOBT'] = 1	    	    	#
+		    fields[linkType] = epicsUtils.substRe(fields[linkType],"\.B[\dABCDEF]","") #end OPCIOCBUG
             else:
                 raise ValueError("unknown datatype '"+typ+"' in: '"+PLCLink+"'")
 # 2. bits not set: direct access for all record types
@@ -656,6 +662,9 @@ def getOpcLink(devObj,devName,opc_name):
 	    if epicsUtils.matchRe(rtyp,"^mbb[io].*") is not None:
     		fields['NOBT'] = 16
     elif rtyp in ('bi','mbbi','bo','mbbo'):     # access via mbb_Direct from OPC Server Byte/Word data
+	if devObj.rtype == 'bi':    	    	# OPCIOCBUG: map bi with set bits to mbbi and longin
+	    devObj.rtype = 'mbbi'
+	    rtyp = 'mbbi'
         (nobt,shft) = getShiftParam(bits)
         fields['SHFT'] = shft
 	if  rtyp in ['mbbi','mbbo']:
@@ -737,11 +746,11 @@ class PLC_Address(object):
         """
         for tag in PLC_Address.mbbiDirectLinks.keys():
             (link,signalName) = PLC_Address.mbbiDirectLinks[tag]
-            epicsUtils.epicsTemplate('mbbiDirect', {'DEVN':deviceName},{'SNAME':signalName,
+            epicsUtils.epicsTemplate('longin', {'DEVN':deviceName},{'SNAME':signalName, # OPCIOCBUG: don't take mbbiDirect, but longin
                       	'DESC': tag[len(tag)-20:len(tag)],
                       	'DTYP': dtypHw,
                       	'SCAN': "I/O Intr",
-                    	'NOBT': "16",
+#                    	'NOBT': "16",	# OPCIOCBUG: no NOBT for the longin 
                       	'INP':  link})
         for tag in PLC_Address.mbboDirectLinks.keys():
             (link,signalName) = PLC_Address.mbboDirectLinks[tag]
