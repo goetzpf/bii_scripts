@@ -198,8 +198,17 @@ req = []	    # autoSaveRestore list
 panelList = epicsUtils.Panels(install_path,display_search_path)
 plugins = csv2epicsFuncs.setupPlugins(display_search_path.split(':'))
 
-def joinItarch(): return "<group>\n<name>"+output_arch.replace(".arch","")+"</name>\n"+"\n".join(arch)+"\n</group>" 
-def joinItreq():  return "\n".join(req)
+def joinItarch(): 
+    outStr = None
+    if output_arch:
+    	outStr = "<group>\n<name>"+output_arch.replace(".arch","")+"</name>\n"+"\n".join(arch)+"\n</group>" 
+    return outStr
+
+def joinItreq():
+    outStr = None
+    if output_req:
+    	outStr = "\n".join(req)
+    return outStr
 
 if output_db is None:
     print "Missing option -d outFile.db"
@@ -297,7 +306,7 @@ for argument in args:
 	    else:
 		warnings.append([fileName,lines,"Skip record/template",devName+":"+devObj.signal,"Unsupported: '"+devObj.rtype+"'"])
 		continue
-    	    # END search and create record type
+	    # END search and create record type
 	    # now processing is done, an record is created and we can use the variables, set 
 	    # for this line of the spread sheet to do some optional stuff
     	    if devObj.signal != "":
