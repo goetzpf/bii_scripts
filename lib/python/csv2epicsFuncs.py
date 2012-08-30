@@ -846,27 +846,39 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     arcSignals = None
     panelNameDict={'DEVN':devName}
     panelDict = {}
-    panelWidgetName = ""
+    panelWidgetName = "anyVal"
 
     fields = epicsUtils.parseParam(devObj.prec)
-    toggle_chan=""
-    if fields.has_key('TOGGLE_CHAN'): toggle_chan=fields['TOGGLE_CHAN']
-    else:
-    	raise ValueError, "Missing parameter TOGGLE_CHAN (Col. N)"
-    epicsUtils.epicsTemplate('calcout',{'DEVN':devName},{'SNAME':"counter",
-    	'SCAN':"1 second",
-    	'INPA':"$(DEVN):counter.VAL",
-	'INPB':"10",
-	'CALC':"A+1",'OCAL':"A>B?0:1",
-	'OOPT':"Every Time",
-	'DOPT':"Use OCAL",
-	'OUT': devObj.disableRec+" PP NMS"})
-
-    epicsUtils.epicsTemplate('calcout',{'DEVN':devName},{'SNAME':"rstCounter",
-    	'INPA':toggle_chan+" CPP NMS",
-	'INPB':"$(DEVN):counter.LB",
-	'CALC':"A#B",'OUT':"$(DEVN):counter",
-	'OOPT':"When Non-zero"})
+    epicsUtils.epicsTemplate('bi',{'DEVN':devName},{'SNAME':"stHeartBeat",
+	'DESC':"CPU-Heartbeat",
+	'SCAN':"I/O Intr",
+	'PINI':"YES",
+	'DTYP':"opcRaw",
+	'INP':"@"+devObj.port,
+	'ZNAM':"Heart",
+	'ONAM':"Beat",
+	'FLNK':devName+":fwdHeartBeat"})
+    epicsUtils.epicsTemplate('bo',{'DEVN':devName},{'SNAME':"fwdHeartBeat",
+	'DOL':devName+":stHeartBeat",
+	'OUT':devName+":intWdgCounter PP",
+	'ONAM':"Beat",
+	'ZNAM':"Heart",
+	'HIGH':"1"})
+    epicsUtils.epicsTemplate('calcout',{'DEVN':devName},{'SNAME':"intWdgCounter",
+	'INPA':devName+":intWdgCounter.VAL NPP NMS",
+	'INPB':fields['TMO'],
+	'CALC':"A+1",
+	'SCAN':"1 second",
+	'OUT':devName+":disable PP NMS",
+	'OCAL':"A>B?1:0",
+	'DOPT':"Use OCAL"})
+    epicsUtils.epicsTemplate('bi', {'DEVN':devName}, {'SNAME':"disable",
+    	'DESC':"Disable: "+devName,
+	'INP': devName+":intWdgCounter.OVAL NPP NMS",
+	'ZNAM':"enable",
+	'ONAM':"disable",
+	'OSV':"MAJOR"})
+	
     return (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
 
   

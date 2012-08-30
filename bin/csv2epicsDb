@@ -325,7 +325,7 @@ for argument in args:
 
 	    if output_panel is not None and len(devObj.panelName)>0: # for panel creation
 		if len(devObj.panelName )>0 and not panelWidgetName:
-		    epicsUtils.die("Missing widgetName for: '"+devName+":"+devObj.signal+"' Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' line: "+str(lines))
+		    epicsUtils.die("Missing widgetName for: '"+devName+":"+devObj.signal+"' Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' "+argument+" - line: "+str(lines))
 		panelList.addItem(devObj.panelName,devObj.panelGroup,panelNameDict,panelDict,panelWidgetName,devObj.panelSort)
 
 	    if devObj.archPeriod is not None and len(devObj.archPeriod)>0:
@@ -343,7 +343,6 @@ for argument in args:
 #########################################################################
     if options.dis: 
     	(dev,sname) = epicsUtils.matchRe(options.dis,"(.*):(.*)")
-	epicsUtils.epicsTemplate('bi', {'DEVN':dev}, {'SNAME':sname,'DESC':"Disable: "+dev,'ONAM':"disable",'ZNAM':"enable",'OSV':"MAJOR"})
     csv2epicsFuncs.PLC_Address.setupTemplates(devName,'opc')
   # Create files
     for typ in types.keys():
