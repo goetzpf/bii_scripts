@@ -24,6 +24,8 @@ class epicsAlh(object):
 
 class epicsTemplate(object):
     Stores and print an EPICS database data for .db or .template files.
+
+def updateStruct(a,b): Merge two data structures for st.cmd defintion.
 """
 from optparse import OptionParser
 import sys
@@ -1104,4 +1106,19 @@ class epicsTemplate(object):
 
 
         return prStr
+
+def updateStruct(a,b):
+    """ Helper function to create st.cmd files. Merge two data structures: b into a. 
+    See NEWIOC.py for details to the data structure
+    """
+    for bKey in b.keys():
+    	if a.has_key(bKey):
+	    aList = a[bKey]
+	    if isinstance( aList,list):
+		for item in b[bKey]:
+	    	    aList.append(item)
+	    else:
+	    	a[bKey] = aList
+	else:
+	    a[bKey] = b[bKey]
 

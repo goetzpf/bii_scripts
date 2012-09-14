@@ -1,0 +1,149 @@
+#!/usr/bin/env python2.5
+import sys
+def dictArgStr(argDict): 
+    if isinstance(argDict,dict): 
+    	return ",".join( map(lambda x: str(x)+"="+str(argDict[x]), sorted(argDict.keys())))
+
+def DriverInit(driverInit):
+    return reduce(lambda a,x: a+"\n# "+x['DESC']+"\n"+x['CMD']+"\n",driverInit,"")
+
+def LoadRecords(loadRecords):
+    return reduce(lambda a,x: a+"\n# Load "+x['DESC']+" database (flat)\n"+\
+    	    "dbLoadRecords(\""+x['DB']+".db\""+ (", \""+(dictArgStr(x['SUBST'])+"\"") if x.has_key('SUBST') else "")+")\n",\
+	    loadRecords,"")
+def Restore(restore):
+    return reduce(lambda a,x: a+"\n# Restore channels for "+x['SAV']+" during pass "+str(x['PASS'])+"\n"+\
+    	"set_pass"+str(x['PASS'])+"_restoreFile(\""+x['SAV']+".sav\""+\
+	(dictArgStr(x['SUBST']) if x.has_key('SUBST') else "")+")\n",\
+	restore,"")
+
+def Seq(seq):
+    return  reduce(lambda a,x: a+"\n# "+x['DESC']+" State Machine\n"+\
+    	"seq &"+x['ST']+", \""+(dictArgStr(x['SUBST']) if x.has_key('SUBST') else "")+"\"\n",\
+	seq,"")
+
+def Request(request):
+    return reduce(lambda a,x: a+"\n# Auto-save channels for "+str(x['REQ'])+" every "+str(x['RATE'])+" seconds\n"+
+    	    	"create_monitor_set(\""+str(x['REQ'])+".req\", "+str(x['RATE'])+(dictArgStr(x['SUBST']) if x.has_key('SUBST') else "")+")\n",\
+		request,"")
+
+sys.path.insert(0,'.')
+sys.path.insert(0,'..')
+args = {}
+for a in sys.argv[1:]:
+    (n,v) = a.split('=')
+    args[n]=v
+
+IOC          = args['IOC']
+
+__import__(IOC).getArgs(args)
+
+DB_LOG_DIR   = args['DB_LOG_DIR']
+SUPPORT      = args['SUPPORT']
+ASCF         = args['ASCF']
+version      = args['version']
+autosave     = args['autosave']
+loadRecords  = args['loadRecords']
+caPutLog     = args['caPutLog']
+nfs          = args['nfs']
+ROUTER       = args['ROUTER']
+HOST         = args['HOST']
+caPutLog     = args['caPutLog']
+iocLog       = args['iocLog']
+
+stCmdStr = "# vxWorks Startup File for "+IOC+\
+"\n#\n"+\
+"# This file was generated and should NOT be modified by hand!!!\n"+\
+"#\n"+\
+"############################################################# Network Settings\n"+\
+"\n"+\
+"# Enable route to trs\n"+\
+"routeAdd \"192.168.31.0\", \""+ROUTER+"\"\n"+\
+"\n"+\
+"# Add NFS host entry\n"+\
+nfs['USE']+"hostAdd \"nfshost\", \"\"\n"+\
+nfs['USE']+"nfsAuthUnixSet \"nfshost\", "+str(nfs['UID'])+", "+str(nfs['GID'])+", 0, 0\n"+\
+"\n"+\
+"# Mount \"/opt/epics\", \"/opt/IOC\" and \"/opt/IOC/log\" explicitly\n"+\
+nfs['USE']+"nfsMount \"nfshost\", \"/opt/IOC\", \"/opt/IOC\"\n"+\
+nfs['USE']+"nfsMount \"nfshost\", \"/srv/IOC_log\", \"/srv/IOC_log\"\n"+\
+"\n"+\
+"# Log Servers\n"+\
+"putenv \"EPICS_IOC_LOG_INET="+HOST+"\"\n"+\
+caPutLog['USE']+"putenv \"EPICS_CA_PUT_LOG_INET="+caPutLog['HOST']+"\"\n"+\
+"\n"+\
+"################################################################# Version Info\n"+\
+"\n"+\
+"pwd >"+DB_LOG_DIR+"/"+IOC+".pwd\n"+\
+version['USE']+"copy \"../version\", \""+DB_LOG_DIR+"/"+IOC+".version\"\n"+\
+"\n"+\
+"pwd\n"+\
+version['USE']+"copy \"../version\"\n"+\
+"\n"+\
+"################################################################ Load Binaries\n"+\
+"\n"+\
+"# Change dir to TOP/bin/<target_arch>\n"+\
+"cd \"../../bin\"\n"+\
+"cd epicsUsrOsTargetName()\n"+\
+"\n"+\
+"ld < "+SUPPORT+\
+"\n\n"+\
+"######################################################## Driver Initialization\n"+\
+(DriverInit(args['environment']) if args.has_key('environment') else "")+\
+(DriverInit(args['driverInit'])  if args.has_key('driverInit')  else "")  +\
+"\n################################################ AutoSaveRestore Configuration\n"+\
+"\n"+\
+"# Set directory for request files\n"+\
+"set_requestfile_path(\""+autosave['REQ_DIR']+"\")\n"+\
+"\n"+\
+"# Set directory for restore files\n"+\
+"set_savefile_path(\""+autosave['SAV_DIR']+"\")\n"+\
+"\n"+\
+"# Should dated backups of restore files be created?\n"+\
+"save_restoreSet_DatedBackupFiles("+autosave['CREATE_DATED_BACKUPS']+")\n"+\
+"\n"+\
+"# Do not use status PVs\n"+\
+"save_restoreUseStatusPVs = 0\n"+\
+"\n"+\
+"#################################################### Load Database Definitions\n"+\
+"\n"+\
+"cd \"../../dbd\"\n"+\
+"\n"+\
+"dbLoadDatabase(\""+IOC+".dbd\")\n"+\
+IOC+"_registerRecordDeviceDriver(pdbbase)\n"+\
+"\n"+\
+"############################################################### Load Databases\n"+\
+"\n"+\
+"cd \"../db\"\n"+\
+LoadRecords(args['loadRecords'])+\
+"\n############################################################# Autosave Restore\n"+\
+(Restore(args['restore']) if args.has_key('restore') else "")  +\
+"\n########################################################### Configure IOC Core\n"+\
+"\n"+\
+"# IOC Log Server Connection (0=enabled, 1=disabled)\n"+\
+"iocLogDisable="+iocLog['DISABLE']+\
+"\n\n"+\
+"# Set Access Security\n"+\
+"asSetFilename(\""+ASCF+"\")\n"+\
+"\n"+\
+"################################################################## Ignition...\n"+\
+"\n"+\
+"# Initialize EPICS Core\n"+\
+"iocInit\n"+\
+"\n"+\
+"# Report Installed and Configured I/O-Hardware Information\n"+\
+"dbior 0, 1 > "+DB_LOG_DIR+"/"+IOC+".dbior\n"+\
+"dbhcr      > "+DB_LOG_DIR+"/"+IOC+".dbhcr\n"+\
+"dbl        > "+DB_LOG_DIR+"/"+IOC+".dbl\n"+\
+"\n"+\
+"############################################################### State Machines\n"+\
+(Seq(args['seq']) if args.has_key('seq') else "\n")  +\
+"\n#################################################################### Post Init\n"+\
+"\n"+\
+"# Start caPutLogging\n"+\
+caPutLog['USE']+"caPutLogInit(getenv(\"EPICS_CA_PUT_LOG_INET\"), 1)\n"+\
+"\n"+\
+"############################################################# Autosave Request\n"+\
+(Request(args['request']) if args.has_key('request') else "")+"\n"
+
+print stCmdStr
