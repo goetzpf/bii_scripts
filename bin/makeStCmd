@@ -47,6 +47,7 @@ loadRecords  = args['loadRecords']
 caPutLog     = args['caPutLog']
 nfs          = args['nfs']
 ROUTER       = args['ROUTER']
+DEFAULTROUTER = args['DEFAULTROUTER']
 HOST         = args['HOST']
 caPutLog     = args['caPutLog']
 iocLog       = args['iocLog']
@@ -58,7 +59,7 @@ stCmdStr = "# vxWorks Startup File for "+IOC+\
 "############################################################# Network Settings\n"+\
 "\n"+\
 "# Enable route to trs\n"+\
-"routeAdd \"192.168.31.0\", \""+ROUTER+"\"\n"+\
+"routeAdd \""+DEFAULTROUTER+"\", \""+ROUTER+"\"\n"+\
 "\n"+\
 "# Add NFS host entry\n"+\
 nfs['USE']+"hostAdd \"nfshost\", \"\"\n"+\
