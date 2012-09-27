@@ -8,8 +8,22 @@ expandStCmdConfig.pl - a program to output st.cmd configuration in various forma
 
 expandStCmdConfig.pl <format> IOC=<iocname> [VAR=sometext ...]
 
-Supported <format>s are: 'perl' and 'json'. Arbitrarily many variable substitutions
-may be given on the command line, but IOC= should be one of them and <iocname>.pm
+Currently supported formats are
+
+=over
+
+=item *
+
+perl
+
+=item *
+
+json
+
+=back
+
+Arbitrarily many variable substitutions may be given on the command line,
+but IOC=<iocname> should be one of them and <iocname>.pm
 should exist in the directory "..".
 
 =cut
