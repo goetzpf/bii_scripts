@@ -25,6 +25,10 @@ no extra spaces.
 
 Print in human readable JSON format.
 
+=item python
+
+Print as Python expression.
+
 =back
 
 Arbitrarily many variable substitutions may be given on the command line,
@@ -41,6 +45,8 @@ use Data::Dumper;
 use JSON;
 
 ### expand stCmd configuration and print in various formats
+
+$Data::Dumper::Terse = 1;
 
 sub expandStCmdConfig {
   my $fmt = shift @_;
@@ -63,6 +69,9 @@ sub expandStCmdConfig {
     print(to_json($args));
   } elsif ($fmt eq 'json-pretty') {
     print(to_json($args, {pretty => 1}));
+  } elsif ($fmt eq 'python') {
+    $Data::Dumper::Pair = " : ";       # specify hash key/value separator
+    print(Dumper($args));
   }
 }
 
