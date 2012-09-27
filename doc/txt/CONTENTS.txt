@@ -244,6 +244,10 @@ Scripts
     `dbfilter.pl`_ can do the same with it's "--lowcal" option.
   | `documentation <scripts/filter_can_links.html>`__
 
+**expandStCmdConfig.pl**
+  | extract st.cmd configuration from a perl module.
+  | `documentation <scripts/expandStCmdConfig.html>`__
+
 **flatdb**
   | expands and vdctdb db-file into a "flat" db file. 
 
