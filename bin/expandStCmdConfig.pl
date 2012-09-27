@@ -12,13 +12,18 @@ Currently supported formats are
 
 =over
 
-=item *
+=item perl
 
-perl
+Print as Perl expression (uses Data::Dumper)
 
-=item *
+=item json
 
-json
+Print in JSON format. This is the most compact presentation, no newlines,
+no extra spaces.
+
+=item json-pretty
+
+Print in human readable JSON format.
 
 =back
 
@@ -55,7 +60,9 @@ sub expandStCmdConfig {
   if ($fmt eq 'perl') {
     print(Dumper($args));
   } elsif ($fmt eq 'json') {
-    print(encode_json($args));
+    print(to_json($args));
+  } elsif ($fmt eq 'json-pretty') {
+    print(to_json($args, {pretty => 1}));
   }
 }
 
