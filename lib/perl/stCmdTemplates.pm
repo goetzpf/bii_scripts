@@ -1,9 +1,9 @@
 use Carp;
-use unpackArgs;
+use unpackHashRef;
 
 sub driverInit {
   local ($DESC, $CMD);
-  &unpackArgs;
+  &unpackHashRef;
   return <<EOF;
 # ${DESC}
 ${CMD}
@@ -18,7 +18,7 @@ sub SUBST {
 
 sub restore {
   local ($SAV, $PASS, $SUBST);
-  &unpackArgs;
+  &unpackHashRef;
   $SUBST = ", " . SUBST($SUBST) if ref $SUBST eq 'HASH';
   return <<EOF;
 # Restore channels for ${SAV} during pass ${PASS}
@@ -28,7 +28,7 @@ EOF
 
 sub loadRecords {
   local ($DESC, $DB, $SUBST);
-  &unpackArgs;
+  &unpackHashRef;
   croak "SUBST needs to be a hash reference" if defined $SUBST and not ref $SUBST eq 'HASH';
   $SUBST = ", " . SUBST($SUBST) if ref $SUBST eq 'HASH';
   return <<EOF;
@@ -39,7 +39,7 @@ EOF
 
 sub seq {
   local ($DESC, $ST, $SUBST);
-  &unpackArgs;
+  &unpackHashRef;
   croak "SUBST needs to be a hash reference" if defined $SUBST and not ref $SUBST eq 'HASH';
   $SUBST = ", " . SUBST($SUBST) if ref $SUBST eq 'HASH';
   return <<EOF;
@@ -50,7 +50,7 @@ EOF
 
 sub request {
   local ($REQ, $RATE, $SUBST);
-  &unpackArgs;
+  &unpackHashRef;
   croak "SUBST needs to be a hash reference" if defined $SUBST and not ref $SUBST eq 'HASH';
   $SUBST = ", " . SUBST($SUBST) if ref $SUBST eq 'HASH';
   return <<EOF;
@@ -77,7 +77,7 @@ sub stcmd {
     $caPutLog,
     $request,
   );
-  &unpackArgs;
+  &unpackHashRef;
   return <<EOF;
 # vxWorks Startup File for ${IOC}
 #

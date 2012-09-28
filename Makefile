@@ -382,7 +382,8 @@ POD_PERLLIB_LIST= \
 	parse_db.pm \
 	parse_subst.pm \
 	scan_makefile.pm \
-	simpleconf.pm
+	simpleconf.pm \
+	unpackHashRef.pm
 
 # python libraries with embedded pydoc documentation
 PYDOC_PYTHONLIB_LIST= \
