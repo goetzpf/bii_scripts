@@ -51,15 +51,14 @@ $Data::Dumper::Terse = 1;
 sub expandStCmdConfig {
   my $fmt = shift @_;
   my $args = {@_};
-  my $ioc = $args->{IOC};
   # merge in Standard
   my $std = Standard($args);
   while (my ($k,$v) = each %$std) {
     $args->{$k} = $v;
   }
   # merge in IOC
-  require "$ioc.pm";
-  my $ioc = &$ioc($args);
+  require "$args->{IOC}.pm";
+  my $ioc = IOC($args);
   while (my ($k,$v) = each %$ioc) {
     $args->{$k} = $v;
   }
