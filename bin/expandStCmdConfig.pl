@@ -70,7 +70,7 @@ sub expandStCmdConfig {
     print(to_json($args, {pretty => 1}));
   } elsif ($fmt eq 'python') {
     $Data::Dumper::Pair = " : ";       # specify hash key/value separator
-    print(Dumper($args));
+    print("iocConfig = " . Dumper($args));
   }
 }
 
