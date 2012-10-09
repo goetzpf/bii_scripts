@@ -1147,7 +1147,7 @@ sub   setWidget
     	my $y;
     	my $width;
 
-#print "Obj: $1\t=> " if $parse =~ /\#\s*\((.*)\)/;
+#print "****************** Object ********************:\n $object\n";
 
 # Substitute $(WIDTH) variable
 	if(  $object =~ /\s*x\s+(\d+)\s*y\s+(\d+)\s*w\s+(\$\(WIDTH\))/ )
@@ -1210,13 +1210,12 @@ sub   setWidget
 	{
 	    $edl .= "$rest";
 	}
-
-# substitute the PV variable
-        $edl = parsePV($edl,$rH_Attr);
-
-# substitute all other variables
-    	$edl = parseVars($edl,$rH_Attr);
     }
+#substitute the PV variable
+        $edl = parsePV($edl,$rH_Attr);
+#substitute all other variables
+    $edl = parseVars($edl,$rH_Attr);
+
 # *  Return  :
 #
 #  - '$edl' the content of the edl file with correct values for x- y-positions and substituted variables.
