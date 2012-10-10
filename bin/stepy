@@ -1,5 +1,123 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
+"""==============================
+stepy Measure Program
+==============================
+
+Stepy is a configurable measure program that preforms loops that set EPICS
+process variables (PV) and read a set of process variables after each step.
+
+Features 
+==============================
+
+-**Loops:**for n dimensions, with the parameters: 
+
+    - the parameters: 'FROM, TO, INCREMENT' and 'DELAY' define a loop
+    - The outer loop may be defined for single or multiple runs.
+
+-**Attatched Process variables:** Each loop may set several PVs
+
+-**Set PV types:**  For each process variable are several types of conversion of
+   the loop parameters available.
+  
+    -**PV:** set the current loop value.
+    -**MOTOR:** set the current loop value and wait until the motor has reached its 
+       position.
+    -**LINEAR:** Parameter: BEGIN, END. Convert the loop values to the range within
+       the parameters for each step.
+    -**FUNCTION:** Transform the loop values with a free definable (python syntax)
+       function
+
+-**Measurement:** Multiple PVs may be measured in each step. The measured values 
+   are:
+
+    - displayed in a list
+    - may be shown in a StripTool
+    - may be stored in a file in .csv format
+    - there may be a break condition to break the measurement (-b option)
+
+-**GUI Features** :
+
+    - All loops, set and read PVs may be configured by the GUI.
+    - Configuration and measured data may be stored to file.
+
+-**Run Remarks** :
+
+    - The program can execute the configuration file to perform the
+      measurement from command line.
+    ::
+    stepy -x my.cfg -f measuredData.csv
+
+    - Minimal delay between the steps is approximate 1 second, due to the channel 
+      access library.
+
+- Restore affected PVs when finishing the program.
+
+    - GUI 'Restore' button
+    - Quit GUI: Ask dialog
+    - Commandline: allways restore if program finshed
+
+Konfiguration files
+==============================
+
+-**~/.steprc** Set the prepath for data and configuration files:
+::
+    { 'DATAPREPATH': "/home/pc/kuner/ctl/tmp/stepData",
+      'CFGPREPATH':  "/home/pc/kuner/ctl/tmp/stepConf"
+    }
+
+-**xx.cfg** Configure Measurement 
+
+    - The '.cfg' file may contain multiple configurations, 
+    - The user has to choose one of these configurations while loading the '.cfg' file
+    - In commandline mode a '.cfg' file with just one configuration is executed 
+      directly, more configurations are choosen interactive or by argument.
+::  
+    stepy -x huhu.cfg 2
+  
+- In GUI mode, store a configuration will append it to an existing file, asking 
+  for the description before write it.
+
+Example:
+::
+    {'LOOPS': [{'LTYPE': 'ONCE', 'FROM': 0.0, 'TO': 3.0, 'INC': 1.0, 'DELAY': 0.2, 
+'PVS': [{'TYPE': 'PV', 'PV': 'test:out1'}]}], 'DESC': '21.10.08 13:22 | 1-loop ONCE
+', 'MEASURE': ['test:read1']}
+
+-** ~/.step.stp:** is the temporary created file to start the StripTool with the
+  actual parameters.
+
+History
+=======
+
+- Version 1.1
+
+    - Col with measure Times
+    - break condition in GUI
+    - Save data: Append to existing file, don't overwrite
+    - Improved configure files - pretty print, not all in one Line
+    - X- and Y-scrollable window for measured data
+
+    - Bugfix: Illegal function causes unhandled exception
+    - Bugfix: motorPV may miss motor movment
+
+Bugs and Enhancement - TuDu
+==============================
+
+-**Features** :
+
+    - set PV with async caput - caput callback
+    - PV menus to PV|LIN|FUNC -> Typechoice (pv or motor)
+
+-**Bugs** :
+
+    - start striptool causes setvalues of 'None' - Not Occured local!
+
+    - Umbau, nur noch LinPV und NrOfSteps
+    - Abspeichern von cfg. Files, keine escription ergibt leere Zeile. Beim Laden
+     muss die Leere Zeile angeklickt werden - Mist!
+
+"""
 import step
 import re
 #import ca
@@ -14,11 +132,6 @@ from optparse import OptionParser
 #import atexit
 import os
 #from traceback import *
-"""
-stepy - Configurable Measure Program
-****************************************
-
-"""
 
 my_version = "1.1"
 
@@ -105,6 +218,10 @@ parser.add_option("-t","--timestamp",
 		 action="store_true", # default: None
 		 help="print timestamp for each measurement"
     		 )
+parser.add_option("","--doc",
+		 action="store_true", # default: None
+		 help="print documentation"
+    		 )
 
 (options, args) = parser.parse_args()
 
@@ -114,6 +231,11 @@ argDict = {}
 steprc = None
 import os.path
 stepCfgFile = os.environ['HOME']+"/.steprc"
+
+if options.doc is not None:
+    print __doc__
+    sys.exit(0)
+
 if os.path.isfile(stepCfgFile):
     f = open(os.environ['HOME']+"/.steprc")
     steprc = eval(f.read())
@@ -242,4 +364,3 @@ time.sleep(2)
 # global used for save-restore of all PVs set by this program
 #global saveRestObj
 #saveRestObj = step.SaveRestore() 
-
