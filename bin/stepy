@@ -1,0 +1,245 @@
+#! /usr/bin/env python
+# -*- coding: UTF-8 -*-
+import step
+import re
+#import ca
+import time
+import sys
+#import string
+import signal
+import pfunc
+from types import FunctionType
+from optparse import OptionParser
+#import threading
+#import atexit
+import os
+#from traceback import *
+"""
+stepy - Configurable Measure Program
+****************************************
+
+"""
+
+my_version = "1.1"
+
+def setSignalINT(obj):
+    """
+    set Signal handler to break measurement with SIGINT 
+    """
+    def procSig(signum, frame,obj):
+#    	print "procSig", signum, type(obj),"\n"
+	if signum == 2 and isinstance(obj,step.MeasThread) :
+	    obj.stopCmd()
+	    if obj.mPvs.fileName is not None:
+		print "Write measured Data to file: ",obj.mPvs.fileName
+    		obj.mPvs.writeData()
+	elif signum == 2 and isinstance(obj,stepView.stepApp) :
+	    obj.quitApplication()
+
+    signal.signal(signal.SIGINT,pfunc.ArgFreeze(procSig,None,None,obj) )
+
+setLoops = []	# the measure loop list, set by arguments, config file or an empty object to be setup in GUI
+mPvs = None	# measure object, set by arguments, config file or an empty object to be setup in GUI
+
+usage = " %prog [options]"
+parser = OptionParser(usage=usage,
+		 version="%%prog %s" % my_version,
+    		 description="Stepy is a configurable measure program that preforms loops that set EPICS\n\
+		 process variables (PV) and read a set of process variables after each step.   \
+* stepy -x file.cfg            | run a measure program from commandline             \
+* stepy -x file.cfg -w         | start preconfigured GUI                            \
+* stepy -x fil.cfg -f file.csv | run a measure program and save data   		    \
+* stepy                        | start GUI                                          \
+* -b, -n                       | are allready not implemented in the GUI            \
+* -l, -s, -M -d                | Simple measure loop  from commandline:             \
+* Example: Run motor from 1 to 12, increment 1 break for high limit switch         \
+stepy -l 1.0,12,2 -d 0 -s test:mot -M -b 'test:mot.HLS==1' read:sig1 read:sig2"
+    		 )
+parser.add_option("-f","--file", 
+		 action="store",
+    		 type="string",
+		 help="print measured data to file (overwrite mode!)", 
+    		 )
+
+parser.add_option("-x","--execute", 
+		 action="store",
+    		 type="string",
+		 help="load a configuration file and run the loop or start GUI (-w Option)", 
+    		 )
+parser.add_option("-w","--win",
+		 action="store_true", # default: None
+		 help="start graphical view", 
+    		 )
+parser.add_option("-b","--breakIf", 
+		 action="store",
+    		 type="string",
+		 help="break if condition is true e.g. -b 'pv > 5' ", 
+    		 )
+
+parser.add_option("-n","--nextIf", 
+		 action="store",
+    		 type="string",
+		 help="next if condition is true e.g. -n 'pv > 5' ", 
+    		 )
+parser.add_option("-l","--loop", 
+		 action="append",
+    		 type="string",
+		 help="the loop definition: LOOP= 'FROM,TO,INC'", 
+    		 )
+parser.add_option("-s","--setPV", 
+		 action="append",
+    		 type="string",
+		 help="the PV to be set", 
+    		 )
+
+parser.add_option("-M","--Motor",
+		 action="store_true", # default: None
+		 help="set channel is a motor (motorRecord)", 
+    		 )
+parser.add_option("-d","--delay",  # implies dest="nodelete"
+		 action="store", # default: None
+    		 type="float",
+		 help="measurement delay time", 
+    		 )
+parser.add_option("-t","--timestamp",
+		 action="store_true", # default: None
+		 help="print timestamp for each measurement"
+    		 )
+
+(options, args) = parser.parse_args()
+
+argDict = {}
+
+# There is a config file in the user home to set this pre paths
+steprc = None
+import os.path
+stepCfgFile = os.environ['HOME']+"/.steprc"
+if os.path.isfile(stepCfgFile):
+    f = open(os.environ['HOME']+"/.steprc")
+    steprc = eval(f.read())
+    argDict.update(steprc)
+# Process options to define a step run from commandline
+if options.timestamp is not None:
+    argDict['TIMESTAMP'] = options.timestamp
+    print "Timestamp =", options.delay
+if options.delay is not None:
+    print "Delay =", options.delay
+
+regPvName = re.compile('^\s*([\d\w\.:]+)(.*)$') # 'pvName EXPR, e.g 'MDIZ3T5G:lt50' '< 0.1'
+nextifPar = None
+if options.nextIf is not None:
+    argDict['NEXT'] = step.parseFuncParameter(options.nextIf)
+
+breakifPar = None
+if options.breakIf is not None:
+    argDict['BREAK'] = step.parseFuncParameter(options.breakIf)
+
+# configure loop by commandline parameters OR..
+if options.loop is not None:
+    if len(options.loop) == len(options.setPV):
+    	argDict['LOOPS'] = []
+	for (setPvName,loop) in zip(options.setPV,options.loop) :
+	    loopDict = {'LTYPE': 'ONCE','DELAY':0}
+	    if options.delay is not None: loopDict['DELAY'] = float(options.delay)
+
+    	    (fromVal,toVal,incVal) = loop.split(',')
+    	    loopDict['INC']  = float(incVal)
+    	    loopDict['FROM'] = float(fromVal)
+    	    loopDict['TO']   = float(toVal)
+
+    	    loopDict['PVS'] = []
+	    pvsDict = {'PV':setPvName,'TYPE':'PV'}
+    	    if options.Motor is not None: pvsDict['TYPE'] = 'MOTOR'
+    	    print "SET ",pvsDict['TYPE'],"=", pvsDict['PV']
+
+    	    loopDict['PVS'].append(pvsDict)
+	    argDict['LOOPS'].append(loopDict)
+
+# configure loop by config file - will be executed imdiately unless there is the -w option
+elif options.execute is not None:
+    cfgList = None
+    try:
+    	cfgList = step.readConfig(options.execute)
+    except SyntaxError, e:
+    	step.warnFunc(str(e))
+    except IOError, e:
+    	step.warnFunc(str(e))
+
+    if cfgList == None:
+	sys.exit("Can't read configuration from File:"+options.execute)
+    idx = 0
+    if len(cfgList) > 1:
+    	if len(args) > 0:
+	    try :
+                idx = int(args[0])
+            except ValueError:
+	    	pass
+
+	else:
+            idx=0
+     	    for cfg in cfgList:
+     		print idx, "|",cfg['DESC']
+     		idx += 1
+ 	    inp =  raw_input("choose a configuration number (exit=x, show=s <nr>)> ")
+ 	    try :
+ 		idx = int(inp)
+ 	    except ValueError:
+ 		inpArray = inp.split()
+ 		print inpArray[0]
+ 		if inpArray[0] == 's':
+ 		    try:
+ 		    	idx = int(inpArray[1])
+ 		    except ValueError:
+ 		    	sys.exit()
+ 		    except IndexError:
+ 		    	sys.exit()
+ 		    mPvs = step.measurePvs(cfgList[idx])
+ 		    print "COMMANDLINE: \n",mPvs
+ 		sys.exit()
+    try:
+    	cfg = cfgList[idx]
+    except IndexError:
+        sys.exit()
+    
+    argDict = cfg
+
+
+if options.file is not None:
+    mPvs.setFileName(options.file)
+
+if options.win or ( options.loop is None and options.execute is None):
+    try:
+    	import Tkinter
+    	import stepView
+    except ImportError, e:
+    	print "Don't support GUI: ",e
+    	sys.exit()
+    root = Tkinter.Tk()
+    root.title("Step - Measure Loops")
+    argDict['FILENAME'] = options.execute
+    guiObj = stepView.stepApp(root,argDict)
+    setSignalINT(guiObj)
+    step.setWarnFunc(stepView.warn)
+    Tkinter.mainloop()
+# MEASURE LOOP
+else :
+    try:
+    	mPvs = step.measurePvs(argDict)
+    except Exception:
+    	sys.exit()
+    ms = step.MeasThread(mPvs)
+    setSignalINT(ms)
+    ms.MeasThreadStart()
+#   ms.ms.join()    # join is evil - devours sigINT signal
+    while True:
+    	time.sleep(1)
+    	if ms.getRunControl() == -1 : break
+    	
+    step.SaveRestore.restoreAll('verbose')
+
+time.sleep(2)
+
+# global used for save-restore of all PVs set by this program
+#global saveRestObj
+#saveRestObj = step.SaveRestore() 
+
