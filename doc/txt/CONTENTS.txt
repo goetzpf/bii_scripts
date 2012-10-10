@@ -416,6 +416,11 @@ Scripts
   | a semi-automatic shell-script for setting file and directory permissions in
     the CVS repository, in epics, vxworks or development related directories.
 
+**stepy**
+  | Stepy is a configurable measurement program that preforms loops that set
+    EPICS process variables (PV) and reads a set of process variables after each step.
+  | `documentation <scripts/stepy.html>`__
+
 **sqlutil.py**
   | this program copies data between a database, a dbitabletext file, the
     screen.

@@ -41,6 +41,10 @@
 # help when called with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_SCRIPT_LIST variable
 
+# for scripts with name * (no file extension) that generate 
+# reStructuredText when called with "--doc" as the only parameter
+#    add scriptname to the RST_DOC_SCRIPT_LIST variable
+
 # for scripts with name *.py that generate reStructuredText
 # when called with "--doc" as the only parameter
 #    add scriptname to the RST_DOC_PY_SCRIPT_LIST variable
@@ -147,9 +151,9 @@ CREATE_PYTHON3=no
 
 
 # environment variables for programs.........................
-PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
+PERL5LIBNEW:=$(PERL5LIB):$(PERLLIB_SRC_DIR)
 
-PYTHONPATHNEW=$(PYTHONLIB_SRC_DIR):$(PYTHONPATH)
+PYTHONPATHNEW:=$(PYTHONLIB_SRC_DIR):$(PYTHONPATH)
 
 # program parameters ........................................
 
@@ -348,6 +352,9 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 PLAINTXT_H_PY_SCRIPT_LIST= \
 	hg-kompare.py pyone.py sqlutil.py ssh-pw.py \
 	hg2darcs.py
+
+RST_DOC_SCRIPT_LIST= \
+	stepy
 
 RST_DOC_PY_SCRIPT_LIST= \
 	archiver2camonitor.py \
@@ -618,6 +625,9 @@ _HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST=\
 _HTML_PLAINTXT_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_SCRIPT_LIST)))
 
+_HTML_RST_SCRIPT_BUILD_LIST=\
+  $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(RST_DOC_SCRIPT_LIST)))
+
 _HTML_RST_PY_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(RST_DOC_PY_SCRIPT_LIST)))
 
@@ -638,6 +648,7 @@ _HTML_DOCTXT_SCRIPT_BUILD_LIST=\
 # all scripts for which documentation is generated
 _DOC_ALL_SCRIPT_LIST=  \
 	$(POD_SCRIPT_LIST) $(_PLAINTXT_ALL_SCRIPT_LIST) \
+	$(RST_DOC_SCRIPT_LIST) \
 	$(RST_DOC_PY_SCRIPT_LIST) $(DOCTXT_SCRIPT_LIST)
 
 ifneq "$(USE_RSYNC)" "yes"
@@ -935,7 +946,21 @@ $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIP
 	(PERL5LIB=$(PERL5LIBNEW) perl $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
-build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_PY_SCRIPT_BUILD_LIST)
+build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_SCRIPT_BUILD_LIST) \
+	               $(_HTML_RST_PY_SCRIPT_BUILD_LIST)
+
+tt:
+	echo $(_HTML_RST_SCRIPT_BUILD_LIST)
+
+$(_HTML_RST_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
+ifeq (1,$(DOCUTILS_AVAILABLE))
+	(PERL5LIB=$(PERL5LIBNEW) perl $< --doc 2>>$(ERRLOG); true) | \
+	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
+else
+	@echo "<PRE>"      >  $@
+	(PERL5LIB=$(PERL5LIBNEW) perl $< --doc 2>>$(ERRLOG); true) >> $@
+	@echo "</PRE>"     >> $@
+endif
 
 $(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 ifeq (1,$(DOCUTILS_AVAILABLE))
