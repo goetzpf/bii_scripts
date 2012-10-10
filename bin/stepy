@@ -11,9 +11,12 @@ process variables (PV) and read a set of process variables after each step.
 Features 
 ==============================
 
-- **Loops:** for n dimensions, with the parameters: 
-    - the parameters: 'FROM, TO, INCREMENT' and 'DELAY' define a loop
-    - The outer loop may be defined for single or multiple runs.
+- **Loops** for n dimensions, with the parameters:
+
+  - the parameters: 'FROM, TO, INCREMENT' and 'DELAY' define a loop
+  - The outer loop may be defined for single or multiple runs.
+
+..
 
 - **Attatched Process variables:** Each loop may set several PVs
 
@@ -28,6 +31,8 @@ Features
   - **FUNCTION:** Transform the loop values with a free definable (python syntax)
     function
 
+..
+
 - **Measurement:** Multiple PVs may be measured in each step. The measured values 
   are:
 
@@ -36,10 +41,14 @@ Features
   - may be stored in a file in .csv format
   - there may be a break condition to break the measurement (-b option)
 
+..
+
 - **GUI Features** :
 
   - All loops, set and read PVs may be configured by the GUI.
   - Configuration and measured data may be stored to file.
+
+..
 
 - **Run Remarks** :
 
@@ -50,6 +59,8 @@ Features
 
   - Minimal delay between the steps is approximate 1 second, due to the channel 
     access library.
+
+..
 
 - Restore affected PVs when finishing the program.
 
@@ -68,13 +79,13 @@ Configuration files
 
 - **xx.cfg** Configure Measurement 
 
-  - The '.cfg' file may contain multiple configurations, 
-  - The user has to choose one of these configurations while loading the '.cfg' file
-  - In commandline mode a '.cfg' file with just one configuration is executed 
+  - The '.cfg' file may contain multiple configurations.
+  - The user has to choose one of these configurations while loading the '.cfg' file.
+  - In commandline mode a '.cfg' file with just one configuration is executed
     directly, more configurations are choosen interactive or by argument.::  
 
       stepy -x huhu.cfg 2
-  
+
 - In GUI mode, store a configuration will append it to an existing file, asking 
   for the description before write it. Example::
 
