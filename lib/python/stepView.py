@@ -606,6 +606,7 @@ class stepApp(object):
 	self.stat = Label(self.loopCmdFrame,textvariable=self.stRun,bg='grey90',width=10)
     	setBold(self.stat)
 	self.timeBar = TimeBar(self.loopCmdFrame)
+	self.setupMVars = Button(self.loopCmdFrame,text="<Measure>",command=self.confMeasCmd,padx=10)
 
 	self.startBut.grid(row=0, column=0)
 	stopBut.grid(row=0, column=1)
@@ -619,6 +620,7 @@ class stepApp(object):
 	self.statLabel.grid(row=2, column=0, sticky=W,padx=0,pady=5)
 	self.stat.grid(row=2, column=1)
 	self.timeBar.grid(row=2, column=2, columnspan=2)
+	self.setupMVars.grid(row=2, column=4)
 
     	self.fileFrame.grid(row=0, column=0, sticky=W)
     	Frame(height=2, bd=1, relief=SUNKEN).grid(row=1, column=0, sticky=W+N+E)	#Seperator
