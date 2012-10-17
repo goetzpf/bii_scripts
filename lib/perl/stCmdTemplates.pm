@@ -59,6 +59,28 @@ create_monitor_set("${REQ}.req", ${RATE}${SUBST})
 EOF
 }
 
+sub nfs {
+  local ($HOST, $UID, $GID);
+  &unpackHashRef;
+  if ($HOST) {
+    return <<EOF;
+# Add NFS host entry
+hostAdd "nfshost", "${HOST}"
+nfsAuthUnixSet "nfshost", ${UID}, ${GID}, 0, 0
+
+# Mount "/opt/epics", "/opt/IOC" and "/opt/IOC/log" explicitly
+nfsMount "nfshost", "/opt/IOC", "/opt/IOC"
+nfsMount "nfshost", "/srv/IOC_log", "/srv/IOC_log"
+
+cd index(getcwd(malloc(128),128),':')+1
+EOF
+  } else {
+    return <<EOF;
+# NFS not configured
+EOF
+  }
+}
+
 sub stcmd {
   local (
     $IOC,
@@ -68,6 +90,7 @@ sub stcmd {
     $SUPPORT,
     $LOG_DISABLE,
     $ASCF,
+    $nfs,
     $version,
     $driverInit,
     $autosave,
@@ -78,6 +101,7 @@ sub stcmd {
     $request,
   );
   &unpackHashRef;
+  $nfs = nfs($nfs);
   return <<EOF;
 # vxWorks Startup File for ${IOC}
 #
@@ -88,14 +112,7 @@ sub stcmd {
 # Enable route to trs
 routeAdd "192.168.31.0", "${ROUTER}"
 
-# Add NFS host entry
-$nfs->{USE}hostAdd "nfshost", "$nfs->{HOST}"
-$nfs->{USE}nfsAuthUnixSet "nfshost", $nfs->{UID}, $nfs->{GID}, 0, 0
-
-# Mount "/opt/epics", "/opt/IOC" and "/opt/IOC/log" explicitly
-$nfs->{USE}nfsMount "nfshost", "/opt/IOC", "/opt/IOC"
-$nfs->{USE}nfsMount "nfshost", "/srv/IOC_log", "/srv/IOC_log"
-
+${nfs}
 # Log Servers
 putenv "EPICS_IOC_LOG_INET=$iocLog->{HOST}"
 $caPutLog->{USE}putenv "EPICS_CA_PUT_LOG_INET=$caPutLog->{HOST}"
