@@ -68,9 +68,9 @@ sub nfs {
 hostAdd "nfshost", "${HOST}"
 nfsAuthUnixSet "nfshost", ${UID}, ${GID}, 0, 0
 
-# Mount "/opt/epics", "/opt/IOC" and "/opt/IOC/log" explicitly
-nfsMount "nfshost", "/opt/IOC", "/opt/IOC"
-nfsMount "nfshost", "/srv/IOC_log", "/srv/IOC_log"
+# Mounts
+nfsMount "nfshost", "/srv/IOC", "/opt/IOC"
+nfsMount "nfshost", "/srv/IOC_log", "/opt/IOC/log"
 
 cd index(getcwd(malloc(128),128),':')+1
 EOF
