@@ -72,6 +72,9 @@ nfsAuthUnixSet "nfshost", ${UID}, ${GID}, 0, 0
 nfsMount "nfshost", "/srv/IOC", "/opt/IOC"
 nfsMount "nfshost", "/srv/IOC_log", "/opt/IOC/log"
 
+# After booting the cwd is "vwhost:/opt/IOC/...".
+# This causes file access via relative path names to use rsh.
+# To enable NFS access we must remove the "vwhost:" prefix.
 cd index(getcwd(malloc(128),128),':')+1
 EOF
   } else {
