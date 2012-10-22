@@ -1028,41 +1028,8 @@ sub   parsePV
     {
     	$pvTrunc = $pv;
     }
-    my $value;	# holds the substituted $parseVal
-    my $varName;
-#print "\n******VALUE:\n$value******\n", Dumper($rH_Attr);
-    while(  ) # check for all occuring varNames: $(PV)
-    {
-        if( $parseVal =~ /\$\(PV\)\./ ) # match a $(PV).FIELD notation
-	{
-	    $value .= "$`$pvTrunc.";
-            $parseVal = $';
-#print "set . pvTrunc=$pvTrunc\n";
-	}
-        if( $parseVal =~ /\$\(PV\):/ )  # match a $(PV):SIGNAL...  notation
-	{
-	    $value .= "$`$pvTrunc:";
-            $parseVal = $';
-#print "set : pvTrunc=$pvTrunc\n";
-	}
-        elsif( $parseVal =~ /\$\(PV\)/) # match a $(PV) notation
-	{
-            $parseVal = $';
-	    $value .= "$`$pv";
-
-#print "set pv=$pv\n";
-            my $varValue = $rH_Attr->{$varName};
-            $value =~ s/\$\($varName\)/$varValue/g ;
-#print "\t\$($varName)\t= /'$varValue/'";
-    	}
-	else	    	    	    	 # exit if there is no more $(PV)
-	{
-	    $value .= $parseVal;
-	    last;
-	}
-    }
-#print "\n";
-    return $value;
+    $parseVal =~ s/\$\(PV\)/$pvTrunc/g;
+    return $parseVal;
 }
 
 ##  (anchor: #scale)
@@ -1212,7 +1179,7 @@ sub   setWidget
 	}
     }
 #substitute the PV variable
-        $edl = parsePV($edl,$rH_Attr);
+    $edl = parsePV($edl,$rH_Attr);
 #substitute all other variables
     $edl = parseVars($edl,$rH_Attr);
 
