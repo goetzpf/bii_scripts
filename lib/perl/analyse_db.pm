@@ -154,6 +154,9 @@ sub rec_link_fields
 	next if ($val =~ /^\s*$/);
 	# is it a number ?
 	next if ($val =~ qr/$number/);
+        # is it NaN or inf ?
+        # definitions here taken from strtod documentation (see manpage)
+        next if ($val =~ /^(?:inf|infinity|nan|nan\([^\(\)]*\))$/i);
 	if (exists ($dtyp_link_fields{$fieldname}))
 	  { # maybe a hardware link ?
 	    if (str_defined_different($r_fields->{DTYP},'Soft Channel'))
