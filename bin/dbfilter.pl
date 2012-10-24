@@ -54,6 +54,8 @@ use vars qw($opt_help $opt_summary
             $opt_notname
             $opt_type
             $opt_value
+            @opt_info
+            $opt_infovalue
             $opt_dtyp
             $opt_fields
             $opt_empty
@@ -80,7 +82,7 @@ my $sc_version= "1.7";
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files";
 my $sc_author= "Goetz Pfeiffer";
-my $sc_year= "2005";
+my $sc_year= "2012";
 
 my $debug= 0; # global debug-switch
 
@@ -135,6 +137,8 @@ if (!GetOptions("help|h","summary",
                 "field=s@",
                 "name|NAME|n=s", "notname|NOTNAME=s",
                 "value=s",
+                "info=s@",
+                "infovalue=s",
                 "dtyp|DTYP=s",
                 "type|TYPE|t=s",
                 "fields|FIELDS=s",
@@ -215,48 +219,56 @@ foreach my $file (@files)
     if (!$single_file)
       { $filename= $file; };
 
-    my $recs= parse_db::parse_file($file);
+    my $ext_db_hash= parse_db::parse_file($file,"extended");
 
     if (defined $opt_name)
-      { filter_name($recs,$opt_name); };
+      { filter_name($ext_db_hash,$opt_name); };
 
     if (defined $opt_notname)
-      { filter_name($recs,$opt_notname,1); };
+      { filter_name($ext_db_hash,$opt_notname,1); };
 
     if (defined $opt_type)
-      { filter_type($recs,$opt_type); };
+      { filter_type($ext_db_hash,$opt_type); };
 
     if ($opt_dtyp)
-      { filter_records($recs,"DTYP",$opt_dtyp);
+      { filter_records($ext_db_hash,"DTYP",$opt_dtyp);
+      };
+
+    if (@opt_info)
+      { foreach my $fil (@opt_info)
+          { my($field,$regexp)= split(",",$fil);
+
+            find_info($ext_db_hash,$field,$regexp);
+          };
       };
 
     if (@opt_field)
       { foreach my $fil (@opt_field)
           { my($field,$regexp)= split(",",$fil);
 
-            filter_records($recs,$field,$regexp);
+            filter_records($ext_db_hash,$field,$regexp);
           };
       };
 
     if (defined $opt_val_regexp)
-      { find_val($filename,$recs,$opt_val_regexp,0);
+      { find_val($filename,$ext_db_hash,$opt_val_regexp,0);
       };
 
     if (defined $opt_fields)
       { my @fields= split(",",$opt_fields);
-        filter_fields($recs,\@fields);
+        filter_fields($ext_db_hash,\@fields);
       };
 
     if (defined $opt_empty)
-      { remove_empty_fields($recs);
+      { remove_empty_fields($ext_db_hash);
       };
 
     if (defined $opt_rm_capfast_defaults)
-      { remove_capfast_default_fields($recs);
+      { remove_capfast_default_fields($ext_db_hash);
       };
 
     if (defined $opt_percent)
-      { filter_percent($recs,$opt_percent); };
+      { filter_percent($ext_db_hash,$opt_percent); };
 
     if ((!defined $opt_dump_internal) &&
         (!defined $opt_lowcal) &&
@@ -274,8 +286,13 @@ foreach my $file (@files)
       { $opt_recreate=1; };
 
     if (defined $opt_value)
-      { find_val($filename,$recs,$opt_val_regexp,1);
+      { find_val($filename,$ext_db_hash,$opt_value,1);
         next;
+      };
+
+    if (defined $opt_infovalue)
+      {
+        find_info($ext_db_hash,undef,$opt_infovalue);
       };
 
     if (defined $opt_unresolved_variables)
@@ -286,7 +303,7 @@ foreach my $file (@files)
         if ($opt_db)
           { $flag= "only_records"; };
 
-        list_unresolved_variables($filename,$recs,1,$flag);
+        list_unresolved_variables($filename,$ext_db_hash,1,$flag);
         next;
       };
 
@@ -300,7 +317,7 @@ foreach my $file (@files)
         if ($opt_db)
           { $flag= "only_records"; };
 
-        list_unresolved_links($filename,$recs, $opt_unresolved_links, $flag);
+        list_unresolved_links($filename,$ext_db_hash, $opt_unresolved_links, $flag);
         next;
       };
 
@@ -312,7 +329,7 @@ foreach my $file (@files)
         if ($opt_db)
           { $flag= "only_records"; };
 
-        list_record_references($filename,$recs,
+        list_record_references($filename,$ext_db_hash,
                                $opt_record_references,
                                $flag,
                                $opt_recursive);
@@ -320,7 +337,7 @@ foreach my $file (@files)
       };
 
     if (defined $opt_list)
-      { foreach my $r (sort keys %$recs)
+      { foreach my $r (sort keys %{$ext_db_hash->{dbhash}})
           { if (defined $filename)
               { print "\nFILE $filename:\n";
                 $filename= undef;
@@ -333,34 +350,35 @@ foreach my $file (@files)
     if ((defined $opt_lowcal) || (defined $opt_Lowcal))
       { my $par= $opt_lowcal;
         $par= $opt_Lowcal if (!defined $par);
-        lowcal($filename,$recs,(defined $opt_Lowcal),$par);
+        lowcal($filename,$ext_db_hash,(defined $opt_Lowcal),$par);
         next;
       };
 
     if ((defined $opt_sdo) || (defined $opt_Sdo))
       { my $par= $opt_sdo;
         $par= $opt_Sdo if (!defined $par);
-        sdo($filename,$recs,(defined $opt_Sdo),$par);
+        sdo($filename,$ext_db_hash,(defined $opt_Sdo),$par);
         next;
       };
 
     if (defined $opt_skip_empty_records)
-      { rem_empty_records($recs); };
+      { rem_empty_records($ext_db_hash); };
 
     if (defined $opt_dump_internal)
-      { dump_recs($filename,$recs);
+      { dump_recs($filename,$ext_db_hash);
         next;
       };
 
     if (defined $opt_short)
-      { one_line_dump_recs($filename,$recs);
+      { one_line_dump_recs($filename,$ext_db_hash);
         next;
       };
 
     if (defined $opt_recreate)
-      { if ((defined $filename) && (%$recs))
+      { if ((defined $filename) && (%{$ext_db_hash->{dbhash}}))
           { print "\nFILE $filename:\n"; };
-        parse_db::create($recs);
+        parse_db::create($ext_db_hash->{realrecords});
+        parse_db::create_aliases($ext_db_hash->{aliasmap});
         next;
       };
   };
@@ -369,24 +387,35 @@ foreach my $file (@files)
 exit(0);
 
 sub rem_empty_records
-  { my($r_rec)= @_;
+  { my($r_ext_db)= @_;
 
-    foreach my $recname (keys %$r_rec)
-      { my $r_f= $r_rec->{$recname}->{FIELDS};
+    my $r_dbhash= $r_ext_db->{dbhash};
+    my @delete;
+    foreach my $rec (sort keys %$r_dbhash)
+      { my $r_f= $r_dbhash->{$rec}->{FIELDS};
         if (!%$r_f)
-          { delete $r_rec->{$recname}; };
+          { push @delete, $rec; };
+      };
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
+    foreach my $r (@delete)
+      {
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
       };
   }
 
 sub one_line_dump_recs
 # dump all records, one record per line
-  { my($filename,$r_rec)= @_;
+  { my($filename,$r_ext_db)= @_;
 
     print "\nFILE $filename:\n" if (defined $filename);
 
-    foreach my $recname (sort keys %$r_rec)
-      { print "$recname";
-        my $r_f= $r_rec->{$recname};
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { print "$rec";
+        my $r_f= $r_dbhash->{$rec};
         print ",",$r_f->{TYPE},",";
         my $r= $r_f->{FIELDS};
         my $comma;
@@ -400,10 +429,10 @@ sub one_line_dump_recs
 
 sub dump_recs
 # dump the internal record-hash structure
-  { my($filename,$r_rec)= @_;
+  { my($filename,$r_ext_db_hash)= @_;
 
     print "\nFILE $filename:\n" if (defined $filename);
-    parse_db::dump($r_rec);
+    parse_db::dump_real($r_ext_db_hash);
   }
 
 sub dump_rec_fields
@@ -448,19 +477,21 @@ sub filter_rec_fields
 sub filter_fields
 # remove all fields in all records that
 # are part of a given list
-  { my($r_rec,$r_fields)= @_;
+  { my($r_ext_db,$r_fields)= @_;
     my %h= map { lc($_)=>1 } @$r_fields;
 
-    foreach my $rec (keys %$r_rec)
-      { filter_rec_fields($r_rec->{$rec}, \%h); };
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { filter_rec_fields($r_dbhash->{$rec}, \%h); };
   }
 
 sub remove_empty_fields
 # remove empty fields in all records
-  { my($r_rec)= @_;
+  { my($r_ext_db)= @_;
 
-    foreach my $rec (keys %$r_rec)
-      { my $r_values= $r_rec->{$rec}->{FIELDS};
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { my $r_values= $r_dbhash->{$rec}->{FIELDS};
         foreach my $f (keys %$r_values)
           { if ($r_values->{$f}=~ /^\s*$/)
               { delete $r_values->{$f}; };
@@ -470,9 +501,10 @@ sub remove_empty_fields
 
 sub remove_capfast_default_fields
 # remove empty fields in all records
-  { my($r_rec)= @_;
+  { my($r_ext_db)= @_;
 
-    analyse_db::rem_capfast_defaults($r_rec);
+    my $r_dbhash= $r_ext_db->{dbhash};
+    analyse_db::rem_capfast_defaults($r_dbhash);
   }
 
 sub match_fields
@@ -491,19 +523,20 @@ sub match_fields
   }
 
 sub list_unresolved_variables
-  { my ($filename,$recs,$do_list,$flag)= @_;
+  { my ($filename,$r_ext_db,$do_list,$flag)= @_;
     my $res;
     my %mac;
     my %recs;
 
 
-    foreach my $recname (keys %$recs)
-      { $res= add_macros(\%mac, $recname);
-        my $r_fields= $recs->{$recname}->{FIELDS};
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { $res= add_macros(\%mac, $rec);
+        my $r_fields= $r_dbhash->{$rec}->{FIELDS};
         foreach my $fieldname (keys %$r_fields)
           { $res|= add_macros(\%mac, $r_fields->{$fieldname}); };
         if ($res && $do_list)
-          { $recs{$recname}= 1; };
+          { $recs{$rec}= 1; };
       };
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
@@ -524,13 +557,13 @@ sub list_unresolved_variables
         if ($flag ne "only_records")
           { print "=" x 40,"\nRecords:\n"; }
         my @reclist= sort keys %recs;
-        parse_db::create($recs,\@reclist);
+        parse_db::create($r_dbhash,\@reclist);
       }
   }
 
 sub list_record_references
 # recs: this complete list of records to work on
-  { my ($filename,$recs,$record_name,$flag,$recursive)= @_;
+  { my ($filename,$r_ext_db,$record_name,$flag,$recursive)= @_;
 
     my %references;
     my %referenced_by;
@@ -539,10 +572,11 @@ sub list_record_references
 
     # add information about which record is linked
     # to which other record
-    analyse_db::add_link_info($recs);
     my $linkset_hash;
     my $post_filter;
 
+    my $r_dbhash= $r_ext_db->{dbhash};
+    analyse_db::add_link_info($r_dbhash);
     if ($record_name !~ /^(all|\/\/)$/i)
       { if ($record_name=~/^([^,]+),(.+)$/)
           { # form: record-name, regexp
@@ -552,7 +586,7 @@ sub list_record_references
         create_regexp_func("ref_name_filter",$record_name);
         if (defined $post_filter)
           { create_regexp_func("post_name_filter",$post_filter); }
-        foreach my $rec (sort keys %$recs)
+        foreach my $rec (sort keys %$r_dbhash)
           {
             if (ref_name_filter($rec))
               {
@@ -566,7 +600,7 @@ sub list_record_references
             # on the given one
             if ($#reclist!=0)
               { die "recursive option is only allowed for a single record";};
-            $linkset_hash= analyse_db::linkset_hash($recs,
+            $linkset_hash= analyse_db::linkset_hash($r_dbhash,
                                                     $reclist[0],$recursive);
             @reclist= sort{ $linkset_hash->{$a} cmp $linkset_hash->{$b} }
                       (keys %$linkset_hash);
@@ -574,7 +608,7 @@ sub list_record_references
           }
       }
     else
-      { @reclist=(sort keys %$recs); };
+      { @reclist=(sort keys %$r_dbhash); };
 
     if (defined $post_filter)
       { @reclist= grep { post_name_filter($_) } @reclist; }
@@ -609,8 +643,8 @@ sub list_record_references
           };
 
         foreach my $recname (@reclist)
-          { my @references   = analyse_db::references_list($recs,$recname);
-            my @referenced_by= analyse_db::referenced_by_list($recs,$recname);
+          { my @references   = analyse_db::references_list($r_dbhash,$recname);
+            my @referenced_by= analyse_db::referenced_by_list($r_dbhash,$recname);
 
             if ((!@references) && (!@referenced_by))
               { next; };
@@ -643,26 +677,27 @@ sub list_record_references
           { print "=" x 40,"\nRecords:\n"; }
         #my %my_recs= map { $_ => $recs->{$_} } (keys %to_print);
         #parse_db::create(\%my_recs);
-        parse_db::create($recs,\@reclist);
+        parse_db::create($r_dbhash,\@reclist);
       };
   }
 
 sub list_unresolved_links
-  { my ($filename,$recs,$verbosity,$flag)= @_;
+  { my ($filename,$r_ext_db,$verbosity,$flag)= @_;
     my $res;
     my %mac;
     my %found_recs;
 
-    foreach my $recname (keys %$recs)
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
       {
-        my $r_ref_fields= analyse_db::rec_link_fields($recs,$recname);
+        my $r_ref_fields= analyse_db::rec_link_fields($r_dbhash,$rec);
         foreach my $f (keys %$r_ref_fields)
-          { if (exists $recs->{$r_ref_fields->{$f}})
+          { if (exists $r_dbhash->{$r_ref_fields->{$f}})
               { delete $r_ref_fields->{$f}; };
           };
         if (!%$r_ref_fields)
           { next; };
-        $found_recs{$recname}= $r_ref_fields;
+        $found_recs{$rec}= $r_ref_fields;
       };
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
@@ -705,7 +740,7 @@ sub list_unresolved_links
         if ($flag ne "only_records")
           { print "=" x 40,"\nRecords:\n"; }
         my @reclist= sort keys %found_recs;
-        parse_db::create($recs,\@reclist);
+        parse_db::create($r_dbhash,\@reclist);
       }
   }
 
@@ -730,7 +765,7 @@ sub collect_macros
 sub filter_records
 # remove all records where a field does not
 # match a given regular expression
-  { my($r_rec,$field,$regexp)= @_;
+  { my($r_ext_db,$field,$regexp)= @_;
     my @nomatch;
     my $field_is_regexp;
 
@@ -743,19 +778,20 @@ sub filter_records
 
     create_regexp_func("field_filter",$regexp);
 
-    foreach my $rec (sort keys %$r_rec)
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
       {
         if (!$field_is_regexp)
-          { if (!field_filter( $r_rec->{$rec}->{FIELDS}->{$field} ))
+          { if (!field_filter( $r_dbhash->{$rec}->{FIELDS}->{$field} ))
               { push @nomatch, $rec ;
               };
           }
         else
-          { my @f= match_fields($r_rec->{$rec});
+          { my @f= match_fields($r_dbhash->{$rec});
 #print "F: " . join("|",@f) . "\n";
             my $match;
             foreach my $f (@f)
-              { if (field_filter( $r_rec->{$rec}->{FIELDS}->{$f}))
+              { if (field_filter( $r_dbhash->{$rec}->{FIELDS}->{$f}))
                   { $match=1; last; };
               };
             if (!$match)
@@ -763,55 +799,70 @@ sub filter_records
               };
           }
       };
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
     foreach my $r (@nomatch)
       {
-        delete $r_rec->{$r};
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
       };
   }
 
 sub filter_type
 # remove all records whose type does not
 # match a given regular expression
-  { my($r_rec,$regexp)= @_;
+  { my($r_ext_db,$regexp)= @_;
     my @nomatch;
 
 #die "$r_rec,$regexp";
     create_regexp_func("type_filter",$regexp);
 
-    foreach my $rec (sort keys %$r_rec)
-      { if (!type_filter($r_rec->{$rec}->{TYPE}))
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { if (!type_filter($r_dbhash->{$rec}->{TYPE}))
           { push @nomatch, $rec ;
           };
       };
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
     foreach my $r (@nomatch)
       {
-        delete $r_rec->{$r};
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
       };
   }
 
 sub filter_name
 # remove all records whose name does not match a
 # given regular expression
-  { my($r_rec,$regexp,$invert)= @_;
+  { my($r_ext_db,$regexp,$invert)= @_;
     my @nomatch;
 
     create_regexp_func("name_filter",$regexp,$invert);
 
-    foreach my $rec (sort keys %$r_rec)
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
       { if (!name_filter($rec))
           { push @nomatch, $rec ;
           };
       };
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
     foreach my $r (@nomatch)
       {
-        delete $r_rec->{$r};
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
       };
   }
 
 sub filter_percent
-  { my($r_rec,$percent)= @_;
+  { my($r_ext_db,$percent)= @_;
 
-    my @rem_recs= (sort keys %$r_rec);
+    my $r_dbhash= $r_ext_db->{dbhash};
+    my @rem_recs= (sort keys %$r_dbhash);
     my $len= $#rem_recs+1;
 
     if ($percent>0) # remove last <no> percent
@@ -822,9 +873,13 @@ sub filter_percent
       { my $n= int((100+$percent)/100*$len+0.5);
         @rem_recs= splice @rem_recs,0,$n+1;
       };
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
     foreach my $r (@rem_recs)
       {
-        delete $r_rec->{$r};
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
       };
   }
 
@@ -832,34 +887,105 @@ sub filter_percent
 sub find_val
 # remove all records where not one of the
 # fields matches a given regular expression
-  { my($filename,$r_rec,$regexp,$do_print)= @_;
+  { my($filename,$r_ext_db,$regexp,$filter_fields)= @_;
     my @fields;
     my @delete;
 
     create_regexp_func("value_filter",$regexp);
 
-    foreach my $rec (sort keys %$r_rec)
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
       {
-        @fields= find_val_in_rec( $r_rec->{$rec});
+        @fields= find_val_in_rec( $r_dbhash->{$rec});
         if (!@fields)
           { push @delete, $rec; };
-        if ($do_print)
+        if ((@fields) && ($filter_fields))
           { if (defined $filename)
               { print "\nFILE $filename:\n";
                 $filename= undef;
               };
             print "\"$rec\": \n";
-            dump_rec_fields($r_rec->{$rec}, \@fields);
+            dump_rec_fields($r_dbhash->{$rec}, \@fields);
           };
       };
+    if ($filter_fields)
+      { return; };
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
     foreach my $r (@delete)
       {
-        delete $r_rec->{$r};
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
+      };
+  }
+
+sub find_info
+# remove all records where not one of the
+# info fields matches a given regular expression
+  { my($r_ext_db,$wanted_info_name,$regexp_value)= @_;
+    my @fields;
+    my @delete;
+
+    if (defined $regexp_value)
+      {
+        create_regexp_func("info_value_filter",$regexp_value);
+      }
+
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      {
+        my $r_info= $r_dbhash->{$rec}->{INFO};
+        if (defined $wanted_info_name)
+          {
+            my $val= $r_info->{$wanted_info_name};
+            if (!defined $val)
+              {
+                push @delete, $rec;
+                next;
+              }
+            if (defined $regexp_value)
+              {
+                if (!info_value_filter($val))
+                  {
+                    push @delete, $rec;
+                    next;
+                  }
+              }
+          }
+        else
+          {
+            my $match= 0;
+            foreach my $infoname (keys %$r_info)
+              {
+                if (defined $regexp_value)
+                  {
+                    if (info_value_filter($r_info->{$infoname}))
+                      {
+                        $match= 1;
+                        next;
+                      }
+                  }
+              }
+            if (!$match)
+              {
+                push @delete, $rec;
+              }
+          }
+      }
+
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
+    foreach my $r (@delete)
+      {
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
       };
   }
 
 sub lowcal
-  { my($filename,$r_rec,$reverse,$filters)= @_;
+  { my($filename,$r_ext_db,$reverse,$filters)= @_;
     my %filter_hash;
 
     my %filter_map=
@@ -913,16 +1039,17 @@ sub lowcal
 
 #die "f:" . join("|",%filter_hash);
 
-    filter_records($r_rec,"DTYP","lowcal");
-    filter_fields($r_rec,['INP','OUT']);
+    filter_records($r_ext_db,"DTYP","lowcal");
+    filter_fields($r_ext_db,['INP','OUT']);
 
     if (!$reverse)
       { printf "%-25s%-3s %s\n","recordname","dir",canlink::tab_print(); }
     else
       { printf "%s %-3s %-25s\n",canlink::tab_print(),"dir","recordname"; }
 
-    foreach my $recname (sort keys %$r_rec)
-      { my $r= $r_rec->{$recname}->{FIELDS};
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { my $r= $r_dbhash->{$rec}->{FIELDS};
         my $link= $r->{OUT};
         my $dir= "OUT";
         if (!defined $link)
@@ -944,14 +1071,14 @@ sub lowcal
         next if ($skip);
 
         if (!$reverse)
-          { printf "%-25s%-3s %s\n",$recname,$dir,canlink::tab_print(%h); }
+          { printf "%-25s%-3s %s\n",$rec,$dir,canlink::tab_print(%h); }
         else
-          { printf "%s %-3s %-25s\n",canlink::tab_print(%h),$dir,$recname; }
+          { printf "%s %-3s %-25s\n",canlink::tab_print(%h),$dir,$rec; }
       };
   }
 
 sub sdo
-  { my($filename,$r_rec,$reverse,$params)= @_;
+  { my($filename,$r_ext_db,$reverse,$params)= @_;
     my $use_hex= 0;
 
     if (defined $params)
@@ -971,16 +1098,17 @@ sub sdo
           };
       };
 
-    filter_records($r_rec,"DTYP","SDO");
-    filter_fields($r_rec,['INP','OUT']);
+    filter_records($r_ext_db,"DTYP","SDO");
+    filter_fields($r_ext_db,['INP','OUT']);
 
     if (!$reverse)
       { printf "%-28s%-3s %s\n","recordname","dir",sdo_tab_print(); }
     else
       { printf "%s %-3s %-28s\n",sdo_tab_print(),"dir","recordname"; }
 
-    foreach my $recname (sort keys %$r_rec)
-      { my $r= $r_rec->{$recname}->{FIELDS};
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { my $r= $r_dbhash->{$rec}->{FIELDS};
         my $link= $r->{OUT};
         my $dir= "OUT";
         if (!defined $link)
@@ -993,9 +1121,9 @@ sub sdo
         $h{USE_HEX}= $use_hex;
 
         if (!$reverse)
-          { printf "%-28s%-3s %s\n",$recname,$dir,sdo_tab_print(%h); }
+          { printf "%-28s%-3s %s\n",$rec,$dir,sdo_tab_print(%h); }
         else
-          { printf "%s %-3s %-28s\n",sdo_tab_print(%h),$dir,$recname; }
+          { printf "%s %-3s %-28s\n",sdo_tab_print(%h),$dir,$rec; }
       };
   }
 
@@ -1338,26 +1466,37 @@ Syntax:
       identical to --sdo except that the record
       names are in the last, not in the first column
 
+   filter info fields:
+    --infovalue [regexp]
+      process only records where any info value matches a regular expression.
+    --info [infoname,regexp]|[infoname]
+      process only records where an infoname is defined. If regexp is omitted
+      just test for the existence of that info name. If regexp is defined,
+      process only records where for the given info name the info value matches
+      the given regexp.
+
    filter field values:
 
     --value [regexp]
-       print a list of all fields in records where
-       the field-value matches a regular expression,
+      print a list of all fields in records where the field-value matches a
+      regular expression,
 
-    -v [regexp] filter records where at least one field matches
-       the given regular expression
+    -v [regexp]
+      filter records where at least one field matches the given regular
+      expression
 
-    --field [field,regexp]|[field] : process only records where
-      field matches regexp
-      if regexp is omitted just test for the existence of that field
-      if field is a perl-regular expression starting enclosed in
-      '//' it is treated as a regular expression
+    --field [field,regexp]|[field]
+      process only records where field matches regexp  if regexp is omitted
+      just test for the existence of that field if field is a perl-regular
+      expression starting enclosed in '//' it is treated as a regular
+      expression
 
-    --NAME|--name|-n [regexp] filter records whose name match the given
-      regular expression
+    --NAME|--name|-n [regexp]
+      filter records whose name match the given regular expression
 
-    --NOTNAME|--notname [regexp] : same as above but filter records
-      whose names DO NOT match the regular expression
+    --NOTNAME|--notname [regexp]
+      same as above but filter records whose names DO NOT match the regular
+      expression
 
     --DTYP [regexp] : filter DTYP field
 

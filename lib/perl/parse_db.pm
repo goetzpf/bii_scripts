@@ -32,7 +32,7 @@ BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
     # set the version for version checking
-    $VERSION     = 1.3;
+    $VERSION     = 1.4;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
@@ -134,6 +134,20 @@ my $record_head= qr/\G
                               \{
                       /x;
 
+my $alias_head= qr/\G
+                      alias
+                      $space_or_comment
+                               \(
+                                   $space_or_comment
+                                   (?:$quoted|$unquoted_rec_name)
+                                   $space_or_comment
+                                   ,
+                                   $space_or_comment
+                                   (?:$quoted|$unquoted_rec_name)
+                                   $space_or_comment
+                               \)
+                      /x;
+
 my $field_def= qr/\G
                       $space_or_comment
                       field
@@ -149,35 +163,74 @@ my $field_def= qr/\G
                            \)
                       /x;
 
-sub handle_double_names
-  { my($mode)= @_;
+my $info_def= qr/\G
+                      $space_or_comment
+                      info
+                      $space_or_comment
+                           \(
+                              $space_or_comment
+                              (?:$quoted_word|$unquoted_word)
+                              $space_or_comment
+                              ,
+                              $space_or_comment
+                              (?:$quoted|$unquoted_field_name)
+                              $space_or_comment
+                           \)
+                      /x;
 
-    if (($mode!=0) && ($mode!=1) && ($mode!=2))
-      { croak "invalid mode \"$mode\" in call to handle_double_names"; };
+my $alias_def= qr/\G
+                      $space_or_comment
+                      alias
+                      $space_or_comment
+                           \(
+                              $space_or_comment
+                              (?:$quoted|$unquoted_rec_name)
+                              $space_or_comment
+                           \)
+                      /x;
 
-    $treat_double_records= $mode;
-  }
+my %_modes= ( undef      => "standard",
+              ""         => "standard",
+              "standard" => "standard",
+              "asArray"  => "array",
+              "array"    => "array",
+              "extended" => "extended"
+            );
 
 sub parse
-  { my($db,$filename,$storeType)= @_;
+# the returned data depends on parameter mode. See also
+# PERLPOD documentation for this function further below.
+  { my($db,$filename,$mode)= @_;
 
     my $level= 0;
+    my $_mode;
+
+    my %record_alias_hash;
+    my %real_records;
 
     my %records;
+    my @record_array= ();
 
+    my $this_record_name;
     my $r_this_record;
     my $r_this_record_fields;
+    my $r_this_record_info;
 
-    if ($storeType eq 'asArray')
-    {
-        $treat_double_records = 0 ;
-        $r_this_record->{'ORDERDFIELDS'} =[];
-    }
-    my $rA_records; # [{'NAME'='recName', TYPE='recType', FIELDS=[[NAME,VALUE],..]},..]
+    my $_treat_double_records= $treat_double_records;
+
+    $_mode= $_modes{$mode};
+    if (!defined $_mode)
+      { croak "invalid mode \"$mode\" in call to parse"; };
+
+    if ($_mode eq 'array')
+      {
+        $_treat_double_records = 0 ;
+      }
+
     if (!defined $db)
-      { simple_parse_error(__LINE__,$filename,"<undef> cannot be parsed"); }
+      { _simple_parse_error(__LINE__,$filename,"<undef> cannot be parsed"); }
     if ($db=~/^\s*$/)
-      { simple_parse_error(__LINE__,$filename,"\"\" cannot be parsed"); }
+      { _simple_parse_error(__LINE__,$filename,"\"\" cannot be parsed"); }
 
     for(;;)
       {
@@ -198,47 +251,62 @@ sub parse
                 $level=3;
                 next;
               }
+            elsif ($db=~ /$alias_head/ogscx)
+              {
+                my $record_name= (_empty($2)) ? $1 : $2;
+                my $alias_name = (_empty($4)) ? $3 : $4;
+                $record_alias_hash{$alias_name}= $record_name;
+                next;
+              }
             elsif ($db=~ /$record_head/ogscx)
               {
-                my $type= (empty($2)) ? $1 : $2;
-                my $name= (empty($4)) ? $3 : $4;
+                my $type= (_empty($2)) ? $1 : $2;
+                $this_record_name= (_empty($4)) ? $3 : $4;
 
                 $r_this_record_fields= {};
+                $r_this_record_info= {};
                 $r_this_record= { TYPE => $type,
-                                  FIELDS => $r_this_record_fields };
-                if (exists $records{$name})
-                  { if    ($treat_double_records==0)
-                      { warn "warning: record \"$name\" is at least defined " .
-                              "twice\n " .
+                                  FIELDS => $r_this_record_fields
+                                };
+                if ($_mode eq 'extended')
+                  {
+                    $r_this_record->{INFO}= $r_this_record_info;
+                  };
+                if (exists $records{$this_record_name})
+                  { if    ($_treat_double_records==0)
+                      { warn "warning: record \"$this_record_name\" is ".
+                             "at least defined twice\n " .
                               "re-definitions are ignored\n";
                         $level=1;
                         next;
                       }
-                    elsif ($treat_double_records==1)
-                      { $r_this_record= $records{$name};
+                    elsif ($_treat_double_records==1)
+                      { $r_this_record= $records{$this_record_name};
                         $r_this_record_fields= $r_this_record->{FIELDS};
+                        $r_this_record_info= $r_this_record->{INFO};
                         $level=1;
                         next;
                       }
-                    elsif ($treat_double_records==2)
+                    elsif ($_treat_double_records==2)
                       { my $c=1;
-                        while (exists $records{"$name:$c"})
+                        while (exists $records{"$this_record_name:$c"})
                           { $c++; };
-                        $name.= ":$c";
+                        $this_record_name.= ":$c";
                       }
                     else
                       { die "assertion (treat_double_records)"; };
                   };
-                if($storeType eq 'asArray')
-                {
-                    $r_this_record->{'NAME'}=$name;
-                    push @$rA_records, $r_this_record;
-                }
-                $records{$name}= $r_this_record;
+                if($_mode eq 'array')
+                  {
+                    $r_this_record->{'NAME'}=$this_record_name;
+                    push @record_array, $r_this_record;
+                  }
+                $records{$this_record_name}= $r_this_record;
+                $real_records{$this_record_name}= $r_this_record;
                 $level=1;
                 next;
               };
-            parse_error(__LINE__,\$db,pos($db),$filename);
+            _parse_error(__LINE__,\$db,pos($db),$filename);
           };
 
         if ($level==1)
@@ -250,16 +318,35 @@ sub parse
                 next;
               };
 
-            if ($db=~ /$field_def/ogscx)
+            if ($db=~ /$alias_def/ogscx)
               {
-                my $field= (empty($2)) ? $1 : $2;
-                my $value= (empty($4)) ? $3 : $4;
-
-                $r_this_record_fields->{$field}= $value;
-                push @{$r_this_record->{'ORDERDFIELDS'}}, $field if ($storeType eq 'asArray');
+                my $alias_name= (_empty($2)) ? $1 : $2;
+                $record_alias_hash{$alias_name}= $this_record_name;
                 next;
               };
-            parse_error(__LINE__,\$db,pos($db),$filename);
+
+            if ($db=~ /$info_def/ogscx)
+              {
+                my $info_name= (_empty($2)) ? $1 : $2;
+                my $info_val = (_empty($4)) ? $3 : $4;
+
+                $r_this_record_info->{$info_name}= $info_val;
+                next;
+              };
+
+            if ($db=~ /$field_def/ogscx)
+              {
+                my $field= (_empty($2)) ? $1 : $2;
+                my $value= (_empty($4)) ? $3 : $4;
+
+                $r_this_record_fields->{$field}= $value;
+                if ($_mode eq 'array')
+                  {
+                    push @{$r_this_record->{'ORDERDFIELDS'}}, $field;
+                  };
+                next;
+              };
+            _parse_error(__LINE__,\$db,pos($db),$filename);
           };
         if ($level==2)
           {
@@ -274,7 +361,7 @@ sub parse
               {
                 next;
               };
-            parse_error(__LINE__,\$db,pos($db),$filename);
+            _parse_error(__LINE__,\$db,pos($db),$filename);
           };
         if ($level==3)
           {
@@ -289,21 +376,45 @@ sub parse
               {
                 next;
               };
-            parse_error(__LINE__,\$db,pos($db),$filename);
+            _parse_error(__LINE__,\$db,pos($db),$filename);
           };
       };
-    if($storeType eq 'asArray')
-    {
-        return $rA_records;
-    }
-    {
+    if ($_mode eq 'array')
+      {
+        return \@record_array;
+      }
+    elsif ($_mode eq 'standard')
+      {
         return(\%records);
-    }
+      }
+    elsif ($_mode eq 'extended')
+      {
+        # resolve aliases:
+        while( my($alias,$realname)= each %record_alias_hash)
+          {
+            my $record_hash= $real_records{$realname};
+            if (!defined $record_hash)
+              {
+                croak "alias '$alias' for '$realname': record doesn't exist";
+                next;
+              }
+            $records{$alias}= $record_hash;
+          }
+        my %res= ('dbhash'=> \%records,
+                  'aliasmap'=> \%record_alias_hash,
+                  'realrecords'=> \%real_records
+                 );
+        return \%res;
+      }
+    else
+      {
+        die "assertion";
+      }
   }
 
 sub parse_file
 # parse the db file and return the record hash
-  { my($filename)= @_;
+  { my($filename, $mode)= @_;
     local(*F);
     local($/);
     my $st;
@@ -318,7 +429,7 @@ sub parse_file
 
     close(F) if (defined $filename);
 
-    return(parse($st));
+    return(parse($st,$filename,$mode));
     #dump($r_records);
     #create($r_records);
   }
@@ -326,12 +437,28 @@ sub parse_file
 sub create_record
   { my($recname, $r_hash)= @_;
     my $r_fields= $r_hash->{FIELDS};
+    my $r_infos= $r_hash->{INFO};
 
     print "record(",$r_hash->{TYPE},",\"$recname\") {\n";
+    foreach my $f (sort keys %$r_infos)
+      {
+        print "\tinfo(",$f,",\"",$r_infos->{$f},"\")\n";
+      };
     foreach my $f (sort keys %$r_fields)
-      { print "\tfield(",$f,",\"",$r_fields->{$f},"\")\n";
+      {
+        print "\tfield(",$f,",\"",$r_fields->{$f},"\")\n";
       };
     print "}\n\n";
+  }
+
+sub create_aliases
+  {
+    my($r_alias_hash)= @_;
+
+    foreach my $key (sort keys %$r_alias_hash)
+      {
+        print "alias(",$r_alias_hash->{$key},", ",$key,")\n";
+      }
   }
 
 sub create
@@ -351,7 +478,30 @@ sub create
       };
   }
 
-sub simple_parse_error
+sub dump
+  { my($r_records)= @_;
+
+    print Data::Dumper->Dump([$r_records], [qw(records)]);
+  }
+
+sub dump_real
+  { my($r_ext_recs)= @_;
+
+    print Data::Dumper->Dump([$r_ext_recs->{realrecords},
+                              $r_ext_recs->{aliasmap}],
+                             [qw(realrecords aliasmap)]);
+  }
+
+sub handle_double_names
+  { my($mode)= @_;
+
+    if (($mode!=0) && ($mode!=1) && ($mode!=2))
+      { croak "invalid mode \"$mode\" in call to handle_double_names"; };
+
+    $treat_double_records= $mode;
+  }
+
+sub _simple_parse_error
   { my($prg_line, $filename, $msg)= @_;
     if (defined $filename)
       { $filename= "in file $filename "; };
@@ -361,10 +511,10 @@ sub simple_parse_error
   }
 
 
-sub parse_error
+sub _parse_error
   { my($prg_line,$r_st,$pos,$filename)= @_;
 
-    my($line,$column)= find_position_in_string($r_st,$pos);
+    my($line,$column)= _find_position_in_string($r_st,$pos);
     if (defined $filename)
       { $filename= "in file $filename "; };
     my $err= "Parse error ${filename}at line $prg_line of parse_db.pm,\n" .
@@ -373,9 +523,7 @@ sub parse_error
     croak $err;
   }
 
-
-
-sub find_position_in_string
+sub _find_position_in_string
 # gets a position as returned by pos(..) in a
 # multi-line strings and returns a pair (row,column)
 # the first row is 1, the first column is 0
@@ -401,22 +549,14 @@ sub find_position_in_string
     return($lineno,$position-$oldpos);
   }
 
-
-sub dump
-  { my($r_records)= @_;
-
-    print Data::Dumper->Dump([$r_records], [qw(records)]);
-  }
-
-sub empty
-# returns 1 for undefined or empty strings
+sub _empty
+# returns 1 for undefined or _empty strings
   { if (!defined $_[0])
       { return 1; };
     if ($_[0] eq "")
       { return 1; };
     return;
   }
-
 
 1;
 
@@ -453,33 +593,63 @@ can then be used for further evaluation.
 
 B<parse()>
 
-  my $r_records= parse_db::parse($st,$filename,$storeType);
+  my $r_records= parse_db::parse($st,$filename,$mode);
 
-This function parses a given scalar variable that must contain a
-complete db-file. It returns a reference to a hash, where the parsed data
-is stored. The parameter $filename is optional and is just used for
-printing error messages in case of a parse-error.
+This function parses a given scalar variable that must contain a complete
+db-file. It returns a perl data structure containing the parsed data. The way
+the data structure is created depends on the $mode parameter. See also the
+chapter "data structures" for some examples.
 
-$storeType Parameter is also optional and specifies the format of the
-returned data structure:
+These are the possible values of $mode:
 
-- undef: default {'NAME'=> { TYPE=>'recType', FIELDS => { FIELD1=> VALUE1, ...},..}
-- asArray : [{'NAME'=>'recName', TYPE=>'recType', FIELDS => { FIELD1=> VALUE1, ...},
-               'ORDERDFIELDS' => [FIELD1,..]},
-               ..
-            ]
+=over 4
+
+=item "standard"
+
+parse returns a reference to a db hash. This hash maps record names to
+references of record hashes.
+
+=item "array"
+
+parse returns a reference to a db array. This array contains references to
+record hashes.
+
+=item "extended"
+
+parse returns a reference to an extended db hash. This hash contains a db hash,
+an alias map and a real record hash.
+
+=back
+
+For backwards compability, the following values for $mode are also allowed:
+
+=over 4
+
+=item undef
+
+like mode "standard"
+
+=item ""
+
+like mode "standard"
+
+=item "asArray"
+
+like mode "array"
+
+=back
 
 =item *
 
 B<parse_file()>
 
-  my $r_records= parse_db::parse_file($filename);
+  my $r_records= parse_db::parse_file($filename,$mode);
 
 This function parses the contents of the given filename. If the parameter
-C<$filename> is not given it tries to read form STDIN. If the
-file cannot be opened, it dies with an appropriate error message.
-It returns a reference to a hash, where the parsed data
-is stored.
+C<$filename> is not given it tries to read form STDIN. If the file cannot be
+opened, it dies with an appropriate error message.  For the meaning of
+parameter C<$mode> and the format of the returned data see description of
+function "parse".
 
 =item *
 
@@ -487,8 +657,17 @@ B<create_record()>
 
   parse_db::create_record($record_name,$r_records)
 
-Print the contents of the given record in the standard db format to the
-screen.
+Print the contents of the given record in the standard db format to the screen.
+The second parameter must be a reference to a record hash.
+
+=item *
+
+B<create_aliases()>
+
+  parse_db::create_aliases($r_alias_hash)
+
+Print alias statements from an alias hash to the screen. The parameter must be
+a reference to an alias hash.
 
 =item *
 
@@ -496,11 +675,29 @@ B<create()>
 
   parse_db::create($r_records,$r_record_list)
 
-Print the contents of all records in the standard db format to the
-screen. The parameter C<$r_record_list> is optional. The default
-is that records are printed in alphabetical order. If the second
-parameter is given, only records from this list and in this
-order are printed.
+Print the contents of all records in the standard db format to the screen. The
+first parameter must be a reference to a db hash. The parameter
+C<$r_record_list> is optional. The default is that records are printed in
+alphabetical order. If the second parameter is given, only records from this
+list and in this order are printed.
+
+=item *
+
+B<dump()>
+
+  parse_db::dump($r_records)
+
+Dumps a db hash with Data::Dumper. The parameter must be a reference to a db
+hash.
+
+=item *
+
+B<dump_real()>
+
+  parse_db::dump_real($r_ext_recs)
+
+Dumps the real records and the aliases from an extended db hash with
+Data::Dumper. The parameter must be a reference to an extended db hash.
 
 =item *
 
@@ -537,35 +734,236 @@ the intention to do so.
 
 =back
 
-=head2 hash-structure
+=head2 data structures
 
-Each record-name is a key in the record-hash. It is a reference to
-a sub-hash that contains the data for that record.
+=head3 field hash
 
-The sub-hash contains two keys, "TYPE" is the record type (a string),
-"FIELDS" is a reference to a hash that contains the record-fields.
+A field hash maps field names to field values, both are perl strings. Here is
+an example:
 
-The field-hash contains a key for each field name that gives the value of
-that field. Note that undefined fields-values are empty strings (""), not
-the perl undef-value.
+  (
+    'PRIO' => 'LOW',
+    'DESC' => 'subroutine',
+    'HIGH' => ''
+  )
 
-Example of a hash that parse() returns as default:
+=head3 info hash
 
-  $r_records= { 'UE52ID5R:BaseCmdHome' =>
-                   { 'TYPE'  => 'sub',
-                     'FIELDS'=> { 'PRIO' => 'LOW',
-                                  'DESC' => 'subroutine',
-                                  'HIGH' => ''
-                                }
-                   }
-              }
-  Return 'asArray'
-   $r_records= [ {'NAME'   =>'recName',
-                  'TYPE'   =>'recType',
-                  'FIELDS' => { FIELD1=> VALUE1, ...},
-                  'ORDERDFIELDS' => [FIELD1,..]
-                 }
-               ]
+An info hash maps "info" names to "info" values. This is the information from
+the "info" statement in a db file. Here is an example:
+
+  (
+    'Author'   => 'John Doe',
+    'Revision' => '1.2',
+    'Notes'    => 'not yet tested'
+  )
+
+=head3 record hash
+
+A record hash contains all information about a single record. It is part of the
+data structure created by the functions parse and parse_file. Depending on the
+"mode" parameter of these functions, the record hash may be slightly different.
+
+It always
+includes a key "FIELDS" that maps to a reference of a field hash and a key
+"TYPE" that maps to a string that is the record type. 
+
+When parse or parse_file were called with mode "array", the hash also includes
+a key "NAME" that maps to the record name and a key "ORDERDFIELDS" that maps to
+a reference of a list of field names in the order they were found in the db
+file. When parse or parse_file were is called with mode "extended" the record
+includes a field "INFO" that maps to a reference to an info hash.
+
+Here are some examples,
+
+created in mode "standard":
+
+  (
+    'TYPE'  => 'sub',
+    'FIELDS'=> { 'PRIO' => 'LOW',
+                 'DESC' => 'subroutine',
+                 'HIGH' => ''
+               }
+  )
+
+created in mode "array":
+
+  (
+    'NAME'  => 'UE52ID5R:BaseCmdHome',
+    'TYPE'  => 'sub',
+    'FIELDS'=> {
+                 'PRIO' => 'LOW',
+                 'DESC' => 'subroutine',
+                 'HIGH' => ''
+               },
+    'ORDERDFIELDS' => [ 'DESC', 'PRIO', 'HIGH' ]
+  )
+
+created in mode "extended":
+
+  (
+    'TYPE'  => 'sub',
+    'INFO'  => {
+                 'Author'   => 'John Doe',
+                 'Revision' => '1.2',
+                 'Notes'    => 'not yet tested'
+               },
+    'FIELDS'=> {
+                 'PRIO' => 'LOW',
+                 'DESC' => 'subroutine',
+                 'HIGH' => ''
+               }
+  )
+
+=head3 db hash
+
+A db hash is created when function "parse" is called in mode "standard". It
+maps record names to references of record hashes. Here is an example:
+
+  (
+    'UE52ID5R:BaseCmdHome' =>
+       { 'TYPE'  => 'sub',
+         'FIELDS'=> { 'PRIO' => 'LOW',
+                      'DESC' => 'subroutine',
+                      'HIGH' => ''
+                    }
+       }
+    'UE52ID5R:BaseStatAStat' =>
+       { 'TYPE'  => 'sub',
+         'FIELDS'=> { 'PRIO' => 'HIGH',
+                      'DESC' => 'subroutine',
+                      'HIGH' => '1'
+                    }
+       }
+  )
+
+=head3 db array
+
+A db array is created when function "parse" is called in mode "array". It is a
+list of references to record hashes. Here is an example:
+
+  [ {
+      'NAME'  => 'UE52ID5R:BaseCmdHome',
+      'TYPE'  => 'sub',
+      'FIELDS'=> {
+                   'PRIO' => 'LOW',
+                   'DESC' => 'subroutine',
+                   'HIGH' => ''
+                 },
+      'ORDERDFIELDS' => [ 'DESC', 'PRIO', 'HIGH' ]
+    },
+    {
+      'NAME'  => 'UE52ID5R:BaseStatAStat',
+      'TYPE'  => 'sub',
+      'FIELDS'=> {
+                   'PRIO' => 'HIGH',
+                   'DESC' => 'subroutine',
+                   'HIGH' => '1'
+                 },
+      'ORDERDFIELDS' => [ 'DESC', 'PRIO', 'HIGH' ]
+    },
+
+
+=head3 alias map
+
+This is a hash that maps alias names of records to real names of records. There
+is an example:
+
+  (
+    'HomeRecord' => 'UE52ID5R:BaseCmdHome',
+    'StatRecord' => 'UE52ID5R:BaseStatAStat,
+  )
+
+=head3 real record hash
+
+This is a hash that maps real names of records to record hashes. Here is an
+example:
+
+  (
+    'UE52ID5R:BaseCmdHome' =>
+       { 'TYPE'  => 'sub',
+         'FIELDS'=> { 'PRIO' => 'LOW',
+                      'DESC' => 'subroutine',
+                      'HIGH' => ''
+                    }
+       }
+    'UE52ID5R:BaseStatAStat' =>
+       { 'TYPE'  => 'sub',
+         'FIELDS'=> { 'PRIO' => 'HIGH',
+                      'DESC' => 'subroutine',
+                      'HIGH' => '1'
+                    }
+       }
+  )
+
+=head3 extended db hash
+
+A db hash contains a db hash, an alias map and a real record hash. Note that
+aliases to record names are resolver in the db hash, meaning that this hash may
+contain keys that map to the same record hash. The well known Data::Dumper
+module doesn't handle these cases well (at least in my opinion), here is a
+quote from the Data::Dumper documentation:
+
+  Any references that are the same as one of those passed in will 
+  be named $VARn (where n is a numeric suffix), and other duplicate 
+  references to substructures within $VARn will be appropriately 
+  labeled using arrow notation.
+
+Here is an example (not created by Data::Dumper) for a db hash:
+
+  (
+    'dbhash' => {
+                  'UE52ID5R:BaseCmdHome' =>
+                     { 'TYPE'  => 'sub',
+                       'FIELDS'=> { 'PRIO' => 'LOW',
+                                    'DESC' => 'subroutine',
+                                    'HIGH' => ''
+                                  }
+                     }
+                  'HomeRecord' =>
+                     { 'TYPE'  => 'sub',
+                       'FIELDS'=> { 'PRIO' => 'LOW',
+                                    'DESC' => 'subroutine',
+                                    'HIGH' => ''
+                                  }
+                     }
+                  'UE52ID5R:BaseStatAStat' =>
+                     { 'TYPE'  => 'sub',
+                       'FIELDS'=> { 'PRIO' => 'HIGH',
+                                    'DESC' => 'subroutine',
+                                    'HIGH' => '1'
+                                  }
+                     }
+                  'StatRecord' =>
+                     { 'TYPE'  => 'sub',
+                       'FIELDS'=> { 'PRIO' => 'HIGH',
+                                    'DESC' => 'subroutine',
+                                    'HIGH' => '1'
+                                  }
+                     }
+                },
+    'aliasmap' => {
+                    'HomeRecord' => 'UE52ID5R:BaseCmdHome',
+                    'StatRecord' => 'UE52ID5R:BaseStatAStat,
+                  },
+    'realrecords' =>
+                {
+                  'UE52ID5R:BaseCmdHome' =>
+                     { 'TYPE'  => 'sub',
+                       'FIELDS'=> { 'PRIO' => 'LOW',
+                                    'DESC' => 'subroutine',
+                                    'HIGH' => ''
+                                  }
+                     }
+                  'UE52ID5R:BaseStatAStat' =>
+                     { 'TYPE'  => 'sub',
+                       'FIELDS'=> { 'PRIO' => 'HIGH',
+                                    'DESC' => 'subroutine',
+                                    'HIGH' => '1'
+                                  }
+                     }
+                },
+  )
 
 =head1 AUTHOR
 
