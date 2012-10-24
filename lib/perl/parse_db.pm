@@ -1,23 +1,23 @@
 package parse_db;
 
-# This software is copyrighted by the 
-# Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB), 
+# This software is copyrighted by the
+# Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),
 # Berlin, Germany.
 # The following terms apply to all files associated with the software.
-# 
+#
 # HZB hereby grants permission to use, copy and modify this
 # software and its documentation for non-commercial, educational or
 # research purposes provided that existing copyright notices are
 # retained in all copies.
-# 
-# The receiver of the software provides HZB with all enhancements, 
+#
+# The receiver of the software provides HZB with all enhancements,
 # including complete translations, made by the receiver.
-# 
+#
 # IN NO EVENT SHALL HZB BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
 # SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
-# OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN 
+# OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN
 # IF HZB HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # HZB SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
 # TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
 # PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
@@ -155,7 +155,7 @@ sub handle_double_names
     if (($mode!=0) && ($mode!=1) && ($mode!=2))
       { croak "invalid mode \"$mode\" in call to handle_double_names"; };
 
-    $treat_double_records= $mode; 
+    $treat_double_records= $mode;
   }
 
 sub parse
@@ -170,8 +170,8 @@ sub parse
 
     if ($storeType eq 'asArray')
     {
-    	$treat_double_records = 0 ;
-    	$r_this_record->{'ORDERDFIELDS'} =[];
+        $treat_double_records = 0 ;
+        $r_this_record->{'ORDERDFIELDS'} =[];
     }
     my $rA_records; # [{'NAME'='recName', TYPE='recType', FIELDS=[[NAME,VALUE],..]},..]
     if (!defined $db)
@@ -180,61 +180,61 @@ sub parse
       { simple_parse_error(__LINE__,$filename,"\"\" cannot be parsed"); }
 
     for(;;)
-      { 
+      {
         if ($level==0)
-          { 
+          {
             # skip comment-lines at level 0:
             $db=~/\G$space_or_comment/ogscx;
 
             last if ($db=~/\G[\s\r\n]*$/gsc);
 
             if ($db=~ /$template_def/ogscx)
-              { 
+              {
                 $level=2;
                 next;
               }
             if ($db=~ /$expand_def/ogscx)
-              { 
+              {
                 $level=3;
                 next;
               }
             elsif ($db=~ /$record_head/ogscx)
-              { 
+              {
                 my $type= (empty($2)) ? $1 : $2;
                 my $name= (empty($4)) ? $3 : $4;
 
                 $r_this_record_fields= {};
-                $r_this_record= { TYPE => $type, 
+                $r_this_record= { TYPE => $type,
                                   FIELDS => $r_this_record_fields };
                 if (exists $records{$name})
                   { if    ($treat_double_records==0)
-		      { warn "warning: record \"$name\" is at least defined " .
-		              "twice\n " .
-			      "re-definitions are ignored\n"; 
+                      { warn "warning: record \"$name\" is at least defined " .
+                              "twice\n " .
+                              "re-definitions are ignored\n";
                         $level=1;
-			next;
-		      }
-		    elsif ($treat_double_records==1)
-		      { $r_this_record= $records{$name};
-		        $r_this_record_fields= $r_this_record->{FIELDS};
+                        next;
+                      }
+                    elsif ($treat_double_records==1)
+                      { $r_this_record= $records{$name};
+                        $r_this_record_fields= $r_this_record->{FIELDS};
                         $level=1;
-			next;
-		      }
-		    elsif ($treat_double_records==2)
-		      { my $c=1; 
-			while (exists $records{"$name:$c"})
-			  { $c++; };
-			$name.= ":$c";
-		      }
-		    else
-		      { die "assertion (treat_double_records)"; };
-		  };
+                        next;
+                      }
+                    elsif ($treat_double_records==2)
+                      { my $c=1;
+                        while (exists $records{"$name:$c"})
+                          { $c++; };
+                        $name.= ":$c";
+                      }
+                    else
+                      { die "assertion (treat_double_records)"; };
+                  };
                 if($storeType eq 'asArray')
-		{ 
-		    $r_this_record->{'NAME'}=$name;
-		    push @$rA_records, $r_this_record;
-		}
-		$records{$name}= $r_this_record; 
+                {
+                    $r_this_record->{'NAME'}=$name;
+                    push @$rA_records, $r_this_record;
+                }
+                $records{$name}= $r_this_record;
                 $level=1;
                 next;
               };
@@ -242,7 +242,7 @@ sub parse
           };
 
         if ($level==1)
-          { 
+          {
             if ($db=~ /\G
                       $space_or_comment
                       \}/ogscx)
@@ -251,18 +251,18 @@ sub parse
               };
 
             if ($db=~ /$field_def/ogscx)
-              { 
-		my $field= (empty($2)) ? $1 : $2;
+              {
+                my $field= (empty($2)) ? $1 : $2;
                 my $value= (empty($4)) ? $3 : $4;
 
                 $r_this_record_fields->{$field}= $value;
                 push @{$r_this_record->{'ORDERDFIELDS'}}, $field if ($storeType eq 'asArray');
-		next;
+                next;
               };
             parse_error(__LINE__,\$db,pos($db),$filename);
           };
         if ($level==2)
-          { 
+          {
             if ($db=~ /\G
                       $space_or_comment
                       \}/ogscx)
@@ -271,13 +271,13 @@ sub parse
               };
 
             if ($db=~ /$port_def/ogscx)
-              { 
-		next;
+              {
+                next;
               };
             parse_error(__LINE__,\$db,pos($db),$filename);
           };
         if ($level==3)
-          { 
+          {
             if ($db=~ /\G
                       $space_or_comment
                       \}/ogscx)
@@ -286,18 +286,18 @@ sub parse
               };
 
             if ($db=~ /$macro_def/ogscx)
-              { 
-		next;
+              {
+                next;
               };
             parse_error(__LINE__,\$db,pos($db),$filename);
           };
       };
     if($storeType eq 'asArray')
-    { 
-    	return $rA_records;
+    {
+        return $rA_records;
     }
     {
-    	return(\%records);
+        return(\%records);
     }
   }
 
@@ -342,12 +342,12 @@ sub create
           { die "error: 2nd parameter must be an array reference"; }
       }
     else
-      { $r_reclist= [sort keys %$r_records]; } 
+      { $r_reclist= [sort keys %$r_records]; }
 
     foreach my $rec (@$r_reclist)
       { my $r_f= $r_records->{$rec};
         next if (!defined $r_f);
-        create_record($rec,$r_f); 
+        create_record($rec,$r_f);
       };
   }
 
@@ -359,7 +359,7 @@ sub simple_parse_error
              $msg . "\n";
     croak $err;
   }
-    
+
 
 sub parse_error
   { my($prg_line,$r_st,$pos,$filename)= @_;
@@ -389,17 +389,17 @@ sub find_position_in_string
     my $oldpos=-1;
 
     while($$r_str=~ /\G(.*?)\r?\n/gms)
-      { 
+      {
         if (pos($$r_str)<$position)
-          { 
-            $oldpos= pos($$r_str); 
+          {
+            $oldpos= pos($$r_str);
             $lineno++;
             next;
           };
         return($lineno,$position-$oldpos);
       };
     return($lineno,$position-$oldpos);
-  }      
+  }
 
 
 sub dump
@@ -442,7 +442,7 @@ parse_db - a Perl module to parse epics db-files
 =head2 Preface
 
 This module contains a parser function for epics DB-files. The
-contents of the db-file are returned in a perl hash-structure that 
+contents of the db-file are returned in a perl hash-structure that
 can then be used for further evaluation.
 
 =head2 Implemented Functions:
@@ -455,7 +455,7 @@ B<parse()>
 
   my $r_records= parse_db::parse($st,$filename,$storeType);
 
-This function parses a given scalar variable that must contain a 
+This function parses a given scalar variable that must contain a
 complete db-file. It returns a reference to a hash, where the parsed data
 is stored. The parameter $filename is optional and is just used for
 printing error messages in case of a parse-error.
@@ -464,10 +464,10 @@ $storeType Parameter is also optional and specifies the format of the
 returned data structure:
 
 - undef: default {'NAME'=> { TYPE=>'recType', FIELDS => { FIELD1=> VALUE1, ...},..}
-- asArray : [{'NAME'=>'recName', TYPE=>'recType', FIELDS => { FIELD1=> VALUE1, ...}, 
+- asArray : [{'NAME'=>'recName', TYPE=>'recType', FIELDS => { FIELD1=> VALUE1, ...},
                'ORDERDFIELDS' => [FIELD1,..]},
-	       ..
-	    ]
+               ..
+            ]
 
 =item *
 
@@ -527,9 +527,9 @@ behaviour when the IOC loads a database file.
 
 =item 2
 
-With $mode=2, the parse-module handles double record-names by 
-appending a number of each double name that 
-is encountered. This feature may be used to track down errors 
+With $mode=2, the parse-module handles double record-names by
+appending a number of each double name that
+is encountered. This feature may be used to track down errors
 in databases that were generated with double record names without
 the intention to do so.
 
@@ -539,8 +539,8 @@ the intention to do so.
 
 =head2 hash-structure
 
-Each record-name is a key in the record-hash. It is a reference to 
-a sub-hash that contains the data for that record. 
+Each record-name is a key in the record-hash. It is a reference to
+a sub-hash that contains the data for that record.
 
 The sub-hash contains two keys, "TYPE" is the record type (a string),
 "FIELDS" is a reference to a hash that contains the record-fields.
@@ -551,21 +551,21 @@ the perl undef-value.
 
 Example of a hash that parse() returns as default:
 
-  $r_records= { 'UE52ID5R:BaseCmdHome' => 
+  $r_records= { 'UE52ID5R:BaseCmdHome' =>
                    { 'TYPE'  => 'sub',
                      'FIELDS'=> { 'PRIO' => 'LOW',
                                   'DESC' => 'subroutine',
                                   'HIGH' => ''
                                 }
-                   } 
+                   }
               }
   Return 'asArray'
-   $r_records= [ {'NAME'   =>'recName', 
-                  'TYPE'   =>'recType', 
-		  'FIELDS' => { FIELD1=> VALUE1, ...}, 
+   $r_records= [ {'NAME'   =>'recName',
+                  'TYPE'   =>'recType',
+                  'FIELDS' => { FIELD1=> VALUE1, ...},
                   'ORDERDFIELDS' => [FIELD1,..]
-	         }
-	       ]
+                 }
+               ]
 
 =head1 AUTHOR
 
