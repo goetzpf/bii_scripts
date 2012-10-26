@@ -107,8 +107,6 @@ a config file.
 This module reads an write configuration files given by
 Config::General module from CPAN.
 
-=back
-
 The function calls C<dbdrv::dberror()> if the loading of the driver
 failed. See also L</error handling> further below.
 
@@ -118,6 +116,8 @@ It checks the existance of config file global and local and join the
 structure to the global variable hash $r_glbl
 
 =head2 File functions
+
+=over
 
 =item create_config()
 
