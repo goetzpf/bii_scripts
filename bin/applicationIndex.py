@@ -66,7 +66,6 @@ def getIocStartupData(topPath):
 	if py: iocPy += py
     if len(iocPy) == 0:
     	return (None,None)
-
     iocDb = {}
     dbIoc = {}
     sys.path.insert(0,path)
@@ -84,7 +83,7 @@ def getIocStartupData(topPath):
 	    if not dbIoc.has_key(dbFile):
 	    	dbIoc[dbFile] = []
 	    dbIoc[dbFile].append(ioc)
-        return(iocDb,dbIoc)
+    return(iocDb,dbIoc)
 
 def processStCmd(topPath,iocList):
     iocDb = {}
@@ -267,7 +266,6 @@ except:
 #pp.pprint(dbApp)
 
 (iocDb,dbIoc) = getIocStartupData(topPath)
-
 
 iocString = systemCall(['ls',topPath+"/iocBoot"])
 iocList = []
