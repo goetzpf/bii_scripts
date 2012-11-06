@@ -58,10 +58,35 @@ def substEnvVariables(param,envDict):
 	param = param.replace(r"${"+name+"}",envDict[name])
     return param
 
-def processStCmd(topPath):
-    iocBootPath = topPath+"/iocBoot"
-    iocString = systemCall(['ls',iocBootPath])
-    if options.verbose is True: print "\nprocessStCmd: ",topPath
+def getIocStartupData(topPath):
+    path = topPath+"/GenericBootApp/O.Common"
+    iocPy = []
+    for item in systemCall(['ls',path]).split("\n"):
+	py = eU.matchRe(item,'(IOC.*)\.py')
+	if py: iocPy += py
+    if len(iocPy) == 0:
+    	return (None,None)
+
+    iocDb = {}
+    dbIoc = {}
+    sys.path.insert(0,path)
+    for ioc in iocPy:
+    	fileName = path+"/"+ioc+".py"
+	myDict = {}
+	try:
+	    execfile(fileName,myDict)
+	except SyntaxError, e:
+	    raise SyntaxError("Syntax Error in File: "+fileName+"\n"+str(e))
+	iocDb[ioc] = myDict['iocConfig']['loadRecords']
+	for db in iocDb[ioc]:
+	    db['DB'] = db['DB']+".db"
+	    dbFile = db['DB']
+	    if not dbIoc.has_key(dbFile):
+	    	dbIoc[dbFile] = []
+	    dbIoc[dbFile].append(ioc)
+        return(iocDb,dbIoc)
+
+def processStCmd(topPath,iocList):
     iocDb = {}
     dbIoc = {}
 
@@ -76,12 +101,9 @@ def processStCmd(topPath):
     	)
     tokReList = tP.compileTokDefList(tokDefList)
 
-    for ioc in iocString.split("\n"):
-	i = eU.matchRe(ioc,"ioc(.*)")
-	if i is None:
-	    continue
-	iocName = i[0]
-	parseFileName = "/".join( (topPath,"iocBoot",ioc,"st.cmd") )
+    if options.verbose is True: print "\nprocessStCmd for: ",iocList
+    for iocName in iocList:
+	parseFileName = topPath+"/iocBoot/ioc"+iocName+"/st.cmd"
     	if options.verbose is True: print iocName, parseFileName
 	if not os.path.isfile(parseFileName): eU.die("File doesn't exist: "+parseFileName)
 	try :
@@ -117,7 +139,8 @@ def processStCmd(topPath):
 		    #print "param:",param,eU.parseParam(substEnvVariables(param,envDict),',')
 		if not iocDb.has_key(iocName):
 	    	    iocDb[iocName] = []
-		iocDb[iocName].append( (iocName,dbFile,eU.parseParam(substEnvVariables(param,envDict),',')) )
+#		iocDb[iocName].append( (iocName,dbFile,eU.parseParam(substEnvVariables(param,envDict),',')) )
+		iocDb[iocName].append( {'DB':dbFile,'SUBST':eU.parseParam(substEnvVariables(param,envDict),',')})
 		if not dbIoc.has_key(dbFile):
 	    	    dbIoc[dbFile] = []
 		dbIoc[dbFile].append(iocName)
@@ -145,11 +168,14 @@ def findApplications(topPath):
     return (appDb,dbApp)
 
 def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
+#    print "hardware(",ioc,dbFile
+#    print "param",param
+#    print iocname,pvname
     try:
     	pvname = eU.substituteVariables(pvname,param)
     except AttributeError:
     	print ioc,dbFile,iocname,pvname
-	pp.pprint(param)
+	print "Can't substitute variable '"+param+"' from:"
 	pp.pprint(fieldDict)
 	sys.exit()
     fieldDict.update( {"iocname":iocname,"filename":dbFile,"pvname":pvname} )
@@ -180,15 +206,14 @@ def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
             fieldDict['CARD'] =  mux/2
             fieldDict['CHAN'] =  mux%2
     else:
-        vmeLnk = eU.matchRe(link,"#C\s*(\d+)\s*S\s*(\d+)")
-        if vmeLnk is not None:
+	vmeLnk = eU.matchRe(link,"#C\s*(\d+)\s*S\s*(\d+)")
+	if vmeLnk is not None:
             fieldDict['CARD'] =  vmeLnk[0]
             fieldDict['CHAN'] =  vmeLnk[1]
 	else:
 	    if link.find ("$")>=0:
 	    	print "Warning: Unsubstituted values found in IOC:",iocname,"FILE:",dbFile,"PV:",pvname,"LINK:",link
 		sys.exit()
-		
     fieldDict['LINK'] = link    	    
     return fieldDict
 
@@ -196,11 +221,15 @@ def checkHardwareAccess(iocDb,topPath):
     hwData = []
     if options.verbose is True: print "\ncheckHardwareAccess:"
     for ioc in iocDb.keys():
-        for (ioc,dbFile,param) in iocDb[ioc]:
-            hw = systemCall(['grepDb.pl','-pH','-th',topPath+"/db/"+dbFile]) # return a perl hash of {PVNAME=> {FIELD=>VALUE}}
+	for dbItem in iocDb[ioc]:
+	    dbFile = dbItem['DB']
+	    param = {}
+	    if dbItem.has_key('SUBST'):
+	    	param  = dbItem['SUBST']
+	    hw = systemCall(['grepDb.pl','-pH','-th',topPath+"/db/"+dbFile]) # return a perl hash of {PVNAME=> {FIELD=>VALUE}}
             if not hw:
                 continue 
-            hw = eU.substRe(hw," => ",":")  	# make it python eval uable
+	    hw = eU.substRe(hw," => ",":")  	# make it python eval uable
             hw = eU.substRe(hw,"\$VAR1\s*=","")
             hw = eU.substRe(hw,";","")
             try:
@@ -209,6 +238,7 @@ def checkHardwareAccess(iocDb,topPath):
                 pp.pprint(hw)
                 print "ERROR in checkHardwareAccess(",iocDb,topPath,")"
                 sys.exit()
+
 	    for pv in hwDict.keys():
 		hw = hardware(ioc,dbFile,param,ioc,pv,hwDict[pv])
 		if hw: 
@@ -233,7 +263,25 @@ except:
     sys.exit()
 
 (appDb,dbApp) = findApplications(topPath)
-(iocDb,dbIoc) = processStCmd(topPath)
+#pp.pprint(appDb)
+#pp.pprint(dbApp)
+
+(iocDb,dbIoc) = getIocStartupData(topPath)
+
+
+iocString = systemCall(['ls',topPath+"/iocBoot"])
+iocList = []
+for ioc in iocString.split("\n"):
+    i = eU.matchRe(ioc,"ioc(.*)")
+    if i is None:
+	continue
+    iocName = i[0]
+    if not iocDb.has_key(iocName):
+    	iocList.append(iocName)
+
+(iD,dI) = processStCmd(topPath,iocList)
+if iD: iocDb.update(iD)
+if dI: dbIoc.update(dI)
 #pp.pprint(iocDb)
 #pp.pprint(dbIoc)
 #sys.exit()
@@ -292,7 +340,7 @@ if iocDb:
     	    span = "ROWSPAN=\""+str(len(dbList))+"\" "
 	setIoc = '<TH '+span+'VALIGN="TOP"><A NAME="'+ioc+'"><A HREF="#HW_'+ioc+'">'+ioc+'</A></TH>\n  '
 	for dbObj in dbList:
-	    print >> FILE,'<TR>\n  '+setIoc+'<TD>'+getDb(dbApp,dbObj[1])+'</TD></TR>'
+	    print >> FILE,'<TR>\n  '+setIoc+'<TD>'+getDb(dbApp,dbObj['DB'])+'</TD></TR>'
 	    if len(setIoc) > 0: 	# first item only
 		setIoc = ''
     print >> FILE, "</TABLE>\n"
@@ -347,13 +395,13 @@ if iocHw:
             print >> FILE, "</TABLE>\n"
 
 	print >> FILE, "<H3>Other Devices</H3>\n\n"
-	order = ('LINK','pvname')
+	order = ('LINK','pvname','filename','DTYP','RTYP')
 	table = lod.orderToTable(otherList,order)
 	if len(table) > 0:
             print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Link'],'TH')+"\n</TR>"
 	    try:
-        	for (link,pv) in table:
-        	    pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
+        	for (link,pvname,filename,dtyp,rtyp) in table:
+        	    pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+', RTYP'+rtyp+', DTYP'+dtyp+'">'+pvname+'</DIV>'
 		    print >> FILE, "<TR>"+toCol([pvname,link])+"\n</TR>"
             except KeyError:
 	    	print "ERROR in print '"+pvname+"', Other-Devices: '"+filename+"' not found in dbApp"
