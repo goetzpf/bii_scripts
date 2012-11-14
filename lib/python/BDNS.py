@@ -85,14 +85,15 @@ _p["pcnt"]= "[0-9]*"
 
 _p["psdom_global"]= "BUX"
 _p["psdom_B"]= _p["psdom_global"] + "DLST"
-_p["psdom_F"]= _p["psdom_global"] + "LCEGMSU"
+_p["psdom_F"]= _p["psdom_global"] + "ALEGMS"
 _p["psdom_P"]= _p["psdom_global"] + "KLS"
 
 _p["psdnum"]= "[0-9]*"
 
 _p["pdom_global"]= "CGLRV"
 _p["pdom_B"]= _p["pdom_global"] + "BIMST"
-_p["pdom_F"]= _p["pdom_global"] + "DEIHLRS"
+#_p["pdom_F"]= _p["pdom_global"] + "DEIHLRS"
+_p["pdom_F"]= _p["pdom_global"] + "AEHST"
 _p["pdom_P"]= _p["pdom_global"] + "TM"
 
 _p["pfac"] = "FP"

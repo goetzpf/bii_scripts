@@ -95,7 +95,7 @@ my $pcnt = "[0-9]*";
 our %psdom;
 $psdom{global} = "BUX";
 $psdom{B} = $psdom{global} . "DLST";
-$psdom{F} = $psdom{global} . "ALCEGMSU";
+$psdom{F} = $psdom{global} . "ALEGMS";
 $psdom{P} = $psdom{global} . "KLS";
 
 my $psdnum = "[0-9]*";
@@ -103,7 +103,8 @@ my $psdnum = "[0-9]*";
 our %pdom;
 $pdom{global} = "CGLRV";
 $pdom{B} = $pdom{global} . "BIMST";
-$pdom{F} = $pdom{global} . "DEIHLRS";
+#$pdom{F} = $pdom{global} . "DEIHLRS";
+$pdom{F} = $pdom{global} . "AEHST";
 $pdom{P} = $pdom{global} . "TM";
 
 our $pfac;
