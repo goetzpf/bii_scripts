@@ -155,7 +155,7 @@
                                        name of a Name-Value pair in the 
 				       substitution data. This is ignored 
 				       unless for layouts: 'line', 'table'
-      -subst 'NAME=\"VALUE\",...'      Panel substitutions from commandline (.db debug only)
+      -subst 'NAME=\"VALUE\",...'      Panel substitutions from commandline
       -v    	    	    	       verbose
      \n";
     my %dependencies;
@@ -1182,6 +1182,7 @@ sub   setWidget
     $edl = parsePV($edl,$rH_Attr);
 #substitute all other variables
     $edl = parseVars($edl,$rH_Attr);
+    $edl = parseVars($edl,$options{SUBSTITUTIONS}) if( defined $options{SUBSTITUTIONS});
 
 # *  Return  :
 #
