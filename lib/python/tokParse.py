@@ -4,7 +4,7 @@ The Tokens are processed in the defined order.
 
 *  Token definition  : a list of regexp containing one or three elements:
 
-- One element: The regexp to rekognize the token
+- One element: The regexp to recognize the token
 - Three elements: Token begin , Token content, Token delimiter
 
 Token definition Example:
@@ -91,7 +91,7 @@ def parse(parse,tokReList,line):
 		raise ValueError("Can't find token Content for parse")
     	if parsePos < len(parse):
 	    if parseNext == parsePos:   # tokReList done, but no new position - means no match 
-	    	raise "Line "+str(line)+": Can't find token for: parse: '"+parse[0:parsePos]+"***->***"+parse[parsePos:]+"'"
+	    	raise "Line "+str(line)+": Illegal token in: '"+parse[0:parsePos]+"***'"+parse[parsePos:]+"'***'"
 	    else:
 		parsePos = parseNext    # found new position
 	else:   	    	    	    # end reached: break while
@@ -102,7 +102,7 @@ def parse(parse,tokReList,line):
 def getNextToken(tokList,skip=('SPACE',)):
     """ return the next token (tokName,tokValue) that is not in skip list.
     	skip SPACE is default, SPACE has to be defined in the toList!!
-    	or (None,None) it tokList is done.
+    	or (None,None) if tokList is done.
     """
     while tokList:
     	(tName,tVal) = tokList.pop(0)
