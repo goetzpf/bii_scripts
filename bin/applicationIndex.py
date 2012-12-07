@@ -264,8 +264,9 @@ except:
 (appDb,dbApp) = findApplications(topPath)
 #pp.pprint(appDb)
 #pp.pprint(dbApp)
-
 (iocDb,dbIoc) = getIocStartupData(topPath)
+if iocDb == None: iocDb = {}
+if dbIoc == None: dbIoc = {}
 
 iocString = systemCall(['ls',topPath+"/iocBoot"])
 iocList = []
@@ -278,6 +279,7 @@ for ioc in iocString.split("\n"):
     	iocList.append(iocName)
 
 (iD,dI) = processStCmd(topPath,iocList)
+
 if iD: iocDb.update(iD)
 if dI: dbIoc.update(dI)
 #pp.pprint(iocDb)
