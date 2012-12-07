@@ -113,7 +113,7 @@ def substRe(matchStr,matchRe,replaceStr,flags=0):
     """
 def substituteVariables(sString,substDict):
     for name in substDict.keys():
-    	sString = sString.replace(r"$("+name+")",substDict[name])
+	sString = sString.replace(r"$("+name+")",str(substDict[name]))
     return sString
 
 def parseStCmd(stCmdLine):
