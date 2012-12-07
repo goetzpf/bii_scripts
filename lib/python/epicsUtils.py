@@ -162,7 +162,7 @@ def parseDb(content):
     - RTYP
     - info {INFOKEY:INFOVALUE,}
     """
-    recordName= pp.ZeroOrMore(pp.Suppress(pp.Word('"')))+pp.Word(pp.alphanums+"_-+:[]<>;")+pp.ZeroOrMore(pp.Suppress(pp.Word('"')))
+    recordName= pp.ZeroOrMore(pp.Suppress(pp.Word('"')))+pp.Word(pp.alphanums+"_-+:[]<>;$()")+pp.ZeroOrMore(pp.Suppress(pp.Word('"')))
     qString   = pp.dblQuotedString.setParseAction(pp.removeQuotes) # double quoted String, quotes removed
 
     comment  = pp.Suppress(pp.pythonStyleComment)
