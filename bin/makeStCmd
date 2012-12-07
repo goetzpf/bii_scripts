@@ -1,5 +1,7 @@
 #!/usr/bin/env python2.5
 import sys
+from string import Template
+
 def dictArgStr(argDict): 
     if isinstance(argDict,dict): 
     	return ",".join( map(lambda x: str(x)+"="+str(argDict[x]), sorted(argDict.keys())))
@@ -34,117 +36,132 @@ for a in sys.argv[1:]:
     (n,v) = a.split('=')
     args[n]=v
 
-IOC          = args['IOC']
+__import__(args['IOC']).getArgs(args)
 
-__import__(IOC).getArgs(args)
+printArgs = {
+    'IOC'           : args['IOC'],
+    'DB_LOG_DIR'    : args['DB_LOG_DIR'],
+    'SUPPORT'       : args['SUPPORT'],
+    'ASCF'          : args['ASCF'],
+    'version_USE'   : args['version']['USE'],
+    'autosave_SAV_DIR': args['autosave']['SAV_DIR'],
+    'autosave_REQ_DIR': args['autosave']['REQ_DIR'],
+    'autosave_CREATE_DATED_BACKUPS'      : args['autosave']['CREATE_DATED_BACKUPS'],
+    'caPutLog_USE'  : args['caPutLog']['USE'],
+    'caPutLog_HOST' : args['caPutLog']['HOST'],
+    'nfs_HOST'          : args['nfs']['HOST'],
+    'nfs_USE'       : args['nfs']['USE'],
+    'nfs_UID'	    : args['nfs']['UID'],
+    'nfs_GID'	    : args['nfs']['GID'],
+    'ROUTER'        : args['ROUTER'],
+    'DEFAULTROUTER' : args['DEFAULTROUTER'],
+    'iocLog_DISABLE': args['iocLog']['DISABLE'],
+    'iocLog_HOST'   : args['iocLog']['HOST'],
+    'loadRecords'   : LoadRecords(args['loadRecords']),
+    'request'	    : Request(args['request']),
+    'seq'	    : Seq(args['seq']),
+    'restore'	    : Restore(args['restore']),
+    'driverInit'    : DriverInit(args['driverInit'])
+}
 
-DB_LOG_DIR   = args['DB_LOG_DIR']
-SUPPORT      = args['SUPPORT']
-ASCF         = args['ASCF']
-version      = args['version']
-autosave     = args['autosave']
-loadRecords  = args['loadRecords']
-caPutLog     = args['caPutLog']
-nfs          = args['nfs']
-ROUTER       = args['ROUTER']
-DEFAULTROUTER = args['DEFAULTROUTER']
-HOST         = args['HOST']
-caPutLog     = args['caPutLog']
-iocLog       = args['iocLog']
+stCmdStr = Template("""# vxWorks Startup File for ${IOC}
+#
+# This file was generated and should NOT be modified by hand!!!
+#
+############################################################# Network Settings
 
-stCmdStr = "# vxWorks Startup File for "+IOC+\
-"\n#\n"+\
-"# This file was generated and should NOT be modified by hand!!!\n"+\
-"#\n"+\
-"############################################################# Network Settings\n"+\
-"\n"+\
-"# Enable route to trs\n"+\
-"routeAdd \""+DEFAULTROUTER+"\", \""+ROUTER+"\"\n"+\
-"\n"+\
-"# Add NFS host entry\n"+\
-nfs['USE']+"hostAdd \"nfshost\", \"\"\n"+\
-nfs['USE']+"nfsAuthUnixSet \"nfshost\", "+str(nfs['UID'])+", "+str(nfs['GID'])+", 0, 0\n"+\
-"\n"+\
-"# Mount \"/opt/epics\", \"/opt/IOC\" and \"/opt/IOC/log\" explicitly\n"+\
-nfs['USE']+"nfsMount \"nfshost\", \"/opt/IOC\", \"/opt/IOC\"\n"+\
-nfs['USE']+"nfsMount \"nfshost\", \"/srv/IOC_log\", \"/srv/IOC_log\"\n"+\
-"\n"+\
-"# Log Servers\n"+\
-"putenv \"EPICS_IOC_LOG_INET="+HOST+"\"\n"+\
-caPutLog['USE']+"putenv \"EPICS_CA_PUT_LOG_INET="+caPutLog['HOST']+"\"\n"+\
-"\n"+\
-"################################################################# Version Info\n"+\
-"\n"+\
-"pwd >"+DB_LOG_DIR+"/"+IOC+".pwd\n"+\
-version['USE']+"copy \"../version\", \""+DB_LOG_DIR+"/"+IOC+".version\"\n"+\
-"\n"+\
-"pwd\n"+\
-version['USE']+"copy \"../version\"\n"+\
-"\n"+\
-"################################################################ Load Binaries\n"+\
-"\n"+\
-"# Change dir to TOP/bin/<target_arch>\n"+\
-"cd \"../../bin\"\n"+\
-"cd epicsUsrOsTargetName()\n"+\
-"\n"+\
-"ld < "+SUPPORT+\
-"\n\n"+\
-"######################################################## Driver Initialization\n"+\
-(DriverInit(args['environment']) if args.has_key('environment') else "")+\
-(DriverInit(args['driverInit'])  if args.has_key('driverInit')  else "")  +\
-"\n################################################ AutoSaveRestore Configuration\n"+\
-"\n"+\
-"# Set directory for request files\n"+\
-"set_requestfile_path(\""+autosave['REQ_DIR']+"\")\n"+\
-"\n"+\
-"# Set directory for restore files\n"+\
-"set_savefile_path(\""+autosave['SAV_DIR']+"\")\n"+\
-"\n"+\
-"# Should dated backups of restore files be created?\n"+\
-"save_restoreSet_DatedBackupFiles("+autosave['CREATE_DATED_BACKUPS']+")\n"+\
-"\n"+\
-"# Do not use status PVs\n"+\
-"save_restoreUseStatusPVs = 0\n"+\
-"\n"+\
-"#################################################### Load Database Definitions\n"+\
-"\n"+\
-"cd \"../../dbd\"\n"+\
-"\n"+\
-"dbLoadDatabase(\""+IOC+".dbd\")\n"+\
-IOC+"_registerRecordDeviceDriver(pdbbase)\n"+\
-"\n"+\
-"############################################################### Load Databases\n"+\
-"\n"+\
-"cd \"../db\"\n"+\
-LoadRecords(args['loadRecords'])+\
-"\n############################################################# Autosave Restore\n"+\
-(Restore(args['restore']) if args.has_key('restore') else "")  +\
-"\n########################################################### Configure IOC Core\n"+\
-"\n"+\
-"# IOC Log Server Connection (0=enabled, 1=disabled)\n"+\
-"iocLogDisable="+iocLog['DISABLE']+\
-"\n\n"+\
-"# Set Access Security\n"+\
-"asSetFilename(\""+ASCF+"\")\n"+\
-"\n"+\
-"################################################################## Ignition...\n"+\
-"\n"+\
-"# Initialize EPICS Core\n"+\
-"iocInit\n"+\
-"\n"+\
-"# Report Installed and Configured I/O-Hardware Information\n"+\
-"dbior 0, 1 > "+DB_LOG_DIR+"/"+IOC+".dbior\n"+\
-"dbhcr      > "+DB_LOG_DIR+"/"+IOC+".dbhcr\n"+\
-"dbl        > "+DB_LOG_DIR+"/"+IOC+".dbl\n"+\
-"\n"+\
-"############################################################### State Machines\n"+\
-(Seq(args['seq']) if args.has_key('seq') else "\n")  +\
-"\n#################################################################### Post Init\n"+\
-"\n"+\
-"# Start caPutLogging\n"+\
-caPutLog['USE']+"caPutLogInit(getenv(\"EPICS_CA_PUT_LOG_INET\"), 1)\n"+\
-"\n"+\
-"############################################################# Autosave Request\n"+\
-(Request(args['request']) if args.has_key('request') else "")+"\n"
+# Enable route to trs
+routeAdd "$DEFAULTROUTER", "$ROUTER"
 
-print stCmdStr
+# Add NFS host entry
+${nfs_USE}hostAdd "nfshost", "$nfs_HOST"
+${nfs_USE}nfsAuthUnixSet "nfshost", $nfs_UID, $nfs_GID, 0, 0
+
+# Mount "/opt/epics", "/opt/IOC" and "/opt/IOC/log" explicitly
+${nfs_USE}nfsMount "nfshost", "/opt/IOC", "/opt/IOC"
+${nfs_USE}nfsMount "nfshost", "/srv/IOC_log", "/srv/IOC_log"
+
+# Log Servers
+putenv "EPICS_IOC_LOG_INET=$iocLog_HOST"
+${caPutLog_USE}putenv "EPICS_CA_PUT_LOG_INET=$caPutLog_HOST"
+
+################################################################# Version Info
+
+pwd >$DB_LOG_DIR/$IOC.pwd
+${version_USE}copy "../version", "$DB_LOG_DIR/$IOC.version"
+
+pwd
+${version_USE}copy "../version"
+
+################################################################ Load Binaries
+
+# Change dir to TOP/bin/<target_arch>
+cd "../../bin"
+cd epicsUsrOsTargetName()
+
+ld < $SUPPORT
+
+######################################################## Driver Initialization
+
+$driverInit
+################################################ AutoSaveRestore Configuration
+
+# Set directory for request files
+set_requestfile_path("$autosave_REQ_DIR")
+
+# Set directory for restore files
+set_savefile_path("$autosave_SAV_DIR")
+
+# Should dated backups of restore files be created?
+save_restoreSet_DatedBackupFiles($autosave_CREATE_DATED_BACKUPS)
+
+# Do not use status PVs
+save_restoreUseStatusPVs = 0
+
+#################################################### Load Database Definitions
+
+cd "../../dbd"
+
+dbLoadDatabase("$IOC.dbd")
+${IOC}_registerRecordDeviceDriver(pdbbase)
+
+############################################################### Load Databases
+
+cd "../db"
+
+$loadRecords
+############################################################# Autosave Restore
+
+$restore
+########################################################### Configure IOC Core
+
+# IOC Log Server Connection (0=enabled, 1=disabled)
+iocLogDisable=$iocLog_DISABLE
+
+# Set Access Security
+asSetFilename("$ASCF")
+
+################################################################## Ignition...
+
+# Initialize EPICS Core
+iocInit
+
+# Report Installed and Configured I/O-Hardware Information
+dbior 0, 1 > $DB_LOG_DIR/$IOC.dbior
+dbhcr      > $DB_LOG_DIR/$IOC.dbhcr
+dbl        > $DB_LOG_DIR/$IOC.dbl
+
+############################################################### State Machines
+
+$seq
+#################################################################### Post Init
+
+# Start caPutLogging
+${caPutLog_USE}caPutLogInit(getenv("EPICS_CA_PUT_LOG_INET"), 1)
+
+############################################################# Autosave Request
+
+$request
+""")
+
+print stCmdStr.substitute(printArgs)
