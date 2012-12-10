@@ -240,6 +240,10 @@
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutDbDbgMin($r_substData,\%options);
     }
+    elsif($layout eq "collumn")
+    {
+        ($printEdl,$panelWidth, $panelHeight) = layoutCollumn($r_substData,\%options);
+    }
     elsif($layout eq "lineRaw")
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutLineRaw($r_substData,\%options);
@@ -395,7 +399,7 @@ sub   layoutLineRaw
     my $prEdl;
     my $xPos=0;
     my $yPos=0;	    	    # put next part of display here 
-    my $yDispMaxSize = 0;   # the highes display in a line, to calc next lines y pos
+    my $yDispMaxSize = 0;   # the highest widget in a line, to calc next lines y pos
     
     ($prEdl,$xPos,$yPos) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
     foreach my $group (@$r_substData)
@@ -432,6 +436,64 @@ sub   layoutLineRaw
     $yPos += $yDispMaxSize;
     return ($prEdl,$panelWidth, $yPos);
 }    
+
+##  Layout by collumn
+#  ........................
+#
+#
+#  * The Widgets are placed in collumns. Each file.xx {} block in the substitutions file defines one collumn
+#
+#  * The total width of the panel is given by the sum all widgets in a row, opteion width is ignored
+#
+#  * There order of widgets in a collumn is as read from the substitution file or determined by -sort option 
+#    one below the other.
+# 
+sub   layoutCollumn
+{   my ($r_substData,$rH_options) = @_;
+
+    print "layout: LineRaw, width: $panelWidth\n" if $opt_v == 1;
+    my $prEdl;
+    my $xPos=0;
+    my $yPos=0;	    	    # put next part of display here 
+
+    ($prEdl,$xPos,$yPos) = setTitle($rH_options,$xPos,$yPos) if defined $rH_options->{TITLE};
+    my $edlContent;
+    my $xDispSize;
+    my $xDispWIDTH;
+    my $yDispSize;
+    my $yPos0 = $yPos;
+    foreach my $group (@$r_substData)
+    { 
+	my $xScale;
+	my $edlFileName = shift @$group;	# the name of the .template/.edl file 
+	$yPos = $yPos0;
+    	# get content, width and height of actual edl-template
+	($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
+    	next unless defined $edlContent;
+#print "Display '$edlFileName': ($xDispSize, $yDispSize)\n";
+        $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
+
+	foreach my $rH_Attr (@$group)
+	{ 
+	    my $edl;
+
+    	    ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
+# setup next position
+    	    $yPos += $yDispSize;
+
+#print "Set '$edlFileName' width:'$xDispWIDTH' to: '$xPos,$yPos'\n";
+	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
+	    $prEdl .= "$edl" if defined $edl;
+	    die "Error in file \'$edlFileName\', data line:", Dumper($rH_Attr) unless defined $edl;
+#print "=====>\n$edl\n=====\n";
+            $yPos += $yDispSize;
+	}
+    	$xPos += $xDispWIDTH;
+    }
+    my $panelWidth =$xPos;
+    return ($prEdl,$panelWidth, $yPos);
+}    
+
 ##  Layout by table
 #  ........................
 #
