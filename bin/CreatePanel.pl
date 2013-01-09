@@ -23,7 +23,7 @@
 #      	    	    	    	        variable to search path(s) for panel widgets
 #      -M                               Create make dependencies
 #      -border				extra space to the panel border left,right,bottom in pixel (layout grid only)
-#      -layout line|xy|grid|table       placement of the widgets, (default = by line) 
+#      -layout line|xy|grid|table|column|rawline placement of the widgets, (default = by line) 
 #      -type adl|edl                    Create edl or mfp file (default is edl)
 #      -sort NAME                       Sort a group of signals. NAME is the name of a 
 #                                       Name-Value pair in the substitution data.
@@ -147,7 +147,7 @@
       -i                               Add ., .., \$EPICS_DISPLAY_PATH','\$EDMDATAFILES' 
       	    	    	    	       variable to search path(s) for panel widgets
       -M                               Create make dependencies
-      -layout xy | grid | table        placement of the widgets,(default: by Line) 
+      -layout line|xy|grid|table|collumn|rawline    placement of the widgets,(default: by Line) 
       -border			       extra space to the panel border left,right,
                                        bottom in pixel (layout grid only)
       -type adl|edl                    Create edl or mfp file (default is edl)
@@ -240,9 +240,9 @@
     {
         ($printEdl,$panelWidth, $panelHeight) = layoutDbDbgMin($r_substData,\%options);
     }
-    elsif($layout eq "collumn")
+    elsif($layout eq "column")
     {
-        ($printEdl,$panelWidth, $panelHeight) = layoutCollumn($r_substData,\%options);
+        ($printEdl,$panelWidth, $panelHeight) = layoutColumn($r_substData,\%options);
     }
     elsif($layout eq "lineRaw")
     {
@@ -443,12 +443,12 @@ sub   layoutLineRaw
 #
 #  * The Widgets are placed in collumns. Each file.xx {} block in the substitutions file defines one collumn
 #
-#  * The total width of the panel is given by the sum all widgets in a row, opteion width is ignored
+#  * The total width of the panel is given by the sum all widgets in a row, option width is ignored
 #
 #  * There order of widgets in a collumn is as read from the substitution file or determined by -sort option 
 #    one below the other.
 # 
-sub   layoutCollumn
+sub   layoutColumn
 {   my ($r_substData,$rH_options) = @_;
 
     print "layout: LineRaw, width: $panelWidth\n" if $opt_v == 1;
@@ -462,6 +462,7 @@ sub   layoutCollumn
     my $xDispWIDTH;
     my $yDispSize;
     my $yPos0 = $yPos;
+    my $yMax=0;
     foreach my $group (@$r_substData)
     { 
 	my $xScale;
@@ -470,7 +471,7 @@ sub   layoutCollumn
     	# get content, width and height of actual edl-template
 	($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
     	next unless defined $edlContent;
-#print "Display '$edlFileName': ($xDispSize, $yDispSize)\n";
+print "Display '$edlFileName': ($xDispSize, $yDispSize)\n";
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
 
 	foreach my $rH_Attr (@$group)
@@ -481,17 +482,18 @@ sub   layoutCollumn
 # setup next position
     	    $yPos += $yDispSize;
 
-#print "Set '$edlFileName' width:'$xDispWIDTH' to: '$xPos,$yPos'\n";
+print "Set '$edlFileName' width:'$xDispWIDTH' to: '$xPos,$yPos'\n";
 	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
 	    $prEdl .= "$edl" if defined $edl;
 	    die "Error in file \'$edlFileName\', data line:", Dumper($rH_Attr) unless defined $edl;
 #print "=====>\n$edl\n=====\n";
-            $yPos += $yDispSize;
 	}
     	$xPos += $xDispWIDTH;
+	$yPos += $yDispSize;
+	$yMax = $yPos if $yPos > $yMax;
     }
     my $panelWidth =$xPos;
-    return ($prEdl,$panelWidth, $yPos);
+    return ($prEdl,$panelWidth, $yMax);
 }    
 
 ##  Layout by table
