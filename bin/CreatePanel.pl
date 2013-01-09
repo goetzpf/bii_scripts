@@ -479,22 +479,20 @@ print "Display '$edlFileName': ($xDispSize, $yDispSize)\n";
 	    my $edl;
 
     	    ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
-# setup next position
-    	    $yPos += $yDispSize;
-
 print "Set '$edlFileName' width:'$xDispWIDTH' to: '$xPos,$yPos'\n";
 	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
+# setup next position
+    	    $yPos += $yDispSize;
 	    $prEdl .= "$edl" if defined $edl;
 	    die "Error in file \'$edlFileName\', data line:", Dumper($rH_Attr) unless defined $edl;
 #print "=====>\n$edl\n=====\n";
 	}
     	$xPos += $xDispWIDTH;
-	$yPos += $yDispSize;
 	$yMax = $yPos if $yPos > $yMax;
     }
     my $panelWidth =$xPos;
     return ($prEdl,$panelWidth, $yMax);
-}    
+}
 
 ##  Layout by table
 #  ........................
