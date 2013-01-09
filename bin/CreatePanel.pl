@@ -471,7 +471,7 @@ sub   layoutColumn
     	# get content, width and height of actual edl-template
 	($edlContent, $xDispSize, $yDispSize) = getDisplay($edlFileName);
     	next unless defined $edlContent;
-print "Display '$edlFileName': ($xDispSize, $yDispSize)\n";
+#print "Display '$edlFileName': ($xDispSize, $yDispSize)\n";
         $group = sorted($group, $opt_sort,$edlFileName) if length($opt_sort)> 0;
 
 	foreach my $rH_Attr (@$group)
@@ -479,7 +479,7 @@ print "Display '$edlFileName': ($xDispSize, $yDispSize)\n";
 	    my $edl;
 
     	    ($xDispWIDTH, $xScale) = getWidth($xDispSize,$rH_Attr);
-print "Set '$edlFileName' width:'$xDispWIDTH' to: '$xPos,$yPos'\n";
+#print "Set '$edlFileName' width:'$xDispWIDTH' to: '$xPos,$yPos'\n";
 	    $edl = setWidget($edlContent,$xDispWIDTH,$yDispSize,$rH_Attr, $xScale,$xPos,$yPos);
 # setup next position
     	    $yPos += $yDispSize;
