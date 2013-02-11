@@ -1,8 +1,16 @@
 #!/bin/sh
 
-CONFIGFILE=/opt/csr/share/rsync-dist/idcp
+CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
 
-opts="-c $CONFIGFILE"
+CONFIGFILE_BII=$CONFIGFILE_PATH/idcp
+CONFIGFILE_MLS=$CONFIGFILE_PATH/idcp-mls
+
+CONFIGFILE=$CONFIGFILE_BII
+
+installed_ids_bii="^idcp(3|5|7|8|9|10|11|12|13|15|110)$"
+installed_ids_mls="^idcp(90)$"
+
+installed_ids=$installed_ids_bii
 
 function print_short_help {
     echo "$0: a small wrapper that calls rsync-dist-info.py"
@@ -13,6 +21,8 @@ function print_short_help {
     echo "  --ids : filter for all ID's that are installed and use"
     echo "      the rsync-dist.pl (Ue56/2 is not in this list)"
     echo "  --id-list : show the known insertion devices and their idcp-name"
+    echo "  --facility [FACILITY]: set the facility, facility may"
+    echo "      be 'bii' or 'mls'"
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
 }
 
@@ -49,9 +59,9 @@ UE112:13\n
 UE112ID7R:13\n
 U49/2:15\n
 U49ID8R:15\n
+U125/1:90\n
+U125IL2RP:90\n
 '
-
-installed_ids="^idcp(3|5|7|8|9|10|11|12|13|15|110)$"
 
 function list_ids {
     tags=`echo "$IDs" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
@@ -100,6 +110,21 @@ while [ $# -gt 0 ]; do
         shift
         last_given="yes"
         ;;
+      --facility)
+        facility="no"
+        if [ "$2" = "bii" ]; then
+            facility="$2"
+        fi
+        if [ "$2" = "mls" ]; then
+            facility="$2"
+            CONFIGFILE=$CONFIGFILE_MLS
+            installed_ids=$installed_ids_mls
+        fi
+        if [ "$facility" = "no" ]; then
+            echo "unknown faciliy: $2"
+            exit 1
+        fi
+        ;;
       --dry-run)
         dryrun="yes"
         ;;
@@ -110,6 +135,8 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+opts="$opts -c $CONFIGFILE"
 
 if [[ -z "$cmd_given" ]]; then
     opts="$opts -n"
