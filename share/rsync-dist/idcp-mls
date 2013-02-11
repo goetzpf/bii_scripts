@@ -1,14 +1,14 @@
 #name of the remote host(s)
-RSYNC_DIST_HOST= aragon.acc.bessy.de,shoshoni.blc.bessy.de
+RSYNC_DIST_HOST= nfs.mlscs.bessy.de
 
 #name of the remote user(s)
-RSYNC_DIST_USER= iocadm,iocadm
+RSYNC_DIST_USER= iocadm
 
 #remote distribution directory
-RSYNC_DIST_PATH= /opt/IOC/Releases/idcp/dist
+RSYNC_DIST_PATH= /opt/IOC/idcp/dist
 
 #remote link directory
-RSYNC_DIST_LINKPATH= /opt/IOC/Releases/idcp/links
+RSYNC_DIST_LINKPATH= /opt/IOC/idcp/links
 
 #prepend the distribution directory to the link-source path
 #(only for the commands "add-links" and "change-links")
@@ -27,7 +27,7 @@ RSYNC_DIST_WORLDREADABLE= 1
 RSYNC_DIST_CHECKSUM= 1
 
 #use this branch for distributing files
-#RSYNC_DIST_BRANCH=
+#RSYNC_DIST_BRANCH= 
 
 #name of the version-file that is created
 RSYNC_DIST_VERSION_FILE= bin/DISTVERSION
