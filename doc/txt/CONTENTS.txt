@@ -153,6 +153,10 @@ Scripts
     repository.  
   | `documentation <scripts/cvs_log_diff.html>`__
 
+**hg-compare-repos**
+  | compares the logs of two mercurial repositories with tkdiff.
+  | `documentation <scripts/hg-compare-repos.html>`__
+
 **darcs-compare-repos**
   | compares the logs of two darcs repositories with tkdiff.
   | `documentation <scripts/darcs-compare-repos.html>`__
