@@ -398,7 +398,14 @@ def extract_archive(tarfile_name, verbose, dry_run, mode="r:gz"):
         if dry_run:
             return
     t= tarfile.open(tarfile_name, mode)
-    t.extractall()
+    for member in t.getmembers():
+        t.extract(member, path=".")
+    # t.extractall()
+
+    # mysteriously, sometimes the tarfile object doesn't have an extractall
+    # method (it seems when hg-recover.py is started with "-r -f" and a
+    # directory instead of an overall tar file.  We use extract() instead of
+    # extractall() here, this seems to work,
     t.close()
 
 # -----------------------------------------------
@@ -420,9 +427,13 @@ In the file "metadata.yaml", the line starting with "central repository"
 contains the name of the central repository. The line starting with "source
 dir" has the name of the source directory, although this could be any arbitrary
 name.
+
+If there is a field "qparent" in "metadata.yaml", you should use the option "-r
+[qparent]" in the following command, otherwise you can skip this option.
+
 Clone the central repository with:
 
-"hg clone [central repository] [source dir]"
+"hg clone [-r qparent] [central repository] [source dir]"
 "cd [source dir]
 
 2. apply outgoing patches
@@ -487,6 +498,22 @@ def mk_readme(filename, verbose, dry_run):
 def hg_cmd(cmd, catch_stdout, verbose, dry_run):
     """get data from a hg command."""
     return _system("hg %s" % cmd, catch_stdout, verbose, dry_run)
+
+def hg_qparent(verbose, dry_run):
+    """returns the "qparent" version if it exists.
+
+    returns:
+        if there are no applied patches
+	    None
+	Otherwise
+	    a hashkey
+    """
+    filename= os.path.join(".hg","patches","status")
+    if not os.path.exists(filename):
+	return None
+    qparent= hg_cmd("log -r qparent --template '{node|short}:{node}\n'",
+                    True,verbose,dry_run)
+    return qparent.split(":")[0]
 
 def hg_hash_patchname_list(verbose, dry_run):
     """returns a list of tuples (hashkey,patchname).
@@ -685,6 +712,7 @@ def create_recover_data(working_copy,
 
     source_path= os.getcwd()
     outgoing_patches= hg_outgoing(central_repo, verbose or dry_run)
+    qparent= hg_qparent(verbose or dry_run, False)
     patchlist= hg_hash_patchname_list(verbose or dry_run, False)
     bag= { 
            "source path" : source_path, 
@@ -698,6 +726,9 @@ def create_recover_data(working_copy,
 	   "mq patches used" : (patchlist is not None),
 	 }
     if patchlist is not None:
+        bag["qparent"]= qparent # this bag element is not there in old
+                                # recovery files where this feature was not
+                                # yet implemented.
 	bag["patchname list"] = ["%s:%s" % i for i in reversed(patchlist)]
     # print yaml.dump(bag)
     s= yaml.dump(bag,default_flow_style=False)
@@ -745,7 +776,15 @@ def recover_data(working_copy,
     meta= open(join(data_dir,"metadata.yaml"))
     bag= yaml.load(meta)
     meta.close()
-    hg_cmd("clone %s %s" % (bag["central repository"], bag["source dir"]), 
+    cloneopt= ""
+    if bag.get("mq patches used"):
+        qparent= bag.get("qparent")
+        if qparent is not None:
+            # clone only up to the qparent version:
+            cloneopt="-r %s" % qparent
+    hg_cmd("clone %s %s %s" % (cloneopt, 
+                               bag["central repository"], 
+                               bag["source dir"]), 
            not verbose, verbose, dry_run)
     my_chdir(bag["source dir"], verbose or dry_run)
     data_dir= join("..",data_dir)
