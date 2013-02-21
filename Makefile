@@ -299,7 +299,8 @@ POD_SCRIPT_LIST=rsync-dist.pl multi-commit.pl bdns_lookup.pl
 PLAINTXT_SCRIPT_LIST= \
 	console-get \
 	dbcount \
-	dbsort
+	dbsort \
+	toASCII
 
 # scripts with no embedded documentation
 # create online help by executing "(script.pl 2>&1; true)

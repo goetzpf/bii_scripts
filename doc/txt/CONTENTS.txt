@@ -453,6 +453,10 @@ Scripts
     to do more complex operations on tables.
   | `documentation <scripts/tableutil.html>`__
 
+**toASCII**
+  | toASCII STDIN:  Print hex-numbers from STDIN as characters,
+    convert control signals to mnemonics
+
 **tkSQL**
   | query the oracle database by directly entering SQL requests.
 
