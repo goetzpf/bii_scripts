@@ -644,14 +644,14 @@ def hwLowcal2canLink(fieldDict,pvName=""):
     if check_exists(fieldDict,'PORT','PORT',"hwLowcal2canLink() "+pvName):
 	canPar['port'] = int(fieldDict['PORT'])
     else:     	return
-    if check_exists(fieldDict,'INHB','INHB',"hwLowcal2canLink() "+pvName):
+    if fieldDict.has_key('INHB') is False:
+	canPar['inhibit'] = 0
+    else:
 	canPar['inhibit'] = int(fieldDict['INHB'])
-    else:     	return
-    if check_exists(fieldDict,'UTYP','UTYP',"hwLowcal2canLink() "+pvName,('Client','Server')):
-	if fieldDict['UTYP'] == 'Server':
-	 canPar['server'] = 1
-	else: canPar['server'] = 0
-    else:     	return
+    if fieldDict.has_key('UTYP') is False:
+	canPar['server'] = 0
+    else: 
+    	canPar['server'] = 1
     if check_exists(fieldDict,'ATYP','ATYP',"hwLowcal2canLink() "+pvName,('RO','WO','RW')):
 	if fieldDict['ATYP'] == 'RO': canPar['access'] = 'r'
 	if fieldDict['ATYP'] == 'WO': canPar['access'] = 'w'
