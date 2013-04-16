@@ -901,11 +901,11 @@ class epicsAlh(object):
             self.sort = devObj.alhSort
         if devObj.panelName and len(devObj.panelName)>0:
             self.panel   = devObj.panelName
-	    self.command = "edm -x -noedit -noscrl "+devObj.panelName+".edl"
+	    self.command = "run_edm.sh "+devObj.panelName+".edl"
 	else:
 	    egu = " "
 	    if len(devObj.egu) > 0: egu = devObj.egu
-	    self.command = "edm -x -noedit -noscrl -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
+	    self.command = "run_edm.sh -x -noedit -noscrl -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
 
         self.tags = [("ALIAS",devname+": "+self.desc),
                      ("ALARMCOUNTFILTER","2 1")
