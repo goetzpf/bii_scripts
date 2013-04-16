@@ -125,7 +125,6 @@ our @EXPORT = qw(
   write_template_sql
   perform_query
 );
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.9 $ =~ /(\d+)/g;
 
 use strict;
 use Carp;
