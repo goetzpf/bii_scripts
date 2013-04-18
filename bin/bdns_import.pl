@@ -41,16 +41,16 @@ use ODB;
 use Data::Dumper;
 
 Options::register(
-  ["dbase",			"d", "=s",	"Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
-  ["user",			"u", "=s",	"User name", "user", $ENV{'USER'}],
-  ["passwd",		"p", "=s",	"Password", "password", "", 1],
-  ["file",			"f", "=s",	"Read (additional) names from a file"],
-  ["dump",			"o", "",	"Dont do database actions, output commands"],
-  ["separator",		"s", "=s",	"Name separator [default: whitespace]"],
-  ["description",	"d", "=i",	"Description in file on column-number to name"],
-  ["primarykey",	"k", "=i",	"Predefined primary key in file on column-number to name"],
-  ["yes",			"y", "",	"Ignore failure prompt, print them out"],
-  ["commit",		"c", "",	"Wait at the end of inserting the names for the commit input"],
+  ["dbase",       "d",  "=s", "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
+  ["user",        "u",  "=s", "User name", "user", $ENV{'USER'}],
+  ["passwd",      "p",  "=s", "Password", "password", "", 1],
+  ["file",        "f",  "=s", "Read (additional) names from a file"],
+  ["dump",        "o",  "",   "Dont do database actions, output commands"],
+  ["separator",   "s",  "=s", "Name separator [default: whitespace]"],
+  ["description", "d",  "=i", "Description in file on column-number to name"],
+  ["primarykey",  "k",  "=i", "Predefined primary key in file on column-number to name"],
+  ["yes",         "y",  "",   "Ignore failure prompt, print them out"],
+  ["commit",      "c",  "",   "Wait at the end of inserting the names for the commit input"],
 );
 
 my $usage = "import a list of names into the bessy device name service
