@@ -167,13 +167,25 @@ sub html_escape {
   $arg =~ s/&/&amp;/g;
   $arg =~ s/</&lt;/g;
   $arg =~ s/>/&gt;/g;
+  return $arg;
+}
+
+sub field_def {
+  my ($name, $value) = @_;
+  my $def;
+  if ($value eq "") {
+    $def = $_;
+  } else {
+    $def = "$_=" . html_escape($value);
+  }
+  return <<EOF;
+      <TR><TD PORT="$name" BORDER="1"><FONT POINT-SIZE="10">$def</FONT></TD></TR>
+EOF
 }
 
 while (my ($record_name, $record) = each(%{$dot->{nodes}})) {
   my $record_type = $record->{type};
-  my $dot_fields = join("",map {<<EOF} sort(keys(%{$record->{fields}})));
-      <TR><TD PORT="$_" BORDER="1"><FONT POINT-SIZE="10">$_=@{[html_escape($record->{fields}->{$_})]}</FONT></TD></TR>
-EOF
+  my $dot_fields = join("",map {field_def($_,$record->{fields}->{$_})} sort(keys(%{$record->{fields}})));
 print <<EOF;
   "$record_name" [label=<
     <TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0">
