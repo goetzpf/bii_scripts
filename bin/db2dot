@@ -140,10 +140,17 @@ while (my ($record_name,$record) = each(%$records)) {
   }
 }
 
+sub html_escape {
+  my ($arg) = @_;
+  $arg =~ s/&/&amp;/g;
+  $arg =~ s/</&lt;/g;
+  $arg =~ s/>/&gt;/g;
+}
+
 while (my ($record_name, $record) = each(%{$dot->{nodes}})) {
   my $record_type = $record->{type};
   my $dot_fields = join("",map {<<EOF} sort(keys(%{$record->{fields}})));
-      <TR><TD PORT="$_" BORDER="1"><FONT POINT-SIZE="10">$_=$record->{fields}->{$_}</FONT></TD></TR>
+      <TR><TD PORT="$_" BORDER="1"><FONT POINT-SIZE="10">$_=@{[html_escape($record->{fields}->{$_})]}</FONT></TD></TR>
 EOF
 print <<EOF;
   "$record_name" [label=<
