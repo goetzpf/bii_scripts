@@ -4,7 +4,6 @@ use Switch;
 use parse_db;
 
 my $link_fields = {
-  DOL  => 'in',
   DOL1 => 'in',
   DOL2 => 'in',
   DOL3 => 'in',
@@ -15,7 +14,8 @@ my $link_fields = {
   DOL8 => 'in',
   DOL9 => 'in',
   DOLA => 'in',
-  INP  => 'in',
+  DOL  => 'in',
+  FLNK => 'fwd',
   INPA => 'in',
   INPB => 'in',
   INPC => 'in',
@@ -28,6 +28,7 @@ my $link_fields = {
   INPJ => 'in',
   INPK => 'in',
   INPL => 'in',
+  INP  => 'in',
 #  LNK1 => 'fwd',
   LNK1 => 'out',
 #  LNK2 => 'fwd',
@@ -54,11 +55,13 @@ my $link_fields = {
   OUTF => 'out',
   OUTG => 'out',
   OUTH => 'out',
+  SDIS => 'in',
   SELL => 'in',
   SIML => 'in',
 #  SIOL => 'in',
 #  SIOL => 'out',
   SVL  => 'in',
+  TSEL => 'in',
 };
 
 my $usage = <<EOF;
