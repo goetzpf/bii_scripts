@@ -82,7 +82,7 @@ my $records = parse_db::parse_file($ARGV[0]);
 
 sub dot_link {
   my ($fieldval) = @_;
-  if ($fieldval =~ /^\d/ or $fieldval eq "") {
+  if ($fieldval =~ /^[+-\d\.]/ or $fieldval eq "") {
     return undef;
   }
   my @flags;
