@@ -313,6 +313,7 @@ PLAINTXT_PL_SCRIPT_LIST= \
 # create online help by executing "(script -h 2>&1; true)
 PLAINTXT_H_SCRIPT_LIST= \
 	csv2epicsDb\
+	db2dot \
 	dbdiff \
 	darcs-compare-repos \
 	hg-compare-repos \

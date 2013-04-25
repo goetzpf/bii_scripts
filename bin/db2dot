@@ -1,0 +1,178 @@
+#!/usr/bin/env perl
+use strict;
+use Switch;
+use parse_db;
+
+my $link_fields = {
+  DOL  => 'in',
+  DOL1 => 'in',
+  DOL2 => 'in',
+  DOL3 => 'in',
+  DOL4 => 'in',
+  DOL5 => 'in',
+  DOL6 => 'in',
+  DOL7 => 'in',
+  DOL8 => 'in',
+  DOL9 => 'in',
+  DOLA => 'in',
+  INP  => 'in',
+  INPA => 'in',
+  INPB => 'in',
+  INPC => 'in',
+  INPD => 'in',
+  INPE => 'in',
+  INPF => 'in',
+  INPG => 'in',
+  INPH => 'in',
+  INPI => 'in',
+  INPJ => 'in',
+  INPK => 'in',
+  INPL => 'in',
+#  LNK1 => 'fwd',
+  LNK1 => 'out',
+#  LNK2 => 'fwd',
+  LNK2 => 'out',
+#  LNK3 => 'fwd',
+  LNK3 => 'out',
+#  LNK4 => 'fwd',
+  LNK4 => 'out',
+#  LNK5 => 'fwd',
+  LNK5 => 'out',
+#  LNK6 => 'fwd',
+  LNK6 => 'out',
+  LNK7 => 'out',
+  LNK8 => 'out',
+  LNK9 => 'out',
+  LNKA => 'out',
+  NVL  => 'in',
+  OUT  => 'out',
+  OUTA => 'out',
+  OUTB => 'out',
+  OUTC => 'out',
+  OUTD => 'out',
+  OUTE => 'out',
+  OUTF => 'out',
+  OUTG => 'out',
+  OUTH => 'out',
+  SELL => 'in',
+  SIML => 'in',
+#  SIOL => 'in',
+#  SIOL => 'out',
+  SVL  => 'in',
+};
+
+my $usage = <<EOF;
+usage: db2dot [FILE]
+
+Convert an epics db file into graphviz dot format. Reads from
+FILE if given, else from stdin. Output goes to stdout.
+Example: db2dot test.template | dot -Tps > test.ps
+EOF
+
+foreach my $arg (@ARGV) {
+  if ($arg =~ /^-[h?]|--help/) {
+    die $usage;
+  }
+}
+
+my $records = parse_db::parse_file($ARGV[0]);
+
+sub dot_link {
+  my ($fieldval) = @_;
+  if ($fieldval =~ /^\d/ or $fieldval eq "") {
+    return undef;
+  }
+  my @flags;
+  for (1..2) {
+    if ($fieldval =~ s/[\. ](N?(?:PP|MS)|CA|CP|CPP)$//) {
+      push @flags, $1;
+    }
+  }
+  my $res;
+  if ($fieldval =~ s/\.([A-Z0-9]{1,4})$//) {
+    $res->{tgt}->{field} = $1;
+  } else {
+    $res->{tgt}->{field} = "VAL";
+  }
+  $res->{tgt}->{record} = $fieldval;
+  $res->{flags} = \@flags;
+  return $res;
+}
+
+print <<EOF;
+digraph records {
+  graph [ratio="fill", size="10.7, 7.3", rotate=90]
+  rankdir=LR
+  node [shape=none]
+EOF
+
+my $dot = {
+  nodes => {},
+  edges => [],
+};
+
+while (my ($record_name,$record) = each(%$records)) {
+  my $record_fields = $record->{FIELDS};
+  $dot->{nodes}->{$record_name}->{type} = $record->{TYPE};
+  while (my ($field_name,$field_value) = each(%$record_fields)) {
+    my $is_link = $link_fields->{$field_name};
+    $dot->{nodes}->{$record_name}->{fields}->{$field_name} = $field_value;
+    #warn "dot_field_value=$dot_field_value";
+    if ($is_link) {
+      my $link = dot_link($field_value);
+      if ($link) {
+        # check if target field was configured; if not, add it with an empty value
+        if (not exists $dot->{nodes}->{$link->{tgt}->{record}}->{fields}->{$link->{tgt}->{field}}) {
+          $dot->{nodes}->{$link->{tgt}->{record}}->{fields}->{$link->{tgt}->{field}} = "";
+        }
+        $link->{src}->{record} = $record_name;
+        $link->{src}->{field} = $field_name;
+        $link->{type} = $is_link;
+        if ($is_link eq 'in') {
+          ($link->{src}, $link->{tgt}) = ($link->{tgt}, $link->{src});
+        }
+        push @{$dot->{edges}}, $link;
+      }
+    }
+  }
+}
+
+while (my ($record_name, $record) = each(%{$dot->{nodes}})) {
+  my $record_type = $record->{type};
+  my $dot_fields = join("",map {<<EOF} sort(keys(%{$record->{fields}})));
+      <TR><TD PORT="$_" BORDER="1"><FONT POINT-SIZE="10">$_=$record->{fields}->{$_}</FONT></TD></TR>
+EOF
+print <<EOF;
+  "$record_name" [label=<
+    <TABLE BORDER="0" CELLPADDING="1" CELLSPACING="0">
+      <TR><TD BORDER="1" CELLPADDING="2"><B>$record_name<BR/>$record_type</B></TD></TR>
+      $dot_fields
+    </TABLE>
+  >];
+EOF
+}
+
+foreach my $edge (@{$dot->{edges}}) {
+  my $src = $edge->{src};
+  my $tgt = $edge->{tgt};
+  my $flags = join(" ",@{$edge->{flags}});
+  my ($arrowhead,$arrowtail);
+  switch ($edge->{type}) {
+    case 'in' {
+      ($arrowhead,$arrowtail) = ("odotvee","odot");
+    }
+    case 'out' {
+      ($arrowhead,$arrowtail) = ("odotvee","odot");
+    }
+    case 'fwd' {
+      ($arrowhead,$arrowtail) = ("odotvee","odot");
+    }
+  }
+print <<EOF;
+  "$src->{record}":$src->{field} -> "$tgt->{record}":$tgt->{field} [dir="both", label=< <FONT POINT-SIZE="10"> $flags </FONT> >, arrowhead="$arrowhead", arrowtail="$arrowtail", arrowsize="1.3"];
+EOF
+}
+
+print <<EOF;
+}
+EOF
