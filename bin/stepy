@@ -124,7 +124,6 @@ Bugs and Enhancement - TuDu
   - Abspeichern von cfg. Files, keine Description ergibt leere Zeile. Beim Laden
     muss die Leere Zeile angeklickt werden - Mist!
 """
-import step
 import re
 #import ca
 import time
@@ -140,6 +139,12 @@ import os
 #from traceback import *
 
 my_version = "1.1"
+
+try:
+    import step
+except ImportError:
+    if len(sys.argv)==2 and (sys.argv[1] in ("--doc")):
+        pass
 
 def setSignalINT(obj):
     """
