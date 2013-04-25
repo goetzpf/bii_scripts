@@ -112,6 +112,7 @@ sub dot_link {
       push @flags, $1;
     }
   }
+  $fieldval =~ s/\s+$//;
   my $res;
   if ($fieldval =~ s/\.([A-Z0-9]{1,4})$//) {
     $res->{tgt}->{field} = $1;
