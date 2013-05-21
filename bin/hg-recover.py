@@ -511,6 +511,9 @@ def hg_qparent(verbose, dry_run):
     filename= os.path.join(".hg","patches","status")
     if not os.path.exists(filename):
 	return None
+    if ""==hg_cmd("qapplied", True, verbose, dry_run):
+        # there is a patch queue but none of the patches is applied
+        return None
     qparent= hg_cmd("log -r qparent --template '{node|short}:{node}\n'",
                     True,verbose,dry_run)
     return qparent.split(":")[0]
