@@ -499,6 +499,12 @@ def hg_cmd(cmd, catch_stdout, verbose, dry_run):
     """get data from a hg command."""
     return _system("hg %s" % cmd, catch_stdout, verbose, dry_run)
 
+def hg_parents(revision, verbose, dry_run):
+    """get the parent(s) of a revision."""
+    parents= hg_cmd("parents -r %s --template '{node|short}:{node}\n'" % revision,
+                    True,verbose,dry_run)
+    return [x.split(":")[0] for x in parents.splitlines()]
+
 def hg_qparent(verbose, dry_run):
     """returns the "qparent" version if it exists.
 
@@ -678,6 +684,45 @@ def rebuild_patchdir(patchlist, verbose, dry_run):
 # major functions
 # -----------------------------------------------
 
+def recover_qparent(bag,
+                    data_dir, 
+                    verbose, dry_run):
+    """recover the "qparent" revision.
+
+    In newer versions of the restore file, the qparent revision is part of the
+    metadata.yaml file. In older versions this is missing but this information
+    is sometimes needed to correctly restore the mq patch queue. This function
+    checks out the repository and applies the patch bundle only to get the
+    parent of the first patch revision and then throws the repository away.
+    """
+    join= os.path.join
+    if len(bag["outgoing patches"])<=0:
+        # the mq patches should also be part of the outgoing patches. If there
+        # are no outgoing patches there should be no mq patches an no "qparent"
+        # revision.
+        return None
+    hg_cmd("clone %s %s %s" % ("", 
+                               bag["central repository"], 
+                               bag["source dir"]), 
+           not verbose, verbose, dry_run)
+    old_dir= my_chdir(bag["source dir"], verbose or dry_run)
+    data_dir= join("..",data_dir)
+    apply_hg_bundle(join(data_dir,"hg-bundle"), verbose, dry_run)
+    # the last patch in "patchname list" should be the first patch ("qbase")
+    # that was applied. So it's parent is the "qparent" revision:
+    first_patch= bag["patchname list"][-1].split(":")[0]
+    parents= hg_parents(first_patch, verbose or dry_run, False)
+    # There shouldn't be more than one parent of the "qbase" patch. If there
+    # is, or if there is no parent patch at all the program stops with an
+    # assertion:
+    if len(parents)!=1:
+        raise AssertionError, "revision %s does not have a single parent" % \
+                               first_patch
+    # throw away the repository:
+    delete_dir= my_chdir(old_dir, verbose or dry_run)
+    rmdir(delete_dir, verbose, dry_run)
+    return parents[0]
+
 def create_recover_data(working_copy,
                         data_dir, 
                         central_repo,
@@ -782,6 +827,9 @@ def recover_data(working_copy,
     cloneopt= ""
     if bag.get("mq patches used"):
         qparent= bag.get("qparent")
+        if qparent is None:
+            # qparent revision was not saved, try to recover it:
+            qparent= recover_qparent(bag, data_dir, verbose, dry_run)
         if qparent is not None:
             # clone only up to the qparent version:
             cloneopt="-r %s" % qparent
