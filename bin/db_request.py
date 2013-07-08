@@ -52,13 +52,13 @@ dbProfiles = {
         "server": None,
         "port": None,
     },
-    "machine": {
+    "devices2": {
         "connecttype": "postgres",
         "user": "anonymous",
         "password": "bessyguest",
-        "instance": "machine",
-        "server": "dbgate1.trs.bessy.de",
-        "port": "9999",
+        "instance": "test",
+        "server": "dbnode1.trs.bessy.de",
+        "port": None,
     },
 }
 
@@ -257,9 +257,9 @@ def main():
     elif argOptionList.connecttype is not None and dbProfile["instance"] is None:
         dbProfile["instance"] = str(argOptionList.connecttype).lower()
     if dbProfile["connecttype"] != "oci8":
-        if dbInstanceServer is None and dbProfile["server"] is None:
+        if dbProfile["server"] is None:
             dbProfile["server"] = str(raw_input('Servername: '))
-        if dbInstanceString is None and dbProfile["instance"] is None:
+        if dbProfile["instance"] is None:
             portNum = raw_input('Serverport: ')
             if portNum.is_numeric():
                 dbProfile["port"] = int(portNum)
@@ -329,11 +329,16 @@ def main():
     '''
     try:
         dbConnectHandle = adodb.NewADOConnection(dbProfile["connecttype"])
-        dbConnectHandle.Connect(dbProfile["instance"], dbProfile["user"], dbProfile["password"])
-        if verbose:
-            print "connect to "+dbProfile["instance"]+"://"+dbProfile["user"]+"@"+dbProfile["instance"]
+        if dbProfile["connecttype"] == 'oci8':
+            dbConnectHandle.Connect(dbProfile["instance"], dbProfile["user"], dbProfile["password"])
+            if verbose:
+                print "connect to " + dbProfile["connecttype"] + "://" + dbProfile["user"] + "@" + dbProfile["instance"]
+        else:
+            dbConnectHandle.Connect(dbProfile["server"], dbProfile["user"], dbProfile["password"], dbProfile["instance"])
+            if verbose:
+                print "connect to " + dbProfile["connecttype"] + "://" + dbProfile["user"] + "@" + dbProfile["server"] + '/' + dbProfile["instance"]
     except :
-        print "ERROR connect to "+dbProfile["instance"]+"://"+dbProfile["user"]+"@"+dbProfile["instance"]+" returns", sys.exc_info()[1]
+        print "ERROR connect to " + dbProfile["connecttype"] + "://" + dbProfile["user"] + "@" + dbProfile["instance"] + " returns", sys.exc_info()[1]
         sys.exit(-1)
     if (type(dbSQLString) == unicode):
         dbSQLString = str(dbSQLString)
