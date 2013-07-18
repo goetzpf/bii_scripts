@@ -48,7 +48,8 @@ use File::Find;
 use File::Spec;
 
 use vars qw($opt_help $opt_summary
-           $opt_text $opt_ccode $opt_headers $opt_make $opt_perl 
+            $opt_text $opt_ccode $opt_headers $opt_make 
+            $opt_perl $opt_python
             $opt_progress
             $opt_perl_ex
 	    $opt_ignore_case
@@ -71,6 +72,7 @@ Getopt::Long::config(qw(no_ignore_case));
 if (!GetOptions("help|h","summary",
                 "text|t", "ccode|c", "headers|H", "make|m", "perl|p", 
                 "perl_ex|P",
+                "python|py",
 		"ignore_case|i",
 		"progress",
                 "list|l", 
@@ -164,7 +166,8 @@ eval( "sub line_filter " .
 if ($@)
   { die "error: eval() failed, error-message:\n" . $@ . " "  };
 
-my $option_filter= ($opt_ccode || $opt_headers || $opt_perl || $opt_make);
+my $option_filter= ($opt_ccode || $opt_headers || $opt_perl || 
+                    $opt_python || $opt_make);
 my $text_filter  = ($opt_perl_ex || $opt_text);
 
 if (!defined $opt_stdin_list) # search recursively for files 
@@ -224,6 +227,9 @@ sub wanted
               { if ($file =~ /\.(p|pl|pm)$/)
 	          { $is_perl= 1; last; }; 
 	      };
+
+            if ($opt_python)
+              { last if ($file =~ /\.py$/); };
 
             if ($opt_make)
               { last if ($file =~ /^([Mm]akefile|
@@ -445,6 +451,7 @@ Syntax:
     -P: extended perl search, find perl-files by analysing their content
         should only be used together with '-p', since recognizing a
 	perl-file is not always easy
+    -py: search only for python files: *.py
     -m: only check makefiles: Makefile, makefile, *.mak
         -c, -p and -m may be combined
     -l: just list the files that matched
