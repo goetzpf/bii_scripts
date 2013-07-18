@@ -52,6 +52,8 @@ use vars qw($opt_help $opt_summary
             $opt_val_regexp @opt_field
             $opt_name
             $opt_notname
+            $opt_name_file
+            $opt_notname_file
             $opt_type
             $opt_value
             @opt_info
@@ -136,6 +138,7 @@ if (!GetOptions("help|h","summary",
                 "short|s",
                 "field=s@",
                 "name|NAME|n=s", "notname|NOTNAME=s",
+                "name-file=s", "notname-file=s",
                 "value=s",
                 "info=s@",
                 "infovalue=s",
@@ -226,6 +229,12 @@ foreach my $file (@files)
 
     if (defined $opt_notname)
       { filter_name($ext_db_hash,$opt_notname,1); };
+
+    if (defined $opt_name_file)
+      { filter_name_file($ext_db_hash,$opt_name_file); };
+
+    if (defined $opt_notname_file)
+      { filter_name_file($ext_db_hash,$opt_notname_file,1); };
 
     if (defined $opt_type)
       { filter_type($ext_db_hash,$opt_type); };
@@ -834,8 +843,28 @@ sub filter_type
       };
   }
 
+sub scan_file
+# scan contents of a file with a list of records
+  { my($filename)= @_;
+    local *IN;
+    my %recs;
+    open(IN, $filename) || die "unable to open $filename\n";
+    while(my $line=<IN>)
+      { 
+	chomp($line);
+        $line=~ s/^\s+//;
+        my @names= split(/\s+/,$line);
+        foreach my $n (@names)
+          {
+            $recs{$n}= 1;
+          };
+      };
+    close(IN);
+    return \%recs;
+  }
+
 sub filter_name
-# remove all records whose name does not match a
+# remove all records whose name do or do not match a
 # given regular expression
   { my($r_ext_db,$regexp,$invert)= @_;
     my @nomatch;
@@ -847,6 +876,42 @@ sub filter_name
       { if (!name_filter($rec))
           { push @nomatch, $rec ;
           };
+      };
+    my $r_realrecords= $r_ext_db->{realrecords};
+    my $r_aliasmap= $r_ext_db->{aliasmap};
+    foreach my $r (@nomatch)
+      {
+        delete $r_dbhash->{$r};
+        delete $r_realrecords->{$r};
+        delete $r_aliasmap->{$r};
+      };
+  }
+
+sub filter_name_file
+# remove all records whose name do or do not match a
+# list of records in a file
+  { my($r_ext_db,$filename,$invert)= @_;
+    my @nomatch;
+
+    my $r_recs= scan_file($filename);
+
+    my $r_dbhash= $r_ext_db->{dbhash};
+    foreach my $rec (sort keys %$r_dbhash)
+      { 
+        if (exists $r_recs->{$rec})
+          {
+            if ($invert)
+              { 
+                push @nomatch, $rec ;
+              };
+          }
+        else
+          {
+            if (!$invert)
+              { 
+                push @nomatch, $rec ;
+              };
+          }
       };
     my $r_realrecords= $r_ext_db->{realrecords};
     my $r_aliasmap= $r_ext_db->{aliasmap};
@@ -1497,6 +1562,12 @@ Syntax:
     --NOTNAME|--notname [regexp]
       same as above but filter records whose names DO NOT match the regular
       expression
+
+    --name-file [file]
+      filter records that are listed in the given file
+
+    --notname-file [file]
+      filter records that are NOT listed in the given file
 
     --DTYP [regexp] : filter DTYP field
 
