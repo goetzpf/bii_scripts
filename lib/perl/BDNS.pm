@@ -85,7 +85,7 @@ my $pmem = "[A-Z]+?";
 my $pind = "([0-9]+)(-([0-9]+))?";
 
 our %pfam;
-$pfam{global} = "BCFGHIKLMNOPQRVWYZ";
+$pfam{global} = "BCEFGHIKLMNOPQRVWYZ";
 $pfam{B} = $pfam{global};
 $pfam{F} = $pfam{global} . "ST";
 $pfam{P} = $pfam{global};

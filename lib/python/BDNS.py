@@ -75,7 +75,7 @@ MAXLENGTH = 22
 
 _p={ "pmem": "[A-Z]+?",
      "pind": "([0-9]+)(-([0-9]+))?",
-     "pfam_global": "BCFGHIKLMNOPQRVWYZ"
+     "pfam_global": "BCEFGHIKLMNOPQRVWYZ"
    }
 _p["pfam_B"]= _p["pfam_global"]
 _p["pfam_F"]= _p["pfam_global"] + "ST"
