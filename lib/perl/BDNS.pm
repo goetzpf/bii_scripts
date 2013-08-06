@@ -101,7 +101,7 @@ $psdom{P} = $psdom{global} . "KLS";
 my $psdnum = "[0-9]*";
 
 our %pdom;
-$pdom{global} = "CGLRV";
+$pdom{global} = "CGLRVX";
 $pdom{B} = $pdom{global} . "BIMST";
 #$pdom{F} = $pdom{global} . "DEIHLRS";
 $pdom{F} = $pdom{global} . "AEHST";
