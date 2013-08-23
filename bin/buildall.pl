@@ -7,7 +7,7 @@ use EPICS::Release;
 my $startdir = '`pwd`';
 my $mindepth = 2;
 my $maxdepth = 3;
-my $include = '.*/\([0-9]+-\)+[0-9]+';
+my $include = '.*/\([0-9]+-\)+\(bessy\)?[0-9]+';
 my $exclude = '*/mba-templates/*';
 my $opt_clean = 0;
 my $opt_clean_only = 0;
