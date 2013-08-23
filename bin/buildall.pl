@@ -85,7 +85,11 @@ foreach my $top (@tops) {
   my @apps   = ();
 
   my $relfile = "$top/configure/RELEASE";
-  die "Can't find $relfile" unless (-f $relfile);
+  unless (-f $relfile) {
+    @tops = grep !/$top/, @tops;
+    warn "Can't find $relfile\n";
+    next;
+  }
   readReleaseFiles($relfile, \%macros, \@apps, undef);
   expandRelease(\%macros, \@apps);
 
