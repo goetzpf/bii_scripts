@@ -399,6 +399,7 @@ PYDOC_PYTHONLIB_LIST= \
 	BDNS.py \
 	boottime.py \
 	dateutils.py \
+	canlink.py\
 	canLink.py\
 	enum.py \
 	epicsUtils.py\

@@ -637,22 +637,29 @@ Perl Libraries
 Python Libraries
 ----------------
 
-.. _boottime.py:
-
 **BDNS.py**
   | BESSY device name parser.
   | `documentation <modules/BDNS.py>`__
+
+.. _boottime.py:
 
 **boottime.py**
   | get the boot time of an BESSY IOC by querying a certain pv.
   | `documentation <python/boottime.html>`__
 
-.. _dateutils.py:
+**canlink.py**
+  | A python version of the perl module canlink.pl. All functions implemented
+    there are now also available in python. This module is used to encode and
+    decode the CAN link as it is used in the LowCal device support that is part
+    of the MultiCAN package developed here at HZB.
+  | `documentation <python/canlink.html>`__
 
 **canLink.py**
   | partial python implementation of canlink.pl: decode the lowCAL hardware 
     link as it is used in the BESSY MultiCAN device support for EPICS.
   | `documentation <python/canLink.html>`__
+
+.. _dateutils.py:
 
 **dateutils.py**
   | utilities for string <-> datetime conversions.
