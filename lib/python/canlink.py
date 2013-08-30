@@ -1031,7 +1031,7 @@ def complete(p):
      'in_sob': 18,
      'maxlength': 2,
      'multi': False,
-     'multiplexor': False,
+     'multiplexor': 0,
      'nid': 5,
      'port': 0,
      'raw': False,
@@ -1047,7 +1047,7 @@ def complete(p):
      'cid': 9,
      'maxlength': 4,
      'multi': False,
-     'multiplexor': False,
+     'multiplexor': 0,
      'nid': 5,
      'out_cob': 1221,
      'out_sob': 19,
@@ -1083,7 +1083,7 @@ def complete(p):
      'in_sob': 18,
      'maxlength': 2,
      'multi': False,
-     'multiplexor': False,
+     'multiplexor': 0,
      'nid': 5,
      'port': 0,
      'raw': True,
@@ -1125,7 +1125,7 @@ def complete(p):
         if not _check_exists(p,'multiplexor','multiplexor',me):
             return
     else:
-        p.setdefault("multiplexor", False)
+        p.setdefault("multiplexor", 0)
     l= maxlength(p)
     if p.has_key("maxlength"):
         if p["maxlength"]<l:
@@ -1225,7 +1225,7 @@ def interview(tests= None):
      'inhibit': 100.0,
      'maxlength': 6,
      'multi': False,
-     'multiplexor': False,
+     'multiplexor': 0,
      'nid': 5,
      'port': 3,
      'raw': False,
@@ -1548,7 +1548,7 @@ def pretty_print(p):
     ...      'inhibit': 100.0,
     ...      'maxlength': 6,
     ...      'multi': False,
-    ...      'multiplexor': False,
+    ...      'multiplexor': 0,
     ...      'nid': 5,
     ...      'port': 3,
     ...      'raw': False,
