@@ -139,16 +139,30 @@ class csvData(object):
        "'\nalhSort: '"+self.alhSort+"'\npanelName: '"+self.panelName+"'\npanelGroup: '"+self.panelGroup+"'\npanelSort: '"+self.panelSort+"'\n*** End"
 class baseData(object):
 # EPICS R3.14. String lengths as found in: aiRecord.h, mbbiRecord.h mbbiDirectRecord.h
-    base = "R3.14"
+    base = "3.14.8"
     baseLen={	    	    # C-strings, so usable length is len-1
-	'R3.14': {'RecName': 60,# record name	 
+	'3.14.8': {'RecName': 60,# record name	 
 		  'DESClen': 28,# DESC field
 		  'ASGlen': 28, # ASG field
 		  'MBBlen': 15, # mbbi/mbbo strings
 		  'NAMlen': 19, # bi/bo ONAM, ZNAM
 		  'StringVALlen': 39, # stringin/stringout VAL
+	    	 },
+	'3.14.12': {'RecName': 60,# record name	 
+		  'DESClen': 40,# DESC field
+		  'ASGlen': 28, # ASG field
+		  'MBBlen': 25, # mbbi/mbbo strings
+		  'NAMlen': 25, # bi/bo ONAM, ZNAM
+		  'StringVALlen': 39, # stringin/stringout VAL
 	    	 }
 	    	}
+    @staticmethod
+    def setBase(baseStr):
+    	if baseData.baseLen.has_key(baseStr):
+	    baseData.base = baseStr
+	    return 1
+	else:
+	    return None
     @staticmethod
     def getRecNameLen():    return baseData.baseLen[baseData.base]['RecName']
     @staticmethod
@@ -178,7 +192,8 @@ def procInOut(rtyp):
 def setupPlugins(searchPathList):
     funcs = {}
     for pluginPath in searchPathList:
-    	pluginFiles = [fname[:-3] for fname in os.listdir(pluginPath) if fname.endswith("Plugin.py")]
+    	if not os.path.exists(pluginPath): continue
+	pluginFiles = [fname[:-3] for fname in os.listdir(pluginPath) if fname.endswith("Plugin.py")]
 	if not pluginPath in sys.path:
 	    sys.path.insert(0,pluginPath)
 
@@ -642,18 +657,22 @@ def getOpcLink(devObj,devName,opc_name):
 		softLinkTag = str(db)+"_"+str(byte)
 		fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,bit,devName).getLink()
         	fields['DTYP'] = "Soft Channel"
-		if devObj.rtype == 'bi':    	    	# OPCIOCBUG: map bi with set bits to mbbi and longin
-		    devObj.rtype = 'mbbi'   	    	#
-        	    fields['SHFT'] = bit    	    	#
-		    fields['DTYP'] = "Raw Soft Channel" #
-        	    fields['NOBT'] = 1	    	    	#
-		    fields[linkType] = epicsUtils.substRe(fields[linkType],"\.B[\dABCDEF]","") #end OPCIOCBUG
+#		if devObj.rtype == 'bi':    	    	# OPCIOCBUG: map bi with set bits to mbbi and longin
+#		    devObj.rtype = 'mbbi'   	    	#
+#        	    fields['SHFT'] = bit    	    	#
+#		    fields['DTYP'] = "Raw Soft Channel" #
+#        	    fields['NOBT'] = 1	    	    	#
+#		    fields[linkType] = epicsUtils.substRe(fields[linkType],"\.B[\dABCDEF]","") #end OPCIOCBUG
             else:
                 raise ValueError("unknown datatype '"+typ+"' in: '"+PLCLink+"'")
 # 2. bits not set: direct access for all record types
         else:
-	    if rtyp == 'bi':
-	    	fields['DTYP'] = "opcRaw"
+#	    if rtyp == 'bi':
+#	    	fields['DTYP'] = "opcRaw"
+#	    else:
+#	    	fields['DTYP'] = "opc"
+	    if (len(devObj.rangeRaw)>0) and (rtyp in ('ai','ao')):
+	    	fields['DTYP'] = "opc raw"
 	    else:
 	    	fields['DTYP'] = "opc"
             fields[linkType] = '@'+PLCLink
@@ -662,9 +681,9 @@ def getOpcLink(devObj,devName,opc_name):
 	    if epicsUtils.matchRe(rtyp,"^mbb[io].*") is not None:
     		fields['NOBT'] = 16
     elif rtyp in ('bi','mbbi','bo','mbbo'):     # access via mbb_Direct from OPC Server Byte/Word data
-	if devObj.rtype == 'bi':    	    	# OPCIOCBUG: map bi with set bits to mbbi and longin
-	    devObj.rtype = 'mbbi'
-	    rtyp = 'mbbi'
+#	if devObj.rtype == 'bi':    	    	# OPCIOCBUG: map bi with set bits to mbbi and longin
+#	    devObj.rtype = 'mbbi'
+#	    rtyp = 'mbbi'
         (nobt,shft) = getShiftParam(bits)
         fields['SHFT'] = shft
 	if  rtyp in ['mbbi','mbbo']:
@@ -746,11 +765,11 @@ class PLC_Address(object):
         """
         for tag in PLC_Address.mbbiDirectLinks.keys():
             (link,signalName) = PLC_Address.mbbiDirectLinks[tag]
-            epicsUtils.epicsTemplate('longin', {'DEVN':deviceName},{'SNAME':signalName, # OPCIOCBUG: don't take mbbiDirect, but longin
+            epicsUtils.epicsTemplate('mbbiDirect', {'DEVN':deviceName},{'SNAME':signalName, # OPCIOCBUG: don't take mbbiDirect, but longin
                       	'DESC': tag[len(tag)-20:len(tag)],
                       	'DTYP': dtypHw,
                       	'SCAN': "I/O Intr",
-#                    	'NOBT': "16",	# OPCIOCBUG: no NOBT for the longin 
+                    	'NOBT': "16",	# OPCIOCBUG: no NOBT for the longin 
                       	'INP':  link})
         for tag in PLC_Address.mbboDirectLinks.keys():
             (link,signalName) = PLC_Address.mbboDirectLinks[tag]
@@ -846,7 +865,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     arcSignals = None
     panelNameDict={'DEVN':devName}
     panelDict = {}
-    panelWidgetName = "anyVal"
+    panelWidgetName = "watchdog"
 
     fields = epicsUtils.parseParam(devObj.prec)
     epicsUtils.epicsTemplate('bi',{'DEVN':devName},{'SNAME':"stHeartBeat",
