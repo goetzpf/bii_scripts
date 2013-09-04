@@ -19,11 +19,12 @@
 -p --panel:      create 'CreatePanel.pl' data for Items that define EPICS 
     	    	 devObj.panelName (col. T) 
 -r --output_req: autoSaveRestore request file name for signals defined in Col. P 
--s --display_search_path: for panel generation only, search path for 
+-s --search_path: for panel generation only, search path for 
     	    	 widget/header/footer files [.:..]
 -t --separator:  column separator in .csv file[,] 
 -v --verbose:    print debug information 
    --devobj:     Optional device object module to convert data from another spreadsheet format to program variables
+-b --base:  	 EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
 """
 
 from optparse import OptionParser
@@ -74,7 +75,7 @@ output_alh   = None
 output_arch  = None
 output_req   = None
 install_path = "."
-display_search_path = ".:.."
+search_path = ".:.."
 iocName  = None
 devName  = '(DEVICE)'
 opc_name     = None
@@ -87,6 +88,11 @@ parser.add_option("-a","--output_arch",
     		 type="string",
 		 help="archiver config file name for signals defined n Col. O", 
     		 )
+parser.add_option("-b", "--base", 
+		 action="store",
+    		 type="string",
+		 help="EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'"
+		 )
 parser.add_option("-c","--can", 
 		 action="store",
     		 type="string",
@@ -130,7 +136,7 @@ parser.add_option("-r","--output_req",
     		 type="string",
 		 help="autoSaveRestore request file name for signals defined in Col. P", 
     		 )
-parser.add_option("-s","--display_search_path",
+parser.add_option("-s","--search_path",
 		 action="store",
     		 type="string",
 		 help="for panel generation only, search path for widget header/footer files '.:..'", 
@@ -163,11 +169,21 @@ if options.can   	is not None: canOption	  = options.can
 if options.output_db	is not None: output_db    = options.output_db
 if options.panel	is not None: output_panel = options.panel
 if options.install_path	is not None: install_path = options.install_path
-if options.display_search_path	is not None: display_search_path = options.display_search_path
+if options.search_path	is not None: search_path = options.search_path
 if options.output_arch	is not None: output_arch  = options.output_arch
 if options.output_req	is not None: output_req   = options.output_req
 if options.iocName	is not None: iocName      = options.iocName
 if options.opc_name	is not None: opc_name	  = options.opc_name
+
+if options.base is not None:
+    try:
+    	episBase = epicsUtils.matchRe(options.base,"(\d+\.\d+\.\d+)")[0]
+    except TypeError:
+    	print "Error in option --base='"+str(options.base)+"', use default: '3.14.8'"
+    else:
+	if not csv2epicsFuncs.baseData.setBase(episBase):
+	    print "Error in option --base='"+str(options.base)+"'. Thise base is not available, use default: '3.14.8'"
+    	elif options.verbose: print "   Set episBase:",episBase
 
 devModule = None
 if options.devObj is not None:
@@ -195,8 +211,20 @@ table = []  	    # Debug information in verbose mode
 db   = []	    # substitution file lines
 arch = []	    # archive list
 req = []	    # autoSaveRestore list
+
+# setup search path for widgets and plugins
+display_search_path = []
+plugin_search_path = []
+for item in search_path.split(':'):
+    if item != '.' and item != '..':
+    	display_search_path.append(item+"/dl")
+    	plugin_search_path .append(item+"/lib/python")
+    else:
+    	display_search_path.append(item)
+    	plugin_search_path .append(item)
+
 panelList = epicsUtils.Panels(install_path,display_search_path)
-plugins = csv2epicsFuncs.setupPlugins(display_search_path.split(':'))
+plugins = csv2epicsFuncs.setupPlugins(plugin_search_path)
 
 def joinItarch(): 
     outStr = None
@@ -280,7 +308,6 @@ for argument in args:
 	    else:
 	    	print "ERROR: No device name line:",lines
 		sys.exit()
-
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
 	    if len(devObj.DESC) > csv2epicsFuncs.baseData.getDESClen():
 		warnings.append([fileName,lines,"Truncate DESC",devName+":"+devObj.signal,devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
