@@ -741,7 +741,7 @@ class Panels(object):
     def __init__(self,prePath,widgetPath):
         self.panels = {}             # PanelFile objects for each panel. Panel-name is the key
         self.prePath = prePath
-        self.widgetPath = widgetPath.split (":")
+        self.widgetPath = widgetPath
 
     def addItem(self,panelName,panelGroup,devNamedata,substitutionData,panelWidgetName,panelSort=None):
 #       panelInfos[panelGroup].append([signal,egu,DESC,rtype,sortID])   #[pv,plcname,plcaddr,DESC,rtyp,sortID]
