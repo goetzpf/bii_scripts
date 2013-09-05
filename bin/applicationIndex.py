@@ -34,7 +34,7 @@ def getIoc(dbIoc,db):
     if dbIoc.has_key(db):   
     	return reduce(lambda y,x:y+str("<A HREF=\"#"+x+"\">"+x+"</A><br>"),dbIoc[db],"")
     else: 
-    	return "not loaded on IOC"
+    	return None
 
 def getDb(dbApp,db):
     """ little html helper
@@ -66,6 +66,7 @@ def getIocStartupData(topPath):
 	if py: iocPy += py
     if len(iocPy) == 0:
     	return (None,None)
+    if options.verbose is True: print "*** getIocStartupData() for:\n",iocPy
     iocDb = {}
     dbIoc = {}
     sys.path.insert(0,path)
@@ -100,10 +101,9 @@ def processStCmd(topPath,iocList):
     	)
     tokReList = tP.compileTokDefList(tokDefList)
 
-    if options.verbose is True: print "\nprocessStCmd for: ",iocList
+    if options.verbose is True: print "*** processStCmd() for:\n",iocList
     for iocName in iocList:
 	parseFileName = topPath+"/iocBoot/ioc"+iocName+"/st.cmd"
-    	if options.verbose is True: print iocName, parseFileName
 	if not os.path.isfile(parseFileName): eU.die("File doesn't exist: "+parseFileName)
 	try :
 	    IN_FILE = open(parseFileName) 
@@ -138,7 +138,6 @@ def processStCmd(topPath,iocList):
 		    #print "param:",param,eU.parseParam(substEnvVariables(param,envDict),',')
 		if not iocDb.has_key(iocName):
 	    	    iocDb[iocName] = []
-#		iocDb[iocName].append( (iocName,dbFile,eU.parseParam(substEnvVariables(param,envDict),',')) )
 		iocDb[iocName].append( {'DB':dbFile,'SUBST':eU.parseParam(substEnvVariables(param,envDict),',')})
 		if not dbIoc.has_key(dbFile):
 	    	    dbIoc[dbFile] = []
@@ -147,10 +146,11 @@ def processStCmd(topPath,iocList):
 
 def findApplications(topPath):
     appString = systemCall(['find',topPath,"-name","*.db"])
-    if options.verbose is True: print "findApplications: topPath: '"+topPath+"' : \n", appString
+    appList = appString.split("\n")
+    if options.verbose is True: print "*** FindApplications in top: '"+topPath+"' : \n", appList
     appDb = {}
     dbApp = {}
-    for db in appString.split("\n"):
+    for db in appList:
 	db = eU.substRe(db,"O\..*\/","")
 	d = eU.matchRe(db,".*/(.*?App.*)")
 	if d is not None:   	# look for something like: myApp/[Db/]myFile.db
@@ -171,9 +171,9 @@ def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
 #    print "param",param
 #    print iocname,pvname
     try:
-    	pvname = eU.substituteVariables(pvname,param)
+	pvname = eU.substituteVariables(pvname,param)
     except AttributeError:
-    	print ioc,dbFile,iocname,pvname
+    	print ioc,dbFile,iocname,pvname,param
 	print "Can't substitute variable '"+param+"' from:"
 	pp.pprint(fieldDict)
 	sys.exit()
@@ -218,7 +218,7 @@ def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
 
 def checkHardwareAccess(iocDb,topPath):
     hwData = []
-    if options.verbose is True: print "\ncheckHardwareAccess:"
+    if options.verbose is True: print "\n*** CheckHardwareAccess"
     for ioc in iocDb.keys():
 	for dbItem in iocDb[ioc]:
 	    dbFile = dbItem['DB']
@@ -289,7 +289,7 @@ iocHw = None
 if iocDb:
     iocHw = checkHardwareAccess(iocDb,topPath)
 
-if options.verbose is True: print "Process Data"
+if options.verbose is True: print "*** Process Data"
 
 ######## PRINT DATA #######################################################
 htmlHeader = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -317,19 +317,30 @@ except IOError:
 print >> FILE, htmlHeader
 
 # Application Reference:
-if options.verbose is True: print "********** Write File *********"
+if options.verbose is True: print "*** Write File:", filename
 print >> FILE, "<H1>Application Reference</H1>\n\n<TABLE BORDER=1>"
 
 if appDb:
+    dbNotLoaded = []
     for app in appDb.keys():
 	dbList = appDb[app]
 	span = ""
 	if len(dbList) > 1:
     	    span = "ROWSPAN=\""+str(len(dbList))+"\" "
-	print >> FILE, "<TR >\n  <TD "+span+"VALIGN=\"TOP\"><A NAME=\""+app+"\">"+app+"</TD>\n  <TD VALIGN=\"TOP\">"+dbList[0]+"</TD>\n  <TD>"+getIoc(dbIoc,dbList[0])+"</TD></TR>"
+	iocName = getIoc(dbIoc,dbList[0])
+	if iocName == None:
+	    iocName = "not loaded on IOC"
+	    dbNotLoaded.append(dbList[0])
+	print >> FILE, "<TR >\n  <TD "+span+"VALIGN=\"TOP\"><A NAME=\""+app+"\">"+app+"</TD>\n  <TD VALIGN=\"TOP\">"+dbList[0]+"</TD>\n  <TD>"+iocName+"</TD></TR>"
 	for db in dbList[1:]:
-	    print >> FILE,"<TR>\n  <TD VALIGN=\"TOP\">"+db+"</TD>\n  <TD VALIGN=\"TOP\">"+getIoc(dbIoc,db)+"</TD></TR>"
+	    iocName = getIoc(dbIoc,db)
+	    if iocName == None:
+		iocName = "not loaded on IOC"
+	    	dbNotLoaded.append(db)
+	    print >> FILE,"<TR>\n  <TD VALIGN=\"TOP\">"+db+"</TD>\n  <TD VALIGN=\"TOP\">"+iocName+"</TD></TR>"
     print >> FILE, "</TABLE>\n"
+    if options.verbose is True and len(dbNotLoaded) > 0: 
+    	print "*** Warning: .db files not loaded on IOC:\n",dbNotLoaded
 
 if iocDb:
     print >> FILE, '<H1>IOC Application Reference</H1>\n\n<TABLE BORDER=1>'
