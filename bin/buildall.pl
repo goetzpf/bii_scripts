@@ -11,7 +11,7 @@ my $include = '.*/\([0-9]+-\)+\(bessy\)?[0-9]+';
 my $exclude = '*/mba-templates/*';
 my $opt_clean = 0;
 my $opt_clean_only = 0;
-my $jobs = "";
+my $jobs;
 my $opt_list = 0;
 my $opt_dryrun = 0;
 my $opt_quiet = 0;
@@ -61,7 +61,7 @@ GetOptions(
 
 HELP_MESSAGE() && exit 0 if ($opt_help);
 
-if (defined $jobs and $jobs > 0 || $jobs eq "" ) {
+if (defined $jobs and ($jobs > 0 or $jobs eq "")) {
   $jobs = "j$jobs";
 } else {
   $jobs = "";
