@@ -872,7 +872,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 	'DESC':"CPU-Heartbeat",
 	'SCAN':"I/O Intr",
 	'PINI':"YES",
-	'DTYP':"opcRaw",
+	'DTYP':"opc",
 	'INP':"@"+devObj.port,
 	'ZNAM':"Heart",
 	'ONAM':"Beat",
