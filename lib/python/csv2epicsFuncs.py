@@ -555,7 +555,12 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
 	fields['SDIS']= sdis
     	fields['DESC']= devObj.DESC
 	try:
-	    if len(devObj.reqFlag) > 0: autoSRRequest.append(devName+":"+devObj.signal)
+	    if len(devObj.reqFlag) > 0:
+	    	if len(devObj.reqFlag) <= 1:
+		    autoSRRequest.append(devName+":"+devObj.signal)
+		else:
+		    for signal in devObj.reqFlag.split("|"):
+		    	autoSRRequest.append( devName+":"+signal)
 
 	    # is a record type that has INP/OUT link, is able to supports hardware access
 	    if procInOut(devObj.rtype) is not None: 	
