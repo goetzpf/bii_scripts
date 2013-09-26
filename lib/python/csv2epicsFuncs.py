@@ -773,6 +773,7 @@ class PLC_Address(object):
             epicsUtils.epicsTemplate('mbbiDirect', {'DEVN':deviceName},{'SNAME':signalName, # OPCIOCBUG: don't take mbbiDirect, but longin
                       	'DESC': tag[len(tag)-20:len(tag)],
                       	'DTYP': dtypHw,
+                      	'PINI': "YES",
                       	'SCAN': "I/O Intr",
                     	'NOBT': "16",	# OPCIOCBUG: no NOBT for the longin 
                       	'INP':  link})
