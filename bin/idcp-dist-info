@@ -38,10 +38,13 @@ function print_long_help {
 # declare all known insertion devices in a hash:
 
 IDs='U125/2:3\n
+U125-2:3\n
 U125ID2R:3\n
 UE56/2:5\n
+UE56-2:5\n
 UE56ID3R:5\n
 U49/1:7\n
+U49-1:7\n
 U49ID4R:7\n
 UE49:8\n
 UE49IT4R:8\n
@@ -50,6 +53,7 @@ UE52ID5R:9\n
 UE46:10\n
 UE46IT5R:10\n
 UE56/1:11\n
+UE56-1:11\n
 UE56ID6R:11\n
 U139:110\n
 U139ID6R:110\n
@@ -58,8 +62,10 @@ U41IT6R:12\n
 UE112:13\n
 UE112ID7R:13\n
 U49/2:15\n
+U49-2:15\n
 U49ID8R:15\n
 U125/1:90\n
+U125-1:90\n
 U125IL2RP:90\n
 '
 
@@ -99,6 +105,7 @@ while [ $# -gt 0 ]; do
         shift
         ;;
       --ids)
+        ids_par_given="yes"
         opts="$opts --filter-names-rx $installed_ids"
         ;;
       -n| --names| -v| --versions| -l| --lifetimes| --idle| --boot-times| --version-info)
@@ -135,6 +142,10 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+if [[ -n "$ids_par_given" ]]; then
+    opts="$opts --filter-names-rx $installed_ids"
+fi
 
 opts="$opts -c $CONFIGFILE"
 
