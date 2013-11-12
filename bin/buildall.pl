@@ -139,10 +139,9 @@ sub make {
     } elsif ($opt_dryrun) {
       print "$cmd\n";
     } else {
-      print "building $top ..." if not $opt_quiet;
+      print "building $top ...\n" if not $opt_quiet;
       system($cmd);
       die unless $? == 0;
-      print " done\n" if not $opt_quiet;
     }
     $done{$top} = 1;
   }
