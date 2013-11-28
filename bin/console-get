@@ -7,14 +7,14 @@ tempdir=`mktemp -d /tmp/consoleXXXXXXX`
 curdir=`pwd`
 
 # format: <area>:<description>:directory
-map='tsc:control system:gwc1c/tsc\n
-tsc-mls:mls control system:gwc1c-mls/tsc\n
-id:insertion devices:gwc1c/id\n
-mono:monochromators:gwc1c/mono\n
-il:??:gwc1c/il\n
-net:??:gwc1c/net\n
-psd:??:gwc1c/psd\n
-sioc:??:gwc1c/sioc\n
+map='tsc:control system:tsc\n
+tsc-mls:mls control system:mls/tsc\n
+id:insertion devices:id\n
+mono:monochromators:mono\n
+il:??:il\n
+net:??:net\n
+psd:??:psd\n
+sioc:??:sioc\n
 '
 
 tags=`echo "$map" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
@@ -55,9 +55,8 @@ if [ -z "$2" ]; then
         files="*.log*"
 else
         # add a "*" at the end, if it is not already there
-        files=`echo $2 | sed -e 's/$/\*/;s/\*\*$/\*/;'`
+        files=`echo "$2" | sed -e 's/$/\.log\*/;s/\*\*$/\*/;'`
 fi
-
 
 cd $tempdir
 wget --quiet -r -l1 --no-parent -nd http://gwc1c.acc.bessy.de/conserver/$dir -A $files
@@ -66,7 +65,7 @@ for f in `sh -c "ls $files"`; do mv $f t; done
 rm -f *.log *.gz index* && mv t/* . && rmdir t
 gunzip *.gz
 
-for f in *.log 
+for f in *.log
 do
         if [ "$f" = "*.log" ]; then 
                 rmdir t
@@ -77,10 +76,9 @@ do
         #echo `ls $stem* | sort -n -t . -k 3 -r` 
         #echo "$stem.sumlog"
         cat `ls $stem* | sort -n -t . -k 3 -r` > $stem.sumlog
-        rm $stem.log*
 done
+rm -f *.log*
 
 cd $curdir
 cp $tempdir/* .
-rm $tempdir/*.sumlog
-rmdir $tempdir
+rm -rf $tempdir
