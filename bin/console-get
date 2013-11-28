@@ -7,14 +7,14 @@ tempdir=`mktemp -d /tmp/consoleXXXXXXX`
 curdir=`pwd`
 
 # format: <area>:<description>:directory
-map='tsc:control system:gwc2c/tsc\n
-tsc-mls:mls control system:gwc2c-mls/tsc\n
-id:insertion devices:gwc2c/id\n
-mono:monochromators:gwc2c/mono\n
-il:??:gwc2c/il\n
-net:??:gwc2c/net\n
-psd:??:gwc2c/psd\n
-sioc:??:gwc2c/sioc\n
+map='tsc:control system:gwc1c/tsc\n
+tsc-mls:mls control system:gwc1c-mls/tsc\n
+id:insertion devices:gwc1c/id\n
+mono:monochromators:gwc1c/mono\n
+il:??:gwc1c/il\n
+net:??:gwc1c/net\n
+psd:??:gwc1c/psd\n
+sioc:??:gwc1c/sioc\n
 '
 
 tags=`echo "$map" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
@@ -60,7 +60,7 @@ fi
 
 
 cd $tempdir
-wget --quiet -r -l1 --no-parent -nd http://gwc2c.acc.bessy.de/conserver/$dir -A $files
+wget --quiet -r -l1 --no-parent -nd http://gwc1c.acc.bessy.de/conserver/$dir -A $files
 mkdir t 
 for f in `sh -c "ls $files"`; do mv $f t; done
 rm -f *.log *.gz index* && mv t/* . && rmdir t
