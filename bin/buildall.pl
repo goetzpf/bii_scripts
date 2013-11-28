@@ -4,10 +4,10 @@ use lib "/opt/Epics/R3.14.12/base/3-14-12-1-1/lib/perl";
 use Getopt::Long;
 use EPICS::Release;
 
-my $startdir = '`pwd`';
+my $startdir = $ENV{PWD};
 my $mindepth = 2;
 my $maxdepth = 3;
-my $include = '.*/\([0-9]+-\)+\(bessy\)?[0-9]+';
+my $include = '.*/\([0-9]+-\)+\(bessy\|snapshot\)?[0-9]+';
 my $exclude = '*/mba-templates/*';
 my $opt_clean = 0;
 my $opt_clean_only = 0;
@@ -67,18 +67,23 @@ if (defined $jobs and ($jobs > 0 or $jobs eq "")) {
   $jobs = "";
 }
 
-my $find_cmd = "find $startdir -mindepth '$mindepth' -maxdepth '$maxdepth' "
-             . "-regex '$include' -not -path '$exclude' -type d";
+our $pipe;
 
-print "$find_cmd\n" if $opt_debug;
+open($pipe,'-|',"find",$startdir,
+  "-mindepth",$mindepth,"-maxdepth",$maxdepth,"-regex",$include,
+  "-not","-path",$exclude,"-type","d");
+
+my @tops = <$pipe>;
+
+print for (@tops);
+exit;
 
 die unless $? == 0;
-
-my @tops = sort(split(/\s+/,`$find_cmd`));
 
 my %deps = ();
 
 foreach my $top (@tops) {
+  chomp $top;
   #print "top = $top\n";
 
   my %macros = ();
