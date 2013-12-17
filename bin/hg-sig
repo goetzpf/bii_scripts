@@ -1,0 +1,961 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
+#  This software is copyrighted by the
+#  Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),
+#  Berlin, Germany.
+#  The following terms apply to all files associated with the software.
+#  
+#  HZB hereby grants permission to use, copy and modify this
+#  software and its documentation for non-commercial, educational or
+#  research purposes provided that existing copyright notices are
+#  retained in all copies.
+#  
+#  The receiver of the software provides HZB with all enhancements, 
+#  including complete translations, made by the receiver.
+#  
+#  IN NO EVENT SHALL HZB BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+#  SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+#  OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN 
+#  IF HZB HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#  
+#  HZB SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+#  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+#  PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
+#  BASIS, AND HZB HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+#  UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+
+# pylint: disable=C0103
+#                          Invalid name for type module
+# pylint: disable=C0322
+#                          Operator not preceded by a space
+
+"""
+======
+hg-sig
+======
+------------------------------------------------------------------------------
+A tool to create a human readable signature for mercurial repositories
+------------------------------------------------------------------------------
+
+Overview
+========
+
+This tool is used to given an overview of a mercurial repository or to help to
+compare two mercurial repositories.
+
+It does this by creating a long text that contains all patches, their log
+messages and their mercurial node IDs or checksums. This text contains enough
+information to find all relevant differences between repositories.
+
+Background
+==========
+
+In mercurial, a working copy always contains a complete repository. It is part
+of your normal workflow to have several repositories at the same time.
+Mercurial mq patches add even more flexibility, you can add or remove or
+reorder patches. Although each mercurial patch has a unique node id, applying
+or reordering mq patches changes these node ids. If you want to compare
+repositories with mq patches, node ids are not sufficient. 
+
+For this reason, this too uses an MD5 checksum on the output of the command "hg
+diff --nodate -g" to create checksums for patches. mq patches that have the
+same checksum are identical even if they have different node ids.
+
+Calculating checksums is "expensive", it takes a long time if you have many
+patches. For this reason, the tool usually only computes checksums for mq
+patches and not for regular mercurial patches. If two repositories are
+compared, checksums are calculated from the first patch that differs to the
+topmost patch. 
+
+Another possibility to speed up the program is to use a cache file. This cache
+file contains checksums for a list of node ids. If a node is found in the file,
+the program doesn't calculate the checksum again.
+
+Output
+======
+
+The text the program generates from a repository is called a *signature*. It
+consists of sections, each separated by a line consisting of "=" characters.
+
+Status section
+--------------
+
+This section starts with the line "STATUS:". It contains the output of the
+command "hg status". You can see which files were added, modified or deleted.
+You also see files unknown to mercurial with a "?" in the first row. Here is an
+example::
+    
+  ============================================================
+  STATUS:
+  ------------------------------------------------------------
+  ? NEW-sorted.db
+  ? NEW.db
+  ? OLD-sorted.db
+  ? OLD.db
+  M idcpApp/tables/idcp13_gap2cc2.tab
+  M idcpApp/tables/idcp13_gap2cc3.tab
+  M idcpApp/tables/idcp13_gap2cc4.tab
+
+For an explanation of the characters in the first row see "hg -v help status".
+
+Unrecorded
+----------
+
+This section starts with the line "UNRECORDED:". This word is followed by the
+checksum of all unrecorded changes, these are changes that can be seen by
+mercurial but are not yet committed. If there are no unrecorded changes, this
+section is omitted. Here is an example::
+
+  ============================================================
+  UNRECORDED: e394f876688059c4eb08a44ba1cbea5c
+
+Identify
+--------
+
+This section starts with the line "IDENTIFY:". It contains some of the output
+of the command "hg identify". You always see here the node id of the working
+copy and, if it was computed, the checksum of that node. Here is an example::
+
+  ============================================================
+  IDENTIFY: 95d61d497932 checksum: b63bd6c550cf1d95d97ca0dd34a93b32
+
+Patches
+-------
+
+This section starts with the line "PATCHES". It contains a text for each patch
+(version) of the repository. The patches are separated by lines containing only
+the "-" character. Each text starts with the patch log message followed by
+several fields. The fields are:
+
+FILES
+  The list of modified/added/removed files, possibly more than one line.
+
+TAGS
+  If the patch has tags, this field lists them in a single line.
+
+CHECKSUM
+  The checksum of the patch, if it was calculated.
+
+NODE
+  The mercurial node id of the patch. If there was a checksum calculated
+  ("CHECKSUM") this is not printed.
+
+Here is an example::
+
+  ============================================================
+  PATCHES:
+  ------------------------------------------------------------
+  New correction coil tables for the U49-1 were supplied by W.F.
+  
+  FILES: idcpApp/tables/idcp7_gap2cc2.tab idcpApp/tables/idcp7_gap2cc3.tab
+  	idcpApp/tables/idcp7_gap2cc4.tab idcpApp/tables/idcp7_gap2cc5.tab
+  CHECKSUM: 142da4f9665ea8cff0f649a0b2e650d7
+  ------------------------------------------------------------
+  A minimum velocity was added to the application.
+  
+  This minimum velocity can be specified for all drives for all insertion
+  devices. It is the smalles value a velocity can have.
+  
+  These are the three optional parameters added to the StructuredData file:
+  
+  v_min_velocity, h_min_velocity and c_min_velocity for the gap, the shift drive
+  and the chicane.
+  
+  The global variables added to configure/configure.c are cnf_minvelocity,
+  cnf_minvelocity2 and cnf_minvelocity3.
+  
+  FILES: idcpApp/configure/configure.c idcpApp/diag/diag.c
+  	idcpApp/tables/idcp_config.pyx
+  
+  CHECKSUM: 2b5f405c2d38835654040497d47b2b32
+  ------------------------------------------------------------
+  protocols/accp-gen.py was changed for the new version of the id_db2.py.
+  
+  Function id_db2.all_ids() is deprecated and should be replaced by
+  id_db2.all_idcp_keys(). This change has now been applied to accp-gen.py.
+  
+  FILES: config/config.yaml idcpApp/protocols/accp-gen.py
+  NODE    : 73956178341a
+
+Modes of operation
+==================
+
+This tool can be applied to a single mercurial repository in order to create a
+signature text or it can be applied to two mercurial repositories in order to
+be able to compare the two generated signatures. In this case the signatures
+can be stored in two files or they can be put to temporary files that are
+compared with a GUI diff viewer like tkdiff, kompare or meld.
+
+Quick reference
+===============
+
+* create a signature of the repository in your current working directory::
+
+   hg-sig pr | less
+
+* create a cache file "SIG-CACHE" with checksums for all patches for the
+  repository in your current working directory::
+
+   hg-sig pr --checksum-start 0 --wcache SIG-CACHE -p >/dev/null
+
+* create a signature of the repository in your current working directory with a
+  checksum for all patches, use a signature cache file::
+
+   hg-sig pr --checksum-start 0 --cache SIG-CACHE | less
+
+* compare two repositories REPO1 and REPO2 with tkdiff::
+
+   hg-sig gcomp REPO1 REPO2 -p
+
+Reference of command line options
+=================================
+
+The program takes *commands* and *options*. Commands are simple words where
+options always start with "-" or "--". Commands may be abbreviated, e.g. "sig"
+can be used instead of "signature" or "gcomp" instead of "gcompare". The
+following text always uses the long non abbreviated command names:
+
+Commands
+--------
+
+print
++++++
+
+You use this in the form::
+
+    hg-sig print {repository}
+
+This creates a signature for the given repository. If {repository} is omitted
+the program uses the repository in the current working directory.
+
+compare
++++++++
+
+You use this in the form::
+
+    hg-sig compare [repository1] [repository2] [file1] [file2]
+
+This creates two files, [file1] and [file2] for the two repositores. It
+generates checksums from the first patch that is different between the
+repositories up to the top patch. 
+
+gcompare
+++++++++
+
+You use this in the form::
+
+    hg-sig compare [repository1] [repository2] {compareprogram}
+
+This command is similar to "compare" with the difference that the created
+signature files are created as temporary files. The program {compareprogram} is
+then called to display the differences between these files. If {compareprogram}
+is omitted, the program calls "tkdiff".
+
+Options
+-------
+
+Here is a list of all command line options:
+
+--version
+  show program's version number and exit
+
+-h, --help
+  show this help message and exit
+
+--summary
+  print a summary of the function of the program
+
+--doc
+  create online help in restructured textformat. 
+  Use "./hg-sig --doc | rst2html" to create html-help
+
+--cache=CACHEFILE
+  specify a cache file for patch checksums
+
+--wcache=CACHEFILE
+  specify a cache file for patch checksums, rewrite this file the checksums
+  that were present in the (first) repository
+
+--skip-common
+  for "compare", begin printing patches at the first difference
+
+--no-tags
+  do not show tags
+
+--checksum-start=CHECKSUM_START
+  start the checksum calculation at revision REV
+
+-x, --extra=EXTRA_ARGS
+  pass the given string as an extra option to mercurial when \"hg log\" is
+  called
+
+-p, --progress
+  show progress on stderr
+
+-v, --verbose
+  show command calls
+
+-n, --dry-run
+  just show what the program would do
+"""
+
+from optparse import OptionParser
+#import string
+import os.path
+import sys
+import subprocess
+import hashlib
+import textwrap
+import tempfile
+
+# version of the program:
+my_version= "1.0"
+
+# -----------------------------------------------
+# basic system utilities
+# -----------------------------------------------
+
+def _system(cmd, catch_stdout, verbose, dry_run):
+    """execute a command.
+
+    execute a command and return the programs output
+    may raise:
+    IOError(errcode,stderr)
+    OSError(errno,strerr)
+    ValueError
+    """
+    if dry_run or verbose:
+        print ">", cmd
+        if dry_run:
+            return None
+    if catch_stdout:
+        stdout_par=subprocess.PIPE
+    else:
+        stdout_par=None
+
+    p= subprocess.Popen(cmd, shell=True,
+                        stdout=stdout_par, stderr=subprocess.PIPE,
+                        close_fds=True)
+    (child_stdout, child_stderr) = p.communicate()
+    # pylint: disable=E1101
+    # "Instance 'Popen'has no 'returncode' member
+    if p.returncode!=0:
+        raise IOError(p.returncode,
+                      "cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
+    # pylint: enable=E1101
+    return(child_stdout)
+
+# -----------------------------------------------
+# mercurial commands
+# -----------------------------------------------
+
+def hg_cmd(cmd, catch_stdout, verbose, dry_run):
+    """get data from a hg command."""
+    return _system("hg %s" % cmd, catch_stdout, verbose, dry_run)
+
+# pylint: disable=R0914
+#                          Too many local variables
+
+def hg_identify(directory, rev, verbose, dry_run):
+    """get the revision hashkey for a given revision."""
+    if rev is None:
+        revstr= ""
+    else:
+        revstr= "-r %s" % rev
+    reply= hg_cmd("identify -R %s %s" % (directory, revstr), True, 
+                  verbose, dry_run)
+    # the reply may be a hashkey followed by tags:
+    l= reply.strip().split()
+    id_= l[0]
+    return id_.replace("+","") # remove possible "+" at the end
+
+def hg_patch_checksum(directory, revision, verbose, dry_run):
+    """get a checksum for a "diff" for a patch.
+
+    returns for example '4911e516e5aa21d327512e0c8b197616'.
+
+    If revision is None, get the diff for the current state of the working
+    directory.
+    """
+    if revision is not None:
+        change= "--change %s " % revision
+    else:
+        change= ""
+    reply= hg_cmd("diff -R %s %s--nodates -g" % \
+                  (directory, change),
+                  True, verbose, dry_run)
+    empty= (reply=="") # no diffs
+    m= hashlib.md5()
+    # pylint: disable=E1101
+    # "Instance of 'md5' has no 'update' member
+    for l in reply.splitlines():
+        m.update(l)
+    # pylint: enable=E1101
+    return (empty,m.hexdigest())
+
+def hg_status(directory, verbose, dry_run):
+    """get the status of the working directory."""
+    reply= hg_cmd("status -R %s" % directory, True, 
+                  verbose, dry_run)
+    return sorted(reply.splitlines())
+
+# -----------------------------------------------
+# patch class
+# -----------------------------------------------
+
+class Patch(object):
+    """contains the data of a mercurial patch."""
+    def __init__(self):
+        """initialize the object."""
+        self._description= None
+        self._files= None
+        self._node= None
+        self._checksum= None
+        self._tags= None
+    def description(self, value= None):
+        """get/set the description."""
+        if value is None:
+            return self._description
+        if isinstance(value, str):
+            self._description= [value]
+        elif isinstance(value, list):
+            self._description= value
+        else:
+            raise TypeError, "value %s has wrong type" % repr(value)
+    def description_append(self, line):
+        """append a line to the description."""
+        self._description.append(line)
+    def files(self, value= None):
+        """get/set files."""
+        if value is None:
+            return self._files
+        self._files= value
+    def tags(self, value= None):
+        """get/set tags."""
+        if value is None:
+            return self._tags
+        self._tags= value
+    def node(self, value= None):
+        """get/set node."""
+        if value is None:
+            return self._node
+        self._node= value
+    def checksum(self, value= None):
+        """get/set checksum."""
+        if value is None:
+            return self._checksum
+        self._checksum= value
+
+
+# -----------------------------------------------
+# signature class
+# -----------------------------------------------
+
+# pylint: disable=R0902
+#                          Too many instance attributes
+
+class Signature(object):
+    """store a repository/working copy signature.
+    """
+    def __init__(self, directory, extra, verbose, dry_run):
+        """initialize the object."""
+        self._directory= directory
+        self._extra    = extra
+        self._verbose  = verbose
+        self._dry_run  = dry_run
+        self.patches= None
+        self.qbase_idx= None
+        self.qbase_node= None
+        self.unrecorded_changes= None
+        self.unrecorded_patch= None
+        self.status= None
+        self.identify= None
+        self.checksum_map= {}
+    # pylint: disable=R0915
+    #                          Too many statements
+    # pylint: disable=R0912
+    #                          Too many branches
+    def scan(self):
+        """scan all patches of a repository."""
+        def scan(line):
+            """test if a line is a new field.
+
+            All lines that are not a field start with a tab or are empty.
+            """
+            if line.startswith("\t"):
+                return (None, line[1:])
+            if line=="":
+                return (None, line)
+            if line.isspace():
+                return (None, line)
+            try:
+                idx= line.index(":")
+            except ValueError, _:
+                raise ValueError, "error: \"%s\" not parseable" % line
+            return (line[:idx], line[idx+2:])
+
+        template= "DESC:\t{desc|tabindent}\nFILES:\t{files}\n" + \
+                  "TAGS:\t{tags}\nNODE:\t{node|short}\n\n"
+        extra= " %s" % self._extra
+        reply= hg_cmd("log --template \"%s\" -R %s%s" % \
+                      (template, self._directory, extra),
+                      True, self._verbose, self._dry_run)
+        self.patches= []
+        curr_patch= None
+        curr_field= None
+        self.qbase_idx= None
+        for l in reply.splitlines():
+            # print "LINE:",repr(l)
+            (field, line)= scan(l)
+            if field is None:
+                if curr_field!="DESC":
+                    if line=="" or (line.isspace()):
+                        continue
+                    raise ValueError, "unexpected line: \"%s\"" % l
+                curr_patch.description_append(line)
+                continue
+            if field=="DESC":
+                # new patch
+                curr_patch= Patch()
+                curr_patch.description(line)
+                self.patches.append(curr_patch)
+                curr_field= "DESC"
+                continue
+            if field=="FILES":
+                if line!="" and (not line.isspace()):
+                    curr_patch.files(line.split())
+                curr_field= "FILES"
+            if field=="TAGS":
+                if line!="" and (not line.isspace()):
+                    tags= line.split()
+                    if "qbase" in tags:
+                        # index of the self.qbase_idx patch in the patchlist:
+                        self.qbase_idx= len(self.patches)-1
+                    curr_patch.tags(tags)
+                curr_field= "TAGS"
+            if field=="NODE":
+                curr_patch.node(line)
+        if self.qbase_idx is not None:
+            self.qbase_node= self.patches[self.qbase_idx].node()
+        else:
+            self.qbase_node= None
+        (empty, chk)= hg_patch_checksum(self._directory,
+                                        None,
+                                        self._verbose, self._dry_run)
+        if empty:
+            self.unrecorded_changes= False
+        else:
+            self.unrecorded_changes= True
+            self.unrecorded_patch= Patch()
+            self.unrecorded_patch.checksum(chk)
+        self.status= hg_status(self._directory, self._verbose, self._dry_run)
+        self.identify= hg_identify(self._directory, None,
+                                   self._verbose, self._dry_run)
+    # pylint: disable=R0912
+    # pylint: disable=R0915
+        
+    def calc_checksums(self, from_node, show_progress):
+        """calculate checksums for patches.
+        
+        if from_node is None, use self.qbase_node.
+        """
+        if from_node is None:
+            if self.qbase_node is None:
+                return 
+            from_node= self.qbase_node
+        if show_progress:
+            n= 0
+            for patch in self.patches:
+                n+= 1
+                if patch.node()== from_node:
+                    break
+            sys.stderr.write("checksums calculated from %6d: %6d" % (n, 0))
+            sys.stderr.flush()
+        c= 10
+        n= 0
+        new_map= {}
+        scanning= True
+        for patch in self.patches:
+            node= patch.node()
+            chk= self.checksum_map.get(node)
+
+            if chk is None:
+                if not scanning:
+                    continue
+                (_,chk)= hg_patch_checksum(self._directory,
+                                           node,
+                                           self._verbose,
+                                           self._dry_run)
+            # store checksum in the internal cache:
+            new_map[node]= chk
+            if not scanning:
+                continue
+            patch.checksum(chk)
+            if show_progress:
+                n+= 1
+                c-= 1
+                if c<=0:
+                    sys.stderr.write("\b\b\b\b\b\b%6d" % n)
+                    sys.stderr.flush()
+                    c= 10
+            if node== from_node:
+                if show_progress:
+                    sys.stderr.write("\b\b\b\b\b\b%6d\n" % n)
+                scanning= False
+                break
+        self.checksum_map= new_map
+    def read_checksum_map(self, filename):
+        """write stored checksums in a file."""
+        f= open(filename, "r")
+        for line in f:
+            if not line:
+                continue
+            if line=="":
+                continue
+            if line.isspace():
+                continue
+            (node,chk)= line.strip().split()
+            self.checksum_map[node]= chk
+        f.close()
+    def write_checksum_map(self, filename):
+        """write stored checksums in a file."""
+        f= open(filename, "w")
+        for node in sorted(self.checksum_map.keys()):
+            f.write("%s %s\n" % (node, self.checksum_map[node]))
+        f.close()
+
+    def checksum_by_node(self, node):
+        """get checksum for a node from the internal cache."""
+        return self.checksum_map.get(node)
+
+    def identify_string(self):
+        """return the identify string with possibly assigned checksum."""
+        id_= self.identify
+        chk= self.checksum_by_node(id_)
+        if not chk:
+            return id_
+        return "%s checksum: %s" % (id_, chk)
+
+    def last_common(self, other):
+        """find the last matching hashkey."""
+        p1= self.patches[:] # not a deep copy
+        p2= other.patches[:] # not a deep copy
+        p1.reverse()
+        p2.reverse()
+        common_node= None
+        for (patch1, patch2) in zip(p1,p2):
+            if patch1.node()==patch2.node():
+                common_node= patch1.node()
+            else:
+                break
+        return common_node
+
+    def print_(self, filename, first_rev, print_nodes, no_tags):
+        """print the patches."""
+        def wrln(fh, st):
+            """write function."""
+            fh.write(st)
+            fh.write("\n")
+        section_sep= "=" * 60
+        paragraph_sep= "-" * 60
+        if filename:
+            fh= open(filename, "w")
+        else:
+            fh= sys.stdout
+        wrapper= textwrap.TextWrapper(width=78, subsequent_indent= "\t")
+        if self.status:
+            wrln(fh, section_sep)
+            wrln(fh, "STATUS:")
+            wrln(fh, paragraph_sep)
+            wrln(fh, "\n".join(self.status))
+        if self.unrecorded_changes:
+            wrln(fh, section_sep)
+            wrln(fh, "UNRECORDED: %s" % \
+                 self.unrecorded_patch.checksum())
+        wrln(fh, section_sep)
+        wrln(fh, "IDENTIFY: %s" % self.identify_string())
+        wrln(fh, section_sep)
+        wrln(fh, "PATCHES:")
+
+        for patch in self.patches:
+            wrln(fh, paragraph_sep)
+            wrln(fh, "\n".join(patch.description()))
+            #print repr(patch["DESC"])
+            wrln(fh, "")
+            files= patch.files()
+            if files is not None:
+                txt= "FILES: " + (" ".join(files))
+                if len(txt)<78:
+                    wrln(fh, txt)
+                else:
+                    wrln(fh, wrapper.fill(txt))
+            if not no_tags:
+                tags= patch.tags()
+                if tags is not None:
+                    wrln(fh, "TAGS: %s" % (" ".join(tags)))
+            checksum= patch.checksum()
+            if checksum is not None:
+                # use CHECKSUM instead of NODE
+                wrln(fh, "CHECKSUM: %s" % checksum)
+            if print_nodes or (checksum is None):
+                wrln(fh, "NODE    : %s" % patch.node())
+            if first_rev is not None:
+                if patch.node()==first_rev:
+                    break
+        if filename:
+            fh.close()
+
+# pylint: enable=R0902
+
+# -----------------------------------------------
+# main function
+# -----------------------------------------------
+
+# pylint: disable=R0912
+#                          Too many branches
+# pylint: disable=R0915
+#                          Too many statements
+
+def match_command(st):
+    """try to match a string to the list of known commands."""
+    commands= ["print", "compare", "gcompare"]
+    matched= None
+    for c in commands:
+        if c.startswith(st):
+            if matched is not None:
+                sys.exit(("error: \"%s\" has no " +\
+                          "unique match for a command") % st)
+            matched= c
+            continue
+    if matched is None:
+        sys.exit("error: \"%s\" doesn't match a known command" % st)
+    return matched
+
+def process_files(options, args):
+    """do all the work."""
+    if len(args)<0:
+        sys.exit("no command given")
+    cmd= match_command(args[0])
+
+    if cmd=="print":
+        if len(args)<=1:
+            directory= "."
+        else:
+            directory= args[1]
+        signature= Signature(directory, options.extra, 
+                             options.verbose, options.dry_run)
+        if options.cache:
+            signature.read_checksum_map(options.cache)
+        signature.scan()
+
+        from_node= None
+        if options.checksum_start:
+            from_node= hg_identify(directory, options.checksum_start,
+                                   options.verbose, options.dry_run)
+        signature.calc_checksums(from_node, options.progress)
+        if options.wcache:
+            signature.write_checksum_map(options.wcache)
+
+        signature.print_(None, None, options.nodes, options.no_tags)
+        sys.exit(0)
+    # compare mode here:
+    if cmd=="compare" or cmd=="gcompare":
+        if cmd=="compare":
+            if len(args)!=5:
+                sys.exit("error, exactly 4 arguments must follow --compare")
+            (repo1, repo2, out1, out2)= args[1:5]
+            if os.path.exists(out1):
+                sys.exit("error, \"%s\" already exists" % out1)
+            if os.path.exists(out2):
+                sys.exit("error, \"%s\" already exists" % out2)
+        else:
+            if len(args)<3 or len(args)>4:
+                sys.exit("error, 2 or 3 arguments must follow --tkcompare")
+            repo1= args[1]
+            repo2= args[2]
+            if len(args)>3:
+                compareprog= args[3]
+            else:
+                compareprog= "tkdiff"
+            (_,out1)= tempfile.mkstemp("tmp-%s" % script_stem(), 
+                                        text= True)
+            (_,out2)= tempfile.mkstemp("tmp-%s" % script_stem(), 
+                                        text= True)
+
+        signature1= Signature(repo1, options.extra,
+                              options.verbose, options.dry_run)
+        signature2= Signature(repo2, options.extra,
+                              options.verbose, options.dry_run)
+        if options.cache:
+            signature1.read_checksum_map(options.cache)
+            signature2.read_checksum_map(options.cache)
+        signature1.scan()
+        signature2.scan()
+        from_rev= signature1.last_common(signature2)
+        if from_rev is None:
+            sys.exit("the two repositories are not related")
+
+        signature1.calc_checksums(from_rev, options.progress)
+        signature2.calc_checksums(from_rev, options.progress)
+
+        if options.wcache:
+            signature1.write_checksum_map(options.wcache)
+
+        first_rev= None 
+        if options.skip_common:
+            first_rev= from_rev
+        signature1.print_(out1, first_rev, options.nodes, options.no_tags)
+        signature2.print_(out2, first_rev, options.nodes, options.no_tags)
+
+        if cmd=="gcompare":
+            try:
+                _system("%s %s %s" % (compareprog, out1, out2), 
+                        False, options.verbose, options.dry_run)
+            except IOError, e:
+                # tkdiff always returns an error when closed, why ??
+                print str(e)
+            os.unlink(out1)
+            os.unlink(out2)
+        sys.exit(0)
+    raise AssertionError, "unexpected command: %s" % cmd
+
+# pylint: enable=R0912
+# pylint: enable=R0915
+
+def script_shortname():
+    """return the name of this script without a path component."""
+    return os.path.basename(sys.argv[0])
+
+def script_stem():
+    """return the name of this script without a path component."""
+    (name, _)= os.path.splitext(script_shortname())
+    return name
+
+def print_doc():
+    """print embedded reStructuredText documentation."""
+    print __doc__
+
+def print_summary():
+    """print a short summary of the scripts function."""
+    print "%-20s: a tool for ...\n" % script_shortname()
+
+usage = """usage: %prog [options] command
+where command is:
+  print {repo}:
+          Create a signature for repository [repo] and print it to the console.
+          If {repo} is omitted, assume that the repository is in the current
+          working directory.
+
+  compare [repo1] [repo2] [out1] [out2]
+          Create signature file [out1] for repository [repo1] and signature
+          file [out2] for repository [repo2]. The programs computes checksums
+          for the first patch that differs between the two repositories up to
+          the repositories tip.
+
+  gcompare [repo1] [repo2] {compareprogram}
+          Do a graphical compare.  Create a signature file for repository
+          [repo1] and a signature file for repository [repo2] and call
+          [compareprogram] for these. The programs computes checksums for the
+          first patch that differs between the two repositories up to the
+          repositories tip. The default for [compareprogram] is tkdiff.
+          
+
+You can abbreviate a command with a shorter string if only one of the known
+commands starts with that string, e.g. "pr" instead of "print".
+"""
+
+def main():
+    """The main function.
+
+    parse the command-line options and perform the command
+    """
+    # command-line options and command-line help:
+
+    parser = OptionParser(usage=usage,
+                          version="%%prog %s" % my_version,
+                          description="this program removes tabs and "
+                                      "trailing spaces in files.")
+
+    parser.add_option("--summary",  
+                      action="store_true", 
+                      help="print a summary of the function of the program",
+                      )
+    parser.add_option( "--doc",            # implies dest="switch"
+                  action="store_true", # default: None
+                  help="create online help in restructured text"
+                       "format. Use \"./hg-sig --doc | rst2html\" "
+                       "to create html-help"
+                  )
+    parser.add_option("--cache",
+                      action="store", 
+                      type= "string",
+                      help="specify a cache file for patch checksums",
+                      metavar= "CACHEFILE",
+                      )
+    parser.add_option("--wcache",
+                      action="store", 
+                      type= "string",
+                      help="specify a cache file for patch checksums, "+ \
+                           "rewrite this file the checksums that were "+\
+                           "present in the (first) repository",
+                      metavar= "CACHEFILE",
+                      )
+    parser.add_option("--skip-common",
+                      action="store_true", 
+                      help="for \"compare\", begin printing patches at "+\
+                           "the first difference",
+                      )
+    parser.add_option("--no-tags",
+                      action="store_true", 
+                      help="do not show tags",
+                      )
+    parser.add_option("--nodes",
+                      action="store_true", 
+                      help="print node ids for all patches, even patches "
+                           "where a checksum was created.",
+                      )
+    parser.add_option("--checksum-start",
+                      action="store", 
+                      type="string",
+                      help="start the checksum calculation at revision REV",
+                      )
+    parser.add_option("-x", "--extra",
+                      action="store", 
+                      type="string",
+                      help="pass the given string as an extra option to "
+                           "mercurial when \"hg log\" is called",
+                      )
+    parser.add_option("-p", "--progress",   
+                      action="store_true", 
+                      help="show progress on stderr",
+                      )
+    parser.add_option("-v", "--verbose",   
+                      action="store_true", 
+                      help="show command calls ",
+                      )
+    parser.add_option("-n", "--dry-run",   
+                      action="store_true", 
+                      help="just show what the program would do",
+                      )
+
+
+    #x= sys.argv
+    (options, args) = parser.parse_args()
+    # options: the options-object
+    # args: list of left-over args
+
+    if options.summary:
+        print_summary()
+        sys.exit(0)
+
+    if options.doc:
+        print_doc()
+        sys.exit(0)
+
+    process_files(options, args)
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+

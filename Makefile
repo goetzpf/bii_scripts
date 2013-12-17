@@ -357,6 +357,7 @@ PLAINTXT_H_PY_SCRIPT_LIST= \
 	hg2darcs.py
 
 RST_DOC_SCRIPT_LIST= \
+        hg-sig \
 	stepy
 
 RST_DOC_PY_SCRIPT_LIST= \
@@ -424,6 +425,7 @@ PYTHON_2_5_SCRIPTS= \
         cvs-recover.py \
 	db_request.py \
 	hg-recover.py \
+	hg-sig \
 	ioc-reboot.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
@@ -821,6 +823,10 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 _PYTHON_2_5_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(PYTHON_2_5_SCRIPTS))
 
 $(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%.py: $(SCRIPT_SRC_DIR)/%.py
+	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
+	chmod u+x $@
+
+$(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/%
 	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
 	chmod u+x $@
 
