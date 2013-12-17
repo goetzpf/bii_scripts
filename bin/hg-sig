@@ -305,7 +305,13 @@ from optparse import OptionParser
 import os.path
 import sys
 import subprocess
-import hashlib
+
+try:
+    import hashlib
+    hashlib_exception= None
+except ImportError, e:
+    hashlib_exception= str(e)
+
 import textwrap
 import tempfile
 
@@ -952,6 +958,9 @@ def main():
     if options.doc:
         print_doc()
         sys.exit(0)
+
+    if hashlib_exception is not None:
+        raise ImportError, hashlib_exception
 
     process_files(options, args)
     sys.exit(0)

@@ -425,7 +425,6 @@ PYTHON_2_5_SCRIPTS= \
         cvs-recover.py \
 	db_request.py \
 	hg-recover.py \
-	hg-sig \
 	ioc-reboot.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
@@ -822,11 +821,11 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 # extra rules for python 2.5 scripts:
 _PYTHON_2_5_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(PYTHON_2_5_SCRIPTS))
 
-$(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%.py: $(SCRIPT_SRC_DIR)/%.py
+$(SCRIPT_BUILD_DIR)/hg-sig: $(SCRIPT_SRC_DIR)/hg-sig
 	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
 	chmod u+x $@
 
-$(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/%
+$(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%.py: $(SCRIPT_SRC_DIR)/%.py
 	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
 	chmod u+x $@
 
