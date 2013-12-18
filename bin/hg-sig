@@ -503,7 +503,10 @@ class Signature(object):
 
         template= "DESC:\t{desc|tabindent}\nFILES:\t{files}\n" + \
                   "TAGS:\t{tags}\nNODE:\t{node|short}\n\n"
-        extra= " %s" % self._extra
+        if self._extra is None:
+            extra= ""
+        else:
+            extra= " %s" % self._extra
         reply= hg_cmd("log --template \"%s\" -R %s%s" % \
                       (template, self._directory, extra),
                       True, self._verbose, self._dry_run)
