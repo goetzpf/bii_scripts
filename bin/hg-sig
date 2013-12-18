@@ -264,40 +264,46 @@ Here is a list of all command line options:
   show this help message and exit
 
 --summary
-  print a summary of the function of the program
+  Print a summary of the function of the program.
 
 --doc
-  create online help in restructured textformat. 
-  Use "./hg-sig --doc | rst2html" to create html-help
+  Create online help in restructured textformat. Use "./hg-sig --doc |
+  rst2html" to create html-help.
 
 --cache=CACHEFILE
-  specify a cache file for patch checksums
+  Specify a cache file for patch checksums. This file is not modified by the
+  program.
 
 --wcache=CACHEFILE
-  specify a cache file for patch checksums, rewrite this file the checksums
-  that were present in the (first) repository
+  Specify a cache file for patch checksums. Rewrite this file with the
+  checksums that were present in the (first) repository.
 
 --skip-common
-  for "compare", begin printing patches at the first difference
+  For "compare", begin printing patches at the first difference instead of the
+  first patch.
 
 --no-tags
-  do not show tags
+  Do not show tags.
 
---checksum-start=CHECKSUM_START
-  start the checksum calculation at revision REV
+--nodes
+  Print node ids for all patches, even patches where a checksum was created.
 
--x, --extra=EXTRA_ARGS
-  pass the given string as an extra option to mercurial when \"hg log\" is
-  called
+--checksum-start=REV
+  Start the checksum calculation at revision REV.
+
+-x EXTRA, --extra=EXTRA
+  Pass the given string as an extra option to mercurial when "hg log" is
+  called.
 
 -p, --progress
-  show progress on stderr
+  Show progress on stderr.
 
 -v, --verbose
-  show command calls
+  Show command calls.
 
 -n, --dry-run
-  just show what the program would do
+  Just show what the program would do.
+
 """
 
 from optparse import OptionParser
@@ -612,7 +618,6 @@ class Signature(object):
                 if show_progress:
                     sys.stderr.write("\b\b\b\b\b\b%6d\n" % n)
                 scanning= False
-                break
         self.checksum_map= new_map
     def read_checksum_map(self, filename):
         """write stored checksums in a file."""
@@ -756,6 +761,10 @@ def process_files(options, args):
                              options.verbose, options.dry_run)
         if options.cache:
             signature.read_checksum_map(options.cache)
+        elif options.wcache:
+            if os.path.exists(options.wcache):
+                signature.read_checksum_map(options.wcache)
+
         signature.scan()
 
         from_node= None
@@ -799,6 +808,11 @@ def process_files(options, args):
         if options.cache:
             signature1.read_checksum_map(options.cache)
             signature2.read_checksum_map(options.cache)
+        elif options.wcache:
+            if os.path.exists(options.wcache):
+                signature1.read_checksum_map(options.wcache)
+                signature2.read_checksum_map(options.wcache)
+
         signature1.scan()
         signature2.scan()
         from_rev= signature1.last_common(signature2)
@@ -888,64 +902,66 @@ def main():
 
     parser.add_option("--summary",  
                       action="store_true", 
-                      help="print a summary of the function of the program",
+                      help="Print a summary of the function of the program.",
                       )
     parser.add_option( "--doc",            # implies dest="switch"
                   action="store_true", # default: None
-                  help="create online help in restructured text"
+                  help="Create online help in restructured text"
                        "format. Use \"./hg-sig --doc | rst2html\" "
-                       "to create html-help"
+                       "to create html-help."
                   )
     parser.add_option("--cache",
                       action="store", 
                       type= "string",
-                      help="specify a cache file for patch checksums",
+                      help="Specify a cache file for patch checksums. This "
+                           "file is not modified by the program.",
                       metavar= "CACHEFILE",
                       )
     parser.add_option("--wcache",
                       action="store", 
                       type= "string",
-                      help="specify a cache file for patch checksums, "+ \
-                           "rewrite this file the checksums that were "+\
-                           "present in the (first) repository",
+                      help="Specify a cache file for patch checksums. "
+                           "Rewrite this file with the checksums that were "
+                           "present in the (first) repository.",
                       metavar= "CACHEFILE",
                       )
     parser.add_option("--skip-common",
                       action="store_true", 
-                      help="for \"compare\", begin printing patches at "+\
-                           "the first difference",
+                      help="For \"compare\", begin printing patches at "
+                           "the first difference instead of the first patch.",
                       )
     parser.add_option("--no-tags",
                       action="store_true", 
-                      help="do not show tags",
+                      help="Do not show tags.",
                       )
     parser.add_option("--nodes",
                       action="store_true", 
-                      help="print node ids for all patches, even patches "
+                      help="Print node ids for all patches, even patches "
                            "where a checksum was created.",
                       )
     parser.add_option("--checksum-start",
                       action="store", 
                       type="string",
-                      help="start the checksum calculation at revision REV",
+                      help="Start the checksum calculation at revision REV.",
+                      metavar= "REV",
                       )
     parser.add_option("-x", "--extra",
                       action="store", 
                       type="string",
-                      help="pass the given string as an extra option to "
-                           "mercurial when \"hg log\" is called",
+                      help="Pass the given string as an extra option to "
+                           "mercurial when \"hg log\" is called.",
                       )
     parser.add_option("-p", "--progress",   
                       action="store_true", 
-                      help="show progress on stderr",
+                      help="Show progress on stderr.",
                       )
     parser.add_option("-v", "--verbose",   
                       action="store_true", 
-                      help="show command calls ",
+                      help="Show command calls.",
                       )
     parser.add_option("-n", "--dry-run",   
                       action="store_true", 
-                      help="just show what the program would do",
+                      help="Just show what the program would do.",
                       )
 
 
