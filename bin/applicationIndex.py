@@ -94,7 +94,7 @@ def processStCmd(topPath,iocList):
     	('B_CLOSE',     (r'\)',) ),\
     	('COMMA',    	(r',',) ),\
     	('QSTRING',(r'(?<!\\)"(.*?)(?<!\\)"',) ), \
-    	('WORD',    	(r'[a-zA-Z0-9_&/\.:=\-\{\}\$]+',) ),\
+    	('WORD',    	(r'[a-zA-Z0-9_&/\.:=+\-\{\}\$\']+',) ),\
     	('COMMENT',   	(r'#.*',) ),\
     	('LOAD',   	(r'[<|>]',) ),\
     	('SPACE',(r"\s+",))
