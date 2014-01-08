@@ -33,7 +33,6 @@ import os
 import re
 import math
 import csv
-import BDNS
 import os.path
 import epicsUtils
 import csv2epicsFuncs
