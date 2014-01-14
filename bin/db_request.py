@@ -58,7 +58,7 @@ dbProfiles = {
         "password": "bessyguest",
         "instance": "test",
         "server": "dbnode1.trs.bessy.de",
-        "port": None,
+        "port": 5432,
     },
 }
 
