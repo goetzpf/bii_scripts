@@ -423,7 +423,6 @@ PYDOC_PYTHONLIB_LIST= \
 PYTHON_2_5_SCRIPTS= \
         camonitor2table.py \
         cvs-recover.py \
-	db_request.py \
 	hg-recover.py \
 	ioc-reboot.py \
 	repo-loginfo.py \
