@@ -317,6 +317,7 @@ PLAINTXT_H_SCRIPT_LIST= \
 	dbdiff \
 	darcs-compare-repos \
 	hg-compare-repos \
+	idcp-dist-info \
 	psh \
 	substdiff\
 	csv2plot

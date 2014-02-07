@@ -296,6 +296,11 @@ Scripts
     application was built. 
   | `documentation <scripts/hg-recover.html>`__
 
+**idcp-dist-info**
+  | A small wrapper script that calls rsync-dist-info.py for IDCP (undulator
+    control) IOCs
+  | `documentation <scripts/idcp-dist-info>`__
+
 **ioc-reboot.py**
   | Reboots one or several IOCs via telnet and "reboot" command.
   | `documentation <scripts/ioc-reboot.html>`__
