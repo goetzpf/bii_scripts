@@ -301,6 +301,18 @@ Scripts
     control) IOCs
   | `documentation <scripts/idcp-dist-info>`__
 
+**idcp-restore**
+  | A small wrapper script that calls hg-recover.py to restore the source
+    directory along with it's mercurial repository for a given version of IDCP
+    as it is installed on one of the BESSY undulators.
+  | `documentation <scripts/idcp-restore>`__
+
+**idcp-mls-restore**
+  | A small wrapper script that calls hg-recover.py to restore the source
+    directory along with it's mercurial repository for a given version of IDCP
+    as it is installed on the MLS undulator.
+  | `documentation <scripts/idcp-mls-restore>`__
+
 **ioc-reboot.py**
   | Reboots one or several IOCs via telnet and "reboot" command.
   | `documentation <scripts/ioc-reboot.html>`__
