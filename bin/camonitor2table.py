@@ -934,29 +934,47 @@ def convert_to_float_time(start_date, hashedlist2d):
 def differentiate(hashedlist2d):
     """differentiate at each point.
     """
+    def number(val):
+        """try to return a number from val."""
+        if val is None:
+            return
+        try:
+            return float(val[0])
+        except ValueError, e:
+            return
+
+    #print "hashedlist2d:", str(hashedlist2d)
     columns= hashedlist2d.columns()
-    last= None
+    last= [None]*len(columns)
     last_row= None
     for r in hashedlist2d.rows():
-        if last is None:
-            last_row= r
-            last= []
-            for c in columns:
-                val= hashedlist2d.lookup(r,c)
-                last.append(float(val[0]))
-                val[0]= 0
-            continue
-        if isinstance(r,datetime.datetime):
-            t= total_seconds_(r-last_row)
+        if last_row is None:
+            t= 0
         else:
-            t= r-last_row
+            if isinstance(r,datetime.datetime):
+                t= total_seconds_(r-last_row)
+            else:
+                t= r-last_row
+        last_row= r
         for i in xrange(len(columns)):
             buf= hashedlist2d.lookup(r,columns[i])
-            no= float(buf[0])
+            # each buf is a list of a number and optionally PV flags like
+            # "NO_ALARM' etc.
+            # if there hasn't been a value for that timestamp, buf is None.
+            # number() returns None if this is the case or if buf[0] is no
+            # floating point number:
+            no= number(buf)
+            if no is None:
+                hashedlist2d.set(r,columns[i],[0])
+                continue
+            if last[i] is None:
+                last[i]= no
+                buf[0]= 0
+                continue
+            # the value is overwritten with the derivative:
             buf[0]= (no-last[i])/t
             #hashedlist2d.set(r,columns[i], buf)
             last[i]= no
-            last_row= r
 
 def collect_from_file(filename_, hashedlist2d=None, 
                       from_time=None, to_time=None,
