@@ -177,6 +177,7 @@ idcp_prefix_map= {
               "idcp80" : "U48IV",
               "idcp81" : "UE56IV",
               "idcp96" : "U125IV",
+              "idcp90" : "U125IL2RP",
               "idcp98" : "U2IV",
               "idcp97" : "U3IV",
               "idcp95" : "U4IV",
