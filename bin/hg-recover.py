@@ -677,6 +677,15 @@ def rebuild_patchdir(patchlist, verbose, dry_run):
     """rebuild the patches that were in an applied state in the original dir.
     """
     hg_cmd("init --mq", False, verbose, dry_run)
+    # use "phase" command to free revisions:
+    for (rev,patchname) in patchlist:
+        try:
+            hg_cmd("phase --force --draft -r %s" % rev, True, False, dry_run)
+        except IOError,e:
+            if -1!= str(e).find("unknown command"):
+                # if mercurial doesn't support "phase", leave the loop:
+                break
+            # mercurial may return an error "no phases changed"
     for (rev,patchname) in patchlist:
 	hg_cmd("qimport -n \"%s\" -r %s" % (patchname,rev), False, verbose, dry_run)
 
