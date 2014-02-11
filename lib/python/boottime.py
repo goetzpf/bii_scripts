@@ -127,14 +127,13 @@ def boot_time_from_bootTime(pv_prefix):
     (val, timestamp)= caget(pv_prefix+":bootTime",str)
     return datetime_from_iso(val)
 
-def ca_try(funclist, *args):
+def ca_try(call_list):
     """try funclist, catch ca exceptions.
     """
-    for i in xrange(len(funclist)):
-        if i>=len(funclist)-1: # last function
-            return funclist[i](*args)
+    e= None
+    for (func, arg) in call_list:
         try:
-            return funclist[i](*args)
+            return func(arg)
         except _ca.error, e:
             # ca error, try next function:
             pass
@@ -144,8 +143,10 @@ def ca_try(funclist, *args):
         except Exception, e:
             # any other error, raise exception
             raise
+    if e is None:
+        raise AssertionError, "this part should not be reached"
+    raise IOError, "all channel access IO failed"
     # the program should never get here:
-    raise AssertionError, "this part should not be reached"
 
 def boot_time_from_vxstats(pv_prefix):
     """return the time when the IOC was rebooted.
@@ -204,23 +205,21 @@ def boottime(link_name):
     raises ca.caError if not channel access connection
     could be made.
     """
-    def until_dot(st):
-        """returns everything up to the first dot."""
-        return st.split(".",1)[0]
-    link_name= link_name.lower()
-    if link_name.startswith("ioc") or \
-       link_name.startswith("sioc") or \
-       link_name.startswith("testi"):
-        # machine control system ioc
-        # return boot_time_from_vxstats(until_dot(link_name).upper())
-        if link_name.endswith("p"):
-            funcs=(boot_time_from_rebootTime, boot_time_from_bootTime)
-        else:
-            funcs=(boot_time_from_bootTime, boot_time_from_rebootTime)
-        return ca_try(funcs, until_dot(link_name).upper())
+    type_= "BESSY"
+    link= (link_name.split(".",1)[0]).lower()
+    try:
+        devname= idcp_prefix(link)
+        type_= "IDCP"
+    except ValueError, e:
+        devname= link.upper()
+    if link.endswith("p"):
+        type_= "MLS"
 
-    if link_name.startswith("idcp"):
-        # undulator IOC
-        return boot_time_from_uptime(idcp_prefix(until_dot(link_name)))
-    raise ValueError, "unknown link name: '%s'" % link_name
+    if type_== "IDCP":
+        funcs= [(boot_time_from_bootTime, devname),
+                (boot_time_from_uptime, devname)]
+    else:
+        funcs= [(boot_time_from_bootTime, devname),
+                (boot_time_from_rebootTime, devname)]
+    return ca_try(funcs)
 
