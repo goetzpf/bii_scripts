@@ -354,15 +354,9 @@ def boot_times(objs, verbose=False, csv=False):
         (activated,version)= act_dist[name]
         try:
             booted= boottime.boottime(name)
-        except _ca.error, e:
+        except IOError, e:
             booted= None
             comment="IOC cannot be contacted!"
-        except ca.caError,e:
-            booted= None
-            comment="IOC cannot be contacted!"
-        except ValueError,e:
-            booted= None
-            comment="dont't know how to find boottime for this name"
         if version is None:
             # symlink was deleted
             if booted is not None:

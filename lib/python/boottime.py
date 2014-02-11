@@ -145,7 +145,11 @@ def ca_try(call_list):
             raise
     if e is None:
         raise AssertionError, "this part should not be reached"
-    raise IOError, "all channel access IO failed"
+    l= []
+    for (func, arg) in call_list:
+        l.append("\t%s(%s)" % (func.__name__, repr(arg)))
+    raise IOError, "all channel access IO failed, diagnostics: \n%s" % \
+            ("\n".join(l))
     # the program should never get here:
 
 def boot_time_from_vxstats(pv_prefix):
