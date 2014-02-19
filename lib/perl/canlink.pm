@@ -931,7 +931,7 @@ sub maxlen
     if ($r_properties->{array})
       { $l*= $r_properties->{arraysize}; };
 
-    if ($r_properties->{multi})
+    if ($r_properties->{multi} or $r_properties->{access} eq 'rw')
       { $l++ };
 
     return($l);
