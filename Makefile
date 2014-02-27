@@ -151,9 +151,9 @@ CREATE_PYTHON3=no
 
 
 # environment variables for programs.........................
-PERL5LIBNEW:=$(PERL5LIB):$(PERLLIB_SRC_DIR)
+PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
 
-PYTHONPATHNEW:=$(PYTHONLIB_SRC_DIR):$(PYTHONPATH)
+PYTHONPATHNEW=$(PYTHONLIB_SRC_DIR):$(PYTHONPATH)
 
 # program parameters ........................................
 
