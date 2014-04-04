@@ -239,7 +239,7 @@ def joinItreq():
 
 if output_db is None:
     print "Missing option -d outFile.db"
-    sys.exit()
+    sys.exit(1)
 else:
     output_doc = epicsUtils.substRe(output_db,"\.\w+$","Doc.txt")
 
@@ -306,7 +306,7 @@ for argument in args:
 		devName = options.devName
 	    else:
 	    	print "ERROR: No device name line:",lines
-		sys.exit()
+		sys.exit(1)
 	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
 	    if len(devObj.DESC) > csv2epicsFuncs.baseData.getDESClen():
 		warnings.append([fileName,lines,"Truncate DESC",devName+":"+devObj.signal,devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
