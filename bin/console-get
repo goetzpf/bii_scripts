@@ -15,6 +15,7 @@ il:??:il\n
 net:??:net\n
 psd:??:psd\n
 sioc:??:sioc\n
+xbpm:??:xbpm\n
 '
 
 tags=`echo "$map" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
