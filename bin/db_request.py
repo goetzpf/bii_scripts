@@ -27,14 +27,16 @@ try:
     import adodb
 except ImportError:
     if _no_check:
-        sys.stderr.write("WARNING: (in %s) mandatory module adodb not found\n" % \
+        sys.stderr.write("WARNING: (in %s) mandatory module adodb not "
+                         "found\n" % \
                          sys.argv[0])
     else:
         raise
 
-myversion = "0.2"
+myversion = "0.2.1"
 
-dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8", "oci", "postgres", "sqlite"]
+dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8",
+                  "oci", "postgres", "sqlite"]
 dbProfiles = {
     "devices": {
         "connecttype": "oci8",
@@ -63,19 +65,23 @@ dbProfiles = {
 }
 
 outFormatList = {
-    "c": ["", "", "", " ", "", "{}"],
-    "txt": ["","\"","\"",",","", "NULL"],
-    "csv": ["","\"","\"",",","", ""],
-    "tab": ["","\"","\"","\t","", ""],
+    "c"     : ["", "", "", " ", "", "{}"],
+    "txt"   : ["","\"","\"",",","", "NULL"],
+    "csv"   : ["","\"","\"",",","", ""],
+    "tab"   : ["","\"","\"","\t","", ""],
     "python": ["(","'","'",", ",")", "None"],
-    "php": ["[","\"","\"",",","],", "null"],
-    "perl": ["[","\"","\"",", ","],", "\"\""],
-    "json": ["{","'","'",",","},", "null"],
-    "xml": ["\n\t<row>","\n\t\t<value>","</value>", "","\n\t</row>", "\n\t\t<value />"],
-    "html": ["\n\t<tr>","\n\t\t<td>","</td>","","\n\t</tr>", "\n\t\t<td>&nbsp;</td>"]
+    "php"   : ["[","\"","\"",",","],", "null"],
+    "perl"  : ["[","\"","\"",", ","],", "\"\""],
+    "json"  : ["{","'","'",",","},", "null"],
+    "xml"   : ["\n\t<row>","\n\t\t<value>","</value>", "","\n\t</row>",
+               "\n\t\t<value />"],
+    "html"  : ["\n\t<tr>","\n\t\t<td>","</td>","","\n\t</tr>",
+               "\n\t\t<td>&nbsp;</td>"]
 }
 
-argParser = OptionParser(usage="usage: %prog [Options] [Statement]\nif no statement as argument was given, it will be asked from stdin",
+argParser = OptionParser(usage="usage: %prog [Options] [Statement]\n"
+                               "if no statement as argument was given, it "
+                               "will be asked from stdin",
             version="%prog " + myversion,
             description="make a request to a rdbms with a sql statement")
 
@@ -95,7 +101,6 @@ def format_row(row, fmtList):
     return ret
 
 def get_profiles ():
-    global dbProfiles
     ret = []
     for i in dbProfiles.keys():
         ret.append("\t" + str(i) + ": ")
@@ -106,25 +111,22 @@ def get_profiles ():
     return "\n".join(ret)
 
 def get_formats():
-    global outFormatList
     ret = []
     for i in outFormatList.keys():
-            fmr= format_row(["example", 123, None, 4.56], outFormatList.get(i))
-            extra= ""
-            if not fmr.startswith("\n\t"):
-                    extra="\n\t"
-            ret.append("".join(["- ",str(i)," format::\n",extra,fmr,"\n"]))
+        fmr= format_row(["example", 123, None, 4.56], outFormatList.get(i))
+        extra= ""
+        if not fmr.startswith("\n\t"):
+            extra="\n\t"
+        ret.append("".join(["- ",str(i)," format::\n",extra,fmr,"\n"]))
     return "\n".join(ret)
 
 def get_protocols():
-    global dbProtocolList
     ret = []
     for i in dbProtocolList:
         ret.append("- " + str(i))
     return "\n".join(ret)
 
 def print_doc():
-    global argParser
     """print embedded restructured text documentation."""
     print __doc__
     print "\nCommandline Help Output\n=======================\n"
@@ -149,9 +151,11 @@ def _test():
     print "done!"
 
 def main():
-    global dbProtocolList, dbProfiles, outformatList
+    """ Here all the action starts up.
+
+        It begins with parsing commandline arguments.
+    """
     dbSQLString = None
-    dbProfileString = None
     dbProfile = {
         "connecttype": None,
         "user": None,
@@ -161,70 +165,77 @@ def main():
         "port": None,
     }
     outFormat = "c"
-    outFormatNullString = ""
     header = False
-    """ Here all the action starts up.
-
-        It begins with parsing commandline arguments.
-    """
     verbose = False
     outnumbered = False
 
-    argParser.add_option ("-u", "--user", type="string",
-                action="store", 
-                help="set username")
-    argParser.add_option ("-p", "--password", type="string",
-                action="store", 
-                help="set password")
-    argParser.add_option ("-r", "--server", type="string",
-                action="store", 
-                help="set database server (connection type 'oci' will ask for, 'oci8' not)")
-    argParser.add_option ("-l", "--port", type="int",
-                action="store", 
-                help="set database server port (connection type 'oci' will ask for, 'oci8' not)")
-    argParser.add_option ("-d", "--database", type="string",
-                action="store", 
-                help="set name of database instance")
-    argParser.add_option ("-c", "--connecttype", type="string",
-                action="store", 
-                help="defines connectiontype to database, ("+ ",".join(dbProtocolList) + ")")
-    argParser.add_option ("-x", "--profile", type="string",
-                action="store", 
-                help="using profile for shortcutted connects to database, ("+ ",".join(dbProfiles.keys()) + ")")
-    argParser.add_option ("-n", "--none", type="string",
-                action="store", help="dont execute sequel command")
-    argParser.add_option ("-o", "--format", type="string",
-                action="store", 
-                default=outFormat, help="decide the output format (" + ",".join(outFormatList.keys()) + ")")
-    argParser.add_option ("--header",
-                action="store_true",
-                help="enable header of columns")
-    argParser.add_option ("--doc",
-                action="store_true", help="create online help in restructured text format. Use \"./db_request.py --doc | rst2html\" for creation of html help")
-    argParser.add_option ("-t", "--test",
-                action="store_false",
-                help="performs simply self-test")
-    argParser.add_option ("--idx",
-                action="store_true",
-                help="write at first the line number, like a line counter")
-    argParser.add_option ("--protocols",
-                action="store_true",
-                help="list of known database protocols")
-    argParser.add_option ("--profiles",
-                action="store_true",
-                help="list of known connection profils")
-    argParser.add_option ("--formats",
-                action="store_true",
-                help="list of known output formats and examples")
-    argParser.add_option ("-v", "--verbose",
-                action="store_true",
-                help="writes additional informations")
+    argParser.add_option("-u", "--user", type="string",
+                         action="store",
+                         help="set username")
+    argParser.add_option("-p", "--password", type="string",
+                         action="store",
+                         help="set password")
+    argParser.add_option("-r", "--server", type="string",
+                         action="store",
+                         help="set database server (connection type 'oci' "
+                              "will ask for, 'oci8' not)")
+    argParser.add_option("-l", "--port", type="int",
+                         action="store",
+                         help="set database server port (connection type "
+                              "'oci' will ask for, 'oci8' not)")
+    argParser.add_option("-d", "--database", type="string",
+                         action="store",
+                         help="set name of database instance")
+    argParser.add_option("-c", "--connecttype", type="string",
+                         action="store",
+                         help="defines connectiontype to database, (" + \
+                              ",".join(dbProtocolList) + ")")
+    argParser.add_option("-x", "--profile", type="string",
+                         action="store",
+                         help="using profile for shortcutted connects to "
+                              "database, (" + \
+                              ",".join(dbProfiles.keys()) + ")")
+    argParser.add_option("-n", "--none", type="string",
+                         action="store", 
+                         help="don't execute sequel command")
+    argParser.add_option("-o", "--format", type="string",
+                         action="store",
+                         default=outFormat,
+                         help="decide the output format (" + \
+                              ",".join(outFormatList.keys()) + ")")
+    argParser.add_option("--header",
+                         action="store_true",
+                         help="enable header of columns")
+    argParser.add_option("--doc",
+                         action="store_true",
+                         help="create online help in restructured text "
+                              "format. Use \"./db_request.py --doc | "
+                              "rst2html\" for creation of html help")
+    argParser.add_option("-t", "--test",
+                         action="store_false",
+                         help="performs simple self-test")
+    argParser.add_option("--idx",
+                         action="store_true",
+                         help="write at first the line number, like a "
+                              "line counter")
+    argParser.add_option("--protocols",
+                         action="store_true",
+                         help="list of known database protocols")
+    argParser.add_option("--profiles",
+                         action="store_true",
+                         help="list of known connection profils")
+    argParser.add_option("--formats",
+                         action="store_true",
+                         help="list of known output formats and examples")
+    argParser.add_option("-v", "--verbose",
+                         action="store_true",
+                         help="writes additional informations")
 
     cmdBreak = False
     (argOptionList, argCommandList) = argParser.parse_args()
-    '''
-        Section for argument options 
-    '''
+
+    # Section for argument options
+
     if argOptionList.doc:
         print_doc()
         return
@@ -241,20 +252,23 @@ def main():
         cmdBreak = True
     if cmdBreak:
         return
-    '''
-        Section for connecting options
-    '''
+
+    # Section for connecting options
+
     if argOptionList.profile:
         if dbProfiles[argOptionList.profile] is not None:
             dbProfile = dbProfiles[argOptionList.profile]
         else:
-            print "ERROR: Profile " + argOptionList.profile + " isnt known. See the --profiles option to try a right one.\n"
+            print "ERROR: Profile %s isn't known. See the --profiles "\
+                  "option to try a right one.\n" % argOptionList.profile
         if verbose:
             print "set profile " + argOptionList.profile
 
     if argOptionList.connecttype is None and dbProfile["connecttype"] is None:
-        dbProfile["connecttype"] = str(raw_input('Connecttype (' + ",".join(dbProtocolList) + '): ')).lower()
-    elif argOptionList.connecttype is not None and dbProfile["instance"] is None:
+        dbProfile["connecttype"] = str(raw_input('Connecttype (' + \
+                                     ",".join(dbProtocolList) + '): ')).lower()
+    elif argOptionList.connecttype is not None and \
+             dbProfile["instance"] is None:
         dbProfile["instance"] = str(argOptionList.connecttype).lower()
     if dbProfile["connecttype"] != "oci8":
         if dbProfile["server"] is None:
@@ -280,15 +294,16 @@ def main():
         dbProfile["password"] = getpass.getpass("Password:")
     elif argOptionList.password is not None and dbProfile["user"] is None:
         dbProfile["user"] = str(argOptionList.password)
-    '''
-        Section for formatting options
-    '''
-    if argOptionList.format is not None and argOptionList.format in outFormatList.keys():
+
+    # Section for formatting options
+
+    if argOptionList.format is not None and \
+            argOptionList.format in outFormatList.keys():
         outFormat = str(argOptionList.format)
     elif argOptionList.format not in outFormatList.keys():
-        outputFormat = "txt"
         if verbose:
-            print "replace unknown format " + str(argOptionList.format) + " to " + outFormat
+            print "replace unknown format " + str(argOptionList.format) + \
+                  " to " + outFormat
     if argOptionList.header:
         header = True
     if argOptionList.idx:
@@ -296,16 +311,13 @@ def main():
     if verbose:
         print "set output format to " + outFormat
 
-    if argOptionList.none is not None:
-        outFormatNullString = argOptionList.none
     if argOptionList.test:
-        make_test()
-        sys.exit(0)
-    '''
-        Section for commands
-    '''
+        sys.exit("not yet implemented")
+
+    # Section for commands
+
     try:
-        selectcommand = re.compile("^\s*select .* from .*$",  re.IGNORECASE )
+        selectcommand = re.compile(r"^\s*select .* from .*$",  re.IGNORECASE )
         if len(argCommandList) > 0:
             if selectcommand.match(argCommandList[0]):
                 dbSQLString = argCommandList[0]
@@ -320,32 +332,44 @@ def main():
                 print "ERROR given command isnt a valid sql select statement"
                 sys.exit(-2)
     except Exception, e:
+        print "Exception: %s" % e
         print "ERROR by getting correct sql string" + str(e)
         sys.exit(-3)
     if verbose:
         print "set statement: " + str(dbSQLString)
-    '''
-        Section for execution
-    '''
+
+    # Section for execution
+
     try:
         dbConnectHandle = adodb.NewADOConnection(dbProfile["connecttype"])
         if dbProfile["connecttype"] == 'oci8':
-            dbConnectHandle.Connect(dbProfile["instance"], dbProfile["user"], dbProfile["password"])
+            dbConnectHandle.Connect(dbProfile["instance"],
+                                    dbProfile["user"],
+                                    dbProfile["password"])
             if verbose:
-                print "connect to " + dbProfile["connecttype"] + "://" + dbProfile["user"] + "@" + dbProfile["instance"]
+                print "connect to " + dbProfile["connecttype"] + \
+                      "://" + dbProfile["user"] + "@" + dbProfile["instance"]
         else:
-            dbConnectHandle.Connect(dbProfile["server"], dbProfile["user"], dbProfile["password"], dbProfile["instance"])
+            dbConnectHandle.Connect(dbProfile["server"], dbProfile["user"],
+                                    dbProfile["password"],
+                                    dbProfile["instance"])
             if verbose:
-                print "connect to " + dbProfile["connecttype"] + "://" + dbProfile["user"] + "@" + dbProfile["server"] + '/' + dbProfile["instance"]
-    except :
-        print "ERROR connect to " + dbProfile["connecttype"] + "://" + dbProfile["user"] + "@" + dbProfile["instance"] + " returns", sys.exc_info()[1]
+                print "connect to " + dbProfile["connecttype"] + "://" + \
+                       dbProfile["user"] + "@" + dbProfile["server"] + \
+                       '/' + dbProfile["instance"]
+    except Exception, e:
+        print "Exception: %s" % e
+        print "ERROR connect to " + dbProfile["connecttype"] + "://" + \
+              dbProfile["user"] + "@" + dbProfile["instance"] + \
+              " returns", sys.exc_info()[1]
         sys.exit(-1)
-    if (type(dbSQLString) == unicode):
+    if type(dbSQLString) == unicode:
         dbSQLString = str(dbSQLString)
     run = True
     try:
         dbSQLCursor = dbConnectHandle.Execute(dbSQLString)
     except Exception, e:
+        print "Exception: %s" % e
         run = False
         print "ERROR execute statement "+dbSQLString+" fails."
         if verbose:
@@ -355,26 +379,33 @@ def main():
         try:
             if dbSQLCursor is not None:
                 if verbose:
-                    print "fetching " + str(dbSQLCursor) + " as " + dbSQLString
+                    print "fetching " + str(dbSQLCursor) + " as " + \
+                          dbSQLString
                 dbSQLRecordInteger = 0
                 if header:
                     headers = []
                     for col in xrange(0,len(dbSQLCursor.fields)):
                         headers.append(dbSQLCursor.FetchField(col)[0])
                     if outnumbered:
-                        print 'T:',format_row (headers, outFormatList.get(outFormat))
+                        print 'T:',format_row(headers,
+                                              outFormatList.get(outFormat))
                         dbSQLRecordInteger += 1
                     else:
-                        print format_row (headers, outFormatList.get(outFormat))
+                        print format_row(headers,
+                                         outFormatList.get(outFormat))
                 while not dbSQLCursor.EOF:
                     if outnumbered:
-                        print dbSQLRecordInteger,':',format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
+                        print dbSQLRecordInteger,':',\
+                              format_row(dbSQLCursor.fields,
+                                         outFormatList.get(outFormat))
                         dbSQLRecordInteger += 1
                     else:
-                        print format_row (dbSQLCursor.fields, outFormatList.get(outFormat))
+                        print format_row(dbSQLCursor.fields,
+                                         outFormatList.get(outFormat))
                     dbSQLCursor.MoveNext()
                 dbSQLCursor.Close()
         except Exception, e:
+            print "Exception: %s" % e
             print "ERROR formatting and printing content fails."
             if verbose:
                 print "> "+str(e)
