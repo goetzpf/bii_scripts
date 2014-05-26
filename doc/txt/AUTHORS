@@ -3,17 +3,18 @@ The authors of the software in alphabetical order
 
 -----------------------------------------------------
 
-Benjamin Franksen <franksen@mail.bessy.de>
+Benjamin Franksen <benjamin.franksen@helmholtz-berlin.de>
 	bii_scripts in general
 
-Bernhard Kuner <kuner@mail.bessy.de>
+Bernhard Kuner <bernhard.kuner@helmholtz-berlin.de>
         grepDb.pl
         
-Patrick Laux <laux@mail.bessy.de>
+Victoria Laux <victoria.laux@helmholtz-berlin.de>
 	bii_scripts in general
 	browsedb.pl
+    db_request.py
 
-Goetz Pfeiffer <pfeiffer@mail.bessy.de>
+Goetz Pfeiffer <goetz.pfeiffer@helmholtz-berlin.de>
 	bii_scripts in general
  	browsedb.pl
 	pfind.pl 

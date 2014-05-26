@@ -519,6 +519,6 @@ is correctly set.
 
 =head1 AUTHOR
 
-Patrick Laux,  laux@bessy.de
+Victoria Laux,  victoria.laux@helmholtz-berlin.de
 
 =cut

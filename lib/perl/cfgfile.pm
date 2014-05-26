@@ -132,7 +132,7 @@ Creates
 
 =head1 AUTHOR
 
-Patrick Laux,  laux@mail.bessy.de
+Victoria Laux,  victoria.laux@helmholtz-berlin.de
 
 =head1 SEE ALSO
 

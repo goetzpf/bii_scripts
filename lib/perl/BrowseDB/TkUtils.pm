@@ -1127,8 +1127,8 @@ widget, but it does an "exit" when the box is closed.
 
 =head1 AUTHOR
 
-S<Goetz Pfeiffer E<lt>pfeiffer@mail.bessy.deE<gt>>, 
-S<Patrick Laux E<lt>laux@mail.bessy.deE<gt>>
+S<Goetz Pfeiffer E<lt>goetz.pfeiffer@helmholtz-berlin.deE<gt>>, 
+S<Victoria Laux E<lt>victoria.laux@helmholtz-berlin.deE<gt>>
 
 =head1 SEE ALSO
 

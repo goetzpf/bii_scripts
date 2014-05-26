@@ -102,7 +102,7 @@ $global_data{version} = "0.95";
 
 $global_data{about} =
       [ "written by Goetz Pfeiffer",
-        "updated and improved by Patrick Laux",
+        "updated and improved by Victoria Laux",
         "HZB GmbH, Berlin, Adlershof",
         "Comments/Suggestions, please mail to:",
         "pfeiffer\@mail.bessy.de",
