@@ -89,7 +89,7 @@ find_subdirs=$(subst $(1)/,,$(shell find $(1) -mindepth 1 -maxdepth $(2) -type d
 # given name pattern up to a given depth
 # use with:
 # $(call find_files,$(dir),$(glob-pattern),$(maxdepth))
-find_files=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)'))
+find_files=$(subst $(1)/,,$(shell find $(1) -maxdepth $(3) -type f -name '$(2)' -not -name '*~*'))
 
 # remove the extension on all from a list of files
 # use with:
