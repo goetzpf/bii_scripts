@@ -10,10 +10,11 @@ fi
 DISTDIR=/opt/IOC/idcp/dist
 VERSION=$1
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
+MYVERSION=`echo $VERSION | sed -e 's/://g'`
 
-echo -e "* creating directory $VERSION"
-mkdir $VERSION
-cd $VERSION >/dev/null
+echo -e "* creating directory $MYVERSION"
+mkdir $MYVERSION
+cd $MYVERSION >/dev/null
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
@@ -35,11 +36,13 @@ else
                 # old idcp_db directory
                 echo -e "* recovering idcp_db working directory..."
                 hg-recover.py -r -f ../hg-recover-idcp_db.tar.gz
-        else
+        fi 
+        if [ -e ../hg-recover-id_db.tar.gz ]
+        then
                 # the newer version, id_db
                 echo -e "* recovering id_db working directory..."
                 hg-recover.py -r -f ../hg-recover-id_db.tar.gz
         fi
         cd ../..
 fi
-echo -e "\nversion $VERSION was restored."
+echo -e "\nversion $VERSION was restored in directory $MYVERSION"
