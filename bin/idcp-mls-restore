@@ -31,6 +31,7 @@ else
         hg-recover.py -r -f hg-recover-idcp.tar.gz
         cd idcp* > /dev/null
         if [ -e ../hg-recover-idcp_db.tar.gz ]
+        then
                 # old idcp_db directory
                 echo -e "* recovering idcp_db working directory..."
                 hg-recover.py -r -f ../hg-recover-idcp_db.tar.gz
