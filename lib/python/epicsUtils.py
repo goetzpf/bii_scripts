@@ -461,7 +461,7 @@ class Panels(object):
 
     * EPICS Panel Group (Col. X):  The Group within a panel. Omit this will put all signals to a default group.
 
-      Each group will be shown with a text.edl widget as headline, also with GRID definition!
+      Each group will be shown with a hedline by a widget with the same name or text.edl, also with GRID definition!
 
     * EPICS Panel Sort/Grid (Col. Y):
 
@@ -486,7 +486,7 @@ class Panels(object):
             self.groups = []    # [groupName_1, groupName_2,...] to get the order of groups
             self.items  = {}    # self.items[groupName_n] = [item1, item2,...] the items of a group
             self.widgetPath = widgetPath
-#           print "PanelFile:",panelName,widgetPath
+#            print "PanelFile:",panelName,widgetPath
         def __str__(self):
             return "PanelGroup: '"+self.panelName+"'\nGROUPS:\n"+str(self.groups)+"\nITEMS:\n"+str(self.items)
         def __repr__(self):
@@ -565,11 +565,12 @@ class Panels(object):
 
 # Check if this group has a header widget take a text widget
                     if pGroup != "":
-                        groupWidget = itemList[0].widgetName
+#                        print "groupWidget =", pGroup
+			groupWidget = pGroup
                         if self.checkWidgetPath(groupWidget+"Header"):
-                            retStr += "file "+groupWidget+"Header.edl  {\n  {"+gridHead+"}\n}\n"
+                            retStr += "file "+groupWidget+"Header.template  {\n  {"+gridHead+"}\n}\n"
                         else:
-                            retStr += "file text.edl  {\n  { TEXT=\""+pGroup+"\",WIDTH=\"400\",COLOR=\"28\",TXTCOLOR=\"0\""+gridHead+"}\n}\n"
+                            retStr += "file text.template  {\n  { TEXT=\""+pGroup+"\",WIDTH=\"400\",COLOR=\"28\",TXTCOLOR=\"0\""+gridHead+"}\n}\n"
 
 # process each group
                 actualWidgetType = ""
@@ -582,17 +583,17 @@ class Panels(object):
 #                    print actualWidgetType,wType
 		    if actualWidgetType != wType:
 #                       print "TypeChange: ",actualWidgetType, "->", wType
-                        retStr += "file "+actualWidgetType+".edl {\n"+"\n".join(map(lambda x: str(x),wLst))+"\n}\n"
+                        retStr += "file "+actualWidgetType+".template {\n"+"\n".join(map(lambda x: str(x),wLst))+"\n}\n"
                         actualWidgetType = wType
                         wLst = []
                     wLst.append(item)
 #                   print actualWidgetType,wType,"\t",item.type,str(item)
                 if len(wLst)>0:
-                    retStr += "file "+actualWidgetType+".edl {\n"+"\n".join(map(lambda x: str(x),wLst))+"}\n"
+                    retStr += "file "+actualWidgetType+".template {\n"+"\n".join(map(lambda x: str(x),wLst))+"}\n"
 
                 retStr+"}\n"
                 if groupWidget and self.checkWidgetPath(groupWidget+"Footer"):
-                    retStr += "file "+groupWidget+"Footer.edl  {\n  {}\n}\n"
+                    retStr += "file "+groupWidget+"Footer.template  {\n  {}\n}\n"
             return retStr
 
     class PanelWidget(object):
