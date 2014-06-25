@@ -471,7 +471,7 @@ class Panels(object):
       - (GRID="x,y") or (GRID="x,y",SPAN="n"or (XY="n,m"): Just pass the parameter to the panel.substitutions file
         to be interpreted by CreatePanel.pl
         ATTENTION: the Groupname will get the Y position of Ymin-1, so there has to be a free gap of 1 line in grid-Y numbering!
-
+      - SORT=n|otherParameters|...: Sort by number, but pass other arguments to the panel
 
     """
     class PanelFile(object):
@@ -622,21 +622,28 @@ class Panels(object):
             if sort == None or len(sort) == 0:
                 self.isSort = "SORT_BY_BDNS"
             else:
-                Sort = parseParam(sort)
-                if isinstance(Sort,str):
-                    int(Sort)
+                sortParam = parseParam(sort)
+                if isinstance(sortParam,str):
+                    int(sortParam)
                     self.isSort = "SORT_BY_NUMBER"
-                elif isinstance(Sort,dict):
-                    if Sort.has_key('GRID'):
+                elif isinstance(sortParam,dict):
+		    if sortParam.has_key('WIDGET'):
+                        self.widgetName = sortParam['WIDGET']
+			del(sortParam['WIDGET'])
+                    if sortParam.has_key('GRID'):
                         self.isSort = "SORT_BY_GRID"
-                        xy = Sort['GRID']
+                        xy = sortParam['GRID']
                         (self.xPos,self.yPos)=xy.split(',')
                         if self.xPos is not None and self.yPos is not None:
-                            self.data.update(parseParam(sort))
+                            self.data.update(sortParam)
                         else:
                             raise ValueError, "No valid grid sort parameter: "+sort
-                    if Sort.has_key('WIDGET'):
-                        self.widgetName = Sort['WIDGET']
+                    elif sortParam.has_key('SORT'):
+		    	self.isSort = "SORT_BY_NUMBER"
+			self.sort = sortParam['SORT']
+                    	del(sortParam['SORT'])
+			self.data.update(sortParam)
+			print self.isSort, self.sort, self.widgetName, self.data
                 else:
                     raise ValueError, "PanelWidget.__init(): Not a valid sort parameter: "+sort
 

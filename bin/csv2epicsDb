@@ -25,6 +25,8 @@
 -v --verbose:    print debug information 
    --devobj:     Optional device object module to convert data from another spreadsheet format to program variables
 -b --base:  	 EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
+
+See http://help.bessy.de/apps/common/csv2epicsDb
 """
 
 from optparse import OptionParser
