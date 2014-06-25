@@ -30,8 +30,6 @@
 from optparse import OptionParser
 import sys
 import os
-import re
-import math
 import csv
 import os.path
 import epicsUtils
