@@ -33,11 +33,14 @@ import os
 import re
 import math
 import csv
-import BDNS
 import os.path
-import pyparsing as pp
 import listOfDict as lod
 import pprint
+try:
+    import BDNS
+    BDNS_EXIST = 1 	
+except ImportError, e:
+    BDNS_EXIST = None
 
 def die(errMsg,line=None):
     """
@@ -115,83 +118,6 @@ def substituteVariables(sString,substDict):
     for name in substDict.keys():
 	sString = sString.replace(r"$("+name+")",str(substDict[name]))
     return sString
-
-def parseStCmd(stCmdLine):
-    """
-    Parse a st.cmd file by line. Return array ofthe command and the parsed parameters
-
-    * Example:
-
-    for line in IN_FILE:
-        parsedLine = epicsUtils.parseStCmd(line)
-        if len(parsedLine)<1: continue
-        cmd = parsedLine[0]
-        if cmd == "epicsEnvSet":
-            envDict[parsedLine[1]]=parsedLine[2]
-        if cmd == "putenv":
-            (name,value)=parsedLine[1].split("=")
-            envDict[name]=value
-        if cmd == "dbLoadDatabase":
-            dbdFile += substituteVariables(substRe(parsedLine[1],"dbd/",""),envDict)
-        if cmd == "dbLoadRecords":
-            dbFile = substituteVariables(substRe(parsedLine[1],"db/",""),envDict)
-    """
-    cmd     = pp.Word(pp.alphanums)
-    qString = pp.dblQuotedString.setParseAction(pp.removeQuotes) # double quoted String, quotes removed
-    function =pp.Word(pp.alphanums)+pp.Suppress(pp.Word("("))+pp.Optional(pp.delimitedList(pp.Word(pp.alphanums),","))+ pp.Suppress(pp.Word(")"))
-    function.setName("function")
-    arg     = qString | function | pp.Word(pp.alphanums+"-_|<>/.${}=><")
-    argGrp  = pp.delimitedList(arg,",")
-    command = (cmd + pp.Suppress("(")+ argGrp + pp.Suppress(")")) | \
-              (cmd + argGrp) | \
-              (cmd + pp.OneOrMore(arg) )| \
-              pp.Empty()
-    comment = pp.Suppress(pp.pythonStyleComment)
-    line =  comment | (command + pp.Optional(comment))
-    return line.parseString(stCmdLine)
-
-def parseDb(content):
-    """
-    Parse an EPICS.db file.
-
-    Return a list of EPICS record dictionaries. Each record dict contains the EPICS-field
-    and value pairs and additional keys for:
-
-    - recordname
-    - alias
-    - RTYP
-    - info {INFOKEY:INFOVALUE,}
-    """
-    recordName= pp.ZeroOrMore(pp.Suppress(pp.Word('"')))+pp.Word(pp.alphanums+"_-+:[]<>;$()")+pp.ZeroOrMore(pp.Suppress(pp.Word('"')))
-    qString   = pp.dblQuotedString.setParseAction(pp.removeQuotes) # double quoted String, quotes removed
-
-    comment  = pp.Suppress(pp.pythonStyleComment)
-    alias    = pp.Group(pp.Keyword("alias") + pp.Suppress(pp.Word("(")) + recordName +  pp.Suppress(pp.Word(",")) + recordName+ pp.Suppress(pp.Word(")")) )
-    field    = pp.Group((pp.Keyword("field")^pp.Keyword("info")) + pp.Suppress(pp.Word("(")) + pp.Word(pp.alphanums) + pp.Suppress(pp.Word(",")) + qString + pp.Suppress(pp.Word(")")) + pp.ZeroOrMore(comment) ^\
-        pp.Keyword("alias") + pp.Suppress(pp.Word("(")) + recordName +  pp.Suppress(pp.Word(")")) + pp.ZeroOrMore(comment)\
-        )
-    record   = pp.Group(pp.Keyword("record") + pp.Suppress(pp.Word("(")) + pp.Word(pp.alphanums) + pp.Suppress(pp.Word(",")) + recordName + pp.Suppress(pp.Word(")")) + pp.ZeroOrMore(comment) +\
-                pp.Suppress(pp.Word("{")) + pp.ZeroOrMore(comment) + pp.Group(pp.ZeroOrMore(field)) + pp.Suppress(pp.Word("}")) )
-    epicsDb  = pp.OneOrMore(comment ^ alias ^ record)
-
-    recordList = []
-    for pGroup in epicsDb.parseString(content):
-#        print "pGroup:",pGroup
-        if pGroup[0] == 'record':
-            rec = {'RTYP':pGroup[1],'recordname':pGroup[2]}
-            if len(pGroup) <= 3:
-                    continue
-            for fields in pGroup[3]:
-                if fields[0] == 'field':     # ['field','fieldType','fieldValue']
-                    rec[fields[1]]=fields[2]
-                if fields[0] == 'alias':
-                    rec['alias'] = fields[1]
-                if fields[0] == 'info':
-                    if not rec.has_key('info'):
-                        rec['info'] = {}
-                    rec['info'][fields[1]] = fields[2]
-            recordList.append(rec)
-    return recordList
 
 def printDb(recList, printMode = "TABLE"):
     """ Print a list of record dictionaries, pritmodes: 'TABLEW'
@@ -553,10 +479,12 @@ class Panels(object):
         Store all informations to hold a panel group
         """
         def __init__(self,panelName,widgetPath) :
+            self.order = None
+	    if BDNS_EXIST:
+            	self.order = BDNS.mkOrder("MEMBER,DOMAIN,SUBDOMNUMBER,INDEX,SUBINDEX")
             self.panelName = panelName    # panel name
             self.groups = []    # [groupName_1, groupName_2,...] to get the order of groups
             self.items  = {}    # self.items[groupName_n] = [item1, item2,...] the items of a group
-            self.order = BDNS.mkOrder("MEMBER,DOMAIN,SUBDOMNUMBER,INDEX,SUBINDEX")
             self.widgetPath = widgetPath
 #           print "PanelFile:",panelName,widgetPath
         def __str__(self):
@@ -596,7 +524,7 @@ class Panels(object):
             retStr = "" # hold the substitutions string
 
             def cmpWidget(a,b): return a.cmpWidget(b)
-#           print "Panels.PanelFile.toSubst() of Groups:",self.groups,"\nItems:",self.items
+#            print "Panels.PanelFile.toSubst() of Groups:",self.groups,"\nItems:",self.items
             groupList = self.groups
             # first take the default group signals
             try:
@@ -729,7 +657,11 @@ class Panels(object):
                 except ValueError:
                     return cmp(self.sort,pw.sort)
             elif self.isSort == "SORT_BY_BDNS" and pw.isSort == "SORT_BY_BDNS":
-                return BDNS.cmpNamesBy(self.devn.values()[0],pw.devn.values()[0],self.bdnsOrder)
+                if  BDNS_EXIST : 	    	    	    	    	    # BDNS sort by device name
+		    return BDNS.cmpNamesBy(self.devn.values()[0],pw.devn.values()[0],self.bdnsOrder)
+		else:
+		    return cmp(self.devn.values()[0],pw.devn.values()[0])   # lexical sort by device name
+		return 
             elif self.isSort == "SORT_BY_GRID" and pw.isSort == "SORT_BY_GRID":
                 if self.yPos == pw.yPos:
                     return cmp(self.xPos,pw.xPos)
