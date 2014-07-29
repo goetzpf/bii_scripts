@@ -317,6 +317,7 @@ PLAINTXT_H_SCRIPT_LIST= \
 	dbdiff \
 	darcs-compare-repos \
 	darcs-kompare \
+	darcs-meld \
 	hg-compare-repos \
 	idcp-dist-info \
 	idcp-restore \

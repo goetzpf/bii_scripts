@@ -1,2 +1,34 @@
 #!/bin/sh
-echo | darcs diff --diff-command="meld %1 %2" "$@" > /dev/null 2>& 1 &
+
+ME=`basename "$0"`
+VIEWER="meld"
+
+if [ "$1" = "-h" -o "$1" = "--help" ]; then
+    echo "$ME : use '$VIEWER' to show patches and diffs for darcs repos"
+    echo "usage:"
+    echo "    $ME [options]"
+    echo
+    echo "examples:"
+    echo "    $ME"
+    echo "        -> show unrecorded changes"
+    echo "    $ME --patch PATCH"
+    echo "        -> show changes of patch PATCH"
+    echo "    $ME --from-patch FROM-PATCH --to-patch TO-PATCH"
+    echo "        -> show changes from 'FROM-PATCH' to 'TO-PATCH'"
+    echo "Handling of options:"
+    echo "    All options of $ME are given to the 'darcs diff' command"
+    echo "    so you can use all valid darcs options."
+    echo "Patch specifications:"
+    echo "    'PATCH', 'FROM-PATCH' and 'TO-PATCH' are *patch specifications*"
+    echo "    They ary usually the first line of the patch comment without"
+    echo "    the leading '  * ' and enclosed in single quotes."
+    echo "Special characters in patch specifications:"
+    echo "    Since a *patch specification* is a *regular expression*,"
+    echo "    all characters that have special meanings in regular expressions"
+    echo "    should be preceeded by a backslash '\\' if they are to be"
+    echo "    interpreted literally. This is for example the case for"
+    echo "    these characters:   *()[]"
+    exit 1
+fi
+
+echo | darcs diff --diff-command="$VIEWER %1 %2" "$@" > /dev/null &

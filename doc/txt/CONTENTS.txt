@@ -166,6 +166,11 @@ Scripts
     file.
   | `documentation <scripts/darcs-kompare.html>`__
 
+**darcs-meld**
+  | start KDE meld to compare the working copy with the repository copy of a
+    file.
+  | `documentation <scripts/darcs-meld.html>`__
+
 **darcs-moni**
   | small wrapper around darcs-monitor
 
