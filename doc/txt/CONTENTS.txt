@@ -163,7 +163,8 @@ Scripts
 
 **darcs-kompare**
   | start KDE kompare to compare the working copy with the repository copy of a
-    file
+    file.
+  | `documentation <scripts/darcs-kompare.html>`__
 
 **darcs-moni**
   | small wrapper around darcs-monitor
