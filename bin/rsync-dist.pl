@@ -2023,11 +2023,12 @@ sub get_last_log_entries
             
             my $hosts= $entry->{REMOTEHOSTS};
             my $path = $entry->{REMOTEPATH};
+            my $cwd = $entry->{LOCALCWD};
             $hosts=~ s/^\s*(\S+)\s*$/$1/; 
             # use a sorted list of hosts:
             $hosts= join(",",sort(split(",",$hosts)));
             $path =~ s/^\s*(\S+)\s*$/$1/; 
-            $h{join("|",$action,$path,$hosts)}= $entry;
+            $h{join("|",$action,$path,$hosts,$cwd)}= $entry;
           }; 
         # by the following lines we can collect
         # "similar actions" under a single action-label
@@ -2074,7 +2075,7 @@ sub last_ver
         $path =~ s/^\s*(\S+)\s*$/$1/; 
         # remove a trailing slash in the path:
         $path =~ s/\/$//;
-        $key= join("|","distribute",$path,$hosts);
+        $key= join("|","distribute",$path,$hosts,cwd());
       };
 
     return($gbl_last_locallog_entries->{$key}->{VERSION});
