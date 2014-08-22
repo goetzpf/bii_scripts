@@ -346,11 +346,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
 	    else:
 		prec = 0
 	    
-	    hyst = hopr / hraw * 0.99	    	# Setup per default to 1% of range, may be overwritten in Col. N
 	    field['PREC'] = prec
-	    field['HYST'] = hyst
-	    field['ADEL'] = hyst
-	    field['MDEL'] = hyst
 	else:
       	    raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
 #    if lines is None: print field
@@ -395,7 +391,7 @@ def createAnalogRecord(devName,fields,devObj,warnings,fileName,lines):
 #    print "createAnalogRecord",devObj.rtype,devName,devObj.signal,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr
     fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
     (f,dtype) = createLimits(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr)
-    f.update(fields)	# additional parameters should override calculated values for PREC, MDEL, ADEL, HYST
+    f.update(fields)	# additional parameters should override calculated values for PREC
     epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f)
     
 def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
