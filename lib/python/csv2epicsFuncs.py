@@ -109,7 +109,23 @@ class csvData(object):
 	except IndexError: self.rangeAlhSevr = ""
 	try: self.DESC       = device[12].strip() # M  BESSY Description
 	except IndexError: self.DESC = ""
-	self.DESC = self.DESC.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
+
+        # conversion to ISO for edm:
+        # for decoding an encoding we catch the UnicodeEncodeError exception
+        # and re-raise an exception that prints the string that caused the
+        # problem:
+        try:
+            decoded = self.DESC.decode("UTF-8")
+        except UnicodeEncodeError,e:
+            raise ValueError("%s, string before UTF8 decode: %s" % \
+                             (str(e),repr(self.DESC)))
+        try:
+            self.DESC = decoded.encode("ISO-8859-1")
+        except UnicodeEncodeError,e:
+            raise ValueError("%s, string before UTF-8 decode: %s, string "
+                             "after UTF-8 decode: %s" % \
+                             (str(e),repr(self.DESC),repr(decoded)))
+
 	try: self.prec       = device[13].strip() # N  BESSY Prec
 	except IndexError: self.prec = ""
 	try: self.archPeriod = device[14].strip() # O  BESSY Arch
