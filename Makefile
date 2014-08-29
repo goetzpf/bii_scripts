@@ -353,7 +353,8 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	set_ioc_tsrv.pl \
 	subst2exp.pl \
 	substprint.pl \
-	vdb_repo_diff.pl
+	vdb_repo_diff.pl\
+	xls2csv.pl 
 
 # scripts with no embedded documentation
 # create online help by executing "(script.pl -h 2>&1; true)

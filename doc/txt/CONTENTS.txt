@@ -498,6 +498,10 @@ Scripts
 **vdct**
   | starts the VisualDCT database editor.   
 
+**xls2csv**
+  | A small wrapper around the xls2csv utility that provides better error
+    handling.
+
 --------------
 Perl Libraries
 --------------
