@@ -536,7 +536,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
 			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
 	epicsUtils.epicsTemplate('stringin', {'DEVN':devName},{'SNAME':devObj.signal,
         		      'SIML': pvName+"Raw.SIMM NPP MS",
-			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+			      'SDIS':fields['SDIS'],'DISS':fields['DISS'],'DESC':fields['DESC']})
 
 def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     """ Is an EPICS record in: ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout'] ?
