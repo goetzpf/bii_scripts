@@ -1183,114 +1183,114 @@ def main():
                       help= "convert archiver data format to camonitor format",
                       )
 
-    parser.add_option("-t", "--test",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("-t", "--test",
+                      action="store_true",
                       help="perform simple self-test",
                       )
-    parser.add_option("--raw",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("--raw",
+                      action="store_true",
                       help="print the HashedList2D object, for debugging only!",
                       )
 
-    parser.add_option("-r", "--rjust",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("-r", "--rjust",
+                      action="store_true",
                       help="justify values to the right side",
                       )
-    parser.add_option("-c", "--columnformat",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("-c", "--columnformat",
+                      action="store",
+                      type="string",
                       help="format columns with the given FORMAT. A FORMAT is "+\
                            "a space separated list of format substrings that use "+\
                            "the same conventions as C format strings. If only a single "+\
                            "format is given, this is applied to all columns. If floattime "+\
                            "is used, the same format is also applied to the timestamp field.",
-                      metavar="FORMAT"  # for help-generation text
+                      metavar="FORMAT"
                       )
-    parser.add_option("-s", "--separator",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("-s", "--separator",
+                      action="store",
+                      type="string",
                       help="specify the SEPARATOR that separates columns of the table, "+\
                            "\" \" is the default.",
-                      metavar="SEPARATOR"  # for help-generation text
+                      metavar="SEPARATOR"
                       )
-    parser.add_option("--csv",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("--csv",
+                      action="store_true",
                       help="create comma separated list with SEPARATOR (see --separator) "+\
                            "as separator character",
                       )
-    parser.add_option("--floattime",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("--floattime",
+                      action="store",
+                      type="string",
                       help="convert timestamps to floating point seconds, "+\
                            "where 0 corresponds to START. If START has the "+\
                            "special value \"FIRST\", the first timestamp is "+\
                            "taken as START time.",
-                      metavar="START"  # for help-generation text
+                      metavar="START"
                       )
-    parser.add_option("--from-time",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("--from-time",
+                      action="store",
+                      type="string",
                       help="use only data newer or equal than TIMESTAMP",
-                      metavar="TIMESTAMP"  # for help-generation text
+                      metavar="TIMESTAMP"
                       )
-    parser.add_option("--to-time",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("--to-time",
+                      action="store",
+                      type="string",
                       help="use only data older or equal than TIMESTAMP",
-                      metavar="TIMESTAMP"  # for help-generation text
+                      metavar="TIMESTAMP"
                       )
-    parser.add_option("--max-lines",     # implies dest="switch"
-                      action="store", # default: None
-                      type="int",  # OptionParser's default
+    parser.add_option("--max-lines",
+                      action="store",
+                      type="int",
                       help="stop after MAX lines have been fetched. This is "+\
                            "for checking a command line with a very large file.",
-                      metavar="MAX"  # for help-generation text
+                      metavar="MAX"
                       )
-    parser.add_option("--filter-pv",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("--filter-pv",
+                      action="store",
+                      type="string",
                       help="select only PVs that match REGEXP",
-                      metavar="REGEXP"  # for help-generation text
+                      metavar="REGEXP"
                       )
-    parser.add_option("--filter-complete",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("--filter-complete",
+                      action="store_true",
                       help="select only rows where each column has a value",
                       )
-    parser.add_option("--skip-flagged",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("--skip-flagged",
+                      action="store",
+                      type="string",
                       help="skip values where flags match REGEXP",
-                      metavar="REGEXP"  # for help-generation text
+                      metavar="REGEXP"
                       )
-    parser.add_option("--rm-flags",     # implies dest="switch"
-                      action="store", # default: None
-                      type="string",  # OptionParser's default
+    parser.add_option("--rm-flags",
+                      action="store",
+                      type="string",
                       help="replace all flags that match REGEXP with an"+\
                            "empty string. If the value is \"all\" or \"ALL\","+\
                            "remove all flags",
-                      metavar="REGEXP"  # for help-generation text
+                      metavar="REGEXP"
                       )
-    parser.add_option("--differentiate",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("--differentiate",
+                      action="store_true",
                       help="do a simple differentiation",
                       )
-    parser.add_option("--fill",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("--fill",
+                      action="store_true",
                       help="fill empty fields with values from the row above",
                       )
-    parser.add_option("--progress",     # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("--progress",
+                      action="store_true",
                       help="show progress on stderr",
                       )
 
-    parser.add_option("-f", "--file", # implies dest="file"
-                      action="store", # OptionParser's default
-                      type="string",  # OptionParser's default
+    parser.add_option("-f", "--file",
+                      action="store",
+                      type="string",
                       help="specify the FILE",
-                      metavar="FILE"  # for help-generation text
+                      metavar="FILE"
                       )
-    parser.add_option( "--doc",            # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option( "--doc",
+                      action="store_true",
                       help="create online help in restructured text"
                            "format. Use \"./txtcleanup.py --doc | rst2html\" "
                            "to create html-help"
