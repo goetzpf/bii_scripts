@@ -285,45 +285,6 @@ sub linkset_hash
     return(\%set);
   }
 
-sub linkset_list
-# returns a set of all records that are directly and indirectly 
-# connected to this record
-# returns a sorted list
-  { my($recs, $recname, $maxlvl)= @_;
-
-    error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
-    my %seen;
-    my %set;
-    r_linkset(0, 0, $maxlvl, \%set, \%seen, $recs, $recname);
-    my @list= sort keys %set;
-    return(\@list);
-  }
-
-sub linkset_filter_level
-  { my($r_linkset, $maxlevel)= @_;
-    my %new;
-
-    error(__LINE__,"1st param must be a hash ref") 
-      if (ref($r_linkset) ne 'HASH');
-    foreach my $k (keys %$r_linkset)
-      { my($lvl,$cnt)= split(/:/,$r_linkset->{$k});
-        next if ($lvl>$maxlevel);
-	$new{$k}= $r_linkset->{$k};
-      };
-    return(\%new);
-  }
-
-sub linkset_sorted_keys
-  { my($r_linkset)= @_;
-
-    error(__LINE__,"1st param must be a hash ref") 
-      if (ref($r_linkset) ne 'HASH');
-    my @l= sort { $r_linkset->{$a} cmp $r_linkset->{$b} } (keys %$r_linkset);
-    return(\@l);
-    #foreach my $k (@l)
-    #  { print "$k => ",$r_linkset->{$k},"\n"; };
-  }
-
 sub rem_capfast_defaults
   { my($recs)= @_;
 
@@ -490,14 +451,6 @@ In this example RECOORD_START is the record itself (level0),
 RECORDA has a distance of 1 (level 1) and is the third within
 that level, RECORDB has a distance of 2 (level 2) and is the
 fourth within that level.
-
-B<linkset_list()>
-
-  my $r_h= linkset_hash($records,$my_recname,$maxlevel)
-
-This function returns a hash-reference containing all records
-that are related to the given record. $maxlevel (optional)
-is the maxmum allowed distance.
 
 B<rem_capfast_defaults()>
 
