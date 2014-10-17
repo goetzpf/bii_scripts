@@ -1,5 +1,8 @@
 #! /usr/bin/env python
-# -*- coding: UTF-8 -*- 
+# -*- coding: UTF-8 -*-
+
+# pylint: disable=C0301
+#                          Line too long
 """
 ===================
  camonitor2table.py
@@ -13,24 +16,24 @@ Overview
 Camonitor, when used with more than one process variable, prints each new value
 in a new line. Here is an example::
 
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:04.022486 0 
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:04.022486 -3491 
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.022486 329 
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.022486 -4577 
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.122486 -7045 
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.122486 1111 
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.222486 1470 
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.222486 -8137 
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.322486 1459 
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.322486 -8121 
+  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:04.022486 0
+  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:04.022486 -3491
+  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.022486 329
+  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.022486 -4577
+  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.122486 -7045
+  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.122486 1111
+  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.222486 1470
+  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.222486 -8137
+  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.322486 1459
+  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.322486 -8121
 
 
-Comparing several variables at the same time is sometimes made
-difficult by this. A table-like format would be better in this case. This
-program does just this, it creates a simple table from the output of a
-camonitor command that can for example be used for gnuplot. Here is an example of such a table::
+Comparing several variables at the same time is sometimes made difficult by
+this. A table-like format would be better in this case. This program does just
+this, it creates a simple table from the output of a camonitor command that can
+for example be used for gnuplot. Here is an example of such a table::
 
-  Timestamp                  U3IV:AdiUn9PmsPosI U3IV:AdiUn14PmsPosI 
+  Timestamp                  U3IV:AdiUn9PmsPosI U3IV:AdiUn14PmsPosI
   2011-01-25 14:22:04.022486 0                  -3491
   2011-01-25 14:22:15.022486 329                -4577
   2011-01-25 14:22:15.122486 1111               -7045
@@ -42,14 +45,14 @@ Examples
 
 * convert a file to a table::
 
-    camonitor2table.py -f myfile 
+    camonitor2table.py -f myfile
 
     Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:04.022486 -3491               0                 
-    2011-01-25 14:22:15.022486 -4577               329               
-    2011-01-25 14:22:15.122486 -7045               1111              
-    2011-01-25 14:22:15.222486 -8137               1470              
-    2011-01-25 14:22:15.322486 -8121               1459       
+    2011-01-25 14:22:04.022486 -3491               0
+    2011-01-25 14:22:15.022486 -4577               329
+    2011-01-25 14:22:15.122486 -7045               1111
+    2011-01-25 14:22:15.222486 -8137               1470
+    2011-01-25 14:22:15.322486 -8121               1459
 
 * convert a file, floating point format for each column, right justified::
 
@@ -62,7 +65,8 @@ Examples
     2011-01-25 14:22:15.222486        -8137.000000        1470.000000
     2011-01-25 14:22:15.322486        -8121.000000        1459.000000
 
-* convert a file, floating point format for each column, right justified, floattime::
+* convert a file, floating point format for each column, right justified,
+  floattime::
 
     camonitor2table.py -f myfile -c '%f' --rjust --floattime first
 
@@ -73,7 +77,8 @@ Examples
                      11.200000        -8137.000000        1470.000000
                      11.300000        -8121.000000        1459.000000
 
-* convert a file, a different format for each column, right justified, floattime::
+* convert a file, a different format for each column, right justified,
+  floattime::
 
     camonitor2table.py -f myfile -c '%.6f %.2f %d' --rjust --floattime first
 
@@ -84,7 +89,8 @@ Examples
                      11.200000            -8137.00               1470
                      11.300000            -8121.00               1459
 
-* convert a file, floating point format for each column, right justified, floattime, differentiate::
+* convert a file, floating point format for each column, right justified,
+  floattime, differentiate::
 
     camonitor2table.py -f myfile -c '%.2f' --rjust --floattime first --differentiate
 
@@ -95,7 +101,8 @@ Examples
                          11.20           -10920.00            3590.00
                          11.30              160.00            -110.00
 
-* convert a file, floating point format for each column, right justified, separator::
+* convert a file, floating point format for each column, right justified,
+  separator::
 
     camonitor2table.py -f myfile -c '%f' --rjust --separator "|"
 
@@ -200,12 +207,18 @@ Reference of command line options
   read the data from FILE. If this parameter is missing, read from stdin.
 """
 
+# pylint: enable=C0301
+#                          Line too long
+# pylint: disable=C0103
+#                          Invalid constant name
+
 from optparse import OptionParser
 #import string
 import sys
 import re
 import time  # actually only needed for Python Version < 2.7
 import datetime
+import os.path
 
 # version of the program:
 my_version= "1.0"
@@ -217,29 +230,32 @@ _last_str2date_obj= None
 # unfortunately our development server has only python 2.5 as
 # newest version:
 
-def strptime_p25(st_,format):
+def strptime_p25(st_,format_):
     """simulate datetime.datetime.strptime.
     """
-    if not format.endswith(".%f"):
-        return datetime.datetime.strptime(st_,format)
+    if not format_.endswith(".%f"):
+        return datetime.datetime.strptime(st_,format_)
     p= st_.find(".")
-    tp= time.strptime(st_[0:p],format[0:-3])
+    tp= time.strptime(st_[0:p],format_[0:-3])
     if p==-1:
-        raise ValueError, "date has wrong format: \"%s\"" % st_
+        raise ValueError("date has wrong format_: \"%s\"" % st_)
     frac= int(st_[p+1:])
     date= datetime.datetime(tp[0],tp[1],tp[2],tp[3],tp[4],tp[5],frac)
     return date
 
-def strftime_p25(date,format):
+def strftime_p25(date,format_):
     """simulate datetime.datetime.strptime.
     """
-    if not format.endswith(".%f"):
-        return date.strftime(format)
-    return date.strftime(format[0:-3]) + (".%06d" % date.microsecond)
+    if not format_.endswith(".%f"):
+        return date.strftime(format_)
+    return date.strftime(format_[0:-3]) + (".%06d" % date.microsecond)
 
-def strftime(date,format):
-    """returns date.strftime(format)."""
-    return date.strftime(format)
+def strftime(date,format_):
+    """returns date.strftime(format_)."""
+    return date.strftime(format_)
+
+# pylint: disable=C0301
+#                          Line too long
 
 def time_total_seconds_25(td):
     """return the total seconds in a timedelta object for python 2.5.
@@ -261,6 +277,9 @@ def time_total_seconds(td):
     """
     return td.total_seconds()
 
+# pylint: enable=C0301
+#                          Line too long
+
 if sys.version_info < (2,7):
     strptime_= strptime_p25
     total_seconds_= time_total_seconds_25
@@ -272,6 +291,9 @@ else:
 
 # date and time utilities
 # ----------------------------------------
+
+# pylint: disable=C0301
+#                          Line too long
 
 def str2date(st):
     """convert an ascii time to a datetime.datetime object.
@@ -320,19 +342,23 @@ def str2date(st):
     else:
         if len(st_)-i > 7:
             if not st_[i+7:].isdigit():
-                raise ValueError, "extra characters found: \"%s\"" % st_[i+7:]
+                raise ValueError("extra characters found: \"%s\"" % \
+                                 st_[i+7:])
         date= strptime_(st_[0:i+7],"%Y-%m-%d %H:%M:%S.%f")
     _last_str2date_str= st_
     _last_str2date_obj= date
     return date
 
+# pylint: enable=C0301
+#                          Line too long
+
 def str2date_ui(st):
     """do str2date but with better error handling."""
     if st is None:
         return None
-    try: 
+    try:
         d= str2date(st)
-    except ValueError,e:
+    except ValueError,_:
         sys.exit("error: \"%s\" is not a valid timestamp" % st)
     return d
 
@@ -340,7 +366,7 @@ def date2str(date):
     """convert a datetime.datetime object to ascii time.
 
     Here is an example:
-    >>> d= str2date("2011-01-25 14:22:20.822485") 
+    >>> d= str2date("2011-01-25 14:22:20.822485")
     >>> date2str(d)
     '2011-01-25 14:22:20.822485'
     """
@@ -365,7 +391,7 @@ def float_time(date, start_date):
     """
     return total_seconds_(date-start_date)
 
-# classes 
+# classes
 # ----------------------------------------
 
 class HashIndex(object):
@@ -401,12 +427,14 @@ class HashIndex(object):
     >>> h
     HashIndex(['A', 'C'])
     """
-    def __init__(self, iterable=[]):
+    def __init__(self, iterable=None):
         self._map= {}
         self._last= -1
-        for k in iterable:
-            self.index(k)
+        if iterable:
+            for k in iterable:
+                self.index(k)
     def index(self, key):
+        """Return an index or create one."""
         i= self._map.get(key)
         if i is None:
             i= self._last+1
@@ -414,21 +442,31 @@ class HashIndex(object):
             self._map[key]= i
         return i
     def delete(self, key):
+        """Delete an index."""
         del self._map[key]
     def relabel(self, old_key, new_key):
+        """Give a key a new name."""
         self._map[new_key]= self._map[old_key]
         del self._map[old_key]
     def last(self):
+        """Return the last index."""
         return self._last
     def keys(self):
+        """Return a sorted list of keys."""
         #return sorted(self._map.keys(), key= lambda x: self._map[x])
         return sorted(self._map.keys())
     def has_key(self, val):
+        """Test if a key is in the map."""
         return self._map.has_key(val)
     def __repr__(self):
+        """return "repr" string of the object."""
         return "HashIndex(%s)" % repr(self.keys())
     def __str__(self):
+        """return "repr" string of the object."""
         return repr(self)
+
+# pylint: disable=C0301
+#                          Line too long
 
 class HashedList(object):
     """gives access to elements of a list by a hash key.
@@ -473,13 +511,15 @@ class HashedList(object):
     >>> I
     HashIndex(['A'])
     """
-    def __init__(self, iterable=[], hashindex=None):
+    # pylint: enable=C0301
+    #                          Line too long
+    def __init__(self, iterable=None, hashindex=None):
         """The object constructor.
 
         Paremeters:
             iterable  -- an optional list of pairs (2-element tuples)
                          that is used to initialize the object
-            hashindex -- an optional external HashIndex object that is 
+            hashindex -- an optional external HashIndex object that is
                          used to manage the keys. If this is not given
                          an internal HashIndex object is created an used.
         """
@@ -487,9 +527,11 @@ class HashedList(object):
             hashindex= HashIndex()
         self._h_index= hashindex
         self._list= []
-        for (k,v) in iterable:
-            self.lookup(k,v)
+        if iterable:
+            for (k,v) in iterable:
+                self.lookup(k,v)
     def _index(self, key, value= None, constructor= None):
+        """Return or create the internal index."""
         i= self._h_index.index(key)
         if i<len(self._list):
             return i
@@ -502,23 +544,31 @@ class HashedList(object):
             self._list.append(constructor())
         return i
     def delete(self, key):
+        """Delete a key."""
         self._h_index.delete(key)
     def lookup(self, key, value= None, constructor= None):
+        """lookup a key."""
         return self._list[self._index(key, value, constructor)]
     def set(self, key, set_value, value= None, constructor= None):
+        """Set a value."""
         self._list[self._index(key, value, constructor)]= set_value
     def relabel(self, old_key, new_key):
+        """Change the name of a key."""
         self._h_index.relabel(old_key, new_key)
     def keys(self):
+        """Return all the keys."""
         return self._h_index.keys()
     def has_key(self, val):
+        """Test if a key is known to the object."""
         return self._h_index.has_key(val)
     def __repr__(self):
+        """return "repr" string of the object."""
         l= []
         for k in self.keys():
             l.append((k, self.lookup(k)))
         return "HashedList(%s)" % repr(l)
     def __str__(self):
+        """return "repr" string of the object."""
         return repr(self)
 
 class HashedList2D(object):
@@ -565,28 +615,35 @@ class HashedList2D(object):
         self._rows= HashedList()
         self._column_hashindex= HashIndex()
     def delete_row(self, row):
+        """Delete a row."""
         self._rows.delete(row)
     def lookup(self, row, column, value= None, constructor= None):
+        """Lookup or create a value."""
         val= self._rows.lookup(row, constructor=lambda: HashedList(hashindex= self._column_hashindex))
         return val.lookup(column, value= value, constructor= constructor)
     def set(self, row, column, set_value, value= None, constructor= None):
+        """Set a value."""
+        # pylint: disable=R0913
+        #                          Too many arguments
         val= self._rows.lookup(row, constructor=lambda: HashedList(hashindex= self._column_hashindex))
         return val.set(column, set_value= set_value, value= value, constructor= constructor)
     def rows(self):
+        """Return number of rows."""
         return self._rows.keys()
     def columns(self):
+        """Return number of columns."""
         return self._column_hashindex.keys()
     def has_row(self, val):
+        """Test if a row is known to the object."""
         return self._rows.has_key(val)
     def has_column(self, val):
+        """Test if a column is known to the object."""
         return self._column_hashindex.has_key(val)
     def relabel_row(self, old_row, new_row):
-        """replace old_row with new_row.
-        """
+        """Give a row a new name."""
         self._rows.relabel(old_row, new_row)
     def fill_incomplete(self, is_empty_func=None):
-        """fills empty cells with the value from the previous row.
-        """
+        """Fills empty cells with the value from the previous row."""
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
         last= None
@@ -598,7 +655,7 @@ class HashedList2D(object):
             for col in column_list:
                 if is_empty_func(self.lookup(row, col)):
                     # note that "[:]" is VERY important here, this copies
-                    # the whole list. Otherwise the resulting structure would 
+                    # the whole list. Otherwise the resulting structure would
                     # contain references to the SAME LIST at several places which
                     # would break the differentiate() function:
                     val= self.lookup(last,col)
@@ -607,8 +664,7 @@ class HashedList2D(object):
                     self.set(row, col, val)
             last= row
     def filter_complete(self, is_empty_func=None):
-        """removes rows where not all columns have a value.
-        """
+        """Removes rows where not all columns have a value."""
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
         row_list= self._rows.keys()
@@ -659,7 +715,7 @@ def parse_line(line):
                 the timestamp
         lst  -- the value list consisting of the value and optional flags
 
-    Note that "<undefined>" as a timestamp is converted to the date 
+    Note that "<undefined>" as a timestamp is converted to the date
     1970-01-01 00:00:00.
 
     Here are some examples:
@@ -683,7 +739,7 @@ def parse_line(line):
 # ----------------------------------------
 
 def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
-            filter_pv= None, 
+            filter_pv= None,
             skip_flagged= None, rm_flags= None,
             max_lines= None,
             progress=False):
@@ -696,7 +752,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
       hashedlist2d  -- the HashedList2D object that is used to store items. If
                        it is not given it is created.
       from_time     -- If this parameter is given, only items where the
-                       timestamp is equal or after that time are taken. 
+                       timestamp is equal or after that time are taken.
       to_time       -- If this parameter is given, only items where the
                        timestamp is before or equal that time are taken.
       filter_pv     -- If that parameter is given, only process variables that
@@ -715,13 +771,13 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
 
     Here is an example:
     >>> t='''
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.522486 -12078 
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.622486 2925 
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.622486 -12753 
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.722486 2915 
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.722486 -12741 
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.822486 3371 
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.822486 -14212 
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.522486 -12078
+    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.622486 2925
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.622486 -12753
+    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.722486 2915
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.722486 -12741
+    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.822486 3371
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.822486 -14212
     ... '''
     >>> results=collect(t.splitlines())
     >>> print results
@@ -734,6 +790,14 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
     (2011-01-25 14:22:15.822486,U3IV:AdiUn14PmsPosI) : ['-14212']
     (2011-01-25 14:22:15.822486,U3IV:AdiUn9PmsPosI) : ['3371']
     """
+    # pylint: disable=R0913
+    #                          Too many arguments
+    # pylint: disable=R0914
+    #                          Too many local variables
+    # pylint: disable=R0912
+    #                          Too many branches
+    # pylint: disable=R0915
+    #                          Too many statements
     if filter_pv is not None:
         filter_pv= re.compile(filter_pv)
     if skip_flagged is not None:
@@ -793,19 +857,22 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
         sys.stderr.write("\n")
     return h
 
-def pretty_print(hashedlist2d, columnformat=None, rjust=False, 
+# pylint: disable=C0303
+#                          Trailing whitespace
+
+def pretty_print(hashedlist2d, columnformat=None, rjust=False,
                  separator=" ", csv=False):
     """pretty print the results from collect().
 
     Here are some examples:
     >>> t='''
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.522486 -12078 
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.622486 2925 
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.622486 -12753 
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.722486 2915 
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.722486 -12741 
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.822486 3371 
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.822486 -14212 
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.522486 -12078
+    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.622486 2925
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.622486 -12753
+    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.722486 2915
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.722486 -12741
+    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.822486 3371
+    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.822486 -14212
     ... '''
     >>> results=collect(t.splitlines())
     >>> pretty_print(results)
@@ -851,7 +918,14 @@ def pretty_print(hashedlist2d, columnformat=None, rjust=False,
     2011-01-25 14:22:15.722486,-12741,2915
     2011-01-25 14:22:15.822486,-14212,3371
     """
+    # pylint: disable=R0914
+    #                          Too many local variables
+    # pylint: disable=R0912
+    #                          Too many branches
+    # pylint: disable=R0915
+    #                          Too many statements
     def tp(st,columnformat,converter):
+        """convert data."""
         if st is None:
             return ""
         lst= list(st)
@@ -859,6 +933,7 @@ def pretty_print(hashedlist2d, columnformat=None, rjust=False,
         lst[0]= columnformat % lst[0]
         return " ".join(lst)
     def pr(lst, st, index, rjust, csv):
+        """prepare to print by adding to a list."""
         if csv:
             lst.append(st.strip())
         elif not rjust:
@@ -878,12 +953,14 @@ def pretty_print(hashedlist2d, columnformat=None, rjust=False,
     converters=[]
     col0_str_format=None
     for f in columnformat:
+        # pylint: disable=W0108
+        #                          Unnecessary lambda
         try:
-            x= f % "x"
+            _= f % "x"
             converters.append(lambda x: str(x))
             if col0_str_format is None:
                 col0_str_format= True
-        except TypeError,e:
+        except TypeError,_:
             converters.append(lambda x: float(x))
             if col0_str_format is None:
                 col0_str_format= False
@@ -921,6 +998,8 @@ def pretty_print(hashedlist2d, columnformat=None, rjust=False,
             first= False
         print separator.join(lst)
 
+# pylint: enable=C0303
+#                          Trailing whitespace
 
 def convert_to_float_time(start_date, hashedlist2d):
     """convert all times in the HashedList2D object to float-time.
@@ -940,7 +1019,7 @@ def differentiate(hashedlist2d):
             return
         try:
             return float(val[0])
-        except ValueError, e:
+        except ValueError, _:
             return
 
     #print "hashedlist2d:", str(hashedlist2d)
@@ -976,7 +1055,7 @@ def differentiate(hashedlist2d):
             #hashedlist2d.set(r,columns[i], buf)
             last[i]= no
 
-def collect_from_file(filename_, hashedlist2d=None, 
+def collect_from_file(filename_, hashedlist2d=None,
                       from_time=None, to_time=None,
                       filter_pv= None,
                       skip_flagged= None,
@@ -984,12 +1063,14 @@ def collect_from_file(filename_, hashedlist2d=None,
                       max_lines= None,
                       progress= False):
     """process input from standard-in or from a file.
-    
+
     parameters:
       filename_      -- name of the file or None for STDIN
       results        -- dictionary where the results are stored
       process_func   -- function to process each file
     """
+    # pylint: disable=R0913
+    #                          Too many arguments
     if filename_ is None:
         in_file= sys.stdin
         sys.stderr.write("(read from stdin)\n")
@@ -1005,10 +1086,10 @@ def collect_from_file(filename_, hashedlist2d=None,
         raise
     in_file.close()
     return result
-    
+
 def process_files(options,args):
     """process all files given on the command line.
-    
+
     parameters:
       options      --  this may contain a "file" member with
                        the filename
@@ -1018,8 +1099,10 @@ def process_files(options,args):
     output:
       prints the sorted values to standard-out
     """
+    # pylint: disable=R0912
+    #                          Too many branches
     filelist= []
-    if (options.file is not None):
+    if options.file is not None:
         filelist=[options.file]
     if len(args)>0: # extra arguments
         filelist.extend(args)
@@ -1031,7 +1114,7 @@ def process_files(options,args):
     for f in filelist:
         collect_from_file(f, results,
                           from_time= from_time,
-                          to_time= to_time, 
+                          to_time= to_time,
                           filter_pv= options.filter_pv,
                           skip_flagged= options.skip_flagged,
                           rm_flags= options.rm_flags,
@@ -1062,13 +1145,13 @@ def process_files(options,args):
         columnformat= []
         if options.columnformat is not None:
             columnformat= options.columnformat.split()
-        pretty_print(results, columnformat, 
+        pretty_print(results, columnformat,
                      options.rjust, separator, options.csv)
 
 def script_shortname():
     """return the name of this script without a path component."""
     return os.path.basename(sys.argv[0])
-          
+
 def print_summary():
     """print a short summary of the scripts function."""
     print "%-20s: convert archiver data format to camonitor format\n" % script_shortname()
@@ -1086,10 +1169,10 @@ def _test():
 
 def main():
     """The main function.
-    
+
     parse the command-line options and perform the command
     """
-    
+
     # command-line options and command-line help:
     usage = "usage: %prog [options]"
     parser = OptionParser(usage=usage,
@@ -1102,16 +1185,16 @@ def main():
 
     parser.add_option("-t", "--test",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="perform simple self-test", 
+                      help="perform simple self-test",
                       )
     parser.add_option("--raw",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="print the HashedList2D object, for debugging only!", 
+                      help="print the HashedList2D object, for debugging only!",
                       )
 
     parser.add_option("-r", "--rjust",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="justify values to the right side", 
+                      help="justify values to the right side",
                       )
     parser.add_option("-c", "--columnformat",     # implies dest="switch"
                       action="store", # default: None
@@ -1189,21 +1272,21 @@ def main():
                       )
     parser.add_option("--differentiate",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="do a simple differentiation", 
+                      help="do a simple differentiation",
                       )
     parser.add_option("--fill",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="fill empty fields with values from the row above", 
+                      help="fill empty fields with values from the row above",
                       )
     parser.add_option("--progress",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="show progress on stderr", 
+                      help="show progress on stderr",
                       )
 
     parser.add_option("-f", "--file", # implies dest="file"
                       action="store", # OptionParser's default
                       type="string",  # OptionParser's default
-                      help="specify the FILE", 
+                      help="specify the FILE",
                       metavar="FILE"  # for help-generation text
                       )
     parser.add_option( "--doc",            # implies dest="switch"
