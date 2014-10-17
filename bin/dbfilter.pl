@@ -64,6 +64,7 @@ use vars qw($opt_help $opt_summary
             $opt_rm_capfast_defaults
             $opt_skip_empty_records
             $opt_list
+            $opt_dot
             $opt_percent
             $opt_unresolved_variables
             $opt_unresolved_links
@@ -149,6 +150,7 @@ if (!GetOptions("help|h","summary",
                 "rm_capfast_defaults|rm-capfast-defaults|E",
                 "skip_empty_records|skip-empty-records",
                 "list|l",
+                "dot",
                 "percent=s",
                 "unresolved_variables|unresolved-variables",
                 "unresolved_links|unresolved-links:i",
@@ -339,6 +341,9 @@ foreach my $file (@files)
           { $flag= "only_records"; };
         if ($opt_list)
           { $flag= "list"; };
+        if ($opt_dot)
+          { $flag= "dot"; };
+
         list_record_references($filename,$ext_db_hash,
                                $opt_record_references,
                                $flag,
@@ -637,6 +642,42 @@ sub list_record_references
           {
             print $recname,"\n";
           }
+        return;
+      }
+    if ($flag eq "dot")
+      {
+        my %links;
+        foreach my $recname (@reclist)
+          { 
+            my $r_references_hash   = analyse_db::references_hash($r_dbhash,$recname);
+            my @references= keys %$r_references_hash;
+            #my @referenced_by= analyse_db::referenced_by_list($r_dbhash,$recname);
+
+            if ($post_filter)
+              { 
+                @references= grep { post_name_filter($_) } @references;
+                #@referenced_by= grep { post_name_filter($_) } @referenced_by;
+              }
+            foreach my $r (@references)
+              { 
+                my $label= $r_references_hash->{$r};
+                $links{"\"$recname\" -> \"$r\" [label=\"$label\"]"}= 1;
+              }
+            # foreach my $r (@referenced_by)
+            # { 
+            #   $links{"\"$r\" -> \"$recname\""}= 1;
+            # }
+          }
+        print "digraph \"record-dependencies\" {\n";
+        print "    margin=\"0.3\";\n";
+        print "    ratio=\"fill\";\n";
+        print "    size=\"11.7,8.3!\";\n";
+
+        foreach my $l (keys %links)
+          {
+            print "    $l;\n";
+          }
+        print "}\n";
         return;
       }
     if ($flag ne "only_records")
@@ -1481,13 +1522,21 @@ Syntax:
       --db: only show records in db-file format, do not show dependency
             details.
       -a  : show dependency data for each record in a single line
+      --dot :
+            produce a graphviz file. Use for example 
+              dbfilter.pl {options...} --dot | dot -Tpdf > plot.pdf 
+            to create a pdf file with a dependency plot.
       --rec [distance]: recursively look for connected records up to
             [distance]. A direct connection has distance 1. 
 
     --recursive --rec [distance]
-      this option can be used together with --record_references.
+      this option can be used together with --record-references.
       no specifies the maximum path length that is allowed for
       indirectly connected records in order to be printed.
+
+    --dot
+      this option can be used with --record-references. It produces an output
+      suitable for graphviz. 
 
     --allow_double -A : allow double record names
       (for debugging faulty databases)

@@ -135,6 +135,36 @@ my $dec_number      = qr/([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?/;
 my $hex_number      = qr/0x[0-9a-fA-F]+/;
 my $number          = qr/^($hex_number|$dec_number)$/;
 
+sub _parse_link_field
+  { my($val)= @_;
+
+    # is it empty ?
+    if ($val =~ /^\s*$/)
+      { return (undef); }
+    # is it a number ?
+    if ($val =~ qr/$number/)
+      { return (undef); }
+    # is it NaN or inf ?
+    # definitions here taken from strtod documentation (see manpage)
+    if ($val =~ /^(?:inf|infinity|nan|nan\([^\(\)]*\))$/i)
+      { return (undef); }
+
+    my @grp= split(/\s+/, $val);
+    $grp[0]=~ /([^\.]+)(?:\.(.*)|)/;
+    my $recname= $1;
+    my $field  = $2;
+    my @flags=();
+    if ($#grp>0)
+      {
+        my $flags= join(".",@grp[1..$#grp]);
+        $flags=~ s/^[\.\s]+//;
+        $flags=~ s/[\.\s]+$//;
+        @flags= split(/\./, $flags);
+      }
+    return($recname,$field,@flags);
+  }
+
+
 sub rec_link_fields
 # $r_fields is a list of fields of a record
 # return a hash-reference of field->value pairs 
@@ -150,24 +180,16 @@ sub rec_link_fields
     foreach my $fieldname (keys %$r_fields)
       { next if (!exists $link_fields{$fieldname});
 	my $val= $r_fields->{$fieldname};
-	# is it empty ?
-	next if ($val =~ /^\s*$/);
-	# is it a number ?
-	next if ($val =~ qr/$number/);
-        # is it NaN or inf ?
-        # definitions here taken from strtod documentation (see manpage)
-        next if ($val =~ /^(?:inf|infinity|nan|nan\([^\(\)]*\))$/i);
+        # returns: (RECNAME,RECFIELD,FLAGS...)
+        my @result= _parse_link_field($val);
+        next if (!defined $result[0]);
 	if (exists ($dtyp_link_fields{$fieldname}))
 	  { # maybe a hardware link ?
 	    if (str_defined_different($r_fields->{DTYP},'Soft Channel'))
 	      { next; };
 	  };
-
-        $val=~ s/(\s+|\s*\.)(CPP|NPP|NMS|MS|PP|CP|CA)\b/ /g;	    
-	$val=~ s/[\.\s]+$//;
-	$val=~ s/\.\w+$//;
-	
-	$h{$fieldname}= $val;
+        # (RECNAME,RECFIELD,FLAGS...)
+	$h{$fieldname}= \@result;
       };
     return(\%h);
   }
@@ -199,13 +221,40 @@ sub add_link_info
     foreach my $recname (keys %$recs)
       { my $r_h= rec_link_fields($recs, $recname);
         next if (!%$r_h);
-	# get a list of referenced records:
-	my @f_recs= sort(map { $r_h->{$_} } (keys %$r_h));
-	$recs->{$recname}->{LINKS}->{REFERENCES}= {map{$_=>1} @f_recs};
-        foreach my $r (@f_recs)
-	  { $recs->{$r}->{LINKS}->{REFERENCED_BY}->{$recname}= 1; };
+        my %references;
+	$recs->{$recname}->{LINKS}->{REFERENCES}= \%references;
+        while (my($fieldname, $r_result) = each %$r_h)
+          {
+            my $x=join("|",@$r_result);
+            my $other_rec= $r_result->[0];
+            my $properties= join(" ",@{$r_result}[1..$#$r_result]);
+            $properties="$fieldname:$properties";
+            if (!exists $references{$other_rec})
+              {
+                $references{$other_rec}= $properties;
+              }
+            else
+              {
+                $references{$other_rec}.= " $properties";
+              }
+            $recs->{$other_rec}->{LINKS}->{REFERENCED_BY}->{$recname}= 1;
+          }
       }
-  }     
+  }
+
+sub references_hash
+# returns the references hash
+  { my($recs, $recname)= @_;
+
+    error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
+    my $r_lh= $recs->{$recname}->{LINKS};
+    #if (!defined $r_lh)
+    #   { parse_db::dump($recs->{$recname}); };
+    error(__LINE__,"no link info found, add_link_info() was not called")
+    	if (!defined $r_lh);
+    my $r_h= $r_lh->{REFERENCES};
+    return $r_h;
+  }
 
 sub references_list
 # returns a sorted list of records this record references
