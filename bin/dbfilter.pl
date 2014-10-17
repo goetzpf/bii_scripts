@@ -158,7 +158,7 @@ if (!GetOptions("help|h","summary",
                 "lowcal:s", "Lowcal:s",
                 "sdo:s", "Sdo:s",
                 "alternative|a",
-                "recursive|rec:i",
+                "recursive|rec=i",
                 ))
   { die "parameter error!\n"; };
 
@@ -337,7 +337,8 @@ foreach my $file (@files)
           { $flag= "add_records"; };
         if ($opt_db)
           { $flag= "only_records"; };
-
+        if ($opt_list)
+          { $flag= "list"; };
         list_record_references($filename,$ext_db_hash,
                                $opt_record_references,
                                $flag,
@@ -607,20 +608,21 @@ sub list_record_references
         if (defined $recursive)
           { # recursively get a list of records that depend
             # on the given one
-            if ($#reclist!=0)
-              { die "recursive option is only allowed for a single record";};
+            my $filter_func= undef;
+            if ($post_filter)
+              {
+                $filter_func= \&post_name_filter;
+              }
             $linkset_hash= analyse_db::linkset_hash($r_dbhash,
-                                                    $reclist[0],$recursive);
-            @reclist= sort{ $linkset_hash->{$a} cmp $linkset_hash->{$b} }
+                                                    \@reclist,$recursive,
+                                                    $filter_func);
+            @reclist= sort{ $linkset_hash->{$a} <=> $linkset_hash->{$b} }
                       (keys %$linkset_hash);
 #die "reclist:".join("|",@reclist);
           }
       }
     else
       { @reclist=(sort keys %$r_dbhash); };
-
-    if (defined $post_filter)
-      { @reclist= grep { post_name_filter($_) } @reclist; }
 
     #print parse_db::dump($recs->{$reclist[0]}); die;
 
@@ -629,6 +631,14 @@ sub list_record_references
         print "=" x 40,"\n";
       };
 
+    if ($flag eq "list")
+      {
+        foreach my $recname (@reclist)
+          {
+            print $recname,"\n";
+          }
+        return;
+      }
     if ($flag ne "only_records")
       {
         # <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
@@ -654,6 +664,12 @@ sub list_record_references
         foreach my $recname (@reclist)
           { my @references   = analyse_db::references_list($r_dbhash,$recname);
             my @referenced_by= analyse_db::referenced_by_list($r_dbhash,$recname);
+
+            if ($post_filter)
+              { 
+                @references= grep { post_name_filter($_) } @references;
+                @referenced_by= grep { post_name_filter($_) } @referenced_by;
+              }
 
             if ((!@references) && (!@referenced_by))
               { next; };
@@ -1445,29 +1461,33 @@ Syntax:
       db-file format. With "--db" just the records in db format
       are printed.
 
-    --record_references -R [regexp{,regexp2}]
+    --record-references -R [regexp{,regexp2}]
       list which record (whose name matches regexp) is connected
       to which other record. regexp may be "all" or "//" in which
       case all records that are connected to other records are
-      shown. This option can be combined with "-r", in this case
-      all the contents of the shown records are printed in
-      db-file format. With "--db" just the records in db format
-      are printed.
-      With option "-a" the references are printed in an alternative
-      format, each record combined with all dependant records in a
-      single line.
-      regexp2 is an optional parameter that can be used to filter
-      the list of connected records. Note that this may be an
-      inverse list (see "regular expressions:" further above)
-      When [regexp] specifies just a single record, the --recursive
-      option can be used in order to recursively search for the
-      set of connected records.
+      shown.
 
-    --recursive --rec {no}
+      Effects of [regexp2]:
+
+      If given, all dependencies must match this regular expression.
+      Dependencies that to not match are not shown. With option "--rec" (see
+      below) records that do not match are not followed. Note that this may be
+      an inverse regular expression (see "regular expressions:" further above). 
+
+      Effects of other options:
+
+      -r  : additionally show all records in db-file format
+      -l  : just list the record names
+      --db: only show records in db-file format, do not show dependency
+            details.
+      -a  : show dependency data for each record in a single line
+      --rec [distance]: recursively look for connected records up to
+            [distance]. A direct connection has distance 1. 
+
+    --recursive --rec [distance]
       this option can be used together with --record_references.
       no specifies the maximum path length that is allowed for
       indirectly connected records in order to be printed.
-      If no is 0, all connected records are printed.
 
     --allow_double -A : allow double record names
       (for debugging faulty databases)

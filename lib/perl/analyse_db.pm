@@ -237,51 +237,52 @@ sub referenced_by_list
 
 sub r_linkset
 # internal function for function linkset
-  { my($cnt, $lvl, $maxlvl, $r_set, $r_seen, $recs, $record)= @_;
+  { my($lvl, $maxlvl, $r_set, $recs, $r_records, $r_match_func)= @_;
 
     die "recursion too deep" if ($lvl>250);
-
-    #print "rec:$record lvl:$lvl\n";
-
-    #return if ($r_seen->{$record});
-    $r_seen->{$record} = $lvl;
-    $r_set ->{$record} = sprintf "%03d:%03d", $lvl, $cnt;
-
-    my $mycnt=0;
-    my $seen;
-    foreach my $r (references_list($recs, $record))
-      { $seen= $r_seen->{$r};
+    if ($lvl>$maxlvl)
+      { 
+        return;
+      }
+    foreach my $record (@$r_records)
+      {
         # the following ensures that "shorter" paths
-	# to a record that was already by a longer path 
-	# stepped on, are also examined
-	next if ((defined $seen) && ($seen<$lvl+1));
-        if ($maxlvl)
-	  { next if ($lvl>=$maxlvl); }
-	r_linkset($mycnt++, $lvl+1, $maxlvl, $r_set, $r_seen, $recs, $r);
-      };
-    foreach my $r (referenced_by_list($recs, $record))
-      { $seen= $r_seen->{$r};
-        # the following ensures that "shorter" paths
-	# to a record that was already by a longer path 
-	# stepped on, are also examined
-        next if ((defined $seen) && ($seen<$lvl+1));
-        if ($maxlvl)
-	  { next if ($lvl>=$maxlvl); }
-	r_linkset($mycnt++, $lvl+1, $maxlvl, $r_set, $r_seen, $recs, $r);
-      };
+        # to a record that was already by a longer path 
+        # stepped on, are also examined
+        if (defined $r_match_func)
+          {
+            if (!&$r_match_func($record))
+              { 
+                next;
+              }
+          }
+        my $rec_level= $r_set->{$record};
+        if (defined $rec_level)
+          {
+            if ($rec_level <= $lvl)
+              {
+                next;
+              }
+          }
+        $r_set ->{$record} = $lvl;
+        r_linkset($lvl+1, $maxlvl, $r_set, $recs, 
+                  [references_list($recs, $record)], 
+                  $r_match_func);
+        r_linkset($lvl+1, $maxlvl, $r_set, $recs, 
+                  [referenced_by_list($recs, $record)],
+                  $r_match_func);
+      }
   }
 
 sub linkset_hash
 # returns a set of all records that are directly and indirectly 
 # connected to this record
 # returns a sorted list
-  { my($recs, $recname, $maxlvl)= @_;
+  { my($recs, $r_recnames, $maxlvl, $r_match_func)= @_;
 
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
-    my %seen;
     my %set;
-    r_linkset(0, 0, $maxlvl, \%set, \%seen, $recs, $recname);
-    $set{$recname}= sprintf "%03d:%03d", 0, 0;
+    r_linkset(0, $maxlvl, \%set, $recs, $r_recnames, $r_match_func);
     return(\%set);
   }
 
@@ -433,24 +434,21 @@ the given record.
 
 B<linkset_hash()>
 
-  my $r_h= linkset_hash($records,$my_recname,$maxlevel)
+  my $r_h= linkset_hash($records,$r_recnames,$maxlevel)
 
-This function returns a hash-reference containing all records
-that are related to the given record. $maxlevel (optional)
-is the maxmum allowed distance.
-The hash-value contains information
-about the level (distance to the first record) and number 
-within that level. Example:
+This function returns a hash-reference containing all records that are related
+to the records given in the list reference $r_recnames. $maxlevel is the maxmum
+allowed distance.  The hash-value is the minimum distance to one of the records
+given in $r_recnames.
+Example:
 
-  { "RECORD_START" => "000:000",
-    "RECORDA"      => "001:002",
-    "RECORDB"      => "002:003",
+  { "RECORD_START" => 0,
+    "RECORDA"      => 1,
+    "RECORDB"      => 2,
   }
 
-In this example RECOORD_START is the record itself (level0),
-RECORDA has a distance of 1 (level 1) and is the third within
-that level, RECORDB has a distance of 2 (level 2) and is the
-fourth within that level.
+In this example RECOORD_START is the record itself (level0), RECORDA has a
+distance of 1 (level 1), RECORDB has a distance of 2 (level 2).
 
 B<rem_capfast_defaults()>
 
