@@ -142,6 +142,11 @@ Reference of command line options
 --raw
   print the internal HashedList2D object, this is for debugging only.
 
+--dump
+  do not collect the data to a table but dump the data in camonitor format to
+  the console. This may be useful if combined with some of the filter options
+  or options that modify the timestamps or pv names.
+
 -r, --rjust
   justify the values in each row to the right side. Note that the timestamps
   are always left justified except when the are converted to a floating point
@@ -179,6 +184,9 @@ Reference of command line options
 --filter-pv REGEXP
   select only PVs that match REGEXP.
 
+--filter-complete
+  select only rows where each column has a value.
+
 --skip-flagged REGEXP
   Skip all lines where the flags match REGEXP, e.g. "UDF" skips all lines where
   the flags contain "UDF". If REGEXP has the special value "all" or "ALL", all
@@ -197,6 +205,17 @@ Reference of command line options
 --fill
   fill empty places in the table with the first non-empty value in the same
   column from a row above.
+
+--add-seconds [seconds]
+  add the seconds given (a floating point value) to the timestamps.
+
+--time-rebase [OLDTIME,NEWTIME]
+  Add an offset to all timestamps. The offset is calculated to ensure that
+  OLDTIME is changed to NEWTIME.
+
+--pvmap [MAP]
+  a MAP has the form "oldpv,newpv". With this options a pv named "oldpv" is
+  replaced with "newpv". You can use this option more than once.
 
 --progress
   show the progress of the program on stderr. 2 numbers are printed, the first
@@ -735,12 +754,19 @@ def parse_line(line):
         date= str2date(" ".join(elms[1:3]))
     return (elms[0],date,elms[val_i:])
 
+def rebuild_line(tp):
+    """rebuild a line from the tuple that parse_line creates."""
+    return "%-24s %-26s %s" % (tp[0],date2str(tp[1])," ".join(tp[2]))
+
 # higher level functions
 # ----------------------------------------
 
 def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
             filter_pv= None,
             skip_flagged= None, rm_flags= None,
+            pvmap= None,
+            timedelta= None,
+            dump= False,
             max_lines= None,
             progress=False):
     r"""collect items from an iterable.
@@ -761,6 +787,10 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
                        (ignored).
       rm_flags      -- If that parameter is given, flags that match that
                        regular expression are removed, the resulting item is taken.
+      pvmap         -- A dict that defines a map mapping PV names to new
+                       PV names
+      timedelta     -- If given, add this timedelta object to the timestamp.
+      dump          -- dump data in camonitor format to console
       max_lines     -- If the number of items taken would exceed that number,
                        no more items are taken.
       progress      -- If this parameter is True, the current progress is shown
@@ -807,6 +837,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
             rm_flags= re.compile(".*")
         else:
             rm_flags= re.compile(rm_flags)
+
     lineno=0
     progress_cnt=0
     if hashedlist2d is None:
@@ -835,6 +866,8 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
         if to_time is not None:
             if date>to_time:
                 continue
+        if timedelta:
+            date+= timedelta
         if filter_pv is not None:
             # if the pv was already taken some time before,
             # we can skip a new regexp match:
@@ -848,13 +881,20 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
             if rm_flags is not None:
                 flag_str= re.sub(rm_flags,"",flag_str)
                 val= [val[0]]+flag_str.split()
-        h.set( date, pv, val )
+        if pvmap:
+            pv= pvmap.get(pv, pv)
+        if dump:
+            print rebuild_line((pv, date, val))
+        else:
+            h.set( date, pv, val )
         lines+=1
         if max_lines is not None:
             if lines>=max_lines:
                 break
     if progress:
         sys.stderr.write("\n")
+    if dump:
+        return
     return h
 
 # pylint: disable=C0303
@@ -1060,6 +1100,9 @@ def collect_from_file(filename_, hashedlist2d=None,
                       filter_pv= None,
                       skip_flagged= None,
                       rm_flags= None,
+                      pvmap= None,
+                      timedelta= None,
+                      dump= False,
                       max_lines= None,
                       progress= False):
     """process input from standard-in or from a file.
@@ -1078,13 +1121,19 @@ def collect_from_file(filename_, hashedlist2d=None,
         in_file= open(filename_)
     try:
         result= collect(in_file, hashedlist2d, from_time, to_time,
-                        filter_pv, skip_flagged, rm_flags, max_lines,
+                        filter_pv, skip_flagged, rm_flags,
+                        pvmap,
+                        timedelta,
+                        dump,
+                        max_lines,
                         progress)
     except:
         if filename_ is not None:
             print "in file %s" % filename_
         raise
     in_file.close()
+    if dump:
+        return
     return result
 
 def process_files(options,args):
@@ -1101,9 +1150,13 @@ def process_files(options,args):
     """
     # pylint: disable=R0912
     #                          Too many branches
+    # pylint: disable=R0914
+    #                          Too many local variables
+    # pylint: disable=R0915
+    #                          Too many statements
     filelist= []
-    if options.file is not None:
-        filelist=[options.file]
+    if options.file:
+        filelist=options.file
     if len(args)>0: # extra arguments
         filelist.extend(args)
     if len(filelist)<=0:
@@ -1111,6 +1164,25 @@ def process_files(options,args):
     results= HashedList2D()
     from_time= str2date_ui(options.from_time)
     to_time= str2date_ui(options.to_time)
+    timedelta= None
+    if options.add_seconds:
+        try:
+            add_seconds= float(options.add_seconds)
+        except ValueError, _:
+            sys.exit("error: argument to --add-seconds must be a float")
+        timedelta= datetime.timedelta(0, add_seconds)
+    if options.time_rebase:
+        (d1,d2)= (str2date(d) for d in options.time_rebase.split(","))
+        if timedelta is None:
+            timedelta= d2-d1
+        else:
+            timedelta= timedelta + (d2-d1)
+
+    pvmap= {}
+    if options.pvmap:
+        for m in options.pvmap:
+            (k,v)= m.split(",")
+            pvmap[k]= v
     for f in filelist:
         collect_from_file(f, results,
                           from_time= from_time,
@@ -1118,8 +1190,13 @@ def process_files(options,args):
                           filter_pv= options.filter_pv,
                           skip_flagged= options.skip_flagged,
                           rm_flags= options.rm_flags,
+                          pvmap= pvmap,
+                          timedelta= timedelta,
+                          dump= options.dump,
                           max_lines= options.max_lines,
                           progress=options.progress)
+    if options.dump:
+        return
     if options.fill:
         results.fill_incomplete()
     if options.floattime:
@@ -1154,7 +1231,8 @@ def script_shortname():
 
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: convert archiver data format to camonitor format\n" % script_shortname()
+    print "%-20s: convert camonitor data to a table of values\n" % \
+          script_shortname()
 
 def print_doc():
     """print embedded reStructuredText documentation."""
@@ -1190,6 +1268,11 @@ def main():
     parser.add_option("--raw",
                       action="store_true",
                       help="print the HashedList2D object, for debugging only!",
+                      )
+    parser.add_option("--dump",     # implies dest="switch"
+                      action="store_true", # default: None
+                      help="dump the data in camonitor format instead "
+                           "of a table."
                       )
 
     parser.add_option("-r", "--rjust",
@@ -1278,13 +1361,40 @@ def main():
                       action="store_true",
                       help="fill empty fields with values from the row above",
                       )
+    parser.add_option("--add-seconds",
+                      action="store",
+                      type="string",
+                      help="This option adds the given floating point "
+                           "seconds to the date.",
+                      metavar="SECONDS"
+                      )
+    parser.add_option("--time-rebase",
+                      action="store",
+                      type="string",
+                      help="Rebase the timestamps according to TIMESPEC. "
+                           "TIMESPEC has the form 'OLDTIME,NEWTIME' where "
+                           "the times must have the same format as "
+                           "timestamps shown by the camonitor format. An "
+                           "offset is added to each timestamp in a way "
+                           "that OLDTIME will appear as NEWTIME afterwards.",
+                      metavar="TIMESPEC"
+                      )
+    parser.add_option("--pvmap",
+                      action="append",
+                      type="string",
+                      help="Defines a mapping that replaces pv with a new "
+                           "name. A PVMAP is a string in the form "
+                           "'OLDPV,NEWPV. You can specify more than one "
+                           "PVMAP.",
+                      metavar="PVMAP"
+                      )
     parser.add_option("--progress",
                       action="store_true",
                       help="show progress on stderr",
                       )
 
     parser.add_option("-f", "--file",
-                      action="store",
+                      action="append",
                       type="string",
                       help="specify the FILE",
                       metavar="FILE"
