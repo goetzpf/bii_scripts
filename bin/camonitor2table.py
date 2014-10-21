@@ -413,6 +413,56 @@ def float_time(date, start_date):
 # classes
 # ----------------------------------------
 
+class RxReplace(object):
+    """Change a string with a regular expression."""
+    # pylint: disable=R0903
+    #                          Too few public methods
+    _rx_re= re.compile(r'(?<!\\)/(.*)(?<!\\)/(.*)(?<!\\)/(.*)')
+    def __init__(self, st):
+        """initialize the object."""
+        m= RxReplace._rx_re.match(st)
+        if not m:
+            raise ValueError("invalid replacement regexp: '%s'" % st)
+        self.flags=0
+        for char in m.group(3):
+            try:
+                self.flags|= getattr(re, char.upper())
+            except AttributeError, _:
+                raise ValueError("unknown flag '%s' in regexp '%s'" % \
+                                 (char,st))
+        self.rx= re.compile(m.group(1), self.flags)
+        self.repl= m.group(2)
+    def sub(self,st):
+        """do the replacement."""
+        return self.rx.sub(self.repl, st)
+
+class RxReplacer(object):
+    """Change a string with a regular expressions."""
+    # pylint: disable=R0903
+    #                          Too few public methods
+    def __init__(self, st_list):
+        """initialize the container."""
+        self.rxs= []
+        for st in st_list:
+            self.rxs.append(RxReplace(st))
+        self.cache= {}
+    def sub(self, st):
+        """change the string according to regexps.
+
+        Do only apply the *first* matching regexp.
+        Cache the results to make things faster.
+        """
+        cached= self.cache.get(st)
+        if cached:
+            return cached
+        for rx in self.rxs:
+            n= rx.sub(st)
+            if n!=st:
+                self.cache[st]= n
+                return n
+        self.cache[st]= st
+        return st
+
 class HashIndex(object):
     """maps a string to an index.
 
@@ -765,6 +815,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
             filter_pv= None,
             skip_flagged= None, rm_flags= None,
             pvmap= None,
+            pvmaprx= None,
             timedelta= None,
             dump= False,
             max_lines= None,
@@ -789,6 +840,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
                        regular expression are removed, the resulting item is taken.
       pvmap         -- A dict that defines a map mapping PV names to new
                        PV names
+      pvmaprx       -- A list of RxReplace objects used to change PV names.
       timedelta     -- If given, add this timedelta object to the timestamp.
       dump          -- dump data in camonitor format to console
       max_lines     -- If the number of items taken would exceed that number,
@@ -883,6 +935,9 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
                 val= [val[0]]+flag_str.split()
         if pvmap:
             pv= pvmap.get(pv, pv)
+        if pvmaprx:
+            pv= pvmaprx.sub(pv)
+
         if dump:
             print rebuild_line((pv, date, val))
         else:
@@ -1102,6 +1157,7 @@ def collect_from_file(filename_, hashedlist2d=None,
                       skip_flagged= None,
                       rm_flags= None,
                       pvmap= None,
+                      pvmaprx= None,
                       timedelta= None,
                       dump= False,
                       max_lines= None,
@@ -1124,6 +1180,7 @@ def collect_from_file(filename_, hashedlist2d=None,
         result= collect(in_file, hashedlist2d, from_time, to_time,
                         filter_pv, skip_flagged, rm_flags,
                         pvmap,
+                        pvmaprx,
                         timedelta,
                         dump,
                         max_lines,
@@ -1179,11 +1236,16 @@ def process_files(options,args):
         else:
             timedelta= timedelta + (d2-d1)
 
-    pvmap= {}
     if options.pvmap:
-        for m in options.pvmap:
-            (k,v)= m.split(",")
-            pvmap[k]= v
+        pvmap= dict([s.split(",") for s in " ".join(options.pvmap).split()])
+    else:
+        pvmap= None
+
+    if options.pvmaprx:
+        pvmaprx= RxReplacer(options.pvmaprx)
+    else:
+        pvmaprx= None
+
     for f in filelist:
         collect_from_file(f, results,
                           from_time= from_time,
@@ -1192,6 +1254,7 @@ def process_files(options,args):
                           skip_flagged= options.skip_flagged,
                           rm_flags= options.rm_flags,
                           pvmap= pvmap,
+                          pvmaprx= pvmaprx,
                           timedelta= timedelta,
                           dump= options.dump,
                           max_lines= options.max_lines,
@@ -1382,7 +1445,7 @@ def main():
                            "that OLDTIME will appear as NEWTIME afterwards.",
                       metavar="TIMESPEC"
                       )
-    parser.add_option("--pvmap",
+    parser.add_option("-P", "--pvmap",
                       action="append",
                       type="string",
                       help="Defines a mapping that replaces pv with a new "
@@ -1390,6 +1453,17 @@ def main():
                            "'OLDPV,NEWPV. You can specify more than one "
                            "PVMAP.",
                       metavar="PVMAP"
+                      )
+    parser.add_option("--pvmaprx",
+                      action="append",
+                      type="string",
+                      help="Apply a regular expression to each pv to "
+                           "modify it. The REGEXP should have the form "
+                           "'/match/replace/'. You can specify more than "
+                           "one REGEXP, only the first matching is applied. "
+                           "The REGEXP is applied *after* the application "
+                           "of pvmap (see above).",
+                      metavar="REGEXP"
                       )
     parser.add_option("--progress",
                       action="store_true",
