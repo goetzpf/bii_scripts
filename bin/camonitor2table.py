@@ -900,7 +900,8 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
 # pylint: disable=C0303
 #                          Trailing whitespace
 
-def pretty_print(hashedlist2d, columnformat=None, rjust=False,
+def pretty_print(hashedlist2d, columnformat=None, rjust= False,
+                 is_floattime= False,
                  separator=" ", csv=False):
     """pretty print the results from collect().
 
@@ -964,6 +965,8 @@ def pretty_print(hashedlist2d, columnformat=None, rjust=False,
     #                          Too many branches
     # pylint: disable=R0915
     #                          Too many statements
+    # pylint: disable=R0913
+    #                          Too many arguments
     def tp(st,columnformat,converter):
         """convert data."""
         if st is None:
@@ -972,71 +975,69 @@ def pretty_print(hashedlist2d, columnformat=None, rjust=False,
         lst[0]= converter(st[0])
         lst[0]= columnformat % lst[0]
         return " ".join(lst)
-    def pr(lst, st, index, rjust, csv):
-        """prepare to print by adding to a list."""
-        if csv:
-            lst.append(st.strip())
-        elif not rjust:
-            lst.append(st.ljust(widths[index]))
-        else:
-            lst.append(st.rjust(widths[index]))
     columns= ["Timestamp                 "]
     columns.extend(hashedlist2d.columns())
-    widths= [len(st) for st in columns]
+
     if (columnformat is None) or (len(columnformat)==0):
-        columnformat= ["%s"]*len(widths)
-    elif len(columnformat)==1:
-        # special case, take this as format for all columns
-        columnformat= [columnformat[0]]*len(widths)
-    elif len(columnformat)<len(widths):
-        columnformat.extend(["%s"]*(len(widths)-len(columnformat)))
+        columnformat= ["%s"]*len(columns)
+    elif len(columnformat)<len(columns):
+        # extend the last format string for all following columns:
+        columnformat.extend(
+                 [columnformat[-1]]*(len(columns)-len(columnformat)))
     converters=[]
-    col0_str_format=None
-    for f in columnformat:
+    just = [rjust] * len(columns)
+    if not is_floattime:
+        just[0]= False
+
+    for c in xrange(len(columnformat)):
+        f= columnformat[c]
         # pylint: disable=W0108
         #                          Unnecessary lambda
         try:
             _= f % "x"
-            converters.append(lambda x: str(x))
-            if col0_str_format is None:
-                col0_str_format= True
+            type_= "string"
         except TypeError,_:
+            type_= "number"
+        if type_=="number" and c==0 and (not is_floattime):
+            columnformat[0]="%s"
+            type_= "string"
+
+        if type_=="string":
+            converters.append(lambda x: str(x))
+        else:
             converters.append(lambda x: float(x))
-            if col0_str_format is None:
-                col0_str_format= False
-    first= True
+
+    lines= [columns[:]] # initialize with the heading
     for date in hashedlist2d.rows():
         lst=[]
+        lines.append(lst)
         i= 0
         if isinstance(date,datetime.datetime):
             val_tp= (date2str(date),)
-            djust= False
-            if not col0_str_format:
-                # number format specified although timestamps
-                # are date objects and should therefor be treated
-                # as strings
-                col0_str_format= True
-                columnformat[0]="%s"
-                converters[0]= lambda x: x
         else:
             val_tp= (date,)
-            djust= rjust
-        pr(lst,tp(val_tp, columnformat[i], converters[i]), i, djust,csv)
-        for i in xrange(1,len(widths)):
+        lst.append(tp(val_tp, columnformat[i], converters[i]))
+        for i in xrange(1,len(columns)):
             col= columns[i]
             val_tp= hashedlist2d.lookup(date,col)
-            pr(lst,tp(val_tp, columnformat[i], converters[i]), i, rjust,csv)
-        if first: # there is still a table header to print
-            for i in xrange(len(widths)):
-                if len(lst[i])>widths[i]:
-                    widths[i]= len(lst[i])
-            # print headings
-            hlst=[]
-            for i in xrange(len(widths)):
-                pr(hlst,columns[i],i,False,csv)
-            print separator.join(hlst)
-            first= False
-        print separator.join(lst)
+            lst.append(tp(val_tp, columnformat[i], converters[i]))
+
+    widths= [None]*len(columns)
+    for line in lines:
+        for i in xrange(len(line)):
+            if widths[i] < len(line[i]):
+                widths[i]= len(line[i])
+    for r in xrange(len(lines)):
+        line= lines[r]
+        n= []
+        for c in xrange(len(line)):
+            if csv:
+                n.append(line[c].strip())
+            elif not just[c]:
+                n.append(line[c].ljust(widths[c]))
+            else:
+                n.append(line[c].rjust(widths[c]))
+        print separator.join(n)
 
 # pylint: enable=C0303
 #                          Trailing whitespace
@@ -1223,7 +1224,9 @@ def process_files(options,args):
         if options.columnformat is not None:
             columnformat= options.columnformat.split()
         pretty_print(results, columnformat,
-                     options.rjust, separator, options.csv)
+                     options.rjust,
+                     options.floattime,
+                     separator, options.csv)
 
 def script_shortname():
     """return the name of this script without a path component."""
