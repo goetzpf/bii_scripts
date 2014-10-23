@@ -213,9 +213,15 @@ Reference of command line options
   Add an offset to all timestamps. The offset is calculated to ensure that
   OLDTIME is changed to NEWTIME.
 
---pvmap [MAP]
-  a MAP has the form "oldpv,newpv". With this options a pv named "oldpv" is
-  replaced with "newpv". You can use this option more than once.
+--pvmap [PVMAP]
+  Defines a mapping that replaces a pv with a new name. A PVMAP is a string
+  with the form 'OLDPV,NEWPV. You can specify more than one PVMAP.
+
+--pvmaprx [REGEXP]
+  Apply a regular expression to each pv to modify it. The REGEXP should have
+  the form '/match/replace/'. You can specify more than one REGEXP, in this
+  case all are applied in the order you specify them. REGEXPs are applied
+  *after* PVMAP changes (see above).",
 
 --progress
   show the progress of the program on stderr. 2 numbers are printed, the first
@@ -455,11 +461,12 @@ class RxReplacer(object):
         cached= self.cache.get(st)
         if cached:
             return cached
+        n= st
         for rx in self.rxs:
-            n= rx.sub(st)
-            if n!=st:
-                self.cache[st]= n
-                return n
+            n= rx.sub(n)
+        if n!=st:
+            self.cache[st]= n
+            return n
         self.cache[st]= st
         return st
 
@@ -1448,8 +1455,8 @@ def main():
     parser.add_option("-P", "--pvmap",
                       action="append",
                       type="string",
-                      help="Defines a mapping that replaces pv with a new "
-                           "name. A PVMAP is a string in the form "
+                      help="Defines a mapping that replaces a pv with a new "
+                           "name. A PVMAP is a string with the form "
                            "'OLDPV,NEWPV. You can specify more than one "
                            "PVMAP.",
                       metavar="PVMAP"
@@ -1460,9 +1467,9 @@ def main():
                       help="Apply a regular expression to each pv to "
                            "modify it. The REGEXP should have the form "
                            "'/match/replace/'. You can specify more than "
-                           "one REGEXP, only the first matching is applied. "
-                           "The REGEXP is applied *after* the application "
-                           "of pvmap (see above).",
+                           "one REGEXP, in this case all are applied in "
+                           "the order you specify them. REGEXPs are applied "
+                           "*after* PVMAP changes (see above).",
                       metavar="REGEXP"
                       )
     parser.add_option("--progress",
