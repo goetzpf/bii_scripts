@@ -65,6 +65,7 @@ use vars qw($opt_help $opt_summary
             $opt_skip_empty_records
             $opt_list
             $opt_dot
+            $opt_rm_prefix
             $opt_percent
             $opt_unresolved_variables
             $opt_unresolved_links
@@ -118,10 +119,6 @@ OUT
 SDIS
 SELL);
 
-my %dtyp_link_fields; #initialized later
-my %link_fields;      #initialized later
-
-
 #Getopt::Long::config(qw(no_ignore_case));
 
 if (!@ARGV)
@@ -151,6 +148,7 @@ if (!GetOptions("help|h","summary",
                 "skip_empty_records|skip-empty-records",
                 "list|l",
                 "dot",
+                "rm-prefix=s",
                 "percent=s",
                 "unresolved_variables|unresolved-variables",
                 "unresolved_links|unresolved-links:i",
@@ -226,6 +224,31 @@ foreach my $file (@files)
 
     my $ext_db_hash= parse_db::parse_file($file,"extended");
 
+    if ($opt_rm_prefix)
+      {
+        my %link_fields= map {$_=>1} @link_fields;
+        my $r_dbhash= $ext_db_hash->{"dbhash"};
+        if ($r_dbhash)
+          {
+            rm_prefix_in_hash($opt_rm_prefix, $r_dbhash, 1, 0);
+            foreach my $rec_hash (values %$r_dbhash)
+              {
+                rm_prefix_in_hash($opt_rm_prefix, $rec_hash->{FIELDS},
+                                      0, 1, \%link_fields);
+              }
+          }
+        my $r_aliasmap= $ext_db_hash->{"aliasmap"};
+        if ($r_aliasmap)
+          {
+            rm_prefix_in_hash($opt_rm_prefix, $r_aliasmap, 1, 1);
+          }
+        my $r_realrecords= $ext_db_hash->{"realrecords"};
+        if ($r_realrecords)
+          {
+            rm_prefix_in_hash($opt_rm_prefix, $r_realrecords, 1, 0);
+          }
+      }
+        
     if (defined $opt_name)
       { filter_name($ext_db_hash,$opt_name); };
 
@@ -308,13 +331,12 @@ foreach my $file (@files)
 
     if (defined $opt_unresolved_variables)
       {
-        my $flag= undef;
+        my %flags= ();
         if ($opt_recreate)
-          { $flag= "add_records"; };
+          { $flags{"add_records"}= 1; }
         if ($opt_db)
-          { $flag= "only_records"; };
-
-        list_unresolved_variables($filename,$ext_db_hash,1,$flag);
+          { $flags{"only_records"}= 1; }
+        list_unresolved_variables($filename,$ext_db_hash,\%flags);
         next;
       };
 
@@ -322,31 +344,30 @@ foreach my $file (@files)
       {
         if ($opt_unresolved_links eq "")
           { $opt_unresolved_links=2; } # default: 2
-        my $flag= undef;
+        my %flags= ();
         if ($opt_recreate)
-          { $flag= "add_records"; };
+          { $flags{"add_records"}= 1; }
         if ($opt_db)
-          { $flag= "only_records"; };
-
-        list_unresolved_links($filename,$ext_db_hash, $opt_unresolved_links, $flag);
+          { $flags{"only_records"}= 1; }
+        list_unresolved_links($filename,$ext_db_hash, $opt_unresolved_links, \%flags);
         next;
       };
 
     if (defined $opt_record_references)
       {
-        my $flag= undef;
+        my %flags= ();
         if ($opt_recreate)
-          { $flag= "add_records"; };
+          { $flags{"add_records"}= 1; }
         if ($opt_db)
-          { $flag= "only_records"; };
+          { $flags{"only_records"}= 1; }
         if ($opt_list)
-          { $flag= "list"; };
+          { $flags{"list"}= 1; };
         if ($opt_dot)
-          { $flag= "dot"; };
+          { $flags{"dot"}= 1; };
 
         list_record_references($filename,$ext_db_hash,
                                $opt_record_references,
-                               $flag,
+                               \%flags,
                                $opt_recursive);
         next;
       };
@@ -363,14 +384,16 @@ foreach my $file (@files)
       };
 
     if ((defined $opt_lowcal) || (defined $opt_Lowcal))
-      { my $par= $opt_lowcal;
+      { 
+        my $par= $opt_lowcal;
         $par= $opt_Lowcal if (!defined $par);
         lowcal($filename,$ext_db_hash,(defined $opt_Lowcal),$par);
         next;
       };
 
     if ((defined $opt_sdo) || (defined $opt_Sdo))
-      { my $par= $opt_sdo;
+      { 
+        my $par= $opt_sdo;
         $par= $opt_Sdo if (!defined $par);
         sdo($filename,$ext_db_hash,(defined $opt_Sdo),$par);
         next;
@@ -385,7 +408,8 @@ foreach my $file (@files)
       };
 
     if (defined $opt_short)
-      { one_line_dump_recs($filename,$ext_db_hash);
+      { 
+        one_line_dump_recs($filename,$ext_db_hash);
         next;
       };
 
@@ -429,7 +453,8 @@ sub one_line_dump_recs
 
     my $r_dbhash= $r_ext_db->{dbhash};
     foreach my $rec (sort keys %$r_dbhash)
-      { print "$rec";
+      { 
+        print $rec;
         my $r_f= $r_dbhash->{$rec};
         print ",",$r_f->{TYPE},",";
         my $r= $r_f->{FIELDS};
@@ -538,11 +563,10 @@ sub match_fields
   }
 
 sub list_unresolved_variables
-  { my ($filename,$r_ext_db,$do_list,$flag)= @_;
+  { my ($filename,$r_ext_db,$r_flags)= @_;
     my $res;
     my %mac;
     my %recs;
-
 
     my $r_dbhash= $r_ext_db->{dbhash};
     foreach my $rec (sort keys %$r_dbhash)
@@ -550,26 +574,24 @@ sub list_unresolved_variables
         my $r_fields= $r_dbhash->{$rec}->{FIELDS};
         foreach my $fieldname (keys %$r_fields)
           { $res|= add_macros(\%mac, $r_fields->{$fieldname}); };
-        if ($res && $do_list)
+        if ($res)
           { $recs{$rec}= 1; };
       };
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
-    if ($flag ne "only_records")
+    if (!$r_flags->{"only_records"})
       {
         print "=" x 40,"\n";
-        if ($do_list)
-          { print "unresolved macros in these records:\n";
-            print "-" x 40,"\n";
-            print join("\n",sort keys %recs);
-          };
+        print "unresolved macros in these records:\n";
+        print "-" x 40,"\n";
+        print join("\n", sort keys %recs);
         print "\n\nList of unresolved macros:\n";
         print "-" x 40,"\n";
         print join("\n",sort keys %mac),"\n";
       }
-    if (($flag eq "add_records") || ($flag eq "only_records"))
+    if ($r_flags->{"add_records"} || $r_flags->{"only_records"})
       {
-        if ($flag ne "only_records")
+        if (!$r_flags->{"only_records"})
           { print "=" x 40,"\nRecords:\n"; }
         my @reclist= sort keys %recs;
         parse_db::create($r_dbhash,\@reclist);
@@ -578,7 +600,7 @@ sub list_unresolved_variables
 
 sub list_record_references
 # recs: this complete list of records to work on
-  { my ($filename,$r_ext_db,$record_name,$flag,$recursive)= @_;
+  { my ($filename,$r_ext_db,$record_name,$r_flags,$recursive)= @_;
 
     my %references;
     my %referenced_by;
@@ -636,7 +658,7 @@ sub list_record_references
         print "=" x 40,"\n";
       };
 
-    if ($flag eq "list")
+    if ($r_flags->{"list"})
       {
         foreach my $recname (@reclist)
           {
@@ -644,7 +666,7 @@ sub list_record_references
           }
         return;
       }
-    if ($flag eq "dot")
+    if ($r_flags->{"dot"})
       {
         my %links;
         foreach my $recname (@reclist)
@@ -680,7 +702,7 @@ sub list_record_references
         print "}\n";
         return;
       }
-    if ($flag ne "only_records")
+    if (!$r_flags->{"only_records"})
       {
         # <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
         # separator in-between record-names: $S
@@ -737,9 +759,9 @@ sub list_record_references
             print $F;
           };
       };
-    if (($flag eq "add_records") || ($flag eq "only_records"))
+    if ($r_flags->{"add_records"} || $r_flags->{"only_records"})
       {
-        if ($flag ne "only_records")
+        if (!$r_flags->{"only_records"})
           { print "=" x 40,"\nRecords:\n"; }
         #my %my_recs= map { $_ => $recs->{$_} } (keys %to_print);
         #parse_db::create(\%my_recs);
@@ -748,7 +770,7 @@ sub list_record_references
   }
 
 sub list_unresolved_links
-  { my ($filename,$r_ext_db,$verbosity,$flag)= @_;
+  { my ($filename,$r_ext_db,$verbosity,$r_flags)= @_;
     my $res;
     my %mac;
     my %found_recs;
@@ -765,12 +787,12 @@ sub list_unresolved_links
           { next; };
         $found_recs{$rec}= $r_ref_fields;
       };
+
     if (defined $filename)
       { print "\nFILE $filename:\n"; };
 
-    if ($flag ne "only_records")
+    if (!$r_flags->{"only_records"})
       {
-
         if ($verbosity==0)
           { # just list all items (values) that are missing
             my %values;
@@ -788,7 +810,7 @@ sub list_unresolved_links
                 print "=" x 40,"\n";
                 print "unresolved links in these records:\n";
                 print "-" x 40,"\n";
-                print join("\n",sort keys %found_recs);
+                print join("\n", sort keys %found_recs);
                 print "\n\n";
               };
             print "List of fields with unresolved links\n";
@@ -801,9 +823,9 @@ sub list_unresolved_links
               };
           }
       };
-    if (($flag eq "add_records") || ($flag eq "only_records"))
+    if ($r_flags->{"add_records"} || $r_flags->{"only_records"})
       {
-        if ($flag ne "only_records")
+        if (!$r_flags->{"only_records"})
           { print "=" x 40,"\nRecords:\n"; }
         my @reclist= sort keys %found_recs;
         parse_db::create($r_dbhash,\@reclist);
@@ -1360,6 +1382,40 @@ sub sdo_tab_print
     return($st);
   }
 
+sub rm_prefix_in_hash
+# modifies the hash in-place
+  { my($prefix,$r_h,$change_keys,$change_values,$r_allowed_keys)= @_;
+
+    if (!$prefix)
+      { return $r_h; }
+
+    my @all_keys= keys %$r_h;
+    my $val;
+
+    foreach my $key (@all_keys)
+      {
+        if ($r_allowed_keys)
+          {
+            if (!$r_allowed_keys->{$key})
+              { next; }
+          }
+        if ($change_keys)
+          {
+            $val= delete $r_h->{$key};
+            $key=~ s/^$prefix//;
+          }
+        else
+          { 
+            $val= $r_h->{$key};
+          }
+        if ($change_values)
+          {
+            $val=~ s/^$prefix//;
+          }
+        $r_h->{$key}= $val;
+      }
+  }
+
 sub create_regexp_func
 # create a function for regular expression
 # matching
@@ -1537,6 +1593,9 @@ Syntax:
     --dot
       this option can be used with --record-references. It produces an output
       suitable for graphviz. 
+
+    --rm-prefix [PREFIX]
+      Remove PREFIX in all record names in all reports.
 
     --allow_double -A : allow double record names
       (for debugging faulty databases)
