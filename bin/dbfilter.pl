@@ -86,7 +86,7 @@ my $sc_version= "1.7";
 my $sc_name= $FindBin::Script;
 my $sc_summary= "parse db files";
 my $sc_author= "Goetz Pfeiffer";
-my $sc_year= "2012";
+my $sc_year= "2014";
 
 my $debug= 0; # global debug-switch
 
@@ -210,219 +210,205 @@ else
   }
 
 my @files= @ARGV;
-my $single_file= ($#ARGV==0);
 if ($#ARGV<0)
   { # no file given, read from STDIN
-    $single_file= 1;
     @files= (undef);
   };
 
-foreach my $file (@files)
-  { my $filename;
-    if (!$single_file)
-      { $filename= $file; };
+my $ext_db_hash= parse_db::parse_file(\@files,"extended");
 
-    my $ext_db_hash= parse_db::parse_file($file,"extended");
-
-    if ($opt_rm_prefix)
+if ($opt_rm_prefix)
+  {
+    my %link_fields= map {$_=>1} @link_fields;
+    my $r_dbhash= $ext_db_hash->{"dbhash"};
+    if ($r_dbhash)
       {
-        my %link_fields= map {$_=>1} @link_fields;
-        my $r_dbhash= $ext_db_hash->{"dbhash"};
-        if ($r_dbhash)
+        rm_prefix_in_hash($opt_rm_prefix, $r_dbhash, 1, 0);
+        foreach my $rec_hash (values %$r_dbhash)
           {
-            rm_prefix_in_hash($opt_rm_prefix, $r_dbhash, 1, 0);
-            foreach my $rec_hash (values %$r_dbhash)
-              {
-                rm_prefix_in_hash($opt_rm_prefix, $rec_hash->{FIELDS},
-                                      0, 1, \%link_fields);
-              }
-          }
-        my $r_aliasmap= $ext_db_hash->{"aliasmap"};
-        if ($r_aliasmap)
-          {
-            rm_prefix_in_hash($opt_rm_prefix, $r_aliasmap, 1, 1);
-          }
-        my $r_realrecords= $ext_db_hash->{"realrecords"};
-        if ($r_realrecords)
-          {
-            rm_prefix_in_hash($opt_rm_prefix, $r_realrecords, 1, 0);
+            rm_prefix_in_hash($opt_rm_prefix, $rec_hash->{FIELDS},
+                                  0, 1, \%link_fields);
           }
       }
-        
-    if (defined $opt_name)
-      { filter_name($ext_db_hash,$opt_name); };
-
-    if (defined $opt_notname)
-      { filter_name($ext_db_hash,$opt_notname,1); };
-
-    if (defined $opt_name_file)
-      { filter_name_file($ext_db_hash,$opt_name_file); };
-
-    if (defined $opt_notname_file)
-      { filter_name_file($ext_db_hash,$opt_notname_file,1); };
-
-    if (defined $opt_type)
-      { filter_type($ext_db_hash,$opt_type); };
-
-    if ($opt_dtyp)
-      { filter_records($ext_db_hash,"DTYP",$opt_dtyp);
-      };
-
-    if (@opt_info)
-      { foreach my $fil (@opt_info)
-          { my($field,$regexp)= split(",",$fil);
-
-            find_info($ext_db_hash,$field,$regexp);
-          };
-      };
-
-    if (@opt_field)
-      { foreach my $fil (@opt_field)
-          { my($field,$regexp)= split(",",$fil);
-
-            filter_records($ext_db_hash,$field,$regexp);
-          };
-      };
-
-    if (defined $opt_val_regexp)
-      { find_val($filename,$ext_db_hash,$opt_val_regexp,0);
-      };
-
-    if (defined $opt_fields)
-      { my @fields= split(",",$opt_fields);
-        filter_fields($ext_db_hash,\@fields);
-      };
-
-    if (defined $opt_empty)
-      { remove_empty_fields($ext_db_hash);
-      };
-
-    if (defined $opt_rm_capfast_defaults)
-      { remove_capfast_default_fields($ext_db_hash);
-      };
-
-    if (defined $opt_percent)
-      { filter_percent($ext_db_hash,$opt_percent); };
-
-    if ((!defined $opt_dump_internal) &&
-        (!defined $opt_lowcal) &&
-        (!defined $opt_Lowcal) &&
-        (!defined $opt_sdo) &&
-        (!defined $opt_Sdo) &&
-        (!defined $opt_short) &&
-        (!defined $opt_recreate) &&
-        (!defined $opt_value) &&
-        (!defined $opt_list) &&
-        (!defined $opt_unresolved_variables) &&
-        (!defined $opt_unresolved_links) &&
-        (!defined $opt_record_references)
-       )
-      { $opt_recreate=1; };
-
-    if (defined $opt_value)
-      { find_val($filename,$ext_db_hash,$opt_value,1);
-        next;
-      };
-
-    if (defined $opt_infovalue)
+    my $r_aliasmap= $ext_db_hash->{"aliasmap"};
+    if ($r_aliasmap)
       {
-        find_info($ext_db_hash,undef,$opt_infovalue);
-      };
-
-    if (defined $opt_unresolved_variables)
+        rm_prefix_in_hash($opt_rm_prefix, $r_aliasmap, 1, 1);
+      }
+    my $r_realrecords= $ext_db_hash->{"realrecords"};
+    if ($r_realrecords)
       {
-        my %flags= ();
-        if ($opt_recreate)
-          { $flags{"add_records"}= 1; }
-        if ($opt_db)
-          { $flags{"only_records"}= 1; }
-        list_unresolved_variables($filename,$ext_db_hash,\%flags);
-        next;
-      };
+        rm_prefix_in_hash($opt_rm_prefix, $r_realrecords, 1, 0);
+      }
+  }
+    
+if (defined $opt_name)
+  { filter_name($ext_db_hash,$opt_name); };
 
-    if (defined $opt_unresolved_links)
-      {
-        if ($opt_unresolved_links eq "")
-          { $opt_unresolved_links=2; } # default: 2
-        my %flags= ();
-        if ($opt_recreate)
-          { $flags{"add_records"}= 1; }
-        if ($opt_db)
-          { $flags{"only_records"}= 1; }
-        list_unresolved_links($filename,$ext_db_hash, $opt_unresolved_links, \%flags);
-        next;
-      };
+if (defined $opt_notname)
+  { filter_name($ext_db_hash,$opt_notname,1); };
 
-    if (defined $opt_record_references)
-      {
-        my %flags= ();
-        if ($opt_recreate)
-          { $flags{"add_records"}= 1; }
-        if ($opt_db)
-          { $flags{"only_records"}= 1; }
-        if ($opt_list)
-          { $flags{"list"}= 1; };
-        if ($opt_dot)
-          { $flags{"dot"}= 1; };
+if (defined $opt_name_file)
+  { filter_name_file($ext_db_hash,$opt_name_file); };
 
-        list_record_references($filename,$ext_db_hash,
-                               $opt_record_references,
-                               \%flags,
-                               $opt_recursive);
-        next;
-      };
+if (defined $opt_notname_file)
+  { filter_name_file($ext_db_hash,$opt_notname_file,1); };
 
-    if (defined $opt_list)
-      { foreach my $r (sort keys %{$ext_db_hash->{dbhash}})
-          { if (defined $filename)
-              { print "\nFILE $filename:\n";
-                $filename= undef;
-              };
-            print $r,"\n";
-          };
-        next;
-      };
+if (defined $opt_type)
+  { filter_type($ext_db_hash,$opt_type); };
 
-    if ((defined $opt_lowcal) || (defined $opt_Lowcal))
-      { 
-        my $par= $opt_lowcal;
-        $par= $opt_Lowcal if (!defined $par);
-        lowcal($filename,$ext_db_hash,(defined $opt_Lowcal),$par);
-        next;
-      };
+if ($opt_dtyp)
+  { filter_records($ext_db_hash,"DTYP",$opt_dtyp);
+  };
 
-    if ((defined $opt_sdo) || (defined $opt_Sdo))
-      { 
-        my $par= $opt_sdo;
-        $par= $opt_Sdo if (!defined $par);
-        sdo($filename,$ext_db_hash,(defined $opt_Sdo),$par);
-        next;
-      };
+if (@opt_info)
+  { foreach my $fil (@opt_info)
+      { my($field,$regexp)= split(",",$fil);
 
-    if (defined $opt_skip_empty_records)
-      { rem_empty_records($ext_db_hash); };
-
-    if (defined $opt_dump_internal)
-      { dump_recs($filename,$ext_db_hash);
-        next;
-      };
-
-    if (defined $opt_short)
-      { 
-        one_line_dump_recs($filename,$ext_db_hash);
-        next;
-      };
-
-    if (defined $opt_recreate)
-      { if ((defined $filename) && (%{$ext_db_hash->{dbhash}}))
-          { print "\nFILE $filename:\n"; };
-        parse_db::create($ext_db_hash->{realrecords});
-        parse_db::create_aliases($ext_db_hash->{aliasmap});
-        next;
+        find_info($ext_db_hash,$field,$regexp);
       };
   };
 
+if (@opt_field)
+  { foreach my $fil (@opt_field)
+      { my($field,$regexp)= split(",",$fil);
 
+        filter_records($ext_db_hash,$field,$regexp);
+      };
+  };
+
+if (defined $opt_val_regexp)
+  { find_val($ext_db_hash,$opt_val_regexp,0);
+  };
+
+if (defined $opt_fields)
+  { my @fields= split(",",$opt_fields);
+    filter_fields($ext_db_hash,\@fields);
+  };
+
+if (defined $opt_empty)
+  { remove_empty_fields($ext_db_hash);
+  };
+
+if (defined $opt_rm_capfast_defaults)
+  { remove_capfast_default_fields($ext_db_hash);
+  };
+
+if (defined $opt_percent)
+  { filter_percent($ext_db_hash,$opt_percent); };
+
+if ((!defined $opt_dump_internal) &&
+    (!defined $opt_lowcal) &&
+    (!defined $opt_Lowcal) &&
+    (!defined $opt_sdo) &&
+    (!defined $opt_Sdo) &&
+    (!defined $opt_short) &&
+    (!defined $opt_recreate) &&
+    (!defined $opt_value) &&
+    (!defined $opt_list) &&
+    (!defined $opt_unresolved_variables) &&
+    (!defined $opt_unresolved_links) &&
+    (!defined $opt_record_references)
+   )
+  { $opt_recreate=1; };
+
+if (defined $opt_value)
+  { find_val($ext_db_hash,$opt_value,1);
+    exit(0);
+  };
+
+if (defined $opt_infovalue)
+  {
+    find_info($ext_db_hash,undef,$opt_infovalue);
+  };
+
+if (defined $opt_unresolved_variables)
+  {
+    my %flags= ();
+    if ($opt_recreate)
+      { $flags{"add_records"}= 1; }
+    if ($opt_db)
+      { $flags{"only_records"}= 1; }
+    list_unresolved_variables($ext_db_hash,\%flags);
+    exit(0);
+  };
+
+if (defined $opt_unresolved_links)
+  {
+    if ($opt_unresolved_links eq "")
+      { $opt_unresolved_links=2; } # default: 2
+    my %flags= ();
+    if ($opt_recreate)
+      { $flags{"add_records"}= 1; }
+    if ($opt_db)
+      { $flags{"only_records"}= 1; }
+    list_unresolved_links($ext_db_hash, $opt_unresolved_links, \%flags);
+    exit(0);
+  };
+
+if (defined $opt_record_references)
+  {
+    my %flags= ();
+    if ($opt_recreate)
+      { $flags{"add_records"}= 1; }
+    if ($opt_db)
+      { $flags{"only_records"}= 1; }
+    if ($opt_list)
+      { $flags{"list"}= 1; };
+    if ($opt_dot)
+      { $flags{"dot"}= 1; };
+
+    list_record_references($ext_db_hash,
+                           $opt_record_references,
+                           \%flags,
+                           $opt_recursive);
+    exit(0);
+  };
+
+if (defined $opt_list)
+  { foreach my $r (sort keys %{$ext_db_hash->{dbhash}})
+      { 
+        print $r,"\n";
+      };
+    exit(0);
+  };
+
+if ((defined $opt_lowcal) || (defined $opt_Lowcal))
+  { 
+    my $par= $opt_lowcal;
+    $par= $opt_Lowcal if (!defined $par);
+    lowcal($ext_db_hash,(defined $opt_Lowcal),$par);
+    exit(0);
+  };
+
+if ((defined $opt_sdo) || (defined $opt_Sdo))
+  { 
+    my $par= $opt_sdo;
+    $par= $opt_Sdo if (!defined $par);
+    sdo($ext_db_hash,(defined $opt_Sdo),$par);
+    exit(0);
+  };
+
+if (defined $opt_skip_empty_records)
+  { rem_empty_records($ext_db_hash); };
+
+if (defined $opt_dump_internal)
+  { dump_recs($ext_db_hash);
+    exit(0);
+  };
+
+if (defined $opt_short)
+  { 
+    one_line_dump_recs($ext_db_hash);
+    exit(0);
+  };
+
+if (defined $opt_recreate)
+  { 
+    parse_db::create($ext_db_hash->{realrecords});
+    parse_db::create_aliases($ext_db_hash->{aliasmap});
+    exit(0);
+  };
 exit(0);
 
 sub rem_empty_records
@@ -447,9 +433,7 @@ sub rem_empty_records
 
 sub one_line_dump_recs
 # dump all records, one record per line
-  { my($filename,$r_ext_db)= @_;
-
-    print "\nFILE $filename:\n" if (defined $filename);
+  { my($r_ext_db)= @_;
 
     my $r_dbhash= $r_ext_db->{dbhash};
     foreach my $rec (sort keys %$r_dbhash)
@@ -469,9 +453,8 @@ sub one_line_dump_recs
 
 sub dump_recs
 # dump the internal record-hash structure
-  { my($filename,$r_ext_db_hash)= @_;
+  { my($r_ext_db_hash)= @_;
 
-    print "\nFILE $filename:\n" if (defined $filename);
     parse_db::dump_real($r_ext_db_hash);
   }
 
@@ -563,7 +546,7 @@ sub match_fields
   }
 
 sub list_unresolved_variables
-  { my ($filename,$r_ext_db,$r_flags)= @_;
+  { my ($r_ext_db,$r_flags)= @_;
     my $res;
     my %mac;
     my %recs;
@@ -577,8 +560,6 @@ sub list_unresolved_variables
         if ($res)
           { $recs{$rec}= 1; };
       };
-    if (defined $filename)
-      { print "\nFILE $filename:\n"; };
     if (!$r_flags->{"only_records"})
       {
         print "=" x 40,"\n";
@@ -600,7 +581,7 @@ sub list_unresolved_variables
 
 sub list_record_references
 # recs: this complete list of records to work on
-  { my ($filename,$r_ext_db,$record_name,$r_flags,$recursive)= @_;
+  { my ($r_ext_db,$record_name,$r_flags,$recursive)= @_;
 
     my %references;
     my %referenced_by;
@@ -652,11 +633,6 @@ sub list_record_references
       { @reclist=(sort keys %$r_dbhash); };
 
     #print parse_db::dump($recs->{$reclist[0]}); die;
-
-    if (defined $filename)
-      { print "\nFILE $filename:\n";
-        print "=" x 40,"\n";
-      };
 
     if ($r_flags->{"list"})
       {
@@ -770,7 +746,7 @@ sub list_record_references
   }
 
 sub list_unresolved_links
-  { my ($filename,$r_ext_db,$verbosity,$r_flags)= @_;
+  { my ($r_ext_db,$verbosity,$r_flags)= @_;
     my $res;
     my %mac;
     my %found_recs;
@@ -787,9 +763,6 @@ sub list_unresolved_links
           { next; };
         $found_recs{$rec}= $r_ref_fields;
       };
-
-    if (defined $filename)
-      { print "\nFILE $filename:\n"; };
 
     if (!$r_flags->{"only_records"})
       {
@@ -1031,7 +1004,7 @@ sub filter_percent
 sub find_val
 # remove all records where not one of the
 # fields matches a given regular expression
-  { my($filename,$r_ext_db,$regexp,$filter_fields)= @_;
+  { my($r_ext_db,$regexp,$filter_fields)= @_;
     my @fields;
     my @delete;
 
@@ -1044,10 +1017,7 @@ sub find_val
         if (!@fields)
           { push @delete, $rec; };
         if ((@fields) && ($filter_fields))
-          { if (defined $filename)
-              { print "\nFILE $filename:\n";
-                $filename= undef;
-              };
+          { 
             print "\"$rec\": \n";
             dump_rec_fields($r_dbhash->{$rec}, \@fields);
           };
@@ -1129,7 +1099,7 @@ sub find_info
   }
 
 sub lowcal
-  { my($filename,$r_ext_db,$reverse,$filters)= @_;
+  { my($r_ext_db,$reverse,$filters)= @_;
     my %filter_hash;
 
     my %filter_map=
@@ -1222,7 +1192,7 @@ sub lowcal
   }
 
 sub sdo
-  { my($filename,$r_ext_db,$reverse,$params)= @_;
+  { my($r_ext_db,$reverse,$params)= @_;
     my $use_hex= 0;
 
     if (defined $params)
