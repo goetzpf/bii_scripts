@@ -596,7 +596,7 @@ sub list_record_references
                                                     \@reclist,$recursive,
                                                     $filter_func);
             @reclist= sort{ $linkset_hash->{$a} <=> $linkset_hash->{$b} }
-                      (keys %$linkset_hash);
+                      (sort keys %$linkset_hash);
 #die "reclist:".join("|",@reclist);
           }
       }
@@ -642,7 +642,7 @@ sub list_record_references
         print "    ratio=\"fill\";\n";
         print "    size=\"11.7,8.3!\";\n";
 
-        foreach my $l (keys %links)
+        foreach my $l (sort keys %links)
           {
             print "    $l;\n";
           }

@@ -223,8 +223,9 @@ sub add_link_info
         next if (!%$r_h);
         my %references;
 	$recs->{$recname}->{LINKS}->{REFERENCES}= \%references;
-        while (my($fieldname, $r_result) = each %$r_h)
-          {
+        foreach my $fieldname (sort keys %$r_h)
+          { 
+            my $r_result= $r_h->{$fieldname};
             my $x=join("|",@$r_result);
             my $other_rec= $r_result->[0];
             my $properties= join(" ",@{$r_result}[1..$#$r_result]);
@@ -329,9 +330,10 @@ sub linkset_hash
 # returns a sorted list
   { my($recs, $r_recnames, $maxlvl, $r_match_func)= @_;
 
+    my @recnames= sort(@$r_recnames);
     error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
     my %set;
-    r_linkset(0, $maxlvl, \%set, $recs, $r_recnames, $r_match_func);
+    r_linkset(0, $maxlvl, \%set, $recs, \@recnames, $r_match_func);
     return(\%set);
   }
 
