@@ -414,22 +414,35 @@ sub parse
 
 sub parse_file
 # parse the db file and return the record hash
-  { my($filename, $mode)= @_;
+  { my($r_files, $mode)= @_;
     local(*F);
     local($/);
+    my $name;
     my $st;
 
     undef $/;
 
-    if (!defined $filename) # read from STDIN
-      { *F=*STDIN; }
-    else
-      { open(F,$filename) or die "unable to open $filename"; };
-    $st= <F>;
+    if (!ref($r_files))
+      { # a simple scalar
+        my @l= ($r_files);
+        $r_files= \@l;
+      }
 
-    close(F) if (defined $filename);
+    # name is just used for error messages
+    if (($#$r_files==0) && ($r_files->[0]))
+      { $name= $r_files->[0]; }
 
-    return(parse($st,$filename,$mode));
+    foreach my $filename (@$r_files)
+      {
+        if (!defined $filename) # read from STDIN
+          { *F=*STDIN; }
+        else
+          { open(F,$filename) or die "unable to open $filename"; };
+        $st.= <F>;
+        close(F) if (defined $filename);
+      }
+
+    return(parse($st,$name,$mode));
     #dump($r_records);
     #create($r_records);
   }
@@ -645,11 +658,12 @@ B<parse_file()>
 
   my $r_records= parse_db::parse_file($filename,$mode);
 
-This function parses the contents of the given filename. If the parameter
-C<$filename> is not given it tries to read form STDIN. If the file cannot be
-opened, it dies with an appropriate error message.  For the meaning of
-parameter C<$mode> and the format of the returned data see description of
-function "parse".
+This function parses the contents of the given file. If parameter C<$filename>
+is C<undef> it tries to read form STDIN. If parameter C<$filename> is a list
+reference, the function parses the contents of all files in the list.  If the
+file cannot be opened, it dies with an appropriate error message. For the
+meaning of parameter C<$mode> and the format of the returned data see
+description of function "parse".
 
 =item *
 
