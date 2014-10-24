@@ -90,35 +90,6 @@ my $sc_year= "2014";
 
 my $debug= 0; # global debug-switch
 
-my @dtyp_link_fields= qw(INP OUT);
-
-my @link_fields= qw(
-DOL
-FLNK
-INP
-INPA
-INPB
-INPC
-INPD
-INPE
-INPF
-INPG
-INPH
-INPI
-INPJ
-INPK
-INPL
-LNK1
-LNK2
-LNK3
-LNK4
-LNK5
-LNK6
-LNK7
-OUT
-SDIS
-SELL);
-
 #Getopt::Long::config(qw(no_ignore_case));
 
 if (!@ARGV)
@@ -219,7 +190,7 @@ my $ext_db_hash= parse_db::parse_file(\@files,"extended");
 
 if ($opt_rm_prefix)
   {
-    my %link_fields= map {$_=>1} @link_fields;
+    my %link_fields= map {$_=>1} @analyse_db::link_fields;
     my $r_dbhash= $ext_db_hash->{"dbhash"};
     if ($r_dbhash)
       {
@@ -1451,9 +1422,10 @@ sub h_center
 sub help
   { my $l1= h_center("**** $sc_name $sc_version -- $sc_summary ****");
     my $l2= h_center("$sc_author $sc_year");
-    my $l= $#link_fields/2;
-    my $links1= join(",",@link_fields[0..$l]);
-    my $links2= join(",",@link_fields[($l+1)..$#link_fields]);
+    my $l= $#analyse_db::link_fields/2;
+    my $links1= join(",",@analyse_db::link_fields[0..$l]);
+    my $links2= 
+      join(",",@analyse_db::link_fields[($l+1)..$#analyse_db::link_fields]);
     print <<END;
 
 $l1

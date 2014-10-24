@@ -52,9 +52,9 @@ use Carp;
 use parse_db;
 use capfast_defaults;
 
-my @dtyp_link_fields= qw(INP OUT);
+our @dtyp_link_fields= qw(INP OUT);
 
-my @link_fields= qw(
+our @link_fields= qw(
 DOL
 DOL1
 DOL2
