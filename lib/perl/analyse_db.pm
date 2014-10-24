@@ -433,6 +433,7 @@ contain hashes that show which records are connected with this one.
 Here is a short example (note that parse_db::dump() has almost the
 same function as Data::Dumper):
 
+  use Data::Dumper;
   use parse_db;
   use analyse_db;
   my $records= parse_db::parse_file("idcp13.db"); 
@@ -443,25 +444,28 @@ The now output shows this:
 
   $VAR1 = {
             'LINKS' => {
-                	 'REFERENCED_BY' => {
-                                              'UE112ID7R:BaseParGapselO' => 1,
-                                              'UE112ID7R:AdiUnVDrvDstC' => 1
-                                            },
-                	 'REFERENCES' => {
-                                           'UE112ID7R:AdiUnVDrvDstICnt' => 1
-                                	 }
+                       'REFERENCES' => {
+                                         'UE112ID7R:AdiUnVDrvDstICnt' => 'FLNK:VAL'
+                                       },
+                       'REFERENCED_BY' => {
+                                            'UE112ID7R:AdiUnVDrvDstC' => 1,
+                                            'UE112ID7R:DiagResetBrakes' => 1,
+                                            'UE112ID7R:BaseParGapselO' => 1,
+                                            'UE112ID7R:AdiVDrvDmo' => 1
+                                          }
                        },
             'TYPE' => 'longin',
             'FIELDS' => {
-                          'LOLO' => '',
-                          'SIOL' => '',
-                        ....
+                        'DESC' => 'adivhdst_ins.pyx',
+                        'FLNK' => 'UE112ID7R:AdiUnVDrvDstICnt.VAL '
 			}
 	 }
 
-The record 'UE112ID7R:AdiUnVDrvDstICnt' is referenced by 
-"UE112ID7R:AdiVDrvDstSet". The records 'UE112ID7R:BaseParGapselO' and
-'UE112ID7R:AdiUnVDrvDstC' do themselve reference "UE112ID7R:AdiVDrvDstSet". 
+The record 'UE112ID7R:AdiVDrvDstSet' is referenced by
+"UE112ID7R:AdiVDrvDstSetC", "UE112ID7R:DiagResetBrakes",
+"UE112ID7R:BaseParGapselO" and "UE112ID7R:AdiVDrvDmo". The record
+'UE112ID7R:AdiVDrvDstSet' itself references "UE112ID7R:AdiUnVDrvDstICnt.VAL"
+with field "FLNK". 
 
 =item *
 
