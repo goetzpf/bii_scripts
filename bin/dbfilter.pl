@@ -76,7 +76,6 @@ use vars qw($opt_help $opt_summary
             $opt_Lowcal
             $opt_sdo
             $opt_Sdo
-            $opt_alternative
             $opt_recursive
            );
 
@@ -128,7 +127,6 @@ if (!GetOptions("help|h","summary",
                 "single|S",
                 "lowcal:s", "Lowcal:s",
                 "sdo:s", "Sdo:s",
-                "alternative|a",
                 "recursive|rec=i",
                 ))
   { die "parameter error!\n"; };
@@ -651,26 +649,6 @@ sub list_record_references
       }
     if (!$r_flags->{"only_records"})
       {
-        # <recname>$A$B<referenced-recs>$C$D<referenced-by-recs>$E$F
-        # separator in-between record-names: $S
-        my $A= "\n";
-        my $B= "  references:";
-        my $C= "\n";
-        my $D= "  referenced by:";
-        my $E= "\n";
-        my $F= "\n";
-        my $S= "\n\t";
-
-        if ($opt_alternative)
-          { $A='';
-            $B=' ->';
-            $C='';
-            $D=' <-';
-            $E='';
-            $F= "\n";
-            $S= " ";
-          };
-
         foreach my $recname (@reclist)
           { my @references   = analyse_db::references_list($r_dbhash,$recname);
             my @referenced_by= analyse_db::referenced_by_list($r_dbhash,$recname);
@@ -690,20 +668,31 @@ sub list_record_references
             #  };
 
             print $recname;
+            # print "distance" to source records:
             if ($linkset_hash)
               { print "(",$linkset_hash->{$recname},")"; };
 
-            print $A;
+            print "\n";
 
             if (@references)
               {
-                print $B,hjoin($S,@references),$C;
+                my $ref_h= analyse_db::references_hash($r_dbhash, $recname);
+                print "  references:\n";
+                foreach my $r (@references)
+                  {
+                    printf("\t%-30s %s\n", $r, $ref_h->{$r});
+                  }
               };
             if (@referenced_by)
               {
-                print $D,hjoin($S,@referenced_by),$E;
+                my $ref_h= analyse_db::referenced_by_hash($r_dbhash, $recname);
+                print "  referenced by:\n";
+                foreach my $r (@referenced_by)
+                  {
+                    printf("\t%-30s %s\n", $r, $ref_h->{$r});
+                  }
               };
-            print $F;
+            print "\n";
           };
       };
     if ($r_flags->{"add_records"} || $r_flags->{"only_records"})
@@ -1402,13 +1391,6 @@ sub create_regexp_func
 
 # ------------------------------------------------
 
-sub hjoin
-# call with hjoin($sep,@array)
-# returns $sep . join($sep,@array)
-  { my $sep= shift;
-    return($sep . join($sep, @_));
-  }
-
 sub print_summary
   { printf("%-20s: $sc_summary\n",
            $sc_name);
@@ -1519,7 +1501,6 @@ Syntax:
       -l  : just list the record names
       --db: only show records in db-file format, do not show dependency
             details.
-      -a  : show dependency data for each record in a single line
       --dot :
             produce a graphviz file. Use for example 
               dbfilter.pl {options...} --dot | dot -Tpdf > plot.pdf 

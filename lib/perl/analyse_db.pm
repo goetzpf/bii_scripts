@@ -202,6 +202,20 @@ sub rec_link_fields
 #$ls=analyse_db::linkset_sorted_keys($s);
 #print join("|",@$ls),"\n";
 
+
+sub _addto_hash
+  { my($r_h,$key,$string)= @_;
+
+    if (exists $r_h->{$key})
+      {
+        $r_h->{$key}.= " $string";
+      }
+    else
+      { 
+        $r_h->{$key}= $string;
+      }
+  }
+
 sub add_link_info
 # adds a "LINKS" sub-hash to the record-hash
 # thus hash contains tha sub-hashes
@@ -230,15 +244,14 @@ sub add_link_info
             my $other_rec= $r_result->[0];
             my $properties= join(" ",@{$r_result}[1..$#$r_result]);
             $properties="$fieldname:$properties";
-            if (!exists $references{$other_rec})
+            _addto_hash(\%references, $other_rec, $properties);
+            my $ref_by= $recs->{$other_rec}->{LINKS}->{REFERENCED_BY};
+            if (!defined $ref_by)
               {
-                $references{$other_rec}= $properties;
+                $ref_by= {};
+                $recs->{$other_rec}->{LINKS}->{REFERENCED_BY}= $ref_by;
               }
-            else
-              {
-                $references{$other_rec}.= " $properties";
-              }
-            $recs->{$other_rec}->{LINKS}->{REFERENCED_BY}->{$recname}= 1;
+            _addto_hash($ref_by, $recname, $properties);
           }
       }
   }
@@ -270,6 +283,19 @@ sub references_list
     	if (!defined $r_lh);
     my $r_h= $r_lh->{REFERENCES};
     return(sort keys %$r_h);
+  }
+
+sub referenced_by_hash
+# returns a sorted list of records this record is referenced by
+# add_link_info must have been called before
+  { my($recs, $recname)= @_;
+
+    error(__LINE__,"1st param must be a hash ref") if (ref($recs) ne 'HASH');
+    my $r_lh= $recs->{$recname}->{LINKS};
+    error(__LINE__,"no link info found, add_link_info() was not called")
+    	if (!defined $r_lh);
+    my $r_h= $r_lh->{REFERENCED_BY};
+    return $r_h;
   }
 
 sub referenced_by_list
