@@ -119,11 +119,6 @@ def darcs_replay(author, log,actions,verbose,dry_run):
         action= item[0]
         if action=="rename":
             (old,new)= item[1:3]
-            if not dry_run:
-                # since darcs performs an actual move on the
-                # file system, we have to do an inverse move 
-                # first:
-                shutil.move(new,old)
             darcs_cmd("mv %s %s" % (old,new),False,verbose,dry_run)
         elif action=="added":
             darcs_cmd("add %s" % item[1],False,verbose,dry_run)
