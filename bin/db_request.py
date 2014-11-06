@@ -259,8 +259,8 @@ def main():
         if dbProfiles[argOptionList.profile] is not None:
             dbProfile = dbProfiles[argOptionList.profile]
         else:
-            sys.stderr.write "ERROR: Profile %s isn't known. See the --profiles "\
-                  "option to try a right one.\n" % argOptionList.profile
+            sys.stderr.write("ERROR: Profile %s isn't known. See the --profiles "
+                  "option to try a right one.\n" % argOptionList.profile)
         if verbose:
             print "set profile " + argOptionList.profile
 
@@ -302,14 +302,14 @@ def main():
         outFormat = str(argOptionList.format)
     elif argOptionList.format not in outFormatList.keys():
         if verbose:
-            sys.stderr.write "replace unknown format " + str(argOptionList.format) + \
-                  " to " + outFormat
+            sys.stderr.write("replace unknown format " + str(argOptionList.format) +
+                  " to " + outFormat)
     if argOptionList.header:
         header = True
     if argOptionList.idx:
         outnumbered = True
     if verbose:
-        sys.stderr.write "set output format to " + outFormat
+        sys.stderr.write("set output format to " + outFormat)
 
     if argOptionList.test:
         sys.exit("not yet implemented")
@@ -329,14 +329,14 @@ def main():
             if selectcommand.match(inpcont):
                 dbSQLString = inpcont
             else:
-                sys.stderr.write "ERROR given command isnt a valid sql select statement"
+                sys.stderr.write("ERROR given command isnt a valid sql select statement")
                 sys.exit(-2)
     except Exception, e:
-        sys.stderr.write "Exception: %s" % e
-        sys.stderr.write "ERROR by getting correct sql string" + str(e)
+        sys.stderr.write("Exception: %s" % e)
+        sys.stderr.write("ERROR by getting correct sql string" + str(e))
         sys.exit(-3)
     if verbose:
-        sys.stderr.write "set statement: " + str(dbSQLString)
+        sys.stderr.write("set statement: " + str(dbSQLString))
 
     # Section for execution
 
@@ -358,10 +358,10 @@ def main():
                        dbProfile["user"] + "@" + dbProfile["server"] + \
                        '/' + dbProfile["instance"]
     except Exception, e:
-        sys.stderr.write "Exception: %s" % e
-        sys.stderr.write "ERROR connect to " + dbProfile["connecttype"] + "://" + \
-              dbProfile["user"] + "@" + dbProfile["instance"] + \
-              " returns", sys.exc_info()[1]
+        sys.stderr.write("Exception: %s" % e)
+        sys.stderr.write("ERROR connect to " + dbProfile["connecttype"] + "://" +
+              dbProfile["user"] + "@" + dbProfile["instance"] +
+              " returns " + str(sys.exc_info()[1]))
         sys.exit(-1)
     if type(dbSQLString) == unicode:
         dbSQLString = str(dbSQLString)
@@ -369,11 +369,11 @@ def main():
     try:
         dbSQLCursor = dbConnectHandle.Execute(dbSQLString)
     except Exception, e:
-        sys.stderr.write "Exception: %s" % e
+        sys.stderr.write("Exception: %s" % e)
         run = False
-        sys.stderr.write "ERROR execute statement "+dbSQLString+" fails."
+        sys.stderr.write("ERROR execute statement "+dbSQLString+" fails.")
         if verbose:
-            sys.stderr.write "> "+str(e)
+            sys.stderr.write("> "+str(e))
         dbConnectHandle.Close()
     if run:
         try:
@@ -405,10 +405,10 @@ def main():
                     dbSQLCursor.MoveNext()
                 dbSQLCursor.Close()
         except Exception, e:
-            sys.stderr.write "Exception: %s" % e
-            sys.stderr.write "ERROR formatting and printing content fails."
+            sys.stderr.write("Exception: %s" % e)
+            sys.stderr.write("ERROR formatting and printing content fails.")
             if verbose:
-                sys.stderr.write  "> "+str(e)
+                sys.stderr.write("> "+str(e))
         dbConnectHandle.Close()
 
     sys.exit(0)
