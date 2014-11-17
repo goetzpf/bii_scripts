@@ -716,7 +716,7 @@ sub list_unresolved_links
       {
         my $r_ref_fields= analyse_db::rec_link_fields($r_dbhash,$rec);
         foreach my $f (keys %$r_ref_fields)
-          { if (exists $r_dbhash->{$r_ref_fields->{$f}})
+          { if (exists $r_dbhash->{$r_ref_fields->{$f}->[0]})
               { delete $r_ref_fields->{$f}; };
           };
         if (!%$r_ref_fields)
@@ -732,7 +732,7 @@ sub list_unresolved_links
             foreach my $recname (keys %found_recs)
               { my $r_f= $found_recs{$recname};
                 foreach my $field (keys %$r_f)
-                  { $values{$r_f->{$field}}= 1; };
+                  { $values{$r_f->{$field}->[0]}= 1; };
               };
             print join("\n",sort keys %values),"\n";
           }
@@ -752,7 +752,7 @@ sub list_unresolved_links
               { my $r_f= $found_recs{$recname};
                 print "record: $recname\n";
                 foreach my $field (sort keys %$r_f)
-                  { print "\t$field : ",$r_f->{$field},"\n"; };
+                  { print "\t$field : ",$r_f->{$field}->[0],"\n"; };
               };
           }
       };
