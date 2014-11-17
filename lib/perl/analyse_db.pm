@@ -435,11 +435,11 @@ B<rec_link_fields()>
 
   my $r_h= analyse_db::rec_link_fields($recs, $recname);
 
-This function returns a reference to a hash that contains
-field-value pairs where the values are the names of 
-referenced other records. The first parameter is the structure
-created by parse_db::parse(), the second parameter is the 
-name of the record.
+This function returns a reference to a hash that contains field-value pairs.
+The values are lists containing of the name of the other record, the referenced
+field and following flags (e.g. "CPP" or "NMS").  The first parameter is the
+structure created by parse_db::parse(), the second parameter is the name of the
+record.
 
 =item *
 
