@@ -95,6 +95,18 @@ proc usage {} {
   exit
 }
 
+set ::printCols 0
+if {[lindex $argv 0] == "-c"} {
+    set ::printCols 1
+    set argv [lreplace $argv 0 0]
+    incr argc -1
+}
+if {[lindex $argv 0] == "-T"} {
+    set ::colSep [lindex $argv 1]
+    set argv [lreplace $argv 0 1]
+    incr argc -2
+}
+
 if {[lindex $argv 0] == "-g"} {
   if {$env(ORACLE_SID) == "mirror"} {
     set phrase "guest/bessyguest@$env(ORACLE_SID)"
@@ -139,6 +151,14 @@ proc promptline {} {
   return $result
 }
 
+proc sep {l} {
+    if {[info exists ::colSep]} {
+        return [join $l $::colSep]
+    } else {
+        return $l
+    }
+}
+
 proc parse_requests {} {
   global infile cursor outfile interactive str
   set line [promptline]
@@ -174,10 +194,12 @@ proc parse_requests {} {
 	    } else {
 	      puts stdout "\#\#\# ANSWER redirected to '$ofile' \#\#\#"
 	    }
-	    puts $outfile [oracols $cursor]
-	  }
+              puts $outfile [sep [oracols $cursor]]
+	  } elseif {$::printCols} {
+              puts $outfile [sep [oracols $cursor]]
+          }
 	  fetchData $cursor str {
-	    puts $outfile $str
+              puts $outfile [sep $str]
 	  }
 	}
       }
