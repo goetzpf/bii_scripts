@@ -845,7 +845,7 @@ class epicsAlh(object):
 	else:
 	    egu = " "
 	    if len(devObj.egu) > 0: egu = devObj.egu
-	    self.command = "run_edm.sh -x -noedit -noscrl -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
+	    self.command = "run_edm.sh -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
 
         self.tags = [("ALIAS",devname+": "+self.desc),
                      ("ALARMCOUNTFILTER","2 1")
