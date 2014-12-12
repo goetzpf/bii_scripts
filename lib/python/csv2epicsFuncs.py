@@ -3,8 +3,8 @@
 
   Collection of Functions:
   
-* Helper functions of the csv2epics script to be used in local modules that
-  define local templates.
+* Helper functions of the csv2epics script and to be used in local modules that
+  define substitutions for local template files.
 
 - class csvData(object):
   This object contains the data from then .csv file. Adaption to other file formats has
@@ -14,19 +14,21 @@
   read all plugins for templates to be used
 
 * Support Hardware links, functions for HZB specific hardware: CAN Bus and DTYP lowcal
-  but also OPC and VME cards
+  but also VME cards, OPC devices and WAGO-I/O-SYSTEM accessed by ModbusTCP coupler.
+
+- def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,fileName,lines):
+- def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,fileName):
+class PLC_Address(object):
+- def getVmeLink()
+- def getCANLink()
+- def getWagoLink()
+
+* Process record attributes for display, alarms etc from the special columns
 
 - def getShiftParam(bits):
 - def getEcName(port,canId,cardNr,namesEnd):
 - def adaCanMux(id,card,chan,typ='hex'):
 - def createAdaCanLink(port,id,card,chan):
-
-- def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,fileName,lines):
-- def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,fileName):
-- def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
-class PLC_Address(object):
-
-* Process record attributes for display, alarms etc from the special columns
 
 - def getDisplayLimits(rangeEng,egu,signal=None,lines=None):
 - def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=None):
@@ -34,14 +36,16 @@ class PLC_Address(object):
 
 * Create complete Record
 
+- def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+
 - def createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,egu,rangeAlhVal,rangeAlhSevr,signal,fileName,lines):
 - def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
 - def createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
 
+* Builtin Templates (for convenience only)
 
-- def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
-
-* The only builtin Template (for convenience only)
+- def watchdogGetFunc():
+- def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 
 - def pt100tempGetFunc():
 - def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
@@ -87,8 +91,7 @@ class csvData(object):
 		try:
 	    	    self.port = int(canOption)   # D CAN-port set by argument
 		except ValueError:
-	    	    if len(self.port) != 0:
-	    		raise ValueError("ERROR: illegal argument -can: '"+str(device[3])+"' assumed here to be empty or a can port number")
+	    	    pass    	    	    	 # my be a string for use outside CAN e.g.wago device
 
 	try: self.canId     = device[4].strip()  # E  CAN-Id / VME DTYP
 	except IndexError: self.canId = ""
@@ -614,12 +617,31 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
     return (autoSRRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
 
 def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
+    """ Decide which type of hardware is to be processed:
+    
+    Device type      | option -c     | Col. D   | Col. E | Col. F  | Col. G   | processed in
+    -----------------+---------------+----------+--------+---------+----------+-------------
+    Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id | Card Nr.| Chan. Nr | getCANLink()
+    VME-Device       | empty/CAN-Port| empty    | DTYP   | Card Nr.| Chan. Nr | getVmeLink()
+    OPC Device       | opc           | OPC-Link |  empty | empty   | empty    | getOpcLink()
+    Wago Device      | empty      | MODBUS-Port | wago[Type] | Offset | Bits  | getWagoLink()
+    """
     if canOption == 'opc':
-	if  len(devObj.port) == 0:	# is a soft record
-	    return {}
+	if  len(devObj.port) == 0:
+	    return {}	# is a soft record
 	return getOpcLink(devObj,devName,opc_name)
     else:	# ommit parameter or canport number means CAN/VME link
-        return getHwLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag)
+	if epicsUtils.matchRe(devObj.canId,'^wago') is not None:
+	    return getWagoLink(devObj)
+	else:
+	    try:
+        	int(devObj.canId)          # CAN link  raises ValueError if its not an integer but a string for a VME DTYP
+		return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag)
+	    except ValueError:      # is VME link
+		if len(devObj.canId) == 0: # missing 
+    		    return {}	# is a soft record
+		    #raise ValueError("Missign DTYPE in Column D",lines)
+		return getVmeLink(devObj.rtype,devObj.canId,devObj.cardNr,devObj.chan)
 
 def getOpcLink(devObj,devName,opc_name):
     """
@@ -796,83 +818,119 @@ class PLC_Address(object):
                       	'DTYP': dtypHw,
                       	'NOBT': "16",
                       	'OUT':  link})
+def getVmeLink(rtyp,canId,cardNr,chan):
+    fields = {}
+    if rtyp in ('ai','longin','bi','mbbi','mbbiDirect',):
+        linkTyp = 'INP'
+    elif rtyp in ('ao','longout','bo','mbbo','mbboDirect'):
+        linkTyp = 'OUT'
+    else:
+	raise ValueError("Record type not supported: "+rtyp)
 
-def getHwLink(rtyp,port,canId,cardNr,chan,name,iocTag):
+    fields['DTYP'] = canId
+    (nobt,shft) = getShiftParam(chan)
+    if (rtyp in ('mbbi','mbbiDirect','mbbo','mbboDirect')):
+        fields['NOBT'] = nobt
+        fields['SHFT'] = shft
+        fields[linkTyp] = "#C%dS0"% (int(cardNr),)
+    elif rtyp in ('bi','bo','ai','longin','ao','longout'):  # access direct to card/channel
+        fields[linkTyp] = "#C%dS%d"% (int(cardNr),int(shft))
+    return (fields)
+
+def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag):
     """
-    Create an Hardware Link, CAN or VME. For option -c intNr or -c not set. For -c opc 
-    the function getOpcLink() ist called!!
+    Create an CAN Link.
     
-    * The argument canId may be an integer for CAN or a string for the DTYP of the VME device. 
-
     * For CAN links and binary records there is support to create mbbiDirect records to read
     the data and distribute it to the binary records.
     """
     fields = {}
-    #print "getHwLink(",rtyp,port,canId,cardNr,chan,name,lineNr,")"
-    try:
-        int(canId)          # CAN link  raises ValueError if its not an integer but a string for a VME DTYP
-    except ValueError:      # is VME link
-        if len(canId) > 0:
-            if rtyp in ('ai','longin','bi','mbbi','mbbiDirect',):
-                linkTyp = 'INP'
-            elif rtyp in ('ao','longout','bo','mbbo','mbboDirect'):
-                linkTyp = 'OUT'
-    	    else:
-	    	raise ValueError("Record type not supported: "+rtyp)
+    #print "getCANLink(",rtyp,port,canId,cardNr,chan,name,lineNr,")"
+    if rtyp in ('ai','longin','mbbiDirect'):
+        fields['DTYP'] = "lowcal"
+	fields['INP'] = createAdaCanLink(port,canId,cardNr,chan)
+    elif rtyp in ['ao','longout','mbboDirect']:
+        fields['DTYP'] = "lowcal"
+        fields['OUT'] = createAdaCanLink(port,canId,cardNr,chan)
+    elif rtyp in ('bi','mbbi','bo','mbbo'): # access via mbb_Direct to CAN
+        hwDeviceName = getEcName(port,canId,cardNr,iocTag)
+	if rtyp in ('bo','mbbo'):
+            linkName ='OUT'
+            mux = 9
+            recType = 'mbboDirect'
+            hwSignal = "outBits"
+        else:
+            linkName ='INP'
+            mux = 8
+            recType = 'mbbiDirect'
+            hwSignal = "inBits"
+	hasPv = epicsUtils.epicsTemplate.getPV(hwDeviceName,hwSignal)
+	if len(hasPv) < 1:
+	    f = {'DESC'  :'Access Port:'+str(port)+", Id:"+str(canId)+", card:"+str(cardNr),
+                 'NOBT'  :'16',
+                 'DTYP'  :'lowcal',
+                 'SNAME' : hwSignal,
+                 linkName: createAdaCanLink(port,canId,cardNr,mux)
+                }
+	    if linkName == 'INP':
+		f['SCAN'] = "1 second"
+            epicsUtils.epicsTemplate(recType,{'DEVN':hwDeviceName},f)
 
-            fields['DTYP'] = canId
-            (nobt,shft) = getShiftParam(chan)
-            if (rtyp in ('mbbi','mbbiDirect','mbbo','mbboDirect')):
-                fields['NOBT'] = nobt
-                fields['SHFT'] = shft
-                fields[linkTyp] = "#C%dS0"% (int(cardNr),)
-            elif rtyp in ('bi','bo','ai','longin','ao','longout'):  # access direct to card/channel
-                fields[linkTyp] = "#C%dS%d"% (int(cardNr),int(shft))
-    else:
-	if rtyp in ('ai','longin','mbbiDirect'):
-            fields['DTYP'] = "lowcal"
-	    fields['INP'] = createAdaCanLink(port,canId,cardNr,chan)
-        elif rtyp in ['ao','longout','mbboDirect']:
-            fields['DTYP'] = "lowcal"
-            fields['OUT'] = createAdaCanLink(port,canId,cardNr,chan)
-        elif rtyp in ('bi','mbbi','bo','mbbo'): # access via mbb_Direct to CAN
-            hwDeviceName = getEcName(port,canId,cardNr,iocTag)
-	    if rtyp in ('bo','mbbo'):
-                linkName ='OUT'
-                mux = 9
-                recType = 'mbboDirect'
-                hwSignal = "outBits"
-            else:
-                linkName ='INP'
-                mux = 8
-                recType = 'mbbiDirect'
-                hwSignal = "inBits"
-	    hasPv = epicsUtils.epicsTemplate.getPV(hwDeviceName,hwSignal)
-	    if len(hasPv) < 1:
-	    	f = {'DESC'  :'Access Port:'+str(port)+", Id:"+str(canId)+", card:"+str(cardNr),
-                     'NOBT'  :'16',
-                     'DTYP'  :'lowcal',
-                     'SNAME' : hwSignal,
-                     linkName: createAdaCanLink(port,canId,cardNr,mux)
-                    }
-		if linkName == 'INP':
-		    f['SCAN'] = "1 second"
-                epicsUtils.epicsTemplate(recType,{'DEVN':hwDeviceName},f)
+        (nobt,shft) = getShiftParam(chan)
+        if rtyp  == 'bi':
+            fields[linkName]= "%s:%s.B%X CPP MS" % (hwDeviceName,hwSignal,shft)
+        elif rtyp  == 'bo':
+            fields[linkName]= "%s:%s.B%X PP NMS" % (hwDeviceName,hwSignal,shft)
+        else:   # mbbi, mbbo
+    	    fields['DTYP'] = "Raw Soft Channel" # has to convert with NOBT/SHFT
+	    if rtyp  == 'mbbi':
+    	    	fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
+    	    if rtyp  == 'mbbo':
+    	    	fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
+            fields['NOBT']= nobt
+            fields['SHFT']= shft
+    return (fields)
 
-            (nobt,shft) = getShiftParam(chan)
-            if rtyp  == 'bi':
-                fields[linkName]= "%s:%s.B%X CPP MS" % (hwDeviceName,hwSignal,shft)
-            elif rtyp  == 'bo':
-                fields[linkName]= "%s:%s.B%X PP NMS" % (hwDeviceName,hwSignal,shft)
-            else:   # mbbi, mbbo
-    	    	fields['DTYP'] = "Raw Soft Channel" # has to convert with NOBT/SHFT
-		if rtyp  == 'mbbi':
-    	    	    fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
-    	    	if rtyp  == 'mbbo':
-    	    	    fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
-                fields['NOBT']= nobt
-                fields['SHFT']= shft
+def getWagoLink(devObj):
+    """ WAGO-I/O-SYSTEM by Modbus process data architecture:
+    
+    Bit read/write by modbus function FC2/5 - read/write single coil. Specify the bit count 
+    starting with 0
+    
+    Analog values read/write by modbus function FC3/16 read/write multiple registers. Specify the channel 
+    by the word count.
+    
+    Special conversion for temperature modules with wago Tag in Col. E = 'wagoTemp'
+    """
+    fields = {}
+    if devObj.rtype in ['ai','ao']:
+	fields.update({'DTYP': "asynInt32"})
+    	fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
 
+	if epicsUtils.matchRe(devObj.canId,'^wagoTemp') is not None: # special conversion for Temperature modules
+	    fields.update({'LINR': "SLOPE",
+    		'ASLO': 0.1,
+    		'AOFF': 0,
+    		})
+	else:
+	    fields.update({'LINR': "LINEAR",
+    		'EGUL': fields['LOPR'],
+    		'EGUF': fields['HOPR'],
+    		})
+	if devObj.rtype == 'ai':
+    	    fields.update({'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" "+devObj.chan+")MODBUS_DATA",'SCAN':"I/O Intr"})
+	else:
+    	    fields.update({'OUT': "@asynMask("+devObj.port+" "+devObj.cardNr+" "+devObj.chan+")MODBUS_DATA"})
+	     
+    elif devObj.rtype == 'bo':
+    	fields.update({ 'DTYP': "asynUInt32Digital",
+			'PINI':'YES',
+    			'OUT': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
+    elif devObj.rtype == 'bi':
+    	fields.update({'DTYP': "asynUInt32Digital",
+                       'SCAN':"I/O Intr",
+		       'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
+	    
     return (fields)
 
 def watchdogGetFunc():
@@ -915,9 +973,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 	'ZNAM':"enable",
 	'ONAM':"disable",
 	'OSV':"MAJOR"})
-	
     return (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
-
   
 def pt100tempGetFunc():
     return {"pt100temp":pt100temp}

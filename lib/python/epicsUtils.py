@@ -23,7 +23,7 @@ class epicsAlh(object):
     Hold all data to  write an alarm handler file.
 
 class epicsTemplate(object):
-    Stores and print an EPICS database data for .db or .template files.
+    Stores and print an EPICS database data for one .db or .substitutions file.
 
 def updateStruct(a,b): Merge two data structures for st.cmd defintion.
 """
