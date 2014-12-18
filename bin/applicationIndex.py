@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from optparse import OptionParser
+import time
 import sys
 import re
 import os
@@ -297,7 +298,7 @@ htmlHeader = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "
 <head>
     <TITLE>Application and Hardware Reference</TITLE>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <link rel=stylesheet type="text/css" href="http://www-csr.bessy.de/~kuner/makeDocs/docStyle.css">
+    <link rel=stylesheet type="text/css" href="http://help.bessy.de/~kuner/makeDocs/docStyle.css">
 </head>
 <body>
 <H1>Application and IOC Reference</H1>
@@ -318,7 +319,17 @@ print >> FILE, htmlHeader
 
 # Application Reference:
 if options.verbose is True: print "*** Write File:", filename
-print >> FILE, "<H1>Application Reference</H1>\n\n<TABLE BORDER=1>"
+print >> FILE, "<P>last update: "+time.strftime("%d.%m.%Y")+"</P>\n"
+print >> FILE, '<H2>Content</H2>\n<P><A HREF="#IOC_APP">IOC Application Reference</A></P>'
+print >> FILE, '<P>IOC Hardware Reference</A></P>\n'
+(forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
+for ioc in sorted(iocDb.keys()):
+    (iocHwList,getHw) = lod.filterMatch(getHw,{'iocname':ioc})
+    if len(iocHwList) == 0: 
+    	continue
+    print >> FILE, '<LI><A HREF="#HW_'+ioc+'">'+ioc+'</A>'
+
+print >> FILE, "</UL>\n<H2>Application Reference</H2>\n\n<TABLE BORDER=1>"
 
 if appDb:
     dbNotLoaded = []
@@ -343,7 +354,7 @@ if appDb:
     	print "*** Warning: .db files not loaded on IOC:\n",dbNotLoaded
 
 if iocDb:
-    print >> FILE, '<H1>IOC Application Reference</H1>\n\n<TABLE BORDER=1>'
+    print >> FILE, '<A NAME="IOC_APP"></A>\n<H2>IOC Application Reference</H2>\n\n<TABLE BORDER=1>'
     for ioc in sorted(iocDb.keys()):
 	dbList = iocDb[ioc]
 	span = ""
@@ -357,16 +368,16 @@ if iocDb:
     print >> FILE, "</TABLE>\n"
 
 if iocHw:
-    print >> FILE, "<H1>IOC Hardware Reference</H1>\n\n"
+    print >> FILE, "<H2>IOC Hardware Reference</H2>\n\n"
     (forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
     for ioc in iocDb.keys():
 	(iocHwList,getHw) = lod.filterMatch(getHw,{'iocname':ioc})
 	if len(iocHwList) == 0: 
     	    continue
 
-	print >> FILE, '<H2><A NAME="HW_'+ioc+'">'+ioc+'</H2>\n\n'
+	print >> FILE, '<H3><A NAME="HW_'+ioc+'"></A>Hardware Channels on '+ioc+'</H3>\n\n'
 
-	print >> FILE, "<H3>CAN Devices</H3>\n\n"
+	print >> FILE, "<H4>CAN Devices on"+ioc+"</H4>\n\n"
 	order = ('port','nid','cid','CARD','CHAN','LINK','pvname','filename')
 	(canList,otherList) = lod.filterMatch(iocHwList,{'DTYP':['lowcal',],})
 	table = lod.orderToTable(canList,order)
@@ -390,7 +401,7 @@ if iocHw:
 	    	print "ERROR in print '"+pvname+"', CAN-Devices: '"+filename+"' not found in dbApp"
 	    print >> FILE, "</TABLE>\n"
 
-	print >> FILE, "<H3>VME Devices</H3>\n\n"
+	print >> FILE, "<H4>VME Devices on "+ioc+"</H4>\n\n"
 	(vmeList,otherList) = lod.filterMatch(otherList,{'DTYP':hardwareDtypList})
 	order = ('DTYP','CARD','CHAN','pvname','LINK')
 	table = lod.orderToTable(vmeList,order)
@@ -405,7 +416,7 @@ if iocHw:
 	    	print "ERROR in print '"+pvname+"', VME-Devices: '"+filename+"' not found in dbApp"
             print >> FILE, "</TABLE>\n"
 
-	print >> FILE, "<H3>Other Devices</H3>\n\n"
+	print >> FILE, "<H4>Other Devices on"+ioc+"</H4>\n\n"
 	order = ('LINK','pvname','filename','DTYP','RTYP')
 	table = lod.orderToTable(otherList,order)
 	if len(table) > 0:
