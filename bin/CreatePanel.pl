@@ -208,7 +208,7 @@
     $inFileName =~ /\.(\w+)\s*$/;
     my $fileType = $1;
     if( $fileType eq 'db' || $fileType eq 'template' ) {
-    	$layout = 'dbDbgMin';
+    	$layout = 'dbDbg';
     	$r_substData = parse_db::parse($file,$inFileName,'asArray');
     }
     else {
