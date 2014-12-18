@@ -320,6 +320,7 @@ print >> FILE, htmlHeader
 # Application Reference:
 if options.verbose is True: print "*** Write File:", filename
 print >> FILE, "<P>last update: "+time.strftime("%d.%m.%Y")+"</P>\n"
+print >> FILE, '<H2>Content</H2>\n<P><A HREF="#APP_REF">Application Reference</A></P>'
 print >> FILE, '<H2>Content</H2>\n<P><A HREF="#IOC_APP">IOC Application Reference</A></P>'
 print >> FILE, '<P>IOC Hardware Reference</A></P>\n'
 (forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
@@ -329,7 +330,7 @@ for ioc in sorted(iocDb.keys()):
     	continue
     print >> FILE, '<LI><A HREF="#HW_'+ioc+'">'+ioc+'</A>'
 
-print >> FILE, "</UL>\n<H2>Application Reference</H2>\n\n<TABLE BORDER=1>"
+print >> FILE, '</UL>\n<H2><A NAME="APP_REF"></A>Application Reference</H2>\n\n<TABLE BORDER=1>'
 
 if appDb:
     dbNotLoaded = []
