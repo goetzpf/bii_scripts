@@ -200,8 +200,8 @@
         }
 
         my ($rH_records,$rH_recName2recType) = parseDb($file,$filename);
-
-        # process trigger options
+    	
+	# process trigger options
         foreach my $record (keys(%$rH_records))
         {
             my $recT = $rH_recName2recType->{$record} ;
@@ -273,13 +273,19 @@ sub parseDb
 {   my ($st,$filename) = @_;
 
     my $r_h= parse_db::parse($st,$filename);
-
+    
     my $rH_records;
     my $rH_recName2recType;
-    foreach my $recname (keys %$r_h)
-      { $rH_records->{$recname}= $r_h->{$recname}->{FIELDS};
+    foreach my $recname (keys %$r_h) 
+    { 
+    	foreach my $key (keys(%{$r_h->{$recname}->{FIELDS}}))
+	{
+	    $r_h->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),recursive\)/\$($1)/g;
+	    $r_h->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),undefined\)/\$($1)/g;
+	}
+	$rH_records->{$recname}= $r_h->{$recname}->{FIELDS};
         $rH_recName2recType->{$recname}= $r_h->{$recname}->{TYPE};
-      };
+    };
 
     return ($rH_records,$rH_recName2recType);
 }
