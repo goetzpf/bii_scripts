@@ -295,8 +295,7 @@ for argument in args:
 	    lines += 1
 	    if lines <= 1: # is header
 	    	continue
-	    [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] # substitute variables in csv data
-	    	
+	    device = [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] # substitute variables in csv data
     	    devObj = None
 	    if devModule is None:
 	    	devObj = csv2epicsFuncs.csvData(device,canOption)
