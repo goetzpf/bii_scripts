@@ -160,6 +160,11 @@ parser.add_option("--dis",
     		 type="string",
 		 help="Name of disable record to be created and used in all SDIS fields",
     		 )
+parser.add_option("--var", 
+		 action="append",
+    		 type="string",
+		 help="Define variables of the csv file. CSV-file tag $(VAR): --var VAR=huhu"
+		 )
 
 (options, args) = parser.parse_args()
 canOption = ""
@@ -203,6 +208,11 @@ if iocName is not None:
     except TypeError:
 	pass
 
+csvVariablesDict = {}
+if options.var is not None:
+    for opt in options.var:
+    	(var,val) = opt.split('=')
+	csvVariablesDict[var] = val
 warnings = []	     # global for warnings in all functions, is printed at end of prog.
 
 lines = None
@@ -285,7 +295,8 @@ for argument in args:
 	    lines += 1
 	    if lines <= 1: # is header
 	    	continue
-
+	    [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] # substitute variables in csv data
+	    	
     	    devObj = None
 	    if devModule is None:
 	    	devObj = csv2epicsFuncs.csvData(device,canOption)

@@ -320,8 +320,8 @@ print >> FILE, htmlHeader
 # Application Reference:
 if options.verbose is True: print "*** Write File:", filename
 print >> FILE, "<P>last update: "+time.strftime("%d.%m.%Y")+"</P>\n"
-print >> FILE, '<H2>Content</H2>\n<P><A HREF="#APP_REF">Application Reference</A></P>'
-print >> FILE, '<H2>Content</H2>\n<P><A HREF="#IOC_APP">IOC Application Reference</A></P>'
+print >> FILE, '</P>'
+print >> FILE, '<H2>Content</H2>\n<P>&bull <A HREF="#APP_REF">Application Reference</A><br>&bull <A HREF="#IOC_APP">IOC Application Reference</A></P>'
 print >> FILE, '<P>IOC Hardware Reference</A></P>\n'
 (forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
 for ioc in sorted(iocDb.keys()):
