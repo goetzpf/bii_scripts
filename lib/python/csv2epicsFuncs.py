@@ -939,9 +939,11 @@ def watchdogGetFunc():
 def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     alhSignals = None
     arcSignals = None
-    panelNameDict={'DEVN':devName}
     panelDict = {}
     panelWidgetName = "watchdog"
+    if len(devObj.signal)>0:
+        devName = devName+":"+devObj.signal
+    panelNameDict={'DEVN':devName}
 
     fields = epicsUtils.parseParam(devObj.prec)
     epicsUtils.epicsTemplate('bi',{'DEVN':devName},{'SNAME':"stHeartBeat",
