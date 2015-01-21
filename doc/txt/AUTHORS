@@ -24,7 +24,6 @@ Goetz Pfeiffer <goetz.pfeiffer@helmholtz-berlin.de>
 	dbdrv_oci
 	dbdrv
 	dbitable
-	hgen.pl
 	parse_db
 	parse_subst
 	dbfilter.pl

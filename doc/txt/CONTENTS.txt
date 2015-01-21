@@ -287,10 +287,6 @@ Scripts
     versions in the mercurial repository.
   | `documentation <scripts/hg-kompare.html>`__
 
-**hgen.pl**
-  | a header-generator for c and c++.
-  | `documentation <scripts/hgen.html>`__
-
 **hg-recover.py**
   | A backup and recovery tool for mercurial. 
   | Instead of saving the complete repository this script only saves differences

@@ -345,7 +345,6 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	dbfilter.pl \
 	expander.pl \
 	filter_can_links.pl \
-	hgen.pl \
 	pcomp.pl \
 	pfind.pl \
 	Sch2db.pl \
