@@ -547,7 +547,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
     """
     sdis       = ''
     if devObj.disableRec:
-    	sdis= devObj.disableRec+" CPP NMS"
+    	sdis= devObj.disableRec+" CP"
     alhSignals = []	    # templates may have a list of signals for alarm handler
     arcSignals = []	    # templates may have a list of signals for archiver
     panelDict = {}  	    # panel widget macro data
