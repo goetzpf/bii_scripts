@@ -1,7 +1,4 @@
-eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
-    if 0;                         
-# the above is a more portable way to find perl
-# ! /usr/bin/perl
+#!/usr/bin/env perl
 
 # This software is copyrighted by the 
 # Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB), 
@@ -49,6 +46,7 @@ use vars qw($opt_help $opt_summary
 	    $opt_filter_cvs $opt_filter_cr $opt_filter_empty_lines
             $opt_show_diff 
 	    $opt_terse_mode
+            $opt_terse_mode2
 	    );
 
 my $version= "1.2";
@@ -74,6 +72,7 @@ if (!GetOptions("help|h","summary","prn_eq|prn-eq|e",
 		"filter_empty_lines|filter-empty-lines",
 		"show_diff|show-diff|show_diffs|show-diffs",
 		"terse_mode|terse-mode|t",
+		"terse_mode2|terse-mode2|T",
 		))
   { die "parameter error!\n"; };		
 
@@ -88,7 +87,7 @@ if ($opt_summary)
     exit;
   };  
 
-if ($opt_terse_mode)
+if (($opt_terse_mode) || ($opt_terse_mode2))
   { $opt_prn_eq=1; };
 
 if (defined($opt_patch))
@@ -405,7 +404,7 @@ sub join_lists
 
 sub print_user_msg
   { my(%h)= @_;
-    my($st)= user_message($opt_terse_mode,%h);
+    my($st)= user_message($opt_terse_mode || $opt_terse_mode2,%h);
     my($f1)= $h{'source'};
     my($f2)= $h{'dest'};
 
@@ -427,7 +426,12 @@ sub print_user_msg
       { print "$f1\n$f2\n-->$st\n\n"; }
     else 
       { if ($opt_terse_mode)
-          { print "$st $f2\n";
+          {
+            print "$st $f2\n";
+	  }
+        elsif ($opt_terse_mode2)
+          {
+            print "$st $f1 $f2\n";
 	  }
 	else
 	  { print "$f1 : $f2 : $st\n"; } 
@@ -650,5 +654,7 @@ Syntax: $p {options} [path1] [path2]
 	       =: files equal
 	       !: files unequal  
 
+    -T --terse-mode2
+      like --terse-mode, but this command prints the paths of both files
 END
   }
