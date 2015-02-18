@@ -36,7 +36,7 @@ except ImportError:
 myversion = "0.2.1"
 
 dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8",
-                  "oci", "postgres", "sqlite"]
+                  "oci", "postgres", "postgres8", "sqlite"]
 dbProfiles = {
     "devices": {
         "connecttype": "oci8",
@@ -59,6 +59,14 @@ dbProfiles = {
         "user": "anonymous",
         "password": "bessyguest",
         "instance": "test",
+        "server": "dbnode1.trs.bessy.de",
+        "port": 5432,
+    },
+    "devices2015": {
+        "connecttype": "postgres8",
+        "user": "anonymous",
+        "password": "bessyguest",
+        "instance": "devices_2015",
         "server": "dbnode1.trs.bessy.de",
         "port": 5432,
     },
