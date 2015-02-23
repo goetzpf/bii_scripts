@@ -1,27 +1,40 @@
-#!/usr/bin/zsh -f
+#!/bin/bash
 
+echo "$0 $@" >&2
+
+# source O.Common/.vdct if it exists:
 test -r ./O.Common/.vdct && . ./O.Common/.vdct
 
-rootdir=/opt/Epics/VisualDCT
+if [ -z "$FLATDB_VDCT_DIR" ]; then
+        rootdir=/opt/Epics/VisualDCT
+else
+        rootdir=$FLATDB_VDCT_DIR
+fi
 
-vsn=current
+vsn=current/
 
 if [ "$1" = "-n" ]
 then
   shift
-  vsn=new
+  vsn=new/
 fi
 if [ "$1" = "-o" ]
 then
   shift
-  vsn=old
+  vsn=old/
 fi
 if [ "$1" = "-v" ]
 then
-  test -e $rootdir/$2/VisualDCT.jar && vsn=$2
+  test -e $rootdir/$2/VisualDCT.jar && vsn=$2/
   shift; shift
 fi
 
-cp=($rootdir/$vsn/VisualDCT.jar $rootdir/plugins/*.jar)
+# ignore all version settings when FLATDB_VDCT_DIR is defined:
+if [ -n "$FLATDB_VDCT_DIR" ]; then
+        vsn=""
+fi
 
-exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH -cp ${(j.:.)cp} com.cosylab.vdct.GenerateFlatDatabase "$@"
+mycp=`echo $rootdir/${vsn}VisualDCT.jar $rootdir/plugins/*.jar | sed -e 's/ /:/g'`
+
+echo "java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH -cp $mycp com.cosylab.vdct.GenerateFlatDatabase \"$@\"" >&2
+exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH -cp $mycp com.cosylab.vdct.GenerateFlatDatabase "$@"
