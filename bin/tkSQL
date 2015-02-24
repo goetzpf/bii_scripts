@@ -1,9 +1,6 @@
 #! /bin/sh
 # -*- tcl -*- \
-    if [ "`uname -s -r`" = "HP-UX B.11.00" ]; \
-    then exec /opt/TclTk/ActiveTcl/bin/oratclsh $0 ${1+"$@"}; \
-    else exec wish $0 ${1+"$@"}; \
-    fi
+    exec wish $0 ${1+"$@"};
 
 #  This software is copyrighted by the
 #  Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),
@@ -30,44 +27,50 @@
 #  UPDATES, ENHANCEMENTS OR MODIFICATIONS.
 
 package require Tclx
-set oratcl_version [package require Oratcl]
+catch {set oratcl_version [package require Oratcl]}
+catch {set pgtcl_version [package require Pgtcl]}
 
 package require Tk
 
 package require BWidget
 
 ########################################################################
-# 
+#
 #  File:       tkSQL
 # 
 #  Descr.:     a frontend for oracle
 # 
 #  Author(s):  Thomas Birke
 # 
-#  $Revision: 1.11 $
-#  $Date: 2007-11-01 10:30:23 $
+#  $Revision: 2.0 $
+#  $Date: 2015-02-24 14:24:23 $
 # 
 #  $Author: birke $
 # 
-#  Copyright (c) 2001 by Berliner Elektronenspeicherring-Gesellschaft
-#                             fuer Synchrotronstrahlung m.b.H.,
-#                                     Berlin, Germany
-# 
 ########################################################################
 
-# This is to get the CVS-revision-code into the source...
-set Revision ""
-set Date ""
-set Author ""
-set CVS(Revision) "$Revision: 1.11 $"
-set CVS(Date) "$Date: 2007-11-01 10:30:23 $"
-set CVS(Author) "$Author: birke $"
 
-regsub ": (.*) \\$" $CVS(Revision) "\\1" CVS(Revision)
-regsub ": (.*) \\$" $CVS(Date) "\\1" CVS(Date)
-regsub ": (.*) \\$" $CVS(Author) "\\1" CVS(Author)
+#
+# pg_result result ?option? where option is
+# 	-status
+# 	-error
+# 	-conn
+# 	-oid
+# 	-numTuples
+# 	-numAttrs
+# 	-assign arrayVarName
+# 	-assignbyidx arrayVarName ?appendstr?
+# 	-getTuple tupleNumber
+# 	-tupleArray tupleNumber arrayVarName
+# 	-attributes
+# 	-lAttributes
+# 	-list
+# 	-llist
+# 	-clear
+# 	-dict
 
-set CVS(Version) "Version: 1.2 (Rev. $CVS(Revision))"
+
+set Version "2.0"
 
 set guifont(standard) {Courier -12 normal}
 set guifont(bold) {Courier -12 bold}
@@ -92,29 +95,27 @@ option add	*troughColor		$dbgc		widgetDefault
 
 set ButtonOrientation vertical
 
-set allConnectStrings {@}
+set allConnectStrings {@ anonymous@pg:devices_2015#dbnode1.trs.bessy.de}
+
 
 set mainGeometry 1000x1000+100+100
 set oheight 30
 set cheight 20
 set hheight 20
 
-array set recentlyLoadedModules {}
-array set autoloadModule {}
-
 set writeEnable 1
 
 proc getDelay {ms} {
-  set d -1
-  while {$d < 0} {
-    if {$ms < 0} {
-      set a [clock clicks]; set b [clock clicks]
-    } else {
-      set a [clock clicks]; after $ms; set b [clock clicks]
+    set d -1
+    while {$d < 0} {
+        if {$ms < 0} {
+            set a [clock clicks]; set b [clock clicks]
+        } else {
+            set a [clock clicks]; after $ms; set b [clock clicks]
+        }
+        set d [expr $b - $a]
     }
-    set d [expr $b - $a]
-  }
-  return $d
+    return $d
 }
 
 set d0 [getDelay 0]
@@ -129,82 +130,76 @@ set d0 [expr $b - $a]
 set a [clock clicks]; after 1; set b [clock clicks]
 
 proc Split {str} {
-  set s [split $str ";"]
+    set s [split $str ";"]
 
-  set ret {}
-  set p ""
-  foreach sub $s {
-    if [regsub "\\\\$" $sub "" sub] {
-      append p "$sub;"
-    } else {
-      lappend ret "$p$sub"
-      set p ""
+    set ret {}
+    set p ""
+    foreach sub $s {
+        if [regsub "\\\\$" $sub "" sub] {
+            append p "$sub;"
+        } else {
+            lappend ret "$p$sub"
+            set p ""
+        }
     }
-  }
 
-  return $ret
+    return $ret
 }
 
 proc Exit {{write 1}} {
-  global chpid env dbuser database sessnum ButtonOrientation allConnectStrings userRC Aliases
-  global GOSH GOLH OutputMode writeEnable HistSize OutputBufferSize recentlyLoadedModules autoloadModule
-  catch {oralogoff $GOLH}
-  if {$write && $writeEnable} {
-    set keys ""
-    for {set i 1} {$i < 13} {incr i} {
-      append keys "bind . <F$i> {[bind . <F$i>]}\n"
-    }
+    global chpid env dbuser database sessnum ButtonOrientation allConnectStrings userRC Aliases
+    global GOSH GOLH OutputMode writeEnable HistSize OutputBufferSize
+    catch {oralogoff $GOLH}
+    catch {pg_disconnect $::PGH}
+    if {$write && $writeEnable} {
+        set keys ""
+        for {set i 1} {$i < 13} {incr i} {
+            append keys "bind . <F$i> {[bind . <F$i>]}\n"
+        }
 
-    set rlm ""
-    foreach k [array names recentlyLoadedModules] {
-      append rlm "set recentlyLoadedModules($k) \"$recentlyLoadedModules($k)\"\n"
-    }
-    foreach k [array names autoloadModule] {
-      append rlm "set autoloadModule($k) \"$autoloadModule($k)\"\n"
-    }
-
-    file delete $env(HOME)/.tkSQL-rc
-    file mkdir $env(HOME)/.tkSQL
-    write_file $env(HOME)/.tkSQL/config "\# $env(HOME)/.tkSQL/config -*- tcl -*-\n\
+        file delete $env(HOME)/.tkSQL-rc
+        file mkdir $env(HOME)/.tkSQL
+        write_file $env(HOME)/.tkSQL/config "\# $env(HOME)/.tkSQL/config -*- tcl -*-\n\
 \# manually added settings\n\
 ${userRC}\# automatically added settings\n\
 \n\
 set mainGeometry [wm geometry .]\n\
-set oheight [.output.txt cget -height]\n\
-set cheight [.command.txt cget -height]\n\
-set hheight [.history.txt cget -height]\n\
+    set oheight [.output.txt cget -height]\n\
+    set cheight [.command.txt cget -height]\n\
+    set hheight [.history.txt cget -height]\n\
+    \n\
+    set HistSize $HistSize
 \n\
-set HistSize $HistSize
-\n\
-set OutputMode $OutputMode\n\
-\n\
-set OutputBufferSize $OutputBufferSize\n\
-\n\
-set connectStrings \{$allConnectStrings\}\n\
-\n\
-set Aliases \{$Aliases\}\n\
-\n\
-$keys\n\n$rlm"
+    set OutputMode $OutputMode\n\
+    \n\
+    set OutputBufferSize $OutputBufferSize\n\
+    \n\
+    set allConnectStrings \{$::allConnectStrings\}\n\
+    set theConnectString \{$::theConnectString\}\n\
+    \n\
+    set Aliases \{$Aliases\}\n\
+    \n\
+    $keys\n"
 
     regsub -all "\n\n" [.history.txt get 0.0 end] "\001" hist
     set hist [join [lrange [split $hist "\001"] end-$HistSize end] "\n\n"]
     regsub "^\n*" $hist "" hist
-    catch {write_file $env(HOME)/.tkSQL/$dbuser-$database-$sessnum $hist}
+    catch {write_file $env(HOME)/.tkSQL/$dbuser-$::database-$sessnum $hist}
   }
   exit
 }
 
 proc DidIt {fmt sql} {
-  set msg ""
-  switch -regexp -- [lindex [string tolower $sql] 0] {
-    "select" {set msg "selected"}
-    "insert" {set msg "inserted"}
-    "update" {set msg "updated"}
-    "delete" {set msg "deleted"}
-    ".*" {set fmt Done.\n\n}
-  }
-  tmend
-  return [format $fmt "$msg ([expr 0.001 * $::msStmt]s oracle, [expr 0.001 * $::msAll]s total)"]
+    set msg ""
+    switch -regexp -- [lindex [string tolower $sql] 0] {
+        "select" {set msg "selected"}
+        "insert" {set msg "inserted"}
+        "update" {set msg "updated"}
+        "delete" {set msg "deleted"}
+        ".*" {set fmt Done.\n\n}
+    }
+    tmend
+    return [format $fmt "$msg ([format {%.3f} [expr 0.001 * $::msStmt]]s DB, [format {%.3f} [expr 0.001 * $::msAll]]s total)"]
 }
 
 set OutputBufferSize 512
@@ -212,41 +207,52 @@ set HistSize 256
 set switchOutputId 0
 set outputWindow .output.txt
 proc Print {txt args} {
-  global switchOutputId outputWindow HistSize OutputBufferSize
-#  set tags [join $args { }]
-#  append txt "\n"
+    global switchOutputId outputWindow HistSize OutputBufferSize
+    #  set tags [join $args { }]
+    #  append txt "\n"
 
-  $outputWindow insert end $txt $args
-  $outputWindow see 0.end
-  $outputWindow yview end
-  set w $outputWindow
-  if {$OutputBufferSize > 0} {
-    set n [expr max(0, int([$w index end] - $OutputBufferSize) - 1)]
-    $w delete 0.0 $n.0
-  }
-  update
+    $outputWindow insert end $txt $args
+    $outputWindow see 0.end
+    $outputWindow yview end
+    set w $outputWindow
+    if {$OutputBufferSize > 0} {
+        set n [expr max(0, int([$w index end] - $OutputBufferSize) - 1)]
+        $w delete 0.0 $n.0
+    }
+    update
 }
 
-set sysAliases {
-  {dependants {SELECT o.object_id, o.created, o.status, o.object_type, o.object_name, o.owner FROM sys.all_dependencies d, sys.all_objects o WHERE d.referenced_name = UPPER('$1') and d.owner = o.owner AND d.name = o.object_name AND o.object_type = 'VIEW' ORDER BY o.owner, o.object_name}} 
-  {depends {select o.object_id, o.created, o.status, o.object_name, o.owner from all_dependencies d, all_objects o where d.name = UPPER('$1') and d.referenced_owner = o.owner and d.referenced_name = o.object_name order by o.object_name}}
-
-  {viewtext {select text from all_views where view_name = UPPER('$1')}}
-  {triggertext {select trigger_type, triggering_event, trigger_body from dba_triggers where trigger_name = UPPER('$1')}}
-
-  {comment {select * from all_tab_comments where table_name like UPPER('$1') escape '\'}}
-
-  {describe {select column_name, table_name, owner, data_type, data_length, data_precision, data_scale, nullable, column_id, default_length, data_default, num_distinct, low_value, high_value from all_tab_columns where table_name = UPPER('$1') or owner||'.'||table_name = UPPER('$1') order by column_id}}
-
-  {constraints {SELECT constraint_name, table_name, owner,constraint_type, r_owner, r_constraint_name, search_condition FROM all_constraints WHERE table_name = UPPER('$1') or owner||'.'||table_name = UPPER('$1') ORDER BY constraint_name, r_owner, r_constraint_name}} 
-  {triggers {SELECT DISTINCT trigger_name, owner, table_owner, table_name, trigger_type, triggering_event, status, referencing_names FROM dba_triggers WHERE table_name = UPPER('$1') or owner||'.'||table_name = UPPER('$1') ORDER BY trigger_name, table_owner, table_name}}
-
-  {objects {select object_name, status, object_type, owner from sys.all_objects where ( object_name like upper('$1') escape '\' or owner||'.'||object_name like upper('$1') escape '\') and not object_type = 'SYNONYM'}}
-  {sessions {select username,status,schemaname,osuser,machine,terminal,program,module from sys.v_$session where type='USER'}}
-
-  {help {SELECT info FROM system.help WHERE UPPER(topic) LIKE UPPER('$0') ORDER BY topic,seq}}
-
-  {pkghelp {select owner||'.'||name as name, line, nvl(substr(text,0,length(text)-1),' ') as text from all_source where upper(owner||'.'||name||'.'||type) like upper('%$1%') order by name, line}}
+proc setSysAliases {} {
+    if {[info exists ::pgtcl_version]} {
+        set ::sysAliases [list \
+                              {describe {select column_name, data_type, character_maximum_length from INFORMATION_SCHEMA.COLUMNS where table_name = '$1' or table_schema||'.'||table_name = '$1'}} \
+                              {viewtext {select schemaname, viewname, definition  from pg_views where viewname = '$1'}} \
+                              [list triggers "select trigger_schema, trigger_name, event_manipulation, event_object_catalog, event_object_schema, event_object_table from INFORMATION_SCHEMA.triggers where event_object_catalog = '$::dbname' and event_object_schema||'.'||event_object_table like '%\$1%'"] \
+                              [list objects "select table_schema, table_name, table_type from INFORMATION_SCHEMA.tables where table_catalog = '$::dbname' and table_schema||'.'||table_name like '%\$1%'"] \
+                             ]
+    } else {
+        set ::sysAliases {
+            {dependants {SELECT o.object_id, o.created, o.status, o.object_type, o.object_name, o.owner FROM sys.all_dependencies d, sys.all_objects o WHERE d.referenced_name = UPPER('$1') and d.owner = o.owner AND d.name = o.object_name AND o.object_type = 'VIEW' ORDER BY o.owner, o.object_name}} 
+            {depends {select o.object_id, o.created, o.status, o.object_name, o.owner from all_dependencies d, all_objects o where d.name = UPPER('$1') and d.referenced_owner = o.owner and d.referenced_name = o.object_name order by o.object_name}}
+            
+            {viewtext {select text from all_views where view_name = UPPER('$1')}}
+            {triggertext {select trigger_type, triggering_event, trigger_body from dba_triggers where trigger_name = UPPER('$1')}}
+            
+            {comment {select * from all_tab_comments where table_name like UPPER('$1') escape '\'}}
+            
+            {describe {select column_name, table_name, owner, data_type, data_length, data_precision, data_scale, nullable, column_id, default_length, data_default, num_distinct, low_value, high_value from all_tab_columns where table_name = UPPER('$1') or owner||'.'||table_name = UPPER('$1') order by column_id}}
+            
+            {constraints {SELECT constraint_name, table_name, owner,constraint_type, r_owner, r_constraint_name, search_condition FROM all_constraints WHERE table_name = UPPER('$1') or owner||'.'||table_name = UPPER('$1') ORDER BY constraint_name, r_owner, r_constraint_name}} 
+            {triggers {SELECT DISTINCT trigger_name, owner, table_owner, table_name, trigger_type, triggering_event, status, referencing_names FROM dba_triggers WHERE table_name = UPPER('$1') or owner||'.'||table_name = UPPER('$1') ORDER BY trigger_name, table_owner, table_name}}
+            
+            {objects {select object_name, status, object_type, owner from sys.all_objects where ( object_name like upper('$1') escape '\' or owner||'.'||object_name like upper('$1') escape '\') and not object_type = 'SYNONYM'}}
+            {sessions {select username,status,schemaname,osuser,machine,terminal,program,module from sys.v_$session where type='USER'}}
+            
+            {help {SELECT info FROM system.help WHERE UPPER(topic) LIKE UPPER('$0') ORDER BY topic,seq}}
+            
+            {pkghelp {select owner||'.'||name as name, line, nvl(substr(text,0,length(text)-1),' ') as text from all_source where upper(owner||'.'||name||'.'||type) like upper('%$1%') order by name, line}}
+        }
+    }
 }
 
 
@@ -256,45 +262,60 @@ set Sql ""
 set Silent 0
 
 proc addHist {Sql mode} {
-  set Stmt [string trim $Sql]
-  if {![regexp {;$} $Stmt]} { append Stmt ";" }
-  ### "silent" commands don't appear in history and are not echoed
-  if {"$mode" != "silent"} {
-    ### find Statement in History and delete it
-    set pos [string first $Stmt [.history.txt get 0.0 end]]
-    .history.txt config -state normal
-    if {$pos != -1} {
-      .history.txt delete 0.0+${pos}c 0.0+[expr $pos + [string length $Stmt] + 2]c
-    }
+    set Stmt [string trim $Sql]
+    if {![regexp {;$} $Stmt]} { append Stmt ";" }
+    ### "silent" commands don't appear in history and are not echoed
+    if {"$mode" != "silent"} {
+        ### find Statement in History and delete it
+        set pos [string first $Stmt [.history.txt get 0.0 end]]
+        .history.txt config -state normal
+        if {$pos != -1} {
+            .history.txt delete 0.0+${pos}c 0.0+[expr $pos + [string length $Stmt] + 2]c
+        }
 
-    .history.txt insert end "$Stmt\n\n"
-    .history.txt mark set insert end
-    .command.txt tag add sel 1.0 end
-  }
+        .history.txt insert end "$Stmt\n\n"
+        .history.txt mark set insert end
+        .command.txt tag add sel 1.0 end
+    }
 }
 
 
 proc message {hdl code} {
-  if {$::oratcl_version >= 4.1} {
-    return [oramsg $hdl $code]
-  } else {
-    if {$code == "sqltype"} {return 1}
-    if {$code == "error"} {set code "errortxt"}
-    return $::oramsg($code)
-  }
+    if {[info exists ::oratcl_version] && [info exists ::GOLH]} {
+        if {$::oratcl_version >= 4.1} {
+            return [oramsg $hdl $code]
+        } else {
+            if {$code == "sqltype"} {return 1}
+            if {$code == "error"} {set code "errortxt"}
+            return $::oramsg($code)
+        }
+    } elseif {[info exists ::pgtcl_version] && [info exists ::PGH]} {
+        if {$code == "error"} {
+            return [pg_result $::PG_cursor -error]
+        } else {
+            return [pg_result $::PG_cursor -numTuples]
+        }
+    }
 }
 
 proc fetchData {hdl var cmd} {
-  if {$::oratcl_version >= 4.1} {
-    while {![uplevel orafetch $hdl -datavariable $var -command \{$cmd\}]} {}
-  } else {
-    while {1} {
-      set l [orafetch $hdl]
-      if {[llength $l] == 0} { break }
-      set $var $l
-      uplevel $cmd
+    if {[info exists ::pgtcl_version] && [info exists ::PGH]} {
+        foreach tup [pg_result $::PG_cursor -llist] {
+            uplevel set $var [list $tup]
+            uplevel $cmd
+        }
+    } else {
+        if {$::oratcl_version >= 4.1} {
+            while {![uplevel orafetch $hdl -datavariable $var -command \{ $cmd \}]} {}
+        } else {
+            while {1} {
+                set l [orafetch $hdl]
+                if {[llength $l] == 0} { break }
+                uplevel set $var [list $l]
+                uplevel $cmd
+            }
+        }
     }
-  }
 }
 
 # OutputMode == xtable | table | plain | sparse
@@ -304,415 +325,383 @@ set ntables 0
 set Aliases {}
 # mode == plain | substitute | silent
 proc Exec {sql {mode plain}} {
-  global outputWindow Silent Aliases sysAliases GOSH GOLH OutputMode
-  global OutputLocation ntables HistSize OutputBufferSize
-  global ResultArr$ntables Sql
-  set As [concat $Aliases $sysAliases]
+    global outputWindow Silent Aliases sysAliases GOSH GOLH OutputMode
+    global OutputLocation ntables HistSize OutputBufferSize
+    global ResultArr$ntables Sql
+    set As [concat $Aliases $sysAliases]
     set nsql {}
     foreach line [split $sql "\n"] {
         regsub -all -- "-- .*" $line "" line
         lappend nsql $line
     }
     set nsql [join $nsql "\n"]
-  set Sql [string trim $nsql]
-  if {!$Silent} {
-    ### substitute all "<<>>" by current selection
-    if {"$mode" != "substitute"} {
-      foreach txt {.command.txt .output.txt .history.txt .help.output.txt} {
-	catch {regsub -all "<<>>" $Sql [$txt get sel.first sel.last] Sql}
-      }
+    set Sql [string trim $nsql]
+    if {!$Silent} {
+        ### substitute all "<<>>" by current selection
+        if {"$mode" != "substitute"} {
+            foreach txt {.command.txt .output.txt .history.txt .help.output.txt} {
+                catch {regsub -all "<<>>" $Sql [$txt get sel.first sel.last] Sql}
+            }
+        }
+
+        set outputWindow .output.txt
+
+        if {"$mode" != "silent"} {
+            set Stmt $Sql
+            if {![regexp {;$} $Stmt]} { append Stmt ";" }
+            Print "\n"
+            Print "$Stmt\n" blue largebold
+            Print "\n"
+        }
     }
 
-    set outputWindow .output.txt
-
-    if {"$mode" != "silent"} {
-      set Stmt $Sql
-      if {![regexp {;$} $Stmt]} { append Stmt ";" }
-      Print "\n"
-      Print "$Stmt\n" blue largebold
-      Print "\n"
+    if { ( "[string range $sql 0 2]" == "PL:" ) } {
+        addHist $sql plain
+        Orasql $sql
+        return
     }
-  }
-
-  if { ( "[string range $sql 0 2]" == "PL:" ) } {
-    addHist $sql plain
-    Orasql $sql
-    return
-  }
 
     set merkSql [string trim $sql]
 
-  set xprs [Split $Sql]
-  if {[llength $xprs] > 1} {
-    ### recurse if multiple commands
-    foreach xpr $xprs {
-      Exec $xpr silent
+    set xprs [Split $Sql]
+    if {[llength $xprs] > 1} {
+        ### recurse if multiple commands
+        foreach xpr $xprs {
+            Exec $xpr silent
+        }
+        addHist $merkSql plain
+    } else {
+        set Sql [string trim $Sql]
+
+        ### some simple commands
+        switch -regexp $Sql {
+            "^help" {
+                ### redirect help-output
+                wm deiconify .help
+                update
+                basicHelp
+                set outputWindow .help.output.txt
+                if {"$Sql" == "help"} {set Sql ""}
+            }
+            "^set$" {
+                ### print "set" variables
+                Print "Variables:\n\n"
+                Print "  OutputMode = $OutputMode\n" bold
+                Print "         may be: tktable | xtable | table | plain | sparse\n"
+                Print "  OutputLocation = $OutputLocation\n" bold
+                Print "         may be: a filename or \"\"\n"
+                Print "  OutputBufferSize = $OutputBufferSize\n" bold
+                Print "         max. number of lines in the output-buffer\n"
+                Print "  HistSize = $HistSize\n" bold
+                Print "         number of history-entries to be saved between sessions\n"
+                Print "\nset variables with\n  set <VarName> <Value>\n\n"
+                set Sql ""
+            }
+            "^alias$" {
+                ### print all set aliases
+                foreach k [keylkeys As] {
+                    Print "alias "
+                    Print "$k" bold
+                    Print "="
+                    Print "[keylget As $k]\n"
+                }
+                set Sql ""
+            }
+            "^source" {
+                set Sql "";
+                foreach f [lrange $sql 1 end] {
+                    append Sql "\n[read_file $f];"
+                }
+                Exec $Sql 1
+                set Sql ""
+            }
+            "^Describe" {
+                Print "[oradesc $GOLH odbadm.p_ps_epics]" 
+                set Sql ""
+            }
+        }
+
+        ### perform alias-substitution
+        foreach k [keylkeys As] {
+            if [regexp "^$k\[ \t\n\]*" $Sql] {
+                set cmd [keylget As $k]
+                if {![regexp "\\\$\(\[0-9\]\+\)" $cmd]} {
+                    append cmd " \$0"
+                }
+                set sSql [split $Sql " \t\n"]
+                regsub -all "\\\$0" $cmd [lrange $sSql 1 end] cmd
+                while {[regexp "\\\$\(\[0-9\]\+\)" $cmd all num]} {
+                    regsub -all "\\\$$num" $cmd "[lindex $sSql [expr $num]]" cmd
+                }
+                set Sql $cmd
+            }
+        }
+
+        ### set an alias
+        if [regexp "^alias\[ \t\n\]\+(\[a-zA-Z0-9_\]\+)=(.*)" $Sql all aliasL aliasR] {
+            keylset Aliases $aliasL $aliasR
+            set Sql ""
+        }
+
+        ### remove an alias
+        if [regexp "^unalias\[ \t\n\]\+(\[a-zA-Z0-9\]\+)" $Sql all aliasL] {
+            keyldel Aliases $aliasL
+            set Sql ""
+        }
+
+        ### replace variables with their values
+        if {[regexp "^set\[ \t\]\+\(\[a-zA-Z\]\+\)\[ \t\]\+\(.*\)" $Sql all var val]} {
+            set $var [string tolower $val]
+            set Sql ""
+        }
+        #    ### perform expression-evaluation
+        #    while {[regexp "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql all xpr]} {
+        #      regsub "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql [uplevel $xpr] Sql
+        #    }
+        ### ignore command completely
+        if [regexp "^\#" $Sql] {
+            set Sql ""
+        }
+
+        if {"$Sql" != ""} {
+            if [Orasql $Sql] {
+                addHist $merkSql $mode
+                set output {}
+                if {[info exists ::PG_cursor] || ( [message $GOSH sqltype] == 1 )} {
+                    fetchData  $GOSH ::res {lappend output $::res}
+                    tmend
+                    set x [oracols $GOSH]
+                    for {set i 0} {$i < [llength $x]} {incr i} {
+                        set ResultArr${ntables}(0,$i) [lindex $x $i]
+                        set len($i) [string length [lindex $x $i]]
+                    }
+                    if {[regexp "(table|plain)" $OutputMode]} {
+                        set l 1
+                        foreach row $output {
+                            set lines($l) 1
+                            for {set i 0} {$i < [llength $x]} {incr i} {
+                                set ResultArr${ntables}($l,$i) [lindex $row $i]
+                                set ls [llength [split [lindex $row $i] "\n"]]
+                                set lines($l) [expr max($lines($l),$ls)]
+                                for {set j 0} {$j < $ls} {incr j} {
+                                    set len($i) [expr max($len($i),[string length [lindex [split [lindex $row $i] "\n"] $j]])]
+                                }
+                            }
+                            incr l
+                        }
+                    }
+
+                    if {("$OutputMode" == "tktable") && ("$outputWindow" != ".help.output.txt")} {
+                        if {[llength $x] > 0} {
+                            package require Tktable
+                            set lens {}
+                            for {set i 0} {$i < [llength $x]} {incr i} {
+                                lappend lens $i
+                                lappend lens [expr int(1.33 * $len($i))]
+                            }
+                            set heits {0 1}
+                            for {set i 1} {$i < $l} {incr i} {
+                                lappend heits $i
+                                lappend heits $lines($i)
+                            }
+                            set table .output.txt.tab$ntables
+                            frame $table -bd 1 -relief sunken -width 600 -height 400
+
+                            table $table.t -variable ResultArr$ntables -rows $l -cols [llength $x] \
+                                -colstretch none -rowstretch none -state disabled \
+                                -resizeborders both -titlerows 1 -xscrollcommand "$table.hs set" \
+                                -yscrollcommand "$table.vs set" -height 11
+                            scrollbar $table.vs -orient vert -command "$table.t yview"
+                            scrollbar $table.hs -orient horiz -command "$table.t xview"
+                            frame $table.rs -bd 2 -relief raised
+                            eval $table.t width $lens
+                            eval $table.t height $heits
+                            grid $table.t $table.vs -sticky wens
+                            grid $table.hs $table.rs -sticky swen
+                            grid columnconfigure $table 0 -weight 1
+                            grid rowconfigure $table 0 -weight 1
+
+                            .output.txt window create end -window $table
+                            incr ntables
+                        }
+                        Print "\n\n"
+                    } else {
+                        set TheFormat ""
+                        set Break ""
+                        switch -regexp $OutputMode {
+                            .*table { set hsep " | " }
+                            plain   { set hsep " " }
+                            .*      { set hsep "," }
+                        }
+                        for {set i 0} {$i < [llength $x]} {incr i} {
+                            switch -regexp $OutputMode {
+                                .*table|plain   { append Break "+-[string repeat - $len($i)]-";
+                                    set lFormat "%-[expr $len($i)]s" }
+                                .*              { set lFormat "%s" }
+                            }
+                            if {"$TheFormat" == ""} {
+                                set TheFormat $lFormat
+                            } else {
+                                append TheFormat "$hsep$lFormat"
+                            }
+                        }
+                        switch -regexp $OutputMode {
+                            tktable { set TheFormat "$TheFormat\n" }
+                            .*table { set TheFormat "| $TheFormat |\n" }
+                            .*      { set TheFormat "$TheFormat\n" }
+                        }
+                        append Break "+\n"
+
+                        if {[regexp "table" $OutputMode]} { set O $Break }
+                        append O [eval format \$TheFormat $x]
+                        if {[regexp "table" $OutputMode]} { append O $Break }
+                        foreach row $output {
+                            append O [eval format \$TheFormat $row]
+                            if {[regexp "xtable" $OutputMode]} { append O $Break }
+                        }
+                        if {[regexp "^table" $OutputMode]} { append O $Break }
+
+                        if {[llength $x] > 0} {
+                            if {"$OutputLocation" == "\"\""} {
+                                Print "\n$O\n\n"
+                            } else {
+                                write_file $OutputLocation $O
+                            }
+                        }
+                    }
+                }
+                if {[message $GOSH rows] != 1} { set m s } else { set m "" }
+                Print [DidIt "[message $GOSH rows] row$m %s.\n\n" $Sql] largebold green
+            } else {
+                if {[info exists ::addAllStatementsToHistory] && ( "$::addAllStatementsToHistory" == "YES") } {
+                    addHist $merkSql $mode
+                }
+            }
+        }
     }
-    addHist $merkSql plain
-  } else {
-    set Sql [string trim $Sql]
-
-    ### some simple commands
-    switch -regexp $Sql {
-      "^help" {
-	### redirect help-output
-	wm deiconify .help
-	update
-	basicHelp
-	set outputWindow .help.output.txt
-	if {"$Sql" == "help"} {set Sql ""}
-      }
-      "^set$" {
-	### print "set" variables
-	Print "Variables:\n\n"
-	Print "  OutputMode = $OutputMode\n" bold
-	Print "         may be: tktable | xtable | table | plain | sparse\n"
-	Print "  OutputLocation = $OutputLocation\n" bold
-	Print "         may be: a filename or \"\"\n"
-	Print "  OutputBufferSize = $OutputBufferSize\n" bold
-	Print "         max. number of lines in the output-buffer\n"
-	Print "  HistSize = $HistSize\n" bold
-	Print "         number of history-entries to be saved between sessions\n"
-	Print "\nset variables with\n  set <VarName> <Value>\n\n"
-	set Sql ""
-      }
-      "^alias$" {
-	### print all set aliases
-	foreach k [keylkeys As] {
-	  Print "alias "
-	  Print "$k" bold
-	  Print "="
-	  Print "[keylget As $k]\n"
-	}
-	set Sql ""
-      }
-      "^source" {
-	set Sql "";
-	foreach f [lrange $sql 1 end] {
-	  append Sql "\n[read_file $f];"
-	}
-	Exec $Sql 1
-	set Sql ""
-      }
-      "^module" {
-	if {[llength $Sql] == 1} {
-	  set Sql "module list"
-	}
-	if {([lindex $Sql 1] == "load") && ([llength $Sql] == 3)} {
-	  loadModule [lindex $Sql 2]
-	}
-	if {([lindex $Sql 1] == "delete") && ([llength $Sql] == 3)} {
-	  removeModule [lindex $Sql 2]
-	}
-	if {([lindex $Sql 1] == "run") && ([llength $Sql] == 3)} {
-	  namespace eval [lindex $Sql 2] mod_main
-	}
-	if {([lindex $Sql 1] == "list") && ([llength $Sql] == 2)} {
-	  global activeModules
-	  Print "loaded Modules:\n\n" blue bold
-	  foreach m $activeModules {
-	    Print "\t$m\n" blue
-	  }
-	  Print "\n"
-	}
-	set Sql ""
-      }
-      "^Describe" {
-	Print "[oradesc $GOLH odbadm.p_ps_epics]" 
-	set Sql ""
-      }
-    }
-
-    ### perform alias-substitution
-    foreach k [keylkeys As] {
-      if [regexp "^$k\[ \t\n\]*" $Sql] {
-	set cmd [keylget As $k]
-	if {![regexp "\\\$\(\[0-9\]\+\)" $cmd]} {
-	  append cmd " \$0"
-	}
-	set sSql [split $Sql " \t\n"]
-	regsub -all "\\\$0" $cmd [lrange $sSql 1 end] cmd
-	while {[regexp "\\\$\(\[0-9\]\+\)" $cmd all num]} {
-	  regsub -all "\\\$$num" $cmd "[lindex $sSql [expr $num]]" cmd
-	}
-        set Sql $cmd
-      }
-    }
-
-    ### set an alias
-    if [regexp "^alias\[ \t\n\]\+(\[a-zA-Z0-9_\]\+)=(.*)" $Sql all aliasL aliasR] {
-      keylset Aliases $aliasL $aliasR
-      set Sql ""
-    }
-
-    ### remove an alias
-    if [regexp "^unalias\[ \t\n\]\+(\[a-zA-Z0-9\]\+)" $Sql all aliasL] {
-      keyldel Aliases $aliasL
-      set Sql ""
-    }
-
-    ### replace variables with their values
-    if {[regexp "^set\[ \t\]\+\(\[a-zA-Z\]\+\)\[ \t\]\+\(.*\)" $Sql all var val]} {
-      set $var [string tolower $val]
-      set Sql ""
-    }
-#    ### perform expression-evaluation
-#    while {[regexp "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql all xpr]} {
-#      regsub "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql [uplevel $xpr] Sql
-#    }
-    ### ignore command completely
-    if [regexp "^\#" $Sql] {
-      set Sql ""
-    }
-
-    if {"$Sql" != ""} {
-      if [Orasql $Sql] {
-	addHist $merkSql $mode
-	set output {}
-	if {[message $GOSH sqltype] == 1} {
-	  fetchData  $GOSH ::res {lappend output $::res}
-	  tmend
-	  set x [oracols $GOSH]
-	  for {set i 0} {$i < [llength $x]} {incr i} {
-	    set ResultArr${ntables}(0,$i) [lindex $x $i]
-	    set len($i) [string length [lindex $x $i]]
-	  }
-	  if {[regexp "(table|plain)" $OutputMode]} {
-	    set l 1
-	    foreach row $output {
-	      set lines($l) 1
-	      for {set i 0} {$i < [llength $x]} {incr i} {
-		set ResultArr${ntables}($l,$i) [lindex $row $i]
-		set ls [llength [split [lindex $row $i] "\n"]]
-		set lines($l) [expr max($lines($l),$ls)]
-		for {set j 0} {$j < $ls} {incr j} {
-		  set len($i) [expr max($len($i),[string length [lindex [split [lindex $row $i] "\n"] $j]])]
-		}
-	      }
-	      incr l
-	    }
-	  }
-
-	  if {("$OutputMode" == "tktable") && ("$outputWindow" != ".help.output.txt")} {
-	    if {[llength $x] > 0} {
-	      package require Tktable
-	      set lens {}
-	      for {set i 0} {$i < [llength $x]} {incr i} {
-		lappend lens $i
-		lappend lens [expr int(1.33 * $len($i))]
-	      }
-	      set heits {0 1}
-	      for {set i 1} {$i < $l} {incr i} {
-		lappend heits $i
-		lappend heits $lines($i)
-	      }
-	      set table .output.txt.tab$ntables
-	      frame $table -bd 1 -relief sunken -width 600 -height 400
-
-	      table $table.t -variable ResultArr$ntables -rows $l -cols [llength $x] \
-		  -colstretch none -rowstretch none -state disabled \
-		  -resizeborders both -titlerows 1 -xscrollcommand "$table.hs set" \
-		  -yscrollcommand "$table.vs set" -height 11
-	      scrollbar $table.vs -orient vert -command "$table.t yview"
-	      scrollbar $table.hs -orient horiz -command "$table.t xview"
-	      frame $table.rs -bd 2 -relief raised
-	      eval $table.t width $lens
-	      eval $table.t height $heits
-	      grid $table.t $table.vs -sticky wens
-	      grid $table.hs $table.rs -sticky swen
-	      grid columnconfigure $table 0 -weight 1
-	      grid rowconfigure $table 0 -weight 1
-
-	      .output.txt window create end -window $table
-	      incr ntables
-	    }
-	    Print "\n\n"
-	  } else {
-	    set TheFormat ""
-	    set Break ""
-	    switch -regexp $OutputMode {
-	      .*table { set hsep " | " }
-	      plain   { set hsep " " }
-	      .*      { set hsep "," }
-	    }
-	    for {set i 0} {$i < [llength $x]} {incr i} {
-	      switch -regexp $OutputMode {
-		.*table|plain   { append Break "+-[string repeat - $len($i)]-";
-		  set lFormat "%-[expr $len($i)]s" }
-		.*              { set lFormat "%s" }
-	      }
-	      if {"$TheFormat" == ""} {
-		set TheFormat $lFormat
-	      } else {
-		append TheFormat "$hsep$lFormat"
-	      }
-	    }
-	    switch -regexp $OutputMode {
-	      tktable { set TheFormat "$TheFormat\n" }
-	      .*table { set TheFormat "| $TheFormat |\n" }
-	      .*      { set TheFormat "$TheFormat\n" }
-	    }
-	    append Break "+\n"
-
-	    if {[regexp "table" $OutputMode]} { set O $Break }
-	    append O [eval format \$TheFormat $x]
-	    if {[regexp "table" $OutputMode]} { append O $Break }
-	    foreach row $output {
-	      append O [eval format \$TheFormat $row]
-	      if {[regexp "xtable" $OutputMode]} { append O $Break }
-	    }
-	    if {[regexp "^table" $OutputMode]} { append O $Break }
-
-	    if {[llength $x] > 0} {
-	      if {"$OutputLocation" == "\"\""} {
-		Print "\n$O\n\n"
-	      } else {
-		write_file $OutputLocation $O
-	      }
-	    }
-	  }
-	}
-	if {[message $GOSH rows] != 1} { set m s } else { set m "" }
-	Print [DidIt "[message $GOSH rows] row$m %s.\n\n" $Sql] largebold green
-      } else {
-	if {[info exists ::addAllStatementsToHistory] && ( "$::addAllStatementsToHistory" == "YES") } {
-	  addHist $merkSql $mode
-	}
-      }
-    }
-  }
 }
 
 proc editHotKeys {} {
-  toplevel .hk
-  wm title .hk HotKeys
-  for {set i 1} {$i < 13} {incr i} {
-    frame .hk.f$i -bd 1 -relief sunken
-    label .hk.f$i.l -text "F$i" -width 5
-    entry .hk.f$i.e -width 50
-    set stmt ""
-    regexp "Exec *\"(.*)\" substitute" [bind . <F$i>] all stmt
-    .hk.f$i.e insert end $stmt
-    pack .hk.f$i.l -side left
-    pack .hk.f$i.e -fill x -expand t
-    pack .hk.f$i -side top -padx 4 -pady 4 -fill x -expand t
-  }
-  frame .hk.b -bd 1 -relief sunken
-  button .hk.b.c -text Cancel -command {destroy .hk}
-  button .hk.b.o -text OK -command {
+    toplevel .hk
+    wm title .hk HotKeys
     for {set i 1} {$i < 13} {incr i} {
-      set stmt [.hk.f$i.e get]
-      if {"$stmt" != ""} {
-	bind . <F$i> "Exec \"$stmt\" substitute"
-      } else {
-	bind . <F$i> ""
-      }
+        frame .hk.f$i -bd 1 -relief sunken
+        label .hk.f$i.l -text "F$i" -width 5
+        entry .hk.f$i.e -width 50
+        set stmt ""
+        regexp "Exec *\"(.*)\" substitute" [bind . <F$i>] all stmt
+        .hk.f$i.e insert end $stmt
+        pack .hk.f$i.l -side left
+        pack .hk.f$i.e -fill x -expand t
+        pack .hk.f$i -side top -padx 4 -pady 4 -fill x -expand t
     }
-    destroy .hk
-  }
-  pack .hk.b.c .hk.b.o -side right
-  pack .hk.b -fill x -expand t
+    frame .hk.b -bd 1 -relief sunken
+    button .hk.b.c -text Cancel -command {destroy .hk}
+    button .hk.b.o -text OK -command {
+        for {set i 1} {$i < 13} {incr i} {
+            set stmt [.hk.f$i.e get]
+            if {"$stmt" != ""} {
+                bind . <F$i> "Exec \"$stmt\" substitute"
+            } else {
+                bind . <F$i> ""
+            }
+        }
+        destroy .hk
+    }
+    pack .hk.b.c .hk.b.o -side right
+    pack .hk.b -fill x -expand t
 }
 
 proc ScrollableText {w {lbl ""}} {
-  global History guifont
-  set History($w.txt) ""
-  frame $w -bd 0
-  if {"$lbl" != ""} {
-    label $w.lbl -font [font create -family helvetica -size 14 -weight bold] -text $lbl
-    grid $w.lbl - -sticky wens
-  }
-  text $w.txt -width 1 -height 1 -wrap none -yscroll "$w.vsb set" -xscroll "$w.hsb set" 
-
-  $w.txt tag add red       end;	$w.txt tag configure red -foreground red
-  $w.txt tag add blue      end;	$w.txt tag configure blue -foreground blue
-  $w.txt tag add green     end;	$w.txt tag configure green -foreground forestgreen
-  $w.txt tag add bold      end;	$w.txt tag configure bold -font $guifont(bold)
-  $w.txt tag add large     end;	$w.txt tag configure large -font $guifont(large)
-  $w.txt tag add largebold end;	$w.txt tag configure largebold -font $guifont(largebold)
-  $w.txt tag add underline end;	$w.txt tag configure underline -underline 1
-  $w.txt tag add raised    end;	$w.txt tag configure raised -borderwidth 1 -relief raised
-  $w.txt tag configure sel -background turquoise
-
-  scrollbar $w.vsb -orient vertical -relief sunken -command "$w.txt yview"
-  scrollbar $w.hsb -orient horizontal -relief sunken -command "$w.txt xview"
-
-  grid $w.txt $w.vsb -sticky wens
-  grid $w.hsb x -sticky swe
-  grid columnconfigure $w 0 -weight 1
-  if {"$lbl" != ""} {
-    grid rowconfigure $w 1 -weight 1
-  } else {
-    grid rowconfigure $w 0 -weight 1
-  }
-
-  bind $w.txt <Key-Prior> { %W yview scroll -1 pages }
-  bind $w.txt <Key-Next> { %W yview scroll 1 pages }
-  if {"$w" == ".output"} {
-    bind $w.txt <Key-Up> { %W yview scroll -1 units }
-    bind $w.txt <Key-Down> { %W yview scroll 1 units }
-  }
-
-  bind $w.txt <Configure> {
-    if {"%T" == "22"} {
-      if {[llength [%W bbox @1,1]] > 0} {
-	set cellheight [lindex [%W bbox @1,1] 3]
-	catch {%W configure -height [expr %h / max(([lindex [%W bbox @1,1] 3]0 / 10), 1)]}
-      }
+    global History guifont
+    set History($w.txt) ""
+    frame $w -bd 0
+    if {"$lbl" != ""} {
+        label $w.lbl -font [font create -family helvetica -size 14 -weight bold] -text $lbl
+        grid $w.lbl - -sticky wens
     }
-  }
+    text $w.txt -width 1 -height 1 -wrap none -yscroll "$w.vsb set" -xscroll "$w.hsb set" 
+
+    $w.txt tag add red       end;	$w.txt tag configure red -foreground red
+    $w.txt tag add blue      end;	$w.txt tag configure blue -foreground blue
+    $w.txt tag add green     end;	$w.txt tag configure green -foreground forestgreen
+    $w.txt tag add bold      end;	$w.txt tag configure bold -font $guifont(bold)
+    $w.txt tag add large     end;	$w.txt tag configure large -font $guifont(large)
+    $w.txt tag add largebold end;	$w.txt tag configure largebold -font $guifont(largebold)
+    $w.txt tag add underline end;	$w.txt tag configure underline -underline 1
+    $w.txt tag add raised    end;	$w.txt tag configure raised -borderwidth 1 -relief raised
+    $w.txt tag configure sel -background turquoise
+
+    scrollbar $w.vsb -orient vertical -relief sunken -command "$w.txt yview"
+    scrollbar $w.hsb -orient horizontal -relief sunken -command "$w.txt xview"
+
+    grid $w.txt $w.vsb -sticky wens
+    grid $w.hsb x -sticky swe
+    grid columnconfigure $w 0 -weight 1
+    if {"$lbl" != ""} {
+        grid rowconfigure $w 1 -weight 1
+    } else {
+        grid rowconfigure $w 0 -weight 1
+    }
+
+    bind $w.txt <Key-Prior> { %W yview scroll -1 pages }
+    bind $w.txt <Key-Next> { %W yview scroll 1 pages }
+    if {"$w" == ".output"} {
+        bind $w.txt <Key-Up> { %W yview scroll -1 units }
+        bind $w.txt <Key-Down> { %W yview scroll 1 units }
+    }
+
+    bind $w.txt <Configure> {
+        if {"%T" == "22"} {
+            if {[llength [%W bbox @1,1]] > 0} {
+                set cellheight [lindex [%W bbox @1,1] 3]
+                catch {%W configure -height [expr %h / max(([lindex [%W bbox @1,1] 3]0 / 10), 1)]}
+            }
+        }
+    }
 }
 
 proc DumpToFile {w {type contents}} {
-  global History
-  set lbl [[file rootname $w].lbl cget -text]
+    global History
+    set lbl [[file rootname $w].lbl cget -text]
 
-  set contents ""
-  if {"$type" == "contents"} {
-    set contents [$w get 0.0 end]
-  } elseif {"$type" == "all"} {
-    set contents $History($w)[$w get 0.0 end]
-  } elseif {"$type" == "selection"} {
-    set r [$w tag ranges sel]
-    if {$r != {}} {
-      set contents [$w get [lindex $r 0] [lindex $r 1]]
-    } else {
-      return
+    set contents ""
+    if {"$type" == "contents"} {
+        set contents [$w get 0.0 end]
+    } elseif {"$type" == "all"} {
+        set contents $History($w)[$w get 0.0 end]
+    } elseif {"$type" == "selection"} {
+        set r [$w tag ranges sel]
+        if {$r != {}} {
+            set contents [$w get [lindex $r 0] [lindex $r 1]]
+        } else {
+            return
+        }
     }
-  }
 
-  set fn [tk_getSaveFile -defaultextension .log -title "Dump $lbl to file:" -filetypes {{{Log Files} {.log}} {{All Files} *}}]
-  if {"$fn" != ""} {
-    if [catch {write_file $fn "$contents"}] {
-      tk_messageBox -title Error -message "Couldn't write file $fn" -type ok -icon error
+    set fn [tk_getSaveFile -defaultextension .log -title "Dump $lbl to file:" -filetypes {{{Log Files} {.log}} {{All Files} *}}]
+    if {"$fn" != ""} {
+        if [catch {write_file $fn "$contents"}] {
+            tk_messageBox -title Error -message "Couldn't write file $fn" -type ok -icon error
+        }
     }
-  }
-}
-
-if {[llength [array names env ORACLE_HOME]] == 0} {
-  puts stderr "EnvVar ORACLE_HOME not set!"
-  exit 1
-}
-if {[llength [array names env ORACLE_SID]] == 0} {
-  puts stderr "EnvVar ORACLE_SID not set!"
-  exit 2
 }
 
 proc Handle {w top bottom} {
-  frame $w -bd 0
-  frame $w.l -bd 1 -height 2 -width 100 -relief sunken
-  frame $w.h -bd 1 -relief raised -width 8 -height 8
-  frame $w.r -bd 1 -height 2 -width 24 -relief sunken
-  grid $w.l $w.h $w.r -sticky we
-  grid columnconfigure $w 0 -weight 50
+    frame $w -bd 0
+    frame $w.l -bd 1 -height 2 -width 100 -relief sunken
+    frame $w.h -bd 1 -relief raised -width 8 -height 8
+    frame $w.r -bd 1 -height 2 -width 24 -relief sunken
+    grid $w.l $w.h $w.r -sticky we
+    grid columnconfigure $w 0 -weight 50
 
-  bind $w.h <1> "
+    bind $w.h <1> "
      $w.h configure -relief sunken
      set topheight \[$top.txt cget -height\]
      set botheight \[$bottom.txt cget -height\]
      set y0 %Y
 "
-   bind $w.h <B1-Motion> "
+    bind $w.h <B1-Motion> "
        if {!\[catch {set delta \[ expr ( %Y - \$y0 ) / \[lindex \[$top.txt bbox @1,1\] 3\] \]}\]} {
           set newttopheight \[expr \$topheight + \$delta\]
           set newtbotheight \[expr \$botheight - \$delta\]
@@ -723,115 +712,114 @@ proc Handle {w top bottom} {
        }
        break
    "
-  bind $w.h <B1-ButtonRelease> "
+    bind $w.h <B1-ButtonRelease> "
      $w.h configure -relief raised
      bind . <B1-Motion> {break}
 "
 
-  return $w
+    return $w
 }
 
 proc WalkHistory {dir} {
-  regsub -all "\n\n\n*$" [.history.txt get 0.0 end] "\n\n" hist
+    regsub -all "\n\n\n*$" [.history.txt get 0.0 end] "\n\n" hist
 
-  set histPos [string length [.history.txt get 0.0 insert]]
-  if {$histPos > 0} {incr histPos -1}
-  if {"$dir" == "Up"} {
-    if {$histPos == 0} return
-    while {[string index $hist [expr $histPos]] == "\n"} {
-      incr histPos
+    set histPos [string length [.history.txt get 0.0 insert]]
+    if {$histPos > 0} {incr histPos -1}
+    if {"$dir" == "Up"} {
+        if {$histPos == 0} return
+        while {[string index $hist [expr $histPos]] == "\n"} {
+            incr histPos
+        }
+        set histPosZ [string last "\n\n" [string range $hist 0 $histPos]]
+        set histPosA [expr [string last "\n\n" [string range $hist 0 $histPosZ]] + 2]
+        if {$histPosA <= 3} {set histPosA 0}
+    } elseif {"$dir" == "Down"} {
+        set histPosA [expr $histPos + 2 + [string first "\n\n" [string range $hist $histPos end]]]
+        set histPosZ [expr $histPosA + [string first "\n\n" [string range $hist $histPosA end]]]
     }
-    set histPosZ [string last "\n\n" [string range $hist 0 $histPos]]
-    set histPosA [expr [string last "\n\n" [string range $hist 0 $histPosZ]] + 2]
-    if {$histPosA <= 3} {set histPosA 0}
-  } elseif {"$dir" == "Down"} {
-    set histPosA [expr $histPos + 2 + [string first "\n\n" [string range $hist $histPos end]]]
-    set histPosZ [expr $histPosA + [string first "\n\n" [string range $hist $histPosA end]]]
-  }
-  if {[string index $hist [expr $histPosZ - 1]] == ";"} {
-    incr histPosZ -1
-  }
-  set newCmd [string range $hist $histPosA [expr $histPosZ - 1]]
+    if {[string index $hist [expr $histPosZ - 1]] == ";"} {
+        incr histPosZ -1
+    }
+    set newCmd [string range $hist $histPosA [expr $histPosZ - 1]]
 
-  .command.txt delete 0.0 end
-  .command.txt insert end $newCmd
-  catch {.history.txt tag remove sel 0.0 end}
-  .history.txt delete 0.0 end
-  .history.txt insert end $hist
-  .history.txt tag add sel 1.0+${histPosA}chars 1.0+${histPosZ}chars
-  .history.txt mark set insert 1.0+${histPosA}chars
-  if {$histPosA > $histPosZ} {
-    .history.txt see end
-  } else {
-    catch {.history.txt see sel.first}
-  }
+    .command.txt delete 0.0 end
+    .command.txt insert end $newCmd
+    catch {.history.txt tag remove sel 0.0 end}
+    .history.txt delete 0.0 end
+    .history.txt insert end $hist
+    .history.txt tag add sel 1.0+${histPosA}chars 1.0+${histPosZ}chars
+    .history.txt mark set insert 1.0+${histPosA}chars
+    if {$histPosA > $histPosZ} {
+        .history.txt see end
+    } else {
+        catch {.history.txt see sel.first}
+    }
 }
 
 proc Blink {button} {
-  $button config -relief sunken
-  update
-  after 250 "$button config -relief raised; update"
+    $button config -relief sunken
+    update
+    after 250 "$button config -relief raised; update"
 }
 
 proc doCut {} {
-  global txt
-  doCopy
-  catch {$txt del sel.first sel.last}
+    global txt
+    doCopy
+    catch {$txt del sel.first sel.last}
 }
 
 proc doCopy {} {
-  global txt Clipboard currClip clipInfo
-  if {![catch {set sel [$txt get sel.first sel.last]}]} {
-    set pos [lsearch $Clipboard $sel]
-    if {$pos >= 0} {
-      set currClip [expr $pos + 1]
-    } else {
-      lappend Clipboard $sel
-      set currClip [expr [llength $Clipboard]]
-      .clipboard.n config -text "/[expr [llength $Clipboard]]"
+    global txt Clipboard currClip clipInfo
+    if {![catch {set sel [$txt get sel.first sel.last]}]} {
+        set pos [lsearch $Clipboard $sel]
+        if {$pos >= 0} {
+            set currClip [expr $pos + 1]
+        } else {
+            lappend Clipboard $sel
+            set currClip [expr [llength $Clipboard]]
+            .clipboard.n config -text "/[expr [llength $Clipboard]]"
+        }
+        set clipInfo [lindex $Clipboard [expr $currClip - 1]]
     }
-    set clipInfo [lindex $Clipboard [expr $currClip - 1]]
-  }
 }
 
 proc doPaste {} {
-  global txt Clipboard currClip
-  catch {$txt del sel.first sel.last}
-  $txt insert insert [lindex $Clipboard [expr $currClip - 1]]
-  $txt see insert
+    global txt Clipboard currClip
+    catch {$txt del sel.first sel.last}
+    $txt insert insert [lindex $Clipboard [expr $currClip - 1]]
+    $txt see insert
 }
 
-set database $env(ORACLE_SID)
+set database devices
+catch {set database $env(ORACLE_SID)}
 wm withdraw .
 
 if {"$argv0" == [lindex $argv 0]} {
-  incr argc -1
-  set argv [lreplace $argv 0 0]
+    incr argc -1
+    set argv [lreplace $argv 0 0]
 }
 
-set connectStrings "$env(USER)@$env(ORACLE_SID)"
 set userRC "\n\n"
 
 set rcfile $env(HOME)/.tkSQL/config
 set rcfile2 $env(HOME)/.tkSQL-rc
 if {![file exists $rcfile] && [file exists $rcfile2]} {
-  set rrcfile $rcfile2
+    set rrcfile $rcfile2
 } else {
-  set rrcfile $rcfile
+    set rrcfile $rcfile
 }
 
 if {[file exists $rrcfile]} {
-  if {![catch {source $rrcfile}]} {
-    set allConnectStrings $connectStrings
-#    regsub "\n?$" [read_file $rrcfile] "\n" userRC
-    regexp "\# manually added settings\n(.*)\# automatically added settings" \
-	[read_file $rrcfile] all userRC
-    catch {file delete -force -- $rcfile2}
-  } else {
-    puts stderr "Error loading \"$rrcfile\"!"
-    puts stderr "tkSQL won't save settings on exit!!!"
-    set writeEnable 0
-  }
+    if {![catch {source $rrcfile}]} {
+        #    regsub "\n?$" [read_file $rrcfile] "\n" userRC
+        regexp "\# manually added settings\n(.*)\# automatically added settings" \
+            [read_file $rrcfile] all userRC
+        catch {file delete -force -- $rcfile2}
+    } else {
+        puts stderr "Error loading \"$rrcfile\"!"
+        puts stderr "tkSQL won't save settings on exit!!!"
+        set writeEnable 0
+    }
 }
 
 option add	*txt.font		$guifont(standard)	widgetDefault
@@ -839,288 +827,231 @@ option add	*txt.font		$guifont(standard)	widgetDefault
 set cnt 1
 set lX ""
 proc evalOutput {Output} { 
-  global Silent cnt lX menu 
-  if {[llength $Output] == 0} {return}
+    global Silent cnt lX menu 
+    if {[llength $Output] == 0} {return}
 
-  foreach line [split $Output "\n"] {
-    if {![regexp "rows selected." $line]} {
-      if {[llength $line] > 0} {
-	set c [string tolower [string range $line 0 0]]
-	regsub "\[!@\#$%^&*()_+-=,./<>?;':\"{}\]" $c "?" c
-	set X [string tolower $c]
-	regsub "\\?" $c "X" X
-	if {"$X" != "$lX"} {
-	  set menu .help.m$X.m
-	}
-	set lX $X
+    foreach line [split $Output "\n"] {
+        if {![regexp "rows selected." $line]} {
+            if {[llength $line] > 0} {
+                set c [string tolower [string range $line 0 0]]
+                regsub "\[!@\#$%^&*()_+-=,./<>?;':\"{}\]" $c "?" c
+                set X [string tolower $c]
+                regsub "\\?" $c "X" X
+                if {"$X" != "$lX"} {
+                    set menu .help.m$X.m
+                }
+                set lX $X
 
-	if [catch {menubutton .help.m$X -text [string toupper $c] -menu .help.m$X.m -width 1 -bd 1 -relief raised}] {
-	  incr cnt
-	} else {
-	  set cnt 1
-	  set menu .help.m$X.m
-	}
-	if {[expr $cnt % 25] == 0} {
-	  catch {$menu add cascade -label "...more" -menu $menu.m$cnt}
-	  set menu $menu.m$cnt
-	}
-	catch {menu $menu -tearoff no}
-	catch {$menu add command -label $line -command "Exec \"help $line\" silent"}
-	catch {pack .help.m$X -side left -padx 4 -pady 4}
-      }
+                if [catch {menubutton .help.m$X -text [string toupper $c] -menu .help.m$X.m -width 1 -bd 1 -relief raised}] {
+                    incr cnt
+                } else {
+                    set cnt 1
+                    set menu .help.m$X.m
+                }
+                if {[expr $cnt % 25] == 0} {
+                    catch {$menu add cascade -label "...more" -menu $menu.m$cnt}
+                    set menu $menu.m$cnt
+                }
+                catch {menu $menu -tearoff no}
+                catch {$menu add command -label $line -command "Exec \"help $line\" silent"}
+                catch {pack .help.m$X -side left -padx 4 -pady 4}
+            }
+        }
     }
-  }
 }
 
 set didHelp 0
 proc basicHelp {{force 0}} {
-  global outputWindow didHelp
-  if {!$didHelp || $force} {
-    set didHelp 1
-    set outputWindow .help.output.txt
-    Print "\nA short list of features of tkSQL:\n\n" blue largebold
-    Print "\taliases\t\t" green bold
-    Print "use the command \""
-    Print alias red
-    Print "\" to get a list of currently defined aliases\n" 
-    Print "\t\t\tuse the command \""
-    Print "alias <aliasname>=<aliasdef>" red
-    Print "\" to define a new alias\n"
-    Print "\t\t\taliases are saved automatically on exit\n\n"
+    global outputWindow didHelp
+    if {!$didHelp || $force} {
+        set didHelp 1
+        set outputWindow .help.output.txt
+        Print "\nA short list of features of tkSQL:\n\n" blue largebold
+        Print "\taliases\t\t" green bold
+        Print "use the command \""
+        Print alias red
+        Print "\" to get a list of currently defined aliases\n" 
+        Print "\t\t\tuse the command \""
+        Print "alias <aliasname>=<aliasdef>" red
+        Print "\" to define a new alias\n"
+        Print "\t\t\taliases are saved automatically on exit\n\n"
 
-    Print "\texecute external files containing SQL-code\n" green bold
-    Print "\t\t\tthe command \""
-    Print source red
-    Print "\" causes every file given as an argument to be executed.\n\n"
+        Print "\texecute external files containing SQL-code\n" green bold
+        Print "\t\t\tthe command \""
+        Print source red
+        Print "\" causes every file given as an argument to be executed.\n\n"
 
-    Print "\thotkeys\t\t" green bold
-    Print "assign any command to a function-key\n\n" 
+        Print "\thotkeys\t\t" green bold
+        Print "assign any command to a function-key\n\n" 
 
-    Print "\tvariables\t" green bold
-    Print "set certain variables to control output\n"
-    Print "\t\t\tpossible Variables:\n"
-    Print "\t\t\tOutputMode\n" red
-    Print "\t\t\t   tktable | xtable | table | plain | sparse" blue
-    Print "\n\t\t\tOutputLocation\n" red
-    Print "\t\t\t   a filename or \"\"" blue
-    Print "\n\t\t\tOutputBufferSize\n" red
-    Print "\t\t\t   any non-negative number determining the max. number\n" blue
-    Print "\t\t\t   of lines in the output-buffer (0 == infinite)" blue
-    Print "\n\t\t\tHistSize\n" red
-    Print "\t\t\t   any non-negative number determining the number\n" blue
-    Print "\t\t\t   of saved commands in history (0 == all)\n" blue
-    Print "\n\t\t\tset variables with \""
-    Print "set <VarName> <Value>" red
-    Print "\"\n\n"
+        Print "\tvariables\t" green bold
+        Print "set certain variables to control output\n"
+        Print "\t\t\tpossible Variables:\n"
+        Print "\t\t\tOutputMode\n" red
+        Print "\t\t\t   tktable | xtable | table | plain | sparse" blue
+        Print "\n\t\t\tOutputLocation\n" red
+        Print "\t\t\t   a filename or \"\"" blue
+        Print "\n\t\t\tOutputBufferSize\n" red
+        Print "\t\t\t   any non-negative number determining the max. number\n" blue
+        Print "\t\t\t   of lines in the output-buffer (0 == infinite)" blue
+        Print "\n\t\t\tHistSize\n" red
+        Print "\t\t\t   any non-negative number determining the number\n" blue
+        Print "\t\t\t   of saved commands in history (0 == all)\n" blue
+        Print "\n\t\t\tset variables with \""
+        Print "set <VarName> <Value>" red
+        Print "\"\n\n"
 
-    Print "\ttcl-statements\t" green bold
-    Print "evaluate any tcl-statement\n"
-    Print "\t\t\tany input enclosed in \"\[\" and \"\]\" is executed as a tcl-statement\n"
-    Print "\t\t\tand replaced by the result\n\n"
-    set outputWindow .output.txt
-  }
+        Print "\ttcl-statements\t" green bold
+        Print "evaluate any tcl-statement\n"
+        Print "\t\t\tany input enclosed in \"\[\" and \"\]\" is executed as a tcl-statement\n"
+        Print "\t\t\tand replaced by the result\n\n"
+        set outputWindow .output.txt
+    }
 }
 
 proc tmsql {GOSH sql} {
-  set ::a [clock clicks]
-  set ::b 0
-  orasql $GOSH $sql
+    set ::a [clock clicks]
+    set ::b 0
+    if {[info exists ::PGH]} {
+        set ::PG_cursor [pg_exec $::PGH $sql]
+        return [expr 1 - [regexp "ERROR" [pg_result $::PG_cursor -error]]]
+    } else {
+        if {[catch {orasql $GOSH $sql}]} {
+            return 0
+        }
+    }
+    return 1
 }
 
 set ::msAll 0
 proc tmend {} {
-  if {$::b == 0} {
-    set ::b [clock clicks]
-    set ::msStmt [expr ( $::b - $::a ) / $::msTick]
-  } else {
-    set ::b [clock clicks]
-    set ::msAll [expr ( $::b - $::a ) / $::msTick]
-  }
+    if {$::b == 0} {
+        set ::b [clock clicks]
+        set ::msStmt [expr ( $::b - $::a ) / $::msTick]
+    } else {
+        set ::b [clock clicks]
+        set ::msAll [expr ( $::b - $::a ) / $::msTick]
+    }
 }
 
 proc Orasql {sql} {
-  global GOLH GOSH
+    global GOLH GOSH
 
-  if { ( "[string range $sql 0 2]" == "PL:" ) } {
-    set Sql "[string trim [string range $sql 3 end]]"
-    regsub {;*$} $Sql "" Sql
-    if [catch {oraplexec $GOSH "$Sql;"} result] {
-      Print "$result\n" largebold red
-      Print "[message $GOSH error]\n" largebold red
+    if { ( "[string range $sql 0 2]" == "PL:" ) } {
+        set Sql "[string trim [string range $sql 3 end]]"
+        regsub {;*$} $Sql "" Sql
+        if [catch {oraplexec $GOSH "$Sql;"} result] {
+            Print "$result\n" largebold red
+            Print "[message $GOSH error]\n" largebold red
+        } else {
+            Print "PL/SQL procedure successfully completed.\n" largebold red
+        }
+        return 0
     } else {
-      Print "PL/SQL procedure successfully completed.\n" largebold red
+        if {![tmsql $GOSH $sql]} {
+            Print [message $GOSH error] largebold red
+        }
     }
-    return 0
-  } else {
-    if [catch {tmsql $GOSH $sql} result] {
-      Print [message $GOSH error] largebold red
-      return 0
-    }
-  }
-  return 1
-}
-
-proc selectLoadModule {} {
-  loadModule [tk_getOpenFile -defaultextension ".tcl" -title "Select tkSQL-module" \
-		  -filetypes {
-		    {{tcl-file}	{*.tcl *.tk}	}
-		    {{All Files}	*		}
-		  }]
-}
-
-set activeModules {}
-proc loadModule {fn {addrec 1}} {
-  global activeModules loginString recentlyLoadedModules
-  if {"$fn" != ""} {
-    set ns [lindex [split $fn /] end]
-    regsub {\.(tcl|tk)$} $ns "" ns
-    regsub -all {[-\. ]+} $ns _ ns
-    if {![catch {namespace eval $ns "source $fn"}]} {
-      .mb.mod.m add command -label $ns -command "namespace eval $ns mod_main"
-      .mb.mod.r add command -label $ns -command "removeModule $ns"
-      if {$addrec} {.mb.mod.l add command -label $ns -command "loadModule $fn 0"}
-      set recentlyLoadedModules($ns) $fn
-      lappend activeModules $ns
-      namespace eval $ns "variable OLH [oralogon $loginString]"
-      namespace eval $ns {variable OSH [oraopen $OLH]}
-      namespace eval $ns "variable ns $ns"
-      catch "namespace eval $ns mod_init" result
-      if {[lsearch -exact $result button] >= 0} {
-	button .m$ns -text $ns -command "namespace eval $ns mod_main"
-	pack .m$ns -side top -fill x
-      }
-    }
-  }
-}
-
-proc selectRemoveModule {} {
-  global activeModules
-  if [catch {toplevel .rmmod}] return
-  listbox .rmmod.lb -listvariable activeModules
-  button .rmmod.delete -text "Delete" -command {removeModule [.rmmod.lb get active]}
-  button .rmmod.close -text Close -command {destroy .rmmod}
-  pack .rmmod.lb -side top -expand t -fill both
-  pack .rmmod.delete .rmmod.close -side left -fill x
-#  tkwait window .rmmod
-}
-
-proc removeModule {ns} {
-  global activeModules
-  if {"$ns" == ""} { return }
-  for {set i [.mb.mod.m index end]} {$i > 3} {incr i -1} {
-    if {"[.mb.mod.m entrycget $i -label]" == "$ns"} {
-      .mb.mod.m delete $i
-      set idx [lsearch -exact $activeModules $ns]
-      catch {destroy .m$ns}
-      set activeModules [lreplace $activeModules $idx $idx]
-
-      catch "namespace eval $ns mod_exit"
-      catch {namespace eval $ns {oraclose $OSH}}
-      catch {namespace eval $ns {oralogoff $OLH}}
-    }
-    if {"[.mb.mod.r entrycget $i -label]" == "$ns"} {
-      .mb.mod.r delete $i
-    }
-  }
+    return 1
 }
 
 
 proc selectUserInstance {n1 n2 op} {
-  upvar $n1 cstr
-  global database lbgc
-  puts selectUserInstance
-  regexp "(.*)@(.*)" $cstr all user instance
-  .login.f.user delete 0 end
-  .login.f.user insert end $user
-  set database $instance
+    upvar $n1 cstr
+    global database lbgc
+    regexp "(.*)@(.*)" $cstr all user instance
+    .login.f.user delete 0 end
+    .login.f.user insert end $user
+    set database $instance
 }
 
-set loginString "$env(USER)@$env(ORACLE_SID)"
+set loginString "$env(USER)@$::database"
 
 proc loginDialog {} {
-  global loginString argc argv lbgc env allConnectStrings theConnectString
-  if {$argc == 0} {
-    regexp "(\[^/\]*)(/(.*))?@(.*)" $loginString all user spass pass instance
+    global loginString argc argv lbgc env allConnectStrings theConnectString
+    if {$argc == 0} {
+        regexp "(\[^/\]*)(/(.*))?@(.*)" $loginString all user spass pass instance
 
-    toplevel .login
-    wm protocol .login WM_DELETE_WINDOW {exit}
-    label .login.label1 -text "Connect to Database" \
-	-font [font create -family helvetica -size 18 -weight bold]
-    label .login.label2 -text "as"
+        toplevel .login
+        wm protocol .login WM_DELETE_WINDOW {exit}
+        label .login.label1 -text "Connect to Database" \
+            -font [font create -family helvetica -size 18 -weight bold]
+        label .login.label2 -text "as"
 
-    frame .login.f -bd 0
-    entry .login.f.user -bg $lbgc -width 8
-    label .login.f.slash -text "/"
-    entry .login.f.pass -selectbackground turquoise -selectforeground turquoise \
-	-show * -bg $lbgc -width 8
-    label .login.f.at -text "@"
+        frame .login.f -bd 0
+        entry .login.f.user -bg $lbgc -width 8
+        label .login.f.slash -text "/"
+        entry .login.f.pass -selectbackground turquoise -selectforeground turquoise \
+            -show * -bg $lbgc -width 8
+        label .login.f.at -text "@"
 
-    set tnsadmin "/non-ex"
-    if {[llength [array names env TNS_ADMIN]] > 0} {
-      set tnsadmin $env(TNS_ADMIN)
-    } 
-    if {![file isdir $tnsadmin]} {
-      set tnsadmin $env(ORACLE_HOME)/network/admin
+        set tnsadmin "/non-ex"
+        if {[llength [array names env TNS_ADMIN]] > 0} {
+            set tnsadmin $env(TNS_ADMIN)
+        } 
+        if {![file isdir $tnsadmin]} {
+            set tnsadmin $env(ORACLE_HOME)/network/admin
+        }
+
+        for_file line $tnsadmin/tnsnames.ora {
+            if {![regexp {^[\# \t]} $line] && "$line" != ""} {
+                regexp {^[A-Za-z_]*} $line match
+                lappend instances [string tolower $match]
+            }
+        }
+        lappend instances [string tolower $::database]
+        foreach s $allConnectStrings {
+            if {[regexp "@(.*)" $s all inst]} { lappend instances [string tolower $inst] }
+        }
+        set instances [lsort [lrmdups $instances]]
+        ComboBox .login.f.database -entrybg gray95 -selectbackground turquoise -bd 2 -relief sunken -textvariable database -values $instances
+        #    eval tk_optionMenu .login.f.database database $instances
+        #    entry .login.f.databasee -textvariable database -width 10
+
+        eval tk_optionMenu .login.cstrings theConnectString $allConnectStrings
+        if {![info exists theConnectString]} {set theConnectString "$user@$instance"}
+        trace variable theConnectString w selectUserInstance
+        set theConnectString $::theConnectString
+        
+        frame .login.b -bd 0
+        button .login.b.ok -text Login -command {set loginString "[.login.f.user get]/[.login.f.pass get]@$::database"}
+        button .login.b.guest -text "as Guest" -command {
+            set loginString "anonymous/bessyguest@$::database"
+            if {"$::database" == "mirror"} {
+                set loginString "guest/bessyguest@$::database"
+            }
+        }
+        button .login.b.cancel -text Quit -command {exit}
+
+        pack .login.f.user .login.f.slash .login.f.pass .login.f.at .login.f.database -side left
+        pack .login.b.ok .login.b.guest .login.b.cancel -side left -fill both -padx 8 -pady 8 -expand t
+
+        pack .login.label1 -fill x
+        pack .login.label2 -fill x
+        pack .login.cstrings -fill x -padx 8 -pady 8
+        pack .login.f -padx 8 -pady 8
+        pack .login.b -fill x
+
+        bind .login.f.user <Return> {focus .login.f.pass; break}
+        bind .login.f.pass <Return> {.login.b.ok invoke; break}
+        bind .login.b.ok <Return> {.login.b.ok invoke; break}
+
+        .login.f.user insert end $user
+        .login.f.pass insert end $pass
+
+        focus .login.f.pass 
+
+        #    tkwait window .login
+        tkwait variable loginString
+        destroy .login
+        trace vdelete theConnectString w selectUserInstance
+    } else {
+        set loginString [lindex $argv 0]
+
+        if {"$loginString" == "/"} {
+            set loginString "/@$::database"
+        }
     }
-
-    for_file line $tnsadmin/tnsnames.ora {
-      if {![regexp {^[\# \t]} $line] && "$line" != ""} {
-	regexp {^[A-Za-z_]*} $line match
-	lappend instances [string tolower $match]
-      }
-    }
-    lappend instances [string tolower $env(ORACLE_SID)]
-    foreach s $allConnectStrings {
-      if {[regexp "@(.*)" $s all inst]} { lappend instances [string tolower $inst] }
-    }
-    set instances [lsort [lrmdups $instances]]
-    ComboBox .login.f.database -entrybg gray95 -selectbackground turquoise -bd 2 -relief sunken -textvariable database -values $instances
-#    eval tk_optionMenu .login.f.database database $instances
-#    entry .login.f.databasee -textvariable database -width 10
-
-    eval tk_optionMenu .login.cstrings theConnectString $allConnectStrings
-    set theConnectString "$user@$instance"
-    trace variable theConnectString w selectUserInstance
-
-    frame .login.b -bd 0
-    button .login.b.ok -text Login -command {set loginString "[.login.f.user get]/[.login.f.pass get]@$database"}
-    button .login.b.guest -text "as Guest" -command {
-	set loginString "anonymous/bessyguest@$database"
-	if {"$database" == "mirror"} {
-	    set loginString "guest/bessyguest@$database"
-	}
-    }
-    button .login.b.cancel -text Quit -command {exit}
-
-    pack .login.f.user .login.f.slash .login.f.pass .login.f.at .login.f.database -side left
-    pack .login.b.ok .login.b.guest .login.b.cancel -side left -fill both -padx 8 -pady 8 -expand t
-
-    pack .login.label1 -fill x
-    pack .login.label2 -fill x
-    pack .login.cstrings -fill x -padx 8 -pady 8
-    pack .login.f -padx 8 -pady 8
-    pack .login.b -fill x
-
-    bind .login.f.user <Return> {focus .login.f.pass; break}
-    bind .login.f.pass <Return> {.login.b.ok invoke; break}
-    bind .login.b.ok <Return> {.login.b.ok invoke; break}
-
-    .login.f.user insert end $user
-    .login.f.pass insert end $pass
-
-    focus .login.f.pass 
-
-#    tkwait window .login
-    tkwait variable loginString
-    destroy .login
-    trace vdelete theConnectString w selectUserInstance
-  } else {
-    set loginString [lindex $argv 0]
-
-    if {"$loginString" == "/"} {
-      set loginString "/@$env(ORACLE_SID)"
-    }
-  }
 }
 
 toplevel .help
@@ -1150,26 +1081,6 @@ menu .mb.cfg.m
 .mb.cfg.m add command -label Hotkeys -command {editHotKeys}
 pack .mb.cfg -side left
 
-menubutton .mb.mod -text Module -menu .mb.mod.m
-menu .mb.mod.m
-.mb.mod.m add cascade -label Load -menu .mb.mod.l
-.mb.mod.m add cascade -label Remove -menu .mb.mod.r
-.mb.mod.m add separator
-pack .mb.mod -side left
-
-menu .mb.mod.l
-menu .mb.mod.a
-menu .mb.mod.r
-.mb.mod.l add command -label "from file..." -command {selectLoadModule}
-.mb.mod.l add cascade -label "set autoload" -menu .mb.mod.a
-.mb.mod.l add separator
-foreach k [lsort [array names recentlyLoadedModules]] {
-  .mb.mod.l add command -label $k -command "loadModule $recentlyLoadedModules($k) 0"
-  if [catch {set autoloadModule($k)}] {set autoloadModule($k) 0}
-  if {$autoloadModule($k)} {after 250 "loadModule $recentlyLoadedModules($k) 0"}
-  .mb.mod.a add checkbutton -label $k -variable autoloadModule($k)
-}
-
 menubutton .mb.help -text Help -menu .mb.help.m
 menu .mb.help.m
 .mb.help.m add command -label General -command {wm deiconify .help; update; basicHelp}
@@ -1182,30 +1093,49 @@ wm protocol . WM_DELETE_WINDOW {Exit}
 
 set loggedOn 0
 while {! $loggedOn} {
-  loginDialog
+    loginDialog
 
-  regsub "^/" $loginString "$env(USER)/" loginString
+    regsub "^/" $loginString "$env(USER)/" loginString
 
-  regsub "/.*@" $loginString "@" XloginString
-  regsub ".*/@" $loginString "/@" loginString
-  if {[catch {oralogon $loginString} GOLH]} {
-    tk_dialog .error "ERROR" "Login failed!\n\n$GOLH\n\nTry again!" error 0 OK
-  } else {
-    set loggedOn 1
-  }
+    regsub "/.*@" $loginString "@" XloginString
+    regsub ".*/@" $loginString "/@" loginString
+    if {[regexp "@pg:" $loginString]} {
+        regexp "(.*)/(.*)@pg:(\[^#\]*)(#(.*))?" $loginString all user pass ::dbname dummy server
+        if {"x$server" == "x"} {set server dbnode1.trs.bessy.de}
+        if {[catch {pg_connect -conninfo "host=$server dbname=$::dbname user=$user password=$pass"} ::PGH]} {
+            tk_dialog .error "ERROR" "Login failed!\n\n$PGH\n\nTry again!" error 0 OK
+        } else {
+            set loggedOn 1
+        }
+
+    } else {
+        if {[catch {oralogon $loginString} GOLH]} {
+            tk_dialog .error "ERROR" "Login failed!\n\n$GOLH\n\nTry again!" error 0 OK
+        } else {
+            set loggedOn 1
+        }
+    }
 }
+
+setSysAliases
 
 set arg0 $argv0
 regsub "^.*/" $argv0 "" arg0
-Print "This is $arg0\n"
-Print "  Version:      $CVS(Version)\n"
-Print "  Date:         $CVS(Date)\n"
-Print "  Author:       $CVS(Author)\n\n"
+Print "This is $arg0 Version $Version\n"
 
 Print "Connecting to: $XloginString\n"
 
-set GOSH [oraopen $GOLH]
-oraconfig $GOSH nullvalue "<NULL>"
+if {![info exists ::PGH]} {
+    set GOSH [oraopen $GOLH]
+    oraconfig $GOSH nullvalue "<NULL>"
+} else {
+    set GOSH 0
+    proc oracols {dummy} {
+        return [pg_result $::PG_cursor -attributes]
+    }
+}
+
+Print "Connected to $::dbname"
 
 regexp "/(.*)@(.*)" $loginString all password database
 regexp "(.*)/.*" $loginString all dbuser
@@ -1213,13 +1143,16 @@ regexp "(.*)/.*" $loginString all dbuser
 lappend allConnectStrings $XloginString
 set allConnectStrings [lrmdups $allConnectStrings]
 
-set sessnum -1
-if [Orasql "select count(*) from V\$SESSION where username = '[string toupper $dbuser]' and osuser = '$env(USER)'"] {
-  fetchData $GOSH ::res {set sessnum [lindex $::res 0]}
+set sessnum 0
+if {![info exists ::PGH]} {
+    if [Orasql "select count(*) from V\$SESSION where username = '[string toupper $dbuser]' and osuser = '$env(USER)'"] {
+        fetchData $GOSH ::res {set sessnum [lindex $::res 0]}
+    }
+
+    Print "\nconnected with Oratcl [orainfo version] to\n"
+    Print "[orainfo server $GOLH]\n\n" red
 }
 
-Print "\nconnected with Oratcl [orainfo version] to\n"
-Print "[orainfo server $GOLH]\n\n" red
 wm title . "SqlPlus as $XloginString (session $sessnum)"
 
 ScrollableText .command "SQL command entry"
@@ -1230,16 +1163,16 @@ ScrollableText .history "History"
 set upA [image create bitmap -data "\#define upA_width 16
 \#define upA_height 16
 static unsigned char upA_bits[] = {
-   0x80, 0x00, 0xc0, 0x01, 0xe0, 0x03, 0xf0, 0x07, 0xf8, 0x0f, 0xfc, 0x1f,
-   0xfe, 0x3f, 0xff, 0x7f, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01,
-   0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01};"]
+    0x80, 0x00, 0xc0, 0x01, 0xe0, 0x03, 0xf0, 0x07, 0xf8, 0x0f, 0xfc, 0x1f,
+    0xfe, 0x3f, 0xff, 0x7f, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01,
+    0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01};"]
 
 set dnA [image create bitmap -data "\#define dnA_width 16
 \#define dnA_height 16
 static unsigned char dnA_bits[] = {
-   0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01,
-   0xc0, 0x01, 0xc0, 0x01, 0xff, 0x7f, 0xfe, 0x3f, 0xfc, 0x1f, 0xf8, 0x0f,
-   0xf0, 0x07, 0xe0, 0x03, 0xc0, 0x01, 0x80, 0x00};
+    0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01, 0xc0, 0x01,
+    0xc0, 0x01, 0xc0, 0x01, 0xff, 0x7f, 0xfe, 0x3f, 0xfc, 0x1f, 0xf8, 0x0f,
+    0xf0, 0x07, 0xe0, 0x03, 0xc0, 0x01, 0x80, 0x00};
 "]
 
 
@@ -1259,11 +1192,11 @@ pack .clipboard.n .clipboard.m -side right -padx 0 -ipadx 0
 set hist ""
 set didit 0
 foreach p {.tkSQL/ .tkSQL-history-} {
-    if {!$didit && [file exists $env(HOME)/$p$dbuser-$database-$sessnum] && 
-        ![catch {set hist [read_file $env(HOME)/$p$dbuser-$database-$sessnum]}]} {
+    if {!$didit && [file exists $env(HOME)/$p$dbuser-$::database-$sessnum] && 
+        ![catch {set hist [read_file $env(HOME)/$p$dbuser-$::database-$sessnum]}]} {
         set didit 1
         if { [regexp "history" $p]} {
-            file delete $env(HOME)/$p$dbuser-$database-$sessnum
+            file delete $env(HOME)/$p$dbuser-$::database-$sessnum
         }
     }
 }
@@ -1276,9 +1209,9 @@ regsub -all "\n\n\n*" $hist "\n\n" hist
 button .exec -text Exec \
     -command {Exec [.command.txt get 0.0 end]; .command.txt tag add sel 0.0 end}
 button .execsel -text "Exec\nSelection" -command {
-  catch {Exec [.command.txt get sel.first sel.last]}
-  catch {Exec [.output.txt get sel.first sel.last]}
-  catch {Exec [.history.txt get sel.first sel.last]}
+    catch {Exec [.command.txt get sel.first sel.last]}
+    catch {Exec [.output.txt get sel.first sel.last]}
+    catch {Exec [.history.txt get sel.first sel.last]}
 }
 button .commit -text Commit -command {Exec "commit;"}
 button .rollback -text Rollback -command {Exec "rollback;"}
@@ -1288,71 +1221,71 @@ bind .output.txt <Key> {break}
 bind .output.txt <Control-Key-q> {Exit}
 
 foreach w {. .command.txt .output.txt .history.txt} {
-  event add <<ExecSel>> <Alt-Return>
-  event add <<ExecSel>> <Meta-Return>
-  bind $w <<ExecSel>> {Blink .execsel; .execsel invoke; break}
-  bind $w <Control-Return> {Blink .exec; Exec [.command.txt get 0.0 end]; break}
+    event add <<ExecSel>> <Alt-Return>
+    event add <<ExecSel>> <Meta-Return>
+    bind $w <<ExecSel>> {Blink .execsel; .execsel invoke; break}
+    bind $w <Control-Return> {Blink .exec; Exec [.command.txt get 0.0 end]; break}
 
-  bind $w <Control-Key-Up> {.output.txt yview scroll -1 units}
-  bind $w <Control-Key-Down> {.output.txt yview scroll 1 units}
-  bind $w <Control-Key-Prior> {.output.txt yview scroll -1 pages}
-  bind $w <Control-Key-Next> {.output.txt yview scroll 1 pages}
+    bind $w <Control-Key-Up> {.output.txt yview scroll -1 units}
+    bind $w <Control-Key-Down> {.output.txt yview scroll 1 units}
+    bind $w <Control-Key-Prior> {.output.txt yview scroll -1 pages}
+    bind $w <Control-Key-Next> {.output.txt yview scroll 1 pages}
 
-  event add <<Up>> <Alt-Key-Up>
-  event add <<Up>> <Meta-Key-Up>
-  bind $w <<Up>> {Blink .history.lbl.up; .history.lbl.up invoke; break}
+    event add <<Up>> <Alt-Key-Up>
+    event add <<Up>> <Meta-Key-Up>
+    bind $w <<Up>> {Blink .history.lbl.up; .history.lbl.up invoke; break}
 
-  event add <<Down>> <Alt-Key-Down>
-  event add <<Down>> <Meta-Key-Down>
-  bind $w <<Down>> {Blink .history.lbl.dn; .history.lbl.dn invoke; break}
+    event add <<Down>> <Alt-Key-Down>
+    event add <<Down>> <Meta-Key-Down>
+    bind $w <<Down>> {Blink .history.lbl.dn; .history.lbl.dn invoke; break}
 
-  event add <<Cut>> <Control-Key-w>
-  event add <<Cut>> <Control-Key-x>
-  event add <<Cut>> <Shift-Key-Delete>
-  bind $w <<Cut>> {set txt %W; doCut; break}
+    event add <<Cut>> <Control-Key-w>
+    event add <<Cut>> <Control-Key-x>
+    event add <<Cut>> <Shift-Key-Delete>
+    bind $w <<Cut>> {set txt %W; doCut; break}
 
-  event add <<Copy>> <Control-Key-c>
-  event add <<Copy>> <Alt-Key-w>
-  event add <<Copy>> <Meta-Key-w>
-  event add <<Copy>> <Control-Key-Insert>
-  bind $w <<Copy>> {set txt %W; doCopy; break}
+    event add <<Copy>> <Control-Key-c>
+    event add <<Copy>> <Alt-Key-w>
+    event add <<Copy>> <Meta-Key-w>
+    event add <<Copy>> <Control-Key-Insert>
+    bind $w <<Copy>> {set txt %W; doCopy; break}
 
-  event add <<Paste>> <Control-Key-v>
-  event add <<Paste>> <Control-Key-y>
-  event add <<Paste>> <Shift-Key-Insert>
-  bind $w <<Paste>> {set txt %W; doPaste; break}
+    event add <<Paste>> <Control-Key-v>
+    event add <<Paste>> <Control-Key-y>
+    event add <<Paste>> <Shift-Key-Insert>
+    bind $w <<Paste>> {set txt %W; doPaste; break}
 
 
-  event add <<scrollClipUp>> <Alt-Key-y> 
-  event add <<scrollClipUp>> <Meta-Key-y> 
-  event add <<scrollClipUp>> <Alt-Key-c> 
-  event add <<scrollClipUp>> <Meta-Key-c> 
-  bind $w <<scrollClipUp>> {
-    if {[llength $Clipboard] > 0} {
-      set currClip [expr ($currClip) %% [llength $Clipboard] + 1]
-      set clipInfo [lindex $Clipboard [expr $currClip - 1]]
+    event add <<scrollClipUp>> <Alt-Key-y> 
+    event add <<scrollClipUp>> <Meta-Key-y> 
+    event add <<scrollClipUp>> <Alt-Key-c> 
+    event add <<scrollClipUp>> <Meta-Key-c> 
+    bind $w <<scrollClipUp>> {
+        if {[llength $Clipboard] > 0} {
+            set currClip [expr ($currClip) %% [llength $Clipboard] + 1]
+            set clipInfo [lindex $Clipboard [expr $currClip - 1]]
+        }
+        break
     }
-    break
-  }
 
-  event add <<scrollClipDown>> <Alt-Key-Y>
-  event add <<scrollClipDown>> <Meta-Key-Y>
-  event add <<scrollClipDown>> <Alt-Key-C>
-  event add <<scrollClipDown>> <Meta-Key-C>
-  bind $w <<scrollClipDown>> {
-    if {[llength $Clipboard] > 0} {
-      set currClip [expr ($currClip + [llength $Clipboard] - 2) %% [llength $Clipboard] + 1]
-      set clipInfo [lindex $Clipboard [expr $currClip - 1]]
+    event add <<scrollClipDown>> <Alt-Key-Y>
+    event add <<scrollClipDown>> <Meta-Key-Y>
+    event add <<scrollClipDown>> <Alt-Key-C>
+    event add <<scrollClipDown>> <Meta-Key-C>
+    bind $w <<scrollClipDown>> {
+        if {[llength $Clipboard] > 0} {
+            set currClip [expr ($currClip + [llength $Clipboard] - 2) %% [llength $Clipboard] + 1]
+            set clipInfo [lindex $Clipboard [expr $currClip - 1]]
+        }
+        break
     }
-    break
-  }
 }
 
 set txtws {.command.txt .history.txt .output.txt .command.txt}
 foreach w $txtws {
-  bind $w <Shift-Tab> {focus [lindex $txtws [expr 1 + [lsearch $txtws %W]]];break}
-  bind $w <KP_Enter> {focus [lindex $txtws [expr 1 + [lsearch $txtws %W]]];break}
-  bind $w <Shift-KP_Enter> {focus [lindex $txtws [expr 1 + [lsearch $txtws %W]]];break}
+    bind $w <Shift-Tab> {focus [lindex $txtws [expr 1 + [lsearch $txtws %W]]];break}
+    bind $w <KP_Enter> {focus [lindex $txtws [expr 1 + [lsearch $txtws %W]]];break}
+    bind $w <Shift-KP_Enter> {focus [lindex $txtws [expr 1 + [lsearch $txtws %W]]];break}
 }
 
 bind . <Control-Key-q> {Exit}
@@ -1369,13 +1302,13 @@ pack .sep -padx 4 -pady 4 -fill x -side top
 
 menu .assignF -tearoff 0
 for {set i 1} {$i < 13} {incr i} {
-  .assignF add command -label "F$i" \
-      -command "catch {bind . <F$i> \"Exec \\\"\[\$txt get sel.first sel.last\]\\\" substitute\"}"
+    .assignF add command -label "F$i" \
+        -command "catch {bind . <F$i> \"Exec \\\"\[\$txt get sel.first sel.last\]\\\" substitute\"}"
 }
 
 menu .exemenu -tearoff 0
 .exemenu add command -label "Exec Selection" -command {
-  catch {Exec [$txt get sel.first sel.last]}
+    catch {Exec [$txt get sel.first sel.last]}
 }
 .exemenu add separator
 .exemenu add command -label "Cut" -command doCut
@@ -1384,21 +1317,21 @@ menu .exemenu -tearoff 0
 
 .exemenu add separator
 .exemenu add command -label "Clear" -command {
-  append History($txt) [$txt get 0.0 end-1chars]
-  set state [$txt cget -state]
-  $txt configure -state normal
-  $txt delete 0.0 end
-  $txt configure -state $state
+    append History($txt) [$txt get 0.0 end-1chars]
+    set state [$txt cget -state]
+    $txt configure -state normal
+    $txt delete 0.0 end
+    $txt configure -state $state
 }
 .exemenu add command -label "Restore" -command {
-  append History($txt) [$txt get 0.0 end-1chars]
-  set state [$txt cget -state]
-  $txt configure -state normal
-  $txt delete 0.0 end
-  $txt insert end $History($txt)
-  $txt configure -state $state
-  set History($txt) ""
-  $txt see end
+    append History($txt) [$txt get 0.0 end-1chars]
+    set state [$txt cget -state]
+    $txt configure -state normal
+    $txt delete 0.0 end
+    $txt insert end $History($txt)
+    $txt configure -state $state
+    set History($txt) ""
+    $txt see end
 }
 .exemenu add separator
 .exemenu add command -label "Dump sessionlog to file" -command { DumpToFile $txt all }
@@ -1420,12 +1353,12 @@ wm deiconify .
 update
 
 foreach s {INT QUIT ILL TRAP ABRT FPE BUS SEGV PIPE ALRM TERM} {
-  signal trap $s Exit
+    signal trap $s Exit
 }
 
-if [Orasql "select distinct topic from SYSTEM.HELP order by upper(topic)"] {
-  set Output ""
-  fetchData $GOSH ::res {set a [lindex $::res 0]; append Output "$a\n"}
-  evalOutput $Output
+if {[info exists ::GOLH] && [Orasql "select distinct topic from SYSTEM.HELP order by upper(topic)"]} {
+    set Output ""
+    fetchData $GOSH ::res {set a [lindex $::res 0]; append Output "$a\n"}
+    evalOutput $Output
 }
 Print "\nReady.\n" largebold green
