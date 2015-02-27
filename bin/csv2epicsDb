@@ -154,11 +154,14 @@ parser.add_option("--devObj",
     		 type="string",
 		 help="python class module that converts non standard csv data to variables needed by the program",
     		 )
-
 parser.add_option("--dis",
 		 action="store",
     		 type="string",
 		 help="Name of disable record to be created and used in all SDIS fields",
+    		 )
+parser.add_option("--stoRcl",
+		 action="store_true", # default: None
+		 help="Create store recall records for ao and longout",
     		 )
 parser.add_option("--var", 
 		 action="append",
@@ -331,7 +334,10 @@ for argument in args:
 	    # is a record?
 	    a = csv2epicsFuncs.procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
     	    if a:
-	    	(autoSaveRestoreRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
+                (autoSaveRestoreRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
+                if options.stoRcl and (devObj.rtype == 'ao' or devObj.rtype == 'longout'):
+                    epicsUtils.epicsTemplate("StoRcl",{'DEVN':devName},{'SNAME':devObj.signal})
+
 		req += autoSaveRestoreRequest
 	    # is a known template?
 	    elif plugins.has_key(devObj.rtype):
