@@ -936,7 +936,7 @@ sub dist
               ' && ',  
               "echo \"\" >> $chg && cat STAMP >> $chg && ",
               "if test -e $last;",
-              "then echo CHANGED/ADDED FILES relative to `cat LAST`: >> $chg ;",
+              "then echo CHANGED/ADDED FILES relative to `cat $last`: >> $chg ;",
               "else echo ADDED FILES: >> $chg;",
               'fi',
               ' && ',
