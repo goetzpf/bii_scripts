@@ -944,6 +944,8 @@ class epicsTemplate(object):
     - printAllRecords(): treat all data as EPICS-records and print all stored
                 templates in EPICS.db format
     - getDevice(devName): return a list of records with this devicename or None
+    - findObject(devName, parDict) Get records/template instances that matches 
+        the device name and the parameters - may be empty for not found
     """
     typeDict={}
     deviceList=[]
@@ -1009,6 +1011,29 @@ class epicsTemplate(object):
         li = []
         for item in epicsTemplate.deviceList:
             if item.getDevn() == devName: li.append(item)
+        return li
+
+    @staticmethod
+    def findObject(devName, parDict):
+        """
+        Get records/template instances that matches the device name and the parameters - may be empty for not found
+        """
+        li = []
+        for item in epicsTemplate.deviceList:
+            try:
+                if item.getDevn() == devName:
+                    for par in parDict.keys():
+                        if item.field.has_key(par):
+                            if item.field[par] != parDict[par]:
+                                raise ValueError
+                        else:
+                            raise ValueError
+                else:
+                    raise ValueError
+            except ValueError:
+                pass
+            else:
+                li.append(item)
         return li
 
     @staticmethod

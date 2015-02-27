@@ -336,7 +336,9 @@ for argument in args:
     	    if a:
                 (autoSaveRestoreRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
                 if options.stoRcl and (devObj.rtype == 'ao' or devObj.rtype == 'longout'):
-                    epicsUtils.epicsTemplate("StoRcl",{'DEVN':devName},{'SNAME':devObj.signal})
+                    li = epicsUtils.epicsTemplate.findObject(devName,{'SNAME':devObj.signal})
+                    if len(li) == 1:
+                        epicsUtils.epicsTemplate("StoRcl",{'DEVN':devName},{'SNAME':devObj.signal,'EGU':li[0].field['EGU'],'PREC':li[0].field['PREC']})
 
 		req += autoSaveRestoreRequest
 	    # is a known template?
