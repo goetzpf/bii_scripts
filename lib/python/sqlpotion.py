@@ -85,7 +85,7 @@ import tempfile
 import os
 import shutil
 
-import enum
+import p_enum
 import pdict
 
 if sys.version_info<(2,5):
@@ -541,7 +541,7 @@ def _replace_with_temp(filename,tempfilename,replace_ext="bak"):
 # ---------------------------------------------------------
 
 # list of column types
-pdb_coltypes= enum.Enum(
+pdb_coltypes= p_enum.Enum(
                     "PDB_INT",
                     "PDB_FLOAT",
                     "PDB_STRING",
@@ -1058,7 +1058,7 @@ def foreign_keys(table_obj):
 # debugging tools
 # ---------------------------------------------------------
 
-Format= enum.Enum("PLAIN","TABLE_SPC","TABLE","CSV")
+Format= p_enum.Enum("PLAIN","TABLE_SPC","TABLE","CSV")
 
 def _csv_quote(string,separator):
     r"""prepare a value to be printed in csv format.
@@ -2479,7 +2479,7 @@ def _dtt_parser_search_tag(tag_filter, line):
     properties= {"tag":tag, "tag_filter": filtered}
     return properties
 
-#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+#@tp.Check(str,int,tp.maptype,p_enum.EnumValue)
 def _dtt_parser_check_version(line, lineno, properties, state):
     """utility for read_table, checks version information.
     
@@ -2528,7 +2528,7 @@ def _dtt_parser_check_version(line, lineno, properties, state):
     properties["version"]= version
     return _dtt_parserstate._DBISEARCH_PROPERTIES
 
-#@tp.Check(str,int,enum.EnumValue)
+#@tp.Check(str,int,p_enum.EnumValue)
 def _dtt_parser_search_properties(line, lineno, state):
     """search for the "properties" section.
     
@@ -2565,7 +2565,7 @@ def _dtt_parser_search_properties(line, lineno, state):
         raise ValueError, "file format error in line %d" % lineno
     return _dtt_parserstate._DBISCAN_PROPERTIES
 
-#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+#@tp.Check(str,int,tp.maptype,p_enum.EnumValue)
 def _dtt_parser_scan_properties(line, lineno, properties, state):
     """scan the property section.
 
@@ -2636,7 +2636,7 @@ def _dtt_parser_scan_properties(line, lineno, properties, state):
             properties[name]= value
     return state
 
-#@tp.Check(str,int,enum.EnumValue)
+#@tp.Check(str,int,p_enum.EnumValue)
 def _dtt_parser_scan_aliases(line, lineno, state):
     """scan the aliases section.
     
@@ -2678,7 +2678,7 @@ def _dtt_parser_scan_aliases(line, lineno, state):
         raise ValueError,"unexpected tag \"%s\" in line %d" % (tag,lineno)
     return state
 
-#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+#@tp.Check(str,int,tp.maptype,p_enum.EnumValue)
 def _dtt_parser_scan_column_types(line, lineno, properties, state):
     """scan the column types.
 
@@ -2722,7 +2722,7 @@ def _dtt_parser_scan_column_types(line, lineno, properties, state):
     properties["column-types"]= column_types
     return _dtt_parserstate._DBISEARCH_COLUMNS
 
-#@tp.Check(str,int,enum.EnumValue)
+#@tp.Check(str,int,p_enum.EnumValue)
 def _dtt_parser_search_columns(line, lineno, state):
     """look for the columns part.
     
@@ -2759,7 +2759,7 @@ def _dtt_parser_search_columns(line, lineno, state):
             return _dtt_parserstate._DBISCAN_COLUMNS
     raise ValueError,"format error in line %d" % lineno
 
-#@tp.Check(str,int,tp.maptype,enum.EnumValue)
+#@tp.Check(str,int,tp.maptype,p_enum.EnumValue)
 def _dtt_parser_scan_columns(line, lineno, properties, state):
     """scan columns.
     
@@ -2966,7 +2966,7 @@ def _dtt_parser_dttresult_check_table(metadata, dttresult, table):
     return True
 
 # parse state constants
-_dtt_parserstate= enum.Enum(
+_dtt_parserstate= p_enum.Enum(
     "_DBISEARCH",
     "_DBICHECK_VERSION",
     "_DBISEARCH_PROPERTIES",
