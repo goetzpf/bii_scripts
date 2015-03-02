@@ -407,7 +407,7 @@ PYDOC_PYTHONLIB_LIST= \
 	dateutils.py \
 	canlink.py\
 	canLink.py\
-	enum.py \
+	p_enum.py \
 	epicsUtils.py\
 	FilterFile.py \
 	lslparser.py \
@@ -449,7 +449,7 @@ PYTHON_2TO3_LIB_LIST= \
 	maillike.py \
 	putil.py \
 	tkdialogplus.py \
-	enum.py \
+	p_enum.py \
 	pdict.py \
 	rdump.py \
 	typecheck.py

@@ -684,9 +684,9 @@ Python Libraries
   | utilities for string <-> datetime conversions.
   | `documentation <python/dateutils.html>`__
 
-**enum.py**
+**p_enum.py**
   | enumeration types for python.
-  | `documentation <python/enum.html>`__
+  | `documentation <python/p_enum.html>`__
 
 **epicsUtils.py**
   | Utility collection to parse and handle with EPICS data: Database files,
