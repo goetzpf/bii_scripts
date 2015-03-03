@@ -266,7 +266,7 @@ Standard arguments for DBI->connect, using database instance "devices".
 =cut
 
 sub std_dbi_connect_args () {
-  return dbi_connect_args("devices");
+  return devices2015_dbi_connect_args;
 }
 
 =item std_create_subst_and_req STRING SUB SUB
