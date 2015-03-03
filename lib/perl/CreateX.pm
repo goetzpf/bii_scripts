@@ -241,6 +241,13 @@ use constant devices_dbi_connect_args => (
     {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0}
   );
 
+use constant devices2015_dbi_connect_args => (
+    "dbi:Pg:dbname=devices_2015;host=dbnode1.trs.bessy.de",
+    "anonymous",
+    "bessyguest",
+    {RaiseError => 1, ShowErrorStatement => 1, AutoCommit => 0}
+  );
+
 sub dbi_connect_args {
   my ($instance) = @_;
   if ($instance eq "mirror") {
@@ -337,10 +344,14 @@ sub perform_query {
 
   my $sth = $dbh->prepare($query);
   $sth->execute;
-  my $colnames = $sth->{NAME};
+  my $colnames = [map uc @{$sth->{NAME}}];
   $colname_handler->($colnames) if defined $colname_handler;
 
-  while (my $row = $sth->fetchrow_hashref) {
+  while (my $orig_row = $sth->fetchrow_hashref) {
+    my $row = {};
+    while (my ($k,$v) = each %$orig_row) {
+      $row->{uc $k} = $v;
+    }
     $row_handler->($row,$colnames);
   }
 }
