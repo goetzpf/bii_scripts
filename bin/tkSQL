@@ -95,7 +95,7 @@ option add	*troughColor		$dbgc		widgetDefault
 
 set ButtonOrientation vertical
 
-set allConnectStrings {@ anonymous@pg:devices_2015#dbnode1.trs.bessy.de}
+set allConnectStrings {anonymous@devices anonymous@pg:devices_2015#dbnode1.trs.bessy.de}
 
 
 set mainGeometry 1000x1000+100+100
@@ -129,8 +129,46 @@ set a [clock clicks]; set b [clock clicks]
 set d0 [expr $b - $a]
 set a [clock clicks]; after 1; set b [clock clicks]
 
+proc mysplit {str} {
+    set inbracket 0
+    set intick 0
+    set indtick 0
+    set ans {}
+    set stmt ""
+    set n [string length $str]
+    for {set i 0} {$i < $n} {incr i} {
+        set finish 0
+        set ch [string index $str $i]
+        append stmt $ch
+        switch $ch {
+            "\[" {
+                incr inbracket
+            }
+            "\]" {
+                incr inbracket -1
+            }
+            "\"" {
+                set indtick [expr 1-$indtick]
+            }
+            "'" {
+                set intick [expr 1-$intick]
+            }
+            ";" {
+                if {!$inbracket && !$indtick && !$intick} {
+                    lappend ans $stmt
+                    set stmt ""
+                }
+            }
+        }
+    }
+    if {"$stmt" != ""} {
+        lappend ans $stmt
+    }
+    return $ans
+}
+
 proc Split {str} {
-    set s [split $str ";"]
+    set s [mysplit $str]
 
     set ret {}
     set p ""
@@ -318,6 +356,26 @@ proc fetchData {hdl var cmd} {
     }
 }
 
+proc linebreak {str len} {
+    set lines {}
+    foreach line [split $str "\n"] {
+        set bline {}
+        foreach word [split $line] {
+            set nbline $bline
+            lappend nbline $word
+            set s [join $nbline]
+            if {[string length $s] > $len} {
+                lappend lines [join $bline]
+                set bline [list $word]
+            } else {
+                set bline $nbline
+            }
+        }
+        lappend lines [join $bline]
+    }
+    return [join $lines "\n"]
+}
+
 # OutputMode == xtable | table | plain | sparse
 set OutputMode table
 set OutputLocation "\"\""
@@ -363,7 +421,7 @@ proc Exec {sql {mode plain}} {
 
     set merkSql [string trim $sql]
 
-    set xprs [Split $Sql]
+    set xprs [mysplit $Sql]
     if {[llength $xprs] > 1} {
         ### recurse if multiple commands
         foreach xpr $xprs {
@@ -408,7 +466,7 @@ proc Exec {sql {mode plain}} {
                 set Sql ""
             }
             "^source" {
-                set Sql "";
+                set Sql ""
                 foreach f [lrange $sql 1 end] {
                     append Sql "\n[read_file $f];"
                 }
@@ -454,16 +512,28 @@ proc Exec {sql {mode plain}} {
             set $var [string tolower $val]
             set Sql ""
         }
-        #    ### perform expression-evaluation
-        #    while {[regexp "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql all xpr]} {
-        #      regsub "\\\[\(\[^\\\[\\\]\]*\)\\\]" $Sql [uplevel $xpr] Sql
-        #    }
+        ### perform expression-evaluation
+        while {[regexp "\\\[tcl:\(\[^\\\[\\\]\]*\)\\\]" $Sql all xpr]} {
+            addHist $Sql $            
+            regsub "\\\[tcl:\(\[^\\\[\\\]\]*\)\\\]" $Sql [uplevel $xpr] Sql
+        }
+        if {[regexp "^tcl:\(.*\)" $Sql all xpr]} {
+            if {[catch {uplevel $xpr} res]} {
+                Print [linebreak "Tcl-ERROR:\n$res" 80] largebold red
+            } else {
+                Print $res
+                addHist $Sql $mode
+            }
+            set Sql ""
+        }
         ### ignore command completely
         if [regexp "^\#" $Sql] {
             set Sql ""
         }
 
-        if {"$Sql" != ""} {
+        if {[llength [mysplit $Sql]] > 1} {
+            Exec $Sql
+        } elseif {"$Sql" != ""} {
             if [Orasql $Sql] {
                 addHist $merkSql $mode
                 set output {}
@@ -989,14 +1059,16 @@ proc loginDialog {} {
         if {[llength [array names env TNS_ADMIN]] > 0} {
             set tnsadmin $env(TNS_ADMIN)
         } 
-        if {![file isdir $tnsadmin]} {
+        if {![file isdir $tnsadmin] && [info exists env(ORACLE_HOME)]} {
             set tnsadmin $env(ORACLE_HOME)/network/admin
         }
 
-        for_file line $tnsadmin/tnsnames.ora {
-            if {![regexp {^[\# \t]} $line] && "$line" != ""} {
-                regexp {^[A-Za-z_]*} $line match
-                lappend instances [string tolower $match]
+        if {[file isdir $tnsadmin]} {
+            for_file line $tnsadmin/tnsnames.ora {
+                if {![regexp {^[\# \t]} $line] && "$line" != ""} {
+                    regexp {^[A-Za-z_]*} $line match
+                    lappend instances [string tolower $match]
+                }
             }
         }
         lappend instances [string tolower $::database]
