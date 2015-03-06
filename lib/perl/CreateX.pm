@@ -344,7 +344,7 @@ sub perform_query {
 
   my $sth = $dbh->prepare($query);
   $sth->execute;
-  my $colnames = [map uc @{$sth->{NAME}}];
+  my $colnames = [map(uc,@{$sth->{NAME}})];
   $colname_handler->($colnames) if defined $colname_handler;
 
   while (my $orig_row = $sth->fetchrow_hashref) {
