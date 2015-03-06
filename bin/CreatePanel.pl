@@ -1368,7 +1368,7 @@ sub   setAdlWidget
     { 	
 	$facePlate.="faceplateAdl=$widgetFileName";
 	if( scalar( keys(%$rH_Attr) ) )
-	{   my $str = join(',', map{"$_=$rH_Attr->{$_}"} keys(%$rH_Attr));
+	{   my $str = join(',', map{"$_=$rH_Attr->{$_}"} sort(keys(%$rH_Attr)));
 	    $facePlate.="\nfaceplateMacro=$str";
 	}
     }
