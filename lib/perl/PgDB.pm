@@ -48,8 +48,11 @@ sub login {
 
   return $dbh if defined $dbh;
 
-  $dbh = DBI->connect("DBI::Pg:".$config->{"dbase"}, $config->{"user"}, $config->{"passwd"},
+  $dbh = DBI->connect("dbi:Pg:dbname=".$config->{"dbase"}.";host=".$config->{"dbhost"}.";port=".$config->{'dbport'}, $config->{"user"}, $config->{"passwd"},
     {RaiseError => 1, PrintError => 0, AutoCommit => 0, ShowErrorStatement => $config->{'verbose'}});
+  
+  Options::print_out("\n>PgDB::login Handle: $dbh;\n") if $config->{"verbose"};
+
   return $dbh;
 }
 
@@ -106,7 +109,7 @@ END {
 sub ins {
   my ($table, %row) = @_;
   my $sql = "insert into $table (".join(",",keys(%row)).") values (".join(",",map("'$_'", values(%row))).")";
-  Options::print_out("$sql;\n") if $config->{"verbose"};
+  Options::print_out("\n>PgDB::ins SQL: $sql;\n") if $config->{"verbose"};
   $dbh->do($sql);
 }
 
@@ -117,7 +120,7 @@ sub del {
   my ($table, $keycolumn, @keys) = @_;
   if (length($keycolumn) > 0) {
   	my $sql = "delete from $table where $keycolumn in (".join(",", @keys).")";
-  	Options::print_out("$sql;\n") if $config->{"verbose"};
+  	Options::print_out("\n>PgDB::del SQL: $sql;\n") if $config->{"verbose"};
   	$dbh->do($sql);
   }
 }
@@ -140,7 +143,7 @@ sub col_aliases {
 		}
 		$colstr = substr($colstr, 0, -1);
 	}
-	Options::print_out("columns=($colstr);\n") if $config->{"verbose"};
+	Options::print_out("\n>PgDB::col_aliases: columns=($colstr);\n") if $config->{"verbose"};
 	return $colstr;
 }
 
@@ -163,10 +166,10 @@ sub sel_one {
 sub sel {
   my ($table, $col_names, $cond, @bind_values) = @_;
   $cond = " where $cond" if $cond;
-  my $sql = "select $col_names from $table$cond";
+  my $sql = "SELECT $col_names FROM $table$cond";
   my @rows;
 
-  Options::print_out("$sql;\n") if $config->{"verbose"};
+  Options::print_out("\n>PgDB::sel SQL: $sql;\n") if $config->{"verbose"};
 
 # in newer versions of DBI selectall_hashref has different semantics
 # so we emulate it here
@@ -181,7 +184,7 @@ sub sel {
 
   if ($config->{"verbose"}) {
     foreach my $row (@rows) {
-      Options::print_out(join(",",map("$_='$row->{$_}'", keys %$row))."\n");
+      Options::print_out("\n>PgDB::sel Result:".join(",",map("$_='$row->{$_}'", keys %$row))."\n");
     }
   }
   return \@rows;
@@ -228,7 +231,7 @@ or copied without permission from HZB.
 B<interview>
 
   $dbhandle = PgDB::login(%config{
-  			"dbase"=>ORACLE_SID,
+  			"dbase"=>PGDATABASE,
   			"user"=>dbuser,
   			"passwd"=>dbuserpasswd},
   			);

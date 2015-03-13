@@ -42,11 +42,13 @@ use FindBin;
 
 use DBI;
 use Options;
-use ODB;
+use PgDB;
 use Data::Dumper;
 
 Options::register(
-	['dbase',  				'd', 	'=s', "Database instance (e.g. devices)", "database", $ENV{'ORACLE_SID'}],
+	['dbase',  				'd', 	'=s', "Database instance (e.g. devices)", "database", $ENV{'PGDATABASE'}],
+	['dbport',  				'P', 	'=s', "Port of instance on server", "database", $ENV{'PGPORT'}],
+	['dbhost',  				'H', 	'=s', "Hostname of database instance", "database", $ENV{'PGHOST'}],
 	['user',   				'u', 	'=s', "User name",  'user',     "anonymous"],
 	['passwd', 				'p', 	'=s', "Password",   "password", "", 1],
 	['force', 				'f',   	'',   "use force query with the default database account"],
@@ -57,8 +59,7 @@ Options::register(
 	['wwwform',				'w',	'',	  "returns the formular for webrequests" ],
 	['extract', 			'x', 	'',   "concat the extracted name parts"],
 	['description',			't', 	'',   "concat the textual descriptions"],
-	['groups', 				'g', 	'',   "concat the grouping names"],
-	['sort', 				's', 	'=s', "supported: key/revkey, \n\tnamerevname (default), \n\tfamily (only if -x option is set), \n\tdomain/revdomain (only if -x option is set), \n\tgroups(only if -g option is set)"],
+	['sort', 				's', 	'=s', "supported: key/revkey, \n\tnamerevname (default), \n\tfamily (only if -x option is set), \n\tdomain/revdomain (only if -x option is set)"],
 	['revertsort', 			'S', 	'',   "revert/desc sort"],
 	['facility', 			'F', 	'=s', "filter facility, like  bii, mls, fel"],
 	['family', 				'T', 	'=s', "type of device, better the family"],
@@ -79,25 +80,21 @@ $usage = $usage . $Options::help;
 #warn Dumper($config);
 
 die $usage if $#ARGV < 0 and not ($config->{"wwwform"}  or $config->{"help"});
-ODB::verbose() == 1 if $config->{'verbose'};
+PgDB::verbose() == 1 if $config->{'verbose'};
 
 if (! defined $config->{'output'} or ! $config->{'output'} =~ /(table|csvtable|htmltable|list|set|htmlset|xmlset|dump)/) {
 	$config->{'output'} = 'list';
 }
 $config->{"verbose"} = undef if ($config->{"wwwform"} or $config->{"output"} =~ /(htmltable|xmlset|htmlset)/);
 
-my $dbschema = "";
-if ($config->{"dbase"} ne "mirror") {
-	$dbschema = "DEVICE.";
-}
+my $dbschema = "inventory";
 
 if ($config->{"force"} or $config->{"wwwform"}) {
-	$config->{'dbase'} = "devices";
+	$config->{'dbase'} = "devices_2015";
 	$config->{'user'} = "anonymous";
 	$config->{'passwd'} = "bessyguest";
-	if (lc ($config->{"dbase"}) eq "mirror") {
-		$config->{"user"} = "guest"
-	}
+	$config->{'dbhost'} = "dbnode1.trs.bessy.de";
+	$config->{'dbport'} = "5432";
 }
 
 my @names = @ARGV;
@@ -107,14 +104,15 @@ die $usage if $#names = 0 or undef ($config->{"wwwform"});
 Options::ask_out();
 
 # main object string, will be completed iprportionally of arguments
-my $dbobject = $dbschema.'V_NAMES vn';
+my $dbobject = '';
 # array of the database columnnames
-my @columns = ('vn.KEY', 'vn.NAME');
+my @columns = ('vn.key AS "KEY"', 'vn.name AS "NAME"');
 # array of the given names in the select statement
 my @head = ('KEY', 'NAME');
 # maybe the whereclause and teh sortorder
 my $dbjoin = "vn.KEY > 0";
 my %dborder = ();
+my %dbtables = ();
 if ($config->{'sort'}) {
 	$config->{'sort'} = lc($config->{'sort'});
 } else {
@@ -127,6 +125,14 @@ $dborder{"key"} = "vn.KEY";
 $dborder{"name"} = "vn.NAME";
 $dborder{"revkey"} = "vn.KEY DESC";
 $dborder{"revname"} = "vn.NAME DESC";
+$dbtables{'facilities'} = "location.v_facilities f";
+$dbtables{'names'} = "inventory.v_names vn";
+$dbtables{'subdomains'} = "inventory.v_named_subdomains vns";
+$dbtables{'families'} = "inventory.v_device_families vdf";
+$dbtables{'descriptions'} = "inventory.v_name_descriptionsi vnd";
+$dbtables{'-'} = "";
+
+$dbobject = $dbtables{'names'};
 
 # columnwidth maximal
 my $colmax = 12;
@@ -147,7 +153,7 @@ if ($config->{'description'} == 1) {
 	if ($config->{"wwwform"} == 1) {
 		$dboptionfield{"Description"} = "description";
 	} else {
-		$dbobject .= ', '.$dbschema.'V_NAME_DESCRIPTIONS vnd';
+		$dbobject .= ', '.$dbtables{'descriptions'};
 		push @columns, ('DESCRIPTION');
 		push @head, ('DESCRIPTION');
 		$dbjoin .= " AND vn.key = vnd.key(+)";
@@ -156,23 +162,23 @@ if ($config->{'description'} == 1) {
 
 if ($config->{'family'} == 1) {
 	if ($config->{"wwwform"} == 1) {
-		$dbselectionlists{"Families"} = [$dbschema.'V_FAMILIES f', "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
+		$dbselectionlists{"Families"} = [$dbtables{'families'}, "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
 	} else {
-		$dbjoin .= " AND vn.family_key = device.pkg_bdns.get_family_key('".$config->{'family'}."')";
+		$dbjoin .= " AND vn.family_key IN (SELECT family_key FROM ".$dbtables{'families'}." WHERE name='".$config->{'family'}."')";
 	}
 }
 
 if ($config->{'subdomain'} == 1) {
 	if ($config->{"wwwform"} == 1) {
-		$dbselectionlists{"Subdomains"} = [$dbschema.'V_SUBDOMAINS f', "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
+		$dbselectionlists{"Subdomains"} = [$dbtables{'subdomains'}, "KEY, NAME||' ('||DESCRIPTION||')' VALUE", "NAME IS NOT NULL"];
 	} else {
-		$dbjoin .= " AND vn.subdomain_key = device.pkg_bdns.get_subdomain_key('".$config->{'subdomain'}."')";
+		$dbjoin .= " AND vn.name_subdomain_key IN (SELECT name_subdomain_key FROM ".$dbtables{'subdomains'}." WHERE name = '".$config->{'subdomain'}."'";
 	}
 }
 
 if ($config->{'facility'} == 1) {
 	if ($config->{"wwwform"} == 1) {
-		$dbselectionlists{"Facilities"} = [$dbschema.'V_FACILITIES f', "KEY, NAME||' ('||PART_FACILITY||')' VALUE", "NAME IS NOT NULL"];
+		$dbselectionlists{"Facilities"} = [$dbtables{'facilities'}, "KEY, NAME||' ('||PART_FACILITY||')' VALUE", "NAME IS NOT NULL"];
 	} else {
 		if (uc($config->{'facility'}) eq "MLS") {
 			if ($config->{"extract"} == 1) {
@@ -180,7 +186,7 @@ if ($config->{'facility'} == 1) {
 			} else {
 				$dbjoin .= " AND vn.name LIKE '%P'";
 			}
-		} elsif (uc($config->{'facility'}) eq "FEL") {
+		} elsif (uc($config->{'facility'}) eq "Future") {
 			if ($config->{"extract"} == 1) {
 				$dbjoin .= " AND vn.facility = 'F'";
 			} else {
@@ -205,7 +211,7 @@ print "Filtering with '$dbjoin'\n" if ($config->{"Verbose"});
 
 print "Output formatted as ".$config->{'output'}." and sorted by ".$config->{"sort"}."\n" if ($config->{"verbose"});
 
-my $handle = ODB::login($config);
+my $handle = PgDB::login($config);
 delete ($config->{'passwd'});
 
 if (defined $config->{'wwwform'}) {
@@ -216,7 +222,7 @@ if (defined $config->{'wwwform'}) {
 	$retform .= "\n\t<tr>\n\t\t<th class=\"bdns\" id=\"bdns_lookup_form.Key\">Key</th>\n\t\t<td class=\"bdns\" id=\"bdns_lookup_value.Key\"><input type=\"text\" id=\"bdns_lookup_value.name_key\" name=\"name_key\"></td>\n\t</th>";
 	foreach my $selopt (keys %dbselectionlists) {
 		$retform .= "\n\t<tr>\n\t\t<th class=\"bdns\" id=\"bdns_lookup_form.".lc($selopt)."\">$selopt</th>\n\t\t<td class=\"bdns\" id=\"bdns_lookup_form.".lc($selopt)."\">\n\t\t\t<select name=\"".$selopt."\" id=\"bdns_lookup_form.".$selopt."\">";
-		my $selresult = ODB::sel($dbselectionlists{$selopt}[0], $dbselectionlists{$selopt}[1], $dbselectionlists{$selopt}[2]);
+		my $selresult = PgDB::sel($dbselectionlists{$selopt}[0], $dbselectionlists{$selopt}[1], $dbselectionlists{$selopt}[2]);
 		if (defined $selresult) {
 			#print Dumper($selresult);
 			my $selidx = 0;
@@ -227,7 +233,7 @@ if (defined $config->{'wwwform'}) {
 		}
 		$retform .= "\n\t\t\t</select>\n\t\t</td>\n\t</tr>";
 	}
-	# routine for facility,, family, group,
+	# routine for facility, family
 	$retform .= "\n</table>";
 	$retform .= "\n<!-- formend from bdns_lookup -->\n";
 	print $retform;
@@ -239,7 +245,7 @@ Options::print_out("Connected as ".$config->{'user'}."@".$config->{'dbase'}."\n"
 # counter for rows
 my $indexed = 0;
 # getting the aliased colstring for select
-my $colstr = ODB::col_aliases(\@columns, \@head);
+my $colstr = PgDB::col_aliases(\@columns, \@head);
 # calculation linelength
 my $linelength = 80;
 
@@ -248,33 +254,34 @@ print &getHeader();
 #main part
 foreach my $devname (@names) {
 	$indexed ++;
-	my $where = "vn.NAME like \'$devname\'";
+        Options::print_out("\n>bdns_lookup Routine for ".$devname."\n") if not $config->{'silent'};
+	my $where = "vn.NAME LIKE '$devname'";
 	if (length($dbjoin) > 0) {
 		$where .= " AND ".$dbjoin;
 	}
 	$where .= " ORDER BY ".$dborder{$config->{"sort"}};
-	my $result = ODB::sel($dbobject, $colstr, $where);
-	print "\nResult of statement has ".$#$result."entries." if ($config->{'verbose'});
+
+        Options::print_out("\n>bdns_lookup Call PgDB::sel('".$dbobject."', '".$colstr."', '".$where."')") if $config->{"Verbose"};
+
+	my $result = PgDB::sel($dbobject, $colstr, $where);
+
+	Options::print_out("\n>bdns_lookup Result of statement has ".$#$result." entries.") if ($config->{'verbose'});
+
 	my $out;
 	foreach my $row (@$result) {
 		$indexed++;
+                Options::print_out("\n>bdns_lookup Row ".$indexed.": (".$row.")") if ($config->{'verbose'});
 		if ($config->{"index"}) {
 			printf ("%u", $indexed);
 		}
 		if ($config->{'output'} eq 'table') {
 # table
 			print "|".join(" |", map(sprintf("%".$colmax."s",$row->{$_}), @head))." |";
-			if ($config->{"groups"}) {
-				print sprintf("%s: %s", "GROUPS", &getGroups($row->{"KEY"}));
-			}
 			print "\n";
 # htmltable
 		} elsif ($config->{'output'} eq 'htmltable') {
 			print "\n\t".sprintf("<tr id=\"%u\">", $indexed);
 			print "\n\t\t".join("\n\t\t", map(sprintf("<td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td>", $row->{$_}), @head));
-			if ($config->{'groups'}) {
-				print "\n\t\t".sprintf("<td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td>", &getGroups($row->{'vn.KEY'}));
-			}
 			print "\n\t".sprintf("</tr>");
 # csvtable
 		} elsif ($config->{'output'} eq 'csvtable') {
@@ -287,23 +294,14 @@ foreach my $devname (@names) {
 				print sprintf(" %12s: %s", "#", $indexed);
 			}
 			print join("\n",map(sprintf("%".$colmax."s: \"%s\"",$_,$row->{$_}), @head));
-			if ($config->{'groups'}) {
-				print "\n".sprintf("%".$colmax."s: %s", "GROUPS", &getGroups($row->{'KEY'}));
-			}
 			print "\n";
 # xmlset
 		} elsif ($config->{'output'} eq 'htmlset') {
 			print join("", map(sprintf("\n\t<tr class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\"><th class=\"bdns\" align=\"right\" id=\"bdns_lookup_result.$_$indexed\">%s</th><td class=\"bdns\" id=\"bdns_lookup_result.$_$indexed\">%s</td></tr>", $_, $row->{$_}), @head));
-			if ($config->{'groups'}) {
-				print sprintf("\n\t<tr class=\"bdns\"  id=\"bdns_lookup_result.groups$indexed\"><th class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">GROUPS</th><td class=\"bdns\" id=\"bdns_lookup_result.groups$indexed\">%s</td></tr>", &getGroups($row->{'vn.KEY'}));
-			}
 			print "\n\t<tr class=\"bdns\" colspan=\"2\" id=\"bdns_lookup_result.separator\"><td class=\"bdns\" id=\"bdns_lookup_result.separator$indexed\"><hr /></td></tr>\n";
 		} elsif ($config->{'output'} eq 'xmlset') {
 			print "\n\t".sprintf("<entry index=\"%u\">", $indexed);
 			print "\n\t\t".join("\n\t\t", map(sprintf("<%s>%s</%s>", lc($_), $row->{$_}, lc($_)), @head));
-			if ($config->{'groups'}) {
-				print "\n\t\t".sprintf("<groups>%s</groups>", &getGroups($row->{'vn.KEY'}));
-			}
 			print "\n\t".sprintf("</entry>");
 # list
 		} elsif ($config->{'output'} eq 'dump') {
@@ -318,21 +316,6 @@ foreach my $devname (@names) {
 
 print &getFooter($indexed);
 
-sub getGroups {
-	my $key = shift @_;
-	my $gresult = ODB::sel($dbschema.'V_NAME_GROUPS vng', "GROUP_NAME||' ('||NAME_GROUP_KEY||')' GROUPS", "n.NAME_KEY =".$key);
-	my $gindexer = 0;
-	my $grouplist = "";
-	foreach my $grow (@$gresult) {
-		$gindexer++;
-		if ($gindexer  > 1) {
-			$grouplist .= ", ";
-		}
-		$grouplist .=  join("/", map(sprintf("%s",$grow->{$_}), ('GROUPS')));
-	}
-	return $grouplist;
-}
-
 # build header if not forbidden
 sub getHeader {
 	my $ret = "";
@@ -345,9 +328,6 @@ sub getHeader {
 				$linelength += 12;
 			}
 			$ret .=  "\n|".join("|",map(sprintf("%".$colmax."s ",$_), @head))."|";
-			if ($config->{'groups'}) {
-				$ret .=   sprintf(" %".$colmax."s ","GROUPS")."|";
-			}
 			$ret .=  "\n".&printLine()."\n";
 		} elsif ($config->{'output'} eq 'htmltable') {
 			print "\n<table class=\"bdns\">\n\t<tr>";
@@ -355,18 +335,12 @@ sub getHeader {
 				print "\n\t<th>#</th>";
 			}
 			$ret .=   "\n\t".join("\n\t",map(sprintf("<th class=\"bdns\">%".$colmax."s</th>",$_), @head));
-			if ($config->{'groups'}) {
-				$ret .=   "<th class=\"bdns\">GROUPS</th>";
-			}
 			print "\n\t</tr>";
 		} elsif ($config->{'output'} eq 'csvtable') {
 			if ($config->{'index'}) {
 				$ret .=  sprintf( "#");
 			}
 			$ret .=  join(",",map(sprintf("\"%s\"",$_),@head)).",";
-			if ($config->{'groups'}) {
-				$ret .=   ",".sprintf("%s","GROUPS");
-			}
 		}  elsif ($config->{'output'} eq 'set') {
 			print &printLine()."\n";
 		} elsif ($config->{'output'} eq 'htmlset') {
@@ -435,7 +409,7 @@ This program uses DBI for accessing the database. The Modules u needed to instal
  * FindBin
  * DBI
  * Options
- * ODB
+ * PgDB
  * Data::Dumper;
 
 The results can be presented different as formats and content.
@@ -498,8 +472,6 @@ is correctly set.
 
 	-t, --description		concat the textual descriptions are given to all name parts
 
-	-g, --groups			concat the grouping names, the specific name is joined to
-
 =head2 ORDERING AND SORTING
 
 	-s, --sort=STRING			sort options supported:
@@ -507,7 +479,6 @@ is correctly set.
 		* key/revkey,
 		* family (only if -x option is set),
 		* domain/revdomain (only if -x option is set),
-		* groups(only if -g option is set)
 
 	-S, --revertsort			revert/desc sort of given sort order
 
