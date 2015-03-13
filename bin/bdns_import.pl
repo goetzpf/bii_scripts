@@ -37,18 +37,19 @@ use strict;
 use DBI;
 use BDNS;
 use Options;
-use ODB;
+use PgDB;
 use Data::Dumper;
 
 Options::register(
-  ["dbase",       "d",  "=s", "Database instance (e.g. bii_par)", "database", $ENV{'ORACLE_SID'}],
+  ["dbase",       "d",  "=s", "Database instance (e.g. bii_par)", "database", $ENV{'PGDATABASE'}],
   ["user",        "u",  "=s", "User name", "user", $ENV{'USER'}],
   ["passwd",      "p",  "=s", "Password", "password", "", 1],
+  ["dbhost",      "H",  "=s", "Database hostname", "host", $ENV{'PGHOST'}],
+  ["dbport",      "P",  "=s", "Database port", "port", $ENV{'PGPORT'}],
   ["file",        "f",  "=s", "Read (additional) names from a file"],
   ["dump",        "o",  "",   "Dont do database actions, output commands"],
   ["separator",   "s",  "=s", "Name separator [default: whitespace]"],
   ["description", "d",  "=i", "Description in file on column-number to name"],
-  ["primarykey",  "k",  "=i", "Predefined primary key in file on column-number to name"],
   ["yes",         "y",  "",   "Ignore failure prompt, print them out"],
   ["commit",      "c",  "",   "Wait at the end of inserting the names for the commit input"],
 );
@@ -75,10 +76,6 @@ if ($config->{"file"}) {
 		delete ($config->{"decription"});
 		print "Description will be ignored.\n"
 	}
-	if ($config->{"primarykey"} < 0) {
-		delete ($config->{"primarykey"});
-		print "Primary key will be ignored and given automatically.\n"
-	}
 	while (my $line = <INPUT>) {
 		chop($line);
 		if (length($line)>3) {
@@ -86,13 +83,6 @@ if ($config->{"file"}) {
 			push @names, @lineparts[0];
 			if ($config->{"decription"} >= 0) {
 				push @descs, $lineparts[$config->{"description"}];
-			}
-			if ($config->{"primarykey"} >= 0) {
-				if ($lineparts[$config->{"primarykey"}] > 0) {
-					push @pkeys, $lineparts[$config->{"primarykey"}];
-				} else {
-					push @pkeys, "NULL";
-				}
 			}
 		}
 	}
@@ -128,19 +118,12 @@ foreach my $devname (@names) {
 		"PART_NAME" => @parts[0],
 		"PART_INDEX"  => @parts[2],
 		"PART_SUBINDEX" => @parts[3],
-		"DEVICE_FAMILY_KEY" => "device.pkg_bdns.get_family_key('".@parts[4]."')",
+		"DEVICE_FAMILY_KEY" => "inventory.get_family_key('".@parts[4]."')",
 		"PART_COUNTER" => @parts[5],
-		"NAME_SUBDOMAIN_KEY" => "device.pkg_bdns.get_subdomain_key('".@parts[6].@parts[11]."')",
+		"NAME_SUBDOMAIN_KEY" => "inventory.get_name_subdomain_key('".@parts[6].@parts[11]."')",
 	};
 	if ($config->{"description"} >= 0) {
 		$allnames{$devname}{"DESCRIPTION"} = @descs[$counter];
-	}
-	if ($config->{"primarykey"} >= 0) {
-		if (@pkeys[$counter] > 0) {
-			$allnames{$devname}{"NAME_KEY"} = @pkeys[$counter];
-		} else {
-			$allnames{$devname}{"NAME_KEY"} = "NULL";
-		}
 	}
 	$counter++;
 }
@@ -149,19 +132,14 @@ my $handle;
 
 if (! $config->{"dump"}) {
 	Options::ask_out($config);
-	$handle = ODB::login($config);
+	$handle = PgDB::login($config);
 	Options::print_out("Connected as ".$config->{"user"}."@".$config->{"dbase"}."\n");
 }
 
 foreach my $devname (@names) {
-	my $sql1 = "INSERT INTO device.tbl_name (",
+	my $sql1 = "INSERT INTO inventory.tbl_name (",
 	my $sql2 = "VALUES (";
 	my $verbose = "NAME:$devname " ;
-	if ($config->{"primarykey"}) {
-		$sql1 .= "name_key, ";
-		$sql2 .= $allnames{$devname}{"NAME_KEY"}.", ";
-		$verbose .= " KEY: ".$allnames{$devname}{"NAME_KEY"};
-	}
 	$sql1 .= "part_name, part_index, part_subindex, device_family_key, part_counter, name_subdomain_key";
 	$sql2 .= $allnames{$devname}{"PART_NAME"}.", ".$allnames{$devname}{"PART_INDEX"}.", ".$allnames{$devname}{"PART_SUBINDEX"}.", "
 		. $allnames{$devname}{"DEVICE_FAMILY_KEY"}.", ".$allnames{$devname}{"PART_COUNTER"}.", ".$allnames{$devname}{"NAME_SUBDOMAIN_KEY"};
@@ -178,7 +156,7 @@ foreach my $devname (@names) {
 			$handle->do($sql1.$sql2);
 			$handle->commit;
 		};
-		#print $sql1.$sql2."\n" if $config->{"verbose"};
+		print $sql1.$sql2."\n" if $config->{"verbose"};
 		if ($config->{"not"}) {
 			$handle->rollback;
 		} elsif ($@) {
