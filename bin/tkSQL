@@ -222,7 +222,8 @@ set mainGeometry [wm geometry .]\n\
     regsub -all "\n\n" [.history.txt get 0.0 end] "\001" hist
     set hist [join [lrange [split $hist "\001"] end-$HistSize end] "\n\n"]
     regsub "^\n*" $hist "" hist
-    catch {write_file $env(HOME)/.tkSQL/$dbuser-$::database-$sessnum $hist}
+    catch {write_file $env(HOME)/.tkSQL/$dbuser-$::database $hist}
+    catch {file delete $env(HOME)/.tkSQL/$dbuser-$::database-$sessnum}
   }
   exit
 }
@@ -642,6 +643,7 @@ proc Exec {sql {mode plain}} {
                 }
                 if {[message $GOSH rows] != 1} { set m s } else { set m "" }
                 Print [DidIt "[message $GOSH rows] row$m %s.\n\n" $Sql] largebold green
+                pg_result $::PG_cursor -clear
             } else {
                 if {[info exists ::addAllStatementsToHistory] && ( "$::addAllStatementsToHistory" == "YES") } {
                     addHist $merkSql $mode
@@ -983,6 +985,18 @@ proc tmsql {GOSH sql} {
     set ::a [clock clicks]
     set ::b 0
     if {[info exists ::PGH]} {
+        # !inTransaction -> prepend "begin;", inTransaction=True
+        # BEGIN;
+        #                UPDATE accounts SET balance = balance - 100.00
+        #                WHERE name = 'Alice';
+        # SAVEPOINT my_savepoint;
+        #                UPDATE accounts SET balance = balance + 100.00
+        #                WHERE name = 'Bob';
+        #                -- oops ... forget that and use Wally's account
+        # ROLLBACK TO my_savepoint;
+        #                UPDATE accounts SET balance = balance + 100.00
+        #                WHERE name = 'Wally';
+        # COMMIT;
         set ::PG_cursor [pg_exec $::PGH $sql]
         return [expr 1 - [regexp "ERROR" [pg_result $::PG_cursor -error]]]
     } else {
@@ -1006,7 +1020,6 @@ proc tmend {} {
 
 proc Orasql {sql} {
     global GOLH GOSH
-
     if { ( "[string range $sql 0 2]" == "PL:" ) } {
         set Sql "[string trim [string range $sql 3 end]]"
         regsub {;*$} $Sql "" Sql
@@ -1142,6 +1155,8 @@ pack .mb -side top -fill x
 menubutton .mb.file -text File -menu .mb.file.m
 menu .mb.file.m
 .mb.file.m add command -label "New View" -command {}
+.mb.file.m add command -label Begin -command {TA_begin}
+.mb.file.m add command -label "Add Savepoint" -command {TA_savepoint}
 .mb.file.m add command -label Commit -command {Exec "commit;"}
 .mb.file.m add command -label Rollback -command {Exec "rollback;"}
 .mb.file.m add separator
@@ -1222,8 +1237,9 @@ if {![info exists ::PGH]} {
     Print "\nconnected with Oratcl [orainfo version] to:\n"
     Print "[orainfo server $GOLH]\n\n" blue
 } else {
-    if [Orasql "select count(*) from pg_user where usename='$dbuser'"] {
-        fetchData $GOSH ::res {set sessnunm [lindex $::res 0]}
+
+    if [Orasql "select count(*) from pg_stat_activity where usename='$dbuser'"] {
+        fetchData $GOSH ::res {set sessnum $::res}
     }
     if [Orasql "select version()"] {
         fetchData $GOSH ::res {set ans [lindex $::res 0]}
@@ -1271,12 +1287,11 @@ pack .clipboard.n .clipboard.m -side right -padx 0 -ipadx 0
 set hist ""
 set didit 0
 foreach p {.tkSQL/ .tkSQL-history-} {
-    if {!$didit && [file exists $env(HOME)/$p$dbuser-$::database-$sessnum] && 
-        ![catch {set hist [read_file $env(HOME)/$p$dbuser-$::database-$sessnum]}]} {
+    if {!$didit && ( [file exists $env(HOME)/$p$dbuser-$::database] ||
+                     [file exists $env(HOME)/$p$dbuser-$::database-$sessnum] ) &&
+        ( ![catch {set hist [read_file $env(HOME)/$p$dbuser-$::database]}] ||
+          ![catch {set hist [read_file $env(HOME)/$p$dbuser-$::database-$sessnum]}] ) } {
         set didit 1
-        if { [regexp "history" $p]} {
-            file delete $env(HOME)/$p$dbuser-$::database-$sessnum
-        }
     }
 }
 
@@ -1285,6 +1300,26 @@ regsub -all "\n\n\n*" $hist "\n\n" hist
 .history.txt insert end $hist
 .history.txt yview end
 
+proc TA_begin {} {
+    Exec "commit;"
+}
+
+proc TA_savepoint {} {
+    Exec "commit;"
+}
+
+proc TA_commit {} {
+    Exec "commit;"
+}
+
+proc TA_commit {} {
+    Exec "commit;"
+}
+
+proc TA_commit {} {
+    Exec "commit;"
+}
+
 button .exec -text Exec \
     -command {Exec [.command.txt get 0.0 end]; .command.txt tag add sel 0.0 end}
 button .execsel -text "Exec\nSelection" -command {
@@ -1292,6 +1327,7 @@ button .execsel -text "Exec\nSelection" -command {
     catch {Exec [.output.txt get sel.first sel.last]}
     catch {Exec [.history.txt get sel.first sel.last]}
 }
+button .commit -text Commit -command {Exec "begin;"}
 button .commit -text Commit -command {Exec "commit;"}
 button .rollback -text Rollback -command {Exec "rollback;"}
 frame .sep -bd 1 -relief sunken -height 2
