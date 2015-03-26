@@ -1,9 +1,28 @@
 #!/usr/bin/python
 
 from optparse import OptionParser
-import sys, os
+import sys, os, socket, re
 
-my_version = "0.2"
+my_version = "0.3"
+
+(fqdn, hostnamelist, iplist) = socket.gethostbyaddr(socket.gethostname())
+
+atBESSY=not re.search("ctl.bessy.de", fqdn) is None
+atMLS=not re.search("mlscs.bessy.de", fqdn) is None
+atACC=not re.search("acc.bessy.de", fqdn) is None
+    
+archs = []
+if not atMLS:                 archs += [("bii",     "archiver", "",         "")]
+if not atMLS and not atBESSY: archs += [("mls",     "archiver",      "",         "MLS/")]
+if atMLS:                     archs += [("mls",     "archiver.mlscs", "",         "")]
+if not atMLS and not atBESSY: archs += [("hobicat", "archiver",       "hobicat/", "")]
+
+facilities=", ".join([l[0] for l in archs])
+n=facilities.rfind(',')
+if n > 0:
+    facilities=facilities[:n]+" or"+facilities[n+1:]+", default is all"
+else:
+    facilities=facilities+" only"
 
 parser = OptionParser(usage="%prog [options] PV [PV ...]",
                       version="%%prog %s" % my_version,
@@ -25,7 +44,7 @@ parser.add_option("--at",    action="store", type="string", help="start and end 
 parser.add_option("--glob", action="store_true", help="PV (only one allowed) is a glob-pattern", dest="glob")
 parser.add_option("--re", action="store_true", help="PV (only one allowed) is a regexp", dest="regexp")
 parser.add_option("--spreadsheet", action="store_true", help="output as spreadsheet (default: as camonitor)", dest="spreadsheet")
-parser.add_option("--facility", action="store", type="string", help="facility to search (bii, mls or hobicat, default is all)", dest="facility")
+parser.add_option("--facility", action="store", type="string", help="facility to search (%s)" % facilities, dest="facility")
 parser.add_option("--index", action="store", type="string", help="index to search (default is \"master_index\" for all useful: e.g. year_index_2013 for older data from BII)", dest="index")
 (options, args) = parser.parse_args()
 
@@ -33,16 +52,14 @@ if len(args) == 0:
     parser.print_help()
     sys.exit(0)
 
-archs =  []
-archs += [("bii",     "archiver",       "")]
-archs += [("mls",     "archiver.mlscs", "")]
-archs += [("hobicat", "archiver",       "hobicat/")]
-
 if options.at is not None:
     options.start=options.at
     options.end=options.at
 
-spec="&STRSTART=1&STARTSTR=%s&STREND=1&ENDSTR=%s" % (options.start, options.end)
+def encode(str):
+    return str.replace(" ","+")
+    
+spec="&STRSTART=1&STARTSTR=%s&STREND=1&ENDSTR=%s" % (encode(options.start), encode(options.end))
 
 if (options.glob):
     spec+="&GLOB=ON"
@@ -50,21 +67,22 @@ if (options.regexp or options.glob):
     spec+="&PATTERN=%s" % args[0]
 else:
     spec+="&NAMES=%s" % "+".join(args)
-
+    
 format="camonitor"
 if options.spreadsheet:
     format="Spreadsheet"
                   
 wget=""
-for (tag, srv, dir) in archs:
+for (tag, srv, dir, pref) in archs:
     if (options.facility is None or options.facility == tag):
-        wget+="wget -q -O - \"http://%s.bessy.de/cgi/CGIExport.cgi?INDEX=/opt/Archive/%s%s&COMMAND=%s%s\";" % (srv, dir, options.index, format, spec)
+        wget+="wget -q -O - \"http://%s.bessy.de/%scgi/CGIExport.cgi?INDEX=/opt/Archive/%s%s&COMMAND=%s%s\";" % (srv, pref, dir, options.index, format, spec)
 
 
 fltr="egrep -v -e '(Gnuplot|0000-00-00|;)' -e '^$'"
 if (not options.at is None):
     fltr+=" | sed 's/ x....-..-.. ..:..:..\....... / /'"
 
+#print wget
 if options.spreadsheet:
     os.system("(%s) | %s" % (wget, fltr))
 else:
