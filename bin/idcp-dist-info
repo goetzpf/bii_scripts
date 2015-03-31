@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
 
