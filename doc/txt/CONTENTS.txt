@@ -87,6 +87,10 @@ Scripts
   | lookup BESSY units in the oracle database.
   | `documentation <scripts/buds_lookup.html>`__
 
+**camon**
+  | simple channel access monitor with output as table of PVs.
+  | `documentation <scripts/camon.html>`__
+
 **camonitor2table.py**
   | convert files created by the EPICS camonitor command to tables. This 
     command can also filter by timestamp and by PV. It can create csv output 

@@ -312,6 +312,7 @@ PLAINTXT_PL_SCRIPT_LIST= \
 # scripts with no embedded documentation
 # create online help by executing "(script -h 2>&1; true)
 PLAINTXT_H_SCRIPT_LIST= \
+	camon\
 	csv2epicsDb\
 	db2dot \
 	dbdiff \
