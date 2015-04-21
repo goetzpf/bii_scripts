@@ -55,8 +55,8 @@ our $old_parser=0;
 
 my $RX_space_or_comment    = qr/\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*/;
 
-my $RX_quoted_word         = qr/\"(\w+)\"/;
-my $RX_unquoted_word       = qr/(\w+)/;
+my $RX_quoted_word         = qr/\"(\w[\w-]*)\"/;
+my $RX_unquoted_word       = qr/(\w[\w-]*)/;
 
 my $RX_quoted              = qr/\"(.*?)(?<!\\)\"/;
 my $RX_unquoted_filename   = qr/([^\s\{\}]+)/;
