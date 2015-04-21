@@ -40,8 +40,19 @@ else
         if [ -e ../hg-recover-id_db.tar.gz ]
         then
                 # the newer version, id_db
-                echo -e "* recovering id_db working directory..."
-                hg-recover.py -r -f ../hg-recover-id_db.tar.gz
+                if ! grep '^MINISD_CACHE.*ID_DB_DIR' config/config.template > /dev/null
+                then
+                        # id_db is placed in "idcp"
+                        echo -e "* recovering idcp/id_db working directory..."
+                        hg-recover.py -r -f ../hg-recover-id_db.tar.gz
+                else
+                        # id_db is placed in "idcp/add_ons/src"
+                        echo -e "* recovering idcp/add_ons/src/id_db working directory..."
+                        mkdir -p add_ons/src
+                        cd add_ons/src
+                        hg-recover.py -r -f ../../../hg-recover-id_db.tar.gz
+                        cd ../..
+                fi
         fi
         cd ../..
 fi
