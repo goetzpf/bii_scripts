@@ -1327,7 +1327,7 @@ button .execsel -text "Exec\nSelection" -command {
     catch {Exec [.output.txt get sel.first sel.last]}
     catch {Exec [.history.txt get sel.first sel.last]}
 }
-button .commit -text Commit -command {Exec "begin;"}
+button .begin -text Commit -command {Exec "begin;"}
 button .commit -text Commit -command {Exec "commit;"}
 button .rollback -text Rollback -command {Exec "rollback;"}
 frame .sep -bd 1 -relief sunken -height 2
