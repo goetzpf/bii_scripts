@@ -940,28 +940,32 @@ class epicsTemplate(object):
     - typeDict={}   Dictionary of rtyp s that contain a list of objects with this rtype
     - deviceList=[] List of objects to preserve the creation order and for search functions
 
-    - printAllSubst(): print all stored templates in EPICS.substitution format
-    - printAllRecords(): treat all data as EPICS-records and print all stored
+    - getFileNames(): return a list of File names to be crated or None for default file only
+    - printAllSubst(filename='default'): print all stored templates in EPICS.substitution format
+    - printAllRecords(filename='default'): treat all data as EPICS-records and print all stored
                 templates in EPICS.db format
     - getDevice(devName): return a list of records with this devicename or None
     - findObject(devName, parDict) Get records/template instances that matches 
         the device name and the parameters - may be empty for not found
     """
-    typeDict={}
-    deviceList=[]
-    def __init__(self,rtyp,nameDict,fieldDict={}) :
+    files = {'default':{'TYPEDICT':{},'DEVICELIST':[]}}
+#    typeDict={}
+#    deviceList=[]
+    def __init__(self,rtyp,nameDict,fieldDict={},filename='default') :
         self.field = fieldDict
         self.devn   = nameDict
         self.rtyp   = rtyp
 #       if self.field.has_key('DESCR'):
 #           print self.devn,"\tDESCR:",self.field['DESCR']
+        if not epicsTemplate.files.has_key(filename):
+            files[filename] = {'TYPEDICT':{},'DEVICELIST':[]}
         try:
-            l = epicsTemplate.typeDict[rtyp]
+            l = epicsTemplate.files[filename]['TYPEDICT'][rtyp]
         except KeyError:
             l = []
-            epicsTemplate.typeDict[rtyp]=l
+            epicsTemplate.files[filename]['TYPEDICT'][rtyp]=l
         l.append(self)
-        epicsTemplate.deviceList.append(self)
+        epicsTemplate.files[filename]['DEVICELIST'].append(self)
     def __str__(self) :
         rec = "file "+self.rtyp+".template {\n"
         rec += self.prAsSubst()
@@ -1004,22 +1008,29 @@ class epicsTemplate(object):
         return "record("+self.rtyp+",\""+self.getDevn()+":"+sname+"\") {\n\t"+"\n\t".join(filter(None,map(lambda x: prField(x),sorted(self.field.keys()))))+"\n}"
 
     @staticmethod
-    def getDevice(devName):
+    def getFilenames():
+        """
+        Get list of filenames - at least one element called 'default'
+        """
+        return epicsTemplate.files.keys()
+
+    @staticmethod
+    def getDevice(devName,filename='default'):
         """
         Get list of records and template instances that have this device name - may be empty for not found
         """
         li = []
-        for item in epicsTemplate.deviceList:
+        for item in epicsTemplate.files[filename]['DEVICELIST']:
             if item.getDevn() == devName: li.append(item)
         return li
 
     @staticmethod
-    def findObject(devName, parDict):
+    def findObject(devName, parDict,filename='default'):
         """
         Get records/template instances that matches the device name and the parameters - may be empty for not found
         """
         li = []
-        for item in epicsTemplate.deviceList:
+        for item in epicsTemplate.files[filename]['DEVICELIST']:
             try:
                 if item.getDevn() == devName:
                     for par in parDict.keys():
@@ -1044,30 +1055,30 @@ class epicsTemplate(object):
         """
         #print "getPV(",devName,signalName,signalField,")"
 	li= []
-        for item in epicsTemplate.getDevice(devName):
+        for item in epicsTemplate.getDevice(devName,filename='default'):
             if (not signalField) or (not item.field.has_key(signalField)) or (item.field[signalField] != signalName):
 	    	continue
 	    li.append(item)
 	return li
 
     @staticmethod
-    def printAllSubst():
+    def printAllSubst(filename='default'):
         """
         Treat all objects (EPICS records also) as EPICS substitutions and print in
         EPICS.substitutions format
         """
         prStr = ""
-        for template in epicsTemplate.typeDict.keys():
+        for template in epicsTemplate.files[filename]['TYPEDICT'].keys():
             prStr +=  "file "+template+".template {\n"
-            prStr += "\n".join( map(lambda x: x.prAsSubst(),epicsTemplate.typeDict[template]))
+            prStr += "\n".join( map(lambda x: x.prAsSubst(),epicsTemplate.files[filename]['TYPEDICT'][template]))
             prStr += "\n}\n";
         return prStr
     @staticmethod
-    def printAllRecords():
+    def printAllRecords(filename='default'):
         """
         Treat all objects as EPICS records and print in EPICS.db format
         """
-        prStr = "\n".join( map(lambda x: x.prAsRec(),epicsTemplate.deviceList))
+        prStr = "\n".join( map(lambda x: x.prAsRec(),epicsTemplate.files[filename][DEVICELIST]))
 
 
         return prStr
