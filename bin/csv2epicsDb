@@ -42,32 +42,6 @@ import csv2epicsFuncs
 
 my_version = "1.0"
 
-class docList(object):
-    """
-    Simple class to store and print a documentation table in makeDoc format. 
-    Each object in this class contains a list of arbitrary items, to be print as table. 
-    First item should be the header, if required.
-    """
-    dList=[]
-    title = "Title"
-    def __init__(self,fieldList) :
-	def initField(x):
-	    x = epicsUtils.substRe(str(x),'\|','&#124;')
-	    if len(x)==0: x='-'
-	    return x
-	docList.dList.append(map(lambda x:initField(x),fieldList))
-    @staticmethod
-    def printDoc():
-	printStr = docList.title+"\n**********\n\n"
-	for line in docList.dList:
-	    printStr += "|".join(line)+"\n"
-	printStr = epicsUtils.substRe(printStr,"\|\|","|-|")
-	return printStr+"\n"
-
-    @staticmethod
-    def setTitle(h):
-    	docList.title = h
-
 #******************************* Main program *******************************
 
 separator    =','
@@ -259,14 +233,8 @@ if output_db is None:
 else:
     output_doc = epicsUtils.substRe(output_db,"\.\w+$","Doc.txt")
 
-if canOption == 'opc':
-    docList(["Device Name","BESSY Signalname","PLC Name","Bits","Description","Typ\n----+-----"])
-else:
-    docList(["Device Name","BESSY Signalname","CAN-Port","CAN-Id","devObj.cardNr","Channel / Bits","Description","Typ\n----+-----"])
-docList.setTitle( str(epicsUtils.matchRe(output_db,"(?:.*/|)(.*)\.\w+$")[0])+" Devices" )
 
 types = { "db"  : [output_db, None],
-          "doc":  [output_doc,docList.printDoc],
           "arch": [output_arch,joinItarch],
           "req" : [output_req, joinItreq ]}
 if epicsUtils.matchRe(output_db,".*\.db$") is not None:
@@ -357,10 +325,6 @@ for argument in args:
 	    # now processing is done, an record is created and we can use the variables, set 
 	    # for this line of the spread sheet to do some optional stuff
     	    if devObj.signal != "":
-    		if canOption == 'opc':
-	    	    docList([devName,devObj.signal,devObj.port,devObj.chan,devObj.DESC,devObj.rtype])
-		else:
-		    docList([devName,devObj.signal,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devObj.DESC,devObj.rtype])
 	    if options.verbose is True:
 		rangeRawCut = devObj.rangeRaw
 		if len(devObj.rangeRaw)> 23:
