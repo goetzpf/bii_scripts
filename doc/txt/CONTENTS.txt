@@ -97,6 +97,10 @@ Scripts
     and it can differentiate values.
   | `documentation <scripts/camonitor2table.html>`__
 
+**camon**
+  | simple channel access monitor with output as table of PVs.
+  | `documentation <scripts/camon.html>`__
+
 **camonitor_sort.pl**
   | sort and filter files created by the EPICS camonitor command.  The filtering
     can be specified with regular expressions.  This tool is especially useful
