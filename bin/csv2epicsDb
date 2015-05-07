@@ -6,9 +6,12 @@
 
   USAGE: cvs2epicsDb [OPTIONS] <csv files ...>
   
+-b --base:  	 EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
 -c --can:        CAN port Nr., or 'opc' for OPC server access
 -d --output_db:  db file name file ending determines the ouptut: '.db' 
     	    	 or '.substitutions'
+--devobj:        Optional device object module to convert data from another spreadsheet format to program variables
+--dis            Name of disable record to be created and used in all SDIS fields
 -f --install_path: installation path for output files: .substitutions, .arch, .alh,
     	    	 panels. Default is './' 
 -i --iocName:    IOC name 
@@ -21,10 +24,10 @@
 -r --output_req: autoSaveRestore request file name for signals defined in Col. P 
 -s --search_path: for panel generation only, search path for 
     	    	 widget/header/footer files [.:..]
+--stoRcl         Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
 -t --separator:  column separator in .csv file[,] 
 -v --verbose:    print debug information 
-   --devobj:     Optional device object module to convert data from another spreadsheet format to program variables
--b --base:  	 EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
+--var            Define variables of the csv file. CSV-file tag $(VAR): --var VAR=huhu"
 
 See http://help.bessy.de/apps/common/csv2epicsDb
 """
@@ -161,7 +164,7 @@ parser.add_option("--dis",
     		 )
 parser.add_option("--stoRcl",
 		 action="store_true", # default: None
-		 help="Create store recall records for ao and longout",
+		 help="Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
     		 )
 parser.add_option("--var", 
 		 action="append",
