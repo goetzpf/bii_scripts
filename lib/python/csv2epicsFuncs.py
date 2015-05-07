@@ -940,7 +940,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     alhSignals = None
     arcSignals = None
     panelDict = {}
-    panelWidgetName = "watchdog"
+    panelWidgetName = "anyVal"
     if len(devObj.signal)>0:
         devName = devName+":"+devObj.signal
     panelNameDict={'DEVN':devName}
