@@ -266,16 +266,16 @@ def printTable(rT,header=None,sortIdx=None) :
         if x is not None:
             return len(str(x))
         else:
-            print x
+            sys.stderr.write( str(x) )
             return 0
     for row in rTable:
         fLen = map(lambda x: length(x),row)
         formatMax = map(lambda x: choose(x),zip(formatMax,fLen))
     #print "rT",formatMax
-    print " | ".join(map(lambda x:("%%%ds"%x[0])%x[1] ,zip(formatMax,header)) )
-    print "-+-".join(map(lambda x: x*'-' ,formatMax) )
+    sys.stderr.write( " | ".join(map(lambda x:("%%%ds"%x[0])%x[1] ,zip(formatMax,header)) )+"\n" )
+    sys.stderr.write( "-+-".join(map(lambda x: x*'-' ,formatMax) )+"\n" )
     for line in rTable:
-        print " | ".join(map(lambda x:("%%%ds"%x[0])%x[1] ,zip(formatMax,line)) )
+        sys.stderr.write( " | ".join(map(lambda x:("%%%ds"%x[0])%x[1] ,zip(formatMax,line)) )+"\n" )
 
 def getShiftParam(bits):
     """
@@ -841,11 +841,11 @@ class epicsAlh(object):
             self.sort = devObj.alhSort
         if devObj.panelName and len(devObj.panelName)>0:
             self.panel   = devObj.panelName
-	    self.command = "run_edm.sh "+devObj.panelName+".edl"
-	else:
-	    egu = " "
-	    if len(devObj.egu) > 0: egu = devObj.egu
-	    self.command = "run_edm.sh -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
+            self.command = "run_edm.sh "+devObj.panelName+".edl"
+        else:
+            egu = " "
+            if len(devObj.egu) > 0: egu = devObj.egu
+            self.command = "run_edm.sh -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
 
         self.tags = [("ALIAS",devname+": "+self.desc),
                      ("ALARMCOUNTFILTER","2 1")
@@ -948,17 +948,19 @@ class epicsTemplate(object):
     - findObject(devName, parDict) Get records/template instances that matches 
         the device name and the parameters - may be empty for not found
     """
-    files = {'default':{'TYPEDICT':{},'DEVICELIST':[]}}
+    files = {}
 #    typeDict={}
 #    deviceList=[]
-    def __init__(self,rtyp,nameDict,fieldDict={},filename='default') :
+    def __init__(self,rtyp,nameDict,fieldDict={},filename=None) :
         self.field = fieldDict
         self.devn   = nameDict
         self.rtyp   = rtyp
 #       if self.field.has_key('DESCR'):
 #           print self.devn,"\tDESCR:",self.field['DESCR']
+        if not filename: raise NameError
+        
         if not epicsTemplate.files.has_key(filename):
-            files[filename] = {'TYPEDICT':{},'DEVICELIST':[]}
+            epicsTemplate.files[filename] = {'TYPEDICT':{},'DEVICELIST':[]}
         try:
             l = epicsTemplate.files[filename]['TYPEDICT'][rtyp]
         except KeyError:
@@ -1015,58 +1017,73 @@ class epicsTemplate(object):
         return epicsTemplate.files.keys()
 
     @staticmethod
-    def getDevice(devName,filename='default'):
+    def getDevice(devName,filename=None):
         """
-        Get list of records and template instances that have this device name - may be empty for not found
+        Get list of records and template instances that have this device name - may be empty for not found.
+        'filename=None' means search in all filenames.
         """
         li = []
-        for item in epicsTemplate.files[filename]['DEVICELIST']:
-            if item.getDevn() == devName: li.append(item)
+        def check(filename):
+            for item in epicsTemplate.files[filename]['DEVICELIST']:
+                if item.getDevn() == devName: li.append(item)
+        if filename:
+            check(filename)
+        else:
+            for f in epicsTemplate.getFilenames():
+                check(f)
         return li
 
     @staticmethod
-    def findObject(devName, parDict,filename='default'):
+    def findObject(devName, parDict,filename=None):
         """
         Get records/template instances that matches the device name and the parameters - may be empty for not found
         """
         li = []
-        for item in epicsTemplate.files[filename]['DEVICELIST']:
-            try:
-                if item.getDevn() == devName:
-                    for par in parDict.keys():
-                        if item.field.has_key(par):
-                            if item.field[par] != parDict[par]:
+        def findO(filename):
+            for item in epicsTemplate.files[filename]['DEVICELIST']:
+                try:
+                    if item.getDevn() == devName:
+                        for par in parDict.keys():
+                            if item.field.has_key(par):
+                                if item.field[par] != parDict[par]:
+                                    raise ValueError
+                            else:
                                 raise ValueError
-                        else:
-                            raise ValueError
+                    else:
+                        raise ValueError
+                except ValueError:
+                    pass
                 else:
-                    raise ValueError
-            except ValueError:
-                pass
-            else:
-                li.append(item)
+                    li.append(item)
+        if filename:
+            findO(filename)
+        else:
+            for f in epicsTemplate.getFilenames():
+                findO(f)
+        
         return li
 
     @staticmethod
-    def getPV(devName,signalName,signalField='SNAME'):
+    def getPV(devName,signalName,signalField='SNAME',filename=None):
         """
         Search object list for devName AND field SNAME=signalName (signalField tag may be set as third parameter)
 	Return list of matching objects - empty list means not found
         """
         #print "getPV(",devName,signalName,signalField,")"
 	li= []
-        for item in epicsTemplate.getDevice(devName,filename='default'):
+        for item in epicsTemplate.getDevice(devName,filename):
             if (not signalField) or (not item.field.has_key(signalField)) or (item.field[signalField] != signalName):
 	    	continue
 	    li.append(item)
 	return li
 
     @staticmethod
-    def printAllSubst(filename='default'):
+    def printAllSubst(filename=None):
         """
         Treat all objects (EPICS records also) as EPICS substitutions and print in
         EPICS.substitutions format
         """
+        if not filename: raise NameError
         prStr = ""
         for template in epicsTemplate.files[filename]['TYPEDICT'].keys():
             prStr +=  "file "+template+".template {\n"
@@ -1074,14 +1091,12 @@ class epicsTemplate(object):
             prStr += "\n}\n";
         return prStr
     @staticmethod
-    def printAllRecords(filename='default'):
+    def printAllRecords(filename=None):
         """
         Treat all objects as EPICS records and print in EPICS.db format
         """
-        prStr = "\n".join( map(lambda x: x.prAsRec(),epicsTemplate.files[filename][DEVICELIST]))
-
-
-        return prStr
+        if not filename: raise NameError
+        return "\n".join( map(lambda x: x.prAsRec(),epicsTemplate.files[filename]['DEVICELIST']))
 
 def updateStruct(a,b):
     """ Helper function to create st.cmd files. Merge two data structures: b into a. 

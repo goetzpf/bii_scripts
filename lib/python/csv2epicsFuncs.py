@@ -149,13 +149,15 @@ class csvData(object):
 	self.panelGroup = self.panelGroup.decode("UTF-8").encode("ISO-8859-1")      # konversion to ISO for edm!
     	try: self.panelSort  = device[21].strip() # V BESSY Panel Sort
 	except IndexError: self.panelSort = ""
+	try: self.dbFileName = device[22].strip() # W  Filename for .db or .substitutions File
+	except IndexError: self.dbFileName = ""
 	
     def __str__(self):
        return "*** csvData Object:\ndev: '"+self.dev+"'\nrtype: '"+self.rtype+"'\nsignal: '"+self.signal+"'\nport: '"+self.port+"'\nport: '"+self.port+"'\ncanId: '"+self.canId+\
        "'\ncardNr: '"+self.cardNr+"'\nchan: '"+self.chan+"'\nrangeRaw: '"+self.rangeRaw+"'\nrangeEng: '"+self.rangeEng+"'\negu: '"+self.egu+\
        "'\nrangeAlhVal: '"+self.rangeAlhVal+"'\nrangeAlhSevr: '"+self.rangeAlhSevr+"'\nDESC: '"+self.DESC+"'\nprec: '"+self.prec+\
        "'\narchPeriod: '"+self.archPeriod+"'\nreqFlag: '"+self.reqFlag+"'\nalhGroup: '"+self.alhGroup+"'\nalhFlags: '"+self.alhFlags+\
-       "'\nalhSort: '"+self.alhSort+"'\npanelName: '"+self.panelName+"'\npanelGroup: '"+self.panelGroup+"'\npanelSort: '"+self.panelSort+"'\n*** End"
+       "'\nalhSort: '"+self.alhSort+"'\npanelName: '"+self.panelName+"'\npanelGroup: '"+self.panelGroup+"'\npanelSort: '"+self.panelSort+"'\nEPICS File Name: '"+self.dbFileName+"'\n*** End"
 class baseData(object):
 # EPICS R3.14. String lengths as found in: aiRecord.h, mbbiRecord.h mbbiDirectRecord.h
     base = "3.14.8"
@@ -411,7 +413,7 @@ def createAnalogRecord(devName,fields,devObj,warnings,fileName,lines):
     fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
     (f,dtype) = createLimits(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr)
     f.update(fields)	# additional parameters should override calculated values for PREC
-    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f)
+    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f,devObj.dbFileName)
     
 def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
     """ Setup fields for bi/bo type records/templates and create instance
@@ -442,7 +444,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
 		fields[state+"SV"]=rangeALH[idx]
         idx += 1
 
-    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields)
+    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
     
 def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
     """ Setup fields for mbbi/mbbo type records/templates and create instance
@@ -470,7 +472,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
         idx += 1
 
     if (tooLong == False) or (devObj.rtype == "mbbo") :
-        dbRec = epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields)
+        dbRec = epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
 	idx=0
         for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"] :
             if epicsUtils.hasIndex(rangeENG,idx) is False:
@@ -489,14 +491,14 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
             idx +=1 
     else:   # mbbi with long string names: each string gets a stringout !
         fields['SNAME'] = fields['SNAME']+'Raw'
-	dbRec = epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields)
+	dbRec = epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
         idx=0
         stringOuts = ""
         seq = epicsUtils.epicsTemplate('seq',{'DEVN':devName},{'SNAME':devObj.signal+"S1",
 		'SELM':"Specified", 
 		'SELL':pvName+"C1 CP NMS",
 		'SDIS':fields['SDIS'],'DISS':fields['DISS']
-		})
+		},devObj.dbFileName)
 	seqNr=1
 	for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
             if epicsUtils.hasIndex(rangeENG,idx) is False:
@@ -508,7 +510,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
 		    	'SELM':"Specified", 
 			'SELL':pvName+"C2 CP NMS",
 			'SDIS':fields['SDIS'],'DISS':fields['DISS']
-			})
+			},devObj.dbFileName)
 		seqNr=2
 	    if seqNr==1:
 		seq.field["LNK"+str(idx+1)]   = pvName+"St"+str(idx)+".PROC PP NMS"
@@ -526,20 +528,20 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
             epicsUtils.epicsTemplate('stringout',{'DEVN':devName},{'SNAME':devObj.signal+"St"+str(idx),
         	    		    'VAL':eng,
         			    'OUT':pvName+" PP NMS",
-				    'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+				    'SDIS':fields['SDIS'],'DISS':fields['DISS']},devObj.dbFileName)
 	    idx += 1
 
     	epicsUtils.epicsTemplate('calc',{'DEVN':devName},{'SNAME':devObj.signal+"C1",
         		      'CALC': "(A<9)?A+1:0",
         		      'INPA': pvName+"Raw CP NMS",
-			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+			      'SDIS':fields['SDIS'],'DISS':fields['DISS']},devObj.dbFileName)
         epicsUtils.epicsTemplate('calc', {'DEVN':devName},{'SNAME':devObj.signal+"C2",
         		      'CALC': "(A>=9)?A-8:0",
         		      'INPA': pvName+"Raw CP NMS",
-			      'SDIS':fields['SDIS'],'DISS':fields['DISS']})
+			      'SDIS':fields['SDIS'],'DISS':fields['DISS']},devObj.dbFileName)
 	epicsUtils.epicsTemplate('stringin', {'DEVN':devName},{'SNAME':devObj.signal,
         		      'SIML': pvName+"Raw.SIMM NPP MS",
-			      'SDIS':fields['SDIS'],'DISS':fields['DISS'],'DESC':fields['DESC']})
+			      'SDIS':fields['SDIS'],'DISS':fields['DISS'],'DESC':fields['DESC']},devObj.dbFileName)
 
 def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     """ Is an EPICS record in: ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout'] ?
@@ -589,13 +591,13 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
 	    	    createAnalogRecord(devName,fields,devObj,warnings,fileName,lines)
     		elif devObj.rtype in ('mbbiDirect','mbboDirect') :
 		    fields.update({'NOBT': 16,})
-		    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields)
+		    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
 		elif devObj.rtype in ('bi','bo'):
 			createBiBoRecord(devName,fields,devObj,warnings,fileName,lines)
 		elif devObj.rtype in ('mbbi','mbbo'):
 			createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines)
     	    else: # Soft record, fields from Col. N
-		epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields)
+		epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName)
 	except ValueError, e:
 	    warnings.append([fileName,lines,"WARN",pvName,str(e)])
 
@@ -636,7 +638,7 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
 	else:
 	    try:
         	int(devObj.canId)          # CAN link  raises ValueError if its not an integer but a string for a VME DTYP
-		return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag)
+		return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag,devObj)
 	    except ValueError:      # is VME link
 		if len(devObj.canId) == 0: # missing 
     		    return {}	# is a soft record
@@ -694,7 +696,7 @@ def getOpcLink(devObj,devName,opc_name):
                     bit += 8
 		hwLink = opc_name+"DB"+str(db)+",W"+str(byte)
 		softLinkTag = str(db)+"_"+str(byte)
-		fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,bit,devName).getLink()
+		fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,bit,devName,devObj).getLink()
         	fields['DTYP'] = "Soft Channel"
 #		if devObj.rtype == 'bi':    	    	# OPCIOCBUG: map bi with set bits to mbbi and longin
 #		    devObj.rtype = 'mbbi'   	    	#
@@ -747,7 +749,7 @@ def getOpcLink(devObj,devName,opc_name):
 		fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,shft,devName).getLink()
 # 4. process a string type with bits set - binary records only
         else:
-	    fields[linkType] = PLC_Address(linkType,rtyp,PLCLink,PLCLink,shft,devName).getLink()
+	    fields[linkType] = PLC_Address(linkType,rtyp,PLCLink,PLCLink,shft,devName,devObj).getLink()
     else:
     	raise ValueError("NOT SUPPORTED: Record type '"+rtyp+"' AND set Channel/Bits (Col. G) '"+bits+"'")
         
@@ -769,7 +771,7 @@ class PLC_Address(object):
     mbbiDirectLinks = {}  # (hardWareLink,signalName) for all mbbiDirect records
     mbboDirectLinks  = {} # (hardWareLink,signalName) for all mbboDirect records
 
-    def __init__(self,linkTyp,rtyp,PLCLink,softLinkTag,shft,deviceName) :
+    def __init__(self,linkTyp,rtyp,PLCLink,softLinkTag,shft,deviceName,devObj) :
         self.link = None
 
 	if linkTyp == 'INP':
@@ -798,7 +800,7 @@ class PLC_Address(object):
     def getLink(self): return self.link
 
     @staticmethod
-    def setupTemplates(deviceName,dtypHw):
+    def setupTemplates(deviceName,dtypHw,dbFileName):
         """
         Create epicsTemplate objects for all mbb_Direct records as indicated in mbb_DirectLinks dictionary
         """
@@ -810,14 +812,14 @@ class PLC_Address(object):
                       	'PINI': "YES",
                       	'SCAN': "I/O Intr",
                     	'NOBT': "16",	# OPCIOCBUG: no NOBT for the longin 
-                      	'INP':  link})
+                      	'INP':  link},dbFileName)
         for tag in PLC_Address.mbboDirectLinks.keys():
             (link,signalName) = PLC_Address.mbboDirectLinks[tag]
             epicsUtils.epicsTemplate('mbboDirect', {'DEVN':deviceName},{'SNAME':signalName,
                       	'DESC': tag[len(tag)-26:len(tag)],
                       	'DTYP': dtypHw,
                       	'NOBT': "16",
-                      	'OUT':  link})
+                      	'OUT':  link},dbFileName)
 def getVmeLink(rtyp,canId,cardNr,chan):
     fields = {}
     if rtyp in ('ai','longin','bi','mbbi','mbbiDirect',):
@@ -837,7 +839,7 @@ def getVmeLink(rtyp,canId,cardNr,chan):
         fields[linkTyp] = "#C%dS%d"% (int(cardNr),int(shft))
     return (fields)
 
-def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag):
+def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag,devObj):
     """
     Create an CAN Link.
     
@@ -874,7 +876,7 @@ def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag):
                 }
 	    if linkName == 'INP':
 		f['SCAN'] = "1 second"
-            epicsUtils.epicsTemplate(recType,{'DEVN':hwDeviceName},f)
+            epicsUtils.epicsTemplate(recType,{'DEVN':hwDeviceName},f,devObj.dbFileName)
 
         (nobt,shft) = getShiftParam(chan)
         if rtyp  == 'bi':
@@ -954,13 +956,13 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 	'INP':"@"+devObj.port,
 	'ZNAM':"Heart",
 	'ONAM':"Beat",
-	'FLNK':devName+":fwdHeartBeat"})
+	'FLNK':devName+":fwdHeartBeat"},devObj.dbFileName)
     epicsUtils.epicsTemplate('bo',{'DEVN':devName},{'SNAME':"fwdHeartBeat",
 	'DOL':devName+":stHeartBeat",
 	'OUT':devName+":intWdgCounter PP",
 	'ONAM':"Beat",
 	'ZNAM':"Heart",
-	'HIGH':"1"})
+	'HIGH':"1"},devObj.dbFileName)
     epicsUtils.epicsTemplate('calcout',{'DEVN':devName},{'SNAME':"intWdgCounter",
 	'INPA':devName+":intWdgCounter.VAL NPP NMS",
 	'INPB':fields['TMO'],
@@ -968,13 +970,13 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 	'SCAN':"1 second",
 	'OUT':devName+":disable PP NMS",
 	'OCAL':"A>B?1:0",
-	'DOPT':"Use OCAL"})
+	'DOPT':"Use OCAL"},devObj.dbFileName)
     epicsUtils.epicsTemplate('bi', {'DEVN':devName}, {'SNAME':"disable",
     	'DESC':"Disable: "+devName,
 	'INP': devName+":intWdgCounter.OVAL NPP NMS",
 	'ZNAM':"enable",
 	'ONAM':"disable",
-	'OSV':"MAJOR"})
+	'OSV':"MAJOR"},devObj.dbFileName)
     return (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
   
 def pt100tempGetFunc():
@@ -1010,7 +1012,7 @@ def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 	    'C5MUX':mux+5,
 	    'C6MUX':mux+6,
 	    'C7MUX':mux+7
-	    })
+	    },devObj.dbFileName)
     fields = epicsUtils.parseParam(devObj.prec)
     if devObj.egu == "K":	    # template default is Grad-C
 	fields['EGUF'] = "657.16"

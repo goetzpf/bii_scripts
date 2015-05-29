@@ -2,28 +2,28 @@
 """
 
  *  Author  B.Kuner
-	    R.Lange
 
   USAGE: cvs2epicsDb [OPTIONS] <csv files ...>
   
--b --base:  	 EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
+-b --base:       EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
 -c --can:        CAN port Nr., or 'opc' for OPC server access
--d --output_db:  db file name file ending determines the ouptut: '.db' 
-    	    	 or '.substitutions'
+-d --options.output_db:  db file name file ending determines the ouptut: '.db' or '.substitutions'
+-D --output_multiFile Tag to write the records/substitutions to the files as set in COL W. 
+                 Tag is 'db' or 'substitutions' to determine the file type
 --devobj:        Optional device object module to convert data from another spreadsheet format to program variables
 --dis            Name of disable record to be created and used in all SDIS fields
 -f --install_path: installation path for output files: .substitutions, .arch, .alh,
-    	    	 panels. Default is './' 
--i --iocName:    IOC name 
+                 panels. Default is './' 
+-i --options.iocName:    IOC name 
 -l --output_alh: create alarm handler config file for Items that define BESSY ALH 
-    	    	 Group (col. Q) 
--m --opc_name:   opc server name 
+                 Group (col. Q) 
+-m --options.opc_name:   opc server name 
 -n --devName:    device name [\(DEVICE)] 
 -p --panel:      create 'CreatePanel.pl' data for Items that define EPICS 
-    	    	 devObj.panelName (col. T) 
--r --output_req: autoSaveRestore request file name for signals defined in Col. P 
+                 devObj.panelName (col. T) 
+-r --options.output_req: autoSaveRestore request file name for signals defined in Col. P 
 -s --search_path: for panel generation only, search path for 
-    	    	 widget/header/footer files [.:..]
+                 widget/header/footer files [.:..]
 --stoRcl         Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
 -t --separator:  column separator in .csv file[,] 
 -v --verbose:    print debug information 
@@ -39,211 +39,172 @@ import csv
 import os.path
 import epicsUtils
 import csv2epicsFuncs
-
+import pprint
 my_version = "1.0"
 
 #******************************* Main program *******************************
 
-separator    =','
-output_db    = None
-output_panel = None
-output_alh   = None
-output_arch  = None
-output_req   = None
-install_path = "."
-search_path = ".:.."
-iocName  = None
-devName  = '(DEVICE)'
-opc_name     = None
 usage        = " %prog [options]"
 parser = OptionParser(usage=usage,
-		 version="%%prog %s" % my_version,
-    		 description="USAGE: csv2epicsDb [-h OPTIONS] <csv files ...>")
+                 version="%%prog %s" % my_version,
+                 description="USAGE: csv2epicsDb [-h OPTIONS] <csv files ...>")
 parser.add_option("-a","--output_arch", 
-		 action="store",
-    		 type="string",
-		 help="archiver config file name for signals defined n Col. O", 
-    		 )
+                 action="store",
+                 type="string",
+                 help="archiver config file name for signals defined n Col. O", 
+                 )
 parser.add_option("-b", "--base", 
-		 action="store",
-    		 type="string",
-		 help="EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'"
-		 )
+                 action="store",
+                 type="string",
+                 help="EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'"
+                 )
 parser.add_option("-c","--can", 
-		 action="store",
-    		 type="string",
-		 help="CAN port Nr., or 'opc' for OPC server access",
-    		 )
+                 action="store",
+                 type="string",
+                 help="CAN port Nr., or 'opc' for OPC server access",
+                 )
 parser.add_option("-d","--output_db", 
-		 action="store",
-    		 type="string",
-		 help="db file name file ending determines the ouptut: '.db' or '.substitutions'",
-    		 )
+                 action="store",
+                 type="string",
+                 help="db file name (if Col W empty) file ending determines the ouptut: '.db' or '.substitutions'",
+                 )
+parser.add_option("-D","--output_multiFile", 
+                 action="store_true",
+                 help="Tag to write the records/substitutions to the files as set in COL W.",
+                 )
 parser.add_option("-f","--install_path",
-		 action="store",
-    		 type="string",
-		 help="installation path for output files: .substitutions, .arch, .alh, panels. Default is './'", 
-    		 )
+                 action="store",
+                 type="string",
+                 help="installation path for output files: .substitutions, .arch, .alh, panels. Default is './'", 
+                 )
 parser.add_option("-i","--iocName", 
-		 action="store",
-    		 type="string",
-		 help="IOC name ",
-    		 )
+                 action="store",
+                 type="string",
+                 help="IOC name ",
+                 )
 parser.add_option("-l","--output_alh", 
-		 action="store_true",
-		 help="create alarm handler config file for Items that define BESSY ALH Group (col. Q, )", 
-    		 )
+                 action="store_true",
+                 help="create alarm handler config file for Items that define BESSY ALH Group (col. Q, )", 
+                 )
 parser.add_option("-m","--opc_name", 
-		 action="store",
-    		 type="string",
-		 help="opc server name", 
-    		 )
+                 action="store",
+                 type="string",
+                 help="opc server name", 
+                 )
 parser.add_option("-n","--devName", 
-		 action="store",
-    		 type="string",
-		 help="device name [\(DEVICE)]", 
-    		 )
+                 action="store",
+                 type="string",
+                 help="device name [\(DEVICE)]", 
+                 )
 parser.add_option("-p","--panel",
-		 action="store_true",
-		 help="create 'CreatePanel.pl' data for Items that define EPICS devObj.panelName (col. T, )", 
-    		 )
+                 action="store_true",
+                 help="create 'CreatePanel.pl' data for Items that define EPICS devObj.panelName (col. T, )", 
+                 )
 parser.add_option("-r","--output_req", 
-		 action="store",
-    		 type="string",
-		 help="autoSaveRestore request file name for signals defined in Col. P", 
-    		 )
+                 action="store",
+                 type="string",
+                 help="autoSaveRestore request file name for signals defined in Col. P", 
+                 )
 parser.add_option("-s","--search_path",
-		 action="store",
-    		 type="string",
-		 help="for panel generation only, search path for widget header/footer files '.:..'", 
-    		 )
+                 action="store",
+                 type="string",
+                 help="for panel generation only, search path for widget header/footer files '.:..'", 
+                 )
 parser.add_option("-t","--separator", 
-		 action="store",
-    		 type="string",
-		 help="column separator []", 
-    		 )
+                 action="store",
+                 type="string",
+                 help="column separator []", 
+                 )
 parser.add_option("-v","--verbose",
-		 action="store_true", # default: None
-		 help="print debug information", 
-    		 )
+                 action="store_true", # default: None
+                 help="print debug information", 
+                 )
 parser.add_option("--devObj",
-		 action="store",
-    		 type="string",
-		 help="python class module that converts non standard csv data to variables needed by the program",
-    		 )
+                 action="store",
+                 type="string",
+                 help="python class module that converts non standard csv data to variables needed by the program",
+                 )
 parser.add_option("--dis",
-		 action="store",
-    		 type="string",
-		 help="Name of disable record to be created and used in all SDIS fields",
-    		 )
+                 action="store",
+                 type="string",
+                 help="Name of disable record to be created and used in all SDIS fields",
+                 )
 parser.add_option("--stoRcl",
-		 action="store_true", # default: None
-		 help="Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
-    		 )
+                 action="store_true", # default: None
+                 help="Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
+                 )
 parser.add_option("--var", 
-		 action="append",
-    		 type="string",
-		 help="Define variables of the csv file. CSV-file tag $(VAR): --var VAR=huhu"
-		 )
+                 action="append",
+                 type="string",
+                 help="Define variables of the csv file. CSV-file tag $(VAR): --var VAR=huhu"
+                 )
 
 (options, args) = parser.parse_args()
+
+separator    =','
 canOption = ""
+install_path = "."
+search_path = ".:.."
+devName  = ''
 if options.separator    is not None: separator    = options.separator
-if options.can   	is not None: canOption	  = options.can
-if options.output_db	is not None: output_db    = options.output_db
-if options.panel	is not None: output_panel = options.panel
-if options.install_path	is not None: install_path = options.install_path
-if options.search_path	is not None: search_path = options.search_path
-if options.output_arch	is not None: output_arch  = options.output_arch
-if options.output_req	is not None: output_req   = options.output_req
-if options.iocName	is not None: iocName      = options.iocName
-if options.opc_name	is not None: opc_name	  = options.opc_name
+if options.can          is not None: canOption    = options.can
+if options.install_path is not None: install_path = options.install_path
+if options.search_path  is not None: search_path = options.search_path
 
 if options.base is not None:
     try:
-    	episBase = epicsUtils.matchRe(options.base,"(\d+\.\d+\.\d+)")[0]
+        episBase = epicsUtils.matchRe(options.base,"(\d+\.\d+\.\d+)")[0]
     except TypeError:
-    	print "Error in option --base='"+str(options.base)+"', use default: '3.14.8'"
+        sys.stderr.write( "Error in option --base='"+str(options.base)+"', use default: '3.14.8'" )
     else:
-	if not csv2epicsFuncs.baseData.setBase(episBase):
-	    print "Error in option --base='"+str(options.base)+"'. Thise base is not available, use default: '3.14.8'"
-    	elif options.verbose: print "   Set episBase:",episBase
+        if not csv2epicsFuncs.baseData.setBase(episBase):
+            sys.stderr.write( "Error in option --base='"+str(options.base)+"'. Thise base is not available, use default: '3.14.8'")
+        elif options.verbose: print "   Set episBase:",episBase
 
 devModule = None
 if options.devObj is not None:
     devModule = None
     pluginPath = ".."
     if not pluginPath in sys.path:
-    	print "Insert",pluginPath
-	sys.path.insert(0,pluginPath)
+        if options.verbose: print "Insert",pluginPath
+        sys.path.insert(0,pluginPath)
     devModule = __import__(os.path.basename(options.devObj)[:-3])
-    if options.verbose: print "Import external device object module: '"+str(devModule)+"' in path: '"+pluginPath+"'"
+    if options.verbose: print "Import external device object module: '"+pluginPath+"/"+str(devModule)
 
 iocTag = None
-
-if iocName is not None:
+if options.iocName is not None:
     try:
-    	m = epicsUtils.matchRe(iocName,"^\w*IO(C[\w\d]+$)")
-	iocTag = m[0]
+        m = epicsUtils.matchRe(options.iocName,"^\w*IO(C[\w\d]+$)")
+        iocTag = m[0]
     except TypeError:
-	pass
+        pass
 
 csvVariablesDict = {}
 if options.var is not None:
     for opt in options.var:
-    	(var,val) = opt.split('=')
-	csvVariablesDict[var] = val
-warnings = []	     # global for warnings in all functions, is printed at end of prog.
+        (var,val) = opt.split('=')
+        csvVariablesDict[var] = val
 
+warnings = []       # global for warnings in all functions, is printed at end of prog.
 lines = None
-table = []  	    # Debug information in verbose mode
-db   = []	    # substitution file lines
-arch = []	    # archive list
-req = []	    # autoSaveRestore list
+dbgTable = []       # Debug information in verbose mode
+arch = []           # archive list
+req = []            # autoSaveRestore list
+debugInfo = {}
 
 # setup search path for widgets and plugins
 display_search_path = []
 plugin_search_path = []
 for item in search_path.split(':'):
     if item != '.' and item != '..':
-    	display_search_path.append(item+"/dl")
-    	plugin_search_path .append(item+"/lib/python")
+        display_search_path.append(item+"/dl")
+        plugin_search_path .append(item+"/lib/python")
     else:
-    	display_search_path.append(item)
-    	plugin_search_path .append(item)
+        display_search_path.append(item)
+        plugin_search_path .append(item)
 
 panelList = epicsUtils.Panels(install_path,display_search_path)
 plugins = csv2epicsFuncs.setupPlugins(plugin_search_path)
-
-def joinItarch(): 
-    outStr = None
-    if output_arch:
-    	outStr = "<group>\n<name>"+output_arch.replace(".arch","")+"</name>\n"+"\n".join(arch)+"\n</group>" 
-    return outStr
-
-def joinItreq():
-    outStr = None
-    if output_req:
-    	outStr = "\n".join(req)
-    return outStr
-
-if output_db is None:
-    print "Missing option -d outFile.db"
-    sys.exit(1)
-else:
-    output_doc = epicsUtils.substRe(output_db,"\.\w+$","Doc.txt")
-
-
-types = { "db"  : [output_db, None],
-          "arch": [output_arch,joinItarch],
-          "req" : [output_req, joinItreq ]}
-if epicsUtils.matchRe(output_db,".*\.db$") is not None:
-    types['db'][1] = epicsUtils.epicsTemplate.printAllRecords
-elif epicsUtils.matchRe(output_db,".*\.substitutions$") is not None:
-    types['db'][1] = epicsUtils.epicsTemplate.printAllSubst
-else:
-    epicsUtils.die("unknown output format for file -d '"+output_db+"'")
-debugInfo = {}
 
 for argument in args:
     if not os.path.isfile(argument): epicsUtils.die("File doesn't exist: "+argument)
@@ -252,138 +213,170 @@ for argument in args:
         print "   Reading data from "+argument
 
     try :
-    	(fileName,fileExt) = epicsUtils.matchRe(argument,'.*\/(.*)\.(.*)') 
+        (fileName,fileExt) = epicsUtils.matchRe(argument.split('/')[-1],'(.*)\.(.*)') 
     except TypeError : 
-    	epicsUtils.die("found no filename in: "+argument)
+        epicsUtils.die("found no filename in: "+argument)
 
     try :
-	IN_FILE = open(argument) 
+        IN_FILE = open(argument) 
     except IOError: 
-    	epicsUtils.die("can't open input file: "+argument)
+        epicsUtils.die("can't open input file: "+argument)
     
     lines = 0
     reader = csv.reader(IN_FILE, delimiter=separator, quotechar='"',quoting=csv.QUOTE_ALL)
 
     for device in reader:
-   	try:
-	    lines += 1
-	    if lines <= 1: # is header
-	    	continue
-	    device = [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] # substitute variables in csv data
-    	    devObj = None
-	    if devModule is None:
-	    	devObj = csv2epicsFuncs.csvData(device,canOption)
-		if options.dis: devObj.disableRec = options.dis
-    	    else:
-		try:
-		    devObj = devModule.myCsvData(device,options)
-		except ValueError:
-#		    print "ILLEGAL lINE: ", lines, device
-		    continue
+        try:
+            lines += 1
+            if lines <= 1: # is header
+                continue
 
-	    if len(devObj.rtype) == 0:  # line is no device
-		continue
+            # substitute variables in csv data
+            device = [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] 
 
-    	    if len(devObj.dev)>0:  	# override -n option
-	    	devName = devObj.dev
-	    elif options.devName is not None: 
-		devName = options.devName
-	    else:
-	    	print "ERROR: No device name line:",lines
-		sys.exit(1)
-	    ## Check if Description exceeds the EPICS String length, truncate it and create warning
-	    if len(devObj.DESC) > csv2epicsFuncs.baseData.getDESClen():
-		warnings.append([fileName,lines,"Truncate DESC",devName+":"+devObj.signal,devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
-		devObj.DESC = devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]
+            devObj = None
+            if devModule is None:
+                devObj = csv2epicsFuncs.csvData(device,canOption)
+                if options.dis: devObj.disableRec = options.dis
+            else:
+                try:
+                    devObj = devModule.myCsvData(device,options)
+                except ValueError:
+#                   print "ILLEGAL lINE: ", lines, device
+                    continue
 
-	    alhSignals = []	    	# templates may have a list of signals for alarm handler
-	    arcSignals = []	    	# templates may have a list of signals for archiver
-    	    panelDict = {}  	    	# panel widget macro data
-	    panelNameDict = {}	    	# panel widget PV name in form of {'TAG':pvName} dictionary
-	    panelWidgetName = None  	# default widget name for this record/template may be overwritten by col.V (Panel Sort)
+            if len(devObj.rtype) == 0:  # line is no device
+                continue
 
-	    # is a record?
-	    a = csv2epicsFuncs.procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
-    	    if a:
+            if len(devObj.dev)>0:       # override -n option
+                devName = devObj.dev
+            elif options.devName is not None: 
+                devName = options.devName
+            else:
+                warnings.append([fileName,lines,"ERROR: Missing device name"])
+
+            ## Check if Description exceeds the EPICS String length, truncate it and create warning
+            if len(devObj.DESC) > csv2epicsFuncs.baseData.getDESClen():
+                warnings.append([fileName,lines,"Truncate DESC",devName+":"+devObj.signal,devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
+                devObj.DESC = devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]
+            
+            # use col W if defined output_multiFile, else options.output_db
+            if options.output_db and not options.output_multiFile: 
+                devObj.dbFileName=options.output_db
+            if options.output_multiFile and len(devObj.dbFileName) == 0: 
+                warnings.append([fileName,lines,"Missing Filename"])
+            
+            alhSignals = []             # templates may have a list of signals for alarm handler
+            arcSignals = []             # templates may have a list of signals for archiver
+            panelDict = {}              # panel widget macro data
+            panelNameDict = {}          # panel widget PV name in form of {'TAG':pvName} dictionary
+            panelWidgetName = None      # default widget name for this record/template may be overwritten by col.V (Panel Sort)
+
+            # is a record?
+            a = csv2epicsFuncs.procRecord(devName,devObj,canOption,options.opc_name,iocTag,warnings,lines,fileName)
+            if a:
                 (autoSaveRestoreRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
+
+                # Option Store Recall for ao, longout records
                 if options.stoRcl and (devObj.rtype == 'ao' or devObj.rtype == 'longout'):
                     li = epicsUtils.epicsTemplate.findObject(devName,{'SNAME':devObj.signal})
                     if len(li) == 1:
-                        epicsUtils.epicsTemplate("StoRcl",{'DEVN':devName},{'SNAME':devObj.signal,'EGU':li[0].field['EGU'],'PREC':li[0].field['PREC']})
+                        epicsUtils.epicsTemplate("ai",{'DEVN':devName},{'SNAME':"sto"+devObj.signal,
+                            'DESC':"Store",'INP':devName+":"+devObj.signal,
+                            'EGU':li[0].field['EGU'],
+                            'PREC':li[0].field['PREC']
+                            },devObj.dbFileName)
+                        epicsUtils.epicsTemplate("ao",{'DEVN':devName},{'SNAME':"rcl"+devObj.signal,
+                            'DESC':"Recall",
+                            'OUT':devName+":"+devObj.signal+" PP NMS",
+                            'DOL':devName+":sto"+devObj.signal+" NPP NMS",
+                            'OMSL':'closed_loop',
+                            'EGU':li[0].field['EGU'],
+                            'PREC':li[0].field['PREC']
+                        },devObj.dbFileName)
+                req += autoSaveRestoreRequest
 
-		req += autoSaveRestoreRequest
-	    # is a known template?
-	    elif plugins.has_key(devObj.rtype):
-	    	a = plugins[devObj.rtype](devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
-	    	(alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
-		if len(devObj.reqFlag) > 0: 
-	    	    req += map(lambda x: devName+":"+x,devObj.reqFlag.split("|"))
-	    else:
-		warnings.append([fileName,lines,"Skip record/template",devName+":"+devObj.signal,"Unsupported: '"+devObj.rtype+"'"])
-		continue
-	    # END search and create record type
-	    # now processing is done, an record is created and we can use the variables, set 
-	    # for this line of the spread sheet to do some optional stuff
-    	    if devObj.signal != "":
-	    if options.verbose is True:
-		rangeRawCut = devObj.rangeRaw
-		if len(devObj.rangeRaw)> 23:
-		      rangeRawCut = devObj.rangeRaw[0:20] +"..."
-		rangeEngCut = devObj.rangeEng
-		if len(devObj.rangeEng)> 23:
-		      rangeEngCut = devObj.rangeEng[0:20] +"..."
-		table.append([fileName,lines,devObj.rtype,devName,rangeEngCut,rangeRawCut,devObj.egu,devObj.DESC])
+            # is a known template?
+            elif plugins.has_key(devObj.rtype):
+                a = plugins[devObj.rtype](devName,devObj,canOption,options.opc_name,iocTag,warnings,lines,fileName)
+                (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
+                if len(devObj.reqFlag) > 0: 
+                    req += map(lambda x: devName+":"+x,devObj.reqFlag.split("|"))
+            else:
+                warnings.append([fileName,lines,"Skip record/template",devName+":"+devObj.signal,"Unsupported: '"+devObj.rtype+"'"])
+                continue
+            # END create record/template
 
-	    if output_panel is not None and len(devObj.panelName)>0: # for panel creation
-		if len(devObj.panelName )>0 and not panelWidgetName:
-		    epicsUtils.die("Missing widgetName for: '"+devName+":"+devObj.signal+"' Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' "+argument+" - line: "+str(lines))
-		panelList.addItem(devObj.panelName,devObj.panelGroup,panelNameDict,panelDict,panelWidgetName,devObj.panelSort)
+            # Now processing is done, an record/substitution is created and we can use the variables, set 
+            # for this line of the spread sheet to do some optional stuff
+            if options.verbose is True: 
+                dbgTable.append([fileName,lines,devObj.rtype,devName,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devObj.DESC,devObj.dbFileName])
 
-	    if devObj.archPeriod is not None and len(devObj.archPeriod)>0:
-		for signal in arcSignals:
-	    	    arch.append( "<channel><name>"+devName+":"+signal+"</name><period>"+devObj.archPeriod+"</period><monitor/></channel>")
+            if options.panel is not None and len(devObj.panelName)>0: # for panel creation
+                if len(devObj.panelName )>0 and not panelWidgetName:
+                    warnings.append([fileName,lines,"Missing widgetName for: '"+devName+":"+devObj.signal+"' Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' "+argument])
+                panelList.addItem(devObj.panelName,devObj.panelGroup,panelNameDict,panelDict,panelWidgetName,devObj.panelSort)
 
-	    if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
-		for alhSig in alhSignals:
-    		    epicsUtils.epicsAlh(devName,alhSig,devObj,lines)
-    	except :
-	    print "******* PARSE EXCEPTION in file: '"+argument+"' line:",lines,"*******"
-	    raise
+            if devObj.archPeriod is not None and len(devObj.archPeriod)>0:
+                for signal in arcSignals:
+                    arch.append( "<channel><name>"+devName+":"+signal+"</name><period>"+devObj.archPeriod+"</period><monitor/></channel>")
+
+            if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
+                for alhSig in alhSignals:
+                    epicsUtils.epicsAlh(devName,alhSig,devObj,lines)
+        except :
+            sys.stderr.write( "******* PARSE EXCEPTION in file: '"+argument+"' line:"+str(lines)+"*******" )
+            raise
     IN_FILE.close()
     # end for
 #########################################################################
     if options.dis: 
-    	(dev,sname) = epicsUtils.matchRe(options.dis,"(.*):(.*)")
-    csv2epicsFuncs.PLC_Address.setupTemplates(devName,'opc')
-  # Create files
-    for typ in types.keys():
-      	outfile = types[typ][0]
-      	strOut  = types[typ][1]()
-	if outfile == None or len(strOut) == 0:
-            continue
-      	else:
-	    try:
-	    	outFileName = install_path+"/"+outfile
-		OUT_FILE = open(outFileName,"w") 
-	    except IOError: 
-	    	epicsUtils.die("can't open output file: "+outFileName)
+        (dev,sname) = epicsUtils.matchRe(options.dis,"(.*):(.*)")
+    csv2epicsFuncs.PLC_Address.setupTemplates(devName,'opc',options.output_db)
+
+# Create files
+
+    def writeFile(outFileName,strOut):
+        if outFileName == None or len(strOut) == 0:
+            return
+        try:
+            outfile = install_path+"/"+outFileName
+            OUT_FILE = open(outfile,"w") 
+        except IOError: 
+            epicsUtils.die("can't open output file: "+outfile)
         if options.verbose:
             print "   Creating file "+outFileName
-      	#print "*****************************\n", strOut
-	print >> OUT_FILE, strOut
-	OUT_FILE.close()
+        print >> OUT_FILE, strOut
+        OUT_FILE.close()
+        return
+
+    for filename in epicsUtils.epicsTemplate.getFilenames():
+        if epicsUtils.matchRe(filename,".*\.db$") is not None:
+            writeFile(filename,epicsUtils.epicsTemplate.printAllRecords(filename) )
+        elif epicsUtils.matchRe(filename,".*\.substitutions$") is not None:
+            writeFile(filename,epicsUtils.epicsTemplate.printAllSubst(filename) )
+        else:
+#            pprint.pprint(epicsUtils.epicsTemplate.files)
+            print epicsUtils.epicsTemplate.getFilenames()
+            warnings.append([fileName,-1,"unknown output format for file -d '"+filename+"'"])
+
+    if options.output_arch:
+        writeFile(options.output_arch,"<group>\n<name>"+options.output_arch.replace(".arch","")+"</name>\n"+"\n".join(arch)+"\n</group>" )
+
+    if options.output_req:
+        writeFile(options.output_req,"\n".join(req) )
 
     if options.output_alh is True:
-	epicsUtils.epicsAlh.printFiles(install_path)
-    	
+        epicsUtils.epicsAlh.printFiles(install_path)
+        
     if options.verbose is True:
-	epicsUtils.printTable(table,["file","line","record","devName","link","rangeEng","rangeRaw","egu","DESC"],1 ) 
+        epicsUtils.printTable(dbgTable,["Source File","line","record","devName","Port","Addr/Id","Card","Chan","DESC","Out File"],1 ) 
 
-  #  str  map { str += "\t_\tsoftLinkTag{_}\n" } keys(%softLinkTag) print "mbbiDiret Ids:\nstr\n"
-    if (output_db is not None) and (len(warnings) > 0):
-      	print "\nWARNINGS\n********\n\n"
-      	epicsUtils.printTable(warnings, ["file","line","Warning","PV-Name","Value"])
-      	print "\n"
+    if options.panel is not None:  # for panel creation panelInfos->{recordType}->[pv1, pv2...
+        panelList.printAll()
 
-    if output_panel is not None:  # for panel creation panelInfos->{recordType}->[pv1, pv2...
-	panelList.printAll()
+    if len(warnings) > 0:
+        sys.stderr.write( "\nWARNINGS\n********\n\n" )
+        epicsUtils.printTable(warnings, ["file","line","Warning","PV-Name","Value"])
+        sys.stderr.write( "\n" )
+
