@@ -357,7 +357,7 @@ for argument in args:
             writeFile(filename,epicsUtils.epicsTemplate.printAllSubst(filename) )
         else:
 #            pprint.pprint(epicsUtils.epicsTemplate.files)
-            print epicsUtils.epicsTemplate.getFilenames()
+#            print epicsUtils.epicsTemplate.getFilenames()
             warnings.append([fileName,-1,"unknown output format for file -d '"+filename+"'"])
 
     if options.output_arch:
