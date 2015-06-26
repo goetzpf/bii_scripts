@@ -231,6 +231,9 @@ for argument in args:
             if lines <= 1: # is header
                 continue
 
+            if epicsUtils.matchRe(device[0],r'\f') is not None: # is new page, header assumed
+                continue
+
             # substitute variables in csv data
             device = [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] 
 

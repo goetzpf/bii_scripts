@@ -213,17 +213,18 @@ def procInOut(rtyp):
 def setupPlugins(searchPathList):
     funcs = {}
     for pluginPath in searchPathList:
-    	if not os.path.exists(pluginPath): continue
-	pluginFiles = [fname[:-3] for fname in os.listdir(pluginPath) if fname.endswith("Plugin.py")]
-	if not pluginPath in sys.path:
-	    sys.path.insert(0,pluginPath)
+        if not os.path.exists(pluginPath): 
+            continue
+        pluginFiles = [fname[:-3] for fname in os.listdir(pluginPath) if fname.endswith("Plugin.py")]
+        if not pluginPath in sys.path:
+            sys.path.insert(0,pluginPath)
 
-	impModules = [__import__(fname) for fname in pluginFiles]
-	for mod in impModules:
-	    (s,f) = mod.getFunc()
-	    funcs[s]=f
-	funcs.update(pt100tempGetFunc())    # add local pt100temp support
-	funcs.update(watchdogGetFunc())    # add local watchdog support
+        impModules = [__import__(fname) for fname in pluginFiles]
+        for mod in impModules:
+            (s,f) = mod.getFunc()
+            funcs[s]=f
+    funcs.update(pt100tempGetFunc())    # add local pt100temp support
+    funcs.update(watchdogGetFunc())    # add local watchdog support
 
     return funcs
 
@@ -268,7 +269,7 @@ def adaCanMux(id,card,chan,typ='hex'):
     if typ == 'dec': frmt = "%d"
     outCan = frmt%(320+int(id),)
     inCan  = frmt%(256+int(id),)
-    mux    = frmt%(int(card)*12+int(chan))
+    mux    = frmt%(int(card)*12+int(chan),)
     return (outCan,inCan,mux)
 
 def createAdaCanLink(port,id,card,chan):
@@ -286,9 +287,27 @@ def getDisplayLimits(rangeEng,egu):
     """
     eng = epicsUtils.matchRe(rangeEng,"([-+\d][\d\.eE]*)\s*\-\s*([-+\d][\d\.eE]*)*")
     if eng == None or len(eng) != 2:
-	raise ValueError("Range Eng. not defined")
+        raise ValueError("Range Eng. not defined")
     return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
     
+def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
+    field = {}
+    if rangeAlhVal != "":
+        field=epicsUtils.parseParam(rangeAlhVal)
+
+    limitVals = rangeAlhVal.split("|")      # ATTENTION: preserve the order of alarm and severity fields
+    limitSevr = rangeAlhSevr.split("|")
+    if len(limitSevr[0]) > 0:   # means not empty severities
+        for (v,s) in zip(limitVals,limitSevr):  
+            (valName,val)     = v.split("=")
+            if valName   == 'LOLO': field['LLSV'] = s
+            elif valName == 'LOW':  field['LSV']  = s
+            elif valName == 'HIGH': field['HSV']  = s
+            elif valName == 'HIHI': field['HHSV'] = s
+            else: 
+                raise ValueError("Illegal Alarm value '"+valName+"'")
+    return field
+
 def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
     """
     Create limits severities and conversion parameters for analog type records or raise ValueError
@@ -307,69 +326,54 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
     (lopr,hopr) = epicsUtils.matchRe(rangeEng,"\s*(.*)\s*\-\s*(.*)\s*")
     lopr = float(lopr)
     hopr = float(hopr)
-    dtype = ""	    # for CAN data - s=short, S=unsigned short
-    field = {}
-    if rangeAlhVal != "":
-	aFields=epicsUtils.parseParam(rangeAlhVal)
-	field.update(aFields)
-	
-	limitVals = rangeAlhVal.split("|")  	# ATTENTION: preserve the order of alarm and severity fields
-	limitSevr = rangeAlhSevr.split("|")
-	if len(limitSevr[0]) > 0:   # means not empty severities
-	    for (v,s) in zip(limitVals,limitSevr):  
-		(valName,val)     = v.split("=")
-		if valName   == 'LOLO': field['LLSV'] = s
-		elif valName == 'LOW':  field['LSV']  = s
-		elif valName == 'HIGH': field['HSV']  = s
-		elif valName == 'HIHI': field['HHSV'] = s
-		else: 
-		    raise ValueError("Illegal Alarm value '"+valName+"'")
+    dtype = ""        # for CAN data - s=short, S=unsigned short
+    field = createAlarmLimits(rangeAlhVal,rangeAlhSevr)
     
     # process raw range to setup data conversion with 'SLOPE'
     raw = epicsUtils.matchRe(rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
     if raw is not None:
-    	convert = 'SLOPE'   # LEGACY LINEAR not supported yet
-	lraw=float(raw[0])
-	hraw=float(raw[1])
-	egul  = 0.0 	    # LEGACY, NOT used yet
-	eguf  = 0.0 	    # LEGACY, NOT used yet
-	slope = 0.0
-	off   = 0.0
-	hyst  = 0.0
-	full  = 0.0 	    # LEGACY, NOT used yet
-	minVal=0    	    # LEGACY, NOT used yet
-	
-	# setup 
-	if  (hopr != 0) and ( hraw != 0 ):
-      	    if (lraw < 0) or (hraw < 0 ):       # signed value LEGACY, NOT used yet
-		dtype = "s"
-		full = 32767
-		minVal = -32767
-    	    else:                               # unsigned LEGACY, NOT used yet
-		dtype = "S"
-		full = 65535
-	    if convert == "LINEAR": 	    	# LEGACY, NOT used yet
-		egul = lopr - slope * (lraw-minVal)
-		eguf = egul + slope * 65535
-		field['LINR'] = 'LINEAR'
-		field['EGUL'] = egul
-		field['EGUF'] = eguf
-	    elif convert == "SLOPE":	    	# SLOPE conversion is done: linear conversion from raw to eng
-		slope = (hopr - lopr) / (hraw - lraw)
-		off  = hopr - slope * hraw
-		field['LINR'] = 'SLOPE'
-		field['ESLO'] = slope
-		field['EOFF'] = off
-	    prec =  int(math.log(float(hopr)/10000)/math.log(10.0))
+        convert = 'SLOPE'   # LEGACY LINEAR not supported yet
+    lraw=float(raw[0])
+    hraw=float(raw[1])
+    egul  = 0.0         # LEGACY, NOT used yet
+    eguf  = 0.0         # LEGACY, NOT used yet
+    slope = 0.0
+    off   = 0.0
+    hyst  = 0.0
+    full  = 0.0         # LEGACY, NOT used yet
+    minVal=0            # LEGACY, NOT used yet
+    
+    # setup 
+    if  (hopr != 0) and ( hraw != 0 ):
+        if (lraw < 0) or (hraw < 0 ):       # signed value LEGACY, NOT used yet
+            dtype = "s"
+            full = 32767
+            minVal = -32767
+        else:                               # unsigned LEGACY, NOT used yet
+            dtype = "S"
+            full = 65535
+        if convert == "LINEAR":             # LEGACY, NOT used yet
+            egul = lopr - slope * (lraw-minVal)
+            eguf = egul + slope * 65535
+            field['LINR'] = 'LINEAR'
+            field['EGUL'] = egul
+            field['EGUF'] = eguf
+        elif convert == "SLOPE":            # SLOPE conversion is done: linear conversion from raw to eng
+            slope = (hopr - lopr) / (hraw - lraw)
+            off  = hopr - slope * hraw
+            field['LINR'] = 'SLOPE'
+            field['ESLO'] = slope
+            field['EOFF'] = off
+            prec =  int(math.log(float(hopr)/10000)/math.log(10.0))
 
-	    if prec < 0 : 
-		prec = (-1 * prec)+1
-	    else:
-		prec = 0
-	    
-	    field['PREC'] = prec
-	else:
-      	    raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
+        if prec < 0 : 
+            prec = (-1 * prec)+1
+        else:
+            prec = 0
+        
+        field['PREC'] = prec
+    else:
+        raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
 #    if lines is None: print field
     return (field,dtype)
 

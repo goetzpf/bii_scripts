@@ -92,7 +92,7 @@ def matchRe(matchStr,reStr,flags=0) :
     """
     regx = re.compile(reStr,flags)
     m = regx.match(matchStr)
-    if m is not None :
+    if m:
         return m.groups()
     else:
         return None
@@ -101,7 +101,11 @@ def searchRe(searchStr,reStr,flags=0) :
     """ serarch, means regExp has to be found somewhere in searchStr, else return None
     """
     regx = re.compile(reStr,flags)
-    return regx.search(searchStr)
+    m = regx.search(matchStr)
+    if m:
+        return m.groups()
+    else:
+        return None
 
 def substRe(matchStr,matchRe,replaceStr,flags=0):
     """
