@@ -333,47 +333,47 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
     raw = epicsUtils.matchRe(rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
     if raw is not None:
         convert = 'SLOPE'   # LEGACY LINEAR not supported yet
-    lraw=float(raw[0])
-    hraw=float(raw[1])
-    egul  = 0.0         # LEGACY, NOT used yet
-    eguf  = 0.0         # LEGACY, NOT used yet
-    slope = 0.0
-    off   = 0.0
-    hyst  = 0.0
-    full  = 0.0         # LEGACY, NOT used yet
-    minVal=0            # LEGACY, NOT used yet
-    
-    # setup 
-    if  (hopr != 0) and ( hraw != 0 ):
-        if (lraw < 0) or (hraw < 0 ):       # signed value LEGACY, NOT used yet
-            dtype = "s"
-            full = 32767
-            minVal = -32767
-        else:                               # unsigned LEGACY, NOT used yet
-            dtype = "S"
-            full = 65535
-        if convert == "LINEAR":             # LEGACY, NOT used yet
-            egul = lopr - slope * (lraw-minVal)
-            eguf = egul + slope * 65535
-            field['LINR'] = 'LINEAR'
-            field['EGUL'] = egul
-            field['EGUF'] = eguf
-        elif convert == "SLOPE":            # SLOPE conversion is done: linear conversion from raw to eng
-            slope = (hopr - lopr) / (hraw - lraw)
-            off  = hopr - slope * hraw
-            field['LINR'] = 'SLOPE'
-            field['ESLO'] = slope
-            field['EOFF'] = off
-            prec =  int(math.log(float(hopr)/10000)/math.log(10.0))
+        lraw=float(raw[0])
+        hraw=float(raw[1])
+        egul  = 0.0         # LEGACY, NOT used yet
+        eguf  = 0.0         # LEGACY, NOT used yet
+        slope = 0.0
+        off   = 0.0
+        hyst  = 0.0
+        full  = 0.0         # LEGACY, NOT used yet
+        minVal=0            # LEGACY, NOT used yet
 
-        if prec < 0 : 
-            prec = (-1 * prec)+1
+        # setup 
+        if  (hopr != 0) and ( hraw != 0 ):
+            if (lraw < 0) or (hraw < 0 ):       # signed value LEGACY, NOT used yet
+                dtype = "s"
+                full = 32767
+                minVal = -32767
+            else:                               # unsigned LEGACY, NOT used yet
+                dtype = "S"
+                full = 65535
+            if convert == "LINEAR":             # LEGACY, NOT used yet
+                egul = lopr - slope * (lraw-minVal)
+                eguf = egul + slope * 65535
+                field['LINR'] = 'LINEAR'
+                field['EGUL'] = egul
+                field['EGUF'] = eguf
+            elif convert == "SLOPE":            # SLOPE conversion is done: linear conversion from raw to eng
+                slope = (hopr - lopr) / (hraw - lraw)
+                off  = hopr - slope * hraw
+                field['LINR'] = 'SLOPE'
+                field['ESLO'] = slope
+                field['EOFF'] = off
+                prec =  int(math.log(float(hopr)/10000)/math.log(10.0))
+
+            if prec < 0 : 
+                prec = (-1 * prec)+1
+            else:
+                prec = 0
+
+            field['PREC'] = prec
         else:
-            prec = 0
-        
-        field['PREC'] = prec
-    else:
-        raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
+            raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
 #    if lines is None: print field
     return (field,dtype)
 
