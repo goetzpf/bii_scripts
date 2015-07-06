@@ -3,26 +3,19 @@ package parse_db;
 # This software is copyrighted by the
 # Helmholtz-Zentrum Berlin fuer Materialien und Energie GmbH (HZB),
 # Berlin, Germany.
-# The following terms apply to all files associated with the software.
+
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
 #
-# HZB hereby grants permission to use, copy and modify this
-# software and its documentation for non-commercial, educational or
-# research purposes provided that existing copyright notices are
-# retained in all copies.
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
 #
-# The receiver of the software provides HZB with all enhancements,
-# including complete translations, made by the receiver.
-#
-# IN NO EVENT SHALL HZB BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
-# SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
-# OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN
-# IF HZB HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# HZB SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-# PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
-# BASIS, AND HZB HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
-# UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 use strict;
@@ -724,19 +717,19 @@ modes are known:
 
 =over 4
 
-=item 0
+=item "0"
 
 With $mode=0, a warning is printed and the
 second definition of the record is ignored.
 
-=item 1
+=item "1"
 
 With $mode=1 (the default), the second record definition is merged with the
 first definition. Definitions of the same fields that come later
 in the file overwrite earlier definitions. This is the standard
 behaviour when the IOC loads a database file.
 
-=item 2
+=item "2"
 
 With $mode=2, the parse-module handles double record-names by
 appending a number of each double name that
