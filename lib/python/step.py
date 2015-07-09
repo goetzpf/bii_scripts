@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 # -*- coding: utf-8 -*-
 
 # Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
