@@ -1,28 +1,25 @@
 #!/usr/bin/env perl -w
 
 # -*- perl-*-
-#  This software is copyrighted by the BERLINER SPEICHERRING
-#  GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
-#  The following terms apply to all files associated with the software.
+
+# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# <https://www.helmholtz-berlin.de>
 #
-#  BESSY hereby grants permission to use, copy and modify this
-#  software and its documentation for non-commercial, educational or
-#  research purposes provided that existing copyright notices are
-#  retained in all copies.
+# Author: Victoria Laux <victoria.laux@helmholtz-berlin.de>
 #
-#  The receiver of the software provides BESSY with all enhancements,
-#  including complete translations, made by the receiver.
-#
-#  IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
-#  SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
-#  OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN
-#  IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#  BESSY SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
-#  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-#  PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
-#  BASIS, AND BESSY HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
-#  UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 use strict;
 use lib ("/opt/csr/lib/perl");

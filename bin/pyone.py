@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-# -*-python-*-
+
+# -*- coding: utf-8 -*-
 """
 PyOne - Python One-liner helper
 Author: Yusuke Shinyama <yusuke at cs dot nyu dot edu>
-small modifications by Goetz Pfeiffer (Goetz.Pfeiffer@bessy.de)
+small modifications by Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
 
 For Python 1.5 or higher
 

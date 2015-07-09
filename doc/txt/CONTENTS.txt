@@ -11,6 +11,9 @@ Remarks
 This is a collection of useful scripts and libraries for the Bessy control
 system.
 
+bii_scripts is avaliable under the terms of the 
+`GNU General Public License v.3 <http://www.gnu.org/licenses/gpl-3.0.html>`_.
+
 | If you are interested in getting the scripts or libraries you can download 
   them as tar.gz or zip
 | file from the 
@@ -25,13 +28,17 @@ or to clone the mercurial mirror repository::
 
   hg clone http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts
 
-For any questions feel free to contact one of the authors:
+For any questions feel free to contact one of the script authors:
+
+| Thomas.Birke@helmholtz-berlin.de
+| Benjamin.Franksen@helmholtz-berlin.de
+| Berhard.Kuner@helmholtz-berlin.de
+| Victoria.Laux@helmholtz-berlin.de
+| Goetz.Pfeiffer@helmholtz-berlin.de
+
+or the maintainer of this page:
 
 | Goetz.Pfeiffer@helmholtz-berlin.de
-| Berhard.Kuner@helmholtz-berlin.de
-| Patrick.Laux@helmholtz-berlin.de
-| Benjamin.Franksen@helmholtz-berlin.de
-| Thomas.Birke@helmholtz-berlin.de
 
 -------
 Scripts
