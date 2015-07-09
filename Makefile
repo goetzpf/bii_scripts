@@ -967,11 +967,11 @@ tt:
 
 $(_HTML_RST_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
 ifeq (1,$(DOCUTILS_AVAILABLE))
-	(PERL5LIB=$(PERL5LIBNEW) perl $< --doc 2>>$(ERRLOG); true) | \
+	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHONPATHNEW) perl $< --doc 2>>$(ERRLOG); true) | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) perl $< --doc 2>>$(ERRLOG); true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHONPATHNEW) perl $< --doc 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 endif
 
