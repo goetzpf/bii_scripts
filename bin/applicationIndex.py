@@ -260,6 +260,8 @@ def checkHardwareAccess(iocDb,topPath):
                 sys.exit()
 
             for pv in hwDict.keys():
+                if hwDict[pv]['RTYP'] == "asyn": # don't support asyn record!
+                    continue
                 hw = hardware(ioc,dbFile,param,ioc,pv,hwDict[pv])
                 if hw: 
                     hwData.append(hw)
