@@ -71,7 +71,7 @@ fi
 echo "==========================================================="
 echo "unrecorded changes / extra files (darcs whatsnew -sl):"
 echo
-darcs whatsnew -sl
+darcs whatsnew -sl || true
 echo "==========================================================="
 echo "changes not pushed (darcs push --dry-run):"
 echo
