@@ -205,6 +205,10 @@ Scripts
     prior to distribution.  Not-recorded changes and not-yet-added files and
     directories are restored just fine.
 
+**darcs-sig**
+  | create a textual representation of the state of a darcs repository (a list
+    of log messages and some extra information).
+
 **dbcount**
   | count the number of records in a file
   | `documentation <scripts/dbcount.html>`__

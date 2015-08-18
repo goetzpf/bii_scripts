@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Create a "signature" of a darcs repository, a text representation of some of
+# the repositories properties.
+
+set -e
+
+function HELP {
+    me=`basename $0`
+    echo "$me: display \"signature\" of a darcs repository"
+    echo "  This is a text representation of some of the repository's properties"
+    echo
+    echo "known options:"
+    echo "    -h --help       : this help"
+    echo "    --no-dir        : do not show the local directory"
+    echo "    -p --pager      : use a pager"
+    echo "    -o --out [FILE] : create a file"
+    exit 0
+}
+
+args=("$@")
+show_dir="yes"
+use_pager="no"
+recursive="no"
+file=""
+
+while true; do
+    case "$1" in
+        -h | --help )
+            HELP;
+            shift
+            ;;
+        --no-dir )
+            show_dir="no"
+            shift
+            ;;
+        -p | --pager )
+            use_pager="yes"
+            shift
+            ;;
+        -r )
+            recursive="yes"
+            shift
+            ;;
+        -o | --out )
+            file="$2"
+            shift 2
+            ;;
+        -- ) shift; break ;;
+        * ) 
+            break ;;
+    esac
+done
+
+if [ "$use_pager" = "yes" -a "$recursive" = "no" ]; then
+    exec $0 ${args[@]} -r | $PAGER
+    exit 0
+fi
+    
+if [ -n "$file" -a "$recursive" = "no" ]; then
+    exec $0 ${args[@]} -r > "$file"
+    exit 0
+fi
+
+if [ "$show_dir" = "yes" ]; then
+    echo "==========================================================="
+    echo "local directory: "
+    echo
+    pwd
+fi
+echo "==========================================================="
+echo "unrecorded changes / extra files (darcs whatsnew -sl):"
+echo
+darcs whatsnew -sl
+echo "==========================================================="
+echo "changes not pushed (darcs push --dry-run):"
+echo
+darcs push --dry-run
+echo "==========================================================="
+echo "patches of last year (darcs changes --match 'date \"last year\"' -s)"
+echo
+darcs changes --match 'date "last year"' -s
