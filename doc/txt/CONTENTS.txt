@@ -145,6 +145,11 @@ Scripts
   | Combine and convert numerical data from .csv files for gnuplot use.
   | `documentation <scripts/csv2plot.html>`__
 
+**ctl-dist-info**
+  | A wrapper script for rsync-dist-info.py that is used to get information on
+    installed software versions of the BII and MLS controlsystem.
+  | `documentation <scripts/csv2plot.html>`__
+
 **cvs-recover.py**
   | A backup and recovery tool for CVS. 
   | Instead of saving the complete repository this script only saves

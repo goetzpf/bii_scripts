@@ -1,0 +1,215 @@
+#!/bin/bash
+
+# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# <https://www.helmholtz-berlin.de>
+#
+# Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set -e
+
+shopt -s nocasematch
+
+CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
+
+CONFIGFILE_BII=$CONFIGFILE_PATH/bii_controls
+CONFIGFILE_MLS=$CONFIGFILE_PATH/mls_controls
+
+verbose="no"
+app="bii_controls"
+part="IOC"
+
+list_links="no"
+names=""
+show_versions="no"
+
+function print_short_help {
+    me=`basename $0`
+    echo "$me: a small wrapper that calls rsync-dist-info.py"
+    echo "options:"
+    echo "  -h: this help"
+    echo "  --help: this text PLUS the help from rsync-dist-info.py"
+    echo "  -a --app [application]: application, currently known:"
+    echo "        bii : bii-controls, the default"
+    echo "        mls : mls-controls"
+    echo "  -p --part [part]: specify the distributed part of the application"
+    echo "        currently known: "
+    echo "        ioc : the binary and db files, the default"
+    echo "        opi : the panel files"
+    echo "  --list : just list the link names"
+    echo "  --active : show information on all active versions"
+    echo "  --verbose: show executed command"
+    echo "  --dry-run : just show how rsync-dist-info.py would be called"
+    echo 
+    echo "Examples:"
+    echo "  $me [name]"
+    echo "      shows version information for the given name (IOC)"
+    echo "  $me --list"
+    echo "      list all known names (IOCS)"
+    echo "  $me --active"
+    echo "      show all versions still in use"
+    echo "  $me -v [version]"
+    echo "      shows information for the given version"
+    echo
+    echo "Note: only versions that still exist on the server are shown"
+}
+
+function print_long_help {
+    print_short_help
+    echo 
+    echo "the following options are known to rsync-dist-info.py and can "
+    echo "also be used here:"
+    echo
+    rsync-dist-info.py -h
+}
+
+# declare all known insertion devices in a hash:
+
+args=("$@")
+while true; do
+    case "$1" in
+      -h)
+        print_short_help
+        exit 0
+        ;;
+      --help)
+        print_long_help
+        exit 0
+        ;;
+      -n| --names| -l| --lifetimes| --idle| --boot-times)
+        saveme="$saveme $1"
+        cmd_given="yes"
+        shift
+        ;;
+      -v| --versions)
+        saveme="$saveme $1"
+        show_versions="yes"
+        cmd_given="yes"
+        shift
+        ;;
+      --version-info)
+        saveme="$saveme $1 $2"
+        cmd_given="yes"
+        shift 2
+        ;;
+      --filter-names| --filter-names-rx| --filter-versions| --filter-inactive-since)
+        saveme="$saveme $1 $2"
+        shift 2
+        ;;
+      --filter-lifetime-smaller| --filter-lifetime-bigger| --fallback-info)
+        saveme="$saveme $1 $2"
+        shift 2
+        ;;
+      --active)
+        saveme="$saveme -v --filter-active"
+        cmd_given="yes"
+        shift
+        ;;
+      --list)
+        list_links="yes"
+        shift
+        ;;
+      -a| --app)
+        while true; do
+            if [[ $2 =~ ^bii ]]; then
+                app="bii_controls"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^mls ]]; then
+                app="mls_controls"
+                shift 2
+                break
+            fi
+            echo "unknown app: $2"
+            exit 1
+        done
+        ;;
+      -p| --part)
+        while true; do
+            if [[ $2 =~ ^ioc ]]; then
+                part="IOC"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^opi ]]; then
+                part="OPI"
+                shift 2
+                break
+            fi
+            echo "unknown part: $2"
+            exit 1
+        done
+        ;;
+      --verbose)
+        verbose="yes"
+        shift
+        ;;
+      --dry-run)
+        dryrun="yes"
+        shift
+        ;;
+      -- ) shift; break ;;
+      *)
+        if [ -z "$1" ]; then
+            break;
+        fi
+        if [[ $1 =~ ^- ]]; then
+            saveme="$saveme $1"
+        else
+            names="$names $1"
+        fi
+        shift
+        ;;
+    esac
+done
+
+configfile="$CONFIGFILE_PATH/$app-$part"
+
+opts="$opts -c $configfile --filter-existent"
+
+if [ $list_links = "yes" ]; then
+    opts="$opts -n -b"
+else
+    if [ -z "$cmd_given" ]; then
+        opts="$opts -n"
+    fi
+
+    if [ -n "$names" ]; then
+        names_list=`echo $names | sed -e 's/ \+/,/g'`
+        if [ $show_versions = "no" ]; then
+            opts="$opts --filter-names $names_list"
+        else
+            opts="$opts --filter-versions $names_list"
+        fi
+    fi
+
+    opts="$opts $saveme"
+fi
+
+#set -- $realargs
+
+#echo saved word: $saveme
+#echo run real command: "$@"
+#echo "opts: $opts"
+if [ -z "$dryrun" ]; then
+    if [ "$verbose" = "yes" ]; then
+        echo "rsync-dist-info.py $opts"
+    fi
+    rsync-dist-info.py $opts
+else
+    echo "rsync-dist-info.py $opts"
+fi
+
