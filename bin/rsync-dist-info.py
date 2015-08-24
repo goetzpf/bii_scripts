@@ -289,6 +289,19 @@ from optparse import OptionParser
 import sys
 import re
 
+# On host "elbe", there is a python module "ca" installed at
+# "/opt/Epics/extensions/python/lib/python2.7". This module however, is
+# incompatible with this script. We have to take "ca.py" from
+# "/opt/csr/lib/python". A proper solution would be to set PYTHONPATH correctly
+# (with "/opt/csr/lib/python" first), which would have to be configured in
+# "/opt/csr/setup.d/setup.sh". However, it is unclear if this would break some
+# other scripts. So for now we change the module search path in this script,
+# but only when it runs on host "elbe":
+
+import platform
+if platform.node()=="elbe":
+    sys.path.insert(1,"/opt/csr/lib/python")
+
 try:
     from ca import _ca
     import ca
