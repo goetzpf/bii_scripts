@@ -478,7 +478,7 @@ DOCTXT_PERLLIB_LIST= printData.pm \
 
 # files in the doc/txt directory that can be HTML converted
 # with makedoctext
-DOCTXT_TXT_LIST= USE_PERL.txt INSTALL.txt
+DOCTXT_TXT_LIST= USE_PERL.txt 
 
 # files in the doc/txt directory that can be HTML converted
 # with rst2html
