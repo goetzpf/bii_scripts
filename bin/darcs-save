@@ -39,8 +39,8 @@ cleanup () {
 trap cleanup INT QUIT TERM
 test -d $dest || mkdir $dest
 cp _darcs/prefs/defaultrepo $dest
-darcs record -a -m NOT-RECORDED
-darcs record -a -l -m NOT-ADDED
+darcs record -a --skip-long-comment -m NOT-RECORDED
+darcs record -a --skip-long-comment -l -m NOT-ADDED
 darcs tag "`whoami`@`uname -n`:`pwd`"
 darcs send -a --output=$dest/local-patches --dont-edit-description
 darcs changes -a --context --repo=`cat _darcs/prefs/defaultrepo` > $dest/remote-context
