@@ -95,6 +95,6 @@ echo "changes not pushed (darcs push --dry-run):"
 echo
 darcs push --dry-run
 echo "==========================================================="
-echo "patches of last year (darcs changes --match 'date \"last year\"' -s)"
+echo "patches of last year (darcs changes -a --match 'date \"last year\"' -s)"
 echo
-darcs changes --match 'date "last year"' -s
+darcs changes -a --match 'date "last year"' -s
