@@ -298,7 +298,7 @@ sub printRecord
     if( defined $ptable )
     {	$rH_records->{$record}->{'RTYP'} = $recT;
 
-	foreach my $field ( keys( %{$rH_records->{$record}} ) )
+	foreach my $field ( sort(keys( %{$rH_records->{$record}} )) )
 	{
             my $fVal = $rH_records->{$record}->{$field};
             if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
@@ -313,7 +313,7 @@ sub printRecord
 	}
      	return;
     }
-    foreach my $field ( keys( %{$rH_records->{$record}} ) )
+    foreach my $field ( sort(keys( %{$rH_records->{$record}} )) )
     {
         my $fVal = $rH_records->{$record}->{$field};
 
