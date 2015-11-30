@@ -81,6 +81,12 @@ Scripts
     facility.
   | `documentation <scripts/bdns_sort.html>`__
 
+**bdnsParse.pl**
+  | Parse and print BESSY device names according to their
+    member,index,subindex,family,counter,subdomain, subdomainnumber,domain and
+    facility.
+  | USAGE: bdnsParse.pl DEVNAME1 ...
+  
 **browsedb.pl**
   | a perl-script with a graphical user interface to browse the oracle database.
     The program can be used to view and change data in the database as well as
