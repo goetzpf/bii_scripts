@@ -12,12 +12,12 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -30,6 +30,8 @@ try:
 except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
                      __name__)
+
+# pylint: disable=invalid-name
 
 #import ptimezone
 
@@ -66,7 +68,7 @@ def caget(pv,type_=float, tmo=0.01, maxtmo=3):
         time.sleep(tmo)
         maxtmo -=tmo
         if maxtmo <=0:
-	    ch.clear()
+            ch.clear()
             raise ca.caError,"unable to get value for PV '%s'" % pv
     # garbage collection of ch will remove the channel access connection
     ch.clear()
@@ -103,10 +105,10 @@ def boot_time_from_rebootTime(pv_prefix):
         the boottime as a datetime.datetime object
 
     This requires that the IOC has a record named "pv_prefix:rebootTime"
-    that contains the reboot time in the format "%d-%b-%Y %H:%M:%S", 
+    that contains the reboot time in the format "%d-%b-%Y %H:%M:%S",
     e.g. "09-OCT-2009 16:27:09".
     """
-    (val, timestamp)= caget(pv_prefix+":rebootTime",str)
+    (val, _)= caget(pv_prefix+":rebootTime",str)
     return datetime_from_string(val)
 
 def boot_time_from_bootTime(pv_prefix):
@@ -118,10 +120,10 @@ def boot_time_from_bootTime(pv_prefix):
         the boottime as a datetime.datetime object
 
     This requires that the IOC has a record named "pv_prefix:bootTime"
-    that contains the reboot time in the format "%Y-%m-%dT%H:%M:%S", 
+    that contains the reboot time in the format "%Y-%m-%dT%H:%M:%S",
     e.g. "2009-10-21T16:27:09".
     """
-    (val, timestamp)= caget(pv_prefix+":bootTime",str)
+    (val, _)= caget(pv_prefix+":bootTime",str)
     return datetime_from_iso(val)
 
 def ca_try(call_list):
@@ -161,31 +163,30 @@ def boot_time_from_vxstats(pv_prefix):
     and that this record was processed only once, when the IOC
     was rebooted.
     """
-    (val, timestamp)= caget(pv_prefix+":cpuScanPeriod",float)
+    (_, timestamp)= caget(pv_prefix+":cpuScanPeriod",float)
     return timestamp
 
-idcp_prefix_map= {
-              "idcp3"  : "U125ID2R",
-              "idcp5"  : "UE56ID3R",
-              "idcp6"  : "U41IT6R",
-              "idcp7"  : "U49ID4R",
-              "idcp8"  : "UE49IT4R",
-              "idcp9"  : "UE52ID5R",
-              "idcp10" : "UE46IT5R",
-              "idcp11" : "UE56ID6R",
-              "idcp110": "U139ID6R",
-              "idcp12" : "UE48IT6R",
-              "idcp13" : "UE112ID7R",
-              "idcp15" : "U49ID8R",
-              "idcp80" : "U48IV",
-              "idcp81" : "UE56IV",
-              "idcp96" : "U125IV",
-              "idcp90" : "U125IL2RP",
-              "idcp98" : "U2IV",
-              "idcp97" : "U3IV",
-              "idcp95" : "U4IV",
-              "idcp99" : "U1IV",
-            }
+idcp_prefix_map= { "idcp3"  : "U125ID2R",
+                   "idcp5"  : "UE56ID3R",
+                   "idcp6"  : "U41IT6R",
+                   "idcp7"  : "U49ID4R",
+                   "idcp8"  : "UE49IT4R",
+                   "idcp9"  : "UE52ID5R",
+                   "idcp10" : "UE46IT5R",
+                   "idcp11" : "UE56ID6R",
+                   "idcp110": "U139ID6R",
+                   "idcp12" : "UE48IT6R",
+                   "idcp13" : "UE112ID7R",
+                   "idcp15" : "U49ID8R",
+                   "idcp80" : "U48IV",
+                   "idcp81" : "UE56IV",
+                   "idcp96" : "U125IV",
+                   "idcp90" : "U125IL2RP",
+                   "idcp98" : "U2IV",
+                   "idcp97" : "U3IV",
+                   "idcp95" : "U4IV",
+                   "idcp99" : "U1IV",
+                 }
 
 def idcp_prefix(name):
     """returns the undulator prefix for an insertion device IOC.
@@ -199,7 +200,7 @@ def boottime(link_name):
     """returns the boot-time for an IOC.
 
     parameters:
-        link_name  -- the name of the link in the rsync-dist 
+        link_name  -- the name of the link in the rsync-dist
                       link directory
     returns:
         the boottime as a datetime.datetime object
@@ -212,7 +213,7 @@ def boottime(link_name):
     try:
         devname= idcp_prefix(link)
         type_= "IDCP"
-    except ValueError, e:
+    except ValueError, _:
         devname= link.upper()
     if link.endswith("p"):
         type_= "MLS"
