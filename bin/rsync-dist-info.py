@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
+# pylint: disable=invalid-name
 
 # Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
@@ -10,14 +11,16 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# pylint: disable=line-too-long
 
 """
 ======================
@@ -40,12 +43,12 @@ Here are the terms used in this manual:
 version
   This is a single version of the distributed software. A version is a
   directory in the rsync-dist distribution directory whose last part
-  is an ISO Date string like "2009-04-01T12:15". 
+  is an ISO Date string like "2009-04-01T12:15".
 
 link
   This is a symbolic link in the rsync-dist link directory that
-  points to a specific version. Links may come into existence at 
-  some point of time pointing to a specific version. They may be 
+  points to a specific version. Links may come into existence at
+  some point of time pointing to a specific version. They may be
   changed at another time to point to another
   version and they may be deleted some time later.
 
@@ -109,59 +112,59 @@ the *names* format
          2009-10-05 11:40:10    2009-10-05T11:39:00
          2009-10-06 13:26:18    2009-10-06T13:25:13
     *    2009-10-06 13:40:49    2009-10-06T13:40:40
-    
+
     SIOC8C:
          2009-10-05 11:40:10    2009-10-05T11:39:00
          2009-10-06 13:26:18    2009-10-06T13:25:13
     *    2009-10-06 13:40:49    2009-10-06T13:40:40
-    
+
     SIOC9C:
          2009-10-05 11:40:10    2009-10-05T11:39:00
          2009-10-06 13:26:18    2009-10-06T13:25:13
          2009-10-06 13:40:49    REMOVED
 
 the *versions* format
-  This format shows for each version at what time what symbolic links (names) pointed
-  to this version. If a symbolic link was made to point to a different version
-  at a certain date, the old version has a new entry with that timestamp with
-  this symbolic link removed. If there are no symbolic links for a version,
-  the list is empty. This shows that from this date on, the version is no longer 
-  in use. Here is an example::
+  This format shows for each version at what time what symbolic links (names)
+  pointed to this version. If a symbolic link was made to point to a different
+  version at a certain date, the old version has a new entry with that
+  timestamp with this symbolic link removed. If there are no symbolic links for
+  a version, the list is empty. This shows that from this date on, the version
+  is no longer in use. Here is an example::
 
     2009-07-06T13:22:40:
          2009-07-06 13:22:59    SIOC1C
-         2009-10-05 11:25:11    
-    
+         2009-10-05 11:25:11
+
     2009-07-09T13:42:56:
          2009-07-09 13:43:17    IOC1S15G
          2009-07-09 13:43:43    IOC1S15G IOC1S1G
          2009-07-13 08:13:32    IOC1S1G
-         2009-07-16 11:50:50    
+         2009-07-16 11:50:50
 
 the *lifetimes* format
-  This format shows the timespan a version was in use, meaning the time 
+  This format shows the timespan a version was in use, meaning the time
   when at least one symbolic link pointed to that version. In this format
-  the first and last date of any usage is printed as well as the lifetime 
+  the first and last date of any usage is printed as well as the lifetime
   in fractions of days. If the version is at this time still in use,
   the second date is "NOW".
   Here is an example::
 
     2009-09-22T11:56:18:
-         2009-09-22 11:56:43    2009-10-05 11:25:11 
+         2009-09-22 11:56:43    2009-10-05 11:25:11
                                                         13.0
     2009-09-28T09:29:48:
-         2009-09-28 09:31:04    2009-10-05 11:25:11 
-         2009-10-05 19:25:18    2009-10-06 13:26:18 
+         2009-09-28 09:31:04    2009-10-05 11:25:11
+         2009-10-05 19:25:18    2009-10-06 13:26:18
                                                          7.8
     2009-09-28T12:42:12:
-         2009-09-28 12:42:29    2009-10-05 11:25:11 
+         2009-09-28 12:42:29    2009-10-05 11:25:11
                                                          6.9
                                                          0.97
 
 the *idles* format
-  This format is used for the special -i or --idle option. It is 
-  a list of the sub-directories in the distribution directory 
-  that are not and were never in use, meaning no symbolic link ever pointed 
+  This format is used for the special -i or --idle option. It is
+  a list of the sub-directories in the distribution directory
+  that are not and were never in use, meaning no symbolic link ever pointed
   to them. Here is an example::
 
     2009-07-06T09:08:56
@@ -175,8 +178,8 @@ the *boottimes* format
     name            version              activated            booted               comment
     BAWATCHP        2009-02-18T15:10:54  2009-02-18T15:11:06  -                    dont't known how to find boottime for this name
     IOC1S1GP        2009-10-23T14:06:35  2009-10-23T14:07:06  2009-10-09T16:27:09  IOC doesn't run with active version
-    IOC1S4GP        2009-10-09T14:54:54  2009-10-09T14:55:18  2009-10-09T14:56:54  
-    IOC2S1GP        2009-11-13T11:58:23  2009-11-13T11:58:36  2009-11-13T13:30:15  
+    IOC1S4GP        2009-10-09T14:54:54  2009-10-09T14:55:18  2009-10-09T14:56:54
+    IOC2S1GP        2009-11-13T11:58:23  2009-11-13T11:58:36  2009-11-13T13:30:15
 
   If the option --verbose is used together with --boot-times, the number of days
   the IOC's are running is also printed::
@@ -184,8 +187,8 @@ the *boottimes* format
     name            version              activated            booted               days running  comment
     BAWATCHP        2009-02-18T15:10:54  2009-02-18T15:11:06  -                               -  dont't known how to find boottime for this name
     IOC1S1GP        2009-10-23T14:06:35  2009-10-23T14:07:06  2009-10-09T16:27:09          38.8  IOC doesn't run with active version (for 24.9 days)
-    IOC1S4GP        2009-10-09T14:54:54  2009-10-09T14:55:18  2009-10-09T14:56:54          38.9  
-    IOC2S1GP        2009-11-13T11:58:23  2009-11-13T11:58:36  2009-11-13T13:30:15           3.9  
+    IOC1S4GP        2009-10-09T14:54:54  2009-10-09T14:55:18  2009-10-09T14:56:54          38.9
+    IOC2S1GP        2009-11-13T11:58:23  2009-11-13T11:58:36  2009-11-13T13:30:15           3.9
 
 
 Reference of command line options
@@ -201,7 +204,7 @@ Reference of command line options
   print a one-line summary of the script function
 
 --doc
-  create online help in restructured text format. 
+  create online help in restructured text format.
   Use "./rsync-dist-info.py --doc | rst2html" to create html-help"
 
 -t, --test
@@ -221,11 +224,11 @@ Reference of command line options
   print lifetime summary for each version
 
 -i, --idle
-  print idle versions, versions that are not in 
+  print idle versions, versions that are not in
   use and never have been.
 
 --version-info VERSIONS
-  show logfile information for VERSIONS. VERSIONS 
+  show logfile information for VERSIONS. VERSIONS
   is a comma-separated list of version strings.
 
 --boot-times
@@ -239,7 +242,7 @@ Reference of command line options
 --last NO
   with --names, print only the last NO versions
   for each name
-  
+
 --filter-names NAMES
   NAMES may be a comma separated list. Only these
   names and their versions are printed.
@@ -265,28 +268,31 @@ Reference of command line options
   filter versions with a lifetime bigger than DAYS
 
 --filter-existent
-  show only version that are still existent in the 
-  distribution directory. 
+  show only version that are still existent in the
+  distribution directory.
 
 --filter-nonexistent
-  show only version that are not existent in the 
-  distribution directory. 
+  show only version that are not existent in the
+  distribution directory.
 
 --filter-ignexistent
   show versions no matter if they exist or exist not
-  in the distribution directory. This is needed if 
+  in the distribution directory. This is needed if
   you want to overturn the implicit --filter-existent
   that is otherwise set.
-  
+
 --fallback-info LINKNAME
   show a short list of recommended versions for
   the given linkname. This option corresponds to
-  -n --filter-lifetime-bigger 2 --last 3 --filter-names 
+  -n --filter-lifetime-bigger 2 --last 3 --filter-names
   LINKNAME.
 """
 
+# pylint: enable=line-too-long
+
 from optparse import OptionParser
 import sys
+import os
 import re
 
 # On host "elbe", there is a python module "ca" installed at
@@ -302,12 +308,14 @@ import platform
 if platform.node()=="elbe":
     sys.path.insert(1,"/opt/csr/lib/python")
 
+# pylint: disable=unused-import
 try:
     from ca import _ca
     import ca
 except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
                      __name__)
+# pylint: enable=unused-import
 
 import datetime
 import dateutils
@@ -316,23 +324,20 @@ import boottime
 
 
 # version of the program:
-my_version= "1.1"
+MY_VERSION= "1.1"
 
 def boot_times(objs, verbose=False, csv=False):
     """print boot-times overview."""
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-branches
     def daydiff(d1, d2):
         """returns the difference (d2-d1) between two dates in days."""
         if d1 is None:
             return "-"
         d= d2-d1
         return "%6.1f" % (d.days+d.seconds/86400.0)
-    def dash(x):
-        """returns "-" if x is undef."""
-        if x is None:
-            return "-"
-        return x
     # get all names, but only the names that are not deleted:
-    names= filter(lambda n: objs.logByName.name_exists(n), objs.logByName.keys())
+    names= [n for n in objs.logByName.keys() if objs.logByName.name_exists(n)]
     act_dist= {}
     for name, entries in objs.logByName.items():
         act_dist[name]= entries[-1]
@@ -361,7 +366,7 @@ def boot_times(objs, verbose=False, csv=False):
         (activated,version)= act_dist[name]
         try:
             booted= boottime.boottime(name)
-        except IOError, e:
+        except IOError, _:
             booted= None
             comment="IOC cannot be contacted!"
         if version is None:
@@ -375,14 +380,16 @@ def boot_times(objs, verbose=False, csv=False):
                 if booted<=activated:
                     comment="IOC doesn't run with active version"
                     if verbose:
-                        comment+= " (for %s days)" % daydiff(activated,today).strip()
+                        comment+= " (for %s days)" % \
+                                  daydiff(activated,today).strip()
                 else:
                     comment=""
         print r_format % \
                { "name":name,
                  "version": str(version) if version is not None else "-",
                  "activated": dateutils.isodatetime(activated),
-                 "booted": dateutils.isodatetime(booted) if booted is not None else "-",
+                 "booted": dateutils.isodatetime(booted) \
+                           if booted is not None else "-",
                  "days": daydiff(booted,today),
                  "comment": comment,
                }
@@ -391,6 +398,9 @@ def boot_times(objs, verbose=False, csv=False):
 def process(options):
     """process a single file.
     """
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-statements
     existent_versions_set= [None]
     existent_names_set   = [None]
 
@@ -404,7 +414,7 @@ def process(options):
         distLs= rd.DistLs(rd.get_dist_ls(options.config))
         existent_versions_set[0]= set(distLs.keys())
         existent_versions_set[0].add(None)
-        # ^^^ in order to keep entries in logByName where the 
+        # ^^^ in order to keep entries in logByName where the
         # version is <None>, that means entries when the name
         # was deleted
         return existent_versions_set[0]
@@ -420,25 +430,33 @@ def process(options):
         return existent_names_set[0]
 
     class Objs(object):
+        """class that holds all rsync-dist information."""
         def __init__(self):
+            """create the object empty."""
             self.logByName= None
             self.logByVersion= None
             self.versionActivities= None
             self.versionLifetimes= None
         def filter_by_name(self, keep, use_regexp= False):
+            """implement filer-by-name."""
             if self.logByName is not None:
-                self.logByName        = self.logByName.select_names(keep, use_regexp= use_regexp)
+                self.logByName        = self.logByName.select_names(keep,\
+                                            use_regexp= use_regexp)
             if self.logByVersion is not None:
-                self.logByVersion     = self.logByVersion.select_names(keep, use_regexp= use_regexp)
+                self.logByVersion     = self.logByVersion.select_names(keep,\
+                                            use_regexp= use_regexp)
         def filter_by_version(self, keep):
+            """implement filer-by-version."""
             if self.logByName is not None:
-                self.logByName        = self.logByName.select_versions(keep)
+                self.logByName     = self.logByName.select_versions(keep)
             if self.logByVersion is not None:
-                self.logByVersion     = self.logByVersion.select_versions(keep)
+                self.logByVersion  = self.logByVersion.select_versions(keep)
             if self.versionActivities is not None:
-                self.versionActivities= self.versionActivities.select_versions(keep)
+                self.versionActivities= \
+                    self.versionActivities.select_versions(keep)
             if self.versionLifetimes is not None:
-                self.versionLifetimes = self.versionLifetimes.select_versions(keep)
+                self.versionLifetimes =  \
+                    self.versionLifetimes.select_versions(keep)
 
     if options.version_info:
         distLog= rd.DistLog(rd.get_dist_log(options.config))
@@ -501,7 +519,7 @@ def process(options):
         if not options.filter_ignexistent:
             keep= existent_versions()
             objs.filter_by_version(keep)
-        
+
     if options.filter_active:
         keep= objs.versionActivities.active_versions()
         objs.filter_by_version(keep)
@@ -510,8 +528,9 @@ def process(options):
         since_date= None
         if options.filter_inactive_since is not None:
             try:
-                since_date= dateutils.parse_isodate(options.filter_inactive_since)
-            except ValueError,e:
+                since_date= \
+                    dateutils.parse_isodate(options.filter_inactive_since)
+            except ValueError,_:
                 sys.exit("invalid date:%s" % options.filter_inactive_since)
         keep= objs.versionActivities.inactive_versions(since_date)
         # keep the Version==<None> entries:
@@ -519,18 +538,20 @@ def process(options):
         objs.filter_by_version(keep)
 
     if options.filter_lifetime_smaller:
-        bigger= objs.versionLifetimes.lifetime_bigger(options.filter_lifetime_smaller)
+        bigger= objs.versionLifetimes.lifetime_bigger(\
+                    options.filter_lifetime_smaller)
         keep= set(objs.logByVersion.keys()).difference(set(bigger))
         objs.filter_by_version(keep)
-        
+
     if options.filter_lifetime_bigger:
-        keep= objs.versionLifetimes.lifetime_bigger(options.filter_lifetime_bigger)
+        keep= objs.versionLifetimes.lifetime_bigger(\
+                  options.filter_lifetime_bigger)
         objs.filter_by_version(keep)
 
     if options.boot_times:
         boot_times(objs,options.verbose,options.csv)
     elif options.names:
-        objs.logByName.print_(options.brief,options.last) 
+        objs.logByName.print_(options.brief,options.last)
         #for n,l in objs.logByName.items():
         #    print "-" * 30
         #    print n,":"
@@ -566,7 +587,8 @@ def print_doc():
 
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: a tool for processing the rsync-dist link log\n" % script_shortname()
+    print "%-20s: a tool for processing the rsync-dist link log\n" % \
+          script_shortname()
 
 def _test():
     """does a self-test of some functions defined here."""
@@ -580,52 +602,56 @@ def main():
 
     parse the command-line options and perform the command
     """
+    # pylint: disable=too-many-statements
     # command-line options and command-line help:
     usage = "usage: %prog [options] {files}"
 
     parser = OptionParser(usage=usage,
-                          version="%%prog %s" % my_version,
+                          version="%%prog %s" % MY_VERSION,
                           description="this program prints summaries and "
-                                      "statistics of rsync-dist link-log files.")
+                                      "statistics of rsync-dist "
+                                      "link-log files."
+                         )
 
     parser.add_option("--summary",  # implies dest="nodelete"
                       action="store_true", # default: None
                       help="print a summary of the function of the program",
-                      )
-    parser.add_option( "--doc",            # implies dest="switch"
-                  action="store_true", # default: None
-                  help="create online help in restructured text"
-                       "format. Use \"./rsync-dist-info.py --doc | rst2html\" "
-                       "to create html-help"
-                  )
+                     )
+    parser.add_option("--doc",            # implies dest="switch"
+                      action="store_true", # default: None
+                      help="create online help in restructured text"
+                           "format. Use "
+                           "\"./rsync-dist-info.py --doc | rst2html\" "
+                           "to create html-help"
+                     )
 
     parser.add_option("-t", "--test",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="perform simple self-test", 
-                      )
+                      help="perform simple self-test",
+                     )
     parser.add_option("-c", "--config", # implies dest="file"
                       action="store", # OptionParser's default
                       type="string",  # OptionParser's default
                       help="specify the rsync-dist config file",
                       metavar="CONFIGFILE"  # for help-generation text
-                      )
+                     )
     parser.add_option("-n", "--names",   # implies dest="switch"
                       action="store_true", # default: None
                       help="print summary for each link-name",
-                      )
+                     )
     parser.add_option("-v", "--versions",   # implies dest="switch"
                       action="store_true", # default: None
                       help="print summary for each version",
-                      )
+                     )
     parser.add_option("-l", "--lifetimes",   # implies dest="switch"
                       action="store_true", # default: None
                       help="print lifetime summary for each version",
-                      )
+                     )
     parser.add_option("-i", "--idle",   # implies dest="switch"
                       action="store_true", # default: None
                       help="print idle versions, versions that are "+\
                            "not in use and never have been.",
-                      )
+                     )
     parser.add_option("--version-info",   # implies dest="switch"
                       action="store", # default: None
                       type="string",
@@ -633,32 +659,32 @@ def main():
                            "VERSIONS is a comma-separated "+\
                            "list of version strings.",
                       metavar="VERSIONS",
-                      )
+                     )
     parser.add_option("--boot-times",   # implies dest="switch"
                       action="store_true", # default: None
                       help="check boot-times in relation with "+\
                            "times a version was activated",
-                      )
+                     )
     parser.add_option("--csv",   # implies dest="switch"
                       action="store_true", # default: None
                       help="use csv format for boot-times command",
-                      )
+                     )
     parser.add_option("--verbose",   # implies dest="switch"
                       action="store_true", # default: None
                       help="make boot-times printout more verbose",
-                      )
+                     )
     parser.add_option("-b", "--brief",   # implies dest="switch"
                       action="store_true", # default: None
                       help="brief output, with -n just show link names,"+\
                            "with -v and -l just show version names"
-                      )
+                     )
     parser.add_option("--last",   # implies dest="switch"
                       action="store", # default: None
                       type="int",
                       help="print only the last NO versions for each name, "+\
                            "only for option -n.",
                       metavar="NO",
-                      )
+                     )
     parser.add_option("--filter-names",   # implies dest="switch"
                       action="store", # default: None
                       type="string",
@@ -666,7 +692,7 @@ def main():
                            "by LINKNAMES, which may be a comma-separated "+\
                            "list of link names.",
                       metavar="LINKNAMES",
-                      )
+                     )
     parser.add_option("--filter-names-rx",   # implies dest="switch"
                       action="store", # default: None
                       type="string",
@@ -674,7 +700,7 @@ def main():
                            "by LINKREGEXP, which may be a comma-separated "+\
                            "list of regular expressions.",
                       metavar="LINKREGEXP",
-                      )
+                     )
     parser.add_option("--filter-versions",   # implies dest="switch"
                       action="store", # default: None
                       type="string",
@@ -682,78 +708,82 @@ def main():
                            "by VERSIONS, which may be a comma-separated "+\
                            "list of versions.",
                       metavar="VERSIONS",
-                      )
+                     )
     parser.add_option("--filter-active",   # implies dest="switch"
                       action="store_true", # default: None
                       help="show only versions that are now in use",
-                      )
+                     )
     parser.add_option("--filter-inactive",   # implies dest="switch"
                       action="store_true", # default: None
                       help="show only versions that are not in use",
-                      )
+                     )
     parser.add_option("--filter-inactive-since",   # implies dest="switch"
                       action="store", # default: None
                       type="string",
-                      help="filter versions inactive for longer than a given DATE",
+                      help="filter versions inactive for longer than "
+                           "a given DATE",
                       metavar="DATE",
-                      )
+                     )
     parser.add_option("--filter-lifetime-smaller",   # implies dest="switch"
                       action="store", # default: None
                       type="float",
-                      help="filter versions with a lifetime smaller than DAYS",
+                      help="filter versions with a lifetime smaller "
+                           "than DAYS",
                       metavar="DAYS",
-                      )
+                     )
     parser.add_option("--filter-lifetime-bigger",   # implies dest="switch"
                       action="store", # default: None
                       type="float",
-                      help="filter versions with a lifetime bigger than DAYS",
+                      help="filter versions with a lifetime bigger than "
+                           "DAYS",
                       metavar="DAYS",
-                      )
+                     )
     parser.add_option("--filter-existent",   # implies dest="switch"
                       action="store_true", # default: None
-                      help="show only versions that are still existent in the "+\
-                           "distribution directory.",
-                      )
+                      help="show only versions that are still existent "
+                           "in the distribution directory.",
+                     )
     parser.add_option("--filter-nonexistent",   # implies dest="switch"
                       action="store_true", # default: None
-                      help="show only versions that are not existent in the "+\
+                      help="show only versions that are not existent in the "
                            "distribution directory.",
-                      )
+                     )
     parser.add_option("--filter-ignexistent",   # implies dest="switch"
                       action="store_true", # default: None
-                      help= "show versions no matter if they exist or exist not"+\
-                            "in the distribution directory. This is needed if "+\
-                            "you want to overturn the implicit --filter-existent"+\
-                            "that is otherwise set.",
-                      )
+                      help= "show versions no matter if they exist or exist "
+                            "not in the distribution directory. This is "
+                            "needed if you want to overturn the implicit "
+                            "--filter-existent that is otherwise set.",
+                     )
     parser.add_option("--filter-existent-names",   # implies dest="switch"
                       action="store_true", # default: None
                       help="show only names that are existent in the "+\
                            "distribution directory.",
-                      )
+                     )
     parser.add_option("--filter-nonexistent-names",   # implies dest="switch"
                       action="store_true", # default: None
                       help="show only names that are not existent in the "+\
                            "distribution directory.",
-                      )
+                     )
     parser.add_option("--fallback-info",   # implies dest="switch"
                       action="store", # default: None
                       type="string",
-                      help="show recommended fallback versions for LINKNAME. "+\
-                           "this corresponds to -n --filter-lifetime-bigger 2 "+\
-                           "--last 3 --filter-names LINKNAME",
+                      help="show recommended fallback versions for "
+                           "LINKNAME. This corresponds to -n "
+                           "--filter-lifetime-bigger 2 --last 3 "
+                           "--filter-names LINKNAME",
                       metavar="LINKNAME",
-                      )
+                     )
 
-    x= sys.argv
-    (options, args) = parser.parse_args()
+    # x= sys.argv
+    (options, _) = parser.parse_args()
     # options: the options-object
     # args: list of left-over args
 
     if options.summary:
         print_summary()
         sys.exit(0)
- 
+
     if options.doc:
         print_doc()
         sys.exit(0)
@@ -762,7 +792,7 @@ def main():
         _test()
         sys.exit(0)
 
-    cmds= [options.names, options.versions, options.lifetimes, 
+    cmds= [options.names, options.versions, options.lifetimes,
            options.idle,options.boot_times, (options.version_info is not None)]
     vstr="--names,--versions,--lifetimes,--idle,--version-info,boot-times"
 
