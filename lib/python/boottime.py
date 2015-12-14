@@ -168,7 +168,7 @@ def boot_time_from_vxstats(pv_prefix):
 
 idcp_prefix_map= { "idcp3"  : "U125ID2R",
                    "idcp5"  : "UE56ID3R",
-                   "idcp6"  : "U41IT6R",
+                   "idcp6"  : "U41IT3R",
                    "idcp7"  : "U49ID4R",
                    "idcp8"  : "UE49IT4R",
                    "idcp9"  : "UE52ID5R",
