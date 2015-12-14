@@ -306,7 +306,9 @@ import re
 
 import platform
 if platform.node()=="elbe":
-    sys.path.insert(1,"/opt/csr/lib/python")
+    sys.path=[x for x in sys.path \
+              if not \
+              x.startswith("/opt/Epics/extensions/python/lib/python2.7")]
 
 # pylint: disable=unused-import
 try:
