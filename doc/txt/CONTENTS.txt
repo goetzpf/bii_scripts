@@ -303,13 +303,18 @@ Scripts
   | `documentation <scripts/grepDb.html>`__
 
 **hg2darcs.py**
-  | A program that calls kompare to do comparisions of the
-
-  | A program that converts mercurial revisions to darcs revisions. The
-    changes, log messages and "author information remain intact, only the
+  | A program that converts mercurial revisions to darcs revisions.
+  | The changes, log messages and "author information remain intact, only the
     record date is set to today. Note that a darcs repository must already be
     present.
   | `documentation <scripts/hg2darcs.html>`__
+
+**hg2git.py**
+  | A program that converts mercurial revisions to git revisions. 
+  | The changes, log messages and "author information remain intact, only the
+    record date is set to today. Note that a git repository must already be
+    present.
+  | `documentation <scripts/hg2git.html>`__
 
 **hg-kompare.py**
   | A program that calls kompare to do comparisions of the

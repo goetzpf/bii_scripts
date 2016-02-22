@@ -362,7 +362,7 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PY_SCRIPT_LIST= \
 	hg-kompare.py pyone.py sqlutil.py ssh-pw.py \
-	hg2darcs.py
+	hg2darcs.py hg2git.py
 
 RST_DOC_SCRIPT_LIST= \
         hg-sig \
