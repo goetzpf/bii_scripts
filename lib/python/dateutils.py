@@ -162,9 +162,10 @@ def parse_lsl_shortdate(str,year=None):
     ValueError: time data 'Oct  9 10:42b' does not match format '%b %d %Y'
     """
     try:
-        d= datetime.datetime.strptime(str,"%b %d %H:%M")
-        if year is not None:
-            d= d.replace(year=year)
+        if year is None:
+            # if the year is not give, we assume the current year:
+            year= datetime.datetime.now().year
+        d= datetime.datetime.strptime("%s %s" % (str,year),"%b %d %H:%M %Y")
     except ValueError,e:
         d= datetime.datetime.strptime(str,"%b %d %Y")
     return d
