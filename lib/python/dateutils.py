@@ -22,6 +22,7 @@
 """
 import locale
 import datetime
+import sys
 
 def parse_isodate(str):
     """parse an ISO date without a time.
@@ -136,7 +137,16 @@ def parse_lsl_isodate(str):
     return datetime.datetime.strptime(str,"%Y-%m-%d %H:%M")
 
 # test with the default locale plus "de_DE.UTF-8":
-_locale_list=(None, "de_DE.UTF-8")
+
+if sys.version_info[0:2] <= (2,5):
+    # Here is a fix for python version 2.5. For some weird reason, parsing a
+    # date with locale "de_DE.UTF-8" fails, you must set the locale then to
+    # "de_DE" and then parse the date again. You must do exactly this,
+    # replacing "de_DE.UTF-8" just with "de_DE" doesn't work. 
+    _locale_list=(None, "de_DE.UTF-8", "de_DE")
+else:
+    _locale_list=(None, "de_DE.UTF-8")
+
 _default_locale= locale.setlocale(locale.LC_TIME, None)
 
 def my_strptime(st, format):
