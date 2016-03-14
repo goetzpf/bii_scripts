@@ -20,6 +20,7 @@
 
 """utilities for string <-> datetime conversions.
 """
+import locale
 import datetime
 
 def parse_isodate(str):
@@ -134,6 +135,28 @@ def parse_lsl_isodate(str):
     """
     return datetime.datetime.strptime(str,"%Y-%m-%d %H:%M")
 
+# test with the default locale plus "de_DE.UTF-8":
+_locale_list=(None, "de_DE.UTF-8")
+_default_locale= locale.setlocale(locale.LC_TIME, None)
+
+def my_strptime(st, format):
+    # a strptime replacement that checks with several locales:
+    locale_changed= False
+    try:
+        for i in xrange(len(_locale_list)):
+            l= _locale_list[i]
+            if l is not None:
+                locale.setlocale(locale.LC_TIME, l)
+                locale_changed= True
+            try:
+                return datetime.datetime.strptime(st, format)
+            except ValueError, e:
+                if i+1==len(_locale_list):
+                    raise
+    finally:
+        if locale_changed:
+            locale.setlocale(locale.LC_TIME, _default_locale)
+
 def parse_lsl_shortdate(str,year=None):
     """parse an yearless date produced from ls -l.
 
@@ -165,9 +188,9 @@ def parse_lsl_shortdate(str,year=None):
         if year is None:
             # if the year is not give, we assume the current year:
             year= datetime.datetime.now().year
-        d= datetime.datetime.strptime("%s %s" % (str,year),"%b %d %H:%M %Y")
+        d= my_strptime("%s %s" % (str,year),"%b %d %H:%M %Y")
     except ValueError,e:
-        d= datetime.datetime.strptime(str,"%b %d %Y")
+        d= my_strptime(str,"%b %d %Y")
     return d
 
 def parse_lsl_date(str,year=None):
