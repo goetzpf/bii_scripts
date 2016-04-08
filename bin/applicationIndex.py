@@ -52,7 +52,7 @@ def getIoc(dbIoc,db):
     """ little html helper
     """
     if dbIoc.has_key(db):   
-        return reduce(lambda y,x:y+str("<A HREF=\"#"+x+"\">"+x+"</A><br>"),dbIoc[db],"")
+        return reduce(lambda y,x:y+str("<A HREF=\"#APP_"+x+"\">"+x+"</A><br>"),dbIoc[db],"")
     else: 
         return None
 
@@ -342,23 +342,13 @@ print >> FILE, htmlHeader
 if options.verbose is True: print "*** Write File:", filename
 print >> FILE, "<P>last update: "+time.strftime("%d.%m.%Y")+"</P>\n"
 print >> FILE, '</P>'
-print >> FILE, '<H2>Content</H2>\n<P>&bull <A HREF="#APP_REF">Application Reference</A><br>&bull <A HREF="#IOC_APP">IOC Application Reference</A></P>'
-print >> FILE, '<P>IOC Hardware Reference</A></P>\n'
-
-# lod.filterMatch raises an exception when iocHw is None at this place in the
-# script. I don't quite understand what to do in this case, but the follwing if
-# statement avoids that the script stops with an exception
-#   (Goetz.Pfeiffer@helmholtz-berlin.de).
-if iocHw is not None:
-    (forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
-for ioc in sorted(iocDb.keys()):
-    (iocHwList,getHw) = lod.filterMatch(getHw,{'iocname':ioc})
-    if len(iocHwList) == 0: 
-        continue
-    print >> FILE, '<LI><A HREF="#HW_'+ioc+'">'+ioc+'</A>'
+print >> FILE, """<H2>Content</H2>
+<UL><LI> <B> <A HREF="#APP_REF">Application Reference</A>:</B> Files created by Application and IOC name where it is loaded.</LI>
+    <LI> <B> <A HREF="#IOC_APP">IOC Application Reference</A>:</B> All files load by an IOC</LI>
+    <LI> <B> <A HREF="#IOC_HW">Hardware IOC Reference</A>:</B> Hardware channels of an IOC</LI>
+</UL>"""
 
 print >> FILE, '</UL>\n<H2><A NAME="APP_REF"></A>Application Reference</H2>\n\n<TABLE BORDER=1>'
-
 if appDb:
     dbNotLoaded = []
     for app in appDb.keys():
@@ -371,7 +361,7 @@ if appDb:
             iocName = "not loaded on IOC"
             dbNotLoaded.append(dbList[0])
         print >> FILE, "<TR >\n  <TD "+span+"VALIGN=\"TOP\"><A NAME=\""+app+"\">"+app+"</TD>\n  <TD VALIGN=\"TOP\">"+dbList[0]+"</TD>\n  <TD>"+iocName+"</TD></TR>"
-        for db in dbList[1:]:
+        for db in sorted(dbList[1:]):
             iocName = getIoc(dbIoc,db)
             if iocName == None:
                 iocName = "not loaded on IOC"
@@ -381,14 +371,24 @@ if appDb:
     if options.verbose is True and len(dbNotLoaded) > 0: 
         print "*** Warning: .db files not loaded on IOC:\n",dbNotLoaded
 
+print >> FILE, '<A NAME="IOC_APP"></A>\n<H2>IOC Application Reference</H2>\n<P>'
+
+if iocHw:
+    (forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
+    hwIocs={}
+    for item in getHw: hwIocs[item['iocname']] = 1
+    hwIocList = sorted(hwIocs.keys())
+
 if iocDb:
-    print >> FILE, '<A NAME="IOC_APP"></A>\n<H2>IOC Application Reference</H2>\n\n<TABLE BORDER=1>'
+    print >> FILE, " &bull; ".join( map(lambda x: '<A HREF="#APP_'+x+'">'+x+'</A>',sorted(iocDb.keys() ) ) ) + "</P>\n<TABLE BORDER=1>\n"
     for ioc in sorted(iocDb.keys()):
         dbList = iocDb[ioc]
         span = ""
         if len(dbList) > 1:
             span = "ROWSPAN=\""+str(len(dbList))+"\" "
-        setIoc = '<TH '+span+'VALIGN="TOP"><A NAME="'+ioc+'"><A HREF="#HW_'+ioc+'">'+ioc+'</A></TH>\n  '
+        setIoc = '<TH '+span+'VALIGN="TOP"><A NAME="APP_'+ioc+'">'
+	if hwIocs.has_key(ioc): setIoc += '<A HREF="#HW_'+ioc+'">'+ioc+'</A></TH>\n'
+	else:                   setIoc += ioc+'</TH>\n'
         for dbObj in dbList:
             print >> FILE,'<TR>\n  '+setIoc+'<TD>'+getDb(dbApp,dbObj['DB'])+'</TD></TR>'
             if len(setIoc) > 0:         # first item only
@@ -396,10 +396,11 @@ if iocDb:
     print >> FILE, "</TABLE>\n"
 
 if iocHw:
-    print >> FILE, "<H2>IOC Hardware Reference</H2>\n\n"
-    (forgetThisList,getHw) = lod.filterMatch(iocHw,{'DTYP':['HwClient','Dist Version','IOC stats','Raw Soft Channel','Soft Channel','Soft Timestamp','Soft Timestamp WA','VX stats','VxWorks Boot Parameter']})
-    for ioc in iocDb.keys():
-        (iocHwList,getHw) = lod.filterMatch(getHw,{'iocname':ioc})
+    print >> FILE, '<A NAME="IOC_HW"><H2>Hardware IOC Reference</H2>\n'
+    print >> FILE, '<P>'," &bull; ".join( map(lambda x: '<A HREF="#HW_'+x+'">'+x+'</A>',hwIocList ) ),'</P>\n'
+
+    for ioc in hwIocList:
+        (iocHwList,forgetThisList) = lod.filterMatch(getHw,{'iocname':ioc})
         if len(iocHwList) == 0: 
             continue
 
@@ -410,7 +411,7 @@ if iocHw:
         (canList,otherList) = lod.filterMatch(iocHwList,{'DTYP':['lowcal',],})
         table = lod.orderToTable(canList,order)
         if len(table) > 0:
-            print >> FILE, '<TABLE BORDER=1>\n<TR>'+toCol(['Process Variable','Port','CAN-Id','Card','Chan','Link','Port, In-, OutCOB, Mux'],'TH')+'\n</TR>'
+            print >> FILE, '<TABLE BORDER=1>\n<TR>'+toCol(['Process Variable','Port','CAN-Id','Card','Chan','Link','Port, In-, OutCOB, Mux','File','Application'],'TH')+'\n</TR>'
             try:
                 for (port,nid,cid,CARD,CHAN,LINK,pvname,filename) in table:
                     if LINK is not None:
@@ -424,7 +425,7 @@ if iocHw:
                     LINK = '<DIV TITLE="'+t+'">'+LINK+'</DIV>'
 
                     pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
-                    print >> FILE, "<TR>"+toCol([pvname,port,nid,CARD,CHAN,LINK,cid])+"\n</TR>"
+                    print >> FILE, "<TR>"+toCol([pvname,port,nid,CARD,CHAN,LINK,cid,dbApp[filename],filename])+"\n</TR>"
             except KeyError:
                 print "ERROR in print '"+pvname+"', CAN-Devices: '"+filename+"' not found in dbApp"
             print >> FILE, "</TABLE>\n"
@@ -434,12 +435,12 @@ if iocHw:
         order = ('DTYP','CARD','CHAN','pvname','LINK')
         table = lod.orderToTable(vmeList,order)
         if len(table) > 0:
-            print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Card','Chan','DTYP','Link'],'TH')+"\n</TR>"
+            print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Card','Chan','DTYP','Link','File','Application'],'TH')+"\n</TR>"
             try:
                 for l in table:
                     (DTYP,CARD,CHAN,pvname,LINK) = l
                     pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
-                    print >> FILE, "<TR>"+toCol([pvname,CARD,CHAN,DTYP,LINK])+"\n</TR>"
+                    print >> FILE, "<TR>"+toCol([pvname,CARD,CHAN,DTYP,LINK,dbApp[filename],filename])+"\n</TR>"
             except KeyError:
                 print "ERROR in print '"+pvname+"', VME-Devices: '"+filename+"' not found in dbApp"
             print >> FILE, "</TABLE>\n"
@@ -448,11 +449,11 @@ if iocHw:
         order = ('LINK','pvname','filename','DTYP','RTYP')
         table = lod.orderToTable(otherList,order)
         if len(table) > 0:
-            print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Link'],'TH')+"\n</TR>"
+            print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Link','File','Application'],'TH')+"\n</TR>"
             try:
                 for (link,pvname,filename,dtyp,rtyp) in table:
                     pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+', RTYP'+rtyp+', DTYP'+dtyp+'">'+pvname+'</DIV>'
-                    print >> FILE, "<TR>"+toCol([pvname,link])+"\n</TR>"
+                    print >> FILE, "<TR>"+toCol([pvname,link,dbApp[filename],filename])+"\n</TR>"
             except KeyError:
                 print "ERROR in print '"+pvname+"', Other-Devices: '"+filename+"' not found in dbApp"
             print >> FILE, "</TABLE>\n"
