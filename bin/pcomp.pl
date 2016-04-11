@@ -28,6 +28,7 @@ use strict;
 use File::Copy;
 use Getopt::Long;
 use File::Temp;
+use Text::Tabs;
 
 use vars qw($opt_help $opt_summary 
             $opt_prn_eq 
@@ -37,7 +38,9 @@ use vars qw($opt_help $opt_summary
             $opt_file_nomatch $opt_msg_match $opt_msg_nomatch
 	    $opt_patch $opt_simpatch $opt_verbose $opt_show_msg
 	    $opt_nodate $opt_nosrc $opt_nodest $opt_tkdiff
-	    $opt_filter_cvs $opt_filter_cr $opt_filter_empty_lines
+	    $opt_filter_cvs $opt_filter_cr $opt_filter_rstrip 
+            $opt_filter_expand
+            $opt_filter_empty_lines
             $opt_show_diff 
 	    $opt_terse_mode
             $opt_terse_mode2
@@ -63,6 +66,8 @@ if (!GetOptions("help|h","summary","prn_eq|prn-eq|e",
 		"verbose|v", "show_msg|s", "nodate", "nosrc", "nodest",
 		"tkdiff", "filter_cvs|filter-cvs",
 		"filter_cr|filter-cr",
+		"filter_rstrip|filter-rstrip",
+                "filter_expand|filter-expand",
 		"filter_empty_lines|filter-empty-lines",
 		"show_diff|show-diff|show_diffs|show-diffs",
 		"terse_mode|terse-mode|t",
@@ -249,9 +254,16 @@ sub compare_files
     if (!$is_dir)
       {	my $fl1= $f1;
         my $fl2= $f2;
-        if ((defined $opt_filter_cvs) || (defined $opt_filter_cr) || (defined $opt_filter_empty_lines))
-          { $fl1= filter_file($f1,$opt_filter_cvs, $opt_filter_cr, $opt_filter_empty_lines);
-	    $fl2= filter_file($f2,$opt_filter_cvs, $opt_filter_cr, $opt_filter_empty_lines);
+        if ((defined $opt_filter_cvs) || (defined $opt_filter_cr) || 
+            (defined $opt_filter_rstrip) || (defined $opt_filter_expand) ||
+            (defined $opt_filter_empty_lines))
+          { 
+            $fl1= filter_file($f1,$opt_filter_cvs, $opt_filter_cr, 
+                              $opt_filter_rstrip, $opt_filter_expand,
+                              $opt_filter_empty_lines);
+	    $fl2= filter_file($f2,$opt_filter_cvs, $opt_filter_cr,
+                              $opt_filter_rstrip, $opt_filter_expand,
+                              $opt_filter_empty_lines);
 	  };
 
         my $t1= (-s $fl1);  
@@ -326,7 +338,7 @@ sub diff_file
 
 
 sub filter_file
-  { my($filename,$cvs,$cr,$empty_lines)= @_;
+  { my($filename,$cvs,$cr,$rstrip,$expand,$empty_lines)= @_;
 
     my $tmp = new File::Temp(UNLINK => 0,
                              TEMPLATE => 'pcomp-tempXXXXX',
@@ -338,12 +350,12 @@ sub filter_file
     #			                     UNLINK => 0,
     #                                        DIR => '/tmp');
 
-    file_filter($filename,$tmp,$cvs,$cr,$empty_lines);
+    file_filter($filename,$tmp,$cvs,$cr,$rstrip,$expand,$empty_lines);
     return($tmp);
   }
 
 sub file_filter
-  { my($in,$out,$cvs,$cr,$empty_lines)= @_;
+  { my($in,$out,$cvs,$cr,$rstrip,$expand,$empty_lines)= @_;
     local(*F);
     local($/);
     undef $/;
@@ -356,6 +368,10 @@ sub file_filter
       { $x=~ s/\$(Author|Date|Header|Id|Name|Locker|Log|RCSfile|Revision|Source|State).*?\$//gs; };
     if ($cr)
       { $x=~ s/\r+//gs; };
+    if ($expand)
+      { $x= expand($x); };
+    if ($rstrip)
+      { $x=~ s/ +$//g; };
     if ($empty_lines)
       { $x=~s/\r{2,}/\r/gs; $x=~s/\n{2,}/\n/gs; };
     open(F, ">$out") or die "unable to create \"$out\"";
@@ -627,6 +643,8 @@ Syntax: $p {options} [path1] [path2]
     -s              show all comparision messages the program can produce
     --filter-cvs    remove cvs keywords
     --filter-cr     remove <CR> characters
+    --filter-rstrip remove trailing spaces
+    --filter-expand expand tab stops
     --filter-empty-lines
                     remove empty lines
     --show-diff --show-diffs
