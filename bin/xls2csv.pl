@@ -25,36 +25,57 @@
 # * xls2csv always returns with return code 0. This script returns 1 if xls2csv
 #   printed something else than "Format a4 is redefined" on stderr.
 
+# fixed version, inspired from:
+# http://stackoverflow.com/questions/10029406/why-does-ipcopen3-get-deadlocked
+
 use strict;
 use IPC::Open3;
+use IO::Select;
 
 use vars qw($opt_help $opt_summary);
 
 my $sc_author= "Goetz Pfeiffer";
-my $sc_year= "2014";
+my $sc_year= "2016";
 
 
 my $cmd= "xls2csv ".join(" ",@ARGV);
 
 #print STDERR "call: $cmd\n";
 
+my $error=0;
+
 my $pid = open3( \*WRITER, \*READER, \*ERROR, $cmd);
 #if \*ERROR is 0, stderr goes to stdout
 
-while( my $output = <READER> ) 
+my $sel = new IO::Select;
+$sel->add(\*READER, \*ERROR);
+while(my @fhs = $sel->can_read) 
   {
-    print STDOUT $output;
-  }
-
-my $error=0;
-while( my $errout = <ERROR> ) 
-  {
-    if ($errout =~ /^Format a4 is redefined\s*$/)
-      { next; }
-    $error= 1;
-    print STDERR $errout;
-  }
-
+    foreach my $fh (@fhs) 
+      {
+        my $line = <$fh>;
+        unless(defined $line) 
+          {
+            $sel->remove($fh);
+            next;
+          }
+        if($fh == \*READER) 
+          {
+            print STDOUT $line;
+          }
+        elsif ($fh == \*ERROR) 
+          {
+            if ($line =~ /^Format a4 is redefined\s*$/)
+              { next; }
+            $error= 1;
+            print STDERR $line;
+          }
+        else
+          {
+            die "[ERROR]: This should never execute!";
+          }
+       }
+   }
 waitpid( $pid, 0 ) or die "$!\n";
 my $retval =  $? >> 8;
 if ($retval!=0)
