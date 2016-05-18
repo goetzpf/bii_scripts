@@ -56,5 +56,10 @@ fi
 
 mycp=`echo $rootdir/${vsn}VisualDCT.jar $rootdir/plugins/*.jar | sed -e 's/ /:/g'`
 
-#echo "java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH -cp $mycp com.cosylab.vdct.GenerateFlatDatabase \"$@\"" >&2
-exec java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH -cp $mycp com.cosylab.vdct.GenerateFlatDatabase "$@"
+java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH\
+ -cp $mycp com.cosylab.vdct.GenerateFlatDatabase "$@" 2> "$$.err"
+! perl -pe 'BEGIN{$/=undef} s/^java\.util\.prefs\.BackingStoreException: '\
+'Couldn.t get file lock.(\n\s+at .*)*//mg; '\
+'s/^.*java\.util\.prefs\.FileSystemPreferences syncWorld\n//mg; '\
+'s/^WARNING: Couldn.t flush user prefs:.*$//mg; s/^\s*$//mg'\
+ "$$.err" | grep . 1>&2
