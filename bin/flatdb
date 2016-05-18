@@ -23,6 +23,7 @@
 
 #echo "$0 $@" >&2
 
+set -e
 
 if [ -z "$FLATDB_VDCT_DIR" ]; then
         rootdir=/opt/Epics/VisualDCT
