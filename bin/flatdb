@@ -23,8 +23,6 @@
 
 #echo "$0 $@" >&2
 
-# source O.Common/.vdct if it exists:
-test -r ./O.Common/.vdct && . ./O.Common/.vdct
 
 if [ -z "$FLATDB_VDCT_DIR" ]; then
         rootdir=/opt/Epics/VisualDCT
