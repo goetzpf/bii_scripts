@@ -417,6 +417,10 @@ Scripts
   | python One-liner helper.
   | `documentation <scripts/pyone.html>`__
 
+**python-modules.py**
+  | Show what python modules a python script uses, complete with file path.
+  | `documentation <scripts/python-modules.html>`__
+
 **repo-loginfo.py**
   | print log summaries for darcs or mercurial repositories.
   | `documentation <scripts/repo-loginfo.html>`__
