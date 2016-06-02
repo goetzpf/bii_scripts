@@ -1,0 +1,90 @@
+#!/usr/bin/perl -w
+
+# -*- perl-*-
+#  This software is copyrighted by the BERLINER SPEICHERRING
+#  GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
+#  The following terms apply to all files associated with the software.
+#
+#  BESSY hereby grants permission to use, copy and modify this
+#  software and its documentation for non-commercial, educational or
+#  research purposes provided that existing copyright notices are
+#  retained in all copies.
+#
+#  The receiver of the software provides BESSY with all enhancements,
+#  including complete translations, made by the receiver.
+#
+#  IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+#  SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+#  OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN
+#  IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#  BESSY SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+#  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+#  PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
+#  BASIS, AND BESSY HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+#  UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+
+use strict;
+use BDNS;
+use CGI;
+use CGI::Carp qw(fatalsToBrowser);
+
+my $document = new CGI;
+
+my $devname = $document->param("search");
+my $probe = $document->param("probe");
+
+if ($probe && ($probe eq "debug" || $probe eq "out")) {
+	print "Content-type: text/html\n\n";
+	print "<html>\n<head>\n\t<title>Devicename Checker</title>";
+	print "\n\t<style> .error { color: red; } .success { color: green; } </style>";
+	print "\n</head><body>";
+	print "\n\t<h1>devcheck devname='$devname' probe='$probe'</h1>";
+	print "\n\t<hr>";
+} else {
+	print "Content-type: text/json\n\n";
+}
+if ( $devname && "$devname" eq "") {
+	if ($probe && $probe eq "debug") {
+		print "\n\t\t".'<p class="error">No device name given</p>';
+	} elsif ($probe && $probe eq "out")  {
+		print "\n\t<pre>".'{ "result: "error", "type":"string", "message": "No device name given", "name": "" }'."</pre>";
+	} else {
+	        print '{ "result": "error", "type":"string", "message": "No device name given", "name": "" }';  
+	}
+        exit;
+}
+
+$devname =~ tr/a-z/A-Z/;
+$devname =~ s/ //g;
+
+my (
+	$member, $allindex, $index, $subindex, $family, $counter,
+	$allsubdomain, $subdomain, $subdompre, $subdomnumber, $domain, $facility
+) = BDNS::parse($devname);
+
+
+if (not defined $member) {
+        if ($probe && $probe eq "debug") {
+                print "\n\t\t".'<p class="error">"'.$devname.'" is not a valid devicename.</p>';
+        } elsif ($probe && $probe eq "out")  {
+                print "\n\t<pre>".'{ "result": "error", "type":"string", "message": "This is not a valid devicename.", "name": "'.$devname.'" }'."</pre>";
+        } else {
+                print '{ "result": "error", "type":"error", "message": "This is not a valid devicename.", "name": "'.$devname.'" }';
+        }
+} else {
+	if ($probe && $probe eq "debug") {
+		 print "\n\t\t".'<p class="success">"'.$devname.'" is a valid devicename.</p>';
+        } elsif ($probe && $probe eq "out")  {
+                print "\n\t<pre>".'{ "result": "success", "type":"object", "message": "This as a valis name", "name": "'.$devname.'"}'."</pre>";
+	} else {
+		print '{ "result": "success", "type":"object", "message": "This as a valis name", "name": "'.$devname.'"}';
+	}
+}
+if ($probe eq "debug" || $probe eq "out") {
+	print "\n\t<address>P. Laux, 2012, HZB, 13135</address>";
+	print "\n</body>\n</html>";
+}
+print "\n";
+
+__END__

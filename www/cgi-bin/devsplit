@@ -1,0 +1,287 @@
+#!/usr/bin/perl -w
+
+# -*- perl-*-
+#  This software is copyrighted by the BERLINER SPEICHERRING
+#  GESELLSCHAFT FUER SYNCHROTRONSTRAHLUNG M.B.H., BERLIN, GERMANY.
+#  The following terms apply to all files associated with the software.
+#
+#  BESSY hereby grants permission to use, copy and modify this
+#  software and its documentation for non-commercial, educational or
+#  research purposes provided that existing copyright notices are
+#  retained in all copies.
+#
+#  The receiver of the software provides BESSY with all enhancements,
+#  including complete translations, made by the receiver.
+#
+#  IN NO EVENT SHALL BESSY BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+#  SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+#  OF THIS SOFTWARE, ITS DOCUMENTATION OR ANY DERIVATIVES THEREOF, EVEN
+#  IF BESSY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#  BESSY SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED
+#  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+#  PURPOSE, AND NON-INFRINGEMENT. THIS SOFTWARE IS PROVIDED ON AN "AS IS"
+#  BASIS, AND BESSY HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+#  UPDATES, ENHANCEMENTS OR MODIFICATIONS.
+
+use strict;
+use BDNS;
+use CGI;
+use CGI::Carp qw(fatalsToBrowser);
+
+my %fam;
+$fam{B} = "parameter";
+$fam{C}	= "control system";
+$fam{F}	= "frontend diagnostics";
+$fam{G}	= "geodesy";
+$fam{H}	= "high (radio) frequency";
+$fam{I}	= "insertion device";
+$fam{K}	= "kicker / septum";
+$fam{L}	= "length (drift)";
+$fam{M}	= "magnet";
+$fam{N}	= "panel (wiring)";
+$fam{O}	= "monochromator";
+$fam{P}	= "power supply";
+$fam{Q}	= "feedback system";
+$fam{R}	= "radiation safety";
+$fam{S}	= "laser system";
+$fam{T} = "cryogenics";
+$fam{V}	= "vacuum";
+$fam{W}	= "timing, trigger-delay etc.";
+$fam{Y}	= "technical";
+$fam{Z}	= "diagnostics";
+
+my %sdom;
+$sdom{AF} = "arc";
+$sdom{B} = "bend / dipole";
+$sdom{C} = "bunch compressor / collimator / rotator";
+$sdom{D} = "doublet section";
+$sdom{E} = "extraction";
+$sdom{G} = "electron gun";
+$sdom{GF} = "electron gun section";
+$sdom{K} = "short section";
+$sdom{L} = "linac section";
+$sdom{LF} = "accelerating linac";
+$sdom{LP} = "long section";
+$sdom{M} = "merger";
+$sdom{S} = "straight / segment / drift";
+$sdom{T} = "triplet section";
+$sdom{U} = "undulator";
+$sdom{UL} = "undulator/ID";
+$sdom{X} = "room";
+
+my %dom;
+$dom{B}	= "booster synchrotron";
+$dom{I}	= "injecton line";
+$dom{M}	= "microtron";
+$dom{R}	= "storage ring";
+$dom{T}	= "transfer line";
+
+#$dom{D} = "beam dump / splitter";
+$dom{E} = "experiment";
+$dom{H} = "HoBiCaT";
+$dom{L} = "beamline";
+#$dom{IF} = "ERL/BERLinPro injector";
+$dom{AF} = "ERL/BERLinPro accelerator hall";
+$dom{S} = "source development/GunLab";
+
+$dom{C}	= "main control-room";
+$dom{G}	= "gallery / supply area / infrastructure";
+$dom{L}	= "beamline";
+$dom{V}	= "virtual device domain (e.g. non-existent)";
+
+my %fac;
+$fac{B} = "BESSY-II";
+$fac{F} = "future sources (ERL / B<i>ERL</i>inPro / HoBiCaT)";
+$fac{P} = "PTB MLS";
+
+my %member;
+$member{ADIDAS} = "misc. I/O";
+$member{AI} = "";
+$member{B} = "dipole magnet";
+$member{BCONTL} = "left contrapole";
+$member{BCONTR} = "right contrapole";
+$member{BAC} = "dipole magnet AC";
+$member{BDC} = "dipole magnet DC";
+$member{CQS} = "skew quadrupole";
+#$member{CTBUM} = "";
+#$member{CTC} = "";
+#$member{DIPS} = "";
+$member{EC} = "embedded controller";
+$member{FOM} = "foil monitor";
+$member{GPP} = "getter pump PS";
+$member{GPNI} = "getter pump PS WLS insulation vacuum";
+$member{GPN} = "getter pump PS";
+$member{GP} = "getter pump";
+$member{VM} = "vacuum monitor";
+$member{GV} = "gate valve";
+$member{HB} = "horiz. steerer in bend";
+#$member{HEINZ} = "";
+#$member{HFB} = "";
+#$member{HORST} = "";
+$member{HS} = "horiz. steerer in sext.";
+$member{H} = "horiz. steerer";
+#$member{ICTI} = "";
+$member{IO} = "I/O controller";
+$member{KDV} = "diagnostic kicker";
+$member{KNOG} = "knockout generator";
+$member{LAS} = "FSS-laser";
+$member{LC} = "landau cavity";
+$member{MCLK} = "master clock";
+#$member{MI} = "";
+#$member{MULTI} = "";
+#$member{MUXV} = "";
+$member{O} = "octopole";
+$member{ORBIT} = "orbit";
+#$member{PB} = "";
+#$member{PBUMP} = "";
+$member{PHB} = "embedded powersupply";
+$member{PHW} = "iembedded powersupply";
+#$member{PKDV} = "";
+$member{PKE} = "embeded power supply for extrator";
+$member{PKI} = "embedded power supply for kicker";
+$member{PLUNG} = "plunger";
+$member{PPTMOD} = "PPT-modulator";
+$member{PRESS} = "pressure";
+#$member{PSE} = "";
+$member{PSI} = "person safety interlock";
+#$member{PSW} = "";
+#$member{PVW} = "";
+#$member{PW} = "";
+$member{Q} = "quadrupole";
+$member{QD} = "defocussing quadrupole";
+$member{QFAC} = "focussing quadrupole AC";
+$member{QFDC} = "focussing quadrupole DC";
+#$member{QSD} = "";
+#$member{QSRSV} = "";
+#$member{QST} = "";
+#$member{RTMS} = "";
+$member{S} = "sextupole";
+$member{SCXMOD} = "Scanditronix modulator";
+#$member{SM} = "";
+$member{TEMP} = "temperature";
+#$member{TH} = "";
+#$member{TRMUX} = "";
+$member{U} = "undulator";
+$member{UE} = "undulator";
+#$member{VFB} = "vert. feedback";
+#$member{VMI} = "";
+$member{VS} = "vert. steerer in sext.";
+$member{V} = "vert. steerer";
+$member{W} = "wiggler";
+$member{WFILT} = "water filter";
+
+my $document = new CGI;
+#print $document->header();
+
+my $devname = $document->param("search");
+my $probe = $document->param("probe");
+
+if ($probe && ($probe eq "debug" || $probe eq "out")) {
+        print "Content-type: text/html\n\n";
+        print "<html>\n<head>\n\t<title>Devicename Checker</title>";
+        print "\n\t<style> .error { color: red; } .success { color: green; } </style>";
+        print "\n</head><body>";
+        print "\n\t<h1>devcheck devname='$devname' probe='$probe'</h1>";
+        print "\n\t<hr>";
+} else {
+        print "Content-type: text/json\n\n";
+}
+
+$devname =~ tr/a-z/A-Z/;
+$devname =~ s/ //g;
+
+if ( $devname && "$devname" eq "") {
+        if ($probe && $probe eq "debug") {
+                print "\n\t\t".'<p class="error">No device name given</p>';
+        } elsif ($probe && $probe eq "out")  {
+                print "\n\t<pre>".'{ "result": "error", "type": "string", "message": "No device name given", "name": "" }'."</pre>";
+        } else {
+                print '{ "result": "error", "type": "string", "message": "No device name given", "name": "" }';  
+        }
+        exit;
+}
+
+my (
+	$member, $allindex, $index, $subindex, $family, $counter,
+	$allsubdomain, $subdomain, $subdompre, $subdomnumber, $domain, $facility
+) = BDNS::parse($devname);
+
+
+if ($facility eq "") {
+	$facility = "B";
+}
+
+my $vm;
+#$vm = $member{$member,$family,$domain,$facility} or
+#$vm = $member{$member,$family,$domain} or
+#$vm = $member{$member,$family} or
+$vm = $member{$member} or
+$vm = $member;
+
+$subindex = "" if not defined $subindex;
+$subdomain = "" if not defined $subdomain;
+$subdompre = "" if not defined $subdompre;
+$subdomnumber = "" if not defined $subdomnumber;
+
+my $sdomtext = $sdom{$subdompre . $facility};
+if ($sdomtext eq "") { $sdomtext = $sdom{$subdompre}; }
+
+my $domtext = $dom{$domain . $facility};
+if ($domtext eq "") { $domtext = $dom{$domain}; }
+
+if (not defined $member) {
+        if ($probe && $probe eq "debug") {
+                print "\n\t\t".'<p class="error">"'.$devname.'" is not a valid devicename.</p>';
+        } elsif ($probe && $probe eq "out")  {
+                print "\n\t<pre>".'{ "result": "error", "type": "string", "message": "This is not a valid devicename.", "name": "'.$devname.'" }'."</pre>";
+        } else {
+                print '{ "result": "error", "type": "string", "message": "This is not a valid devicename.", "name": "'.$devname.'" }';
+        }
+} else {
+        if ($probe && $probe eq "debug") {
+                print "\n\t\t".'<p class="success">"'.$devname.'" is a valid devicename.</p>';
+                print "\t<table cellpadding=\"8\" class=\"bdns\" id=\"parserresult.table\">\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Member:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.member\">$member</td><td>$vm</td><td><font size=\"-1\">min 1 char of '<strong>A</strong>'-'<strong>Z</strong>'</font></td></tr>\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Index:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.index\">$index</td><td></td><td><font size=\"-1\">any number of digits</font></td></tr>\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Subindex:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.subindex\">$subindex</td>$subindex<td></td><td><font size=\"-1\">any number of digits (index has at least 1 digit)</font></td></tr>\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Family:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.family\">$family</td><td>$fam{$family}</td><td><font size=\"-1\">one char of '<strong>$BDNS::pfam{$facility}</strong>'</font></td></tr>\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Counter:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.counter\">$counter</td><td>$counter</td><td><font size=\"-1\">any number of digits</font></td></tr>\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Subdomain:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.subdomain\">$subdomain</td><td>$sdomtext $subdomnumber</td><td><font size=\"-1\">one char of '<strong>$BDNS::psdom{$facility}</strong>' followed by any number of digits digits</font></td></tr>\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Domain:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.domain\">$domain</td><td>$domtext</td><td><font size=\"-1\">one char of '<strong>$BDNS::pdom{$facility}</strong>'</font></td></tr>\n";
+                print "\t<tr><th class=\"bdns\" align=\"right\">Facility:</th>\n";
+                print "\t    <td class=\"bdns\" id=\"parserresult.facility\"><b>" . ($facility eq "B" ? " " : $facility) . "</b></td><td><b>$fac{$facility}</b></td></tr>\n";
+                print "\t</table>\n";
+
+        } else {
+		my $result = '{ "result": "success", "type": "object", "message": "This as a valis name", "name": "'.$devname.'", "values": {';
+		$result .= '"member": "'.$member.'", "member_desc": "'.$vm.'",';
+		$result .= '"index": "'.$index.'",';
+		$result .= '"subindex": "'.$subindex.'", ';
+		$result .= '"family": "'.$family.'", "family_desc": "'.$fam{$family}.'",';
+		$result .= '"counter": "'.$counter.'", ';
+		$result .= '"subdomain": "'.$subdomain.'", "subdomain_desc": "'.$sdomtext.' '.$subdomnumber.' ",';
+		$result .= '"domain": "'.$domain.'", "domain_desc": "'.$domtext.'",';
+		$result .= '"facility": "'.($facility eq "B" ? " " : $facility).'", "facility_desc": "'.$fac{$facility}.'"';
+		$result .= '}}';
+		if ($probe && $probe eq "out")  {
+                	print "\n\t<pre>".$result."</pre>";
+        	} else {
+                	print $result;
+		}
+        }
+}
+if ($probe eq "debug" || $probe eq "out") {
+        print "\n\t<address>P. Laux, 2012, HZB, 13135</address>";
+        print "\n</body>\n</html>";
+}
+print "\n";
+
+__END__
