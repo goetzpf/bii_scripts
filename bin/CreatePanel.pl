@@ -1238,7 +1238,7 @@ sub   setWidget
 
 # set x, y to position in panel
 #print " set to: \t$x, $y\n";
-	$edl .= "$`\nx $x\ny $y\nw $width\n";
+	$edl .= "$`\nx $x\ny $y\nw $width";
 	my $rest = $';
 
 	if($rest =~ /\s*xPoints\s*\{\s*(.*?)\s*\}/s)
