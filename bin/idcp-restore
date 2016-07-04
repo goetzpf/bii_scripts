@@ -36,7 +36,7 @@ cd $MYVERSION >/dev/null
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-scp aragon.acc.bessy.de:"$DISTDIR/$QVERSION/dbd/hg-recover*" .
+scp elbe.acc.bessy.de:"$DISTDIR/$QVERSION/dbd/hg-recover*" .
 if [ -e hg-recover.tar.gz ]
 then
         # old hg-recover
