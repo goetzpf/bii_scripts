@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Copyright 2016 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# <https://www.helmholtz-berlin.de>
+#
+# Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+if [ -z "$1" ] || [ "$1" = "-h" ]; then
+        me=`basename $0`
+        echo "usage: $me [version]"
+        echo "  Restores a version of the BII-Controls application."
+        echo "  [version] must be the ISO date string as it is used by"
+        echo "  rsync-dist. "
+        exit 0
+fi
+
+DISTDIR=/opt/IOC/BII-Controls/base-3-14/dist
+DIST_SSH=iocadm@nfs.ctl.bessy.de
+VERSION=$1
+QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
+MYVERSION=`echo $VERSION | sed -e 's/://g'`
+
+echo -e "* creating directory $MYVERSION"
+darcs-restore $DIST_SSH:$DISTDIR/$QVERSION $MYVERSION
+
+echo -e "\nversion $VERSION was restored in directory $MYVERSION"

@@ -156,6 +156,12 @@ Scripts
     installed software versions of the BII and MLS controlsystem.
   | `documentation <scripts/csv2plot.html>`__
 
+**ctl-restore**
+  | A small wrapper script that calls darcs-restore to restore the source
+    directory along with it's darcs repository for a given version of the
+    BII-Controls applucation.
+  | `documentation <scripts/ctl-restore>`__
+
 **cvs-recover.py**
   | A backup and recovery tool for CVS. 
   | Instead of saving the complete repository this script only saves

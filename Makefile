@@ -315,6 +315,7 @@ PLAINTXT_H_SCRIPT_LIST= \
 	camon\
 	csv2epicsDb\
 	ctl-dist-info \
+	ctl-restore \
 	db2dot \
 	dbdiff \
 	darcs-compare-repos \
