@@ -322,6 +322,7 @@ PLAINTXT_H_SCRIPT_LIST= \
 	darcs-kompare \
 	darcs-meld \
 	darcs-sig \
+	git-meld \
 	hg-compare-repos \
 	idcp-dist-info \
 	idcp-restore \

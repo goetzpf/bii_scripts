@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ "$1" = "-h" ]; then
+    me=$(basename $0)
+    echo "usage: $0 rev1 rev2"
+    exit
+fi
+
+exec git difftool -d -t meld $@

@@ -296,6 +296,9 @@ Scripts
 **gadgetbrowser**
   | database browser for the new gadget database.
 
+**git-meld**
+  | compares all files of two git versions with meld.
+
 **grab_xkeys.pl**
   | a little X11 utility that displays scan codes of pressed keys.
 
