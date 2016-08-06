@@ -134,10 +134,6 @@ Scripts
   | download and concatenate console server files.
   | `documentation <scripts/console-get.html>`__
 
-**copyrename**
-  | copies files and changes the extension
-  | `documentation <scripts/copyrename.html>`__
-
 **CreatePanel.pl**
   | Create Panels for 'dm2k' or 'edm' from EPICS-Database '.substitution' files
     and widgets for each item of the '.substitution' file.
@@ -203,8 +199,10 @@ Scripts
     file.
   | `documentation <scripts/darcs-meld.html>`__
 
-**darcs-moni**
-  | small wrapper around darcs-monitor
+**darcs-notify**
+  | Send email notification when patches are applied to a repository. Intended
+    as a light-weight replacement for darcs-monitor.
+  | `documentation <scripts/darcs-notify.html>`__
 
 **darcs-restore**
   | see darcs-save
@@ -438,7 +436,7 @@ Scripts
   | tool for management for distribution of binary files with. The successor of
     this script is rsync-dist.pl.
 
-**rsync-dist-info.pl**
+**rsync-dist-info.py**
   | this program prints summaries and statistics of rsync-dist link-log files.
   | The script needs the following perl modules:
   | `dateutils.py`_ 
@@ -534,7 +532,7 @@ Scripts
 **unlockGuru**
   | Remove the mutex file lock, probably used together with cvsGuru.
 
-**vdb_repo_diff**
+**vdb_repo_diff.pl**
   | graphical compare of vdb files with or within a repository.  Supports cvs,
     subversion and mercurial.
   | `documentation <scripts/vdb_repo_diff.html>`__
@@ -542,7 +540,7 @@ Scripts
 **vdct**
   | starts the VisualDCT database editor.   
 
-**xls2csv**
+**xls2csv.pl**
   | A small wrapper around the xls2csv utility that provides better error
     handling.
 
@@ -612,13 +610,13 @@ Perl Libraries
 **dbdrv_lite.pm**
   | low level routines for sqlite. Used by dbdrv.
 
-**dbdrv_oci**
+**dbdrv_oci.pm**
   | low level routines for the ORACLE database. Needed by dbdrv.
 
 **dbdrv_pg.pm**
   | low level routines for a PostgreSQL database. Needed by dbdrv.
 
-**dbdrv**
+**dbdrv.pm**
   | low level utilities for SQL database access, needed by
     dbitable.
   | `documentation <modules/dbdrv.html>`__
@@ -626,7 +624,7 @@ Perl Libraries
 **dbdrv_test.pl**
   | test-script for dbdrv. This shouldn't be in the repository!     
 
-**dbitable**
+**dbitable.pm**
   | an object-oriented Perl module for handling single tables
     from an SQL database
   | `documentation <modules/dbitable.html>`__
@@ -668,11 +666,11 @@ Perl Libraries
 
 .. _parse_db.pm:
 
-**parse_db**
+**parse_db.pm**
   | a perl-module for parsing EPICS db-files.
   | `documentation <modules/parse_db.html>`__
 
-**parse_subst**
+**parse_subst.pm**
   | a perl-module for parsing EPICS substitution-files.
   | `documentation <modules/parse_subst.html>`__
 
