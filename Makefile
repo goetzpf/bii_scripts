@@ -300,7 +300,8 @@ PLAINTXT_SCRIPT_LIST= \
 	console-get \
 	dbcount \
 	dbsort \
-	toASCII
+	toASCII \
+	darcs-notify
 
 # scripts with no embedded documentation
 # create online help by executing "(script.pl 2>&1; true)

@@ -1,0 +1,93 @@
+#!/bin/sh -e
+PATH=/sbin:/usr/sbin:$PATH
+export DARCS_DONT_COLOR=1
+. lockfile.sh
+case "$1" in
+
+  pre)
+    wait_for_lock .darcs-notify-lock 3
+    echo $(darcs log --all --count) > .darcs-notify-pre-count
+    ;;
+
+  post)
+    cleanup() {
+      rm -f .darcs-notify-lock
+      rm -f .darcs-notify-pre-count .darcs-notify-log
+    }
+    install_signal_handler 'cleanup' 0 INT TERM EXIT
+    pre_count=$(cat .darcs-notify-pre-count)
+    post_count=$(darcs log --all --count)
+    count=$((post_count - pre_count))
+    for n in $(seq $count -1 1); do
+      darcs log --all --index=$n --summary > .darcs-notify-log
+      author=$(grep '^Author:' .darcs-notify-log | sed -e 's/^Author: //')
+      # IMPORTANT: do not remove tabs or replace them with spaces!!!
+      sendmail -t <<-END-OF-EMAIL
+	From: $author
+	X-Darcs-Monitor: $(pwd)
+	X-Darcs-Notify: $(pwd)
+	$(cat .darcs-notify-template)
+	
+	$(cat .darcs-notify-log)
+	END-OF-EMAIL
+    done
+    ;;
+
+  setup)
+    if test "$2" = "-f" -o ! -e _darcs/prefs/defaults; then
+      echo "apply prehook darcs-notify pre" > _darcs/prefs/defaults
+      echo "apply run-prehook" >> _darcs/prefs/defaults
+      echo "apply posthook darcs-notify post" >> _darcs/prefs/defaults
+      echo "apply run-posthook" >> _darcs/prefs/defaults
+    else
+      echo "error: _darcs/prefs/defaults already exists (use -f to overwrite)" >&2
+    fi
+    ;;
+
+  *) cat <<END-OF-HELP
+darcs-notify: a light-weight replacement for darcs-monitor
+
+Usage:
+
+  darcs-notify setup [-f] Write a new _darcs/prefs/defaults to set up apply
+                          pre- and posthooks (see below). Use option -f to
+                          overwrite an existing defaults file (warning: this
+                          will remove its prior content).
+
+  darcs-notify pre        Ssave the current number of patches (to a file
+                          named .darcs-notify-pre-count). To be used as
+                          apply prehook.
+
+  darcs-notify post       Send email notification about new patches (those
+                          applied since 'darcs-notify pre' was called the
+                          last time), using .darcs-notify-template as a
+                          template. To be used as apply posthook.
+
+Prerequisits:
+
+  * The current working directory should be the top of the darcs repository.
+
+  * The version of darcs should be 2.10.1 or later.
+
+  * There should be a working sendmail binary under /sbin, /usr/sbin, or in
+    the default PATH.
+
+Files:
+
+  .darcs-notify-template  A text file in email format, containing at least
+                          one To: <recipient> and a Subject: header; the
+                          latter should mention the name of the repo. It
+                          makes sense to keep this file under version
+                          control inside the repo under consideration.
+
+  .darcs-notify-log       Temporary file containing the darcs log of the
+                          current patch.
+
+  .darcs-notify-pre-count Temporary file containing the number of patches in
+                          the repo prior to the apply.
+
+  .darcs-notify-lock      Temporary file used for locking.
+END-OF-HELP
+  ;;
+
+esac
