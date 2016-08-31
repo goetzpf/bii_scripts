@@ -809,7 +809,13 @@ def process_files(options, args):
 
         signature1.scan()
         signature2.scan()
-        from_rev= signature1.last_common(signature2)
+
+        from_rev= None
+        if options.checksum_start:
+            from_rev= hg_identify(repo1, options.checksum_start,
+                                   options.verbose, options.dry_run)
+        else: 
+            from_rev= signature1.last_common(signature2)
         if from_rev is None:
             sys.exit("the two repositories are not related")
 
@@ -936,7 +942,11 @@ def main():
     parser.add_option("--checksum-start",
                       action="store", 
                       type="string",
-                      help="Start the checksum calculation at revision REV.",
+                      help= "Start the checksum calculation at revision "
+                            "REV.  This can also be used with the "
+                            "compare commands when the program thinks "
+                            "the repositories are unrelated when they "
+                            "aren't.",
                       metavar= "REV",
                       )
     parser.add_option("-x", "--extra",
