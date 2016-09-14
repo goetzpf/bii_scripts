@@ -149,19 +149,16 @@ sub parse
         $pdomain
     ) = ($devname =~ /$re/);
   if (defined $ring) {
-    ($family,$counter,$subdomain,$domain) = ($rfamily,$rcounter,$rsubdomain,$rdomain);
-    $facility = "";
+    ($family,$counter,$subdomain,$domain,$facility) = ($rfamily,$rcounter,$rsubdomain,$rdomain,"");
     if (($subdomain =~ /L[0-9]*/) && ($domain ne "I") ) {
-      return;
+      return; # mismatch
     }
   }
   elsif (defined $fel) {
-    ($family,$counter,$subdomain,$domain) = ($ffamily,$fcounter,$fsubdomain,$fdomain);
-    $facility = "F";
+    ($family,$counter,$subdomain,$domain,$facility) = ($ffamily,$fcounter,$fsubdomain,$fdomain,"F");
   }
   elsif (defined $ptb) {
-    ($family,$counter,$subdomain,$domain) = ($pfamily,$pcounter,$psubdomain,$pdomain);
-    $facility = "P";
+    ($family,$counter,$subdomain,$domain,$facility) = ($pfamily,$pcounter,$psubdomain,$pdomain,"P");
   }
   else {
     return; # mismatch

@@ -172,16 +172,13 @@ def parse(devname):
           pdomain
     ) = map(_st, m.groups())
     if ring != "": 
-        (family,counter,subdomain,domain) = (rfamily,rcounter,rsubdomain,rdomain)
-        facility = ""
+        (family,counter,subdomain,domain,facility) = (rfamily,rcounter,rsubdomain,rdomain,'')
         if len(subdomain) > 0 and subdomain[0] == "L" and domain != "I":
-            return
+            return # mismatch
     elif fel!= "":
-        (family,counter,subdomain,domain) = (ffamily,fcounter,fsubdomain,fdomain)
-        facility = "F"
+        (family,counter,subdomain,domain,facility) = (ffamily,fcounter,fsubdomain,fdomain,'F')
     elif ptb!="":
-        (family,counter,subdomain,domain) = (pfamily,pcounter,psubdomain,pdomain)
-        facility = "P"
+        (family,counter,subdomain,domain,facility) = (pfamily,pcounter,psubdomain,pdomain,'P')
     else:
         return # mismatch
     
