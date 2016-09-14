@@ -93,9 +93,9 @@ set allConnectStrings {anonymous@devices anonymous@pg:devices_2015#dbnode1.trs.b
 
 
 set mainGeometry 1000x1000+100+100
-set oheight 30
-set cheight 20
-set hheight 20
+set oheight 20
+set cheight 10
+set hheight 10
 
 set writeEnable 1
 
@@ -678,7 +678,7 @@ proc editHotKeys {} {
     pack .hk.b -fill x -expand t
 }
 
-proc ScrollableText {w {lbl ""}} {
+proc ScrollableText {w {lbl ""} {height 40}} {
     global History guifont
     set History($w.txt) ""
     frame $w -bd 0
@@ -686,7 +686,7 @@ proc ScrollableText {w {lbl ""}} {
         label $w.lbl -font [font create -family helvetica -size 14 -weight bold] -text $lbl
         grid $w.lbl - -sticky wens
     }
-    text $w.txt -width 1 -height 1 -wrap none -yscroll "$w.vsb set" -xscroll "$w.hsb set" 
+    text $w.txt -width 40 -height $height -wrap none -yscroll "$w.vsb set" -xscroll "$w.hsb set" 
 
     $w.txt tag add red       end;	$w.txt tag configure red -foreground red
     $w.txt tag add blue      end;	$w.txt tag configure blue -foreground blue
@@ -718,12 +718,12 @@ proc ScrollableText {w {lbl ""}} {
     }
 
     bind $w.txt <Configure> {
-        if {"%T" == "22"} {
-            if {[llength [%W bbox @1,1]] > 0} {
-                set cellheight [lindex [%W bbox @1,1] 3]
-                catch {%W configure -height [expr %h / max(([lindex [%W bbox @1,1] 3]0 / 10), 1)]}
-            }
-        }
+        #if {"%T" == "22"} {
+        #    if {[llength [%W bbox @1,1]] > 0} {
+        #        set cellheight [lindex [%W bbox @1,1] 3]
+        #        catch {%W configure -height [expr %h / max(([lindex [%W bbox @1,1] 3]0 / 10), 1)]}
+        #    }
+        #}
     }
 }
 
@@ -1115,7 +1115,9 @@ proc loginDialog {} {
         bind .login.f.pass <Return> {.login.b.ok invoke; break}
         bind .login.b.ok <Return> {.login.b.ok invoke; break}
 
+	.login.f.user delete 0 end
         .login.f.user insert end $user
+	.login.f.pass delete 0 end
         .login.f.pass insert end $pass
 
         focus .login.f.pass 
@@ -1148,12 +1150,12 @@ pack .mb -side top -fill x
 
 menubutton .mb.file -text File -menu .mb.file.m
 menu .mb.file.m
-.mb.file.m add command -label "New View" -command {}
-.mb.file.m add command -label Begin -command {TA_begin}
-.mb.file.m add command -label "Add Savepoint" -command {TA_savepoint}
-.mb.file.m add command -label Commit -command {Exec "commit;"}
-.mb.file.m add command -label Rollback -command {Exec "rollback;"}
-.mb.file.m add separator
+#.mb.file.m add command -label "New View" -command {}
+#.mb.file.m add command -label Begin -command {TA_begin}
+#.mb.file.m add command -label "Add Savepoint" -command {TA_savepoint}
+#.mb.file.m add command -label Commit -command {Exec "commit;"}
+#.mb.file.m add command -label Rollback -command {Exec "rollback;"}
+#.mb.file.m add separator
 .mb.file.m add command -label Quit -command Exit
 pack .mb.file -side left
 
@@ -1244,9 +1246,9 @@ if {![info exists ::PGH]} {
 
 wm title . "tkSQL as $XloginString (session $sessnum)"
 
-ScrollableText .command "SQL command entry"
+ScrollableText .command "SQL command entry" 10
 .command.txt config -height $cheight
-ScrollableText .history "History"
+ScrollableText .history "History" 10
 .history.txt config -height $hheight
 
 set upA [image create bitmap -data "\#define upA_width 16
@@ -1294,29 +1296,9 @@ regsub -all "\n\n\n*" $hist "\n\n" hist
 .history.txt insert end $hist
 .history.txt yview end
 
-proc TA_begin {} {
-    Exec "commit;"
-}
-
-proc TA_savepoint {} {
-    Exec "commit;"
-}
-
-proc TA_commit {} {
-    Exec "commit;"
-}
-
-proc TA_commit {} {
-    Exec "commit;"
-}
-
-proc TA_commit {} {
-    Exec "commit;"
-}
-
 button .exec -text Exec \
     -command {Exec [.command.txt get 0.0 end]; .command.txt tag add sel 0.0 end}
-button .execsel -text "Exec\nSelection" -command {
+button .execsel -text "Exec Selection" -width 10  -command {
     catch {Exec [.command.txt get sel.first sel.last]}
     catch {Exec [.output.txt get sel.first sel.last]}
     catch {Exec [.history.txt get sel.first sel.last]}
@@ -1406,7 +1388,7 @@ pack .history -side bottom -fill x
 pack [Handle .bh .command .history] -side bottom -fill x
 
 pack .command -side left -fill both -expand t
-pack .exec .execsel .commit .rollback -fill x
+pack .exec .execsel .begin .commit .rollback -fill x
 pack .sep -padx 4 -pady 4 -fill x -side top
 
 menu .assignF -tearoff 0
@@ -1465,9 +1447,20 @@ foreach s {INT QUIT ILL TRAP ABRT FPE BUS SEGV PIPE ALRM TERM} {
     signal trap $s Exit
 }
 
-if {[info exists ::GOLH] && [Orasql "select distinct topic from SYSTEM.HELP order by upper(topic)"]} {
-    set Output ""
-    fetchData $GOSH ::res {set a [lindex $::res 0]; append Output "$a\n"}
-    evalOutput $Output
+if {[Orasql "select usename, client_addr, query_start, waiting, current_query from pg_stat_activity where usename=current_user"]} {
+    set Output {}
+    fetchData $GOSH ::res {
+        lassign $::res username ip cmd_date waiting cmd
+        if {![regexp "select usename, client_addr, query_start, waiting, current_query" $cmd]} {
+            if {$waiting=="t"} {set waiting " WAITING"} else {set waiting ""}
+            set cmd_date "[string range $cmd_date 0 18]"
+            if {[string length $cmd] > 30} {set cmd "[string range $cmd 0 27]..."}
+            lappend Output "   from IP $ip since $cmd_date with query '$cmd'$waiting"
+        }
+    }
+    if {[llength $Output] > 0} {
+        Print "Open sessions as $username:\n" bold
+        Print [join $Output "\n"]
+    }
 }
 Print "\nReady.\n" largebold green
