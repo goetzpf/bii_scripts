@@ -26,18 +26,19 @@ usage: pvgrep [-io] [-flat] [-ext <ext>] <regexp>
 grep for lines matching <regexp> in files produced by IOCs
 
 Options:
-  -flat      supress IOC name, just print output unindented
-  -ext <ext> search files with extension <ext> instead
-             default is dbl, -io sets ext to dbhcr
-             possible extensions are: 
+  -flat       suppress IOC name, just print output unindented
+  -ext <ext>  search files with extension <ext> instead
+              default is dbl, -io sets ext to dbhcr
+              possible extensions are: 
                activated, dbhcr, dbior, dbl, pwd, version and versions
-  -io        search dbhcr-files (short for -ext dbhcr)
+  -io         search dbhcr-files (short for -ext dbhcr)
+  -ioc <GLOB> search only IOCS matching GLOB pattern (default: *)
 EOF
     return
 }
 [[ $# -eq 0 ]] && usage
 
-zparseopts -D io=oio flat=oflat ext:=oext
+zparseopts -D io=oio flat=oflat ext:=oext ioc:=iocglob
 
 flat=0
 spc="  "
@@ -45,15 +46,22 @@ ext=dbl
 [[ "$oio" = "-io" ]] && ext=dbhcr
 [[ "$oflat" = "-flat" ]] && flat=1 spc=""
 [[ $#oext -gt 1 ]] && ext=$oext[2]
+[[ $#iocglob -gt 1 ]] && iocglob=$iocglob[2] || iocglob="*"
+
+setopt nullglob
 
 cd /opt/IOC/log/Database
-
-/bin/egrep --color=auto $1 */*.$ext */*_$ext.txt | perl -e "
+eval /bin/egrep --color=auto $1 */$~iocglob.$ext */${~iocglob}_$ext.txt /dev/null | perl -e "
 while (<>) { 
     (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
     \$iocs->{\$ioc}->{\$var}=1;
 }; 
+\$size=( scalar keys \$iocs ) + ( \"$iocglob\" eq \"*\" ) ;
+\$flat=$flat;
+\$flat=1 unless \$size > 1;
+\$spc=\"\";
+\$spc=\"$spc\" unless \$flat;
 for \$ioc (sort keys %\$iocs) {
-    print \"\$ioc:\\n\" unless $flat; 
-    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"$spc\$var\"); }
+    print \"\$ioc:\\n\" unless \$flat; 
+    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"\$spc\$var\"); }
 }"
