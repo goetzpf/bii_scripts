@@ -71,7 +71,7 @@ ssh-add -l | grep -q 'no ident' && ssh-add </dev/null
 
 # Durch ssh getunnelte X-Verbindung
 # Launch starten
-ssh -f -n $compress -Y ctl@ctl-srv.acc.bessy.de "launch2 $@ $withMapper"
+ssh -f -n $compress -Y ra-ashacc@ctl-srv2.acc.bessy.de "launch $@ $withMapper"
 
 #
 # Evtl. ssh-agent wieder abwerfen

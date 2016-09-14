@@ -71,7 +71,7 @@ fi
 
 # Durch ssh getunnelte X-Verbindung
 # Launch starten
-SSH_ASKPASS=/usr/X11R6/bin/ssh-askpass ssh -f -n $compress -Y erl@erl-srv.acc.bessy.de "launch $@ $withMapper"
+SSH_ASKPASS=/usr/X11R6/bin/ssh-askpass ssh -f -n $compress -Y ra-erl@erl-srv2.acc.bessy.de "launch $@ $withMapper"
 
 #
 # Evtl. ssh-agent wieder abwerfen

@@ -28,13 +28,14 @@ my_version = "0.3"
 
 atBESSY=not re.search("ctl.bessy.de", fqdn) is None
 atMLS=not re.search("mlscs.bessy.de", fqdn) is None
-atACC=not re.search("acc.bessy.de", fqdn) is None
+atERL=not re.search("ctl.erl.site", fqdn) is None
+atOffice=not atBESSY and not atMLS and not atERL
     
 archs = []
-if not atMLS:                 archs += [("bii",     "archiver", "",         "")]
-if not atMLS and not atBESSY: archs += [("mls",     "archiver",      "",         "MLS/")]
-if atMLS:                     archs += [("mls",     "archiver.mlscs", "",         "")]
-if not atMLS and not atBESSY: archs += [("hobicat", "archiver",       "hobicat/", "")]
+if atOffice or atBESSY: archs += [("bii",     "archiver",       "",         "")]
+if atOffice:            archs += [("mls",     "archiver",       "",         "MLS/")]
+if atMLS:               archs += [("mls",     "archiver.mlscs", "",         "")]
+if atOffice or atERL:   archs += [("hobicat", "archiver",       "hobicat/", "")]
 
 facilities=", ".join([l[0] for l in archs])
 n=facilities.rfind(',')
