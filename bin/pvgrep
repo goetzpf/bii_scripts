@@ -51,17 +51,12 @@ ext=dbl
 setopt nullglob
 
 cd /opt/IOC/log/Database
-eval /bin/egrep --color=auto $1 */$~iocglob.$ext */${~iocglob}_$ext.txt /dev/null | perl -e "
+/bin/egrep --color=auto $1 */*.$ext */*_$ext.txt | perl -e "
 while (<>) { 
     (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
     \$iocs->{\$ioc}->{\$var}=1;
 }; 
-\$size=( scalar keys \$iocs ) + ( \"$iocglob\" eq \"*\" ) ;
-\$flat=$flat;
-\$flat=1 unless \$size > 1;
-\$spc=\"\";
-\$spc=\"$spc\" unless \$flat;
 for \$ioc (sort keys %\$iocs) {
-    print \"\$ioc:\\n\" unless \$flat; 
-    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"\$spc\$var\"); }
+    print \"\$ioc:\\n\" unless $flat; 
+    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"$spc\$var\"); }
 }"
