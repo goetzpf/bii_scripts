@@ -331,7 +331,7 @@ PLAINTXT_H_SCRIPT_LIST= \
 	psh \
 	substdiff\
 	csv2plot
-
+        
 # scripts with no embedded documentation
 # create online help by executing "(script.p -h 2>&1; true)
 PLAINTXT_H_P_SCRIPT_LIST= \
@@ -342,6 +342,7 @@ PLAINTXT_H_P_SCRIPT_LIST= \
 PLAINTXT_H_PL_SCRIPT_LIST= \
 	adl_cvs_diff.pl\
 	adlsort.pl \
+        asynErrorsFromLog.pl\
 	buds_lookup.pl \
 	buildall.pl \
 	camonitor_sort.pl \
