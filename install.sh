@@ -3,16 +3,15 @@
 
 HOSTNAME=$(hostname -f)
 
-if echo $HOSTNAME| grep '\(aragon\|jalon\|elbe\)\.acc\.bessy\.de' -q ; then
-    echo "darcs pull is executed in order to prevent"
-    echo "you from installing old program versions by accident"
-    darcs pull
-    make all
-    sg scrptdev -c "make install"
-    exit
-fi
-
 if [ -z "$1" ]; then
+    if echo $HOSTNAME| grep '\(aragon\|jalon\|elbe\)\.acc\.bessy\.de' -q ; then
+        echo "darcs pull is executed in order to prevent"
+        echo "you from installing old program versions by accident"
+        darcs pull
+        make all
+        sg scrptdev -c "make install"
+        exit
+    fi
     echo "usage: $0 [install-directory]"
     exit 
 fi
