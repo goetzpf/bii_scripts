@@ -157,18 +157,32 @@ PYTHONPATHNEW=$(PYTHONLIB_SRC_DIR):$(PYTHONPATH)
 
 # program parameters ........................................
 
-# parameters for the install command
-INSTALL_FLAGS=-g $(INSTALL_GROUP) -m $(INSTALL_PERMS)
-INSTALL_XFLAGS=-g $(INSTALL_GROUP) -m $(INSTALL_XPERMS)
-
 # group for installed files and directories
-INSTALL_GROUP=scrptdev
+# use "scrptdev" if you are in this group:
+INSTALL_GROUP:=$(filter scrptdev,$(shell groups))
 
 # permissions for installed directories and executable files
 INSTALL_XPERMS=ug=rwx,o=rx
 
 # permissions for all other installed files
 INSTALL_PERMS=ug=rw,o=r
+
+# parameters for the install command
+ifneq ($(strip $(INSTALL_GROUP)),)
+    INSTALL_G_FLAG=-g $(INSTALL_GROUP)
+endif
+INSTALL_FLAGS=$(INSTALL_G_FLAG) -m $(INSTALL_PERMS)
+INSTALL_XFLAGS=$(INSTALL_G_FLAG) -m $(INSTALL_XPERMS)
+
+ifeq ($(strip $(INSTALL_GROUP)),)
+    define makedir
+	mkdir -p -m $(INSTALL_XPERMS) $1
+    endef
+else
+    define makedir
+	mkdir -p -m $(INSTALL_XPERMS) $1 && chgrp $(INSTALL_GROUP) $1
+    endef
+endif
 
 # install directories .......................................
 
@@ -705,8 +719,7 @@ install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_S
 
 $(_SHARE_INSTALL_DIRLIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	rm -rf $@ && \
-	mkdir -p -m $(INSTALL_XPERMS) $@ && \
-	chgrp $(INSTALL_GROUP) $@
+	$(call makedir,$@)
 
 $(_SHARE_INSTALL_LIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	$(INSTALL) $< $@
@@ -723,8 +736,7 @@ $(_PERLLIB_INSTALL_LIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 
 $(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	rm -rf $@ && \
-	mkdir -p -m $(INSTALL_XPERMS) $@ && \
-	chgrp $(INSTALL_GROUP) $@
+	$(call makedir,$@)
 
 ifeq "$(CREATE_PYTHON3)" "yes"
 install_python_libs: build_python_libs $(PYTHONLIB_INSTALL_DIR) $(PYTHON3LIB_INSTALL_DIR) \
@@ -740,16 +752,14 @@ $(_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
 
 $(_PYTHONLIB_INSTALL_DIRLIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
 	rm -rf $@
-	mkdir -p -m $(INSTALL_XPERMS) $@
-	chgrp $(INSTALL_GROUP) $@
+	$(call makedir,$@)
 
 $(_PYTHON3LIB_INSTALL_LIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHON3LIB_BUILD_DIR)/%
 	$(INSTALL) $< $@
 
 $(_PYTHON3LIB_INSTALL_DIRLIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHON3LIB_BUILD_DIR)/%
 	rm -rf $@
-	mkdir -p -m $(INSTALL_XPERMS) $@
-	chgrp $(INSTALL_GROUP) $@
+	$(call makedir,$@)
 
 ifneq "$(USE_RSYNC)" "yes"
 install_html: install_css install_html_script install_html_perllib install_html_pythonlib
@@ -1037,8 +1047,7 @@ $(_ALL_INSTALL_DIRLIST): %:
 	then \
 		touch $@; \
 	else \
-		mkdir -p -m $(INSTALL_XPERMS) $@ && \
-		chgrp $(INSTALL_GROUP) $@ ;\
+		$(call makedir,$@); \
 	fi
 endif
 
@@ -1047,8 +1056,7 @@ $(_ALL_ALWAYS_INSTALL_DIRLIST): %:
 	then \
 		touch $@; \
 	else \
-		mkdir -p -m $(INSTALL_XPERMS) $@ && \
-		chgrp $(INSTALL_GROUP) $@ ;\
+		$(call makedir,$@); \
 	fi
 
 # debugging .................................................
