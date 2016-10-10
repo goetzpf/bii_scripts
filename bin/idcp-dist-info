@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
+CONFIGFILE_PATH=/opt/OPI/idcp/rsync-dist.config.BII
 
 CONFIGFILE_BII=$CONFIGFILE_PATH/idcp
 CONFIGFILE_MLS=$CONFIGFILE_PATH/idcp-mls
