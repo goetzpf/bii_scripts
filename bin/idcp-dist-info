@@ -18,10 +18,10 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-CONFIGFILE_PATH=/opt/OPI/idcp/rsync-dist.config.BII
+CONFIGFILE_PATH=/opt/OPI/idcp
 
-CONFIGFILE_BII=$CONFIGFILE_PATH/idcp
-CONFIGFILE_MLS=$CONFIGFILE_PATH/idcp-mls
+CONFIGFILE_BII=$CONFIGFILE_PATH/rsync-dist.config.BII
+CONFIGFILE_MLS=$CONFIGFILE_PATH/rsync-dist.config.MLS
 
 CONFIGFILE=$CONFIGFILE_BII
 
