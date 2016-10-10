@@ -24,4 +24,4 @@ if [ ! -d $INSTALLDIR ]; then
 fi
 
 mkdir -p $INSTALLDIR/bin $INSTALLDIR/share/html/bii_scripts $INSTALLDIR/lib/perl $INSTALLDIR/lib/python
-USE_RSYNC=no INSTALL_PREFIX=$INSTALLDIR make -e install
+USE_RSYNC=no INSTALL_PREFIX=$INSTALLDIR make -s -e install
