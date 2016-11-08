@@ -28,7 +28,7 @@ curdir=`pwd`
 
 # format: <area>:<description>:directory
 map='tsc:control system:tsc\n
-tsc-mls:mls control system:mls/tsc\n
+tsc-mls:mls control system:conserver-mls/tsc\n
 id:insertion devices:id\n
 mono:monochromators:mono\n
 il:??:il\n
