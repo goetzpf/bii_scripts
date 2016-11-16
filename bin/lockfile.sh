@@ -53,8 +53,10 @@ install_signal_handler() {
 with_lock() {
   lock="$1"
   local tmo="$2"
+  local extra_cleanup="$3"
   cleanup() {
     rm -f "$lock"
+    eval "$extra_cleanup"
   }
   set -e
   wait_for_lock "$lock" "$tmo"
