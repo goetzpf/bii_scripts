@@ -108,10 +108,10 @@ class csvData(object):
 	if canOption != 'opc':
 	    try: self.port   = int(self.port)    # D is int: CAN-Port
 	    except ValueError: 
-		try:
-	    	    self.port = int(canOption)   # D CAN-port set by argument
-		except ValueError:
-	    	    pass    	    	    	 # my be a string for use outside CAN e.g.wago device
+	        try:
+	            self.port = int(canOption)   # D CAN-port set by argument
+	        except ValueError:
+	            pass    	    	    	 # my be a string for use outside CAN e.g.wago device
 
 	try: self.canId     = device[4].strip()  # E  CAN-Id / VME DTYP
 	except IndexError: self.canId = ""
@@ -609,7 +609,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
 		try:
 		    fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
 		except ValueError, e: 
-		    print e
+		    warnings.append([fileName,lines,"WARN: ",devName+":"+devObj.signal,"Illegal record link collumns D-F"])
     		
 		if devObj.rtype in ('ai','ao','longin','longout') :
 	    	    createAnalogRecord(devName,fields,devObj,warnings,fileName,lines)
@@ -643,32 +643,32 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
     return (autoSRRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
 
 def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
-    """ Decide which type of hardware is to be processed:
+    """ Decide which type of hardware is to be processed. All entrys but 'don't care' are mandatory.
     
-    Device type      | option -c     | Col. D   | Col. E | Col. F  | Col. G   | processed in
-    -----------------+---------------+----------+--------+---------+----------+-------------
-    Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id | Card Nr.| Chan. Nr | getCANLink()
-    VME-Device       | empty/CAN-Port| empty    | DTYP   | Card Nr.| Chan. Nr | getVmeLink()
-    OPC Device       | opc           | OPC-Link |  empty | empty   | empty    | getOpcLink()
-    Wago Device      | empty      | MODBUS-Port | wago[Type] | Offset | Bits  | getWagoLink()
+    Device type      | option -c     | Col. D   | Col. E    | Col. F    | Col. G    | processed in
+    -----------------+---------------+----------+-----------+-----------+-----------+-------------
+    Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id    | Card Nr.  | Chan. Nr  | getCANLink()
+    VME-Device       | don't care    | empty    | DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
+    OPC Device       | opc           | OPC-Link | don't care| don't care| don't care| getOpcLink()
+    Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
+    Soft record      | don't care    |empty     | empty     | empty     | empty     | return
     """
-    if canOption == 'opc':
-	if  len(devObj.port) == 0:
-	    return {}	# is a soft record
-	return getOpcLink(devObj,devName,opc_name)
-    else:	# ommit parameter or canport number means CAN/VME link
-	if epicsUtils.matchRe(devObj.canId,'^wago') is not None:
-	    return getWagoLink(devObj)
-	else:
-	    try:
-        	int(devObj.canId)          # CAN link  raises ValueError if its not an integer but a string for a VME DTYP
-		return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag,devObj)
-	    except ValueError:      # is VME link
-		if len(devObj.canId) == 0: # missing 
-    		    return {}	# is a soft record
-		    #raise ValueError("Missign DTYPE in Column D",lines)
-		return getVmeLink(devObj.rtype,devObj.canId,devObj.cardNr,devObj.chan)
+    if type(devObj.port) == int:
+        return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag,devObj)
+    if (len(devObj.port) == 0) and(len(devObj.canId) == 0) and(len(devObj.cardNr) == 0) and(len(devObj.chan) == 0):
+        return {}	# is a soft record
 
+    if len(devObj.port) == 0:
+        return getVmeLink(devObj.rtype,devObj.canId,devObj.cardNr,devObj.chan)
+
+    if canOption == 'opc':
+        return getOpcLink(devObj,devName,opc_name)
+
+    if epicsUtils.matchRe(devObj.canId,'^wago') is not None:
+        return getWagoLink(devObj)
+    else:
+        raise ValueError("Illegal Link")
+        
 def getOpcLink(devObj,devName,opc_name):
     """
     Create an OPC Link for option '-c opc', CAN or VME links are not supported in this mode!
