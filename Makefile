@@ -65,12 +65,6 @@
 # for python modules with embedded pydoc documentation
 #    add scriptname to the PYDOC_PYTHONLIB_LIST variable
 
-# scripts that do only run with python 2.5 or newer should
-#    be specified in the variable PYTHON_2_5_SCRIPTS.
-#    This is needed for antique debian-linux systems where
-#    python 2.5 is installed, but the binary is named
-#    "python2.5" instead of "python".
-
 #############################################################
 
 # functions
@@ -121,10 +115,10 @@ rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(RSYNC_HOST):'
 # programs ..................................................
 
 # the basename of the python binary:
-PYTHON25:=$(shell python -V 2>&1 | ( grep -q " 2\.[567]" && echo python || ( python2.5 -V >/dev/null 2>&1 && echo "python2.5" || echo python )))
+PYTHON:=python
 
 # the basename of the pydoc utility:
-PYDOC25:=$(shell python -V 2>&1 | ( grep -q " 2\.[567]" && echo pydoc || ( python2.5 -V >/dev/null 2>&1 && echo "pydoc2.5" || echo pydoc )))
+PYDOC:=pydoc
 
 # the standard unix install command
 INSTALL=install $(INSTALL_FLAGS)
@@ -444,17 +438,6 @@ PYDOC_PYTHONLIB_LIST= \
 	numpy_table.py \
 	numpy_util.py \
 	typecheck.py
-
-# python scripts that need python 2.5
-PYTHON_2_5_SCRIPTS= \
-        camonitor2table.py \
-        cvs-recover.py \
-	hg-recover.py \
-	ioc-reboot.py \
-	repo-loginfo.py \
-	rsync-dist-info.py \
-	tableutil.py \
-	sqlutil.py
 
 # python libs that can be converted to a python3 script:
 PYTHON_2TO3_LIB_LIST= \
@@ -839,15 +822,8 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
 	chmod u+x $@
 
-# extra rules for python 2.5 scripts:
-_PYTHON_2_5_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(PYTHON_2_5_SCRIPTS))
-
 $(SCRIPT_BUILD_DIR)/hg-sig: $(SCRIPT_SRC_DIR)/hg-sig
-	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
-	chmod u+x $@
-
-$(_PYTHON_2_5_SCRIPTS): $(SCRIPT_BUILD_DIR)/%.py: $(SCRIPT_SRC_DIR)/%.py
-	sed '1c\#!/usr/bin/env '$(PYTHON25) $< >$@
+	sed '1c\#!/usr/bin/env '$(PYTHON) $< >$@
 	chmod u+x $@
 
 # extra rules for python 3 scripts:
@@ -967,7 +943,7 @@ $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCR
 
 $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 	@echo "<PRE>"      >  $@
-	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON25) $< -h 2>>$(ERRLOG); true) >> $@
+	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON) $< -h 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
@@ -993,11 +969,11 @@ endif
 
 $(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 ifeq (1,$(DOCUTILS_AVAILABLE))
-	PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON25) $< --doc | \
+	PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON) $< --doc | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
-	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON25) $< --doc 2>>$(ERRLOG); true) >> $@
+	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON) $< --doc 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 endif
 
@@ -1034,7 +1010,7 @@ build_html_pythonlib: build_html_pythonlib_pydocs
 build_html_pythonlib_pydocs: $(PYTHONLIB_HTML_BUILD_DIR) $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST)
 
 $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTHONLIB_SRC_DIR)/%.py
-	d=`pwd` && cd $(@D) && PYTHONPATH=$$d/$(PYTHONPATHNEW) $(PYDOC25) -w $$d/$< 2>>$$d/$(ERRLOG)
+	d=`pwd` && cd $(@D) && PYTHONPATH=$$d/$(PYTHONPATHNEW) $(PYDOC) -w $$d/$< 2>>$$d/$(ERRLOG)
 
 # directory creation.........................................
 
