@@ -24,9 +24,6 @@ shopt -s nocasematch
 
 CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
 
-CONFIGFILE_BII=$CONFIGFILE_PATH/bii_controls
-CONFIGFILE_MLS=$CONFIGFILE_PATH/mls_controls
-
 verbose="no"
 app="bii_controls"
 part="IOC"
@@ -74,8 +71,6 @@ function print_long_help {
     echo
     rsync-dist-info.py -h
 }
-
-# declare all known insertion devices in a hash:
 
 args=("$@")
 while true; do
