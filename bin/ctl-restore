@@ -17,23 +17,104 @@
 # 
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+set -e
 
-if [ -z "$1" ] || [ "$1" = "-h" ]; then
-        me=`basename $0`
-        echo "usage: $me [version]"
-        echo "  Restores a version of the BII-Controls application."
-        echo "  [version] must be the ISO date string as it is used by"
-        echo "  rsync-dist. "
+shopt -s nocasematch
+
+CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
+
+verbose="no"
+app="bii_controls"
+part="IOC"
+
+function print_short_help {
+    me=`basename $0`
+    echo "$me: restore a version of BII-Controls or MLS-Controls"
+    echo "usage:"
+    echo "  $me [options] VERSION"
+    echo "      [VERSION] must be the ISO date string as it is used by"
+    echo "      rsync-dist. "
+    echo "options:"
+    echo "  -h: this help"
+    echo "  -a --app [application]: application, currently known:"
+    echo "        bii : bii-controls, the default"
+    echo "        mls : mls-controls"
+    echo "  -p --part [part]: specify the distributed part of the application"
+    echo "        currently known: "
+    echo "        ioc : the binary and db files, the default"
+    echo "        opi : the panel files"
+    echo "  --verbose: show executed command"
+    echo "  --dry-run : just show how rsync-dist-info.py would be called"
+}
+
+declare -a ARGS
+
+while true; do
+    case "$1" in
+      -h | --help)
+        print_short_help
         exit 0
-fi
+        ;;
+      -a| --app)
+        while true; do
+            if [[ $2 =~ ^bii ]]; then
+                app="bii_controls"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^mls ]]; then
+                app="mls_controls"
+                shift 2
+                break
+            fi
+            echo "unknown app: $2"
+            exit 1
+        done
+        ;;
+      -p| --part)
+        while true; do
+            if [[ $2 =~ ^ioc ]]; then
+                part="IOC"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^opi ]]; then
+                part="OPI"
+                shift 2
+                break
+            fi
+            echo "unknown part: $2"
+            exit 1
+        done
+        ;;
+      --verbose)
+        verbose="yes"
+        shift
+        ;;
+      --dry-run)
+        dryrun="yes"
+        shift
+        ;;
+      -- ) shift; break ;;
+      * ) 
+        if [ -z "$1" ]; then
+            break;
+        fi
+        ARGS+=("$1")
+        shift
+        ;;
+    esac
+done
 
-DISTDIR=/opt/IOC/BII-Controls/base-3-14/dist
-DIST_SSH=iocadm@nfs.ctl.bessy.de
-VERSION=$1
+configfile="$CONFIGFILE_PATH/$app-$part"
+
+source $configfile
+
+VERSION=${ARGS[0]}
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 MYVERSION=`echo $VERSION | sed -e 's/://g'`
 
 echo -e "* creating directory $MYVERSION"
-darcs-restore $DIST_SSH:$DISTDIR/$QVERSION $MYVERSION
+darcs-restore $RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION $MYVERSION
 
 echo -e "\nversion $VERSION was restored in directory $MYVERSION"
