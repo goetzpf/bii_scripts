@@ -51,7 +51,7 @@ ext=dbl
 setopt nullglob
 
 cd /opt/IOC/log/Database
-/bin/egrep --color=auto $1 */*.$ext */*_$ext.txt | perl -e "
+/bin/egrep --color=auto $1 **/*.$ext **/*_$ext.txt | perl -e "
 while (<>) { 
     (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
     \$iocs->{\$ioc}->{\$var}=1;
