@@ -27,28 +27,62 @@ stepy Measure Program
 Stepy is a configurable measure program that preforms loops that set EPICS
 process variables (PV) and read a set of process variables after each step.
 
+Get help by 
+  
+  http://www-csr.bessy.de/control/bii_scripts/html/scripts/stepy.html
+
+Or call stepy from command line: 
+
+  stepy -h      for commandline features
+  stepy --doc   for manual
+
+HowTo
+===========
+
+- Setup a simple measurement:
+
+  - Define the loop with 'From:' 'To:' 'Inc:'. Attention: only posetive 'From:' < 'To:'
+  - Minimal delay between set the PVs and measure set the 'Delay:' field. Also subseconds are allowed e.g. 0.2 for 200ms
+  - Define the PV to set: 'Add PV' -> 'Pv' -> PV_NAME
+  - Define PVs to measure: Button <Measure>
+      - Set Field 'Add PV:'. Press Button <Add PV>. If the PV exists it will be added to the List 'Measured PVs:'
+      - If the PV is not accessible it will be set to red Background
+      - Delete from list by select and press Button 'Delete selected PVs'
+  - <Start>
+
+..
+
+- More featured measure run
+
+  - Define the number of steps with 'From:' 'To:' 'Inc:'. Attention: only posetive 'From:' < 'To:'
+  - Define the PV or a number of PVs to be set: 
+
+    -'Add PV' -> 'Linear' -> 'LINEAR PV:' PV_NAME 'Begin:', 'End:' - Begin may be higher than 'End'
+  
 Features 
 ==============================
 
 - **Loops** for n dimensions, with the parameters:
 
-  - the parameters: 'FROM, TO, INCREMENT' and 'DELAY' define a loop
-  - The outer loop may be defined for single or multiple runs.
+  - the parameters: 'FROM, TO, INCREMENT' and 'DELAY' define a loop. This may be used to define the set
+  value but should be used to define the number of steps and use the 'Linear' type to define the set values.
+  - FROM < TO ! Decreasing values are not allowed! use 'Linear' PV instead.
+  - The outer loop may be defined for single or multiple runs: [ONCE|Triangle|Sawtooth]
 
-..
-
-- **Attatched Process variables:** Each loop may set several PVs
+- **Attatched Process variables:** Each loop may set several PVs:
 
 - **Set PV types:**  For each process variable are several types of conversion of
   the loop parameters available.
+..
 
   - **PV:** set the current loop value.
-  - **MOTOR:** set the current loop value and wait until the motor has reached its 
+  - **MOTOR:** set the current loop value FROM,TO and wait until the motor has reached its 
     position.
-  - **LINEAR:** Parameter: BEGIN, END. Convert the loop values to the range within
+  - **LINEAR:** Parameter: BEGIN, END. Convert the loop values FROM, TO to the range within
     the parameters for each step.
   - **FUNCTION:** Transform the loop values with a free definable (python syntax)
-    function
+    function. The variable 'x' means the runing value defined by FROM, TO e.g. FROM 1 TO 10 INC 1, 
+    FUNC PV test, FUNCTION 'x**2' will set the PV test to 1,4,9,16,..81,100
 
 ..
 
@@ -76,16 +110,21 @@ Features
 
       stepy -x my.cfg -f measuredData.csv
 
-  - Minimal delay between the steps is approximate 1 second, due to the channel 
-    access library.
+  - Minimal delay between the steps has to be set. It is approximate 1 second, due to the channel 
+    access library!
+
+  - Save measured data:
+
+    - with the <Save&Clead-data> Button. 
+    - Press the <Start> Button: If there are unsaved data the program will prompt for Save or not.
 
 ..
 
-- Restore affected PVs when finishing the program.
+- **Restore affected PVs** when finishing the program.
 
-  - GUI 'Restore' button
-  - Quit GUI: Ask dialog
-  - Commandline: allways restore if program finshed
+  - GUI Button: <Reset PVs>
+  - Quit GUI: Ask dialog if the program shall restore all set PVs to values after start of the program.
+  - Commandline: allways restore if program finshed.
 
 Configuration files
 ==============================
