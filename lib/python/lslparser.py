@@ -210,7 +210,7 @@ class LslEntry(object):
         self.group      = elms[3]
         self.size       = long(elms[4])
         elms= elms[5:]
-        (self.timestamp,elms)= _datetime_of_lsl_tokenlist(elms)
+        (self.timestamp,elms)= _datetime_of_lsl_tokenlist(elms, year)
         self.name= _token_subtract(str,token_no-len(elms))
         if self.is_symlink():
             (self.symlink_from,self.symlink_to)= _parse_lsl_symlink(self.name)
@@ -266,7 +266,7 @@ class LslEntries(object):
                 continue
             if line.startswith("total"):
                 continue
-            entry= LslEntry(line)
+            entry= LslEntry(line, year)
             self._entries[entry.name]= entry
     def names(self):
         return sorted(self._entries.keys())
