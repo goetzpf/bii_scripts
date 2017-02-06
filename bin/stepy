@@ -27,14 +27,10 @@ stepy Measure Program
 Stepy is a configurable measure program that preforms loops that set EPICS
 process variables (PV) and read a set of process variables after each step.
 
-Get help by 
-  
-  http://www-csr.bessy.de/control/bii_scripts/html/scripts/stepy.html
+Get help by call stepy from command line: ::
 
-Or call stepy from command line: 
-
-  stepy -h      for commandline features
-  stepy --doc   for manual
+    stepy -h      for commandline features
+    stepy --doc   for manual
 
 HowTo
 ===========
@@ -45,12 +41,12 @@ HowTo
   - Minimal delay between set the PVs and measure set the 'Delay:' field. Also subseconds are allowed e.g. 0.2 for 200ms
   - Define the PV to set: 'Add PV' -> 'Pv' -> PV_NAME
   - Define PVs to measure: Button <Measure>
+
       - Set Field 'Add PV:'. Press Button <Add PV>. If the PV exists it will be added to the List 'Measured PVs:'
       - If the PV is not accessible it will be set to red Background
       - Delete from list by select and press Button 'Delete selected PVs'
-  - <Start>
 
-..
+  - <Start>
 
 - More featured measure run
 
@@ -65,7 +61,7 @@ Features
 - **Loops** for n dimensions, with the parameters:
 
   - the parameters: 'FROM, TO, INCREMENT' and 'DELAY' define a loop. This may be used to define the set
-  value but should be used to define the number of steps and use the 'Linear' type to define the set values.
+    value but should be used to define the number of steps and use the 'Linear' type to define the set values.
   - FROM < TO ! Decreasing values are not allowed! use 'Linear' PV instead.
   - The outer loop may be defined for single or multiple runs: [ONCE|Triangle|Sawtooth]
 
@@ -73,7 +69,6 @@ Features
 
 - **Set PV types:**  For each process variable are several types of conversion of
   the loop parameters available.
-..
 
   - **PV:** set the current loop value.
   - **MOTOR:** set the current loop value FROM,TO and wait until the motor has reached its 
@@ -84,8 +79,6 @@ Features
     function. The variable 'x' means the runing value defined by FROM, TO e.g. FROM 1 TO 10 INC 1, 
     FUNC PV test, FUNCTION 'x**2' will set the PV test to 1,4,9,16,..81,100
 
-..
-
 - **Measurement:** Multiple PVs may be measured in each step. The measured values 
   are:
 
@@ -94,14 +87,10 @@ Features
   - may be stored in a file in .csv format
   - there may be a break condition to break the measurement (-b option)
 
-..
-
 - **GUI Features** :
 
   - All loops, set and read PVs may be configured by the GUI.
   - Configuration and measured data may be stored to file.
-
-..
 
 - **Run Remarks** :
 
@@ -117,8 +106,6 @@ Features
 
     - with the <Save&Clead-data> Button. 
     - Press the <Start> Button: If there are unsaved data the program will prompt for Save or not.
-
-..
 
 - **Restore affected PVs** when finishing the program.
 
