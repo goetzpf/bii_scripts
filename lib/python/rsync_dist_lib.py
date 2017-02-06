@@ -685,9 +685,9 @@ class LLogByName(object):
         returns:
             none, but the content of self is modified
         """
-        def _myparse(x):
+        def _myparse(x, year):
             """get only basenames of link targets."""
-            entries= LslEntries(x)
+            entries= LslEntries(x, year= year)
             return dict([(name,my_basename(entry.symlink_to)) \
                         for name, entry in entries.items()])
         # a dict mapping keys to a list of dates and versions
@@ -695,15 +695,15 @@ class LLogByName(object):
             date= dateutils.parse_isodatetime(record["DATE"])
             if record.has_key("ADDED"):
                 # a dict mapping link keys to versions
-                changed_versions= _myparse(record["ADDED"])
+                changed_versions= _myparse(record["ADDED"], date.year)
             elif record.has_key("REMOVED"):
-                changed_versions= _myparse(record["REMOVED"])
+                changed_versions= _myparse(record["REMOVED"], date.year)
                 # remove version from name-dict, since these
                 # keys were deleted:
                 for n in changed_versions:
                     changed_versions[n]= None
             else:
-                changed_versions= _myparse(record["NEW"])
+                changed_versions= _myparse(record["NEW"], date.year)
             for n in changed_versions.keys():
                 self._append(n,date,changed_versions[n])
         # fix lists in case the log-links file is not
