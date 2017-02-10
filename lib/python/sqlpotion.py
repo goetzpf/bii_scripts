@@ -71,6 +71,22 @@ try:
     import sqlalchemy
 except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module sqlalchemy not found\n" % __name__)
+    class sqlalchemy_class(object):
+        def __init__(self):
+            self.Binary= 1
+            self.Date= 1
+            self.DateTime= 1
+            self.Enum= 1
+            self.Float= 1
+            self.Integer= 1
+            self.Interval= 1
+            self.String= 1
+            self.String= 1 
+            self.Text= 1
+            self.Time= 1
+
+    sqlalchemy= sqlalchemy_class()
+
 if sys.version_info < (3, 0):
     import StringIO as io
 else:

@@ -67,6 +67,21 @@ try:
     import numpy.lib.recfunctions as rf
 except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module numpy not found\n" % __name__)
+    class numpy_class(object):
+        def __init__(self):
+            pass
+        @staticmethod
+        def seterr(*args, **kwargs):
+            pass
+        @staticmethod
+        def zeroes(*args, **kwargs):
+            pass
+        @staticmethod
+        def array(*args, **kwargs):
+            pass
+
+    numpy= numpy_class()
+
 from StringIO import StringIO
 import sys
 import inspect
