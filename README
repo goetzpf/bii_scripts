@@ -6,14 +6,17 @@ will make your work easier.
 How to make and install
 =======================
 
-Automatic build and installation under /opt/csr is performed by executing
+Automatic build and installation under /opt/csr is performed by executing::
 
-	./install.sh
+  ./install.sh
 
-on the command line. If you want to install to a different location, use the
-command line in install.sh and change the 'prefix' and 'SHARE_DIR' parameters
-to suit your needs.
+on the command line. If you want to install to a different location, 
+call install like this::
 
+  ./install.sh DIRECTORY
+
+All files are then installed below DIRECTORY.
+  
 Documentation
 =============
 
