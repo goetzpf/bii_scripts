@@ -6,6 +6,10 @@ will make your work easier.
 How to make and install
 =======================
 
+First make install.sh executable::
+
+  chmod u+x install.sh
+
 Automatic build and installation under /opt/csr is performed by executing::
 
   ./install.sh
