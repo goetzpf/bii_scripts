@@ -141,7 +141,7 @@ import os
 import sys
 import netrc
 
-_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary"))
+_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary","--doc"))
 try:
     import pexpect
 except ImportError:
