@@ -653,7 +653,9 @@ class LLogByName(object):
         new= LLogByName()
         if not use_regexp:
             for n in keys:
-                new._dict[n]= self._dict[n]
+                v= self._dict.get(n)
+                if v is not None:
+                    new._dict[n]= v
         else:
             for n in self._dict.keys():
                 for rx in keys:
