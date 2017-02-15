@@ -440,7 +440,7 @@ def process(options):
             self.versionActivities= None
             self.versionLifetimes= None
         def filter_by_name(self, keep, use_regexp= False):
-            """implement filer-by-name."""
+            """implement filter-by-name."""
             if self.logByName is not None:
                 self.logByName        = self.logByName.select_names(keep,\
                                             use_regexp= use_regexp)
@@ -448,7 +448,7 @@ def process(options):
                 self.logByVersion     = self.logByVersion.select_names(keep,\
                                             use_regexp= use_regexp)
         def filter_by_version(self, keep):
-            """implement filer-by-version."""
+            """implement filter-by-version."""
             if self.logByName is not None:
                 self.logByName     = self.logByName.select_versions(keep)
             if self.logByVersion is not None:
@@ -509,9 +509,6 @@ def process(options):
 
     if options.filter_versions:
         keep= options.filter_versions.split(",")
-        keep.append(None)
-        # keep <None> version entries in logByName
-        # (times when names were removed)
         objs.filter_by_version(keep)
 
     if options.filter_nonexistent:
