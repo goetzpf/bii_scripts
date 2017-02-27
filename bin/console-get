@@ -84,7 +84,9 @@ wget --quiet -r -l1 --no-parent -nd http://gwc1c.acc.bessy.de/conserver/$dir -A 
 mkdir t 
 for f in `sh -c "ls $files"`; do mv $f t; done
 rm -f *.log *.gz index* && mv t/* . && rmdir t
-gunzip *.gz
+if ls *.gz 1>/dev/null 2>&1; then
+    gunzip *.gz
+fi
 
 for f in *.log
 do
