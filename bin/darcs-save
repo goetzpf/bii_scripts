@@ -19,12 +19,9 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 [ "$DARCS_SAVE" = "NO" ] && exit
+
 dest=.darcs-restore
-if [ ! -e _darcs/prefs/defaultrepo ]
-then
-  echo "No defaultrepo found - skipping darcs-save" 
-  exit
-fi
+
 cleanup () {
   #unrecord the tag
   yes | darcs unrecord -a --last=1
@@ -38,7 +35,14 @@ cleanup () {
 }
 trap cleanup INT QUIT TERM
 test -d $dest || mkdir $dest
-cp _darcs/prefs/defaultrepo $dest
+if test -n "$1"; then
+  echo "$1" > "$dest/defaultrepo"
+elif test ! -e _darcs/prefs/defaultrepo; then
+  cp _darcs/prefs/defaultrepo $dest
+else
+  echo "no master repo specified and no defaultrepo found - skipping darcs-save" >&2
+  exit
+fi
 darcs record -a --skip-long-comment -m NOT-RECORDED
 darcs record -a --skip-long-comment -l -m NOT-ADDED
 darcs tag "`whoami`@`uname -n`:`pwd`"
