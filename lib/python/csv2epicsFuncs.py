@@ -569,77 +569,74 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
 
 def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     """ Is an EPICS record in: ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout'] ?
-	Setup EPICS record and return oter data: (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
+        Setup EPICS record and return oter data: (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
     """
     sdis       = ''
     if devObj.disableRec:
-    	sdis= devObj.disableRec+" CP"
-    alhSignals = []	    # templates may have a list of signals for alarm handler
-    arcSignals = []	    # templates may have a list of signals for archiver
-    panelDict = {}  	    # panel widget macro data
-    panelNameDict = {}	    # panel widget PV name in form of {'TAG':pvName} dictionary
+        sdis= devObj.disableRec+" CP"
+    alhSignals = []         # templates may have a list of signals for alarm handler
+    arcSignals = []         # templates may have a list of signals for archiver
+    panelDict = {}          # panel widget macro data
+    panelNameDict = {}      # panel widget PV name in form of {'TAG':pvName} dictionary
     panelWidgetName = None  # default widget name for this record/template may be overwritten by col.V (Panel Sort)
-    autoSRRequest = []	    # signals for autoSaveRestore
-#    print "procRecord("+devName+":"+devObj.signal+" CANoption='"+str(canOption)+"' opcName='"+str(opc_name)+"' iocTag='"+str(iocTag)+"' "+fileName+":"+str(lines)+")"
+    autoSRRequest = []      # signals for autoSaveRestore
+
     if (len(devName)+len(devObj.signal)+1) > baseData.getRecNameLen():
-    	warnings.append([fileName,lines,"WARN: ",devName+":"+devObj.signal,"Record name length excedet max="+str(baseData.getRecNameLen())])
+        warnings.append([fileName,lines,"WARN: ",devName+":"+devObj.signal,"Record name length excedet max="+str(baseData.getRecNameLen())])
     
     fields = {}
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N
     if devObj.rtype in recordSet.keys():
 
-	pvName = devName+":"+devObj.signal
-	alhSignals.append(devObj.signal)
-	arcSignals.append(devObj.signal)
-	fields['SNAME']= devObj.signal
-	fields['DISS']= 'INVALID'
-	fields['SDIS']= sdis
-    	fields['DESC']= devObj.DESC
-	try:
-	    if len(devObj.reqFlag) > 0:
-	    	if len(devObj.reqFlag) <= 1:
-		    autoSRRequest.append(devName+":"+devObj.signal)
-		else:
-		    for signal in devObj.reqFlag.split("|"):
-		    	autoSRRequest.append( devName+":"+signal)
+        pvName = devName+":"+devObj.signal
+        alhSignals.append(devObj.signal)
+        arcSignals.append(devObj.signal)
+        fields['SNAME']= devObj.signal
+        fields['DISS']= 'INVALID'
+        fields['SDIS']= sdis
+        fields['DESC']= devObj.DESC
+        try:
+            if len(devObj.reqFlag) > 0:
+                if len(devObj.reqFlag) <= 1:
+                    autoSRRequest.append(devName+":"+devObj.signal)
+                else:
+                    for signal in devObj.reqFlag.split("|"):
+                        autoSRRequest.append( devName+":"+signal)
 
-	    # is a record type that has INP/OUT link, is able to supports hardware access
-	    if procInOut(devObj.rtype) is not None: 	
-		l=None
-		try:
-		    fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
-		except ValueError, e: 
-		    warnings.append([fileName,lines,"WARN: ",devName+":"+devObj.signal,"Illegal record link collumns D-F"])
-    		
-		if devObj.rtype in ('ai','ao','longin','longout') :
-	    	    createAnalogRecord(devName,fields,devObj,warnings,fileName,lines)
-    		elif devObj.rtype in ('mbbiDirect','mbboDirect') :
-		    fields.update({'NOBT': 16,})
-		    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
-		elif devObj.rtype in ('bi','bo'):
-			createBiBoRecord(devName,fields,devObj,warnings,fileName,lines)
-		elif devObj.rtype in ('mbbi','mbbo'):
-			createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines)
-    	    else: # Soft record, fields from Col. N
-		epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName)
-	except ValueError, e:
-	    warnings.append([fileName,lines,"WARN",pvName,str(e)])
+            # is a record type that has INP/OUT link, is able to supports hardware access
+            if procInOut(devObj.rtype) is not None:     
+                l=None
+                fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
+                
+                if devObj.rtype in ('ai','ao','longin','longout') :
+                    createAnalogRecord(devName,fields,devObj,warnings,fileName,lines)
+                elif devObj.rtype in ('mbbiDirect','mbboDirect') :
+                    fields.update({'NOBT': 16,})
+                    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
+                elif devObj.rtype in ('bi','bo'):
+                        createBiBoRecord(devName,fields,devObj,warnings,fileName,lines)
+                elif devObj.rtype in ('mbbi','mbbo'):
+                        createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines)
+            else: # Soft record, fields from Col. N
+                epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName)
+        except ValueError, e:
+            warnings.append([fileName,lines,"WARN",pvName,str(e)])
 
-    	if devObj.rtype in ('bo') :
-	    panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
-	    panelWidgetName = "bo"
-    	elif devObj.rtype in ('ao','longout') :
-	    panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
-	    panelWidgetName = "ao"
-    	elif devObj.rtype in ('mbbo') :
-	    panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
-	    panelWidgetName = "mbbo"
-	else:
-	    panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
-	    panelWidgetName = "anyVal"
-	panelNameDict.update({'DEVN':devName})
+        if devObj.rtype in ('bo') :
+            panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
+            panelWidgetName = "bo"
+        elif devObj.rtype in ('ao','longout') :
+            panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
+            panelWidgetName = "ao"
+        elif devObj.rtype in ('mbbo') :
+            panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
+            panelWidgetName = "mbbo"
+        else:
+            panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
+            panelWidgetName = "anyVal"
+        panelNameDict.update({'DEVN':devName})
     else:
-    	return None
+        return None
     return (autoSRRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
 
 def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
@@ -930,33 +927,38 @@ def getWagoLink(devObj):
     """
     fields = {}
     if devObj.rtype in ['ai','ao']:
-	fields.update({'DTYP': "asynInt32"})
-    	fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
+        fields.update({'DTYP': "asynInt32"})
+        fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
 
-	if epicsUtils.matchRe(devObj.canId,'^wagoTemp') is not None: # special conversion for Temperature modules
-	    fields.update({'LINR': "SLOPE",
-    		'ASLO': 0.1,
-    		'AOFF': 0,
-    		})
-	else:
-	    fields.update({'LINR': "LINEAR",
-    		'EGUL': fields['LOPR'],
-    		'EGUF': fields['HOPR'],
-    		})
-	if devObj.rtype == 'ai':
-    	    fields.update({'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" "+devObj.chan+")MODBUS_DATA",'SCAN':"I/O Intr"})
-	else:
-    	    fields.update({'OUT': "@asynMask("+devObj.port+" "+devObj.cardNr+" "+devObj.chan+")MODBUS_DATA"})
-	     
+        if epicsUtils.matchRe(devObj.canId,'^wagoTemp') is not None: # special conversion for Temperature modules
+            fields.update({'LINR': "SLOPE",
+                'ASLO': 0.1,
+                'AOFF': 0,
+                })
+        else:
+            #Linear conversion from real raw values 16bit hex to EGUL,EGUF defined in Column H. Col.I means just HOPR/LOPR
+            raw = epicsUtils.matchRe(devObj.rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*") 
+            if raw is None:
+                raise ValueError("Col.H Raw Value not defined")
+            fields.update({'LINR': "LINEAR",
+                    'EGUL': raw[0],
+                    'EGUF': raw[1],
+                    })
+            
+        if devObj.rtype == 'ai':
+            fields.update({'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" "+devObj.chan+")MODBUS_DATA",'SCAN':"I/O Intr"})
+        else:
+            fields.update({'OUT': "@asynMask("+devObj.port+" "+devObj.cardNr+" "+devObj.chan+")MODBUS_DATA"})
+             
     elif devObj.rtype == 'bo':
-    	fields.update({ 'DTYP': "asynUInt32Digital",
-			'PINI':'YES',
-    			'OUT': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
+        fields.update({ 'DTYP': "asynUInt32Digital",
+                        'PINI':'YES',
+                        'OUT': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
     elif devObj.rtype == 'bi':
-    	fields.update({'DTYP': "asynUInt32Digital",
+        fields.update({'DTYP': "asynUInt32Digital",
                        'SCAN':"I/O Intr",
-		       'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
-	    
+                       'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
+            
     return (fields)
 
 def watchdogGetFunc():
