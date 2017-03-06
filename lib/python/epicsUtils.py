@@ -61,7 +61,7 @@ import listOfDict as lod
 import pprint
 try:
     import BDNS
-    BDNS_EXIST = 1 	
+    BDNS_EXIST = 1      
 except ImportError, e:
     BDNS_EXIST = None
 
@@ -143,7 +143,7 @@ def substRe(matchStr,matchRe,replaceStr,flags=0):
     """
 def substituteVariables(sString,substDict):
     for name in substDict.keys():
-	sString = sString.replace(r"$("+name+")",str(substDict[name]))
+        sString = sString.replace(r"$("+name+")",str(substDict[name]))
     return sString
 
 def printDb(recList, printMode = "TABLE"):
@@ -163,7 +163,7 @@ def printDb(recList, printMode = "TABLE"):
         keys.remove('RTYP')
         keys = sorted(keys)
         order = ['recordname','RTYP']+keys
-	table = lod.orderToTable(recList,order)
+        table = lod.orderToTable(recList,order)
         if printMode == 'TABLE':
             printTable(table,order)
         else:
@@ -254,11 +254,11 @@ def parseParam(fieldPar,delim='|'):
     valList = fieldPar.split(delim) # set alarm values and additional fields for a record
     if len(valList) > 0 and valList[0] != '':
         for v in valList:
-	    try:
+            try:
                 (valName,val)  = matchRe(v,'(.*?)=(.+)')
-		w = matchRe(val,'^"([^"]*)"$')
-		if w: val = w[0]
-		commFields[valName] = val
+                w = matchRe(val,'^"([^"]*)"$')
+                if w: val = w[0]
+                commFields[valName] = val
             except TypeError:
                 if len(valList) == 1:
                     return valList[0]
@@ -402,22 +402,22 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
                 mux = 8
                 recType = 'mbbiDirect'
                 hwSignal = "inBits"
-	    hwDeviceObj = epicsTemplate.getDevice(hwDeviceName)
-	    hasPv = None
-	    for dev in hwDeviceObj:
-	    	if dev.field['SNAME'] == hwSignal:
-		    hasPv=1
-		    break
-	    
-	    if not hasPv:
-		f = {'DESC'  :'Access Port:'+str(port)+", Id:"+str(canId)+", card:"+str(cardNr),
+            hwDeviceObj = epicsTemplate.getDevice(hwDeviceName)
+            hasPv = None
+            for dev in hwDeviceObj:
+                if dev.field['SNAME'] == hwSignal:
+                    hasPv=1
+                    break
+            
+            if not hasPv:
+                f = {'DESC'  :'Access Port:'+str(port)+", Id:"+str(canId)+", card:"+str(cardNr),
                      'NOBT'  :'16',
                      'DTYP'  :'lowcal',
                      'SNAME' : hwSignal,
                      linkName: createAdaCanLink(port,canId,cardNr,mux)
                     }
-		if linkName == 'INP':
-		    f['SCAN'] = "1 second"
+                if linkName == 'INP':
+                    f['SCAN'] = "1 second"
                 epicsTemplate(recType,{'DEVN':hwDeviceName},f)
 
             (nobt,shft) = getShiftParam(chan)
@@ -427,10 +427,10 @@ def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
             if rtyp  == 'bo':
                 fields[linkName]= "%s:%s.B%X PP NMS" % (hwDeviceName,hwSignal,shft)
             else:   # mbbi, mbbo
-    	    	if rtyp  == 'mbbi':
-    	    	    fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
-    	    	if rtyp  == 'mbbo':
-    	    	    fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
+                if rtyp  == 'mbbi':
+                    fields[linkName]= "%s:%s CPP MS" % (hwDeviceName,hwSignal)
+                if rtyp  == 'mbbo':
+                    fields[linkName]= "%s:%s PP NMS" % (hwDeviceName,hwSignal)
                 fields['NOBT']= nobt
                 fields['SHFT']= shft
     except ValueError:                          # VME link
@@ -507,8 +507,8 @@ class Panels(object):
         """
         def __init__(self,panelName,widgetPath) :
             self.order = None
-	    if BDNS_EXIST:
-            	self.order = BDNS.mkOrder("MEMBER,DOMAIN,SUBDOMNUMBER,INDEX,SUBINDEX")
+            if BDNS_EXIST:
+                self.order = BDNS.mkOrder("MEMBER,DOMAIN,SUBDOMNUMBER,INDEX,SUBINDEX")
             self.panelName = panelName    # panel name
             self.groups = []    # [groupName_1, groupName_2,...] to get the order of groups
             self.items  = {}    # self.items[groupName_n] = [item1, item2,...] the items of a group
@@ -530,8 +530,8 @@ class Panels(object):
         def getWidgetType(self,item):
             if item.widgetName:
                 return item.widgetName
-	    else:
-	    	die("No Widget defined for Panel:"+item.__repr__())
+            else:
+                die("No Widget defined for Panel:"+item.__repr__())
 #            elif item.type in ['ai','bi','mbbi','calc']:
 #                    return "anyVal"
 #            else:   return item.type
@@ -593,7 +593,7 @@ class Panels(object):
 # Check if this group has a header widget take a text widget
                     if pGroup != "":
 #                        print "groupWidget =", pGroup
-			groupWidget = pGroup
+                        groupWidget = pGroup
                         if self.checkWidgetPath(groupWidget+"Header"):
                             retStr += "file "+groupWidget+"Header.template  {\n  {"+gridHead+"}\n}\n"
                         else:
@@ -606,9 +606,9 @@ class Panels(object):
                 actualWidgetType = self.getWidgetType(itemList[0])
                 wLst.append(itemList[0])
                 for item in itemList[1:]:
-		    wType = self.getWidgetType(item)
+                    wType = self.getWidgetType(item)
 #                    print actualWidgetType,wType
-		    if actualWidgetType != wType:
+                    if actualWidgetType != wType:
 #                       print "TypeChange: ",actualWidgetType, "->", wType
                         retStr += "file "+actualWidgetType+".template {\n"+"\n".join(map(lambda x: str(x),wLst))+"\n}\n"
                         actualWidgetType = wType
@@ -654,9 +654,9 @@ class Panels(object):
                     int(sortParam)
                     self.isSort = "SORT_BY_NUMBER"
                 elif isinstance(sortParam,dict):
-		    if sortParam.has_key('WIDGET'):
+                    if sortParam.has_key('WIDGET'):
                         self.widgetName = sortParam['WIDGET']
-			del(sortParam['WIDGET'])
+                        del(sortParam['WIDGET'])
                     if sortParam.has_key('GRID'):
                         self.isSort = "SORT_BY_GRID"
                         xy = sortParam['GRID']
@@ -666,11 +666,11 @@ class Panels(object):
                         else:
                             raise ValueError, "No valid grid sort parameter: "+sort
                     elif sortParam.has_key('SORT'):
-		    	self.isSort = "SORT_BY_NUMBER"
-			self.sort = sortParam['SORT']
-                    	del(sortParam['SORT'])
-			self.data.update(sortParam)
-			print self.isSort, self.sort, self.widgetName, self.data
+                        self.isSort = "SORT_BY_NUMBER"
+                        self.sort = sortParam['SORT']
+                        del(sortParam['SORT'])
+                        self.data.update(sortParam)
+                        print self.isSort, self.sort, self.widgetName, self.data
                 else:
                     raise ValueError, "PanelWidget.__init(): Not a valid sort parameter: "+sort
 
@@ -692,11 +692,11 @@ class Panels(object):
                 except ValueError:
                     return cmp(self.sort,pw.sort)
             elif self.isSort == "SORT_BY_BDNS" and pw.isSort == "SORT_BY_BDNS":
-                if  BDNS_EXIST : 	    	    	    	    	    # BDNS sort by device name
-		    return BDNS.cmpNamesBy(self.devn.values()[0],pw.devn.values()[0],self.bdnsOrder)
-		else:
-		    return cmp(self.devn.values()[0],pw.devn.values()[0])   # lexical sort by device name
-		return 
+                if  BDNS_EXIST :                                            # BDNS sort by device name
+                    return BDNS.cmpNamesBy(self.devn.values()[0],pw.devn.values()[0],self.bdnsOrder)
+                else:
+                    return cmp(self.devn.values()[0],pw.devn.values()[0])   # lexical sort by device name
+                return 
             elif self.isSort == "SORT_BY_GRID" and pw.isSort == "SORT_BY_GRID":
                 if self.yPos == pw.yPos:
                     return cmp(self.xPos,pw.xPos)
@@ -767,8 +767,10 @@ class epicsAlh(object):
     - ALH Sort (col. S):   An optional sort number to define the order within a group
     """
     nodeDict={}
+
     @staticmethod
     def toGroupString(grStr): return substRe(grStr,' ','_').upper()
+
     @staticmethod
     def printFiles(prePath):
         for filename in epicsAlh.getRoot():
@@ -780,8 +782,10 @@ class epicsAlh(object):
                 f.close()
             except IOError:
                 die("IOError in write file: "+filename+".alh")
+
     @staticmethod
     def getRoot(): return epicsAlh.nodeDict.keys()
+
     @staticmethod
     def printAllSubst(root=None):
         """
@@ -794,6 +798,7 @@ class epicsAlh(object):
             """
             myPar.append("CHANNEL "+epicsAlh.toGroupString(path[-1])+ " "+str(leaf)+"\n")
             return myPar
+
         def printGroup(nodeName,depth,path,myPar):
             """
             The user defined function to be called for each node of the tree - to print
@@ -806,7 +811,9 @@ class epicsAlh(object):
 #               print "GROUP "+epicsAlh.toGroupString(path[depth-1])+" "+epicsAlh.toGroupString(path[depth])+"\n$ALIAS "+path[depth]+"\n"
                 myPar.append("GROUP "+epicsAlh.toGroupString(path[depth-1])+" "+epicsAlh.toGroupString(path[depth])+"\n$ALIAS "+path[depth]+"\n")
             return myPar
+
         def cmpAlhItems(a,b): return a.cmpSortPar(b)
+
         def walkTree(nodePath,nodeDict,depth,retPar,leafFunc=None,nodeFunc=None,cmpLeafFunc=None):
 #           print "walkTree:",depth,len(nodePath),nodePath
             for nodeName in nodeDict.keys():
@@ -848,7 +855,7 @@ class epicsAlh(object):
         devname:    The CHANNEL ChannelName is the EPICS PV: "devname:signal"
         signal:
         devObj:     class csvData object with a line of parameters of the spreadshet 
-	    alhGroup:   Group definition path, first element is the alh file name
+            alhGroup:   Group definition path, first element is the alh file name
             sort:       Optional sort order
             panelName:  Optional panelName name to be executed with the COMMAND item
             alhFlags:   Optional items for the channel configuration
@@ -861,7 +868,7 @@ class epicsAlh(object):
         self.flags   = "---T-"
         self.panel   = None
         self.sort    = None
-    	self.desc    = devObj.DESC
+        self.desc    = devObj.DESC
         self.command = None
 
         if devObj.alhSort and len(devObj.alhSort)>0:
@@ -896,6 +903,7 @@ class epicsAlh(object):
         self.nodePath = self.nodePath.split("|")
         if len(self.nodePath) == 0: die("No ALH Group definition (col. S) for: "+devname,lineNr)
         self.putToNode(self.nodePath,0,epicsAlh.nodeDict)
+
     def putToNode(self,pathList,depth,nodeDict):
         nodeName = pathList[depth]
 #       print "putToNode",pathList[depth],depth,pathList,  len(pathList),depth
@@ -928,6 +936,7 @@ class epicsAlh(object):
         if self.panel: tags += ","+self.panel
         if self.sort:  tags += ","+self.sort
         return "epicsAlh("+self.devName+","+self.signal+",\""+self.nodePath+"\","+tags+")"
+
     def setFlags(self,flags):
         flagList = ['-','-','-','-','-']
         for flag in list(flags):
@@ -995,17 +1004,24 @@ class epicsTemplate(object):
             epicsTemplate.files[filename]['TYPEDICT'][rtyp]=l
         l.append(self)
         epicsTemplate.files[filename]['DEVICELIST'].append(self)
+
     def __str__(self) :
         rec = "file "+self.rtyp+".template {\n"
         rec += self.prAsSubst()
         rec += "\n}"
         return rec
+
     def __repr__(self) :
         return ("epicsTemplate('"+str(self.rtyp)+"',"+str(self.devn)+","+str(self.field)+")\n")
+
     def getType(self): return self.rtyp
+
     def getDevnTag(self): return self.devn.keys()[0]
+
     def getDevn(self): return self.devn.values()[0]
+
     def getFields(self): return self.field
+
     def prAsSubst(self):
         def prItem(x):
             val = self.field[x]
@@ -1018,6 +1034,7 @@ class epicsTemplate(object):
             pr = x+"=\""+str(val)+"\""
             return pr
         return "  { "+self.getDevnTag()+"=\""+self.getDevn()+"\","+",".join(filter(None,map(lambda x: prItem(x),sorted(self.field.keys()))))+"}"
+
     def prAsRec(self):
         def prField(x):
             val = self.field[x]
@@ -1094,15 +1111,15 @@ class epicsTemplate(object):
     def getPV(devName,signalName,signalField='SNAME',filename=None):
         """
         Search object list for devName AND field SNAME=signalName (signalField tag may be set as third parameter)
-	Return list of matching objects - empty list means not found
+        Return list of matching objects - empty list means not found
         """
         #print "getPV(",devName,signalName,signalField,")"
-	li= []
+        li= []
         for item in epicsTemplate.getDevice(devName,filename):
             if (not signalField) or (not item.field.has_key(signalField)) or (item.field[signalField] != signalName):
-	    	continue
-	    li.append(item)
-	return li
+                continue
+            li.append(item)
+        return li
 
     @staticmethod
     def printAllSubst(filename=None):
@@ -1130,13 +1147,13 @@ def updateStruct(a,b):
     See NEWIOC.py for details to the data structure
     """
     for bKey in b.keys():
-    	if a.has_key(bKey):
-	    aList = a[bKey]
-	    if isinstance( aList,list):
-		for item in b[bKey]:
-	    	    aList.append(item)
-	    else:
-	    	a[bKey] = aList
-	else:
-	    a[bKey] = b[bKey]
+        if a.has_key(bKey):
+            aList = a[bKey]
+            if isinstance( aList,list):
+                for item in b[bKey]:
+                    aList.append(item)
+            else:
+                a[bKey] = aList
+        else:
+            a[bKey] = b[bKey]
 
