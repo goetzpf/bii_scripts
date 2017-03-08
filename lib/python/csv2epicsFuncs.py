@@ -27,14 +27,15 @@
   define substitutions for local template files.
 
 - class csvData(object):
-  This object contains the data from then .csv file. Adaption to other file formats has
-  to be done just here!
+  This object contains the data from then .csv file. Adaption to other file 
+  formats has to be done just here!
 
 - def setupPlugins(searchPathList): read all plugins
   read all plugins for templates to be used
 
-* Support Hardware links, functions for HZB specific hardware: CAN Bus and DTYP lowcal
-  but also VME cards, OPC devices and WAGO-I/O-SYSTEM accessed by ModbusTCP coupler.
+* Support Hardware links, functions for HZB specific hardware: CAN Bus and 
+  DTYP lowcal but also VME cards, OPC devices and WAGO-I/O-SYSTEM accessed 
+  by ModbusTCP coupler.
 
 - def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,fileName,lines):
 - def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,fileName):
@@ -85,11 +86,11 @@ import epicsUtils
 import pprint
 
 class csvData(object):
-    """ Store splitted, line of a csv file and store it's data to be used for template and record
-     	processing. 
+    """ Store splitted, line of a csv file and store it's data to be used for 
+        template and record processing. 
 	
-	Other file formats have to be mapped in a derived object with this member variables 
-	to process correctly.
+	Other file formats have to be mapped in a derived object with this member 
+    variables to process correctly.
 	
 	Hold constants to check stringlengths dependant on the EPICS version.
 
@@ -222,8 +223,10 @@ class baseData(object):
 
 recordSet = {'longin':'INP','longout':'OUT','ai':'INP','ao':'OUT','bi':'INP','bo':'OUT','mbbi':'INP','mbbo':'OUT','sel':None,'calc':None,'seq':None,'calcout':None,'mbbiDirect':'INP','mbboDirect':'OUT'}
 def procInOut(rtyp):
-    """ Is it a in or out record type? Return 'INP'|'OUT' for records or templates tha begin with a
-    known record name from the list: 'longin,longout,ai,ao,bi,bo,mbbi,mbbo,mbbiDirect,mbboDirect'
+    """ Is it a in or out record type? Return 'INP'|'OUT' for records or 
+    templates that begin with a known record name from the list: 
+    
+    'longin,longout,ai,ao,bi,bo,mbbi,mbbo,mbbiDirect,mbboDirect'
     
     Other records or templates return 'None'
     """
@@ -335,13 +338,16 @@ def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
 
 def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
     """
-    Create limits severities and conversion parameters for analog type records or raise ValueError
+    Create limits severities and conversion parameters for analog type records or 
+    raise ValueError
 
     - If 'rangeRaw' is defined: Create conversion parameters for SLOPE conversion
 
-    - rangeAlhVal has to be in order with rangeAlhSevr to define alarm ranges and severities
+    - rangeAlhVal has to be in order with rangeAlhSevr to define alarm ranges 
+      and severities
 
-    - rangeAlhVal can be followed by arbitrary additional fields to be set for records, so the 
+    - rangeAlhVal can be followed by arbitrary additional fields to be set for 
+      records, so the 
 
     - rangeAlhVal fields have to be  set outside this function
     """
@@ -435,8 +441,9 @@ def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fields,fileName,lines,war
 def createAnalogRecord(devName,fields,devObj,warnings,fileName,lines):
     """ Setup display and alarm limits and create an analog type record/template. 
 
-    INP/OUT link has to be set before so this function is usable for all records, templates that make 
-    use of the typical analog fields as HOPR,LOPR,EGU,PREC and LOLO,LOW,HIGH,HIHI + according severities.
+    INP/OUT link has to be set before so this function is usable for all records, 
+    templates that make use of the typical analog fields as HOPR,LOPR,EGU,PREC 
+    and LOLO,LOW,HIGH,HIHI + according severities.
     """
 #    print "createAnalogRecord",devObj.rtype,devName,devObj.signal,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr
     fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
@@ -480,7 +487,8 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
 
     - Setup fields for state names, severities and values from the columns H,I,K
     - Don't setup SHFT,NOBT here!
-    - Support for mbbi record and long strings: create stringout records for each string
+    - Support for mbbi record and long strings: create stringout records for 
+      each string
     - Create warnings for to long strings
     """
     #print "createMbbIoRecord(",devName,devObj.signal,fields,warnings,fileName,lines
@@ -573,8 +581,10 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
 			      'SDIS':fields['SDIS'],'DISS':fields['DISS'],'DESC':fields['DESC']},devObj.dbFileName)
 
 def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
-    """ Is an EPICS record in: ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout'] ?
-        Setup EPICS record and return oter data: (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
+    """ Is an EPICS record in: 
+    ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout']
+        Setup EPICS record and return other data: 
+        (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
     """
     sdis       = ''
     if devObj.disableRec:
@@ -673,20 +683,19 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
         
 def getOpcLink(devObj,devName,opc_name):
     """
-    Create an OPC Link for option '-c opc', CAN or VME links are not supported in this mode!
+    Create an OPC Link for option '-c opc', CAN or VME links are not supported in 
+    this mode!
 
     * Handle OPC-links (col. D) of type
 
     - Just a String
-    - Siemens notation of Servername,Datablock and byte address (e.g. 'S7:[S7-Verbindung_1]DB2,X2.6')
+    - Siemens notation of Servername,Datablock and byte address (
+      e.g. 'S7:[S7-Verbindung_1]DB2,X2.6')
 
     * Set the fields DTYP, SCAN, INP/OUT according to the record type
 
-    * For binary records there are mbbi/oDirect records to read/write the data and distribute
-      it to/from the binary records. Set the fields NOBT, SHFT.
-      
-    * Due to a bug in the opcIocShell the mbbiDirect record doesn't work correctly. Workaround
-      is to read by longin and map bi records to mbbi records - they are able to shift the bit out.
+    * For binary records there are mbbi/oDirect records to read/write the data and
+      distribute it to/from the binary records. Set the fields NOBT, SHFT.
     """
     PLCLink = devObj.port
     rtyp    = devObj.rtype
@@ -783,7 +792,8 @@ def getOpcLink(devObj,devName,opc_name):
 
 class PLC_Address(object):
     """
-    Class to manage PLC address names links for the binary record types: bi,bo,mbbi,mbbo
+    Class to manage PLC address names links for the binary record types: 
+    bi,bo,mbbi,mbbo
     
     * Map bits to mbbi/oDirect-Records to access the data and
     
@@ -828,7 +838,8 @@ class PLC_Address(object):
     @staticmethod
     def setupTemplates(deviceName,dtypHw,dbFileName):
         """
-        Create epicsTemplate objects for all mbb_Direct records as indicated in mbb_DirectLinks dictionary
+        Create epicsTemplate objects for all mbb_Direct records as indicated in 
+        mbb_DirectLinks dictionary
         """
         for tag in PLC_Address.mbbiDirectLinks.keys():
             (link,signalName) = PLC_Address.mbbiDirectLinks[tag]
@@ -869,8 +880,8 @@ def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag,devObj):
     """
     Create an CAN Link.
     
-    * For CAN links and binary records there is support to create mbbiDirect records to read
-    the data and distribute it to the binary records.
+    * For CAN links and binary records there is support to create mbbiDirect 
+    records to read the data and distribute it to the binary records.
     """
     fields = {}
     #print "getCANLink(",rtyp,port,canId,cardNr,chan,name,lineNr,")"
@@ -922,13 +933,13 @@ def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag,devObj):
 def getWagoLink(devObj):
     """ WAGO-I/O-SYSTEM by Modbus process data architecture:
     
-    Bit read/write by modbus function FC2/5 - read/write single coil. Specify the bit count 
-    starting with 0
+    Bit read/write by modbus function FC2/5 - read/write single coil. Specify
+    the bit count starting with 0
     
-    Analog values read/write by modbus function FC3/16 read/write multiple registers. Specify the channel 
-    by the word count.
+    Analog values read/write by modbus function FC3/16 read/write multiple 
+    registers. Specify the channel by the word count.
     
-    Special conversion for temperature modules with wago Tag in Col. E = 'wagoTemp'
+    Special conversion for temperature modules with wago Tag in Col.E = 'wagoTemp'
     """
     fields = {}
     if devObj.rtype in ['ai','ao']:
@@ -992,11 +1003,11 @@ def alhItem(devName,sig,devObj):
 
     tagList = devObj.alhFlags.split("|")
     if len(tagList)>0 and len(tagList[0])>0:
-        # legacy support: first element may be flags. Better set FLAGS=.. in ALH-Flags column.
+        # legacy support: first element may be the mask. Better set MASK=.. in ALH-Flags column.
         try:        
             (name,value) = epicsUtils.matchRe(tagList[0],"([\w_]+)\s*=\s*(.*)")
         except TypeError: # no name=value
-            tags['FLAGS'] = epicsUtils.epicsAlh.setFlags(tagList[0])   # first element means flags
+            tags['MASK'] = epicsUtils.epicsAlh.setMask(tagList[0])   # first element means mask
             tagList = tagList[1:]
 
         # process tagList, may override defaults
@@ -1009,16 +1020,46 @@ def alhItem(devName,sig,devObj):
                     tags['ALIAS']   = value
                 elif name == 'ALARMCOUNTFILTER':
                     tags['ALARMCOUNTFILTER'] = value
-                elif name == 'FLAGS':
-                    tags['FLAGS'] = epicsUtils.epicsAlh.setFlags(value)
+                elif name == 'MASK':
+                    tags['MASK'] = epicsUtils.epicsAlh.setMask(value)
                 elif name in ('CHANNEL','INCLUDE','GROUP','END'):
                     raise ValueError("ALH Flag (col. T) '"+name+"' is not allowed here")
                 else:
                     tags[name] = value
             except TypeError: # no name=value
                 raise ValueError('Illegal name-value pair in ALH-Flags (col R): '+tag)
-    epicsUtils.epicsAlh(devName,sig,nodePath,tags)
+    epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
 
+"""
+Setup all data to  write an alarm handler file.
+
+- Each object holds the data to describe one alarmhandler item (see epicsAlh docu)
+
+The Collumns for Alarm definition:
+
+- BESSY ALH Group (col. Q): The Path to the alarm group the first element is 
+  the name of the alh file!
+- BESSY ALH Flags(col. R):  Optional. First the alarm Flags (CDT..) Than a 
+  list of additional Items for
+    a CHANNEL definition in this format: ITEM<SPACE>value e.g.
+
+        "ALIAS=show this|MASK=T|ACKPV=ackPVName ackValue"
+        
+    or legacy mask definition as first Element:
+
+        "T|ALIAS=show this|ACKPV=ackPVName ackValue"
+
+    Not allowed are the Items: 'CHANNEL','INCLUDE','GROUP','END'
+
+    Defaults:
+
+        Flags: ---T-
+        ALIAS: name signal
+        ALARMCOUNTFILTER: 2 1
+        COMMAND: None or edm epicsPanel if defined in 'EPICS Panel Name' (col. U)
+
+- ALH Sort (col. S):   An optional sort number to define the order within a group
+"""
 def epicsAlh(devName,alhSignals,devObj):
     if len(alhSignals) == 0:
         return

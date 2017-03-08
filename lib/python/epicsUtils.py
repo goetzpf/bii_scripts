@@ -38,7 +38,8 @@ def parseParam(fieldPar):
 def printTable(rT,header=None,sortIdx=None) :
 
 class Panels(object):
-    Manage store and print of a group of panels. This class creates panel.substitutions information
+    Manage store and print of a group of panels. This class creates 
+    panel.substitutions information
     class PanelFile(object):
     class PanelWidget(object): Subclass to manage one widget
 
@@ -147,7 +148,7 @@ def substituteVariables(sString,substDict):
     return sString
 
 def printDb(recList, printMode = "TABLE"):
-    """ Print a list of record dictionaries, pritmodes: 'TABLEW'
+    """ Print a list of record dictionaries, printmodes: 'TABLE', 'DB'
     """
     if printMode == 'DB':
         for rec in recList:
@@ -182,8 +183,8 @@ def filterDb(recList,options):
     'tf', 'if' <fieldType>: match/ignore field <fieldType>
     'tv', 'iv' <value>:     match/ignore field contains <value>
 
-    Field filter OPTIONS:   defines the filtered fields to return. Default is the field/s
-                            defined with '-tf' option or all fields if '-tf' isn't set:
+    Field filter:   defines the filtered fields to return. Default is the field/s
+                    defined with '-tf' option or all fields if '-tf' isn't set:
         'pf' 'ipf <fieldType> print/ignore this field/s
 
     'i' <not NOne>          Case insensitive option
@@ -340,10 +341,11 @@ def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,fileName):
 
     * Set the fields DTYP, SCAN, INP/OUT
 
-    * For binary records the class PLC_Address() helps to manage mbbiDirect records to read
-    the data and distribute it to the binary records.
+    * For binary records the class PLC_Address() helps to manage mbbiDirect 
+    records to read the data and distribute it to the binary records.
 
-    * Up to now only the symbolic links to a PLC are supported, not the Siemens direct addresses (e.g. 'DB2.X4')
+    * Up to now only the symbolic links to a PLC are supported, not the Siemens
+      direct addresses (e.g. 'DB2.X4')
     """
     fields = {}
     if device_name is None:
@@ -372,13 +374,14 @@ def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,fileName):
 
 def getHwLink(rtyp,port,canId,cardNr,chan,name,fileName,iocTag,lineNr=None):
     """
-    Create an Hardware Link, CAN or VME. For option -c intNr or -c not set. For -c opc 
-    the function getOpcLink() ist called!!
+    Create an Hardware Link, CAN or VME. For option -c intNr or -c not set. 
+    For -c opc the function getOpcLink() ist called!!
     
-    * The argument canId may be an integer for CAN or a string for the DTYP of the VME device. 
+    * The argument canId may be an integer for CAN or a string for the DTYP of the
+      VME device. 
 
-    * For CAN links and binary records there is support to create mbbiDirect records to read
-    the data and distribute it to the binary records.
+    * For CAN links and binary records there is support to create mbbiDirect 
+      records to read the data and distribute it to the binary records.
     """
     fields = {}
 #    print "getHwLink(",rtyp,port,canId,cardNr,chan,name,fileName,lineNr,")"
@@ -476,8 +479,9 @@ def createAdaCanLink(port,id,card,chan):
 
 class Panels(object):
     """
-    Manage store and print of a group of panels. This class creates panel.substitutions information
-    to be expanded to a panel with the CreatePanel.pl script of (bii_scripts:http://www-csr.bessy.de/control/bii_scripts/html/scripts/CreatePanel.html)
+    Manage store and print of a group of panels. This class creates 
+    panel.substitutions information to be expanded to a panel with the 
+    CreatePanel.pl script of (bii_scripts:http://www-csr.bessy.de/control/bii_scripts/html/scripts/CreatePanel.html)
 
     It supports to create several panel files and groups of widgets within a panel
 
@@ -486,18 +490,21 @@ class Panels(object):
 
     * EPICS Panel Name Prefix (Col. W): The Panel Name, without the ending .edl
 
-    * EPICS Panel Group (Col. X):  The Group within a panel. Omit this will put all signals to a default group.
+    * EPICS Panel Group (Col. X):  The Group within a panel. Omit this will put 
+      all signals to a default group.
 
-      Each group will be shown with a hedline by a widget with the same name or text.edl, also with GRID definition!
+      Each group will be shown with a hedline by a widget with the same name or
+      text.edl, also with GRID definition!
 
     * EPICS Panel Sort/Grid (Col. Y):
 
       - Nothing: Sort all signals by device- and signal name
-      - Unique number: Sort within a group by number.
-        To get the order as defined in the spreadsheet just put an incrementet number here
-      - (GRID="x,y") or (GRID="x,y",SPAN="n"or (XY="n,m"): Just pass the parameter to the panel.substitutions file
-        to be interpreted by CreatePanel.pl
-        ATTENTION: the Groupname will get the Y position of Ymin-1, so there has to be a free gap of 1 line in grid-Y numbering!
+      - Unique number: Sort within a group by number.To get the order as defined 
+        in the spreadsheet just put an incrementet number here
+      - (GRID="x,y") or (GRID="x,y",SPAN="n"or (XY="n,m"): Just pass the parameter
+        to the panel.substitutions file to be interpreted by CreatePanel.pl
+        ATTENTION: the Groupname will get the Y position of Ymin-1, so there has to
+        be a free gap of 1 line in grid-Y numbering!
       - SORT=n|otherParameters|...: Sort by number, but pass other arguments to the panel
 
     """
@@ -545,8 +552,8 @@ class Panels(object):
             return False
         def toSubst(self):
             """
-            Print all panel info in substitution format to be processed by CreatePanel.pl. Sort algorythms
-            are defined by the panels sort column (see above):
+            Print all panel info in substitution format to be processed by CreatePanel.pl.
+            Sort algorythms are defined by the panels sort column (see above):
             """
             retStr = "" # hold the substitutions string
 
@@ -745,26 +752,10 @@ class epicsAlh(object):
     This class hold all data to  write an alarm handler file.
 
     - Each object holds the data to describe one alarmhandler item (see __init__() )
-    - The alarm group structure is stored in an static tree structure.
+    - The alarm group structure is defined as a path for each item and stored in a
+      static tree structure.
 
-    The Collumns for Alarm definition:
-
-    - BESSY ALH Group (col. Q): The Path to the alarm group the first element is the name of the alh file!
-    - BESSY ALH Flags(col. R):  Optional. First the alarm Flags (CDT..) Than a list of additional Items for
-        a CHANNEL definition in this format: ITEM<SPACE>value e.g.
-
-            "T|ALIAS show this|ACKPV ackPVName ackValue"
-
-        Not allowed are the Items: 'CHANNEL','INCLUDE','GROUP','END'
-
-    Defaults:
-
-        Flags: ---T-
-        ALIAS: name signal
-        ALARMCOUNTFILTER: 2 1
-        COMMAND: None or edm epicsPanel if defined in 'EPICS Panel Name' (col. U)
-
-    - ALH Sort (col. S):   An optional sort number to define the order within a group
+    - The defaults for the mask of an item is: ---T-
     """
     nodeDict={}
 
@@ -787,23 +778,16 @@ class epicsAlh(object):
     def getRoot(): return epicsAlh.nodeDict.keys()
 
     @staticmethod
+    # Walk the tree and return the alh file as string
     def printAllSubst(root=None):
-        """
-        Walk the tree and return the alh file as string
-        """
+
+        #The user defined function to be called for each leaf of the tree - to print one alarm channel
         def printChannel(leaf,path,myPar):
-            """
-            The user defined function to be called for each leaf of the tree - to print
-            one alarm channel
-            """
             myPar.append("CHANNEL "+epicsAlh.toGroupString(path[-1])+ " "+str(leaf))
             return myPar
 
+        # The user defined function to be called for each node of the tree - to print one alarm group
         def printGroup(nodeName,depth,path,myPar):
-            """
-            The user defined function to be called for each node of the tree - to print
-            one alarm group
-            """
             if depth == 0:
 #               print "GROUP NULL "+epicsAlh.toGroupString(path[0])+"\n$ALIAS "+path[0]+"\n"
                 myPar.append("GROUP NULL "+epicsAlh.toGroupString(path[0])+"\n$ALIAS "+path[0]+"\n")
@@ -837,6 +821,7 @@ class epicsAlh(object):
                     retPar=walkTree(nodePath,node['NODES'],depth+1,retPar,leafFunc,nodeFunc,cmpLeafFunc)
                 del nodePath[depth]
             return retPar
+
         nodePath = []
         retPar = []
         if root is None: # get all files as string
@@ -847,11 +832,13 @@ class epicsAlh(object):
             rootDict = epicsAlh.nodeDict[root]['NODES']
             return "GROUP NULL "+epicsAlh.toGroupString(root)+"\n$ALIAS "+root+"\n\n"+"\n".join(walkTree(nodePath,rootDict,1,retPar,printChannel,printGroup,cmpAlhItems))
 
-    """
-    compile string with alh-flag characters to a alhFlag. Raise ValueError for illegal characters
-    """
     @staticmethod
-    def setFlags(flags):
+    def setMask(flags):
+        """
+        compile string with alh mask characters [C D A T L] to a alh mask.
+        Raise ValueError for illegal characters
+        E.g. 'MASK':"T" -> "---T-"
+        """
         flagList = ['-','-','-','-','-']
         for flag in list(flags):
             if   flag == 'C': flagList[0]=flag
@@ -866,22 +853,31 @@ class epicsAlh(object):
 #epicsUtils.epicsAlh(devName,alhSig,devObj.alhGroup,devObj.alhFlags,devObj.panelName,devObj.alhSort,lines)
 #epicsUtils.epicsAlh(devName,alhSig,devObj,lines)
 #    def __init__(self,devname,signal,nodePath,tags=None,devObj.panelName=None,sort=None,lineNr=None) :
-    def __init__(self,devname,signal,nodePath,tags) :
+    def __init__(self,devname,signal,nodePath,tags,sort=None) :
         """Definition of the alarm objects:
+
         devname:    The CHANNEL ChannelName is the EPICS PV: "devname:signal"
         signal:
-        devObj:     class csvData object with a line of parameters of the spreadshet 
-            alhGroup:   Group definition path, first element is the alh file name
-            sort:       Optional sort order
-            panelName:  Optional panelName name to be executed with the COMMAND item
-            alhFlags:   Optional items for the channel configuration
-            lineNr:     Optional debug output
+        nodePath:   '|' separated list. First element is the filename behind it defines 
+                    the path in the alh-tree. 
+        flags:      Optional dictionary with the format items according to the alh docu. 
+                    SPECIAL: the Alarm Channel Mask: is defined as flags['MASK'] but after
+                    __init__ removed from the dictionary!
+        sort:       Optional: The sort order for the signals within a group. Default 
+                    alphabetical sorted.
+        Example: 
+        
+        epicsUtils.epicsAlh("MYDEV","readback","alhFile|device|in|booster",{'ALARMCOUNTFILTER':"2 1",'COMMAND':"run_edm -x huhu.edl",'MASK':"CD"},1)
+
+        EPICS alh docu:
+        
+        http://www.aps.anl.gov/epics/EpicsDocumentation/ExtensionsManuals/AlarmHandler/ALHUserGuide/ALHUserGuide.html
         """
         #print "epicsAlh(",",".join((devname,signal,nodePath))+")"
         self.devName = devname
         self.signal  = signal
         self.nodePath= nodePath.split("|")
-        self.sort    = None
+        self.sort    = sort
         self.tags    = {'ACKPV' : None,
                         'FORCEPV' : None,
                         'FORCEPV CALC' : None,
@@ -904,11 +900,11 @@ class epicsAlh(object):
                         'BEEPSEVERITY' : None,
                         'BEEPSEVR' : None
                     }
-        self.flags   = "---T-"
+        self.mask   = "---T-"
 
-        if tags.has_key('FLAGS'):
-            self.flags = tags['FLAGS']
-            del tags['FLAGS']
+        if tags.has_key('MASK'):
+            self.mask = tags['MASK']
+            del tags['MASK']
 
         names = self.tags.keys()
         for name in tags.keys():
@@ -945,7 +941,7 @@ class epicsAlh(object):
             self.putToNode(pathList,depth+1,node['NODES'])
 
     def __str__(self):
-        ret = self.devName+":"+self.signal+" "+self.flags+"\n"
+        ret = self.devName+":"+self.signal+" "+self.mask+"\n"
         for x in sorted(self.tags.keys()):
             if self.tags[x]: ret += "$"+x+" "+self.tags[x]+"\n"
         return ret
@@ -954,7 +950,7 @@ class epicsAlh(object):
         ret = "epicsAlh('"+self.devName+"', '"+self.signal+"', '"+"|".join(self.nodePath)+"', {"
         for x in self.tags.keys():
             if self.tags[x]: ret += "'"+x+"':'"+self.tags[x]+"', "
-        return ret+"'FLAGS': '"+self.flags+"'})"
+        return ret+"'MASK': '"+self.mask+"'})"
 
     def cmpSortPar(self, o):
         return cmp(self.sort,o.sort)
@@ -977,19 +973,25 @@ class epicsTemplate(object):
     - getName(): return devicename
     - getFields(): return field dictionary
     - prAsSubst(): print one line for this template without header 'file ...template  {'
-    - prAsRec(): treat this data as EPICS record and print one line 'record(rtyp,"NAME:SNAME")
-        ATTENTION the record needs the devicename as defined in 'devn' AND the field 'SNAME' for a PV name
+    - prAsRec(): treat this data as EPICS record and print one line 
+                 'record(rtyp,"NAME:SNAME")
+                 ATTENTION the record needs the devicename as defined in 'devn' AND the 
+                 field 'SNAME' for a PV name
 
     * Static data
 
     - typeDict={}   Dictionary of rtyp s that contain a list of objects with this rtype
-    - deviceList=[] List of objects to preserve the creation order and for search functions
+    - deviceList=[] List of objects to preserve the creation order and for search 
+                    functions
 
-    - getFileNames(): return a list of File names to be crated or None for default file only
-    - printAllSubst(filename='default'): print all stored templates in EPICS.substitution format
-    - printAllRecords(filename='default'): treat all data as EPICS-records and print all stored
-                templates in EPICS.db format
+    - getFileNames(): return a list of File names to be crated or None for default file 
+                      only
+    - printAllSubst(filename='default'): print all stored templates in 
+                    EPICS.substitution format
+    - printAllRecords(filename='default'): treat all data as EPICS-records and print all
+                   stored templates in EPICS.db format
     - getDevice(devName): return a list of records with this devicename or None
+
     - findObject(devName, parDict) Get records/template instances that matches 
         the device name and the parameters - may be empty for not found
     """
@@ -1072,8 +1074,8 @@ class epicsTemplate(object):
     @staticmethod
     def getDevice(devName,filename=None):
         """
-        Get list of records and template instances that have this device name - may be empty for not found.
-        'filename=None' means search in all filenames.
+        Get list of records and template instances that have this device name - may be 
+        empty for not found. 'filename=None' means search in all filenames.
         """
         li = []
         def check(filename):
@@ -1089,7 +1091,8 @@ class epicsTemplate(object):
     @staticmethod
     def findObject(devName, parDict,filename=None):
         """
-        Get records/template instances that matches the device name and the parameters - may be empty for not found
+        Get records/template instances that matches the device name and the parameters.
+        Return empty list for not found.
         """
         li = []
         def findO(filename):
@@ -1119,7 +1122,9 @@ class epicsTemplate(object):
     @staticmethod
     def getPV(devName,signalName,signalField='SNAME',filename=None):
         """
-        Search object list for devName AND field SNAME=signalName (signalField tag may be set as third parameter)
+        Search object list for devName AND field SNAME=signalName (signalField tag may 
+        be set as third parameter)
+        
         Return list of matching objects - empty list means not found
         """
         #print "getPV(",devName,signalName,signalField,")"
