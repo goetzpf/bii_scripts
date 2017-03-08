@@ -60,6 +60,7 @@ import os.path
 import epicsUtils
 import csv2epicsFuncs
 import pprint
+
 my_version = "1.0"
 
 #******************************* Main program *******************************
@@ -345,8 +346,10 @@ for argument in args:
                     arch.append( "<channel><name>"+devName+":"+signal+"</name><period>"+devObj.archPeriod+"</period><monitor/></channel>")
 
             if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
-                for alhSig in alhSignals:
-                    epicsUtils.epicsAlh(devName,alhSig,devObj,lines)
+                try:
+                    csv2epicsFuncs.epicsAlh(devName,alhSignals,devObj)
+                except ValueError as err:
+                    warnings.append([fileName,-1,str(err)+": "+fileName+"'"])
         except :
             sys.stderr.write( "*********************\nPARSE EXCEPTION in file: '"+argument+"' line:"+str(lines)+" '"+str(device[0])+"', '"+str(device[1])+"', '"+str(device[2])+"'\n*********************\n" )
             raise
@@ -381,7 +384,7 @@ for argument in args:
         else:
 #            pprint.pprint(epicsUtils.epicsTemplate.files)
 #            print epicsUtils.epicsTemplate.getFilenames()
-            warnings.append([fileName,-1,"unknown output format for file -d '"+filename+"'"])
+            warnings.append([fileName,-1,"unknown output format for file -d '"+fileName+"'"])
 
     if options.output_arch:
         writeFile(options.output_arch,"<group>\n<name>"+options.output_arch.replace(".arch","")+"</name>\n"+"\n".join(arch)+"\n</group>" )

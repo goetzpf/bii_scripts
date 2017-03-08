@@ -796,7 +796,7 @@ class epicsAlh(object):
             The user defined function to be called for each leaf of the tree - to print
             one alarm channel
             """
-            myPar.append("CHANNEL "+epicsAlh.toGroupString(path[-1])+ " "+str(leaf)+"\n")
+            myPar.append("CHANNEL "+epicsAlh.toGroupString(path[-1])+ " "+str(leaf))
             return myPar
 
         def printGroup(nodeName,depth,path,myPar):
@@ -847,10 +847,26 @@ class epicsAlh(object):
             rootDict = epicsAlh.nodeDict[root]['NODES']
             return "GROUP NULL "+epicsAlh.toGroupString(root)+"\n$ALIAS "+root+"\n\n"+"\n".join(walkTree(nodePath,rootDict,1,retPar,printChannel,printGroup,cmpAlhItems))
 
+    """
+    compile string with alh-flag characters to a alhFlag. Raise ValueError for illegal characters
+    """
+    @staticmethod
+    def setFlags(flags):
+        flagList = ['-','-','-','-','-']
+        for flag in list(flags):
+            if   flag == 'C': flagList[0]=flag
+            elif flag == 'D': flagList[1]=flag
+            elif flag == 'A': flagList[2]=flag
+            elif flag == 'T': flagList[3]=flag
+            elif flag == 'L': flagList[4]=flag
+            elif flag == '-': pass
+            else: raise ValueError, "Illegal Flag list: "+flags
+        return "".join(flagList)
+
 #epicsUtils.epicsAlh(devName,alhSig,devObj.alhGroup,devObj.alhFlags,devObj.panelName,devObj.alhSort,lines)
 #epicsUtils.epicsAlh(devName,alhSig,devObj,lines)
 #    def __init__(self,devname,signal,nodePath,tags=None,devObj.panelName=None,sort=None,lineNr=None) :
-    def __init__(self,devname,signal,devObj,lineNr=None) :
+    def __init__(self,devname,signal,nodePath,tags) :
         """Definition of the alarm objects:
         devname:    The CHANNEL ChannelName is the EPICS PV: "devname:signal"
         signal:
@@ -861,49 +877,53 @@ class epicsAlh(object):
             alhFlags:   Optional items for the channel configuration
             lineNr:     Optional debug output
         """
-        #print "epicsAlh(",",".join((devname,signal,nodePath,tags,devObj.panelName,sort,str(lineNr)))+")"
+        #print "epicsAlh(",",".join((devname,signal,nodePath))+")"
         self.devName = devname
         self.signal  = signal
-        self.nodePath= devObj.alhGroup
-        self.flags   = "---T-"
-        self.panel   = None
+        self.nodePath= nodePath.split("|")
         self.sort    = None
-        self.desc    = devObj.DESC
-        self.command = None
+        self.tags    = {'ACKPV' : None,
+                        'FORCEPV' : None,
+                        'FORCEPV CALC' : None,
+                        'FORCEPV_CALC' : None,
+                        'FORCEPV_CALC_A' : None,
+                        'FORCEPV_CALC_B' : None,
+                        'FORCEPV_CALC_C' : None,
+                        'FORCEPV_CALC_D' : None,
+                        'FORCEPV_CALC_E' : None,
+                        'FORCEPV_CALC_F' : None,
+                        'SEVRPV' : None,
+                        'GUIDANCE' : None,
+                        'END' : None,
+                        'GUIDANCE' : None,
+                        'ALIAS' : None,
+                        'COMMAND' : None,
+                        'SEVRCOMMAND' : None,
+                        'STATCOMMAND' : None,
+                        'ALARMCOUNTFILTER' : None,
+                        'BEEPSEVERITY' : None,
+                        'BEEPSEVR' : None
+                    }
+        self.flags   = "---T-"
 
-        if devObj.alhSort and len(devObj.alhSort)>0:
-            self.sort = devObj.alhSort
-        if devObj.panelName and len(devObj.panelName)>0:
-            self.panel   = devObj.panelName
-            self.command = "run_edm.sh "+devObj.panelName+".edl"
-        else:
-            egu = " "
-            if len(devObj.egu) > 0: egu = devObj.egu
-            self.command = "run_edm.sh -m \"PV="+devname+":"+signal+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
+        if tags.has_key('FLAGS'):
+            self.flags = tags['FLAGS']
+            del tags['FLAGS']
 
-        self.tags = [("ALIAS",devname+": "+self.desc),
-                     ("ALARMCOUNTFILTER","2 1")
-                    ]
-        tagList = devObj.alhFlags.split("|")
-        if len(tagList)>0 and len(tagList[0])>0:
-            for tag in tagList:
-                try:
-                    (name,value) = matchRe(tag,"([\w_]+)\s*=\s*(.*)")
-                    if   name == "COMMAND": self.command = value
-                    elif name == "ALIAS":   self.tags[0]=("ALIAS",value)
-                    elif name == "ALARMCOUNTFILTER":   self.tags[1]=("ALARMCOUNTFILTER",value)
-                    elif name in ('CHANNEL','INCLUDE','GROUP','END'):
-                        die("ALH Flag (col. T) '"+name+"' is not supported here",lines)
-                    else:
-                        self.tags.append((name,value))
-                except TypeError:
-                    if matchRe(tag,"([CDATL-])") is not None:
-                        self.setFlags(tag)
+        names = self.tags.keys()
+        for name in tags.keys():
+            if name in names:
+                self.tags[name] = tags[name]
+            else:
+                raise ValueError("Illegal ALH Group definition (col. S)"+name)
 
-        self.nodePath = self.nodePath.split("|")
-        if len(self.nodePath) == 0: die("No ALH Group definition (col. S) for: "+devname,lineNr)
+        if len(self.nodePath) == 0: 
+            raise ValueError("Missing ALH Group definition (col. S)")
+
         self.putToNode(self.nodePath,0,epicsAlh.nodeDict)
-
+        
+#        print "INIT FINISHED: \n",self.__repr__()
+        
     def putToNode(self,pathList,depth,nodeDict):
         nodeName = pathList[depth]
 #       print "putToNode",pathList[depth],depth,pathList,  len(pathList),depth
@@ -925,31 +945,20 @@ class epicsAlh(object):
             self.putToNode(pathList,depth+1,node['NODES'])
 
     def __str__(self):
-        objStr = self.devName+":"+self.signal+" "+self.flags
-        if len(self.tags)>0:
-            objStr += "\n"+"\n".join(map(lambda x: "$"+x[0]+" "+x[1] ,self.tags))
-        if self.command: objStr += "\n$COMMAND "+self.command
-        return objStr
+        ret = self.devName+":"+self.signal+" "+self.flags+"\n"
+        for x in sorted(self.tags.keys()):
+            if self.tags[x]: ret += "$"+x+" "+self.tags[x]+"\n"
+        return ret
 
     def __repr__(self):
-        tags = "\""+substRe(self.flags,'-','')+"|"+"|".join(map(lambda x: x[0]+"="+x[1],self.tags))+"\""
-        if self.panel: tags += ","+self.panel
-        if self.sort:  tags += ","+self.sort
-        return "epicsAlh("+self.devName+","+self.signal+",\""+self.nodePath+"\","+tags+")"
+        ret = "epicsAlh('"+self.devName+"', '"+self.signal+"', '"+"|".join(self.nodePath)+"', {"
+        for x in self.tags.keys():
+            if self.tags[x]: ret += "'"+x+"':'"+self.tags[x]+"', "
+        return ret+"'FLAGS': '"+self.flags+"'})"
 
-    def setFlags(self,flags):
-        flagList = ['-','-','-','-','-']
-        for flag in list(flags):
-            if   flag == 'C': flagList[0]=flag
-            elif flag == 'D': flagList[1]=flag
-            elif flag == 'A': flagList[2]=flag
-            elif flag == 'T': flagList[3]=flag
-            elif flag == 'L': flagList[4]=flag
-            elif flag == '-': pass
-            else: raise ValueError, "Illegal Flag list: "+self.flags
-        self.flags="".join(flagList)
     def cmpSortPar(self, o):
         return cmp(self.sort,o.sort)
+
 
 class epicsTemplate(object):
     """

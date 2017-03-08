@@ -62,6 +62,10 @@ class PLC_Address(object):
 - def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
 - def createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
 
+* Process epic alh data
+
+- def epicsAlh(devName,alhSig,devObj,lines)
+
 * Builtin Templates (for convenience only)
 
 - def watchdogGetFunc():
@@ -78,6 +82,7 @@ import imp
 import os
 #import os.path
 import epicsUtils
+import pprint
 
 class csvData(object):
     """ Store splitted, line of a csv file and store it's data to be used for template and record
@@ -960,6 +965,70 @@ def getWagoLink(devObj):
                        'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
             
     return (fields)
+
+"""
+Setup a epicsAlh signal. Define default values. These may be overridden by 
+'ALH Flag' data (col. T)
+"""
+def alhItem(devName,sig,devObj):
+    nodePath = devObj.alhGroup
+    sort     = None
+    tags     = {}
+#    print "\nalhItem: '"+"', '".join( (devName,sig,devObj.alhGroup,devObj.alhFlags,devObj.alhSort))+"'"
+    if devObj.alhSort and len(devObj.alhSort)>0:
+        sort = devObj.alhSort
+
+    if devObj.panelName and len(devObj.panelName)>0:
+        panel   = devObj.panelName
+        command = "run_edm.sh "+devObj.panelName+".edl"
+    else:
+        egu = " "
+        if len(devObj.egu) > 0: egu = devObj.egu
+        command = "run_edm.sh -m \"PV="+devName+":"+sig+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
+    tags['COMMAND'] = command
+    
+    tags['ALIAS'] = devName+": "+devObj.DESC
+    tags['ALARMCOUNTFILTER'] = "2 1"
+
+    tagList = devObj.alhFlags.split("|")
+    if len(tagList)>0 and len(tagList[0])>0:
+        # legacy support: first element may be flags. Better set FLAGS=.. in ALH-Flags column.
+        try:        
+            (name,value) = epicsUtils.matchRe(tagList[0],"([\w_]+)\s*=\s*(.*)")
+        except TypeError: # no name=value
+            tags['FLAGS'] = epicsUtils.epicsAlh.setFlags(tagList[0])   # first element means flags
+            tagList = tagList[1:]
+
+        # process tagList, may override defaults
+        for tag in tagList:
+            try:
+                (name,value) = epicsUtils.matchRe(tag,"([\w_]+)\s*=\s*(.*)")
+                if   name == 'COMMAND': 
+                    tags['COMMAND'] = value
+                elif name == 'ALIAS':
+                    tags['ALIAS']   = value
+                elif name == 'ALARMCOUNTFILTER':
+                    tags['ALARMCOUNTFILTER'] = value
+                elif name == 'FLAGS':
+                    tags['FLAGS'] = epicsUtils.epicsAlh.setFlags(value)
+                elif name in ('CHANNEL','INCLUDE','GROUP','END'):
+                    raise ValueError("ALH Flag (col. T) '"+name+"' is not allowed here")
+                else:
+                    tags[name] = value
+            except TypeError: # no name=value
+                raise ValueError('Illegal name-value pair in ALH-Flags (col R): '+tag)
+    epicsUtils.epicsAlh(devName,sig,nodePath,tags)
+
+def epicsAlh(devName,alhSignals,devObj):
+    if len(alhSignals) == 0:
+        return
+    firstSig = alhSignals[0]
+    alhSignals = alhSignals[1:]
+    alhItem(devName,firstSig,devObj)
+    if( alhSignals ):
+        for alhSig in alhSignals:
+            alhItem(devName,alhSig,devObj)
+        
 
 def watchdogGetFunc():
     return {"watchdog":watchdog}
