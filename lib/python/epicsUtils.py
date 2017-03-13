@@ -763,23 +763,20 @@ class epicsAlh(object):
     def toGroupString(grStr): return substRe(grStr,' ','_').upper()
 
     @staticmethod
-    def printFiles(prePath):
-        for filename in epicsAlh.getRoot():
+    def printFiles(prePath,groupNull=None):
+        for filename in epicsAlh.nodeDict.keys():
             installFile = prePath+"/"+filename
             try :
 #                print "  Creating file",installFile+".alh"
                 f = open(installFile+".alh",'w')
-                f.write(epicsAlh.printAllSubst(filename))
+                f.write(epicsAlh.printAllSubst(filename,groupNull))
                 f.close()
             except IOError:
                 die("IOError in write file: "+filename+".alh")
 
     @staticmethod
-    def getRoot(): return epicsAlh.nodeDict.keys()
-
-    @staticmethod
     # Walk the tree and return the alh file as string
-    def printAllSubst(root=None):
+    def printAllSubst(root=None,groupNull=None):
 
         #The user defined function to be called for each leaf of the tree - to print one alarm channel
         def printChannel(leaf,path,myPar):
@@ -796,15 +793,20 @@ class epicsAlh(object):
                 myPar.append("GROUP "+epicsAlh.toGroupString(path[depth-1])+" "+epicsAlh.toGroupString(path[depth])+"\n$ALIAS "+path[depth]+"\n")
             return myPar
 
-        def cmpAlhItems(a,b): return a.cmpSortPar(b)
-
+        def cmpAlhItems(a,b): 
+            if a.sort and b.sort:
+                return cmp( int(a.sort), int(b.sort))
+            else:
+                return 0
+                    
         def walkTree(nodePath,nodeDict,depth,retPar,leafFunc=None,nodeFunc=None,cmpLeafFunc=None):
 #           print "walkTree:",depth,len(nodePath),nodePath
             for nodeName in nodeDict.keys():
                 node = nodeDict[nodeName]
                 if len(nodePath) == depth:
                     nodePath.append(nodeName)
-                    retPar = nodeFunc(nodeName,depth,nodePath,retPar)
+                    if  nodeFunc:
+                        retPar = nodeFunc(nodeName,depth,nodePath,retPar)
                 else:
                     nodePath[depth] = nodeName
 #               print "NODE:",nodeName,depth,nodePath
@@ -824,13 +826,15 @@ class epicsAlh(object):
 
         nodePath = []
         retPar = []
-        if root is None: # get all files as string
-            rootDict = epicsAlh.nodeDict
-            return "\n".join(walkTree(nodePath,rootDict,0,retPar,printChannel,printGroup,cmpAlhItems))
+        print "printAllSubst('"+root+"')\n",pprint.pprint(epicsAlh.nodeDict)
+        nodePath = [root] # get single file as string
+        rootDict = epicsAlh.nodeDict[root]['NODES']
+        if  groupNull:
+            ret = "GROUP NULL "+epicsAlh.toGroupString(root)+"\n$ALIAS "+root+"\n\n"+ \
+                  "\n".join(walkTree(nodePath,rootDict,1,retPar,printChannel,printGroup,cmpAlhItems))
         else:
-            nodePath = [root] # get single file as string
-            rootDict = epicsAlh.nodeDict[root]['NODES']
-            return "GROUP NULL "+epicsAlh.toGroupString(root)+"\n$ALIAS "+root+"\n\n"+"\n".join(walkTree(nodePath,rootDict,1,retPar,printChannel,printGroup,cmpAlhItems))
+            ret = "\n".join(walkTree(nodePath,rootDict,1,retPar,printChannel,None      ,cmpAlhItems))
+        return ret
 
     @staticmethod
     def setMask(flags):
@@ -951,9 +955,6 @@ class epicsAlh(object):
         for x in self.tags.keys():
             if self.tags[x]: ret += "'"+x+"':'"+self.tags[x]+"', "
         return ret+"'MASK': '"+self.mask+"'})"
-
-    def cmpSortPar(self, o):
-        return cmp(self.sort,o.sort)
 
 
 class epicsTemplate(object):
