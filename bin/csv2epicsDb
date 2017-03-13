@@ -42,12 +42,11 @@
 -p --panel:      create 'CreatePanel.pl' data for Items that define EPICS 
                  devObj.panelName (col. T) 
 -r --options.output_req: autoSaveRestore request file name for signals defined in Col. P 
--s --search_path: for panel generation only, search path for 
-                 widget/header/footer files [.:..]
+-s --search_path: Search path forpanel widgets and template plugins '.:..:/opt/support/mySup'
 --stoRcl         Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
 -t --separator:  column separator in .csv file[,] 
 -v --verbose:    print debug information 
---var            Define variables of the csv file. CSV-file tag $(VAR): --var VAR=huhu"
+--var            Define variables in the csv file. CSV-file tag $(VAR): --var VAR=huhu"
 
 See http://help.bessy.de/apps/common/csv2epicsDb
 """
@@ -129,35 +128,35 @@ parser.add_option("-r","--output_req",
 parser.add_option("-s","--search_path",
                  action="store",
                  type="string",
-                 help="for panel generation only, search path for widget header/footer files '.:..'", 
+                 help="Search path for panel widgets and template plugins '.:..:/opt/support/mySup'" ,
                  )
 parser.add_option("-t","--separator", 
                  action="store",
                  type="string",
-                 help="column separator []", 
+                 help="Column separator in .csv file", 
                  )
 parser.add_option("-v","--verbose",
                  action="store_true", # default: None
-                 help="print debug information", 
+                 help="Print debug information", 
                  )
 parser.add_option("--devObj",
                  action="store",
                  type="string",
-                 help="python class module that converts non standard csv data to variables needed by the program",
+                 help="Python class module that converts non standard csv data to variables needed by the program",
                  )
 parser.add_option("--dis",
                  action="store",
                  type="string",
-                 help="Name of disable record to be created and used in all SDIS fields",
+                 help="Optional name of disable record to be created and used in all SDIS fields",
                  )
 parser.add_option("--stoRcl",
                  action="store_true", # default: None
-                 help="Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
+                 help="Optional create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
                  )
 parser.add_option("--var", 
                  action="append",
                  type="string",
-                 help="Define variables of the csv file. CSV-file tag $(VAR): --var VAR=huhu"
+                 help="Define variables in the csv file. CSV-file tag: $(VAR) fill with: --var VAR=huhu"
                  )
 
 (options, args) = parser.parse_args()
