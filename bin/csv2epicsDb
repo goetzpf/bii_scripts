@@ -27,6 +27,7 @@
   
 -b --base:       EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
 -c --can:        CAN port Nr., or 'opc' for OPC server access
+--cmLog:         Create alh file for cmlog use: transient alarms that report each state
 -d --options.output_db:  db file name file ending determines the ouptut: '.db' or '.substitutions'
 -D --output_multiFile Tag to write the records/substitutions to the files as set in COL W. 
                  Tag is 'db' or 'substitutions' to determine the file type
@@ -142,6 +143,10 @@ parser.add_option("-t","--separator",
 parser.add_option("-v","--verbose",
                  action="store_true", # default: None
                  help="Print debug information", 
+                 )
+parser.add_option("--cmLog",
+                 action="store_true", # default: None
+                 help="Create alh file for cmlog use: transient alarms that report each state", 
                  )
 parser.add_option("--devObj",
                  action="store",
@@ -350,7 +355,7 @@ for argument in args:
 
             if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
                 try:
-                    csv2epicsFuncs.epicsAlh(devName,alhSignals,devObj)
+                    csv2epicsFuncs.epicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,options.cmLog)
                 except ValueError as err:
                     warnings.append([fileName,-1,str(err)+": "+fileName+"'"])
         except :
@@ -395,7 +400,7 @@ for argument in args:
     if options.output_req:
         writeFile(options.output_req,"\n".join(req) )
 
-    if options.output_alh is True:
+    if (options.output_alh is True) or (options.cmLog is True):
         epicsUtils.epicsAlh.printFiles(install_path,1)
     elif options.output_alh_no_group is True:
         epicsUtils.epicsAlh.printFiles(install_path)

@@ -826,7 +826,7 @@ class epicsAlh(object):
 
         nodePath = []
         retPar = []
-        print "printAllSubst('"+root+"')\n",pprint.pprint(epicsAlh.nodeDict)
+#        print "printAllSubst('"+root+"')\n",pprint.pprint(epicsAlh.nodeDict)
         nodePath = [root] # get single file as string
         rootDict = epicsAlh.nodeDict[root]['NODES']
         if  groupNull:
@@ -857,7 +857,7 @@ class epicsAlh(object):
 #epicsUtils.epicsAlh(devName,alhSig,devObj.alhGroup,devObj.alhFlags,devObj.panelName,devObj.alhSort,lines)
 #epicsUtils.epicsAlh(devName,alhSig,devObj,lines)
 #    def __init__(self,devname,signal,nodePath,tags=None,devObj.panelName=None,sort=None,lineNr=None) :
-    def __init__(self,devname,signal,nodePath,tags,sort=None) :
+    def __init__(self,devname,signal,nodePath,tagPar,sort=None) :
         """Definition of the alarm objects:
 
         devname:    The CHANNEL ChannelName is the EPICS PV: "devname:signal"
@@ -867,8 +867,8 @@ class epicsAlh(object):
         flags:      Optional dictionary with the format items according to the alh docu. 
                     SPECIAL: the Alarm Channel Mask: is defined as flags['MASK'] but after
                     __init__ removed from the dictionary!
-        sort:       Optional: The sort order for the signals within a group. Default 
-                    alphabetical sorted.
+        sort:       Optional sort number: The sort order for the signals within a group. Default 
+                    as found.
         Example: 
         
         epicsUtils.epicsAlh("MYDEV","readback","alhFile|device|in|booster",{'ALARMCOUNTFILTER':"2 1",'COMMAND':"run_edm -x huhu.edl",'MASK':"CD"},1)
@@ -906,14 +906,14 @@ class epicsAlh(object):
                     }
         self.mask   = "---T-"
 
-        if tags.has_key('MASK'):
-            self.mask = tags['MASK']
-            del tags['MASK']
+        if tagPar.has_key('MASK'):
+            self.mask = tagPar['MASK']
+            del tagPar['MASK']
 
         names = self.tags.keys()
-        for name in tags.keys():
+        for name in tagPar.keys():
             if name in names:
-                self.tags[name] = tags[name]
+                self.tags[name] = tagPar[name]
             else:
                 raise ValueError("Illegal ALH Group definition (col. S)"+name)
 

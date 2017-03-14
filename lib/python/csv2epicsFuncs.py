@@ -978,59 +978,6 @@ def getWagoLink(devObj):
     return (fields)
 
 """
-Setup a epicsAlh signal. Define default values. These may be overridden by 
-'ALH Flag' data (col. T)
-"""
-def alhItem(devName,sig,devObj):
-    nodePath = devObj.alhGroup
-    sort     = None
-    tags     = {}
-#    print "\nalhItem: '"+"', '".join( (devName,sig,devObj.alhGroup,devObj.alhFlags,devObj.alhSort))+"'"
-    if devObj.alhSort and len(devObj.alhSort)>0:
-        sort = devObj.alhSort
-
-    if devObj.panelName and len(devObj.panelName)>0:
-        panel   = devObj.panelName
-        command = "run_edm.sh "+devObj.panelName+".edl"
-    else:
-        egu = " "
-        if len(devObj.egu) > 0: egu = devObj.egu
-        command = "run_edm.sh -m \"PV="+devName+":"+sig+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
-    tags['COMMAND'] = command
-    
-    tags['ALIAS'] = devName+": "+devObj.DESC
-    tags['ALARMCOUNTFILTER'] = "2 1"
-
-    tagList = devObj.alhFlags.split("|")
-    if len(tagList)>0 and len(tagList[0])>0:
-        # legacy support: first element may be the mask. Better set MASK=.. in ALH-Flags column.
-        try:        
-            (name,value) = epicsUtils.matchRe(tagList[0],"([\w_]+)\s*=\s*(.*)")
-        except TypeError: # no name=value
-            tags['MASK'] = epicsUtils.epicsAlh.setMask(tagList[0])   # first element means mask
-            tagList = tagList[1:]
-
-        # process tagList, may override defaults
-        for tag in tagList:
-            try:
-                (name,value) = epicsUtils.matchRe(tag,"([\w_]+)\s*=\s*(.*)")
-                if   name == 'COMMAND': 
-                    tags['COMMAND'] = value
-                elif name == 'ALIAS':
-                    tags['ALIAS']   = value
-                elif name == 'ALARMCOUNTFILTER':
-                    tags['ALARMCOUNTFILTER'] = value
-                elif name == 'MASK':
-                    tags['MASK'] = epicsUtils.epicsAlh.setMask(value)
-                elif name in ('CHANNEL','INCLUDE','GROUP','END'):
-                    raise ValueError("ALH Flag (col. T) '"+name+"' is not allowed here")
-                else:
-                    tags[name] = value
-            except TypeError: # no name=value
-                raise ValueError('Illegal name-value pair in ALH-Flags (col R): '+tag)
-    epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
-
-"""
 Setup all data to  write an alarm handler file.
 
 - Each object holds the data to describe one alarmhandler item (see epicsAlh docu)
@@ -1060,17 +1007,97 @@ The Collumns for Alarm definition:
 
 - ALH Sort (col. S):   An optional sort number to define the order within a group
 """
-def epicsAlh(devName,alhSignals,devObj):
+def epicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
     if len(alhSignals) == 0:
         return
-    firstSig = alhSignals[0]
-    alhSignals = alhSignals[1:]
-    alhItem(devName,firstSig,devObj)
-    if( alhSignals ):
-        for alhSig in alhSignals:
-            alhItem(devName,alhSig,devObj)
-        
+    for sig in alhSignals:
+        nodePath = devObj.alhGroup
+        sort     = None
+        tags     = {}
+    #    print "\nalhItem: '"+"', '".join( (devName,sig,devObj.alhGroup,devObj.alhFlags,devObj.alhSort))+"'"
+        if devObj.alhSort and len(devObj.alhSort)>0:
+            sort = devObj.alhSort
 
+        # DEFAULT COMMAND: call panel if defined in spreadsheetdata
+        if devObj.panelName and len(devObj.panelName)>0:
+            panel   = devObj.panelName
+            command = "run_edm.sh "+devObj.panelName+".edl"
+        else:
+            egu = " "
+            if len(devObj.egu) > 0: egu = devObj.egu
+            command = "run_edm.sh -m \"PV="+devName+":"+sig+",DESC="+devObj.DESC+",EGU="+egu+"\" alhVal.edl"
+        tags['COMMAND'] = command
+
+        # DEFAULT ALIAS
+        tags['ALIAS'] = devName+": "+devObj.DESC
+        # DEFAULT ALARMCOUNTFILTER
+        tags['ALARMCOUNTFILTER'] = "2 1"
+
+        # OVERRIDE DEFAULTs by alhFlags
+        tagList = devObj.alhFlags.split("|")
+        if len(tagList)>0 and len(tagList[0])>0:
+            # legacy support: first element may be the mask. Better set MASK=.. in ALH-Flags column.
+            try:        
+                (name,value) = epicsUtils.matchRe(tagList[0],"([\w_]+)\s*=\s*(.*)")
+            except TypeError: # no name=value
+                tags['MASK'] = epicsUtils.epicsAlh.setMask(tagList[0])   # first element means mask
+                tagList = tagList[1:]
+
+            # process tagList, may override defaults
+            for tag in tagList:
+                try:
+                    (name,value) = epicsUtils.matchRe(tag,"([\w_]+)\s*=\s*(.*)")
+                    if name == 'MASK':
+                        tags['MASK'] = epicsUtils.epicsAlh.setMask(value)
+                    elif name in ('CHANNEL','INCLUDE','GROUP','END'):
+                        raise ValueError("ALH Flag (col. T) '"+name+"' is not allowed here")
+                    else:
+                        tags[name] = value
+                except TypeError: # no name=value
+                    raise ValueError('Illegal name-value pair in ALH-Flags (col R): '+tag)
+
+
+        # For cmlog: create FORCEPV channels to report each state of a mbbi 
+        if cmLog:
+            rtype = devObj.rtype
+            # SPECICAL for the mbbi40.template etc, treat as mbbi, but pv is devName:sig:state
+            if epicsUtils.matchRe(devObj.rtype,"mbbi\d\d"):
+                rtype = 'mbbi'
+                sig = sig+":state"
+            if devObj.rtype in ('mbbi','mbbo','bi','bo'):
+                try:
+        	        (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
+                except ValueError, e:
+    	            warnings.append([fileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
+    	            return
+                
+                idx = 0
+                alias = tags['ALIAS']
+                for sevr in rangeALH:
+                    if sevr != 'NO_ALARM':
+                        tags['MASK']    = epicsUtils.epicsAlh.setMask("CDT") 
+                        tags['ALIAS']   = alias +": "+ rangeENG[idx]
+                        tags['FORCEPV'] = devName+":"+sig+" ---T- "+rangeRAW[idx]+" NE"
+                        epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
+                    idx += 1
+            if devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
+                alias = tags['ALIAS']
+                fields = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
+                for f in fields.keys():
+                    state=None
+                    if (f == 'LLSV')  and (fields['LLSV'] != 'NO_ALARM'): state = ('LOLO','5')
+                    elif (f == 'LSV') and (fields['LSV']  != 'NO_ALARM'): state = ('LOW' ,'6')
+                    elif (f == 'HSV') and (fields['HSV']  != 'NO_ALARM'): state = ('HIGH','4')
+                    elif (f == 'HHSV')and (fields['HHSV'] != 'NO_ALARM'): state = ('HIHI','3')
+                    else:
+                        continue
+                    tags['MASK']    = epicsUtils.epicsAlh.setMask("CDT") 
+                    tags['ALIAS']   = alias +": "+ state[0]
+                    tags['FORCEPV'] = devName+":"+sig+".STAT ---T- "+state[1]+" NE"
+                    epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
+        else:
+            epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
+                
 def watchdogGetFunc():
     return {"watchdog":watchdog}
 
