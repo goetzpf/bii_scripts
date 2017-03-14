@@ -801,7 +801,7 @@ class epicsAlh(object):
                     
         def walkTree(nodePath,nodeDict,depth,retPar,leafFunc=None,nodeFunc=None,cmpLeafFunc=None):
 #           print "walkTree:",depth,len(nodePath),nodePath
-            for nodeName in nodeDict.keys():
+            for nodeName in sorted(nodeDict.keys()):
                 node = nodeDict[nodeName]
                 if len(nodePath) == depth:
                     nodePath.append(nodeName)
