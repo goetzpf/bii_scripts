@@ -623,7 +623,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
                 l=None
                 fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
                 
-                if devObj.rtype in ('ai','ao','longin','longout') :
+                if devObj.rtype in ('ai','ao','longin','longout','calc','calcout') :
                     createAnalogRecord(devName,fields,devObj,warnings,fileName,lines)
                 elif devObj.rtype in ('mbbiDirect','mbboDirect') :
                     fields.update({'NOBT': 16,})
