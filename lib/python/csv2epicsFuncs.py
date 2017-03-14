@@ -408,7 +408,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
 #    if lines is None: print field
     return (field,dtype)
 
-def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fields,fileName,lines,warnings):
+def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fileName,lines,warnings):
     """ Process columns that define values, strings and severities for binary records 
     	from definitions in Col H,I,K
 	
@@ -459,7 +459,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
     """
     #print "createBiBoRecord(",devName,devObj.signal,fields,warnings,fileName,lines
     try:
-    	(rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fields,fileName,lines,warnings)
+    	(rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
     except ValueError, e:
     	warnings.append([fileName,lines,"SKIP RECORD: ",devName+":"+devObj.signal,str(e)])
     	return
@@ -492,7 +492,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
     - Create warnings for to long strings
     """
     #print "createMbbIoRecord(",devName,devObj.signal,fields,warnings,fileName,lines
-    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fields,fileName,lines,warnings)
+    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
     tooLong = False
 
     pvName = devName+":"+devObj.signal
@@ -976,6 +976,7 @@ def getWagoLink(devObj):
                        'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
             
     return (fields)
+
 
 """
 Setup all data to  write an alarm handler file.
