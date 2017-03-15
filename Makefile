@@ -422,7 +422,8 @@ PYDOC_PYTHONLIB_LIST= \
 	dateutils.py \
 	canlink.py\
 	canLink.py\
-	p_enum.py \
+	csv2epicsFuncs.py\
+        p_enum.py \
 	epicsUtils.py\
 	FilterFile.py \
 	lslparser.py \
