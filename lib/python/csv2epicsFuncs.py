@@ -978,37 +978,37 @@ def getWagoLink(devObj):
     return (fields)
 
 
-"""
-Setup all data to  write an alarm handler file.
-
-- Each object holds the data to describe one alarmhandler item (see epicsAlh docu)
-
-The Collumns for Alarm definition:
-
-- BESSY ALH Group (col. Q): The Path to the alarm group the first element is 
-  the name of the alh file!
-- BESSY ALH Flags(col. R):  Optional. First the alarm Flags (CDT..) Than a 
-  list of additional Items for
-    a CHANNEL definition in this format: ITEM<SPACE>value e.g.
-
-        "ALIAS=show this|MASK=T|ACKPV=ackPVName ackValue"
-        
-    or legacy mask definition as first Element:
-
-        "T|ALIAS=show this|ACKPV=ackPVName ackValue"
-
-    Not allowed are the Items: 'CHANNEL','INCLUDE','GROUP','END'
-
-    Defaults:
-
-        Flags: ---T-
-        ALIAS: name signal
-        ALARMCOUNTFILTER: 2 1
-        COMMAND: None or edm epicsPanel if defined in 'EPICS Panel Name' (col. U)
-
-- ALH Sort (col. S):   An optional sort number to define the order within a group
-"""
 def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
+    """
+    Setup all data to  write an alarm handler file.
+
+    - Each object holds the data to describe one alarmhandler item (see epicsAlh docu)
+
+    The Collumns for Alarm definition:
+
+    - BESSY ALH Group (col. Q): The Path to the alarm group the first element is 
+      the name of the alh file!
+    - BESSY ALH Flags(col. R):  Optional. First the alarm Flags (CDT..) Than a 
+      list of additional Items for
+        a CHANNEL definition in this format: ITEM<SPACE>value e.g.
+
+            "ALIAS=show this|MASK=T|ACKPV=ackPVName ackValue"
+
+        or legacy mask definition as first Element:
+
+            "T|ALIAS=show this|ACKPV=ackPVName ackValue"
+
+        Not allowed are the Items: 'CHANNEL','INCLUDE','GROUP','END'
+
+        Defaults:
+
+            Flags: ---T-
+            ALIAS: name signal
+            ALARMCOUNTFILTER: 2 1
+            COMMAND: None or edm epicsPanel if defined in 'EPICS Panel Name' (col. U)
+
+    - ALH Sort (col. S):   An optional sort number to define the order within a group
+    """
     if len(alhSignals) == 0:
         return
     for sig in alhSignals:

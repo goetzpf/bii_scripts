@@ -19,38 +19,6 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
-
- *  Author  B.Kuner
-
-  USAGE: cvs2epicsDb [OPTIONS] <csv files ...>
-  
--b --base:       EPICS Base, as defined in Makfile Variable $(EPICS_SHORT_VERSION) Default is '3.14.8'
--c --can:        CAN port Nr., or 'opc' for OPC server access
---cmLog:         Create alh file for cmlog use: transient alarms that report each state
--d --options.output_db:  db file name file ending determines the ouptut: '.db' or '.substitutions'
--D --output_multiFile Tag to write the records/substitutions to the files as set in COL W. 
-                 Tag is 'db' or 'substitutions' to determine the file type
---devobj:        Optional device object module to convert data from another spreadsheet format to program variables
---dis            Name of disable record to be created and used in all SDIS fields
--f --install_path: installation path for output files: .substitutions, .arch, .alh,
-                 panels. Default is './' 
--i --options.iocName:    IOC name 
--l --output_alh: create alarm handler config file for Items that define BESSY ALH 
-                 Group (col. Q) 
--m --options.opc_name:   opc server name 
--n --devName:    device name [\(DEVICE)] 
--p --panel:      create 'CreatePanel.pl' data for Items that define EPICS 
-                 devObj.panelName (col. T) 
--r --options.output_req: autoSaveRestore request file name for signals defined in Col. P 
--s --search_path: Search path forpanel widgets and template plugins '.:..:/opt/support/mySup'
---stoRcl         Create store recall records for ao and longout: DEVN:stoSNAME, DEVN:rclSNAME",
--t --separator:  column separator in .csv file[,] 
--v --verbose:    print debug information 
---var            Define variables in the csv file. CSV-file tag $(VAR): --var VAR=huhu"
-
-See http://help.bessy.de/apps/common/csv2epicsDb
-"""
 
 from optparse import OptionParser
 import sys
@@ -61,14 +29,25 @@ import epicsUtils
 import csv2epicsFuncs
 import pprint
 
-my_version = "1.0"
+my_version = "2017.3.15"
 
 #******************************* Main program *******************************
 
-usage        = " %prog [options]"
+usage        = """* Author  B.Kuner
+
+How to use the spreadsheet table: 
+
+- http://help.bessy.de/apps/common/csv2epicsDb
+
+pydoc to the underlying classes:
+
+- csv2epicsFuncs:  http://www-csr.bessy.de/control/bii_scripts/html/python/csv2epicsFuncs.html
+- epicsUtils.html: http://www-csr.bessy.de/control/bii_scripts/html/python/epicsUtils.html
+
+USAGE: csv2epicsDb [-h OPTIONS] csv files """
 parser = OptionParser(usage=usage,
                  version="%%prog %s" % my_version,
-                 description="USAGE: csv2epicsDb [-h OPTIONS] <csv files ...>")
+                 )
 parser.add_option("-a","--output_arch", 
                  action="store",
                  type="string",
