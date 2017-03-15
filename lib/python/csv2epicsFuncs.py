@@ -65,7 +65,7 @@ class PLC_Address(object):
 
 * Process epic alh data
 
-- def epicsAlh(devName,alhSig,devObj,lines)
+- def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
 
 * Builtin Templates (for convenience only)
 
@@ -1008,7 +1008,7 @@ The Collumns for Alarm definition:
 
 - ALH Sort (col. S):   An optional sort number to define the order within a group
 """
-def epicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
+def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
     if len(alhSignals) == 0:
         return
     for sig in alhSignals:
@@ -1030,7 +1030,7 @@ def epicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
         tags['COMMAND'] = command
 
         # DEFAULT ALIAS
-        tags['ALIAS'] = devName+": "+devObj.DESC
+        tags['ALIAS'] = devObj.DESC
         # DEFAULT ALARMCOUNTFILTER
         tags['ALARMCOUNTFILTER'] = "2 1"
 

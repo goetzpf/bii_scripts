@@ -355,7 +355,7 @@ for argument in args:
 
             if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
                 try:
-                    csv2epicsFuncs.epicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,options.cmLog)
+                    csv2epicsFuncs.setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,options.cmLog)
                 except ValueError as err:
                     warnings.append([fileName,-1,str(err)+": "+fileName+"'"])
         except :
