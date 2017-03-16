@@ -957,8 +957,8 @@ def getWagoLink(devObj):
             if raw is None:
                 raise ValueError("Col.H Raw Value not defined")
             fields.update({'LINR': "LINEAR",
-                    'EGUL': raw[0],
-                    'EGUF': raw[1],
+                    'EGUL': raw[0].strip(),
+                    'EGUF': raw[1].strip(),
                     })
             
         if devObj.rtype == 'ai':
