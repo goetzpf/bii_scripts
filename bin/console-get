@@ -1,107 +1,267 @@
-#!/bin/bash
+#!/usr/bin/env python3
+# -*- coding: UTF-8 -*-
+"""get console files."""
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
-# <https://www.helmholtz-berlin.de>
-#
-# Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
-# Contributions by:
-#         Benjamin Franksen <Benjamin.Franksen@helmholtz-berlin.de>
-#
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU General Public License as published by the Free Software
-# Foundation, either version 3 of the License, or (at your option) any later
-# version.
-# 
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-# details.
-# 
-# You should have received a copy of the GNU General Public License along with
-# this program.  If not, see <http://www.gnu.org/licenses/>.
+# pylint: disable=invalid-name
 
-# $1: directory name
-# $2: file glob
+import os
+import sys
+import tempfile
+import glob
+import shutil
+import subprocess
+import re
 
-tempdir=`mktemp -d /tmp/consoleXXXXXXX`
-curdir=`pwd`
+from optparse import OptionParser
+# version of the program:
+my_version= "1.0"
 
-# format: <area>:<description>:directory
-map='tsc:control system:tsc\n
-tsc-mls:mls control system:conserver-mls/tsc\n
-id:insertion devices:id\n
-mono:monochromators:mono\n
-il:??:il\n
-net:??:net\n
-psd:??:psd\n
-sioc:??:sioc\n
-xbpm:??:xbpm\n
-'
+CONSERVER_URL= "http://gwc1c.acc.bessy.de/conserver/"
 
-tags=`echo "$map" | sed -e 's/\([^:]\+\):\([^:]\+\):\([^:]\+\)/\\t\1\\t: \2/g'`
+areas= { \
+         "blc" :    { "description": "(also via ssh)",
+                      "directory"  : "blc",
+                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/blc/",
+                    },
+         "id" :     { "description": "insertion devices (also via ssh)",
+                      "directory"  : "id",
+                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/id/",
+                    },
+         "il" :     { "directory"  : "il" },
+         "mono" :   { "description": "monochromators (also via ssh)",
+                      "directory"  : "mono",
+                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/mono/",
+                    },
+         "net" :    { "directory"  : "net" },
+         "psd" :    { "directory"  : "psd" },
+         "tsc" :    { "description": "control system (also via ssh)",
+                      "directory"  : "tsc",
+                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/tsc/",
+                    },
+         "tsc-mls" :{ "description": "mls control system (also via ssh)",
+                      "directory"  : "conserver-mls/tsc",
+                      "ssh"        : "iocadm@nfs.mlscs.bessy.de:/var/log/conserver-mls/tsc/",
+                    },
+         "xbpm" :   { "directory"  : "xbpm" },
+       }
 
+def area_descriptions(indent):
+    """return area descriptions as a string."""
+    lines= []
+    ind= " "*indent
+    for area in sorted(areas.keys()):
+        desc= areas[area].get("description")
+        if desc:
+            lines.append("%s%-8s : %s" % (ind, area, desc))
+        else:
+            lines.append("%s%s" % (ind, area))
+    lines.append("")
+    return "\n".join(lines)
 
-if [ -z "$1" ] || [ "$1" = "-h" ]; then
-        echo "usage: $0 [area] {pattern}"
-        echo "  downloads and concatenates console log files"
-        echo
-        echo "  [area] is a mandatory parameter. For each area"
-        echo "      there is a specific directory on the console server."
-        echo "      These are the known areas:"
-        echo -e "$tags" | expand -t 10
-        echo "  {pattern} is an optional parameter. If it is is given,"
-        echo "      only files starting with that name are processed. "
-        echo "      It may be a simple string or a file-glob expression."
-        echo "      If {pattern} is omitted, all log files are processed."
-        echo
-        echo "  examples:"
-        echo "      $0 id eis13g  -> get all files starting with eis13g"
-        echo "      $0 id eis11*  -> get all files starting with \"eis11\""
-        echo "      $0 id \"eis11g* eis8g*\" -> get all files starting "
-        echo "         with \"eis11g\" or \"eis8g\""
-        exit 1
-fi
+def append_wildcard(st):
+    """append '*' to st, if this is missig."""
+    if st.endswith("*"):
+        return st
+    return st+"*"
 
-area=`echo -e "$map" | egrep "^$1:"`
+rx_no= re.compile(r'\.([0-9]+)\s*$')
 
-if [ -z "$area" ]; then
-        echo "unknown area, enter \"$0\" to see the known specs"
-        exit 1
-fi
+def index_from_filename(st):
+    """extract the index number from a file.
 
-# last part of found area is the directory:
-dir=`echo $area | sed -e 's/^[^:]\+:[^:]\+://g'`
+    example: eis13g.log.2 returns 2
+    example: eis13g.log   returns 0
+    """
+    m= rx_no.search(st)
+    if m is None:
+        return 0
+    return int(m.group(1))
 
-if [ -z "$2" ]; then
+def new_name(filename):
+    """test if filename exists, create a new name if needed.
+
+    If the file exists, generate a new filename FILENAME-1, FILENAME-2 until a
+    name is found that doesn't exist.
+    """
+    if not os.path.exists(filename):
+        return filename
+    cnt=1
+    while True:
+        n= "%s-%d" % (filename, cnt)
+        if not os.path.exists(n):
+            break
+        cnt+=1
+    return n
+
+def fetch_files(area, glob_patterns, ssh):
+    """fetch files and put them into current working directory."""
+    ssh_opt= None
+    if ssh:
+        ssh_opt= areas[area].get("ssh")
+        if not ssh_opt:
+            sys.stderr.write(("note: ssh not available for %s, using "
+                              "wget instead") % area)
+    if not ssh_opt:
+        # @@@@ subprocess.run doesn't exist on older python (elbe) !!!
+        for p in glob_patterns:
+            subprocess.check_call(["wget",
+                                   "--quiet", "-r", "-l1", "--no-parent",
+                                   "-nd",
+                                   CONSERVER_URL + areas[area]["directory"],
+                                   "-A",
+                                   p])
+    else:
+        for p in glob_patterns:
+            subprocess.check_call(["scp", "-q",
+                                   ssh_opt + p,
+                                   "."])
+    return
+
+def unzip_files():
+    """unzip all files in current working directory."""
+    zipped= glob.glob("*.gz")
+    if zipped:
+        subprocess.check_call(["gunzip"] + zipped)
+
+def join_logfiles(filename_stem, destination):
+    """join files that start with the same characters.
+
+    After joining, the files are removed.
+    """
+    sorted_files= sorted(glob.glob(filename_stem+"*"),
+                         key=index_from_filename,
+                         reverse= True)
+    subprocess.check_call(["bash", "-c",
+                           "cat %s > %s" % (" ".join(sorted_files), destination)])
+    subprocess.check_call(["rm", "-f"] + sorted_files)
+
+def move_files(tempdir_name):
+    """move files from tempdir to current dir."""
+    for f in glob.glob(os.path.join(tempdir_name, "*")):
+        f_base= os.path.basename(f)
+        n= new_name(f_base)
+        if n!=f_base:
+            sys.stderr.write(("note: created %s since %s already "
+                              "existed\n") % (repr(n), repr(f_base)))
+        shutil.move(f, n)
+
+def get_log_files(area, patterns, use_ssh):
+    """get all the log files."""
+    if not patterns:
         files="*.log*"
-else
-        # add a "*" at the end, if it is not already there
-        files=`echo "$2" | sed -e 's/$/\.log\*/;s/\*\*$/\*/;'`
-fi
+    else:
+        files= [append_wildcard(f.strip()) for f in patterns]
+    tempdir= tempfile.TemporaryDirectory(prefix="console-get-")
+    old_dir= os.getcwd()
+    os.chdir(tempdir.name)
+    fetch_files(area, files, use_ssh)
+    unzip_files()
+    for f in glob.glob("*.log"):
+        stem= os.path.splitext(f)[0]
+        join_logfiles(stem, stem+".sumlog")
+    os.chdir(old_dir)
+    move_files(tempdir.name)
+    tempdir.cleanup()
 
-cd $tempdir
-wget --quiet -r -l1 --no-parent -nd http://gwc1c.acc.bessy.de/conserver/$dir -A $files
-mkdir t 
-for f in `sh -c "ls $files"`; do mv $f t; done
-rm -f *.log *.gz index* && mv t/* . && rmdir t
-if ls *.gz 1>/dev/null 2>&1; then
-    gunzip *.gz
-fi
+def list_files(area, use_ssh):
+    """show avaliable files."""
+    ssh_opt= None
+    if use_ssh:
+        ssh_opt= areas[area].get("ssh")
+        if not ssh_opt:
+            sys.stderr.write(("note: ssh not available for %s, using "
+                              "wget instead") % area)
+    if not ssh_opt:
+        subprocess.check_call(["bash", "-c",
+                               (r"wget %s -O - --quiet | sed -e 's/<[^>]*>/ /g' | "
+                                r"grep '\.log ' | "
+                                r"sed -e 's/^ *\([^ ]\+\).*/\1/' | sort") % \
+                                 (CONSERVER_URL + areas[area]["directory"])])
+    else:
+        (ssh, dir_)= ssh_opt.split(":")
+        subprocess.check_call(["ssh", ssh, "cd %s && ls *.log" % dir_])
 
-for f in *.log
-do
-        if [ "$f" = "*.log" ]; then 
-                rmdir t
-                echo "no files!"
-                break
-        fi
-        stem=`basename $f .log`
-        #echo `ls $stem* | sort -n -t . -k 3 -r` 
-        #echo "$stem.sumlog"
-        cat `ls $stem* | sort -n -t . -k 3 -r` > $stem.sumlog
-done
-rm -f *.log*
 
-cd $curdir
-cp $tempdir/* .
-rm -rf $tempdir
+def process(options, args):
+    """do all the work."""
+    if not args:
+        sys.exit("error: area not specified. Run '%s -h' for help" % \
+                 script_shortname())
+    area= args[0].strip()
+    if area not in areas:
+        sys.exit("error: unknown area %s. Run '%s -h' for help" % \
+                 (repr(area),script_shortname()))
+    if options.list:
+        list_files(area, options.ssh)
+    else:
+        get_log_files(area, args[1:], options.ssh)
+
+def script_shortname():
+    """return the name of this script without a path component."""
+    return os.path.basename(sys.argv[0])
+
+def print_summary():
+    """print a short summary of the scripts function."""
+    print("%-20s: get english pronounciation info\n" % \
+            script_shortname())
+
+usage = """usage: %%prog [OPTIONS] AREA {PATTERN}
+downloads and concatenates console log files"
+
+AREA is a mandatory parameter. For each area
+    there is a specific directory on the console server.
+    These are the known areas:
+%s
+{PATTERN} is an optional parameter. If it is is given,
+    only files starting with that name are processed.
+    It may be a simple string or a file-glob expression.
+    If {PATTERN} is omitted, all log files are processed.
+
+examples:
+    %s id eis13g
+            -> get log files for eis13g
+    %s id eis11*
+            -> get log files whose names begin with "eis11"
+    %s id eis11g* eis8g*
+            -> get log files whose names begin with "eis11g" or "eis8g"
+""" % tuple([area_descriptions(4)]+[script_shortname()]*3)
+
+def main():
+    """The main function.
+
+    parse the command-line options and perform the command
+    """
+    # command-line options and command-line help:
+
+    parser = OptionParser(usage=usage,
+                          version="%%prog %s" % my_version)
+
+    parser.add_option("--summary",
+                      action="store_true",
+                      help="print a summary of the function of the program",
+                     )
+    parser.add_option("--list",
+                      action="store_true",
+                      help="Just list available files. PATTERN is "
+                           "ignored in this case."
+                     )
+    parser.add_option("--ssh",
+                      action="store_true",
+                      help="Directly copy files with ssh. Not available "
+                           "for all areas.",
+                     )
+    #x= sys.argv
+    (options, args) = parser.parse_args()
+    # options: the options-object
+    # args: list of left-over args
+
+    if options.summary:
+        print_summary()
+        sys.exit(0)
+
+    process(options, args)
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+
