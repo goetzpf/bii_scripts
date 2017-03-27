@@ -128,7 +128,7 @@ def join_logfiles(filename_stem, destination):
 
     After joining, the files are removed.
     """
-    sorted_files= sorted(glob.glob(filename_stem+"*"),
+    sorted_files= sorted(glob.glob(filename_stem+".log*"),
                          key=index_from_filename,
                          reverse= True)
     subprocess.check_call(["bash", "-c",
