@@ -148,7 +148,7 @@ def move_files(tempdir_name):
 def get_log_files(area, patterns, use_ssh):
     """get all the log files."""
     if not patterns:
-        files="*.log*"
+        files="*"
     else:
         files= [append_wildcard(f.strip()) for f in patterns]
     tempdir= tempfile.TemporaryDirectory(prefix="console-get-")
