@@ -167,41 +167,59 @@ def my_strptime(st, format):
         if locale_changed:
             locale.setlocale(locale.LC_TIME, _default_locale)
 
-def parse_lsl_shortdate(str,year=None):
-    """parse an yearless date produced from ls -l.
+def parse_lsl_shortdate(st,year=None):
+    """parse a possibly yearless date produced from ls -l.
 
-    This function parses a date in the form
-    mmm d HH:MM (mmm the month name), which is a date that the "ls -l"
-    command may produce. It returns a datetime.datetime object.
-    Note that this function sets the year to 1900, if not
-    specified differently by it's second parameter.
+    This function parses a date that was produced by "ls -l".
+    It returns a datetime.datetime object.  Note that this function sets the
+    year to 1900, if not specified differently by it's second parameter.  Note
+    also, that 29th of February is an invalid date for the year 1900.
+    The function currently tries the default locale and the de_DE locale.
 
     parameters:
-        str     -- the string to parse
+        st     -- the string to parse
         year    -- the optional year, an integer
     returns:
         a datetime.datetime object
 
     Here are some examples:
-    >>> parse_lsl_shortdate("Oct  9 10:42")
-    datetime.datetime(1900, 10, 9, 10, 42)
+    >>> parse_lsl_shortdate("Oct  9 10:42",2016)
+    datetime.datetime(2016, 10, 9, 10, 42)
     >>> parse_lsl_shortdate("Oct  9 10:42",2005)
     datetime.datetime(2005, 10, 9, 10, 42)
     >>> parse_lsl_shortdate("Oct  9 2007")
     datetime.datetime(2007, 10, 9, 0, 0)
+    >>> parse_lsl_shortdate("29. Jul 10:42", 2007)
+    datetime.datetime(2007, 7, 29, 10, 42)
     >>> parse_lsl_shortdate("Oct  9 10:42b",2005)
     Traceback (most recent call last):
        ...
-    ValueError: time data 'Oct  9 10:42b' does not match format '%b %d %Y'
+    ValueError: time data 'Oct  9 10:42b' does not match any of the known formats: ['%b %d %H:%M %Y', '%d. %b %H:%M %Y', '%b %d %Y'] for locales ['default', 'de_DE.UTF-8']
     """
-    try:
-        if year is None:
-            # if the year is not give, we assume the current year:
-            year= datetime.datetime.now().year
-        d= my_strptime("%s %s" % (str,year),"%b %d %H:%M %Y")
-    except ValueError,e:
-        d= my_strptime(str,"%b %d %Y")
-    return d
+    if year is None:
+        # if the year is not give, we assume the current year:
+        year= datetime.datetime.now().year
+    st_y= "%s %s" % (st, year)
+
+    formats= ( ("%b %d %H:%M %Y" , True),
+               ("%d. %b %H:%M %Y", True),
+               ("%b %d %Y"       , False),
+             )
+    for (format_, flag) in formats:
+        if flag:
+            s= st_y
+        else:
+            s= st
+        try:
+            return my_strptime(s, format_)
+        except ValueError, e:
+            pass
+    locales= ["default"] + [l for l in _locale_list if l]
+    formats_= [f for f,_ in formats]
+    msg= ("time data %s does not match any of the known formats: %s "
+          "for locales %s") % \
+         (repr(st), repr(formats_), repr(locales))
+    raise ValueError(msg)
 
 def parse_lsl_date(str,year=None):
     """parse a date produced by "ls -l".
@@ -209,8 +227,8 @@ def parse_lsl_date(str,year=None):
     Here are some examples:
     >>> parse_lsl_date("2009-03-16 10:26")
     datetime.datetime(2009, 3, 16, 10, 26)
-    >>> parse_lsl_date("Oct  9 10:42")
-    datetime.datetime(1900, 10, 9, 10, 42)
+    >>> parse_lsl_date("Oct  9 10:42", 2016)
+    datetime.datetime(2016, 10, 9, 10, 42)
     >>> parse_lsl_date("Oct  9 10:42",2010)
     datetime.datetime(2010, 10, 9, 10, 42)
     >>> parse_lsl_date("Oct  9 10:42x",2010)
