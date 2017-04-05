@@ -1004,7 +1004,6 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
 
             Flags: ---T-
             ALIAS: name signal
-            ALARMCOUNTFILTER: 10 10
             COMMAND: None or edm epicsPanel if defined in 'EPICS Panel Name' (col. U)
 
     - ALH Sort (col. S):   An optional sort number to define the order within a group
@@ -1031,8 +1030,6 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
 
         # DEFAULT ALIAS
         tags['ALIAS'] = devObj.DESC
-        # DEFAULT ALARMCOUNTFILTER
-        tags['ALARMCOUNTFILTER'] = "10 10"
 
         # OVERRIDE DEFAULTs by alhFlags
         tagList = devObj.alhFlags.split("|")
