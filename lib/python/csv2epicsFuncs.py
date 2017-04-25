@@ -938,8 +938,12 @@ def getWagoLink(devObj):
     
     Analog values read/write by modbus function FC3/16 read/write multiple 
     registers. Specify the channel by the word count.
+    Linear conversion from real raw values 16bit hex to EGUL,EGUF defined in Column H.(Raw value range).
+    Col. G (Bits) is 16 for unipolar Conversion range and -16 for bipolar conversion.
+    Col. I (data range) defines HOPR/LOPR.
     
     Special conversion for temperature modules with wago Tag in Col.E = 'wagoTemp'
+    Col.I (data range) defines HOPR/LOPR
     """
     fields = {}
     if devObj.rtype in ['ai','ao']:
@@ -1175,10 +1179,13 @@ def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 	    'C7MUX':mux+7
 	    },devObj.dbFileName)
     fields = epicsUtils.parseParam(devObj.prec)
-    if devObj.egu == "K":	    # template default is Grad-C
-	fields['EGUF'] = "657.16"
-	fields['EGUL'] = "145.16"
-	fields['EGU'] = "K"
+    fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
+    if devObj.egu == "K":	    
+        fields['EGUF'] = "997.16"
+        fields['EGUL'] = "-27.16"
+    elif devObj.egu == "°C":
+        fields['EGUF'] = "-128"
+        fields['EGUL'] = "384"
     fields['DESCR'] = devObj.DESC
     fields['SDIS']  = ''
     fields['HWNAME']= hwname
