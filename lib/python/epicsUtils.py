@@ -125,7 +125,7 @@ def searchRe(searchStr,reStr,flags=0) :
     """ serarch, means regExp has to be found somewhere in searchStr, else return None
     """
     regx = re.compile(reStr,flags)
-    m = regx.search(matchStr)
+    m = regx.search(searchStr)
     if m:
         return m.groups()
     else:

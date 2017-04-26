@@ -1060,43 +1060,45 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
 
 
         # For cmlog: create FORCEPV channels to report each state of a mbbi 
-        if cmLog:
-            rtype = devObj.rtype
-            # SPECICAL for the mbbi40.template etc, treat as mbbi, but pv is devName:sig:state
-            if epicsUtils.matchRe(devObj.rtype,"mbbi\d\d"):
-                rtype = 'mbbi'
-                sig = sig+":state"
-            if devObj.rtype in ('mbbi','mbbo','bi','bo'):
-                try:
-        	        (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
-                except ValueError, e:
-    	            warnings.append([fileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
-    	            return
-                
-                idx = 0
-                alias = tags['ALIAS']
-                for sevr in rangeALH:
-                    if sevr != 'NO_ALARM':
-                        tags['MASK']    = epicsUtils.epicsAlh.setMask("CDT") 
-                        tags['ALIAS']   = alias +": "+ rangeENG[idx]
-                        tags['FORCEPV'] = devName+":"+sig+" ---T- "+rangeRAW[idx]+" NE"
-                        epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
-                    idx += 1
-            if devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
-                alias = tags['ALIAS']
-                fields = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
-                for f in fields.keys():
-                    state=None
-                    if (f == 'LLSV')  and (fields['LLSV'] != 'NO_ALARM'): state = ('LOLO','5')
-                    elif (f == 'LSV') and (fields['LSV']  != 'NO_ALARM'): state = ('LOW' ,'6')
-                    elif (f == 'HSV') and (fields['HSV']  != 'NO_ALARM'): state = ('HIGH','4')
-                    elif (f == 'HHSV')and (fields['HHSV'] != 'NO_ALARM'): state = ('HIHI','3')
-                    else:
-                        continue
+        rtype = devObj.rtype
+        # SPECICAL for the mbbi40.template etc, treat as mbbi, but pv is devName:sig:state
+        if cmLog and (epicsUtils.matchRe(devObj.rtype,"mbbi\d\d") is not None):
+            print "is mbbiNN"
+            rtype = 'mbbi'
+            sig = sig+":state"
+        if cmLog and rtype in ('mbbi','mbbo','bi','bo'):
+            try:
+        	    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
+            except ValueError, e:
+    	        warnings.append([fileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
+    	        return
+
+            idx = 0
+            alias = tags['ALIAS']
+            for sevr in rangeALH:
+                if sevr != 'NO_ALARM':
                     tags['MASK']    = epicsUtils.epicsAlh.setMask("CDT") 
-                    tags['ALIAS']   = alias +": "+ state[0]
-                    tags['FORCEPV'] = devName+":"+sig+".STAT ---T- "+state[1]+" NE"
+                    tags['ALIAS']   = alias +": "+ rangeENG[idx]
+                    tags['FORCEPV'] = devName+":"+sig+" ---T- "+rangeRAW[idx]+" NE"
                     epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
+                idx += 1
+        elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
+            print "*** setEpicsAlh(%s:%s, %s"%(devName,sig,rtype)
+            alias = tags['ALIAS']
+            fields = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
+            for f in fields.keys():
+                state=None
+                if (f == 'LLSV')  and (fields['LLSV'] != 'NO_ALARM'): state = ('LOLO','5')
+                elif (f == 'LSV') and (fields['LSV']  != 'NO_ALARM'): state = ('LOW' ,'6')
+                elif (f == 'HSV') and (fields['HSV']  != 'NO_ALARM'): state = ('HIGH','4')
+                elif (f == 'HHSV')and (fields['HHSV'] != 'NO_ALARM'): state = ('HIHI','3')
+                else:
+                    continue
+                tags['MASK']    = epicsUtils.epicsAlh.setMask("CDT") 
+                tags['ALIAS']   = alias +": "+ state[0]
+                tags['FORCEPV'] = devName+":"+sig+".STAT ---T- "+state[1]+" NE"
+                epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
+            print "ANALOG done", tags
         else:
             epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
                 
