@@ -112,55 +112,57 @@ class ConfigMeasDialog(Toplevel):
     def __init__(self, pvNames,callbackFunc):
     	Toplevel.__init__(self)
 
-	self.title("Configure Measure PVs")
-	self.callbackFunc = callbackFunc
+        self.title("Configure Measure PVs")
+        self.callbackFunc = callbackFunc
 
-    	listFrame=Frame(self)
-    	self.l = Label(listFrame,text="Measured PVs:")
-	self.l.grid(row=0,column=0)
-	self.valList = Listbox(listFrame, height=4, selectmode = MULTIPLE)
+        listFrame=Frame(self)
+        self.l = Label(listFrame,text="Measured PVs:")
+        self.l.grid(row=0,column=0)
+        self.valList = Listbox(listFrame, height=4, selectmode = MULTIPLE)
         scroll = Scrollbar(listFrame, command = self.valList.yview)
         self.valList.configure(yscrollcommand = scroll.set)
         scroll.grid(row=1, column=1,sticky=NS)
+        listFrame.columnconfigure(0,weight=1)
+        listFrame.rowconfigure(1,weight=1)
         self.valList.grid(row=1,column=0,sticky=W+E+N+S )
-	listFrame.pack(side=LEFT,fill=Y,expand=1,padx=5,pady=5)
-	self.pvEntr = stepView.LabelEntryWidget(self,"Add PV:",None,None)
-    	self.pvEntr.pack(side=TOP,padx=5,pady=5,anchor=E)
-	addBut = Button(self,width=25,text="Add PV",command=self.addCmd)
-    	addBut.pack(side=TOP,padx=5,pady=5,anchor=E)
-	restSelBut = Button(self,width=25,text="Delete selected PVs",command=self.delCmd)
-    	restSelBut.pack(side=TOP,padx=5,pady=5,anchor=E)
-    	okCancelFrame = Frame(self)
-	restAllBut = Button(okCancelFrame,width=8,text="Ok",command=self.okCmd)
-	cnBut = Button(okCancelFrame,width=8,text="Cancel",command=self.cancelCmd)
-	restAllBut.grid(row=0,column=0)
+        listFrame.pack(side=LEFT,fill=BOTH,expand=1,padx=5,pady=5)
+        self.pvEntr = stepView.LabelEntryWidget(self,"Add PV:",None,None)
+        self.pvEntr.pack(side=TOP,padx=5,pady=5,anchor=E)
+        addBut = Button(self,width=25,text="Add PV",command=self.addCmd)
+        addBut.pack(side=TOP,padx=5,pady=5,anchor=E)
+        restSelBut = Button(self,width=25,text="Delete selected PVs",command=self.delCmd)
+        restSelBut.pack(side=TOP,padx=5,pady=5,anchor=E)
+        okCancelFrame = Frame(self)
+        restAllBut = Button(okCancelFrame,width=8,text="Ok",command=self.okCmd)
+        cnBut = Button(okCancelFrame,width=8,text="Cancel",command=self.cancelCmd)
+        restAllBut.grid(row=0,column=0)
     	cnBut.grid(row=0,column=1)
-	okCancelFrame.pack(side=BOTTOM,padx=5,pady=5,anchor=E)
+        okCancelFrame.pack(side=BOTTOM,padx=5,pady=5,anchor=E)
 	
-	for name in pvNames: self.valList.insert(END, name)
-	
+        for name in pvNames: self.valList.insert(END, name)
+
     def addCmd(self):
-    	try:
-	    pv = self.pvEntr.getPv()
-	    self.pvEntr.set("")
-	except ValueError:
-	    return
-	self.valList.insert(END, pv)
+        try:
+            pv = self.pvEntr.getPv()
+            self.pvEntr.set("")
+        except ValueError:
+            return
+        self.valList.insert(END, pv)
 	    
     def delCmd(self):
-    	delItems = self.valList.curselection()
-	a = list(delItems)
-	a.reverse()
-	for delI in a:
-	    self.valList.delete(delI)
+        delItems = self.valList.curselection()
+        a = list(delItems)
+        a.reverse()
+        for delI in a:
+            self.valList.delete(delI)
 
     def cancelCmd(self):
-	self.callbackFunc(None)
-	self.destroy()
+        self.callbackFunc(None)
+        self.destroy()
 	    
     def okCmd(self):
-	self.callbackFunc(self.valList.get(0,END))
-	self.destroy()
+        self.callbackFunc(self.valList.get(0,END))
+        self.destroy()
 	    
 class ChooseRestoreDialog(Toplevel):
     """
