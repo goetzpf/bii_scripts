@@ -1063,7 +1063,6 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
         rtype = devObj.rtype
         # SPECICAL for the mbbi40.template etc, treat as mbbi, but pv is devName:sig:state
         if cmLog and (epicsUtils.matchRe(devObj.rtype,"mbbi\d\d") is not None):
-            print "is mbbiNN"
             rtype = 'mbbi'
             sig = sig+":state"
         if cmLog and rtype in ('mbbi','mbbo','bi','bo'):

@@ -310,6 +310,8 @@ for argument in args:
             # is a known template?
             elif plugins.has_key(devObj.rtype):
                 a = plugins[devObj.rtype](devName,devObj,canOption,options.opc_name,iocTag,warnings,lines,fileName)
+                if not a:
+                    continue
                 (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
                 if len(devObj.reqFlag) > 0: 
                     req += map(lambda x: devName+":"+x,devObj.reqFlag.split("|"))
