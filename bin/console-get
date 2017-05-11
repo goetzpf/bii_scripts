@@ -77,12 +77,14 @@ def index_from_filename(st):
         return 0
     return int(m.group(1))
 
-def new_name(filename):
+def new_name(filename, opt_force):
     """test if filename exists, create a new name if needed.
 
     If the file exists, generate a new filename FILENAME-1, FILENAME-2 until a
     name is found that doesn't exist.
     """
+    if opt_force:
+        return filename
     if not os.path.exists(filename):
         return filename
     cnt=1
@@ -135,17 +137,17 @@ def join_logfiles(filename_stem, destination):
                            "cat %s > %s" % (" ".join(sorted_files), destination)])
     subprocess.check_call(["rm", "-f"] + sorted_files)
 
-def move_files(tempdir_name):
+def move_files(tempdir_name, opt_force):
     """move files from tempdir to current dir."""
     for f in glob.glob(os.path.join(tempdir_name, "*")):
         f_base= os.path.basename(f)
-        n= new_name(f_base)
+        n= new_name(f_base, opt_force)
         if n!=f_base:
             sys.stderr.write(("note: created %s since %s already "
                               "existed\n") % (repr(n), repr(f_base)))
         shutil.move(f, n)
 
-def get_log_files(area, patterns, use_ssh):
+def get_log_files(area, patterns, use_ssh, opt_force):
     """get all the log files."""
     if not patterns:
         files="*"
@@ -160,7 +162,7 @@ def get_log_files(area, patterns, use_ssh):
         stem= os.path.splitext(f)[0]
         join_logfiles(stem, stem+".sumlog")
     os.chdir(old_dir)
-    move_files(tempdir.name)
+    move_files(tempdir.name, opt_force)
     tempdir.cleanup()
 
 def list_files(area, use_ssh):
@@ -194,7 +196,7 @@ def process(options, args):
     if options.list:
         list_files(area, options.ssh)
     else:
-        get_log_files(area, args[1:], options.ssh)
+        get_log_files(area, args[1:], options.ssh, options.force)
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -249,6 +251,10 @@ def main():
                       action="store_true",
                       help="Directly copy files with ssh. Not available "
                            "for all areas.",
+                     )
+    parser.add_option("--force",
+                      action="store_true",
+                      help="Overwrite existing files.",
                      )
     #x= sys.argv
     (options, args) = parser.parse_args()
