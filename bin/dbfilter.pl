@@ -34,6 +34,7 @@ use strict;
 use FindBin;
 use Getopt::Long;
 use Data::Dumper;
+use List::Util qw(max);
 
 use parse_db 1.3;
 use analyse_db 1.0;
@@ -1110,12 +1111,15 @@ sub lowcal
     filter_records($r_ext_db,"DTYP","lowcal");
     filter_fields($r_ext_db,['INP','OUT']);
 
+    my $r_dbhash= $r_ext_db->{dbhash};
+    my $max_rec_len= max (map {length $_} (keys %$r_dbhash));
+    print "max_rec_len=$max_rec_len\n";
+
     if (!$reverse)
-      { printf "%-25s%-3s %s\n","recordname","dir",canlink::tab_print(); }
+      { printf "%-${max_rec_len}s %-3s %s\n","recordname","dir",canlink::tab_print(); }
     else
       { printf "%s %-3s %-25s\n",canlink::tab_print(),"dir","recordname"; }
 
-    my $r_dbhash= $r_ext_db->{dbhash};
     foreach my $rec (sort keys %$r_dbhash)
       { my $r= $r_dbhash->{$rec}->{FIELDS};
         my $link= $r->{OUT};
@@ -1139,7 +1143,7 @@ sub lowcal
         next if ($skip);
 
         if (!$reverse)
-          { printf "%-25s%-3s %s\n",$rec,$dir,canlink::tab_print(%h); }
+          { printf "%-${max_rec_len}s %-3s %s\n",$rec,$dir,canlink::tab_print(%h); }
         else
           { printf "%s %-3s %-25s\n",canlink::tab_print(%h),$dir,$rec; }
       };
