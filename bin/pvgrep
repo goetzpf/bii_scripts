@@ -56,7 +56,7 @@ while (<>) {
     (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
     \$iocs->{\$ioc}->{\$var}=1;
 }; 
-for \$ioc (sort keys %\$iocs) {
+for \$ioc (sort(keys(%{\$iocs}))) {
     print \"\$ioc:\\n\" unless $flat; 
-    for \$var (sort keys %{\$iocs->{\$ioc}}) { print(\"$spc\$var\"); }
+    for \$var (sort(keys(%{\$iocs->{\$ioc}}))) { print(\"$spc\$var\"); }
 }"
