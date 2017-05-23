@@ -76,6 +76,8 @@ if [[ $# > 0 ]]; then
   iocsglob=${(j:|:)${=@}}
 fi
 
+iocsglob=$iocsglob:l
+
 iocs=()
 if [[ -e /opt/IOC/log/IOCs.list ]]
 then
