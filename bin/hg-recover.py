@@ -141,6 +141,32 @@ import os.path
 import shutil
 import tarfile
 
+# set the following variable to True in order to implement a work around for a
+# mercurial bug. 
+
+# Here is an example for a command that fails:
+#   hg clone -r 00a1405aaff2 http://repo.acc.bessy.de/hg/id_db id_db
+
+# We get an exception:
+#   ** unknown exception encountered, please report by visiting
+#   ** https://mercurial-scm.org/wiki/BugTracker
+#   ** Python 2.7.13 (default, Jan 13 2017, 10:15:16) [GCC 6.3.1 20161221 (Red Hat 6.3.1-1)]
+#   ** Mercurial Distributed SCM (version 3.7.3)
+#   ** Extensions loaded: fetch, hgk, extdiff, transplant, graphlog, rebase, strip, mq, convert, record, color, pager
+#   Traceback (most recent call last):
+#    ...
+#     File "/usr/lib64/python2.7/site-packages/mercurial/localrepo.py", line 1363, in wlock
+#       l = self._wlockref and self._wlockref()
+#   AttributeError: 'statichttprepository' object has no attribute '_wlockref'
+
+# The problem is to fetch a repository with a version given by "-r VERSION" via
+# http. We work around this problem by fetching the newest version of the repo
+# (omitting "-r VERSION") and then doing "hg update -r VERSION" to go to the
+# specified version after cloning the repository. Hopefully this bug is fixed
+# some time in the future.
+
+HG_QUIRK= True
+
 _no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary","--doc"))
 try:
     import yaml
@@ -836,10 +862,26 @@ def recover_data(working_copy,
         if qparent is not None:
             # clone only up to the qparent version:
             cloneopt="-r %s" % qparent
-    hg_cmd("clone %s %s %s" % (cloneopt, 
-                               bag["central repository"], 
-                               bag["source dir"]), 
-           not verbose, verbose, dry_run)
+    if not HG_QUIRK:
+        hg_cmd("clone %s %s %s" % (cloneopt, 
+                                   bag["central repository"], 
+                                   bag["source dir"]), 
+               not verbose, verbose, dry_run)
+    else:
+        if not bag["central repository"].startswith("http://"):
+            hg_cmd("clone %s %s %s" % (cloneopt, 
+                                       bag["central repository"], 
+                                       bag["source dir"]), 
+                   not verbose, verbose, dry_run)
+        else:
+            hg_cmd("clone %s %s %s" % ("", 
+                                       bag["central repository"], 
+                                       bag["source dir"]), 
+                   not verbose, verbose, dry_run)
+            if cloneopt:
+                hg_cmd("update -R %s %s" % (bag["source dir"], cloneopt),
+                       not verbose, verbose, dry_run)
+
     my_chdir(bag["source dir"], verbose or dry_run)
     data_dir= join("..",data_dir)
     if len(bag["outgoing patches"])>0:
