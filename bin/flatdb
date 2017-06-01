@@ -60,10 +60,20 @@ else
     mycp="$rootdir/${vsn}VisualDCT.jar"
 fi
 
+# last argument of $@:
+FILE_TO_CREATE="${@: -1}"
+# remove last argument from $@:
+set -- "${@:1:$(($#-1))}"
+
+# create a temporary file $$-$FILE_TO_CREATE, later rename it to
+# $FILE_TO_CREATE. This is needed in order to avoid file locking errors when
+# this script is called with exactly the same arguments by different processes
+# as it can happen with "make -j" when building BII-Controls:
 java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH\
- -cp $mycp com.cosylab.vdct.GenerateFlatDatabase "$@" 2> "$$.err"
+ -cp $mycp com.cosylab.vdct.GenerateFlatDatabase "$@" $$-$FILE_TO_CREATE 2> "$$.err"
 ! perl -pe 'BEGIN{$/=undef} s/^java\.util\.prefs\.BackingStoreException: '\
 'Couldn.t get file lock.(\n\s+at .*)*//mg; '\
 's/^.*java\.util\.prefs\.FileSystemPreferences syncWorld\n//mg; '\
 's/^WARNING: Couldn.t flush user prefs:.*$//mg; s/^\s*$//mg'\
  "$$.err" | grep . 1>&2
+mv $$-$FILE_TO_CREATE $FILE_TO_CREATE
