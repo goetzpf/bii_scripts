@@ -54,7 +54,11 @@ if [ -n "$FLATDB_VDCT_DIR" ]; then
         vsn=""
 fi
 
-mycp=`echo $rootdir/${vsn}VisualDCT.jar $rootdir/plugins/*.jar | sed -e 's/ /:/g'`
+if [ -d $rootdir/plugins ]; then
+    mycp=`echo $rootdir/${vsn}VisualDCT.jar $rootdir/plugins/*.jar | sed -e 's/ /:/g'`
+else
+    mycp="$rootdir/${vsn}VisualDCT.jar"
+fi
 
 java -DEPICS_DB_INCLUDE_PATH=$EPICS_DB_INCLUDE_PATH\
  -cp $mycp com.cosylab.vdct.GenerateFlatDatabase "$@" 2> "$$.err"
