@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 # Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
@@ -26,6 +27,8 @@
 """
 
 import re
+
+from collections import OrderedDict
 
 MAXLENGTH = 22
 
@@ -81,29 +84,29 @@ _p["pfam_P"]= _p["pfam_global"]
 
 _p["pcnt"]= "[0-9]*"
 
-_p["psdom_global"]= "BUX"
-_p["psdom_B"]= _p["psdom_global"] + "DLST"
-_p["psdom_F"]= _p["psdom_global"] + "ALEGMS"
-_p["psdom_P"]= _p["psdom_global"] + "KLS"
+_p["psdom_global"]= "X"
+_p["psdom_B"]= _p["psdom_global"] + "BUDLST"
+_p["psdom_F"]= _p["psdom_global"] + "ACDEGLMSZ"
+_p["psdom_P"]= _p["psdom_global"] + "BUKLS"
 
 _p["psdnum"]= "[0-9]*"
 
-_p["pdom_global"]= "CGLRVX"
-_p["pdom_B"]= _p["pdom_global"] + "BIMST"
+_p["pdom_global"]= "CGLVX"
+_p["pdom_B"]= _p["pdom_global"] + "BIMRST"
 #_p["pdom_F"]= _p["pdom_global"] + "DEIHLRS"
 _p["pdom_F"]= _p["pdom_global"] + "AEHST"
-_p["pdom_P"]= _p["pdom_global"] + "TM"
+_p["pdom_P"]= _p["pdom_global"] + "MRT"
 
 _p["pfac"] = "FP"
 
 
 _re_devname = (
-       "^(%(pmem)s)" +\
-       "(%(pind)s)?" +\
-       "((([%(pfam_B)s])(%(pcnt)s)([%(psdom_B)s]%(psdnum)s)?([%(pdom_B)s]))|" +\
-        "(([%(pfam_F)s])(%(pcnt)s)([%(psdom_F)s]%(psdnum)s)([%(pdom_F)s])F)|" +\
-        "(([%(pfam_P)s])(%(pcnt)s)([%(psdom_P)s]%(psdnum)s)?([%(pdom_P)s])P))$") % \
-        _p
+    "^(((%(pmem)s)(%(pind)s)?([%(pfam_B)s])(%(pcnt)s)([%(psdom_B)s]%(psdnum)s)?([%(pdom_B)s]))|" +\
+      "((%(pmem)s)(%(pind)s)?([%(pfam_F)s])(%(pcnt)s)([%(psdom_F)s]%(psdnum)s)([%(pdom_F)s])F)|" +\
+      "((%(pmem)s)(%(pind)s)?([%(pfam_P)s])(%(pcnt)s)([%(psdom_P)s]%(psdnum)s)?([%(pdom_P)s])P))$") % \
+    _p
+
+#print _re_devname
 
 _rx_devname= re.compile(_re_devname)
 
@@ -149,39 +152,49 @@ def parse(devname):
     if m is None:
         return
     (
-      member,
-      allindex, 
-        index,
-        dashsubindex,
-          subindex,
       fcsd,
         ring,
+          rmember,
+          rallindex, 
+            rindex,
+            rdashsubindex,
+              rsubindex,
           rfamily,
           rcounter,
           rsubdomain,
           rdomain,
         fel,
+          fmember,
+          fallindex, 
+            findex,
+            fdashsubindex,
+              fsubindex,
           ffamily,
           fcounter,
           fsubdomain,
           fdomain,
         ptb,
+          pmember,
+          pallindex, 
+            pindex,
+            pdashsubindex,
+              psubindex,
           pfamily,
           pcounter,
           psubdomain,
           pdomain
     ) = map(_st, m.groups())
     if ring != "": 
-        (family,counter,subdomain,domain,facility) = (rfamily,rcounter,rsubdomain,rdomain,'')
+        (member, allindex, index, subindex, family, counter,subdomain,domain,facility) = (rmember, rallindex, rindex, rsubindex, rfamily, rcounter,rsubdomain,rdomain,'')
         if len(subdomain) > 0 and subdomain[0] == "L" and domain != "I":
             return # mismatch
     elif fel!= "":
-        (family,counter,subdomain,domain,facility) = (ffamily,fcounter,fsubdomain,fdomain,'F')
+        (member, allindex, index, subindex, family, counter,subdomain,domain,facility) = (fmember, fallindex, findex, fsubindex, ffamily, fcounter,fsubdomain,fdomain,'F')
     elif ptb!="":
-        (family,counter,subdomain,domain,facility) = (pfamily,pcounter,psubdomain,pdomain,'P')
+        (member, allindex, index, subindex, family, counter,subdomain,domain,facility) = (pmember, pallindex, pindex, psubindex, pfamily, pcounter,psubdomain,pdomain,'P')
     else:
         return # mismatch
-    
+
     m2= _rx_capletter.match(subdomain)
     if m2 is None:
         (subdompre, subdomnumber)= ("","")
@@ -207,7 +220,7 @@ def parse_named(devname):
     elms= parse(devname)
     if elms is None:
 	return {}
-    return dict(zip(_fields,elms))
+    return OrderedDict(zip(_fields,elms))
 
 def sortNamesBy(devicenames,order):
     """sort devicenames by a given order.
@@ -239,13 +252,13 @@ def sortNames(devicenames):
 #
 #  Example for order definition synatx:
 #
-# - BDNS::setOrder([qw(MEMBER ALLINDEX INDEX)])
-# - BDNS::setOrder("0,1,2")
-# - BDNS::setOrder([0,1,2])
+# - BDNS.setOrder(("MEMBER", "ALLINDEX", "INDEX"))
+# - BDNS.setOrder("0,1,2")
+# - BDNS.setOrder([0,1,2])
 #
 #  Reset to default sortorder:
 #
-#    BDNS::setOrder("DEFAULT")
+#    BDNS.setOrder("DEFAULT")
 
 def mkOrder(order):
     """create an order list from an order specification.
@@ -358,3 +371,13 @@ def cmpNames(a,b):
     """
     return cmpNamesBy(a,b,_gbl_order)
 
+
+if __name__ == "__main__":
+    import sys
+    for name in sys.argv[1:]:
+        # print name, "resolves to", parse_named(name)
+        pn=parse(name)
+        if pn is None:
+            print name, "fails parser"
+        else:
+            print parse(name)

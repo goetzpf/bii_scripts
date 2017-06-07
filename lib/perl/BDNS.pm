@@ -91,19 +91,19 @@ $pfam{P} = $pfam{global};
 my $pcnt = "[0-9]*";
 
 our %psdom;
-$psdom{global} = "BUX";
-$psdom{B} = $psdom{global} . "DLST";
-$psdom{F} = $psdom{global} . "ALEGMS";
-$psdom{P} = $psdom{global} . "KLS";
+$psdom{global} = "X";
+$psdom{B} = $psdom{global} . "BUDLST";
+$psdom{F} = $psdom{global} . "ACDEGLMSZ";
+$psdom{P} = $psdom{global} . "BUKLS";
 
 my $psdnum = "[0-9]*";
 
 our %pdom;
-$pdom{global} = "CGLRVX";
-$pdom{B} = $pdom{global} . "BIMST";
+$pdom{global} = "CGLVX";
+$pdom{B} = $pdom{global} . "BIMRST";
 #$pdom{F} = $pdom{global} . "DEIHLRS";
 $pdom{F} = $pdom{global} . "AEHST";
-$pdom{P} = $pdom{global} . "TM";
+$pdom{P} = $pdom{global} . "MRT";
 
 our $pfac;
 $pfac = "FP";
