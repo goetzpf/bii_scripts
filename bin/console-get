@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import re
 
+
 from optparse import OptionParser
 # version of the program:
 my_version= "1.0"
@@ -44,6 +45,13 @@ areas= { \
                     },
          "xbpm" :   { "directory"  : "xbpm" },
        }
+
+def syscall(args, verbose, dry_run):
+    """perform system call."""
+    if verbose or dry_run:
+        print(" ".join(args))
+    if not dry_run:
+        subprocess.check_call(args)
 
 def area_descriptions(indent):
     """return area descriptions as a string."""
@@ -95,7 +103,7 @@ def new_name(filename, opt_force):
         cnt+=1
     return n
 
-def fetch_files(area, glob_patterns, ssh):
+def fetch_files(area, glob_patterns, ssh, verbose, dry_run):
     """fetch files and put them into current working directory."""
     ssh_opt= None
     if ssh:
@@ -106,26 +114,22 @@ def fetch_files(area, glob_patterns, ssh):
     if not ssh_opt:
         # @@@@ subprocess.run doesn't exist on older python (elbe) !!!
         for p in glob_patterns:
-            subprocess.check_call(["wget",
-                                   "--quiet", "-r", "-l1", "--no-parent",
-                                   "-nd",
-                                   CONSERVER_URL + areas[area]["directory"],
-                                   "-A",
-                                   p])
+            syscall(["wget", "--quiet", "-r", "-l1", "--no-parent", "-nd",
+                     CONSERVER_URL + areas[area]["directory"],
+                     "-A", p],
+                    verbose, dry_run)
     else:
         for p in glob_patterns:
-            subprocess.check_call(["scp", "-q",
-                                   ssh_opt + p,
-                                   "."])
+            syscall(["scp", "-q", ssh_opt + p, "."], verbose, dry_run)
     return
 
-def unzip_files():
+def unzip_files(verbose, dry_run):
     """unzip all files in current working directory."""
     zipped= glob.glob("*.gz")
     if zipped:
-        subprocess.check_call(["gunzip"] + zipped)
+        syscall(["gunzip"] + zipped, verbose, dry_run)
 
-def join_logfiles(filename_stem, destination):
+def join_logfiles(filename_stem, destination, verbose, dry_run):
     """join files that start with the same characters.
 
     After joining, the files are removed.
@@ -133,39 +137,52 @@ def join_logfiles(filename_stem, destination):
     sorted_files= sorted(glob.glob(filename_stem+".log*"),
                          key=index_from_filename,
                          reverse= True)
-    subprocess.check_call(["bash", "-c",
-                           "cat %s > %s" % (" ".join(sorted_files), destination)])
-    subprocess.check_call(["rm", "-f"] + sorted_files)
+    syscall(["bash", "-c",
+             "cat %s > %s" % (" ".join(sorted_files), destination)],
+            verbose, dry_run)
+    syscall(["rm", "-f"] + sorted_files, verbose, dry_run)
 
-def move_files(tempdir_name, opt_force):
+def move_files(tempdir_name, opt_force, verbose):
     """move files from tempdir to current dir."""
+    found= False
     for f in glob.glob(os.path.join(tempdir_name, "*")):
+        found= True
         f_base= os.path.basename(f)
         n= new_name(f_base, opt_force)
         if n!=f_base:
             sys.stderr.write(("note: created %s since %s already "
                               "existed\n") % (repr(n), repr(f_base)))
+        if verbose:
+            print("rename %s to %s" % (repr(f), repr(n)))
         shutil.move(f, n)
+    if not found:
+        sys.exit("no logfiles found, maybe the AREA is wrong "
+                 "or the file doesn't exist")
 
-def get_log_files(area, patterns, use_ssh, opt_force):
+def get_log_files(area, patterns, use_ssh, opt_force, verbose, dry_run):
     """get all the log files."""
+    # pylint: disable=too-many-arguments
     if not patterns:
         files="*"
     else:
         files= [append_wildcard(f.strip()) for f in patterns]
     tempdir= tempfile.TemporaryDirectory(prefix="console-get-")
     old_dir= os.getcwd()
+    if verbose:
+        print("chdir to %s" % repr(tempdir.name))
     os.chdir(tempdir.name)
-    fetch_files(area, files, use_ssh)
-    unzip_files()
+    fetch_files(area, files, use_ssh, verbose, dry_run)
+    unzip_files(verbose, dry_run)
     for f in glob.glob("*.log"):
         stem= os.path.splitext(f)[0]
-        join_logfiles(stem, stem+".sumlog")
+        join_logfiles(stem, stem+".sumlog", verbose, dry_run)
+    if verbose:
+        print("chdir to %s" % repr(old_dir))
     os.chdir(old_dir)
-    move_files(tempdir.name, opt_force)
+    move_files(tempdir.name, opt_force, verbose)
     tempdir.cleanup()
 
-def list_files(area, use_ssh):
+def list_files(area, use_ssh, verbose, dry_run):
     """show avaliable files."""
     ssh_opt= None
     if use_ssh:
@@ -174,14 +191,15 @@ def list_files(area, use_ssh):
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
     if not ssh_opt:
-        subprocess.check_call(["bash", "-c",
-                               (r"wget %s -O - --quiet | sed -e 's/<[^>]*>/ /g' | "
-                                r"grep '\.log ' | "
-                                r"sed -e 's/^ *\([^ ]\+\).*/\1/' | sort") % \
-                                 (CONSERVER_URL + areas[area]["directory"])])
+        syscall(["bash", "-c",
+                 (r"wget %s -O - --quiet | sed -e 's/<[^>]*>/ /g' | "
+                  r"grep '\.log ' | "
+                  r"sed -e 's/^ *\([^ ]\+\).*/\1/' | sort") % \
+                  (CONSERVER_URL + areas[area]["directory"])],
+                verbose, dry_run)
     else:
         (ssh, dir_)= ssh_opt.split(":")
-        subprocess.check_call(["ssh", ssh, "cd %s && ls *.log" % dir_])
+        syscall(["ssh", ssh, "cd %s && ls *.log" % dir_], verbose, dry_run)
 
 
 def process(options, args):
@@ -194,9 +212,10 @@ def process(options, args):
         sys.exit("error: unknown area %s. Run '%s -h' for help" % \
                  (repr(area),script_shortname()))
     if options.list:
-        list_files(area, options.ssh)
+        list_files(area, options.ssh, options.verbose, options.dry_run)
     else:
-        get_log_files(area, args[1:], options.ssh, options.force)
+        get_log_files(area, args[1:], options.ssh, options.force,
+                      options.verbose, options.dry_run)
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -256,6 +275,14 @@ def main():
                       action="store_true",
                       help="Overwrite existing files.",
                      )
+    parser.add_option("-v", "--verbose",
+                      action="store_true",
+                      help="Show executed commands.",
+                     )
+    parser.add_option("-n", "--dry-run",
+                      action="store_true",
+                      help="Show commands that would be executed.",
+                     )
     #x= sys.argv
     (options, args) = parser.parse_args()
     # options: the options-object
@@ -270,4 +297,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
