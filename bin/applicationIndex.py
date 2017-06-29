@@ -432,13 +432,13 @@ if iocHw:
 
         print >> FILE, "<H4>VME Devices on "+ioc+"</H4>\n\n"
         (vmeList,otherList) = lod.filterMatch(otherList,{'DTYP':hardwareDtypList})
-        order = ('DTYP','CARD','CHAN','pvname','LINK')
+        order = ('DTYP','CARD','CHAN','pvname','LINK','pvname','filename')
         table = lod.orderToTable(vmeList,order)
         if len(table) > 0:
             print >> FILE, "<TABLE BORDER=1>\n<TR>"+toCol(['Process Variable','Card','Chan','DTYP','Link','File','Application'],'TH')+"\n</TR>"
             try:
                 for l in table:
-                    (DTYP,CARD,CHAN,pvname,LINK) = l
+                    (DTYP,CARD,CHAN,pvname,LINK,pvname,filename) = l
                     pvname = '<DIV TITLE="IOC: '+ioc+', Application: '+dbApp[filename]+', File: '+filename+'">'+pvname+'</DIV>'
                     print >> FILE, "<TR>"+toCol([pvname,CARD,CHAN,DTYP,LINK,dbApp[filename],filename])+"\n</TR>"
             except KeyError:
