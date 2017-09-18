@@ -1113,6 +1113,10 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
         devName = devName+":"+devObj.signal
     panelNameDict={'DEVN':devName}
 
+    outLink = ""
+    if( devObj.disableRec ):
+        outLink = devObj.disableRec+" PP NMS"
+
     fields = epicsUtils.parseParam(devObj.prec)
     epicsUtils.epicsTemplate('bi',{'DEVN':devName},{'SNAME':"stHeartBeat",
 	'DESC':"CPU-Heartbeat",
@@ -1134,7 +1138,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 	'INPB':fields['TMO'],
 	'CALC':"A+1",
 	'SCAN':"1 second",
-	'OUT':devName+":disable PP NMS",
+    'OUT': outLink,
 	'OCAL':"A>B?1:0",
 	'DOPT':"Use OCAL"},devObj.dbFileName)
     epicsUtils.epicsTemplate('bi', {'DEVN':devName}, {'SNAME':"disable",
