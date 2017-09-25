@@ -338,7 +338,7 @@ for argument in args:
                 try:
                     csv2epicsFuncs.setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,options.cmLog)
                 except ValueError as err:
-                    warnings.append([fileName,-1,str(err)+": "+fileName+"'"])
+                    warnings.append([fileName,lines,str(err)+": "+fileName+"'"])
         except :
             sys.stderr.write( "*********************\nPARSE EXCEPTION in file: '"+argument+"' line:"+str(lines)+" '"+str(device[0])+"', '"+str(device[1])+"', '"+str(device[2])+"'\n*********************\n" )
             raise
