@@ -10,17 +10,16 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# pylint: disable=C0301
-#                          Line too long
+# pylint: disable=too-many-lines
 """
 ===================
  camonitor2table.py
@@ -152,7 +151,8 @@ Reference of command line options
   print a one-line summary of the scripts function
 
 --doc
-  create online help in restructured text.
+  create online help in restructured text. Use
+  "./txtcleanup.py --doc | rst2html" to create html-help
 
 -t, --test
   perform a simple self-test
@@ -239,7 +239,7 @@ Reference of command line options
   Apply a regular expression to each pv to modify it. The REGEXP should have
   the form '/match/replace/'. You can specify more than one REGEXP, in this
   case all are applied in the order you specify them. REGEXPs are applied
-  *after* PVMAP changes (see above).",
+  *after* PVMAP changes (see above).
 
 --progress
   show the progress of the program on stderr. 2 numbers are printed, the first
@@ -375,12 +375,13 @@ def str2date(st):
         ...
     ValueError: extra characters found: "78x"
     """
+    # pylint: disable=global-statement
     global _last_str2date_str, _last_str2date_obj
     st_= st.replace("T"," ",1)
     if _last_str2date_str==st_:
         return _last_str2date_obj
     i= st_.find(".")
-    if -1==i:
+    if i==-1:
         date= strptime_(st_,"%Y-%m-%d %H:%M:%S")
     else:
         if len(st_)-i > 7:
@@ -1062,7 +1063,7 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
         columnformat= ["%s"]*len(columns)
     elif len(columnformat)<len(columns):
         # extend the last format string for all following columns:
-        columnformat.extend(
+        columnformat.extend(\
                  [columnformat[-1]]*(len(columns)-len(columnformat)))
     converters=[]
     just = [rjust] * len(columns)
@@ -1349,27 +1350,33 @@ def main():
                           description="convert archiver data format to camonitor format")
     parser.add_option("--summary",  # implies dest="nodelete"
                       action="store_true", # default: None
-                      help= "convert archiver data format to camonitor format",
-                      )
+                      help= "print a one-line summary of the scripts function",
+                     )
 
     parser.add_option("-t", "--test",
                       action="store_true",
-                      help="perform simple self-test",
-                      )
+                      help="perform a simple self-test",
+                     )
     parser.add_option("--raw",
                       action="store_true",
-                      help="print the HashedList2D object, for debugging only!",
-                      )
+                      help="print the internal HashedList2D object, this "
+                           "is for debugging only.",
+                     )
     parser.add_option("--dump",     # implies dest="switch"
                       action="store_true", # default: None
-                      help="dump the data in camonitor format instead "
-                           "of a table."
-                      )
-
+                      help="do not collect the data to a table but dump the "
+                           "data in camonitor format to the console. This "
+                           "may be useful if combined with some of the "
+                           "filter options or options that modify the "
+                           "timestamps or pv names.)",
+                     )
     parser.add_option("-r", "--rjust",
                       action="store_true",
-                      help="justify values to the right side",
-                      )
+                      help="justify the values in each row to the right "
+                           "side. Note that the timestamps are always left "
+                           "justified except when the are converted to a "
+                           "floating point number (see --floattime).",
+                     )
     parser.add_option("-c", "--columnformat",
                       action="store",
                       type="string",
@@ -1379,134 +1386,154 @@ def main():
                            "format is given, this is applied to all columns. If floattime "+\
                            "is used, the same format is also applied to the timestamp field.",
                       metavar="FORMAT"
-                      )
+                     )
     parser.add_option("-s", "--separator",
                       action="store",
                       type="string",
-                      help="specify the SEPARATOR that separates columns of the table, "+\
-                           "\" \" is the default.",
+                      help="specify the SEPARATOR that separates columns of "
+                           "the table. This string is also used to separate "
+                           "values when csv format is used (see --csv).",
                       metavar="SEPARATOR"
-                      )
+                     )
     parser.add_option("--csv",
                       action="store_true",
-                      help="create comma separated list with SEPARATOR (see --separator) "+\
-                           "as separator character",
-                      )
+                      help="format columns with the given FORMAT. A FORMAT "
+                           "is a space separated list of format substrings "
+                           "that use the same conventions as C format "
+                           "strings. If only a single format is given, this "
+                           "is applied to all columns. If floattime is used, "
+                           "the same format is also applied to the timestamp "
+                           "field.",
+                     )
     parser.add_option("--floattime",
                       action="store",
                       type="string",
-                      help="convert timestamps to floating point seconds, "+\
-                           "where 0 corresponds to START. If START has the "+\
-                           "special value \"FIRST\", the first timestamp is "+\
-                           "taken as START time.",
+                      help="convert timestamps floating point seconds when "
+                           "0 corresponds to STARTTIME.  If STARTTIME has "
+                           "the special value 'FIRST', the first timestamp "
+                           "is taken as STARTTIME.",
                       metavar="START"
-                      )
+                     )
     parser.add_option("--from-time",
                       action="store",
                       type="string",
-                      help="use only data newer or equal than TIMESTAMP",
+                      help="use only data where the timestamp is newer "
+                           "or equal to STARTTIME.",
                       metavar="TIMESTAMP"
-                      )
+                     )
     parser.add_option("--to-time",
                       action="store",
                       type="string",
-                      help="use only data older or equal than TIMESTAMP",
+                      help="use only data where the timestamp is older "
+                           "or equal to ENDTIME.",
                       metavar="TIMESTAMP"
-                      )
+                     )
     parser.add_option("--max-lines",
                       action="store",
                       type="int",
-                      help="stop after MAX lines have been fetched. This is "+\
-                           "for checking a command line with a very large file.",
+                      help="stop after MAX lines have been fetched. This "
+                           "may be used for checking a command line with a "
+                           "very large file.",
                       metavar="MAX"
-                      )
+                     )
     parser.add_option("--filter-pv",
                       action="store",
                       type="string",
                       help="select only PVs that match REGEXP",
                       metavar="REGEXP"
-                      )
+                     )
     parser.add_option("--filter-complete",
                       action="store_true",
                       help="select only rows where each column has a value",
-                      )
+                     )
     parser.add_option("--skip-flagged",
                       action="store",
                       type="string",
-                      help="skip values where flags match REGEXP",
+                      help="Skip all lines where the flags match REGEXP, "
+                           "e.g. 'UDF' skips all lines where the flags "
+                           "contain 'UDF'. If REGEXP has the special "
+                           "value 'all' or 'ALL', all flags are removed.",
                       metavar="REGEXP"
-                      )
+                     )
     parser.add_option("--rm-flags",
                       action="store",
                       type="string",
-                      help="replace all flags that match REGEXP with an"+\
-                           "empty string. If the value is \"all\" or \"ALL\","+\
-                           "remove all flags",
+                      help="remove all flags that match REGEXP from the "
+                           "data, e.g. 'HIHI|HI' removes 'HIHI' and 'HI' "
+                           "from the flags.",
                       metavar="REGEXP"
-                      )
+                     )
     parser.add_option("--differentiate",
                       action="store_true",
-                      help="do a simple differentiation",
-                      )
+                      help="differentiate all values, that means that "
+                           "each value is replaced with the difference of "
+                           "this and the previous value for the same PV "
+                           "divided by the difference of the timestamp in "
+                           "seconds. The values must be numbers in order to "
+                           "be able to do this.",
+                     )
     parser.add_option("--fill",
                       action="store_true",
-                      help="fill empty fields with values from the row above",
-                      )
+                      help="fill empty places in the table with the first "
+                           "non-empty value in the same column from a "
+                           "row above.",
+                     )
     parser.add_option("--add-seconds",
                       action="store",
                       type="string",
-                      help="This option adds the given floating point "
-                           "seconds to the date.",
+                      help="add the seconds given (a floating point value) "
+                           "to the timestamps.",
                       metavar="SECONDS"
-                      )
+                     )
     parser.add_option("--time-rebase",
                       action="store",
                       type="string",
-                      help="Rebase the timestamps according to TIMESPEC. "
-                           "TIMESPEC has the form 'OLDTIME,NEWTIME' where "
-                           "the times must have the same format as "
-                           "timestamps shown by the camonitor format. An "
-                           "offset is added to each timestamp in a way "
-                           "that OLDTIME will appear as NEWTIME afterwards.",
+                      help="Add an offset to all timestamps. The offset is "
+                           "calculated to ensure that OLDTIME is changed "
+                           "to NEWTIME.",
                       metavar="TIMESPEC"
-                      )
+                     )
     parser.add_option("-P", "--pvmap",
                       action="append",
                       type="string",
-                      help="Defines a mapping that replaces a pv with a new "
-                           "name. A PVMAP is a string with the form "
+                      help="Defines a mapping that replaces a pv with a "
+                           "new name. A PVMAP is a string with the form "
                            "'OLDPV,NEWPV. You can specify more than one "
                            "PVMAP.",
                       metavar="PVMAP"
-                      )
+                     )
     parser.add_option("--pvmaprx",
                       action="append",
                       type="string",
-                      help="Apply a regular expression to each pv to "
-                           "modify it. The REGEXP should have the form "
+                      help="Apply a regular expression to each pv to modify "
+                           "it. The REGEXP should have the form "
                            "'/match/replace/'. You can specify more than "
-                           "one REGEXP, in this case all are applied in "
-                           "the order you specify them. REGEXPs are applied "
+                           "one REGEXP, in this case all are applied in the "
+                           "order you specify them. REGEXPs are applied "
                            "*after* PVMAP changes (see above).",
                       metavar="REGEXP"
-                      )
+                     )
     parser.add_option("--progress",
                       action="store_true",
-                      help="show progress on stderr",
-                      )
+                      help="show the progress of the program on stderr. 2 "
+                           "numbers are printed, the first is the current "
+                           "line in the data file, the second one is the "
+                           "number of fetched lines.",
+                     )
 
     parser.add_option("-f", "--file",
                       action="append",
                       type="string",
-                      help="specify the FILE",
+                      help="read the data from FILE. If this parameter is "
+                           "missing, read from stdin.",
                       metavar="FILE"
-                      )
-    parser.add_option( "--doc",
+                     )
+    parser.add_option("--doc",
                       action="store_true",
                       help="create online help in restructured text"
                            "format. Use \"./txtcleanup.py --doc | rst2html\" "
                            "to create html-help"
-                      )
+                     )
 
     (options, args) = parser.parse_args()
     # options: the options-object
@@ -1531,4 +1558,3 @@ def main():
 if __name__ == "__main__":
     #print __doc__
     main()
-
