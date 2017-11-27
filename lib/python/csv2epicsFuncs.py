@@ -125,9 +125,9 @@ class csvData(object):
 	except IndexError: self.cardNr = ""
 	try: self.chan       = device[6].strip()  # G  binary: Inputbits bi/bo: nr, mbbi/o start-stop: e.g. 5-7 -> SHFT=5, NOBT=3 
 	except IndexError: self.chan = ""
-	try: self.rangeRaw   = device[7].strip()  # H  Datenbereich Rohdaten binary: '2|15|33', ai: '0-65535'
+	try: self.rangeRaw   = device[7].strip().replace('–','-')  # H  Datenbereich Rohdaten binary: '2|15|33', ai: '0-65535'
 	except IndexError: self.rangeRaw = ""
-	try: self.rangeEng   = device[8].strip()  # I  Datenbereich ENG     binary Named:'True|False|Invalid', anlog:' 0-100'
+	try: self.rangeEng   = device[8].strip().replace('–','-')  # I  Datenbereich ENG     binary Named:'True|False|Invalid', anlog:' 0-100'
 	except IndexError: self.rangeEng = ""
     	try: self.egu        = device[9].strip()  # J  Engeneering unit 
 	except IndexError: self.egu = ""
