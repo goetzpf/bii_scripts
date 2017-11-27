@@ -300,14 +300,14 @@ def adaCanMux(id,card,chan,typ='hex'):
     mux    = frmt%(int(card)*12+int(chan),)
     return (outCan,inCan,mux)
 
-def createAdaCanLink(port,id,card,chan):
+def createAdaCanLink(port,id,card,chan,dataType='s'):
     """
     Setup a complete CAN link from adaCanMux data:
 
-    Return "@f s 5 PORT OUTCAN INCAN MUX 10 1F4 0" % (int(port),outCan,inCan,mux)
+    Return "@f 'dataType' 5 PORT OUTCAN INCAN MUX 10 1F4 0" % (int(port),outCan,inCan,mux)
     """
     (outCan,inCan,mux) = adaCanMux(id,card,chan)
-    return "@f s 5 %X %s %s %s 10 1F4 0" % (int(port),outCan,inCan,mux)
+    return "@f %c 5 %X %s %s %s 10 1F4 0" % (dataType,int(port),outCan,inCan,mux)
 
 def getDisplayLimits(rangeEng,egu):
     """
@@ -449,6 +449,7 @@ def createAnalogRecord(devName,fields,devObj,warnings,fileName,lines):
     fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
     (f,dtype) = createLimits(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr)
     f.update(fields)	# additional parameters should override calculated values for PREC
+    f.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
     epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f,devObj.dbFileName)
     
 def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
@@ -878,19 +879,44 @@ def getVmeLink(rtyp,canId,cardNr,chan):
 
 def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag,devObj):
     """
-    Create an CAN Link.
+    Create an CAN Link for an ADA-16 or DIGIO16 Card
     
-    * For CAN links and binary records there is support to create mbbiDirect 
-    records to read the data and distribute it to the binary records.
+    * CardNr (Col E): The base of the multiplexer value = CardNr * 12
+    
+    * Chan (Col.G): The multiplexer for this card. 
+    
+    Channel |
+    --------+--------
+    0..3(8) | Analog-In 0..4 (8)
+    10      | Analog-Out
+    0..8,16,32 | Bit Number for ADA-16, DIGIO-16, DIGIN32
+     
+    
+    * Binary records 'bi','mbbi','bo','mbbo': For CAN links and binary records 
+    there is support to create mbbiDirect records to read the data and distribute
+    it to the binary records.
+    
+    * ADA Cards and analog out 'ao', 'longout': The requested data type is drawn 
+    from the Raw Value range:
+    
+    Raw Value      | Data Type | Card Type
+    ---------------+-----------+---------------
+    0 - 65535      |    S      | 16 bit unipolar,  0 - 10V
+    0 - 131071     |    S      | 16 bit unipolar,  0 -  5V
+    -32256 - 32255 |    s      | 16 bit bipolar, -10 - 10V
     """
     fields = {}
     #print "getCANLink(",rtyp,port,canId,cardNr,chan,name,lineNr,")"
-    if rtyp in ('ai','longin','mbbiDirect'):
+    if rtyp in ('ai','longin','mbbiDirect','mbboDirect'):
         fields['DTYP'] = "lowcal"
 	fields['INP'] = createAdaCanLink(port,canId,cardNr,chan)
-    elif rtyp in ['ao','longout','mbboDirect']:
+    elif rtyp in ['ao','longout']:
+        dType = 's'
+        raw = epicsUtils.matchRe(devObj.rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
+        if(int(raw[0]) == 0):
+            dType = 'S'
         fields['DTYP'] = "lowcal"
-        fields['OUT'] = createAdaCanLink(port,canId,cardNr,chan)
+        fields['OUT'] = createAdaCanLink(port,canId,cardNr,chan,dType)
     elif rtyp in ('bi','mbbi','bo','mbbo'): # access via mbb_Direct to CAN
         hwDeviceName = getEcName(port,canId,cardNr,iocTag)
 	if rtyp in ('bo','mbbo'):
