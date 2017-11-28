@@ -741,23 +741,21 @@ class HashedList2D(object):
         """Fills empty cells with the value from the previous row."""
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
-        last= None
         column_list= self.columns()
+        lasts= dict([(k,None) for k in column_list])
         for row in self._rows.keys():
-            if last is None:
-                last= row
-                continue
             for col in column_list:
-                if is_empty_func(self.lookup(row, col)):
+                val= self.lookup(row, col)
+                if is_empty_func(val):
                     # note that "[:]" is VERY important here, this copies
                     # the whole list. Otherwise the resulting structure would
                     # contain references to the SAME LIST at several places which
                     # would break the differentiate() function:
-                    val= self.lookup(last,col)
-                    if val is not None:
-                        val= val[:]
-                    self.set(row, col, val)
-            last= row
+                    nval= lasts[col]
+                    if nval is not None:
+                        self.set(row, col, nval[:])
+                else:
+                    lasts[col]= val
     def filter_complete(self, is_empty_func=None):
         """Removes rows where not all columns have a value."""
         if is_empty_func is None:
