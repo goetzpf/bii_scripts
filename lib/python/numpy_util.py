@@ -1202,6 +1202,9 @@ def From_File(filename):
                   contain the table numbers.
     returns:
       a new numpy structured array.
+
+    quirks:
+      numpy silently removes dashes ("-") from column names
     """
     if filename=="-":
         return numpy.genfromtxt(sys.stdin, delimiter=None, names=True)
