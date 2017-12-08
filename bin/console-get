@@ -17,27 +17,27 @@ from optparse import OptionParser
 # version of the program:
 my_version= "1.0"
 
-CONSERVER_URL= "http://gwc1c.acc.bessy.de/conserver/"
+CONSERVER_URL= "http://conserver.acc.bessy.de/conserver/"
 
 areas= { \
          "blc" :    { "description": "(also via ssh)",
                       "directory"  : "blc",
-                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/blc/",
+                      "ssh"        : "conservr@conserver.acc.bessy.de:/var/log/conserver/blc/",
                     },
          "id" :     { "description": "insertion devices (also via ssh)",
                       "directory"  : "id",
-                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/id/",
+                      "ssh"        : "conservr@conserver.acc.bessy.de:/var/log/conserver/id/",
                     },
          "il" :     { "directory"  : "il" },
          "mono" :   { "description": "monochromators (also via ssh)",
                       "directory"  : "mono",
-                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/mono/",
+                      "ssh"        : "conservr@conserver.acc.bessy.de:/var/log/conserver/mono/",
                     },
          "net" :    { "directory"  : "net" },
          "psd" :    { "directory"  : "psd" },
          "tsc" :    { "description": "control system (also via ssh)",
                       "directory"  : "tsc",
-                      "ssh"        : "conservr@gwc1c.acc.bessy.de:/var/log/conserver/tsc/",
+                      "ssh"        : "conservr@conserver.acc.bessy.de:/var/log/conserver/tsc/",
                     },
          "tsc-mls" :{ "description": "mls control system (also via ssh)",
                       "directory"  : "conserver-mls/tsc",
