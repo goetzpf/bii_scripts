@@ -375,7 +375,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
         minVal=0            # LEGACY, NOT used yet
 
         # setup 
-        if  (hopr != 0) and ( hraw != 0 ):
+        if  ((hopr-lopr) != 0) and ( (hraw-lraw) != 0 ):
             if (lraw < 0) or (hraw < 0 ):       # signed value LEGACY, NOT used yet
                 dtype = "s"
                 full = 32767
@@ -395,14 +395,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
                 field['LINR'] = 'SLOPE'
                 field['ESLO'] = slope
                 field['EOFF'] = off
-                prec =  int(math.log(float(hopr)/10000)/math.log(10.0))
-
-            if prec < 0 : 
-                prec = (-1 * prec)+1
-            else:
-                prec = 0
-
-            field['PREC'] = prec
+                field['PREC'] = abs(int(math.log(abs(float(hopr-lopr))/10000)/math.log(10.0)))+1
         else:
             raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
 #    if lines is None: print field
