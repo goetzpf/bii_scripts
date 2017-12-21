@@ -1086,20 +1086,27 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
             sig = sig+":state"
         if cmLog and rtype in ('mbbi','mbbo','bi','bo'):
             try:
-        	    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
+                (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
+
             except ValueError, e:
     	        warnings.append([fileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
     	        return
 
             idx = 0
+            anyAlarm = None;
             alias = tags['ALIAS']
             for sevr in rangeALH:
                 if sevr != 'NO_ALARM':
+                    anyAlarm = 1
                     tags['MASK']    = epicsUtils.epicsAlh.setMask("CDT") 
                     tags['ALIAS']   = alias +": "+ rangeENG[idx]
                     tags['FORCEPV'] = devName+":"+sig+" ---T- "+rangeRAW[idx]+" NE"
                     epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
                 idx += 1
+            if not anyAlarm:
+                warnings.append([fileName,lines,"SKIP Alarmsignal:",devName+":"+devObj.signal,": Missing Bessy Alarm State"])
+    	        return
+                
         elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
             print "*** setEpicsAlh(%s:%s, %s"%(devName,sig,rtype)
             alias = tags['ALIAS']

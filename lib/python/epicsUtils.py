@@ -905,7 +905,6 @@ class epicsAlh(object):
                         'BEEPSEVR' : None
                     }
         self.mask   = "---T-"
-
         if tagPar.has_key('MASK'):
             self.mask = tagPar['MASK']
             del tagPar['MASK']
