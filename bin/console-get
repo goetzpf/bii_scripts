@@ -153,13 +153,16 @@ def move_files(tempdir_name, opt_force, verbose):
         sys.exit("no logfiles found, maybe the AREA is wrong "
                  "or the file doesn't exist")
 
-def get_log_files(area, patterns, use_ssh, opt_force, verbose, dry_run):
+def get_log_files(area, patterns, use_ssh, opt_force, verbose, dry_run, restrict):
     """get all the log files."""
     # pylint: disable=too-many-arguments
     if not patterns:
         files="*"
-    else:
+    elif restrict == None:
         files= [f.strip()+".log*" for f in patterns]
+    else:
+        extensions= [".log"] + [(".log.%d.gz" % i) for i in range(1,restrict)]
+        files= [f.strip()+e for f in patterns for e in extensions]
     tempdir= tempfile.TemporaryDirectory(prefix="console-get-")
     old_dir= os.getcwd()
     if verbose:
@@ -209,7 +212,7 @@ def process(options, args):
         list_files(area, options.ssh, options.verbose, options.dry_run)
     else:
         get_log_files(area, args[1:], options.ssh, options.force,
-                      options.verbose, options.dry_run)
+                      options.verbose, options.dry_run, options.restrict)
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -276,6 +279,12 @@ def main():
     parser.add_option("-n", "--dry-run",
                       action="store_true",
                       help="Show commands that would be executed.",
+                     )
+    parser.add_option("-r", "--restrict",
+                      action="store",
+                      type="int",
+                      metavar="NUMBER",
+                      help="Restrict to the last NUMBER log files.",
                      )
     #x= sys.argv
     (options, args) = parser.parse_args()
