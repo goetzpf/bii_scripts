@@ -1168,16 +1168,24 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     'OCAL':"A>B?1:0",
     'DOPT':"Use OCAL"},devObj.dbFileName)
 
-    splitPV = epicsUtils.matchRe(devObj.disableRec,"(.*?):(.*)")
-    if(splitPV is not None):
-        epicsUtils.epicsTemplate('bo', {'DEVN':splitPV[0]}, {'SNAME':splitPV[1],
+    if devObj.disableRec:
+        splitPV = epicsUtils.matchRe(devObj.disableRec,"(.*?):(.*)")
+        if(splitPV is not None):
+            epicsUtils.epicsTemplate('bo', {'DEVN':splitPV[0]}, {'SNAME':splitPV[1],
+    	    'DESC':"Disable: "+devName,
+            'INP': devName+":intWdgCounter.OVAL NPP NMS",
+            'ZNAM':"enable",
+            'ONAM':"disable",
+            'OSV':"MAJOR"},devObj.dbFileName)
+        else:
+            warnings.append([fileName,lines,"SKIP watchdog template disable record: Illegal --dis option: ",devObj.disableRec,": Can't parse"])
+    else:
+        epicsUtils.epicsTemplate('bo', {'DEVN':devName}, {'SNAME':"cmdDisa",
     	'DESC':"Disable: "+devName,
         'INP': devName+":intWdgCounter.OVAL NPP NMS",
         'ZNAM':"enable",
         'ONAM':"disable",
         'OSV':"MAJOR"},devObj.dbFileName)
-    else:
-        warnings.append([fileName,lines,"SKIP watchdog template disable record: Illegal --dis option: ",devObj.disableRec,": Can't parse"])
     return (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
   
 def pt100tempGetFunc():
