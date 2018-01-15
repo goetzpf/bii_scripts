@@ -1145,34 +1145,39 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 
     fields = epicsUtils.parseParam(devObj.prec)
     epicsUtils.epicsTemplate('bi',{'DEVN':devName},{'SNAME':"stHeartBeat",
-	'DESC':"CPU-Heartbeat",
-	'SCAN':"I/O Intr",
-	'PINI':"YES",
-	'DTYP':"opc",
-	'INP':"@"+devObj.port,
-	'ZNAM':"Heart",
-	'ONAM':"Beat",
-	'FLNK':devName+":fwdHeartBeat"},devObj.dbFileName)
+    'DESC':"CPU-Heartbeat",
+    'SCAN':"I/O Intr",
+    'PINI':"YES",
+    'DTYP':"opc",
+    'INP':"@"+devObj.port,
+    'ZNAM':"Heart",
+    'ONAM':"Beat",
+    'FLNK':devName+":fwdHeartBeat"},devObj.dbFileName)
     epicsUtils.epicsTemplate('bo',{'DEVN':devName},{'SNAME':"fwdHeartBeat",
-	'DOL':devName+":stHeartBeat",
-	'OUT':devName+":intWdgCounter PP",
-	'ONAM':"Beat",
-	'ZNAM':"Heart",
-	'HIGH':"1"},devObj.dbFileName)
+    'DOL':devName+":stHeartBeat",
+    'OUT':devName+":intWdgCounter PP",
+    'ONAM':"Beat",
+    'ZNAM':"Heart",
+    'HIGH':"1"},devObj.dbFileName)
     epicsUtils.epicsTemplate('calcout',{'DEVN':devName},{'SNAME':"intWdgCounter",
-	'INPA':devName+":intWdgCounter.VAL NPP NMS",
-	'INPB':fields['TMO'],
-	'CALC':"A+1",
-	'SCAN':"1 second",
+    'INPA':devName+":intWdgCounter.VAL NPP NMS",
+    'INPB':fields['TMO'],
+    'CALC':"A+1",
+    'SCAN':"1 second",
     'OUT': outLink,
-	'OCAL':"A>B?1:0",
-	'DOPT':"Use OCAL"},devObj.dbFileName)
-    epicsUtils.epicsTemplate('bo', {'DEVN':devName}, {'SNAME':"cmdDisa",
+    'OCAL':"A>B?1:0",
+    'DOPT':"Use OCAL"},devObj.dbFileName)
+
+    splitPV = epicsUtils.matchRe(devObj.disableRec,"(.*?):(.*)")
+    if(splitPV is not None):
+        epicsUtils.epicsTemplate('bo', {'DEVN':splitPV[0]}, {'SNAME':splitPV[1],
     	'DESC':"Disable: "+devName,
-	'INP': devName+":intWdgCounter.OVAL NPP NMS",
-	'ZNAM':"enable",
-	'ONAM':"disable",
-	'OSV':"MAJOR"},devObj.dbFileName)
+        'INP': devName+":intWdgCounter.OVAL NPP NMS",
+        'ZNAM':"enable",
+        'ONAM':"disable",
+        'OSV':"MAJOR"},devObj.dbFileName)
+    else:
+        warnings.append([fileName,lines,"SKIP watchdog template disable record: Illegal --dis option: ",devObj.disableRec,": Can't parse"])
     return (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
   
 def pt100tempGetFunc():
