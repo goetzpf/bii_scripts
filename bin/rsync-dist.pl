@@ -547,7 +547,7 @@ if ($opt_summary)
     exit;
   };
 
-@opt_hosts = split(/[,\s:]+/,join(',',@opt_hosts));
+@opt_hosts = split(/[,\s]+/,join(',',@opt_hosts));
 
 @opt_users = split(/[,\s:]+/,join(',',@opt_users));
 
@@ -2456,6 +2456,14 @@ sub myssh_cmd
     if ($path!~ /^\//)
       { $path= '$HOME/' . $path; };
 
+    # -A: turn agent forwarding on 
+    my $ssh_opts= "-A";
+    if ($host=~ /([^:]+):(.*)/)
+      {
+        $host= $1;
+        $ssh_opts.= " -p $2";
+      }
+
     if (defined $user)
       { $host= $user . '@' . $host; };
 
@@ -2466,8 +2474,7 @@ sub myssh_cmd
               "fi && \n" .
               "$cmd)"; };
 
-    # -A: turn agent forwarding on 
-    my $ssh_cmd= "$opt_ssh_local -A $host \\\n'$cmd'";
+    my $ssh_cmd= "$opt_ssh_local $ssh_opts $host \\\n'$cmd'";
 
     if ($opt_dry_run)
       { print $ssh_cmd,"\n"; 
@@ -3515,6 +3522,10 @@ symbolic links can be created that point to the version-directories.
 Manipulation of these links is also logged. This can be used to manage
 a list of symbolic links, each pointing to a version a corresponding IOC
 has to boot.
+
+=item *
+
+hosts may contain an ssh port number as in HOST:PORT.
 
 =back
 
