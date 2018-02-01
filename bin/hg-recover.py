@@ -165,7 +165,12 @@ import tarfile
 # specified version after cloning the repository. Hopefully this bug is fixed
 # some time in the future.
 
-HG_QUIRK= True
+# Note this this fix will sometimes lead to errors with respect to patch
+# queues, when patches of the patch queue have been integrated in the central
+# repository in the mean time. So it is preferred to set HG_QUIRK to False when
+# possible.
+
+HG_QUIRK= False
 
 _no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary","--doc"))
 try:
