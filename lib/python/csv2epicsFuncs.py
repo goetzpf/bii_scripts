@@ -1086,8 +1086,10 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
         # SPECICAL for the mbbi40.template etc, treat as mbbi, but pv is devName:sig:state
         if cmLog and (epicsUtils.matchRe(devObj.rtype,"mbbi\d\d") is not None):
             rtype = 'mbbi'
-            sig = sig+":state"
+            forceSig = sig+":state"
             # Now use this only for mbbi40, there is no way to report it correctly in the cmLog 
+        else:
+            forceSig = sig
         if cmLog and rtype in ('mbbi','mbbo','bi','bo'):
             try:
                 (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
@@ -1104,7 +1106,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
                     anyAlarm = 1
                     tags['MASK']    = epicsUtils.epicsAlh.setMask("CDT") 
                     tags['ALIAS']   = alias +": "+ rangeENG[idx]
-                    tags['FORCEPV'] = devName+":"+sig+" ---T- "+rangeRAW[idx]+" NE"
+                    tags['FORCEPV'] = devName+":"+forceSig+" ---T- "+rangeRAW[idx]+" NE"
                     epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
                 idx += 1
             if not anyAlarm:
