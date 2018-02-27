@@ -656,6 +656,7 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id    | Card Nr.  | Chan. Nr  | getCANLink()
     VME-Device       | don't care    | empty    | DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
     OPC Device       | opc           | OPC-Link | don't care| don't care| don't care| getOpcLink()
+    OPCUA Device     | don't care    | opcua    | [TAG]     | OPC-Link  | don't care| getOpcuaLink()
     Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
     Soft record      | don't care    |empty     | empty     | empty     | empty     | return
     """
@@ -669,6 +670,9 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
 
     if canOption == 'opc':
         return getOpcLink(devObj,devName,opc_name)
+
+    if devObj.port ==  'opcua':
+        return getOpcuaLink(devObj)
 
     if epicsUtils.matchRe(devObj.canId,'^wago') is not None:
         return getWagoLink(devObj)
@@ -784,6 +788,26 @@ def getOpcLink(devObj,devName,opc_name):
         
     return fields
 
+def getOpcuaLink(devObj):
+        print "getOpcuaLink"
+        fields = {}
+        linkType = procInOut(devObj.rtype)
+        if linkType is None:
+    	    raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
+        fields[linkType] = '@'+devObj.canId+devObj.cardNr
+        fields['DTYP']      = 'OPCUA'
+
+        if linkType == 'INP':
+    	    fields['PINI'] = 'YES'
+    	    fields['SCAN'] = 'I/O Intr'
+        
+        if devObj.rtype in ('bi','mbbi','bo','mbbo'):
+            (nobt,shft) = getShiftParam(devObj.chan)
+            fields['SHFT'] = shft
+            fields['NOBT'] = nobt
+        print fields
+        return fields
+        
 class PLC_Address(object):
     """
     Class to manage PLC address names links for the binary record types: 
