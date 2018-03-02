@@ -4,7 +4,7 @@
 HOSTNAME=$(hostname -f)
 
 if [ -z "$1" ]; then
-    if echo $HOSTNAME| grep '\(aragon\|jalon\|elbe\)\.acc\.bessy\.de' -q ; then
+    if echo $HOSTNAME| grep '\(aragon\|jalon\|elbe\|stretch\)\.acc\.bessy\.de' -q ; then
         echo "darcs pull is executed in order to prevent"
         echo "you from installing old program versions by accident"
         darcs pull
