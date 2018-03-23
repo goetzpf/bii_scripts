@@ -347,7 +347,7 @@ for argument in args:
 #########################################################################
     if options.dis: 
         (dev,sname) = epicsUtils.matchRe(options.dis,"(.*):(.*)")
-    csv2epicsFuncs.PLC_Address.setupTemplates(devName,'opc',options.output_db)
+    csv2epicsFuncs.PLC_Address.setupTemplates(devName,options.output_db)
 
 # Create files
 

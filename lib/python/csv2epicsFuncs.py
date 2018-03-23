@@ -650,29 +650,32 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
 
 def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     """ Decide which type of hardware is to be processed. All entrys but 'don't care' are mandatory.
+    The option -c is just the default for Col. D.
     
     Device type      | option -c     | Col. D   | Col. E    | Col. F    | Col. G    | processed in
     -----------------+---------------+----------+-----------+-----------+-----------+-------------
     Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id    | Card Nr.  | Chan. Nr  | getCANLink()
-    VME-Device       | don't care    | empty    | DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
+    VME-Device       | don't care    | empty/VME| DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
     OPC Device       | opc           | OPC-Link | don't care| don't care| don't care| getOpcLink()
-    OPCUA Device     | don't care    | opcua    | [TAG]     | OPC-Link  | don't care| getOpcuaLink()
+    OPCUA Device     | don't care    | opcua    | don't care| OPC-Link  | don't care| getOpcuaLink()
     Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
     Soft record      | don't care    |empty     | empty     | empty     | empty     | return
     """
     if type(devObj.port) == int:
         return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag,devObj)
-    if (len(devObj.port) == 0) and(len(devObj.canId) == 0) and(len(devObj.cardNr) == 0) and(len(devObj.chan) == 0):
-        return {}       # is a soft record
 
-    if len(devObj.port) == 0:
+    # is a soft record
+    if (len(devObj.port) == 0) and(len(devObj.canId) == 0) and(len(devObj.cardNr) == 0) and(len(devObj.chan) == 0):
+        return {}
+
+    if (len(devObj.port) == 0) or (devObj.port.upper() == 'VME'):
         return getVmeLink(devObj.rtype,devObj.canId,devObj.cardNr,devObj.chan)
 
     if canOption == 'opc':
         return getOpcLink(devObj,devName,opc_name)
 
-    if devObj.port ==  'opcua':
-        return getOpcuaLink(devObj)
+    if (canOption == 'opcua') or (devObj.port ==  'opcua'):
+        return getOpcuaLink(devObj,devName)
 
     if epicsUtils.matchRe(devObj.canId,'^wago') is not None:
         return getWagoLink(devObj)
@@ -729,7 +732,7 @@ def getOpcLink(devObj,devName,opc_name):
                     bit += 8
                 hwLink = opc_name+"DB"+str(db)+",W"+str(byte)
                 softLinkTag = str(db)+"_"+str(byte)
-                fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,bit,devName,devObj).getLink()
+                fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,bit,devName,devObj,'opc').getLink()
                 fields['DTYP'] = "Soft Channel"
 #               if devObj.rtype == 'bi':                # OPCIOCBUG: map bi with set bits to mbbi and longin
 #                   devObj.rtype = 'mbbi'               #
@@ -779,37 +782,38 @@ def getOpcLink(devObj,devName,opc_name):
             else:
                 hwLink = opc_name+"DB"+str(db)+",W"+str(byte)
                 softLinkTag = str(db)+"_"+str(byte)
-                fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,shft,devName).getLink()
+                fields[linkType] = PLC_Address(linkType,rtyp,hwLink,softLinkTag,shft,devName,'opc').getLink()
 # 4. process a string type with bits set - binary records only
         else:
-            fields[linkType] = PLC_Address(linkType,rtyp,PLCLink,PLCLink,shft,devName,devObj).getLink()
+            fields[linkType] = PLC_Address(linkType,rtyp,PLCLink,PLCLink,shft,devName,devObj,'opc').getLink()
     else:
         raise ValueError("NOT SUPPORTED: Record type '"+rtyp+"' AND set Channel/Bits (Col. G) '"+bits+"'")
         
     return fields
 
-def getOpcuaLink(devObj):
-        print "getOpcuaLink"
-        fields = {}
-        linkType = procInOut(devObj.rtype)
-        if linkType is None:
-            raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
-        if len(bits) == 0:
-            fields[linkType] = '@'+devObj.canId+devObj.cardNr
-            fields['DTYP']      = 'OPCUA'
-        else
-            fields[linkType] = PLC_Address(linkType,rtyp,PLCLink,PLCLink,shft,devName,devObj).getLink()
-            
+def getOpcuaLink(devObj,devName):
+    fields = {}
+    linkType = procInOut(devObj.rtype)
+    if linkType is None:
+        raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
+    elif linkType == 'INP':
+        fields['PINI'] = 'YES'
+
+    # direct access to the opcua item
+    if len(devObj.chan) == 0:
+        fields[linkType] = '@'+devObj.canId+devObj.cardNr
+        fields['DTYP'] = 'OPCUA'
         if linkType == 'INP':
-            fields['PINI'] = 'YES'
             fields['SCAN'] = 'I/O Intr'
-        
-        if devObj.rtype in ('bi','mbbi','bo','mbbo'):
-            (nobt,shft) = getShiftParam(devObj.chan)
-            fields['SHFT'] = shft
-            fields['NOBT'] = nobt
-        print fields
-        return fields
+    # special processing for binary records that access just one or some bits of a opcUaItem
+    elif devObj.rtype in ('bi','mbbi','bo','mbbo'):
+        (nobt,shft) = getShiftParam(devObj.chan)
+        fields['SHFT'] = shft
+        fields['NOBT'] = nobt
+        fields[linkType] = PLC_Address(linkType,devObj.rtype,devObj.cardNr,devObj.cardNr,shft,devName,devObj,'OPCUA').getLink()
+    else:
+        raise ValueError("Illegal defintion of Channel value for record type:'"+rtyp+"'. only supported for bi/bo, mbbi/mbbo")
+    return fields
         
 class PLC_Address(object):
     """
@@ -828,20 +832,20 @@ class PLC_Address(object):
     mbbiDirectLinks = {}  # (hardWareLink,signalName) for all mbbiDirect records
     mbboDirectLinks  = {} # (hardWareLink,signalName) for all mbboDirect records
 
-    def __init__(self,linkTyp,rtyp,PLCLink,softLinkTag,shft,deviceName,devObj) :
+    def __init__(self,linkTyp,rtyp,PLCLink,softLinkTag,shft,deviceName,devObj,dtyp) :
         self.link = None
 
         if linkTyp == 'INP':
             if not PLC_Address.mbbiDirectLinks.has_key(softLinkTag) :
-                PLC_Address.mbbiDirectLinks[softLinkTag] = ("@"+PLCLink,PLC_Address.inTagPrefix+str(PLC_Address.mbbiTagIndex))
+                PLC_Address.mbbiDirectLinks[softLinkTag] = ("@"+PLCLink,PLC_Address.inTagPrefix+str(PLC_Address.mbbiTagIndex),dtyp)
                 PLC_Address.mbbiTagIndex += 1
-            (hwLink,sTag) = PLC_Address.mbbiDirectLinks[softLinkTag]
+            (hwLink,sTag,dt) = PLC_Address.mbbiDirectLinks[softLinkTag]
             self.link = deviceName+":"+sTag+" CPP MS"
         elif linkTyp == 'OUT':
             if not PLC_Address.mbboDirectLinks.has_key(softLinkTag) :
-                PLC_Address.mbboDirectLinks[softLinkTag] = ("@"+PLCLink,PLC_Address.outTagPrefix+str(PLC_Address.mbboTagIndex))
+                PLC_Address.mbboDirectLinks[softLinkTag] = ("@"+PLCLink,PLC_Address.outTagPrefix+str(PLC_Address.mbboTagIndex),dtyp)
                 PLC_Address.mbboTagIndex += 1
-            (hwLink,sTag) = PLC_Address.mbboDirectLinks[softLinkTag]
+            (hwLink,sTag,dt) = PLC_Address.mbboDirectLinks[softLinkTag]
         else :
             raise ValueError("Unknown output type: '"+linkTyp+"'. INP|OUT expected")
 
@@ -857,13 +861,13 @@ class PLC_Address(object):
     def getLink(self): return self.link
 
     @staticmethod
-    def setupTemplates(deviceName,dtypHw,dbFileName):
+    def setupTemplates(deviceName,dbFileName):
         """
         Create epicsTemplate objects for all mbb_Direct records as indicated in 
         mbb_DirectLinks dictionary
         """
         for tag in PLC_Address.mbbiDirectLinks.keys():
-            (link,signalName) = PLC_Address.mbbiDirectLinks[tag]
+            (link,signalName,dtypHw) = PLC_Address.mbbiDirectLinks[tag]
             epicsUtils.epicsTemplate('mbbiDirect', {'DEVN':deviceName},{'SNAME':signalName, # OPCIOCBUG: don't take mbbiDirect, but longin
                         'DESC': tag[len(tag)-20:len(tag)],
                         'DTYP': dtypHw,
@@ -872,7 +876,7 @@ class PLC_Address(object):
                         'NOBT': "16",   # OPCIOCBUG: no NOBT for the longin 
                         'INP':  link},dbFileName)
         for tag in PLC_Address.mbboDirectLinks.keys():
-            (link,signalName) = PLC_Address.mbboDirectLinks[tag]
+            (link,signalName,dtypHw) = PLC_Address.mbboDirectLinks[tag]
             epicsUtils.epicsTemplate('mbboDirect', {'DEVN':deviceName},{'SNAME':signalName,
                         'DESC': tag[len(tag)-26:len(tag)],
                         'DTYP': dtypHw,
