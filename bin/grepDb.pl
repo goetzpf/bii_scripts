@@ -76,8 +76,8 @@
         "    -tt/-it <recType>:   match/ignore record <recType>\n".
         "    -tr/-ir <recName>:   match/ignore record <recName>\n".
         "    -tf/-if <fieldType>: match/ignore field <fieldType>\n".
-        "    -tv/-iv <value>:     match/ignore field contains <value>\n".
-        "    -tl:<value>          show db linkage (other trace options usable to reduce output)\n\n".
+        "    -tv/-iv <value>:	  match/ignore field contains <value>\n".
+        "    -tl:<value>	  show db linkage (other trace options usable to reduce output)\n\n".
         "    -th:                 show hardware access fields (other trace options usable to reduce output)\n\n".
         "PRINT OPTIONS:  defines the output fields. The record name and type is allways shown.\n". 
         "   Default output is the field defined with '-tf' option or all fields if '-tf' isn't defined:\n\n".
@@ -102,6 +102,7 @@
     my $prRecType = ".";
     my $prRecName = ".";
     my $prFieldName = ".";
+    my $ignore;
     my $links;
     my $verbose;
     my $quiet;
@@ -119,9 +120,9 @@
     my $igFieldName = "___";
     
     die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
-                            "it=s"=>\$trIgRecType, "ir=s"=>\$trIgRecName, "if=s"=>\$trIgFieldName, "iv=s"=>\$trIgFieldValue,
+    	    	    	    "it=s"=>\$trIgRecType, "ir=s"=>\$trIgRecName, "if=s"=>\$trIgFieldName, "iv=s"=>\$trIgFieldValue,
                             "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName, "ipf=s"=>\$igFieldName,
-                            "pT"=>\$ptable,"pH"=>\$pHash,"v"=>\$verbose,"q"=>\$quiet,"th"=>\$hwFields,"tl=s"=>\$links);
+                            "i"=>\$ignore,"pT"=>\$ptable,"pH"=>\$pHash,"v"=>\$verbose,"q"=>\$quiet,"th"=>\$hwFields,"tl=s"=>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -129,30 +130,38 @@
     if( defined $quiet && defined $verbose )
     {
         warn "Option 'quiet' overrides option 'verbose'";
-        $verbose = undef;
+	$verbose = undef;
     }
 
+    if( defined $ignore )
+    {
+        eval( "sub match { return( scalar (\$_[0]=~/\$_[1]/i) ); }" );
+    }
+    else
+    {
+        eval( "sub match { return( scalar (\$_[0]=~/\$_[1]/) ); }" );
+    }
 
     if( defined $links && !defined $hwFields)
     {
         $trigFieldName = "INP|OUT|LNK|DOL";
-        $trigFieldValue = $links;
+	$trigFieldValue = $links;
     }
     elsif( defined $hwFields && !defined $links)
     {
         $trigFieldName = "DTYP";
-        $trIgFieldValue = "Soft|Hw";
-        if( $prFieldName ne "." ) {
-           $prFieldName = "$prFieldName|DTYP|OUT|INP|PORT|OBJ|MUX\$";
-        }
-        else {
-            $prFieldName = "DTYP|OUT|INP|MUX|BTYP|CLAS|OBJ|INHB|PORT|UTYP|ATYP|DLEN\$";
-        }
-        $ptable = 1;
+    	$trIgFieldValue = "Soft|Hw";
+	if( $prFieldName ne "." ) {
+	   $prFieldName = "$prFieldName|DTYP|OUT|INP|PORT|OBJ|MUX\$";
+	}
+	else {
+	    $prFieldName = "DTYP|OUT|INP|MUX|BTYP|CLAS|OBJ|INHB|PORT|UTYP|ATYP|DLEN\$";
+	}
+	$ptable = 1;
     }
     elsif( defined $hwFields && defined $links )
     {
-        die("What a confusion, define just one option: -tl OR -th !");
+    	die("What a confusion, define just one option: -tl OR -th !");
     }
 
 # default if NO print options are set: the trigger options!
@@ -185,8 +194,8 @@
         }
 
         my ($rH_records,$rH_recName2recType) = parseDb($file,$filename);
-        
-        # process trigger options
+    	
+	# process trigger options
         foreach my $record (keys(%$rH_records))
         {
             my $recT = $rH_recName2recType->{$record} ;
@@ -196,10 +205,10 @@
                 foreach my $field ( keys( %{$rH_records->{$record}} ) )
                 {
                     my $fVal = $rH_records->{$record}->{$field};
-                    next if(match($recT,$trIgRecType) );
-                    next if(match($record,$trIgRecName) );
-                    next if(match($field,$trIgFieldName) );
-                    next if(match($fVal,$trIgFieldValue) );
+		    next if(match($recT,$trIgRecType) );
+		    next if(match($record,$trIgRecName) );
+		    next if(match($field,$trIgFieldName) );
+		    next if(match($fVal,$trIgFieldValue) );
                     if( (defined $filename) && match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
                         $printStr .= "File: \"$filename\"\n" unless defined $quiet;
@@ -218,60 +227,58 @@
 
     if( defined $ptable )
     {
-        my $idx=1; # idx 0 is the record name!
-        my $rH_recIdx;
-        my $rA_header;
-        foreach (sort(keys(%$rH_fields)))
-        {
-            $rA_header->[$idx]=$_;
-            $rH_fields->{$_} =$idx++ 
-        }
-        $rA_header->[0]="Record";
-        $idx=0;
-        $rH_recIdx->{$_} =$idx++ foreach (sort(keys(%$rH_prTable)));
-        
-        my $rA_table;
-        
-        if($ptable eq "HASH") {
-            print Dumper($rH_prTable);
-        }
-        else
-        {       
-            foreach my $rec (keys(%$rH_prTable))
-            {   
-                $rA_table->[$rH_recIdx->{$rec}]->[0] = $rec;
-                foreach my $field (sort(keys( %{$rH_prTable->{$rec}} )))
-                {
-                    $rA_table->[$rH_recIdx->{$rec}]->[$rH_fields->{$field}] = $rH_prTable->{$rec}->{$field};
-                }
-            }
+	my $idx=1; # idx 0 is the record name!
+	my $rH_recIdx;
+	my $rA_header;
+	foreach (sort(keys(%$rH_fields)))
+	{
+	    $rA_header->[$idx]=$_;
+	    $rH_fields->{$_} =$idx++ 
+	}
+	$rA_header->[0]="Record";
+	$idx=0;
+	$rH_recIdx->{$_} =$idx++ foreach (sort(keys(%$rH_prTable)));
+	
+	my $rA_table;
+	
+	if($ptable eq "HASH") {
+	    print Dumper($rH_prTable);
+	}
+    	else
+	{	
+	    foreach my $rec (keys(%$rH_prTable))
+	    {   
+		$rA_table->[$rH_recIdx->{$rec}]->[0] = $rec;
+		foreach my $field (sort(keys( %{$rH_prTable->{$rec}} )))
+		{
+	    	    $rA_table->[$rH_recIdx->{$rec}]->[$rH_fields->{$field}] = $rH_prTable->{$rec}->{$field};
+		}
+	    }
 
-            printData::printTable($rA_table,$rA_header,0);
-        }
+	    printData::printTable($rA_table,$rA_header,0);
+    	}
     }
     else
     {
-        print $printStr;
+    	print $printStr;
     }
-
-sub match {
-    return( scalar ($_[0]=~/$_[1]/) );
-}
 
 sub parseDb
 {   my ($st,$filename) = @_;
 
-    my $r_hext= parse_db::parse($st,$filename,'extended');
-    my $rH_records = $r_hext->{'dbhash'};
+    my $r_h= parse_db::parse($st,$filename);
+    
+    my $rH_records;
     my $rH_recName2recType;
-    foreach my $recname (keys %$rH_records) 
+    foreach my $recname (keys %$r_h) 
     { 
-    	foreach my $key (keys(%{$rH_records->{$recname}->{FIELDS}}))
-        {
-            $rH_records->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),recursive\)/\$($1)/g;
-            $rH_records->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),undefined\)/\$($1)/g;
-        }
-        $rH_recName2recType->{$recname}= $rH_records->{$recname}->{TYPE};
+    	foreach my $key (keys(%{$r_h->{$recname}->{FIELDS}}))
+	{
+	    $r_h->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),recursive\)/\$($1)/g;
+	    $r_h->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),undefined\)/\$($1)/g;
+	}
+	$rH_records->{$recname}= $r_h->{$recname}->{FIELDS};
+        $rH_recName2recType->{$recname}= $r_h->{$recname}->{TYPE};
     };
 
     return ($rH_records,$rH_recName2recType);
@@ -289,42 +296,36 @@ sub printRecord
     my $recordFlag;
     $prFieldName .= '|RTYP' unless $prFieldName =~ /RTYP/;
     if( defined $ptable )
-    {   $rH_records->{$record}->{'RTYP'} = $recT;
+    {	$rH_records->{$record}->{'RTYP'} = $recT;
 
-        foreach my $field ( sort(keys( %{$rH_records->{$record}->{FIELDS}} )) )
-        {
-            my $fVal = $rH_records->{$record}->{FIELDS}->{$field};
+	foreach my $field ( sort(keys( %{$rH_records->{$record}} )) )
+	{
+            my $fVal = $rH_records->{$record}->{$field};
             if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
             {
-                $recordFlag = 1;
+		$recordFlag = 1;
             }
             if( (defined $recordFlag) && match($field,$prFieldName) )
             {
-                $rH_prTable->{$record}->{$field}=$fVal;
-                $rH_fields->{$field}=1;
+    	    	$rH_prTable->{$record}->{$field}=$fVal;
+        	$rH_fields->{$field}=1;
             }
-        }
-        return;
+	}
+     	return;
     }
-    foreach my $field ( sort(keys( %{$rH_records->{$record}->{FIELDS}} )) )
+    foreach my $field ( sort(keys( %{$rH_records->{$record}} )) )
     {
-        my $fVal = $rH_records->{$record}->{FIELDS}->{$field};
+        my $fVal = $rH_records->{$record}->{$field};
 
         if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
         {
             $printStr .= "record($recT,\"$record\")  {\n";
             $recordFlag = 1;
-            my $rh_info = $rH_records->{$record}->{INFO};
-            if(defined $rh_info) {
-                foreach my $info (keys(%$rh_info)) {
-                    $printStr .= "    info(\"$info\",\"$rh_info->{$info}\")\n";
-                }
-            }
         }
         if( (defined $recordFlag) && match($field,$prFieldName) )
         {   
             next if( match($field,$igFieldName) );
-            $printStr .= "    field($field,\"$fVal\")\n";
+            $printStr .= "\tfield($field,\"$fVal\")\n";
         }
     }
     $printStr .= "}\n" if defined $recordFlag ;
