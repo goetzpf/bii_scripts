@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 use strict vars;
 use Data::Dumper;
 
