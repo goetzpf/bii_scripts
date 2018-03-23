@@ -67,7 +67,7 @@ sub gen_reg_call {
   return " " x 8 . "iocshRegister(&${cmd}Def, ${cmd}Wrapper);";
 }
 
-# generate 
+# generate command specifications and registration calls
 sub gen_reg {
   my ($reg, $cmds) = @_;
   my @cmd_names = sort keys %$cmds;
@@ -91,7 +91,11 @@ ${calls}
 }
 epicsExportRegistrar(${reg});
 EOF
-  return join("\n", $header, $decls, $registrar);
+  if ($reg) {
+    return join("\n", $header, $decls, $registrar);
+  } else {
+    return join("\n", $header, $decls);
+  }
 }
 
 ### frontend
@@ -113,17 +117,18 @@ sub split_cmd_args {
 }
 
 my $usage = <<EOF;
-Usage: gen_iocsh_reg.pl REG=<registrar> <command>=[<args>] ...
+Usage: gen_iocsh_reg.pl [REG=<registrar>] <command>=[<args>] ...
 where
-  <registrar> is the name of the generated C function that registers the commands
+  <registrar> is the name of a C function to register the commands (if not
+    specified you'll have to call iocshRegister yourself for each command)
   <command> is the name of a command (in C as well as in the shell)
   <args> is a comma separated list of argument descriptions <arg>
   <arg> describes an argument to the underlying C command and is either
     * a constant literal value (for instance 0 or "a string"), or
-    * an iocsh argument description of the form <name>:<type>
-      (for instance card_number:Int) where <type> is one of {Int, Double, String}.
-Only arguments of the <name>:<type> sort are exposed as arguments to the command
-in the shell.
+    * an iocsh argument description of the form <name>:<type> (for instance
+      card_number:Int) where <type> is one of {Int, Double, String}.
+Only arguments of the <name>:<type> sort are exposed as arguments to the
+command in the shell.
 EOF
 
 sub main {
@@ -135,7 +140,6 @@ sub main {
   } else {
     #print Dumper(\%args);
     my $reg = $args{REG};
-    die "Error: need at least one argument REG=<name of register command>\n$usage" unless $reg;
     delete $args{REG};
     die "Error: need at least one argument <command>=[<arg>,...]\n$usage" unless keys %args;
     map { $_ = [split_cmd_args(split(",", $_))] } values %args;
