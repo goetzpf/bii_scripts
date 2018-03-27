@@ -37,11 +37,7 @@ sub gen_arg_cvt {
 }
 
 sub gen_array_literal {
-  if (@_) {
-    "{\n    " . join(",\n    ", @_) . "\n}"
-  } else {
-    "0"
-  }
+  "{\n    " . join(",\n    ", @_) . "\n}"
 }
 
 # generate the registration boilerplate and wrapper for one command
@@ -51,7 +47,7 @@ sub gen_cmd_decl {
   my $num_iocsh_args = @iocsh_args;
   my $arg_decls = join("", map (gen_arg_decl($cmd, $_), @iocsh_args));
   my @arg_refs = map(gen_arg_ref($cmd, $_), @iocsh_args);
-  my $arg_array = ! @arg_refs ? "0" : gen_array_literal(@arg_refs);
+  my $arg_array = ! @arg_refs ? "{}" : gen_array_literal(@arg_refs);
   my $arg_cvts = join(", ", map { gen_arg_cvt($_) } @$args);
   return $arg_decls . <<EOF;
 static const iocshArg *const ${cmd}Args[] = $arg_array;
