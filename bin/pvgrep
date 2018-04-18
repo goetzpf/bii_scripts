@@ -31,6 +31,7 @@ Options:
               default is dbl, -io sets ext to dbhcr
               possible extensions are: 
                activated, dbhcr, dbior, dbl, pwd, version and versions
+  -i          search case-insensitive
   -io         search dbhcr-files (short for -ext dbhcr)
   -ioc <GLOB> search only IOCS matching GLOB pattern (default: *)
 EOF
@@ -38,11 +39,12 @@ EOF
 }
 [[ $# -eq 0 ]] && usage
 
-zparseopts -D io=oio flat=oflat ext:=oext ioc:=iocglob
+zparseopts -D i=icase io=oio flat=oflat ext:=oext ioc:=iocglob
 
 flat=0
 spc="  "
 ext=dbl
+[[ "$icase" = "-i" ]] && greparg=-i
 [[ "$oio" = "-io" ]] && ext=dbhcr
 [[ "$oflat" = "-flat" ]] && flat=1 spc=""
 [[ $#oext -gt 1 ]] && ext=$oext[2]
@@ -51,7 +53,8 @@ ext=dbl
 setopt nullglob
 
 cd /opt/IOC/log/Database
-/bin/egrep --color=auto $1 **/*.$ext **/*_$ext.txt 2>/dev/null | perl -e "
+ioclist=($(eval echo **/$iocglob.$ext **/$iocglob_$ext.txt))
+/bin/egrep $greparg --color=auto "$1" /dev/null $ioclist 2>/dev/null | grep -v 0x00000000 | perl -e "
 while (<>) { 
     (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
     \$iocs->{\$ioc}->{\$var}=1;
