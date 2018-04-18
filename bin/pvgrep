@@ -42,18 +42,21 @@ EOF
 zparseopts -D i=icase io=oio flat=oflat ext:=oext ioc:=iocglob
 
 flat=0
-spc="  "
+indent="  "
 ext=dbl
-[[ "$icase" = "-i" ]] && greparg=-i
-[[ "$oio" = "-io" ]] && ext=dbhcr
-[[ "$oflat" = "-flat" ]] && flat=1 spc=""
+[[ $#icase -gt 0 ]] && greparg=-i
+[[ $#oio -gt 0 ]] && ext=dbhcr
+[[ $#oflat -gt 0 ]] && flat=1 indent=""
 [[ $#oext -gt 1 ]] && ext=$oext[2]
 [[ $#iocglob -gt 1 ]] && iocglob=$iocglob[2] || iocglob="*"
 
+setopt extendedglob
 setopt nullglob
 
 cd /opt/IOC/log/Database
-ioclist=($(eval echo **/$iocglob.$ext **/$iocglob_$ext.txt))
+
+ioclist=($(eval print '(#i)**/'$iocglob.$ext '**/'${iocglob}_$ext.txt))
+
 /bin/egrep $greparg --color=auto "$1" /dev/null $ioclist 2>/dev/null | grep -v 0x00000000 | perl -e "
 while (<>) { 
     (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
@@ -61,5 +64,5 @@ while (<>) {
 }; 
 for \$ioc (sort(keys(%{\$iocs}))) {
     print \"\$ioc:\\n\" unless $flat; 
-    for \$var (sort(keys(%{\$iocs->{\$ioc}}))) { print(\"$spc\$var\"); }
+    for \$var (sort(keys(%{\$iocs->{\$ioc}}))) { print(\"$indent\$var\"); }
 }"
