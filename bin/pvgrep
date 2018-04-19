@@ -1,5 +1,6 @@
-#!/usr/bin/zsh -f
-# -*- shell-script -*-
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# -*- python -*-
 
 # Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
@@ -19,50 +20,54 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-usage () {
-    <<EOF
-usage: pvgrep [-io] [-flat] [-ext <ext>] <regexp>
+from __future__ import print_function
+import os
+from glob import glob
+import re
+import argparse
 
-grep for lines matching <regexp> in files produced by IOCs
+parser = argparse.ArgumentParser('pvgrep')
+parser.add_argument('regexp', nargs=1, help='regexp to match PVnames')
+parser.add_argument('-ext', default='dbl', help='file-extension to search')
+parser.add_argument('-flat', default=False, action='store_true', help='output is flat PV list')
+parser.add_argument('-i', default=False, action='store_true', help='match case insensitive')
+parser.add_argument('-ioc', default='*', help='glob pattern to match iocs to search')
 
-Options:
-  -flat       suppress IOC name, just print output unindented
-  -ext <ext>  search files with extension <ext> instead
-              default is dbl, -io sets ext to dbhcr
-              possible extensions are: 
-               activated, dbhcr, dbior, dbl, pwd, version and versions
-  -i          search case-insensitive
-  -io         search dbhcr-files (short for -ext dbhcr)
-  -ioc <GLOB> search only IOCS matching GLOB pattern (default: *)
-EOF
-    return
-}
-[[ $# -eq 0 ]] && usage
+args = parser.parse_args()
 
-zparseopts -D i=icase io=oio flat=oflat ext:=oext ioc:=iocglob
+os.chdir('/opt/IOC/log/Database')
 
-flat=0
-indent="  "
-ext=dbl
-[[ $#icase -gt 0 ]] && greparg=-i
-[[ $#oio -gt 0 ]] && ext=dbhcr
-[[ $#oflat -gt 0 ]] && flat=1 indent=""
-[[ $#oext -gt 1 ]] && ext=$oext[2]
-[[ $#iocglob -gt 1 ]] && iocglob=$iocglob[2] || iocglob="*"
 
-setopt extendedglob
-setopt nullglob
+def insensitive_glob(pattern):
+    return glob(''.join(
+        map(lambda c: '[%s%s]' % (c.lower(), c.upper()) if c.isalpha() else c, pattern)))
 
-cd /opt/IOC/log/Database
 
-ioclist=($(eval print '(#i)**/'$iocglob.$ext '**/'${iocglob}_$ext.txt))
+ioclist = insensitive_glob("*/"+args.ioc+"."+args.ext) + \
+          insensitive_glob("*/"+args.ioc+"_"+args.ext+".txt")
 
-/bin/egrep $greparg --color=auto "$1" /dev/null $ioclist 2>/dev/null | grep -v 0x00000000 | perl -e "
-while (<>) { 
-    (\$ioc,\$rest,\$var)=split qq([._]$ext([^:]*):); 
-    \$iocs->{\$ioc}->{\$var}=1;
-}; 
-for \$ioc (sort(keys(%{\$iocs}))) {
-    print \"\$ioc:\\n\" unless $flat; 
-    for \$var (sort(keys(%{\$iocs->{\$ioc}}))) { print(\"$indent\$var\"); }
-}"
+if len(ioclist) == 0:
+    ioclist = insensitive_glob(args.ioc+"."+args.ext) + \
+              insensitive_glob(args.ioc+"_"+args.ext+".txt")
+
+regexp = args.regexp[0]
+if not regexp.startswith('^'):
+    regexp = ".*" + regexp
+
+frex = re.compile('[._]%s.*' % args.ext)
+rex = re.compile(regexp, re.IGNORECASE if args.i else 0)
+iocs = {}
+
+for fn in ioclist:
+    ioc = frex.split(fn)[0]
+    with open(fn) as fh:
+        for line in fh.readlines():
+            l = line.strip()
+            if rex.match(l):
+                iocs[ioc] = iocs.get(ioc, []) + [l]
+
+for ioc in sorted(iocs.keys()):
+    if not args.flat:
+        print(ioc+':')
+    for pv in sorted(iocs[ioc]):
+        print(pv if args.flat else '\t'+pv)
