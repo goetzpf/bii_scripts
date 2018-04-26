@@ -30,6 +30,8 @@ TMPFILE2=`mktemp /tmp/darcs-compare.XXXXXXXXXX` || exit 1
 
 echo "creating $TMPFILE1 and $TMPFILE2"
 
+export DARCS_DONT_COLOR=1
+
 darcs changes --repodir=$1 > $TMPFILE1
 if [ $? -ne 0 ] ; then
         rm -f $TMPFILE1 $TMPFILE2
