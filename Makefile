@@ -8,6 +8,9 @@
 # the "bin" directory ($(SCRIPT_SRC_DIR)) and make it executable.
 # Note that the script name must begin with a character A-Za-z.
 
+#  IN ORDER TO ADD THE SCRIPT TO THE MAIN CONTENT FILE
+#  put it also to doc/txt/CONTENTS.txt
+
 # in order to generate documentation to for the script
 # do the following:
 
@@ -321,6 +324,7 @@ PLAINTXT_PL_SCRIPT_LIST= \
 # create online help by executing "(script -h 2>&1; true)
 PLAINTXT_H_SCRIPT_LIST= \
 	camon\
+	csv2alh\
 	csv2epicsDb\
 	ctl-dist-info \
 	ctl-restore \

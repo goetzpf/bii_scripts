@@ -1,0 +1,208 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
+# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# <https://www.helmholtz-berlin.de>
+#
+# Author: Bernhard Kuner <bernhard.kuner@helmholtz-berlin.de>
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+from optparse import OptionParser
+import sys
+import os
+import csv
+import os.path
+import epicsUtils
+import csv2epicsFuncs
+import pprint
+
+my_version = "2018.4.25"
+
+S2C = {'A':0,'B':1,'C':2,'D':3,'E':4,'F':5,'G':6,'H':7,'I':8,'J':9,'K':10,'L':11,'M':12,'N':13,'O':14,'P':15,'Q':16,'R':17,'S':18,'T':19,'U':20,'V':21,'W':22,'X':23,'Y':24,'Z':25}
+def str2col(s):  
+    """Translate spreadsheet collumn string (A...Z,AA,AB...) to column number
+    """
+    s=s.upper()
+    n=0
+    l=len(s) - 1
+    for char in list(s):
+        n += l*26 + S2C[char]
+        l-=1
+    return n
+
+#******************************* Main program *******************************
+
+usage        = """* Author  B.Kuner
+
+Create an alarm handler configuration from an .csv file
+Data: col n="signal|list" col n+1 = "alhFile|PATH", col n+2 = alh flag list
+
+USAGE: csv2alh --col n [-h OPTIONS] csv file"""
+parser = OptionParser(usage=usage,
+                 version="%%prog %s" % my_version,
+                 )
+parser.add_option("-c","--col", 
+                 action="store",
+                 type="string",
+                 help="Number/spreadsheet-tag of first collumn in .csv file (first=0 or A)",
+                 )
+parser.add_option("-d","--disa", 
+                 action="store",
+                 type="string",
+                 help="Ignore item if this col is not defined",
+                 )
+parser.add_option("-g","--output_alh_no_group", 
+                 action="store_true",
+                 help="Without group information to be included in hand written alh file"
+                 )
+parser.add_option("-n","--devname", 
+                 action="store",
+                 type="string",
+                 help="Devicename or if len<3 Column number/tag in .csv file", 
+                 )
+parser.add_option("-t","--separator", 
+                 action="store",
+                 type="string",
+                 help="Column separator in .csv file", 
+                 )
+parser.add_option("--var", 
+                 action="append",
+                 type="string",
+                 help="Define variable in the csv file. CSV-file tag: $(VAR) fill with: --var VAR=huhu"
+                 )
+
+(options, args) = parser.parse_args()
+
+separator =','
+install_path = "."
+disaCol = None
+alhCol = None
+devName = None
+devCol  = None
+
+if not options.devname:
+    sys.stderr.write("Missing option devname")
+    sys.exit(1)
+if len(options.devname) >= 3:
+    devName = opions.devname 
+else:
+    try:
+        devCol = int(options.devname)
+    except ValueError:
+        try:
+            devCol = str2col(options.devname)
+        except KeyError:
+            sys.stderr.write("Missing option devname")
+            sys.exit(1)
+
+if options.separator  is not None: separator    = options.separator
+
+csvVariablesDict = {}
+if options.var is not None:
+    for opt in options.var:
+        (var,val) = opt.split('=')
+        csvVariablesDict[var] = val
+
+if options.col is not None:
+    alhCol = str2col(options.col)
+else:
+    sys.stderr.write("No column for alh data defined")
+    sys.exit(1)
+
+if options.disa is not None:
+    disaCol = str2col(options.disa)
+
+warnings = []       # global for warnings in all functions, is printed at end of prog.
+lines = None
+
+for argument in args:
+    if not os.path.isfile(argument): epicsUtils.die("File doesn't exist: "+argument)
+
+    try :
+        IN_FILE = open(argument) 
+    except IOError: 
+        epicsUtils.die("Can't open input file: "+argument)
+    
+    lines  = 0
+    reader = csv.reader(IN_FILE, delimiter=separator, quotechar='"',quoting=csv.QUOTE_ALL)
+
+    for device in reader:
+        if len(device) <= alhCol+2:
+            continue
+        try:
+            lines += 1
+            if lines <= 1: # is header
+                continue
+
+            if epicsUtils.matchRe(device[0],r'\f') is not None: # is new page, header assumed
+                continue
+            
+            if disaCol and len(device[disaCol]) == 0:  # line is no device
+                continue
+            
+            if devCol != None:
+                devName = device[devCol]
+            if not devName:
+                raise ValueError("Missing device name line: "+str(lines))
+
+            if not device[alhCol] and not device[alhCol+1] and not device[alhCol+2]:
+                continue
+            if not device[alhCol] or not device[alhCol+1] or not device[alhCol+2]:
+                raise ValueError('not all alarm data columns defined')
+            # substitute variables in csv data
+            device = [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] 
+
+            # create alh item
+            tags     = {}
+            sort     = None
+            nodePath = device[alhCol+1]
+            tagList  = device[alhCol+2].split("|")
+            if len(tagList)>0 and len(tagList[0])>0:
+                # legacy support: first element may be the mask. Better set MASK=.. in ALH-Flags column.
+                try:        
+                    (name,value) = epicsUtils.matchRe(tagList[0],"([\w_]+)\s*=\s*(.*)")
+                except TypeError: # no name=value
+                    tags['MASK'] = epicsUtils.epicsAlh.setMask(tagList[0])   # first element means mask
+                    tagList = tagList[1:]
+            for tag in tagList:
+                try:
+                    (name,value) = epicsUtils.matchRe(tag,"([\w_]+)\s*=\s*(.*)")
+                    if name == 'MASK':
+                        tags['MASK'] = epicsUtils.epicsAlh.setMask(value)
+                    elif name in ('CHANNEL','INCLUDE','GROUP','END'):
+                        raise ValueError("ALH Flag (col. T) '"+name+"' is not allowed here")
+                    else:
+                        tags[name] = value
+                except TypeError: # no name=value
+                    raise ValueError("Illegal name-value pair in ALH-Flags: '"+tag+"'")
+            
+            for sig in device[alhCol].split('|'):
+                if not tags.has_key('COMMAND'): tags['COMMAND'] = "run_edm.sh -m \"PV="+devName+":"+sig+"\" alhVal.edl"
+                if not tags.has_key('ALIAS'):   tags['ALIAS']   = devName+":"+sig
+                epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
+
+        except ValueError as err:
+            sys.stderr.write( "PARSE EXCEPTION in file: '"+argument+"' line:"+str(lines)+": "+str(err)+"\n")
+        except :
+            sys.stderr.write( "PARSE EXCEPTION in file: '"+argument+"' line:"+str(lines)+"\n" )
+    IN_FILE.close()
+    # end for
+#########################################################################
+    if options.output_alh_no_group is True:
+        epicsUtils.epicsAlh.printFiles(install_path)
+    else:
+        epicsUtils.epicsAlh.printFiles(install_path,1)
+

@@ -139,6 +139,11 @@ Scripts
     and widgets for each item of the '.substitution' file.
   | `documentation <scripts/CreatePanel.html>`__
 
+**csv2alh**
+  | Create alarm handler config file from .CSV file 
+  | `documentation <scripts/csv2alh.html>`__
+  | For details see alh part of `csv2EpicsDb <scripts/csv2epicsDb.html>`__
+
 **csv2epicsDb**
   | Create EPICS data from a spreadsheet: EPICS.db, Panels, Alarm handler, 
   | Archiver files `documentation <scripts/csv2epicsDb.html>`__
