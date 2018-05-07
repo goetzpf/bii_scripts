@@ -37,8 +37,8 @@
   DTYP lowcal but also VME cards, OPC devices and WAGO-I/O-SYSTEM accessed 
   by ModbusTCP coupler.
 
-- def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,fileName,lines):
-- def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,fileName):
+- def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,inFileName,lines):
+- def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,inFileName):
 class PLC_Address(object):
 - def getVmeLink()
 - def getCANLink()
@@ -53,27 +53,27 @@ class PLC_Address(object):
 
 - def getDisplayLimits(rangeEng,egu,signal=None,lines=None):
 - def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=None):
-- def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fields,fileName,lines):
+- def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fields,inFileName,lines):
 
 * Create complete Record
 
-- def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+- def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
 
-- def createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,egu,rangeAlhVal,rangeAlhSevr,signal,fileName,lines):
-- def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
-- def createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,fileName,lines):
+- def createAnalogRecord(rtype,devName,fields,rangeEng,rangeRaw,egu,rangeAlhVal,rangeAlhSevr,signal,inFileName,lines):
+- def createBiBoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,inFileName,lines):
+- def createMbbIoRecord(rtype,devName,fields,rangeEng,rangeRaw,rangeAlhSevr,signal,inFileName,lines):
 
 * Process epic alh data
 
-- def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
+- def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
 
 * Builtin Templates (for convenience only)
 
 - def watchdogGetFunc():
-- def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+- def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
 
 - def pt100tempGetFunc():
-- def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+- def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
 """
 
 import csv
@@ -401,7 +401,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
 #    if lines is None: print field
     return (field,dtype)
 
-def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fileName,lines,warnings):
+def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,inFileName,lines,warnings):
     """ Process columns that define values, strings and severities for binary records 
         from definitions in Col H,I,K
         
@@ -431,7 +431,7 @@ def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fileName,lines,warnings):
         raise ValueError("Illegal rangeEng (Col: J): \'"+rangeEng+"\'")
     return (rangeENG,rangeRAW,rangeALH)
 
-def createAnalogRecord(devName,fields,devObj,warnings,fileName,lines):
+def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup display and alarm limits and create an analog type record/template. 
 
     INP/OUT link has to be set before so this function is usable for all records, 
@@ -445,17 +445,17 @@ def createAnalogRecord(devName,fields,devObj,warnings,fileName,lines):
     f.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
     epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f,devObj.dbFileName)
     
-def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
+def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup fields for bi/bo type records/templates and create instance
     - Setup fields for state names and severities from the columns H,I,K
     - Don't setup SHFT here!
     - Create warnings for to long strings
     """
-    #print "createBiBoRecord(",devName,devObj.signal,fields,warnings,fileName,lines
+    #print "createBiBoRecord(",devName,devObj.signal,fields,warnings,inFileName,lines
     try:
-        (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
+        (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,inFileName,lines,warnings)
     except ValueError, e:
-        warnings.append([fileName,lines,"SKIP RECORD: ",devName+":"+devObj.signal,str(e)])
+        warnings.append([inFileName,lines,"SKIP RECORD: ",devName+":"+devObj.signal,str(e)])
         return
     # set name and severity fields
     idx=0
@@ -466,7 +466,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
         namStr = rangeENG[idx]
         l = len(namStr)
         if l > baseData.getNAMlen():
-            warnings.append([fileName,lines,"TRUNCATE bi/bo string",devName+":"+devObj.signal,namStr[0:baseData.getNAMlen()] +"<TRUNC>" + namStr[(baseData.getNAMlen()):]])
+            warnings.append([inFileName,lines,"TRUNCATE bi/bo string",devName+":"+devObj.signal,namStr[0:baseData.getNAMlen()] +"<TRUNC>" + namStr[(baseData.getNAMlen()):]])
             namStr = namStr[0:baseData.getNAMlen()]
         fields[state+"NAM"]=namStr
         if epicsUtils.hasIndex(rangeALH,idx) is True:
@@ -476,7 +476,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,fileName,lines):
 
     epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
     
-def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
+def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup fields for mbbi/mbbo type records/templates and create instance
 
     - Setup fields for state names, severities and values from the columns H,I,K
@@ -485,13 +485,13 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
       each string
     - Create warnings for to long strings
     """
-    #print "createMbbIoRecord(",devName,devObj.signal,fields,warnings,fileName,lines
-    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
+    #print "createMbbIoRecord(",devName,devObj.signal,fields,warnings,inFileName,lines
+    (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,inFileName,lines,warnings)
     tooLong = False
 
     pvName = devName+":"+devObj.signal
     if len(rangeENG) > 16:
-        warnings.append([fileName,lines,"Truncate mbb modes",pvName,"nr of modes="+str(len(rangeENG))+ "(max 16)"])
+        warnings.append([inFileName,lines,"Truncate mbb modes",pvName,"nr of modes="+str(len(rangeENG))+ "(max 16)"])
 
     idx = 0
     for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
@@ -512,7 +512,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
             namStr = rangeENG[idx]
             if len(namStr) > baseData.getMBBlen():
                 
-                warnings.append([fileName,lines,"TRUNCATE mbb string",pvName,namStr[0:baseData.getMBBlen()] +"|" + namStr[baseData.getMBBlen():]])
+                warnings.append([inFileName,lines,"TRUNCATE mbb string",pvName,namStr[0:baseData.getMBBlen()] +"|" + namStr[baseData.getMBBlen():]])
                 namStr = namStr[0:baseData.getMBBlen()]
             dbRec.field[state+"ST"]=namStr
             dbRec.field[state+"VL"]=rangeRAW[idx]
@@ -535,7 +535,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
             if epicsUtils.hasIndex(rangeENG,idx) is False:
                   break
             #d = substr(rangeENG[idx],0, baseData.getMBBlen()) ." | " .substr(rangeENG[idx],baseData.getMBBlen(), length(rangeENG[idx]) )
-            #push @warnings, [fileName,lines,"Truncate mbb string",pvName,d] if ( length(rangeENG[idx]) > baseData.getMBBlen() )
+            #push @warnings, [inFileName,lines,"Truncate mbb string",pvName,d] if ( length(rangeENG[idx]) > baseData.getMBBlen() )
             if idx == 9 :
                 seq2 = epicsUtils.epicsTemplate('seq',{'DEVN':devName},{'SNAME':devObj.signal+"S2",
                         'SELM':"Specified", 
@@ -554,7 +554,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
                 dbRec.field[state+"SV"] = rangeALH[idx]
             eng = rangeENG[idx]
             if len(eng) > baseData.getStringVALlen():
-                warnings.append([fileName,lines,"TRUNCATE mbb string",pvName,eng[0:baseData.getStringVALlen()]+" | "+ eng[evObj.getStringVALlen():]])
+                warnings.append([inFileName,lines,"TRUNCATE mbb string",pvName,eng[0:baseData.getStringVALlen()]+" | "+ eng[evObj.getStringVALlen():]])
                 eng = eng[0:baseData.getStringVALlen()]
             epicsUtils.epicsTemplate('stringout',{'DEVN':devName},{'SNAME':devObj.signal+"St"+str(idx),
                                     'VAL':eng,
@@ -574,7 +574,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines):
                               'SIML': pvName+"Raw.SIMM NPP MS",
                               'SDIS':fields['SDIS'],'DISS':fields['DISS'],'DESC':fields['DESC']},devObj.dbFileName)
 
-def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
     """ Is an EPICS record in: 
     ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout']
         Setup EPICS record and return other data: 
@@ -591,7 +591,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
     autoSRRequest = []      # signals for autoSaveRestore
 
     if (len(devName)+len(devObj.signal)+1) > baseData.getRecNameLen():
-        warnings.append([fileName,lines,"WARN: ",devName+":"+devObj.signal,"Record name length excedet max="+str(baseData.getRecNameLen())])
+        warnings.append([inFileName,lines,"WARN: ",devName+":"+devObj.signal,"Record name length excedet max="+str(baseData.getRecNameLen())])
     
     fields = {}
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N
@@ -618,18 +618,18 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName)
                 fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
                 
                 if devObj.rtype in ('ai','ao','longin','longout','calc','calcout') :
-                    createAnalogRecord(devName,fields,devObj,warnings,fileName,lines)
+                    createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
                 elif devObj.rtype in ('mbbiDirect','mbboDirect') :
                     fields.update({'NOBT': 16,})
                     epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
                 elif devObj.rtype in ('bi','bo'):
-                        createBiBoRecord(devName,fields,devObj,warnings,fileName,lines)
+                        createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines)
                 elif devObj.rtype in ('mbbi','mbbo'):
-                        createMbbIoRecord(devName,fields,devObj,warnings,fileName,lines)
+                        createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines)
             else: # Soft record, fields from Col. N
                 epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName)
         except ValueError, e:
-            warnings.append([fileName,lines,"WARN",pvName,str(e)])
+            warnings.append([inFileName,lines,"WARN",pvName,str(e)])
 
         if devObj.rtype in ('bo') :
             panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
@@ -1032,7 +1032,7 @@ def getWagoLink(devObj):
     return (fields)
 
 
-def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
+def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
     """
     Setup all data to  write an alarm handler file.
 
@@ -1123,10 +1123,10 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
             forceSig = sig
         if cmLog and rtype in ('mbbi','mbbo','bi','bo'):
             try:
-                (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,fileName,lines,warnings)
+                (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,inFileName,lines,warnings)
 
             except ValueError, e:
-                warnings.append([fileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
+                warnings.append([inFileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
                 return
 
             idx = 0
@@ -1141,7 +1141,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
                     epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
                 idx += 1
             if not anyAlarm:
-                warnings.append([fileName,lines,"SKIP Alarmsignal:",devName+":"+devObj.signal,": Missing Bessy Alarm State"])
+                warnings.append([inFileName,lines,"SKIP Alarmsignal:",devName+":"+devObj.signal,": Missing Bessy Alarm State"])
                 return
 
         elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
@@ -1166,7 +1166,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,cmLog):
 def watchdogGetFunc():
     return {"watchdog":watchdog}
 
-def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
     alhSignals = None
     arcSignals = None
     panelDict = {}
@@ -1214,7 +1214,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
             'ONAM':"disable",
             'OSV':"MAJOR"},devObj.dbFileName)
         else:
-            warnings.append([fileName,lines,"SKIP watchdog template disable record: Illegal --dis option: ",devObj.disableRec,": Can't parse"])
+            warnings.append([inFileName,lines,"SKIP watchdog template disable record: Illegal --dis option: ",devObj.disableRec,": Can't parse"])
     else:
         epicsUtils.epicsTemplate('bo', {'DEVN':devName}, {'SNAME':"cmdDisa",
         'DESC':"Disable: "+devName,
@@ -1227,7 +1227,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
 def pt100tempGetFunc():
     return {"pt100temp":pt100temp}
 
-def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
+def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
     alhSignals = ("rdTemp",)
     arcSignals = ("rdTemp",)
     panelNameDict={'DEVN':devName}
@@ -1280,5 +1280,5 @@ def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,fileName):
     fields['CHAN']  = ch
     fields['STATNR']= statnr
     fields['SUB']   = sub
-    createAnalogRecord(devName,fields,devObj,warnings,fileName,lines)
+    createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
     return (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)

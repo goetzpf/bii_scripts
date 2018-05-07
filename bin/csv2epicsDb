@@ -221,9 +221,9 @@ for argument in args:
         print "   Reading data from "+argument
 
     try :
-        (fileName,fileExt) = epicsUtils.matchRe(argument.split('/')[-1],'(.*)\.(.*)') 
+        (inFileName,fileExt) = epicsUtils.matchRe(argument.split('/')[-1],'(.*)\.(.*)') 
     except TypeError : 
-        epicsUtils.die("found no filename in: "+argument)
+        epicsUtils.die("found no in-fileName in: "+argument)
 
     try :
         IN_FILE = open(argument) 
@@ -264,18 +264,18 @@ for argument in args:
             elif options.devName is not None: 
                 devName = options.devName
             else:
-                warnings.append([fileName,lines,"ERROR: Missing device name"])
+                warnings.append([inFileName,lines,"ERROR: Missing device name"])
 
             ## Check if Description exceeds the EPICS String length, truncate it and create warning
             if len(devObj.DESC) > csv2epicsFuncs.baseData.getDESClen():
-                warnings.append([fileName,lines,"Truncate DESC",devName+":"+devObj.signal,devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
+                warnings.append([inFileName,lines,"Truncate DESC",devName+":"+devObj.signal,devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
                 devObj.DESC = devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]
             
             # use col W if defined output_multiFile, else options.output_db
             if options.output_db and not options.output_multiFile: 
                 devObj.dbFileName=options.output_db
             if options.output_multiFile and len(devObj.dbFileName) == 0: 
-                warnings.append([fileName,lines,"Missing Filename"])
+                warnings.append([inFileName,lines,"Missing output filename"])
             
             alhSignals = []             # templates may have a list of signals for alarm handler
             arcSignals = []             # templates may have a list of signals for archiver
@@ -284,7 +284,7 @@ for argument in args:
             panelWidgetName = None      # default widget name for this record/template may be overwritten by col.V (Panel Sort)
 
             # is a record?
-            a = csv2epicsFuncs.procRecord(devName,devObj,canOption,options.opc_name,iocTag,warnings,lines,fileName)
+            a = csv2epicsFuncs.procRecord(devName,devObj,canOption,options.opc_name,iocTag,warnings,lines,inFileName)
             if a:
                 (autoSaveRestoreRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
 
@@ -309,25 +309,25 @@ for argument in args:
 
             # is a known template?
             elif plugins.has_key(devObj.rtype):
-                a = plugins[devObj.rtype](devName,devObj,canOption,options.opc_name,iocTag,warnings,lines,fileName)
+                a = plugins[devObj.rtype](devName,devObj,canOption,options.opc_name,iocTag,warnings,lines,inFileName)
                 if not a:
                     continue
                 (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName) = a
                 if len(devObj.reqFlag) > 0: 
                     req += map(lambda x: devName+":"+x,devObj.reqFlag.split("|"))
             else:
-                warnings.append([fileName,lines,"Skip record/template",devName+":"+devObj.signal,"Unsupported: '"+devObj.rtype+"'"])
+                warnings.append([inFileName,lines,"Skip record/template",devName+":"+devObj.signal,"Unsupported: '"+devObj.rtype+"'"])
                 continue
             # END create record/template
 
             # Now processing is done, an record/substitution is created and we can use the variables, set 
             # for this line of the spread sheet to do some optional stuff
             if options.verbose is True: 
-                dbgTable.append([fileName,lines,devObj.rtype,devName,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devObj.DESC,devObj.dbFileName])
+                dbgTable.append([inFileName,lines,devObj.rtype,devName,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devObj.DESC,devObj.dbFileName])
 
             if options.panel is not None and len(devObj.panelName)>0: # for panel creation
                 if len(devObj.panelName )>0 and not panelWidgetName:
-                    warnings.append([fileName,lines,"Missing widgetName for: '"+devName+":"+devObj.signal+"' Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' "+argument])
+                    warnings.append([inFileName,lines,"Missing widgetName for: '"+devName+":"+devObj.signal+"' Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' "+argument])
                 panelList.addItem(devObj.panelName,devObj.panelGroup,panelNameDict,panelDict,panelWidgetName,devObj.panelSort)
 
             if devObj.archPeriod is not None and len(devObj.archPeriod)>0:
@@ -336,9 +336,9 @@ for argument in args:
 
             if devObj.alhGroup is not None and len(devObj.alhGroup)>0:
                 try:
-                    csv2epicsFuncs.setEpicsAlh(devName,alhSignals,devObj,warnings,lines,fileName,options.cmLog)
+                    csv2epicsFuncs.setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,options.cmLog)
                 except ValueError as err:
-                    warnings.append([fileName,lines,str(err)+": "+fileName+"'"])
+                    warnings.append([inFileName,lines,str(err)+": "+inFileName+"'"])
         except :
             sys.stderr.write( "*********************\nPARSE EXCEPTION in file: '"+argument+"' line:"+str(lines)+" '"+str(device[0])+"', '"+str(device[1])+"', '"+str(device[2])+"'\n*********************\n" )
             raise
@@ -373,7 +373,7 @@ for argument in args:
         else:
 #            pprint.pprint(epicsUtils.epicsTemplate.files)
 #            print epicsUtils.epicsTemplate.getFilenames()
-            warnings.append([fileName,-1,"unknown output format for file -d '"+fileName+"'"])
+            warnings.append([fileName,-1,"unknown output format for file -d '"+inFileName+"'"])
 
     if options.output_arch:
         writeFile(options.output_arch,"<group>\n<name>"+options.output_arch.replace(".arch","")+"</name>\n"+"\n".join(arch)+"\n</group>" )
