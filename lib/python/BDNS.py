@@ -86,7 +86,7 @@ _p["pcnt"]= "[0-9]*"
 
 _p["psdom_global"]= "X"
 _p["psdom_B"]= _p["psdom_global"] + "BUDLST"
-_p["psdom_F"]= _p["psdom_global"] + "ACDEGLMSZ"
+_p["psdom_F"]= _p["psdom_global"] + "ACDEGLMSVZ"
 _p["psdom_P"]= _p["psdom_global"] + "BUKLS"
 
 _p["psdnum"]= "[0-9]*"
@@ -94,7 +94,7 @@ _p["psdnum"]= "[0-9]*"
 _p["pdom_global"]= "CGLVX"
 _p["pdom_B"]= _p["pdom_global"] + "BIMRST"
 #_p["pdom_F"]= _p["pdom_global"] + "DEIHLRS"
-_p["pdom_F"]= _p["pdom_global"] + "AEHST"
+_p["pdom_F"]= _p["pdom_global"] + "AEHKST"
 _p["pdom_P"]= _p["pdom_global"] + "MRT"
 
 _p["pfac"] = "FP"
