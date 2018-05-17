@@ -313,7 +313,7 @@ def getDisplayLimits(rangeEng,egu):
     """
     Return a dict with the the display parameters: LOPR, HOPR, EGU or raise ValueError
     """
-    eng = epicsUtils.matchRe(rangeEng,"([-+\d][\d\.eE]*)\s*\-\s*([-+\d][\d\.eE]*)*")
+    eng = epicsUtils.matchRe(rangeEng,"([-+\d][+-\d\.eE]*)\s*\-\s*([-+\d][+-\d\.eE]*)*")
     if eng == None or len(eng) != 2:
         raise ValueError("Range Eng. not defined")
     return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
