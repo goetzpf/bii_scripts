@@ -313,7 +313,7 @@ def getDisplayLimits(rangeEng,egu):
     """
     Return a dict with the the display parameters: LOPR, HOPR, EGU or raise ValueError
     """
-    eng = epicsUtils.matchRe(rangeEng,"([-+\d][+-\d\.eE]*)\s*\-\s*([-+\d][+-\d\.eE]*)*")
+    eng = epicsUtils.matchRe(rangeEng,"\s*(.*)[ ]+\-[ ]+(.*)\s*")
     if eng == None or len(eng) != 2:
         raise ValueError("Range Eng. not defined")
     return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
@@ -354,7 +354,7 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
 #    print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
 #    if lines is None: print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
 
-    (lopr,hopr) = epicsUtils.matchRe(rangeEng,"\s*(.*)\s*\-\s*(.*)\s*")
+    (lopr,hopr) = epicsUtils.matchRe(rangeEng,"\s*(.*)[ ]+\-[ ]+(.*)\s*")
     lopr = float(lopr)
     hopr = float(hopr)
     dtype = ""        # for CAN data - s=short, S=unsigned short
