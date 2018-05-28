@@ -282,8 +282,22 @@ class MailLikeRecords(object):
         parameters:
             text        -- the text to parse
         """
+        def validate_line(line):
+            """look if a line looks like a valid definition."""
+            a= line.split(":", 1)
+            if len(a)!=2:
+                return False
+            return a[0].replace("_","").isalnum()
+	valid_data_found= None
         linebuf=[]
         for line in text.splitlines():
+            if valid_data_found is None:
+                if line and line != "%%":
+                    if validate_line(line):
+                        valid_data_found= True
+                    else:
+                        raise ValueError(("No valid 'maillike' data found "
+                                          "in:\n%s\m") % repr(text))
             if line!="%%":
                 # skip empty lines at the start of records:
                 if len(linebuf)>0 or not _empty_str(line):
