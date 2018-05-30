@@ -332,8 +332,10 @@ my %gbl_config_comments=
                RSYNC_DIST_LINKPATH =>
                                   "remote link directory",
                RSYNC_DIST_PREFIX_DISTDIR => 
-                                  "prepend the distribution directory to the link-source path\n" .
-                                  "(only for the commands \"add-links\" and \"change-links\")",
+                                  "If empty or '1', prepend the distribution directory \n" .
+                                  "to the link-source path. If this is a non-empty string \n" .
+                                  "prepend this to the link source path. This effects only \n" .
+                                  "the connamds 'add-links' and 'change-links'.",
                RSYNC_DIST_LOCALPATH =>
                                   "local distribution directories",
                RSYNC_DIST_LOCALPREFIX =>
@@ -500,7 +502,7 @@ if (!GetOptions("help|h",
                 "version_file_prefix|version-file-prefix=s",
                 "editor=s",
                 "no_editor_defaults|no-editor-defaults|N!",
-                "prefix_distdir|prefix-distdir!",               
+                "prefix_distdir|prefix-distdir=s",               
                 "last_dist|last-dist|L",
                 "one_filesystem|one-filesystem",
                 "preserve_links|preserve-links",
@@ -1161,8 +1163,17 @@ sub change_link
       }
 
     if (($opt_prefix_distdir) && (!empty($remote_source)))
-      { # prepend distpath to remote_source:
-        $remote_source= File::Spec->catfile($opt_distpath,$remote_source); 
+      { # prepend path to remote_source:
+        if ($opt_prefix_distdir =~ /^(\s*|1)$/)
+          { 
+            $remote_source= File::Spec->catfile($opt_distpath,
+                                                $remote_source); 
+          }
+        else
+          {
+            $remote_source= File::Spec->catfile($opt_prefix_distdir,
+                                                $remote_source); 
+          }
       };   
 
 
@@ -3258,8 +3269,10 @@ Syntax:
                   the remote link directory, see also
                   --linkpath
                 RSYNC_DIST_PREFIX_DISTDIR
-                  when set to 1, prepend the distribution directory to the 
-                  link-source path (only for "add-links" and "change-links")
+                  If empty or '1', prepend the distribution directory to the
+                  link-source path. If this is a non-empty string prepend this
+                  to the link source path. This effects only the connamds
+                  'add-links' and 'change-links'.
                 RSYNC_DIST_LOCALPATH 
                   the local directory or directories. More than one
                   directory can be specified in a comma-separated list.
@@ -3374,23 +3387,19 @@ Syntax:
                 different setting taken from a config file  
 
     --prefix-distdir 
-                take the path of the dist-directory as prefix for the "source" 
-                part of the add-links or change-links command. 
+                If empty or '1', prepend the distribution directory to the
+                link-source path. If this is a non-empty string prepend this to
+                the link source path. This effects only the connamds
+                'add-links' and 'change-links'.
                 Together with --last-dist you can specify the "source" part 
                 completely like it is shown here:               
-                  rsync-dist.pl --config my_config --prefix-distdir \
+                  rsync-dist.pl --config my_config --prefix-distdir 1 \
                                 --last-dist change-links idcp*
 
                 and here:
 
-                  rsync-dist.pl --config my_config --prefix-distdir \
+                  rsync-dist.pl --config my_config --prefix-distdir 1 \
                                 --last-dist change-links idcp1,idcp2
-
-    --no-prefix-distdir 
-                set "--prefix-distdir" (see above) to false. Since
-                this is the default behavior, this option is only needed
-                in order to override a different setting taken from
-                a config file  
 
     --last-dist -L
                 append the name of the last distribution that was
