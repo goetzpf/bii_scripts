@@ -113,6 +113,7 @@
     use parse_db;
     use Getopt::Long;
     use Data::Dumper;
+    use File::Copy;
     $|=1;   # print unbuffred
 
     our($opt_v,$opt_i,$opt_x,$opt_y,$opt_M,$opt_q) = (0, undef, 100, 100, "", 0);
@@ -280,11 +281,15 @@
 
     print "\nDisplay: width=$panelWidth, height=$panelHeight\n" if $opt_v == 1;
 
+    my ($outDirName,$outFileOnlyName);
     if ($outFileName eq '-')
       { *FILE= *STDOUT; }
     else
-      { open(FILE, ">$outFileName") or die "  can't open output file: $outFileName"; };
-      
+    {
+        ($outDirName,$outFileOnlyName) = $outFileName =~ m{(.*/)([^/]+)};
+        $outFileOnlyName = $outFileName unless $outDirName;
+        open(FILE, ">$outFileOnlyName") or die "  can't open output file: $outFileOnlyName";
+    }
     if( $opt_M == 1)
     {
         my $target = $outFileName;
@@ -322,7 +327,11 @@
 	print FILE $header;
 	print FILE $printEdl;
     }
-    close FILE if ($outFileName ne '-');
+    if ($outFileName ne '-')
+    {
+        close FILE;
+        move($outFileOnlyName,$outDirName) if $outDirName;
+    }
 
 
 ## (anchor: #layout)
