@@ -20,6 +20,8 @@
 
 [ "$DARCS_SAVE" = "NO" ] && exit
 
+export GREP_COLOR='01;38;5;1'
+
 dest=.darcs-restore
 
 cleanup () {
@@ -35,13 +37,14 @@ cleanup () {
   echo "un-pushed patches"
   echo "-----------------"
   darcs push $(cat $dest/defaultrepo) --dry-run | \
-    perl -ne'if (not /Would push|Making no changes/) {if (/^  \*/){print "\033[1m\033[31m$_\033[22m\033[39m"}else{print}}'
+    perl -ne'if (not /^Would|^Making|^No/) {if (/^  \*/){print "\033[1m\033[38;5;1m$_\033[22m\033[39m"}else{print}}'
   echo "un-pulled patches"
   echo "-----------------"
   darcs pull $(cat $dest/defaultrepo) --dry-run | \
-    perl -ne'if (not /^Would pull|^No remote/) {if (/^  \*/){print "\033[1m\033[31m$_\033[22m\033[39m"}else{print}}'
+    perl -ne'if (not /^Would|^Making|^No/) {if (/^  \*/){print "\033[1m\033[38;5;1m$_\033[22m\033[39m"}else{print}}'
   exit
 }
+
 trap cleanup INT QUIT TERM
 test -d $dest || mkdir $dest
 if test -n "$1"; then
