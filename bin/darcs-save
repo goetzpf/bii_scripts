@@ -24,13 +24,22 @@ dest=.darcs-restore
 
 cleanup () {
   #unrecord the tag
-  yes | darcs unrecord -a --last=1
+  yes | darcs unrecord -q -a --last=1
   #unrecord not-added files
-  yes | darcs unrecord -p'^NOT-ADDED$' -a --last=1
+  yes | darcs unrecord -q -p'^NOT-ADDED$' -a --last=1
   #un-add these files
-  darcs whatsnew -s | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove
+  darcs whatsnew -s | grep '^A ' | sed 's/^A //' | xargs darcs remove -q
   #unrecord not recorded changes
-  yes | darcs unrecord -p'^NOT-RECORDED$' -a --last=1
+  yes | darcs unrecord -q -p'^NOT-RECORDED$' -a --last=1
+  echo ""
+  echo "un-pushed patches"
+  echo "-----------------"
+  darcs push $(cat $dest/defaultrepo) --dry-run | \
+    perl -ne'if (not /Would push|Making no changes/) {if (/^  \*/){print "\033[1m\033[31m$_\033[22m\033[39m"}else{print}}'
+  echo "un-pulled patches"
+  echo "-----------------"
+  darcs pull $(cat $dest/defaultrepo) --dry-run | \
+    perl -ne'if (not /^Would pull|^No remote/) {if (/^  \*/){print "\033[1m\033[31m$_\033[22m\033[39m"}else{print}}'
   exit
 }
 trap cleanup INT QUIT TERM
@@ -43,10 +52,18 @@ else
   echo "no master repo specified and no defaultrepo found - skipping darcs-save" >&2
   exit
 fi
-darcs record -a --skip-long-comment -m NOT-RECORDED
-darcs record -a --skip-long-comment -l -m NOT-ADDED
-darcs tag "`whoami`@`uname -n`:`pwd`"
-darcs send -a --output=$dest/local-patches --dont-edit-description
-darcs changes -a --context --repo=`cat _darcs/prefs/defaultrepo` > $dest/remote-context
-darcs changes --context > $dest/local-context
+darcs record -q -a --skip-long-comment -m NOT-RECORDED
+darcs record -q -a --skip-long-comment -l -m NOT-ADDED
+darcs tag -q "`whoami`@`uname -n`:`pwd`"
+darcs send -q -a --output=$dest/local-patches --dont-edit-description
+darcs changes -q -a --context --repo=$(cat $dest/defaultrepo) > $dest/remote-context
+darcs changes -q --context > $dest/local-context
+echo ""
+echo "un-added files"
+echo "--------------"
+darcs log -s -p NOT-ADDED | grep --color=always '^    . \./.*'
+echo ""
+echo "un-recorded changes"
+echo "-------------------"
+darcs log -s -p NOT-RECORDED | grep --color=always '^    . \./.*'
 cleanup
