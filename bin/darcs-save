@@ -49,7 +49,7 @@ trap cleanup INT QUIT TERM
 test -d $dest || mkdir $dest
 if test -n "$1"; then
   echo "$1" > "$dest/defaultrepo"
-elif test ! -e _darcs/prefs/defaultrepo; then
+elif test -e _darcs/prefs/defaultrepo; then
   cp _darcs/prefs/defaultrepo $dest
 else
   echo "no master repo specified and no defaultrepo found - skipping darcs-save" >&2
