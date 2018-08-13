@@ -438,7 +438,7 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     templates that make use of the typical analog fields as HOPR,LOPR,EGU,PREC 
     and LOLO,LOW,HIGH,HIHI + according severities.
     """
-#    print "createAnalogRecord",devObj.rtype,devName,devObj.signal,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr
+    #print "createAnalogRecord",devObj.rtype,devName,devObj.signal,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr
     fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
     (f,dtype) = createLimits(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr)
     f.update(fields)    # additional parameters should override calculated values for PREC
@@ -798,13 +798,14 @@ def getOpcuaLink(devObj,devName):
         raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
     elif linkType == 'INP':
         fields['PINI'] = 'YES'
-
     # direct access to the opcua item
     if len(devObj.chan) == 0:
         fields[linkType] = '@'+devObj.canId+devObj.cardNr
         fields['DTYP'] = 'OPCUA'
         if linkType == 'INP':
             fields['SCAN'] = 'I/O Intr'
+        if devObj.rtype in ('mbbi','mbbo'):
+            fields['NOBT'] = 16
     # special processing for binary records that access just one or some bits of a opcUaItem
     elif devObj.rtype in ('bi','mbbi','bo','mbbo'):
         (nobt,shft) = getShiftParam(devObj.chan)
@@ -1028,7 +1029,6 @@ def getWagoLink(devObj):
         fields.update({'DTYP': "asynUInt32Digital",
                        'SCAN':"I/O Intr",
                        'INP': "@asynMask("+devObj.port+" "+devObj.cardNr+" 0x1)"})
-            
     return (fields)
 
 
