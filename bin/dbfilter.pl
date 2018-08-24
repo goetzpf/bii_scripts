@@ -72,6 +72,7 @@ use vars qw($opt_help $opt_summary
             $opt_sdo
             $opt_Sdo
             $opt_recursive
+            $opt_T
            );
 
 
@@ -123,6 +124,7 @@ if (!GetOptions("help|h","summary",
                 "lowcal:s", "Lowcal:s",
                 "sdo:s", "Sdo:s",
                 "recursive|rec=i",
+                "T"
                 ))
   { die "parameter error!\n"; };
 
@@ -341,7 +343,7 @@ if ((defined $opt_lowcal) || (defined $opt_Lowcal))
   { 
     my $par= $opt_lowcal;
     $par= $opt_Lowcal if (!defined $par);
-    lowcal($ext_db_hash,(defined $opt_Lowcal),$par);
+    lowcal($ext_db_hash,(defined $opt_Lowcal),$opt_T,$par);
     exit(0);
   };
 
@@ -1054,7 +1056,7 @@ sub find_info
   }
 
 sub lowcal
-  { my($r_ext_db,$reverse,$filters)= @_;
+  { my($r_ext_db,$reverse,$add_type,$filters)= @_;
     my %filter_hash;
 
     my %filter_map=
@@ -1113,12 +1115,30 @@ sub lowcal
 
     my $r_dbhash= $r_ext_db->{dbhash};
     my $max_rec_len= max (map {length $_} (keys %$r_dbhash));
-    print "max_rec_len=$max_rec_len\n";
 
-    if (!$reverse)
-      { printf "%-${max_rec_len}s %-3s %s\n","recordname","dir",canlink::tab_print(); }
+    # print "max_rec_len=$max_rec_len\n";
+
+
+    my $rec_heading;
+    my $max_heading_rec_len= $max_rec_len;
+    if (!$add_type)
+      { 
+        $rec_heading= sprintf("%-${max_rec_len}s", "recordname");
+      }
     else
-      { printf "%s %-3s %-25s\n",canlink::tab_print(),"dir","recordname"; }
+      {
+        $rec_heading= sprintf("%-${max_rec_len}s %-10s", "recordname", "type");
+        $max_heading_rec_len+= 11;
+      }
+        
+    if (!$reverse)
+      { 
+        printf "%-${max_heading_rec_len}s %-3s %s\n",$rec_heading,"dir",canlink::tab_print(); 
+      }
+    else
+      { 
+        printf "%s %-3s %-25s\n",canlink::tab_print(),"dir",$rec_heading;
+      }
 
     foreach my $rec (sort keys %$r_dbhash)
       { my $r= $r_dbhash->{$rec}->{FIELDS};
@@ -1142,10 +1162,23 @@ sub lowcal
           };
         next if ($skip);
 
-        if (!$reverse)
-          { printf "%-${max_rec_len}s %-3s %s\n",$rec,$dir,canlink::tab_print(%h); }
+        my $rec_name;
+        if (!$add_type)
+          {
+            $rec_name="$rec";
+          }
         else
-          { printf "%s %-3s %-25s\n",canlink::tab_print(%h),$dir,$rec; }
+          {
+            $rec_name= sprintf("%-${max_rec_len}s %-10s", $rec, $r_dbhash->{$rec}->{TYPE});
+          }
+        if (!$reverse)
+          { 
+            printf "%-${max_rec_len}s %-3s %s\n",$rec_name,$dir,canlink::tab_print(%h); 
+          }
+        else
+          { 
+            printf "%s %-3s %-25s\n",canlink::tab_print(%h),$dir,$rec_name;
+          }
       };
   }
 
@@ -1621,6 +1654,8 @@ Syntax:
     --DTYP [regexp] : filter DTYP field
 
     --TYPE|-t [regexp] : filter record type
+
+    -T : add record type to record names with --lowcal option
 
     if no file is given $sc_name reads from standard-input
 END
