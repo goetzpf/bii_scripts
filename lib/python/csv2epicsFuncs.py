@@ -649,15 +649,24 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
     return (autoSRRequest,alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
 
 def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
-    """ Decide which type of hardware is to be processed. All entrys but 'don't care' are mandatory.
-    The option -c is just the default for Col. D.
+    """ Process link definition variables to get the hardware link of one of the supported types.
+
+    - All entrys but 'don't care' are mandatory.
+    - The option -c is legacy for the CAN-port number or '-c opc' for old opc devices.
+    
+    Column | Variable name 
+    -------+------------
+    Col. D | devObj.port
+    Col. E | devObj.canId
+    Col. F | devObj.cardNr
+    Col. G | devObj.chan
     
     Device type      | option -c     | Col. D   | Col. E    | Col. F    | Col. G    | processed in
     -----------------+---------------+----------+-----------+-----------+-----------+-------------
     Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id    | Card Nr.  | Chan. Nr  | getCANLink()
     VME-Device       | don't care    | empty/VME| DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
     OPC Device       | opc           | OPC-Link | don't care| don't care| don't care| getOpcLink()
-    OPCUA Device     | don't care    | opcua    | don't care| OPC-Link  | don't care| getOpcuaLink()
+    OPCUA Device     | don't care    | opcua    | don't care| OPCUA-Link| don't care| getOpcuaLink()
     Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
     Soft record      | don't care    |empty     | empty     | empty     | empty     | return
     """
@@ -674,7 +683,7 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     if canOption == 'opc':
         return getOpcLink(devObj,devName,opc_name)
 
-    if (canOption == 'opcua') or (devObj.port ==  'opcua'):
+    if devObj.port.upper() ==  'OPCUA':
         return getOpcuaLink(devObj,devName)
 
     if epicsUtils.matchRe(devObj.canId,'^wago') is not None:
@@ -810,7 +819,11 @@ def getOpcuaLink(devObj,devName):
     elif devObj.rtype in ('bi','mbbi','bo','mbbo'):
         (nobt,shft) = getShiftParam(devObj.chan)
         fields['SHFT'] = shft
-        fields['NOBT'] = nobt
+        if  devObj.rtype in ['mbbi','mbbo']:
+            fields['DTYP'] = "Raw Soft Channel"
+            fields['NOBT'] = nobt
+        else:
+            fields['DTYP'] = "Soft Channel"
         fields[linkType] = PLC_Address(linkType,devObj.rtype,devObj.cardNr,devObj.cardNr,shft,devName,devObj,'OPCUA').getLink()
     else:
         raise ValueError("Illegal defintion of Channel value for record type:'"+rtyp+"'. only supported for bi/bo, mbbi/mbbo")
