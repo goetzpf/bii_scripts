@@ -246,15 +246,15 @@ for argument in args:
             device = [epicsUtils.substituteVariables(col,csvVariablesDict) for col in device] 
 
             devObj = None
-            if devModule is None:
-                devObj = csv2epicsFuncs.csvData(device,canOption)
-                if options.dis: devObj.disableRec = options.dis
-            else:
-                try:
+            try:
+                if devModule is None:
+                    devObj = csv2epicsFuncs.csvData(device,canOption)
+                    if options.dis: devObj.disableRec = options.dis
+                else:
                     devObj = devModule.myCsvData(device,options)
-                except ValueError:
-#                   print "ILLEGAL lINE: ", lines, device
-                    continue
+            except ValueError:
+                warnings.append([inFileName,lines,"Parse line, exeption: "+str(device[0])+"', '"+str(device[1])+"', '"+str(device[2])])
+                continue
 
             if len(devObj.rtype) == 0:  # line is no device
                 continue
