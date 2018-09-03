@@ -758,7 +758,7 @@ def getOpcLink(devObj,devName,opc_name):
 #           else:
 #               fields['DTYP'] = "opc"
             if (len(devObj.rangeRaw)>0) and (rtyp in ('ai','ao')):
-                fields['DTYP'] = "opc raw"
+                fields['DTYP'] = "opcRaw"
             else:
                 fields['DTYP'] = "opc"
             fields[linkType] = '@'+PLCLink
