@@ -54,6 +54,7 @@ class PLC_Address(object):
 - def getDisplayLimits(rangeEng,egu,signal=None,lines=None):
 - def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=None):
 - def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fields,inFileName,lines):
+- def getInfo(devObj)
 
 * Create complete Record
 
@@ -159,7 +160,7 @@ class csvData(object):
         except IndexError: self.prec = ""
         try: self.archPeriod = device[14].strip() # O  BESSY Arch
         except IndexError: self.archPeriod = ""
-        try: self.reqFlag    = device[15].strip() # P  BESSY SR
+        try: self.reqFlag    = device[15].strip() # P  BESSY SR / Info field/s (name=value list)
         except IndexError: self.reqFlag = ""
         try: self.alhGroup   = device[16].strip() # Q  BESSY ALH Group
         except IndexError: self.alhGroup = ""
@@ -317,7 +318,7 @@ def getDisplayLimits(rangeEng,egu):
     if eng == None or len(eng) != 2:
         raise ValueError("Range Eng. not defined")
     return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
-    
+
 def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
     field = {}
     if rangeAlhVal != "":
@@ -431,6 +432,15 @@ def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,inFileName,lines,warnings
         raise ValueError("Illegal rangeEng (Col: J): \'"+rangeEng+"\'")
     return (rangeENG,rangeRAW,rangeALH)
 
+def getInfo(devObj):
+    """ Return Info field dictionary from devObj.reqFlag or None
+    """
+    par = epicsUtils.parseParam(devObj.reqFlag)
+    if type(par) == dict:
+        if len(par.keys()) > 0:
+            return par
+    return None
+    
 def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup display and alarm limits and create an analog type record/template. 
 
@@ -443,7 +453,8 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     (f,dtype) = createLimits(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr)
     f.update(fields)    # additional parameters should override calculated values for PREC
     f.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
-    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f,devObj.dbFileName)
+    
+    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f,devObj.dbFileName,getInfo(devObj))
     
 def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup fields for bi/bo type records/templates and create instance
@@ -474,7 +485,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
                 fields[state+"SV"]=rangeALH[idx]
         idx += 1
 
-    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
+    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,getInfo(devObj))
     
 def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup fields for mbbi/mbbo type records/templates and create instance
@@ -503,7 +514,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
         idx += 1
 
     if (tooLong == False) or (devObj.rtype == "mbbo") :
-        dbRec = epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
+        dbRec = epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,getInfo(devObj))
         idx=0
         for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"] :
             if epicsUtils.hasIndex(rangeENG,idx) is False:
@@ -604,15 +615,20 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
         fields['DISS']= 'INVALID'
         fields['SDIS']= sdis
         fields['DESC']= devObj.DESC
+        INFO = None
+        
         try:
             if len(devObj.reqFlag) > 0:
-                if len(devObj.reqFlag) <= 1:
+                par = epicsUtils.parseParam(devObj.reqFlag)
+                if type(par) == str:
                     autoSRRequest.append(devName+":"+devObj.signal)
-                else:
-                    for signal in devObj.reqFlag.split("|"):
+                elif type(par) == list:
+                    for signal in par:
                         autoSRRequest.append( devName+":"+signal)
+                elif type(par) == dict:
+                    INFO = par
 
-            # is a record type that has INP/OUT link, is able to supports hardware access
+            # is a record type that has INP/OUT link? Than it's able to supports hardware access
             if procInOut(devObj.rtype) is not None:     
                 l=None
                 fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
@@ -621,13 +637,13 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
                     createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
                 elif devObj.rtype in ('mbbiDirect','mbboDirect') :
                     fields.update({'NOBT': 16,})
-                    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName)
+                    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,INFO)
                 elif devObj.rtype in ('bi','bo'):
                         createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines)
                 elif devObj.rtype in ('mbbi','mbbo'):
                         createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines)
             else: # Soft record, fields from Col. N
-                epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName)
+                epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName,INFO)
         except ValueError, e:
             warnings.append([inFileName,lines,"WARN",pvName,str(e)])
 
@@ -670,6 +686,7 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
     Soft record      | don't care    |empty     | empty     | empty     | empty     | return
     """
+    # port is number so it is a CAN link
     if type(devObj.port) == int:
         return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag,devObj)
 
@@ -698,8 +715,8 @@ def getOpcLink(devObj,devName,opc_name):
 
     * Handle OPC-links (col. D) of type
 
-    - Just a String
-    - Siemens notation of Servername,Datablock and byte address (
+    - Just a String: Used as opc link
+    - (Legacy) Siemens notation of Servername,Datablock and byte address (
       e.g. 'S7:[S7-Verbindung_1]DB2,X2.6')
 
     * Set the fields DTYP, SCAN, INP/OUT according to the record type
@@ -831,7 +848,7 @@ def getOpcuaLink(devObj,devName):
         
 class PLC_Address(object):
     """
-    Class to manage PLC address names links for the binary record types: 
+    Class to manage PLC address name links for the binary record types: 
     bi,bo,mbbi,mbbo
     
     * Map bits to mbbi/oDirect-Records to access the data and
@@ -1158,7 +1175,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
                 return
 
         elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
-            print "*** setEpicsAlh(%s:%s, %s"%(devName,sig,rtype)
+            #print "*** setEpicsAlh(%s:%s, %s"%(devName,sig,rtype)
             alias = tags['ALIAS']
             fields = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
             for f in fields.keys():

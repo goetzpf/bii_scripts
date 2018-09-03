@@ -794,7 +794,7 @@ class epicsTemplate(object):
     - devn  devicename as dictionary of name tag and name {'DEVN':devName}
     - field <dict> dictionary of name/value pairs
 
-    - _init__(self,rtyp,name,fieldDict)
+    - _init__(self,rtyp,name,fieldDict,filename=None,infoDict=None) )
     - __str__()         # EPICS substitutions format
     - __repr__()        # python format: tupel of (rtyp,name,{fieldDict})
     - getType(): return type name
@@ -826,12 +826,13 @@ class epicsTemplate(object):
     files = {}
 #    typeDict={}
 #    deviceList=[]
-    def __init__(self,rtyp,nameDict,fieldDict={},filename=None) :
+    def __init__(self,rtyp,nameDict,fieldDict={},filename=None,infoDict=None) :
         self.field = fieldDict
-        self.devn   = nameDict
-        self.rtyp   = rtyp
-#       if self.field.has_key('DESCR'):
-#           print self.devn,"\tDESCR:",self.field['DESCR']
+        self.info  = infoDict
+        self.devn  = nameDict
+        self.rtyp  = rtyp
+#        if self.field.has_key('SNAME'):
+#            print self.devn,self.field['SNAME'],self.info
         if not filename: raise NameError
         
         if not epicsTemplate.files.has_key(filename):
@@ -861,6 +862,11 @@ class epicsTemplate(object):
 
     def getFields(self): return self.field
 
+    def processInfo(self):
+        if self.info is None:
+            return ""
+        return "\n".join(map(lambda x: "info(\\\""+x+"\\\",\\\""+self.info[x]+"\\\")",sorted(self.info.keys())))
+
     def prAsSubst(self):
         def prItem(x):
             val = self.field[x]
@@ -872,7 +878,11 @@ class epicsTemplate(object):
                     pass
             pr = x+"=\""+str(val)+"\""
             return pr
-        return "  { "+self.getDevnTag()+"=\""+self.getDevn()+"\","+",".join(filter(None,map(lambda x: prItem(x),sorted(self.field.keys()))))+"}"
+        info = ""
+        i = self.processInfo()
+        if(i):
+            info = ",INFO=\""+i+"\""
+        return "  { "+self.getDevnTag()+"=\""+self.getDevn()+"\","+",".join(filter(None,map(lambda x: prItem(x),sorted(self.field.keys()))))+info+"}"
 
     def prAsRec(self):
         def prField(x):
@@ -887,10 +897,12 @@ class epicsTemplate(object):
             return pr
         try:
             sname = self.field['SNAME']
+            del self.field['SNAME']
+            return "record("+self.rtyp+",\""+self.getDevn()+":"+sname+"\") {\n\t"+self.processInfo() + "\n\t".join(filter(None,map(lambda x: prField(x),sorted(self.field.keys()))))+"\n}"
         except KeyError:
             raise ValueError("Warning prAsRec(): no SNAME in "+str(self.field))
-        del self.field['SNAME']
-        return "record("+self.rtyp+",\""+self.getDevn()+":"+sname+"\") {\n\t"+"\n\t".join(filter(None,map(lambda x: prField(x),sorted(self.field.keys()))))+"\n}"
+#enable this if the convention PV=NAME:SNAME is NOT wanted!
+#            return "record("+self.rtyp+",\""+self.getDevn()+"\") {\n\t"+"\n\t".join(filter(None,map(lambda x: prField(x),sorted(self.field.keys()))))+"\n}"
 
     @staticmethod
     def getFilenames():
