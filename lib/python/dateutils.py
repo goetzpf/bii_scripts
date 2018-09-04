@@ -203,6 +203,7 @@ def parse_lsl_shortdate(st,year=None):
 
     formats= ( ("%b %d %H:%M %Y" , True),
                ("%d. %b %H:%M %Y", True),
+               ("%d. %b %Y"      , False),
                ("%b %d %Y"       , False),
              )
     for (format_, flag) in formats:
