@@ -45,7 +45,15 @@ cd $MYVERSION >/dev/null
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-scp "$BOOTHOST":"$DISTDIR/$QVERSION/dbd/hg-recover*" .
+CMD="scp $BOOTHOST:$DISTDIR/$QVERSION/dbd/hg-recover* ."
+$CMD
+if [ "$?" -ne 0 ]; then 
+    echo 
+    echo "error, no restore data found for $VERSION"
+    echo "command:"
+    echo -e "\t$CMD"
+    exit 1
+fi
 if [ -e hg-recover.tar.gz ]
 then
         # old hg-recover
