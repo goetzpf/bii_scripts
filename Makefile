@@ -339,7 +339,6 @@ PLAINTXT_H_SCRIPT_LIST= \
 	hg-compare-repos \
 	idcp-dist-info \
 	idcp-restore \
-	idcp-mls-restore \
 	psh \
 	substdiff\
 	csv2plot
