@@ -18,10 +18,13 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+DEFAULT_BOOTHOST="iocadm@nfs.blc.bessy.de"
+
 if [ -z "$1" ] || [ "$1" = "-h" ]; then
-        echo "usage: $0 [version]"
-        echo "  downloads the hg-restore file for the given version"
+        echo "usage: $0 VERSION [BOOTHOST-SSH]"
+        echo "  downloads the hg-restore file for the given VERSION"
         echo "  of idcp and restores the source and repository."
+        echo "  BOOTHOST-SS is optional, it's default is $DEFAULT_BOOTHOST"
         exit 0
 fi
 
@@ -30,13 +33,19 @@ VERSION=$1
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 MYVERSION=`echo $VERSION | sed -e 's/://g'`
 
+if [ -z "$2" ];then
+    BOOTHOST="$DEFAULT_BOOTHOST"
+else
+    BOOTHOST="$2"
+fi
+
 echo -e "* creating directory $MYVERSION"
 mkdir $MYVERSION
 cd $MYVERSION >/dev/null
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-scp elbe.acc.bessy.de:"$DISTDIR/$QVERSION/dbd/hg-recover*" .
+scp "$BOOTHOST":"$DISTDIR/$QVERSION/dbd/hg-recover*" .
 if [ -e hg-recover.tar.gz ]
 then
         # old hg-recover
