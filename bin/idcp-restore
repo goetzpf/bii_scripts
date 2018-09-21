@@ -18,27 +18,46 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-DEFAULT_BOOTHOST="iocadm@nfs.blc.bessy.de"
+BOOTHOST_BII="iocadm@nfs.blc.bessy.de"
+BOOTHOST_MLS="iocadm@nfs.mlscs.bessy.de"
 
 if [ -z "$1" ] || [ "$1" = "-h" ]; then
-        echo "usage: $0 VERSION [BOOTHOST-SSH]"
+        echo "usage: $0 VERSION [BOOTHOST-SSH|FACILITY]"
         echo "  downloads the hg-restore file for the given VERSION"
         echo "  of idcp and restores the source and repository."
-        echo "  BOOTHOST-SS is optional, it's default is $DEFAULT_BOOTHOST"
+        echo
+        echo "  BOOTHOST-SSH is optional, it should have the form USER@HOST."
+        echo "  Alternatively you can specify a FACILITY instead of BOOTHOST-SSH."
+        echo "  These two facilities are known, bii is the default:"
+        echo "    bii mls"
         exit 0
 fi
 
-DISTDIR=/opt/IOC/Releases/idcp/dist
+DISTDIR=/opt/IOC/idcp/dist
 VERSION=$1
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 MYVERSION=`echo $VERSION | sed -e 's/://g'`
 
 if [ -z "$2" ];then
-    BOOTHOST="$DEFAULT_BOOTHOST"
+    BOOTHOST="$BOOTHOST_BII"
 else
-    BOOTHOST="$2"
+    case "$2" in 
+        bii) 
+            BOOTHOST="$BOOTHOST_BII"
+            ;;
+        mls)
+            BOOTHOST="$BOOTHOST_MLS"
+            ;;
+        *)
+            BOOTHOST="$2"
+            ;;
+    esac
 fi
 
+if [ -d "$MYVERSION" ]; then
+    echo "error, directory $MYVERSION already exists"
+    exit 1
+fi
 echo -e "* creating directory $MYVERSION"
 mkdir $MYVERSION
 cd $MYVERSION >/dev/null
