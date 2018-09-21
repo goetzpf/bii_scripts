@@ -67,7 +67,7 @@ else
         if [ -e ../hg-recover-id_db.tar.gz ]
         then
                 # the newer version, id_db
-                if ! grep '^MINISD_CACHE.*ID_DB_DIR' config/config.template > /dev/null
+                if ! grep '^\(IDCP_DATABASE\|MINISD_CACHE\).*ID_DB_DIR' config/config.template > /dev/null
                 then
                         # id_db is placed in "idcp"
                         echo -e "* recovering idcp/id_db working directory..."
