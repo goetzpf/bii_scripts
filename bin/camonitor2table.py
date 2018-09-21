@@ -723,7 +723,7 @@ class HashedList2D(object):
         val= self._rows.lookup(row, constructor=lambda: HashedList(hashindex= self._column_hashindex))
         return val.set(column, set_value= set_value, value= value, constructor= constructor)
     def rows(self):
-        """Return number of rows."""
+        """Return all rows."""
         return self._rows.keys()
     def columns(self):
         """Return number of columns."""
@@ -756,6 +756,44 @@ class HashedList2D(object):
                         self.set(row, col, nval[:])
                 else:
                     lasts[col]= val
+    def fill_interpolate(self, interpolate_func, is_empty_func=None):
+        """Interpolates missing values.
+
+        Function that implements the interpolation:
+            interpolate_func(hashedlist2d, col, row1, row2, empty_rows)
+
+            paramaters:
+              hashedlist2d: the HashedList2D object
+              col: the column where to interpolate
+              row1: the last non-empty row
+              row2: the first non-empty row
+                    this may be None if there was no more non-empty
+                    row found
+              empty_rows: a list of empty rows in-between
+        """
+        if is_empty_func is None:
+            is_empty_func= lambda x: x is None
+        column_list= self.columns()
+        befores= [None]*len(column_list)
+        holes= [None]*len(column_list)
+        for row in self._rows.keys():
+            for (idx,col) in enumerate(column_list):
+                val= self.lookup(row, col)
+                if not is_empty_func(val):
+                    if holes[idx] is not None:
+                        interpolate_func(self, col, befores[idx], row,
+                                         holes[idx])
+                        holes[idx]= None
+                    befores[idx]= row
+                else:
+                    if holes[idx] is None:
+                        holes[idx]= [row]
+                    else:
+                        holes[idx].append(row)
+        for (idx,col) in enumerate(column_list):
+            if holes[idx] is not None:
+                interpolate_func(self, col, befores[idx], None,
+                                 holes[idx])
     def filter_complete(self, is_empty_func=None):
         """Removes rows where not all columns have a value."""
         if is_empty_func is None:
@@ -1130,6 +1168,44 @@ def convert_to_float_time(start_date, hashedlist2d):
             start_date= r
         hashedlist2d.relabel_row(r, float_time(r, start_date))
 
+def interpolate(hashedlist2d, col, row1, row2, empty_rows):
+    """fill in missing values by interpolation.
+    """
+    # pylint: disable=too-many-locals
+    if row2 is None:
+        # cannot interpolate, just copy the last value
+        val= hashedlist2d.lookup(row1, col)
+        for row in empty_rows:
+            # note: val is a list, val[:] creates a copy:
+            hashedlist2d.set(row, col, val[:])
+        return
+    if isinstance(row1, datetime.datetime):
+        tm= lambda t : total_seconds_(t-row1)
+    else:
+        tm= lambda t : t-row1
+    try:
+        val1= float(hashedlist2d.lookup(row1, col)[0])
+    except ValueError, _:
+        sys.stderr.write("warning: no float at row %s, column %s" % \
+                         (row1, col))
+        return
+    try:
+        val2= float(hashedlist2d.lookup(row2, col)[0])
+    except ValueError, _:
+        sys.stderr.write("warning: no float at row %s, column %s" % \
+                         (row2, col))
+        return
+    t1= tm(row1)
+    t2= tm(row2)
+    f= (val2-val1)/(t2-t1)
+    for row in empty_rows:
+        nval= hashedlist2d.lookup(row, col)
+        st_= str( f*(tm(row)-t1)+val1 )
+        if isinstance(nval, list):
+            nval[0]= st_
+        else:
+            hashedlist2d.set(row, col, [st_])
+
 def differentiate(hashedlist2d):
     """differentiate at each point.
     """
@@ -1293,6 +1369,8 @@ def process_files(options,args):
         else:
             start_date= str2date_ui(options.floattime)
         convert_to_float_time(start_date, results)
+    if options.fill_interpolate:
+        results.fill_interpolate(interpolate, None)
     if options.filter_complete:
         results.filter_complete()
     if options.differentiate:
@@ -1475,6 +1553,13 @@ def main():
                       help="fill empty places in the table with the first "
                            "non-empty value in the same column from a "
                            "row above.",
+                     )
+    parser.add_option("--fill-interpolate",
+                      action="store_true",
+                      help="Like --fill but fill empty places with "
+                           "interpolated numbers taken from the first "
+                           "non-empty value above and below. If the "
+                           "value is not numerical, this works like --fill."
                      )
     parser.add_option("--add-seconds",
                       action="store",
