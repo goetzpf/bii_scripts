@@ -106,9 +106,9 @@ elsif ($#ARGV==2)
   { ($path,$f_regex,$s_regex)= @ARGV; }
 else
   { die "too many parameters, use -h for help\n"; };
-
 if (defined $opt_exclude)
-  { %exclude= map { $_ => 1 } (split(/,/,$opt_exclude)); 
+  { 
+    %exclude= map { $_ => 1 } (split(/,/,$opt_exclude)); 
   }
 
 if (!defined $opt_stdin_list) # search recursively for files 
@@ -164,7 +164,7 @@ my $option_filter= ($opt_ccode || $opt_headers || $opt_perl ||
 my $text_filter  = ($opt_perl_ex || $opt_text);
 
 if (!defined $opt_stdin_list) # search recursively for files 
-  { find(\&wanted, $path); }
+  { find( {"wanted"=> \&wanted, "bydepth"=>0}, $path); }
 else
   { while (my $file=<STDIN>)
       { check_($file);
@@ -196,17 +196,25 @@ sub check_
 sub wanted 
   { my $file= $_;
     my $is_perl;
+    my $is_python;
+
+    if (%exclude)
+      { 
+        if (filter_dir($File::Find::dir))
+          {
+            $File::Find::prune= 1;
+            return;
+          }
+      }
+
+    return unless (-f $file);
 
     if ($opt_progress)
       { printf(STDERR "\r%-78s\r", $File::Find::dir . "/$file"); }
 
-    return unless (-f $file);
     return if (-z $file);
     if (!(-r $file)) 
       { warn "file $file is unreadable !\n"; return; };
-
-    if (%exclude)
-      { return if (filter_dir($File::Find::dir)); }
 
     if ($option_filter)
       { for(;;)
@@ -222,7 +230,10 @@ sub wanted
 	      };
 
             if ($opt_python)
-              { last if ($file =~ /\.py$/); };
+              { if ($file =~ /\.py$/)
+	          { $is_python= 1; last; }; 
+	      };
+
 
             if ($opt_make)
               { last if ($file =~ /^([Mm]akefile|
@@ -251,7 +262,7 @@ sub wanted
       };
 
 
-    if (($opt_text) && (!$is_perl))
+    if (($opt_text) && (!$is_perl) && (!$is_python))
       { if ($file_assist)
           { return if ($file =~ /\.[ao]$/); };
 
@@ -267,8 +278,12 @@ sub filter_dir
   { my ($dir)= @_;
 
     my @dirs = File::Spec->splitdir( $dir );
-#warn join("|",@dirs);
-    return(1) if (exists $exclude{$dirs[1]});
+    my $d= $dirs[0];
+    if ($d eq ".")
+      {
+        $d= $dirs[1];
+      }
+    return(1) if (exists $exclude{$d});
     return(0);
   }  
 
