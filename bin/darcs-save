@@ -30,7 +30,7 @@ cleanup () {
   #unrecord not-added files
   yes | darcs unrecord -q -p'^NOT-ADDED$' -a --last=1
   #un-add these files
-  darcs whatsnew -s | grep '^A ' | sed 's/^A //' | xargs darcs remove -q
+  darcs whatsnew -s | grep '^A ' | sed 's/^A //' | xargs darcs remove -q 2>&1 | grep -v "Nothing specified, nothing removed"
   #unrecord not recorded changes
   yes | darcs unrecord -q -p'^NOT-RECORDED$' -a --last=1
   echo ""
@@ -55,12 +55,12 @@ else
   echo "no master repo specified and no defaultrepo found - skipping darcs-save" >&2
   exit
 fi
-darcs record -q -a --skip-long-comment -m NOT-RECORDED
-darcs record -q -a --skip-long-comment -l -m NOT-ADDED
+darcs record -q -a --skip-long-comment -m NOT-RECORDED | grep -v "No changes"
+darcs record -q -a --skip-long-comment -l -m NOT-ADDED | grep -v "No changes"
 darcs tag -q "`whoami`@`uname -n`:`pwd`"
 darcs send -q -a --output=$dest/local-patches --dont-edit-description
-darcs changes -q -a --context --repo=$(cat $dest/defaultrepo) > $dest/remote-context
-darcs changes -q --context > $dest/local-context
+darcs log -q -a --context --repo=$(cat $dest/defaultrepo) > $dest/remote-context
+darcs log -q --context > $dest/local-context
 echo ""
 echo "un-added files"
 echo "--------------"
