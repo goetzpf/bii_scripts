@@ -222,7 +222,7 @@ class baseData(object):
     @staticmethod
     def getStringVALlen():  return baseData.baseLen[baseData.base]['StringVALlen']
 
-recordSet = {'longin':'INP','longout':'OUT','ai':'INP','ao':'OUT','bi':'INP','bo':'OUT','mbbi':'INP','mbbo':'OUT','sel':None,'calc':None,'seq':None,'calcout':None,'mbbiDirect':'INP','mbboDirect':'OUT'}
+recordSet = {'longin':'INP','longout':'OUT','ai':'INP','ao':'OUT','bi':'INP','bo':'OUT','mbbi':'INP','mbbo':'OUT','sel':None,'calc':None,'seq':None,'calcout':'OUT','mbbiDirect':'INP','mbboDirect':'OUT'}
 def procInOut(rtyp):
     """ Is it a in or out record type? Return 'INP'|'OUT' for records or 
     templates that begin with a known record name from the list: 
@@ -628,21 +628,21 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
                 elif type(par) == dict:
                     INFO = par
 
-            # is a record type that has INP/OUT link? Than it's able to supports hardware access
-            if procInOut(devObj.rtype) is not None:     
-                l=None
-                fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
-                
-                if devObj.rtype in ('ai','ao','longin','longout','calc','calcout') :
-                    createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
-                elif devObj.rtype in ('mbbiDirect','mbboDirect') :
-                    fields.update({'NOBT': 16,})
-                    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,INFO)
-                elif devObj.rtype in ('bi','bo'):
-                        createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines)
-                elif devObj.rtype in ('mbbi','mbbo'):
-                        createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines)
-            else: # Soft record, fields from Col. N
+            l=None
+            fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
+
+            if devObj.rtype in ('ai','ao','longin','longout','calc','calcout','sel') :
+                print "createAnalogRecord:",devObj.signal, devObj.rtype
+                createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
+            elif devObj.rtype in ('mbbiDirect','mbboDirect') :
+                fields.update({'NOBT': 16,})
+                epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,INFO)
+            elif devObj.rtype in ('bi','bo'):
+                    createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines)
+            elif devObj.rtype in ('mbbi','mbbo'):
+                    createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines)
+            else: # Soft record that processes neither states nor analog values. All fields are defined in col. N
+                print  "Soft Record:",devObj.signal, devObj.rtype
                 epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName,INFO)
         except ValueError, e:
             warnings.append([inFileName,lines,"WARN",pvName,str(e)])
@@ -680,35 +680,55 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     Device type      | option -c     | Col. D   | Col. E    | Col. F    | Col. G    | processed in
     -----------------+---------------+----------+-----------+-----------+-----------+-------------
     Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id    | Card Nr.  | Chan. Nr  | getCANLink()
-    VME-Device       | don't care    | empty/VME| DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
+    VME-Device       | don't care    | VME      | DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
     OPC Device       | opc           | OPC-Link | don't care| don't care| don't care| getOpcLink()
+    OPC Device       | don't care    | opc      | don't care| OPC-Link  | don't care| getOpcLink()
     OPCUA Device     | don't care    | opcua    | don't care| OPCUA-Link| don't care| getOpcuaLink()
     Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
-    Soft record      | don't care    |empty     | empty     | empty     | empty     | return
+    Soft-/Other record| don't care   |empty     | [DTYPE]   | [Link]    | don't care| setupRecordLink()
     """
     # port is number so it is a CAN link
     if type(devObj.port) == int:
         return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag,devObj)
+    # is a soft- or other-record. Link and Dtype are optional to support:
+    # - softlinks, 'Raw Soft Channel' 
+    # - any kind of asyn record.
+    if (len(devObj.port) == 0) :
+        print "getSoftLink"
+        fields = {}
+        if len(devObj.canId) > 0: 
+            fields['DTYP'] = devObj.canId
+        if len(devObj.cardNr) > 0: 
+            linkType = procInOut(devObj.rtype)
+            if linkType is None:
+                raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
+            fields[linkType] = devObj.cardNr
+        return fields
 
-    # is a soft record
-    if (len(devObj.port) == 0) and(len(devObj.canId) == 0) and(len(devObj.cardNr) == 0) and(len(devObj.chan) == 0):
-        return {}
-
-    if (len(devObj.port) == 0) or (devObj.port.upper() == 'VME'):
+    if devObj.port.upper() == 'VME':
         return getVmeLink(devObj.rtype,devObj.canId,devObj.cardNr,devObj.chan)
 
+    # depreciated option -c opc !!
     if canOption == 'opc':
-        return getOpcLink(devObj,devName,opc_name)
+        PLCLink = devObj.port
+        return getOpcLink(devObj,devName,opc_name,PLCLink)
+
+    if devObj.port.upper() ==  'OPC':
+        PLCLink = devObj.canId + ";" + devObj.cardNr
+        return getOpcLink(devObj,devName,opc_name,PLCLink)
 
     if devObj.port.upper() ==  'OPCUA':
         return getOpcuaLink(devObj,devName)
 
     if epicsUtils.matchRe(devObj.canId,'^wago') is not None:
         return getWagoLink(devObj)
+
     else:
         raise ValueError("Illegal Link")
-        
-def getOpcLink(devObj,devName,opc_name):
+
+
+
+def getOpcLink(devObj,devName,opc_name,PLCLink):
     """
     Create an OPC Link for option '-c opc', CAN or VME links are not supported in 
     this mode!
@@ -724,7 +744,6 @@ def getOpcLink(devObj,devName,opc_name):
     * For binary records there are mbbi/oDirect records to read/write the data and
       distribute it to/from the binary records. Set the fields NOBT, SHFT.
     """
-    PLCLink = devObj.port
     rtyp    = devObj.rtype
     bits    = devObj.chan
 # print "getOpcLink "+ "%12s %20s %10s %s"%(rtyp,PLCLink,str(bits),(devName+":"+devObj.signal)) 
@@ -822,11 +841,10 @@ def getOpcuaLink(devObj,devName):
     linkType = procInOut(devObj.rtype)
     if linkType is None:
         raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
-    elif linkType == 'INP':
-        fields['PINI'] = 'YES'
+
     # direct access to the opcua item
     if len(devObj.chan) == 0:
-        fields[linkType] = '@'+devObj.canId+devObj.cardNr
+        fields[linkType] = '@'+devObj.canId+";"+devObj.cardNr
         fields['DTYP'] = 'OPCUA'
         if linkType == 'INP':
             fields['SCAN'] = 'I/O Intr'
