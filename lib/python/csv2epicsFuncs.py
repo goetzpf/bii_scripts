@@ -632,7 +632,6 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
             fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
 
             if devObj.rtype in ('ai','ao','longin','longout','calc','calcout','sel') :
-                print "createAnalogRecord:",devObj.signal, devObj.rtype
                 createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
             elif devObj.rtype in ('mbbiDirect','mbboDirect') :
                 fields.update({'NOBT': 16,})
@@ -642,7 +641,6 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
             elif devObj.rtype in ('mbbi','mbbo'):
                     createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines)
             else: # Soft record that processes neither states nor analog values. All fields are defined in col. N
-                print  "Soft Record:",devObj.signal, devObj.rtype
                 epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName,INFO)
         except ValueError, e:
             warnings.append([inFileName,lines,"WARN",pvName,str(e)])
@@ -694,7 +692,6 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     # - softlinks, 'Raw Soft Channel' 
     # - any kind of asyn record.
     if (len(devObj.port) == 0) :
-        print "getSoftLink"
         fields = {}
         if len(devObj.canId) > 0: 
             fields['DTYP'] = devObj.canId
