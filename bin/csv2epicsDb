@@ -44,7 +44,13 @@ pydoc to the underlying classes:
 - csv2epicsFuncs:  http://www-csr.bessy.de/control/bii_scripts/html/python/csv2epicsFuncs.html
 - epicsUtils.html: http://www-csr.bessy.de/control/bii_scripts/html/python/epicsUtils.html
 
-USAGE: csv2epicsDb [-h OPTIONS] csv files """
+USAGE: 
+Single .db or .substitution file
+    csv2epicsDb [-h OPTIONS]  -d epics.db data.csv  
+    csv2epicsDb [-h OPTIONS]  -d epics.substitutions data.csv
+Multiple .db or .substitutions  files (Col. W)    
+    csv2epicsDb [-h OPTIONS]  -D data.csv                       
+ """
 parser = OptionParser(usage=usage,
                  version="%%prog %s" % my_version,
                  )
