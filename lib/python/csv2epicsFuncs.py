@@ -841,7 +841,10 @@ def getOpcuaLink(devObj,devName):
 
     # direct access to the opcua item
     if len(devObj.chan) == 0:
-        fields[linkType] = '@'+devObj.canId+";"+devObj.cardNr
+        if len(devObj.canId) == 0:
+            fields[linkType] = '@'+devObj.cardNr
+        else:
+            fields[linkType] = '@'+devObj.canId+";"+devObj.cardNr
         fields['DTYP'] = 'OPCUA'
         if linkType == 'INP':
             fields['SCAN'] = 'I/O Intr'
