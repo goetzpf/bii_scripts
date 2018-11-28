@@ -367,35 +367,15 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
         convert = 'SLOPE'   # LEGACY LINEAR not supported yet
         lraw=float(raw[0])
         hraw=float(raw[1])
-        egul  = 0.0         # LEGACY, NOT used yet
-        eguf  = 0.0         # LEGACY, NOT used yet
-        slope = 0.0
-        off   = 0.0
-        hyst  = 0.0
-        full  = 0.0         # LEGACY, NOT used yet
-        minVal=0            # LEGACY, NOT used yet
 
         # setup 
         if  ((hopr-lopr) != 0) and ( (hraw-lraw) != 0 ):
-            if (lraw < 0) or (hraw < 0 ):       # signed value LEGACY, NOT used yet
-                dtype = "s"
-                full = 32767
-                minVal = -32767
-            else:                               # unsigned LEGACY, NOT used yet
-                dtype = "S"
-                full = 65535
-            if convert == "LINEAR":             # LEGACY, NOT used yet
-                egul = lopr - slope * (lraw-minVal)
-                eguf = egul + slope * 65535
-                field['LINR'] = 'LINEAR'
-                field['EGUL'] = egul
-                field['EGUF'] = eguf
-            elif convert == "SLOPE":            # SLOPE conversion is done: linear conversion from raw to eng
                 slope = (hopr - lopr) / (hraw - lraw)
                 off  = hopr - slope * hraw
                 field['LINR'] = 'SLOPE'
                 field['ESLO'] = slope
                 field['EOFF'] = off
+                # set prec to 5 digits. may be overrwritten by additional parameters (col. N)
                 field['PREC'] = abs(int(math.log(abs(float(hopr-lopr))/10000)/math.log(10.0)))+1
         else:
             raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
