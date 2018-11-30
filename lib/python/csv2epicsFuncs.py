@@ -27,34 +27,38 @@
   define substitutions for local template files.
 
 - class csvData(object):
-  This object contains the data from then .csv file. Adaption to other file 
-  formats has to be done just here!
+  This object translates the data from then .csv file to variables used here and 
+  in plugins. Adaption to other spreadsheet layout has to be done just here!
 
-- def setupPlugins(searchPathList): read all plugins
-  read all plugins for templates to be used
+- def setupPlugins(searchPathList): read all plugins for templates to be used
 
 * Support Hardware links, functions for HZB specific hardware: CAN Bus and 
-  DTYP lowcal but also VME cards, OPC devices and WAGO-I/O-SYSTEM accessed 
-  by ModbusTCP coupler.
+  DTYP lowcal but also VME cards, OPC/OPCUA devices, WAGO-I/O-SYSTEM accessed 
+  by ModbusTCP coupler and support for soft and other hardware support
 
 - def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,inFileName,lines):
 - def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,inFileName):
-class PLC_Address(object):
 - def getVmeLink()
 - def getCANLink()
 - def getWagoLink()
+- class PLC_Address(object): Automagic create mbbi/oDirect records as input for 
+  bi/o, mbbi/o records that use single bits of a common hardware link that points
+  to integer data.
 
 * Process record attributes for display, alarms etc from the special columns
 
-- def getShiftParam(bits):
+- def getShiftParam(bits) Fields: NOBT,SHFT
+- def getDisplayLimits(rangeEng,egu,signal=None,lines=None) Fields: LOPR, HOPR, EGU
+- def createAlarmLimits(rangeAlhVal,rangeAlhSevr) Fields: LOLO,LOW,HIGH,HIHI,LLSV,LSV,HSV,HHSV
+- def createSlopeConversion(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr) Fields: LINR,ESLO,EOFF,PREC
+- def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fields,inFileName,lines):
+- def getInfo(devObj)
+
+* Special, just for BESSY CAN support
+
 - def getEcName(port,canId,cardNr,namesEnd):
 - def adaCanMux(id,card,chan,typ='hex'):
 - def createAdaCanLink(port,id,card,chan):
-
-- def getDisplayLimits(rangeEng,egu,signal=None,lines=None):
-- def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr,signal=None,lines=None):
-- def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,fields,inFileName,lines):
-- def getInfo(devObj)
 
 * Create complete Record
 
@@ -68,13 +72,17 @@ class PLC_Address(object):
 
 - def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
 
-* Builtin Templates (for convenience only)
+* Builtin Templates. (Also to be used as tutorial)
 
+PT 100 Bessy-CAN temperature module. (Example how to setup substitutions for a template)
+- def pt100tempGetFunc():
+- def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
+
+Check heartbeat signal from SPS to watch communication 
+(Example for a template that creates its records by epicsUtils, means without template file)
 - def watchdogGetFunc():
 - def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
 
-- def pt100tempGetFunc():
-- def pt100temp(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
 """
 
 import csv
@@ -320,6 +328,13 @@ def getDisplayLimits(rangeEng,egu):
     return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
 
 def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
+    """   Create alarm limits and severities if rangeAlhVal rangeAlhSevr are defined . 
+          Col.rangeAlhVal has to be in order with rangeAlhSevr to define alarm ranges
+          and severities or raise ValueError
+          
+            LOLO,LOW,HIGH,HIHI,LLSV,LSV,HSV,HHSV
+
+    """
     field = {}
     if rangeAlhVal != "":
         field=epicsUtils.parseParam(rangeAlhVal)
@@ -337,38 +352,30 @@ def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
                 raise ValueError("Illegal Alarm value '"+valName+"'")
     return field
 
-def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
+def createSlopeConversion(rangeEng,rangeRaw):
     """
-    Create limits severities and conversion parameters for analog type records or 
-    raise ValueError
-
-    - If 'rangeRaw' is defined: Create conversion parameters for SLOPE conversion
-
-    - rangeAlhVal has to be in order with rangeAlhSevr to define alarm ranges 
-      and severities
-
-    - rangeAlhVal can be followed by arbitrary additional fields to be set for 
-      records, so the 
-
-    - rangeAlhVal fields have to be  set outside this function
-    """
-#    print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
-#    if lines is None: print "createLimits(rangeEng='",rangeEng,"', rangeRaw='",rangeRaw,"', rangeAlhVal='",rangeAlhVal,"', rangeAlhSevr='",rangeAlhSevr,"', signal='",signal,"')"
-
-    (lopr,hopr) = epicsUtils.matchRe(rangeEng,"\s*(.*)[ ]+\-[ ]+(.*)\s*")
-    lopr = float(lopr)
-    hopr = float(hopr)
-    dtype = ""        # for CAN data - s=short, S=unsigned short
-    field = createAlarmLimits(rangeAlhVal,rangeAlhSevr)
+    Create SLOPE conversion parameters for analog type records if 'rangeRaw' is defined.
+    Raise ValueError for illegal data
     
-    # process raw range to setup data conversion with 'SLOPE'
-    raw = epicsUtils.matchRe(rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
-    if raw is not None:
-        convert = 'SLOPE'   # LEGACY LINEAR not supported yet
+
+        LINR,ESLO,EOFF,PREC,  
+
+    """
+    field = {}
+    if (len(rangeEng) > 0) and (len(rangeRaw) > 0):
+        raw = epicsUtils.matchRe(rangeEng,"\s*(.*)[ ]+\-[ ]+(.*)\s*")
+        if raw == None or len(raw) != 2:
+            raise ValueError("Can't parse Engeneering data range: '"+str(rangeEng)+"'")
+        lopr = float(raw[0])
+        hopr = float(raw[1])
+    
+    # if raw range is set, setup data conversion with 'SLOPE'
+        raw = epicsUtils.matchRe(rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*")
+        if raw == None or len(raw) != 2:
+            raise ValueError("Can't parse Raw data range: '"+str(rangeRaw)+"'")
         lraw=float(raw[0])
         hraw=float(raw[1])
 
-        # setup 
         if  ((hopr-lopr) != 0) and ( (hraw-lraw) != 0 ):
                 slope = (hopr - lopr) / (hraw - lraw)
                 off  = hopr - slope * hraw
@@ -378,9 +385,9 @@ def createLimits(rangeEng,rangeRaw,rangeAlhVal,rangeAlhSevr):
                 # set prec to 5 digits. may be overrwritten by additional parameters (col. N)
                 field['PREC'] = abs(int(math.log(abs(float(hopr-lopr))/10000)/math.log(10.0)))+1
         else:
-            raise ValueError("Raw/engineering limit mismatch (raw: hraw / eng: hopr)")
-#    if lines is None: print field
-    return (field,dtype)
+            raise ValueError("Missing Engeneering data for conversion")
+
+    return field
 
 def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,inFileName,lines,warnings):
     """ Process columns that define values, strings and severities for binary records 
@@ -428,13 +435,16 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     templates that make use of the typical analog fields as HOPR,LOPR,EGU,PREC 
     and LOLO,LOW,HIGH,HIHI + according severities.
     """
-    #print "createAnalogRecord",devObj.rtype,devName,devObj.signal,fields,devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr
-    fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
-    (f,dtype) = createLimits(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhVal,devObj.rangeAlhSevr)
-    f.update(fields)    # additional parameters should override calculated values for PREC
-    f.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
+    if len(devObj.rangeEng) > 0:
+        fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
+    if len(devObj.rangeAlhVal) > 0:
+        field = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
+
+    if (not fields.has_key('LINR')): # not if conversion is allready defined by setupRecordLink()
+        fields.update(createSlopeConversion(devObj.rangeEng,devObj.rangeRaw))    # additional parameters should override calculated values for PREC
+    fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
     
-    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},f,devObj.dbFileName,getInfo(devObj))
+    epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,getInfo(devObj))
     
 def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup fields for bi/bo type records/templates and create instance
@@ -665,6 +675,9 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
     Soft-/Other record| don't care   |empty     | [DTYPE]   | [Link]    | don't care| setupRecordLink()
     """
+    # depreciated option '-c n' n=CAN Port number
+    if type(canOption) == int:
+        devObj.port = canOption
     # port is number so it is a CAN link
     if type(devObj.port) == int:
         return getCANLink(devObj.rtype,devObj.port,devObj.canId,devObj.cardNr,devObj.chan,devName,iocTag,devObj)
