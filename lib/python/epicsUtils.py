@@ -226,6 +226,27 @@ def filterDb(recList,options):
     (recList,forget) = lod.filterOutKeys(recList,printKeys)
     return recList
 
+def splitQuotedParam(fieldPar,delim=';'):
+    parse = []
+    beg = 0     # begin of a field
+    end = 0     # end of a field - by unquoted delimiter
+    nextStr = ""
+    while end >= 0:
+        
+        end = fieldPar.find(delim,beg)
+        if end < 0:
+            nextStr = nextStr + fieldPar[beg:]
+            parse.append(nextStr)
+        else:
+            if fieldPar[end-1] == "\\":
+                nextStr = nextStr + fieldPar[beg:end-1] + delim
+            else:
+                nextStr = nextStr + fieldPar[beg:end]
+                parse.append(nextStr)
+                nextStr = ""
+        beg = end+1
+    return parse
+
 def parseParam(fieldPar,delim='|'):
     """
     Parse parameter string:
@@ -250,21 +271,32 @@ def parseParam(fieldPar,delim='|'):
         >>> x = "eins=1|zwei=2"
         >>> print epicsUtils.parseParam(x)
         {'eins': '1', 'zwei': '2'}
+        
+    * raise ValueError for inconsistent data
     """
     commFields = {}
-    valList = fieldPar.split(delim) # set alarm values and additional fields for a record
-    if len(valList) > 0 and valList[0] != '':
-        for v in valList:
-            try:
-                (valName,val)  = matchRe(v,'(.*?)=(.+)')
-                w = matchRe(val,'^"([^"]*)"$')
-                if w: val = w[0]
-                commFields[valName] = val
-            except TypeError:
-                if len(valList) == 1:
-                    return valList[0]
-                else:
-                    return valList
+    valList = splitQuotedParam(fieldPar,delim) # split parameters
+    if len(valList) == 0 or valList[0] == '':
+        return {}
+    first = valList[0]
+    try:
+        (name,val) = splitQuotedParam(first,'=')
+        commFields[name] = val
+    except ValueError:
+        if len(valList) == 1:   # is just a value
+            return first
+        else:
+            return valList      # is a list
+    
+    # is a dictionary
+    if len(valList) == 0:
+        return commFields
+    for v in valList[1:]:
+        try:
+            (name,val)  = splitQuotedParam(v,'=')
+            commFields[name] = val
+        except ValueError:
+            raise ValueError("Inconsistent dictionary data in parse parameter: %s"%(fieldPar))
     return commFields
 
 def printTable(rT,header=None,sortIdx=None) :

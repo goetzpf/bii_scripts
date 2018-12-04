@@ -665,15 +665,15 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     Col. F | devObj.cardNr
     Col. G | devObj.chan
     
-    Device type      | option -c     | Col. D   | Col. E    | Col. F    | Col. G    | processed in
-    -----------------+---------------+----------+-----------+-----------+-----------+-------------
-    Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id    | Card Nr.  | Chan. Nr  | getCANLink()
-    VME-Device       | don't care    | VME      | DTYP      | Card Nr.  | Chan. Nr  | getVmeLink()
-    OPC Device       | opc           | OPC-Link | don't care| don't care| don't care| getOpcLink()
-    OPC Device       | don't care    | opc      | don't care| OPC-Link  | don't care| getOpcLink()
-    OPCUA Device     | don't care    | opcua    | don't care| OPCUA-Link| don't care| getOpcuaLink()
-    Wago Device      | don't care   |MODBUS-Port| wago[Type]| Offset    | Bits      | getWagoLink()
-    Soft-/Other record| don't care   |empty     | [DTYPE]   | [Link]    | don't care| setupRecordLink()
+    Device type      | option -c     | Col. D   | Col. E       | Col. F    | Col. G    | processed in
+    -----------------+---------------+----------+--------------+-----------+-----------+-------------
+    Bessy CAN Device | empty/CAN-Port| CAN-Port | CAN-Id       | Card Nr.  | Chan. Nr  | getCANLink()
+    VME-Device       | don't care    | VME      | DTYP         | Card Nr.  | Chan. Nr  | getVmeLink()
+    OPC Device       | opc           | OPC-Link | don't care   | don't care| don't care| getOpcLink()
+    OPC Device       | don't care    | opc      | don't care   | OPC-Link  | don't care| getOpcLink()
+    OPCUA Device     | don't care    | opcua    |[SUBSCRIPTION]| OPCUA-Link| don't care| getOpcuaLink()
+    Wago Device      | don't care   |MODBUS-Port| wago[Type]   | Offset    | Bits      | getWagoLink()
+    Soft-/Other record| don't care   |empty     | [DTYPE]      | [Link]    | don't care| setupRecordLink()
     """
     # depreciated option '-c n' n=CAN Port number
     if type(canOption) == int:
