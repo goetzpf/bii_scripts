@@ -280,8 +280,8 @@ def parseParam(fieldPar,delim='|'):
         return {}
     first = valList[0]
     try:
-        (name,val) = splitQuotedParam(first,'=')
-        commFields[name] = val
+        n = first.find('=')
+        commFields[first[:n]] = first[(n+1):]
     except ValueError:
         if len(valList) == 1:   # is just a value
             return first
@@ -293,11 +293,12 @@ def parseParam(fieldPar,delim='|'):
         return commFields
     for v in valList[1:]:
         try:
-            (name,val)  = splitQuotedParam(v,'=')
-            commFields[name] = val
+            n = v.find('=')
+            commFields[v[:n]] = v[(n+1):]
         except ValueError:
             raise ValueError("Inconsistent dictionary data in parse parameter: %s"%(fieldPar))
     return commFields
+
 
 def printTable(rT,header=None,sortIdx=None) :
     """
