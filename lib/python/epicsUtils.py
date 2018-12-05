@@ -279,24 +279,24 @@ def parseParam(fieldPar,delim='|'):
     if len(valList) == 0 or valList[0] == '':
         return {}
     first = valList[0]
-    try:
-        n = first.find('=')
-        commFields[first[:n]] = first[(n+1):]
-    except ValueError:
+    n = first.find('=')
+    if n == -1:
         if len(valList) == 1:   # is just a value
             return first
         else:
             return valList      # is a list
+    else:
+        commFields[first[:n]] = first[(n+1):]
     
     # is a dictionary
     if len(valList) == 0:
         return commFields
     for v in valList[1:]:
-        try:
-            n = v.find('=')
-            commFields[v[:n]] = v[(n+1):]
-        except ValueError:
+        n = v.find('=')
+        if n == -1:
             raise ValueError("Inconsistent dictionary data in parse parameter: %s"%(fieldPar))
+        else:
+            commFields[v[:n]] = v[(n+1):]
     return commFields
 
 
