@@ -142,9 +142,12 @@ sub mk_hash
   { my($r_lines,$n_regexp,$t_regexp,$v_regexp,$r_regexp)= @_;
     my %h;
     my $cnt=100;
+    my $lineno= 0;
 
     for(my $i=0; $i<=$#$r_lines; $i++)
-      { if ($opt_progress)
+      { 
+        $lineno+= 1;
+        if ($opt_progress)
           { if (--$cnt==0)
 	      { print STDERR ':';
 	        $cnt= 100;
@@ -167,7 +170,10 @@ sub mk_hash
 	if (defined $r_regexp)
 	  { next if (!r_regexp($line)); };  
 
-	my $key= $a[1] . "," . $a[2] . "," . $a[0];
+        # we include a line number since it may be that a record is in the file
+        # with the same timestamp but different values:
+	my $key= $a[1] . "," . $a[2] . "," . $a[0] . "," . 
+                 sprintf("%010d", $lineno);
 #print "$key->",$line,"\n";
 
 	if ($opt_rm_tmstamp)
