@@ -73,6 +73,7 @@ use vars qw($opt_help $opt_summary
             $opt_Sdo
             $opt_recursive
             $opt_T
+            $opt_extended
            );
 
 
@@ -124,7 +125,8 @@ if (!GetOptions("help|h","summary",
                 "lowcal:s", "Lowcal:s",
                 "sdo:s", "Sdo:s",
                 "recursive|rec=i",
-                "T"
+                "T",
+                "extended|X"
                 ))
   { die "parameter error!\n"; };
 
@@ -323,6 +325,8 @@ if (defined $opt_record_references)
       { $flags{"list"}= 1; };
     if ($opt_dot)
       { $flags{"dot"}= 1; };
+    if ($opt_extended)
+      { $flags{"extended"}= 1; };
 
     list_record_references($ext_db_hash,
                            $opt_record_references,
@@ -664,29 +668,46 @@ sub list_record_references
             #    @referenced_by= grep { post_name_filter($_) } @referenced_by;
             #  };
 
-            print $recname;
-            # print "distance" to source records:
-            if ($linkset_hash)
-              { print "(",$linkset_hash->{$recname},")"; };
-
-            print "\n";
+            if ($r_flags->{"extended"})
+              {
+                printf("Name: %s\n",$recname);
+                printf("Type: %s\n", $r_dbhash->{$recname}->{TYPE});
+                my $s= $r_dbhash->{$recname}->{FIELDS}->{SNAM};
+                if (defined($s))
+                  { 
+                    printf("subroutine: %s\n", $s);
+                  }
+                my $s= $r_dbhash->{$recname}->{FIELDS}->{INAM};
+                if (defined($s))
+                  { 
+                    printf("init subroutine: %s\n", $s);
+                  }
+              }
+              else
+              {
+                print $recname;
+                # print "distance" to source records:
+                if ($linkset_hash)
+                  { print "(",$linkset_hash->{$recname},")"; };
+                print "\n";
+              }
 
             if (@references)
               {
                 my $ref_h= analyse_db::references_hash($r_dbhash, $recname);
-                print "  references:\n";
+                print "references:\n";
                 foreach my $r (@references)
                   {
-                    printf("\t%-30s %s\n", $r, $ref_h->{$r});
+                    printf("    %-30s %s\n", $r, $ref_h->{$r});
                   }
               };
             if (@referenced_by)
               {
                 my $ref_h= analyse_db::referenced_by_hash($r_dbhash, $recname);
-                print "  referenced by:\n";
+                print "referenced by:\n";
                 foreach my $r (@referenced_by)
                   {
-                    printf("\t%-30s %s\n", $r, $ref_h->{$r});
+                    printf("    %-30s %s\n", $r, $ref_h->{$r});
                   }
               };
             print "\n";
@@ -1536,6 +1557,8 @@ Syntax:
             produce a graphviz file. Use for example 
               dbfilter.pl {options...} --dot | dot -Tpdf > plot.pdf 
             to create a pdf file with a dependency plot.
+      --extended :
+            use a more verbose format for the report
       --rec [distance]: recursively look for connected records up to
             [distance]. A direct connection has distance 1. 
 
@@ -1656,6 +1679,8 @@ Syntax:
     --TYPE|-t [regexp] : filter record type
 
     -T : add record type to record names with --lowcal option
+    
+    -X : extended format for --record-references
 
     if no file is given $sc_name reads from standard-input
 END
