@@ -660,7 +660,7 @@ sub list_record_references
                 @referenced_by= grep { post_name_filter($_) } @referenced_by;
               }
 
-            if ((!@references) && (!@referenced_by))
+            if ((!@references) && (!@referenced_by) && (!$r_flags->{"extended"}))
               { next; };
 
             #if (defined $post_filter)
@@ -675,12 +675,20 @@ sub list_record_references
                 my $s= $r_dbhash->{$recname}->{FIELDS}->{SNAM};
                 if (defined($s))
                   { 
-                    printf("subroutine: %s\n", $s);
+                    printf("Subroutine: %s\n", $s);
                   }
                 my $s= $r_dbhash->{$recname}->{FIELDS}->{INAM};
                 if (defined($s))
                   { 
-                    printf("init subroutine: %s\n", $s);
+                    printf("Init subroutine: %s\n", $s);
+                  }
+                my $s= $r_dbhash->{$recname}->{FIELDS}->{DTYP};
+                if (defined($s))
+                  {
+                    if (($s ne "") && ($s ne "Soft Channel"))
+                      {
+                        printf("Device type: %s\n", $s);
+                      }
                   }
               }
               else
@@ -695,7 +703,7 @@ sub list_record_references
             if (@references)
               {
                 my $ref_h= analyse_db::references_hash($r_dbhash, $recname);
-                print "references:\n";
+                print "References:\n";
                 foreach my $r (@references)
                   {
                     printf("    %-30s %s\n", $r, $ref_h->{$r});
@@ -704,7 +712,7 @@ sub list_record_references
             if (@referenced_by)
               {
                 my $ref_h= analyse_db::referenced_by_hash($r_dbhash, $recname);
-                print "referenced by:\n";
+                print "Referenced by:\n";
                 foreach my $r (@referenced_by)
                   {
                     printf("    %-30s %s\n", $r, $ref_h->{$r});
