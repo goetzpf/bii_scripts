@@ -148,6 +148,33 @@ else:
     _locale_list=(None, "de_DE.UTF-8")
 
 _default_locale= locale.setlocale(locale.LC_TIME, None)
+_locales_missing= set()
+
+# test if locales can be used:
+for l in _locale_list:
+    if l is None:
+        continue
+    try:
+        locale.setlocale(locale.LC_TIME, l)
+    except locale.Error:
+        _locales_missing.add(l)
+        break
+locale.setlocale(locale.LC_TIME, _default_locale)
+
+months_german= { "Mai"  : "May",
+                 "Mär"  : "Mar",
+                 "Mrz"  : "Mar",
+                 "Sept" : "Sep",
+                 "Okt"  : "Oct",
+                 "Dez"  : "Dec"
+               }
+
+def _translate_months(st):
+    """replace german months with english months.
+    """
+    for de, en in months_german.items():
+        st= st.replace(de, en)
+    return st
 
 def my_strptime(st, format):
     # a strptime replacement that checks with several locales:
@@ -156,13 +183,19 @@ def my_strptime(st, format):
         for i in xrange(len(_locale_list)):
             l= _locale_list[i]
             if l is not None:
+                if l in _locales_missing:
+                    continue
                 locale.setlocale(locale.LC_TIME, l)
                 locale_changed= True
             try:
-                return datetime.datetime.strptime(st, format)
+                ret= datetime.datetime.strptime(st, format)
+                return ret
             except ValueError, e:
-                if i+1==len(_locale_list):
-                    raise
+                pass
+        # last resort, try replacing german month names with english month
+        # names:
+        ret= datetime.datetime.strptime(_translate_months(st), format)
+        return ret
     finally:
         if locale_changed:
             locale.setlocale(locale.LC_TIME, _default_locale)
