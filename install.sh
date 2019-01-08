@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 
 HOSTNAME=$(hostname -f)
@@ -16,6 +16,11 @@ if [ -z "$1" ]; then
     exit 
 fi
 
+if [ "$1" = "-h" -o "$1" = "--help" ]; then
+    echo "usage: $0 [install-directory]"
+    exit 
+fi
+
 INSTALLDIR=$1
 
 if [ ! -d $INSTALLDIR ]; then
@@ -23,5 +28,15 @@ if [ ! -d $INSTALLDIR ]; then
     exit 1
 fi
 
+ABS_INSTALLDIR=$(readlink -e "$INSTALLDIR")
+
 mkdir -p $INSTALLDIR/bin $INSTALLDIR/share/html/bii_scripts $INSTALLDIR/lib/perl $INSTALLDIR/lib/python
 USE_RSYNC=no INSTALL_PREFIX=$INSTALLDIR make -s -e install
+
+SETENV="$INSTALLDIR/setenv.sh"
+echo "PATH=$ABS_INSTALLDIR/bin:\$PATH" > "$SETENV"
+echo "PERL5LIB=$ABS_INSTALLDIR/lib/perl:\$PERL5LIB" >> "$SETENV"
+echo "PYTHONPATH=$ABS_INSTALLDIR/lib/python:\$PYTHONPATH" >> "$SETENV"
+
+echo "Installation finished."
+echo "You may want to source file $SETENV to set your environment variables."
