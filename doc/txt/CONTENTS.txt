@@ -534,6 +534,12 @@ Scripts
     Can also be used as a filter.
   | `documentation <scripts/txtcleanup.html>`__
 
+**uniserv-restore**
+  | A small wrapper script that calls hg-recover.py to restore the source
+    directory along with it's mercurial repository for a given version of 
+    uniserv as it is installed on one of the BESSY undulators.
+  | `documentation <scripts/uniserv-restore>`__
+
 **unlockGuru**
   | Remove the mutex file lock, probably used together with cvsGuru.
 

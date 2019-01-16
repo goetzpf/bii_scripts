@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# <https://www.helmholtz-berlin.de>
+#
+# Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+BOOTHOST="iocadm@elbe.acc.bessy.de"
+
+if [ -z "$1" ] || [ "$1" = "-h" ]; then
+        echo "usage: $0 VERSION"
+        echo "  downloads the hg-restore file for the given VERSION"
+        echo "  of uniserv and restores the source and repository."
+        echo "arguments:"
+        echo "VERSION: the short version string from CONST_PROGRAM_VERSION"
+        echo "         example: 1901141049"
+        exit 0
+fi
+
+DISTDIR=/opt/IOC/uniserv/dist
+SHORTVERSION=$1
+
+# get rsync dist version name:
+TAGFILE=$(ssh $BOOTHOST find $DISTDIR -name $SHORTVERSION | sort | tail -n 1)
+
+if [ -z "$TAGFILE" ]; then
+    echo "error, no version found for $SHORTVERSION"
+    exit 1
+fi
+
+VERSION=$(dirname $(dirname $TAGFILE) | sed -e 's#^.*/##')
+
+QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
+MYVERSION="$SHORTVERSION"
+
+if [ -d "$MYVERSION" ]; then
+    echo "error, directory $MYVERSION already exists"
+    exit 1
+fi
+echo -e "* creating directory $MYVERSION"
+mkdir $MYVERSION
+cd $MYVERSION >/dev/null
+
+echo -e "* fetching hg recover files from boot directory...\n"
+
+CMD="scp $BOOTHOST:$DISTDIR/$QVERSION/recover/*recover* ."
+echo "CMD: $CMD"
+$CMD
+if [ "$?" -ne 0 ]; then 
+    echo 
+    echo "error, no restore data found for $VERSION"
+    echo "command:"
+    echo -e "\t$CMD"
+    exit 1
+fi
+
+echo -e "\n* recovering uniserv working directory..."
+hg-recover.py -r -f uniserv-recover.tar.gz
+cd ../..
+
+echo -e "\nversion $VERSION was restored in directory $MYVERSION"
