@@ -59,6 +59,8 @@ use vars qw($opt_help $opt_summary
             $opt_rm_capfast_defaults
             $opt_skip_empty_records
             $opt_list
+            $opt_llist
+            $opt_restrict
             $opt_dot
             $opt_rm_prefix
             $opt_percent
@@ -114,6 +116,8 @@ if (!GetOptions("help|h","summary",
                 "rm_capfast_defaults|rm-capfast-defaults|E",
                 "skip_empty_records|skip-empty-records",
                 "list|l",
+                "llist|ll",
+                "restrict",
                 "dot",
                 "rm-prefix=s",
                 "percent=s",
@@ -323,6 +327,10 @@ if (defined $opt_record_references)
       { $flags{"only_records"}= 1; }
     if ($opt_list)
       { $flags{"list"}= 1; };
+    if ($opt_llist)
+      { $flags{"llist"}= 1; };
+    if ($opt_restrict)
+      { $flags{"restrict"}= 1; };
     if ($opt_dot)
       { $flags{"dot"}= 1; };
     if ($opt_extended)
@@ -564,18 +572,27 @@ sub list_record_references
     my $post_filter;
 
     my $r_dbhash= $r_ext_db->{dbhash};
+    # note: analyse_db adds keys for records it found in the dependencies,
+    # these have no field information but just link information:
     analyse_db::add_link_info($r_dbhash);
     if ($record_name !~ /^(all|\/\/)$/i)
-      { if ($record_name=~/^([^,]+),(.+)$/)
-          { # form: record-name, regexp
+      { 
+        if ($record_name=~/^([^,]+),(.*)$/)
+          { # form: regexp1,regexp2
             $record_name= $1;
             $post_filter= $2;
+            if ($post_filter =~ /^\s*$/) # empty
+              { $post_filter= undef; }
           }
         create_regexp_func("ref_name_filter",$record_name);
         if (defined $post_filter)
           { create_regexp_func("post_name_filter",$post_filter); }
         foreach my $rec (sort keys %$r_dbhash)
           {
+            # records without a "FIELDS" key were added by analyse_db, ignore
+            # them:
+            if (!exists $r_dbhash->{$rec}->{FIELDS})
+              { next; }
             if (ref_name_filter($rec))
               {
                 push @reclist,$rec;
@@ -600,13 +617,60 @@ sub list_record_references
           }
       }
     else
-      { @reclist=(sort keys %$r_dbhash); };
+      {
+        foreach my $r (sort keys %$r_dbhash)
+          {
+            # records without a "FIELDS" key were added by analyse_db, ignore
+            # them:
+            if (exists $r_dbhash->{$r}->{FIELDS})
+              {
+                push @reclist, $r;
+              }
+          }
+      };
 
     #print parse_db::dump($recs->{$reclist[0]}); die;
 
-    if ($r_flags->{"list"})
+    my %reclist_h= map { $_ => 1} @reclist;
+    #warn "RECLIST_H:" . Dumper(\%reclist_h);
+
+    if ($r_flags->{"list"} || $r_flags->{"llist"})
       {
+        my $deps= $r_flags->{"llist"};
+        my %all_recs;
         foreach my $recname (@reclist)
+          { 
+            $all_recs{$recname}= 1;
+            if (!$deps)
+              { next; };
+            my @references   = analyse_db::references_list($r_dbhash,$recname);
+            my @referenced_by= analyse_db::referenced_by_list($r_dbhash,$recname);
+            if ($post_filter)
+              { 
+                @references= grep { post_name_filter($_) } @references;
+                @referenced_by= grep { post_name_filter($_) } @referenced_by;
+              }
+            if ($r_flags->{"restrict"})
+              {
+                @references= grep { exists $reclist_h{$_} } @references;
+                @referenced_by= grep { exists $reclist_h{$_} } @referenced_by;
+              }
+            if (@references)
+              {
+                foreach my $r (@references)
+                  {
+                    $all_recs{$r}= 1;
+                  }
+              }
+            if (@referenced_by)
+              {
+                foreach my $r (@referenced_by)
+                  {
+                    $all_recs{$r}= 1;
+                  }
+              }
+          }
+        foreach my $recname (sort(keys %all_recs))
           {
             print $recname,"\n";
           }
@@ -625,6 +689,11 @@ sub list_record_references
               { 
                 @references= grep { post_name_filter($_) } @references;
                 #@referenced_by= grep { post_name_filter($_) } @referenced_by;
+              }
+            if ($r_flags->{"restrict"})
+              {
+                @references= grep { exists $reclist_h{$_} } @references;
+                #@referenced_by= grep { exists $reclist_h{$_} } @referenced_by;
               }
             foreach my $r (@references)
               { 
@@ -659,14 +728,14 @@ sub list_record_references
                 @references= grep { post_name_filter($_) } @references;
                 @referenced_by= grep { post_name_filter($_) } @referenced_by;
               }
+            if ($r_flags->{"restrict"})
+              {
+                @references= grep { exists $reclist_h{$_} } @references;
+                @referenced_by= grep { exists $reclist_h{$_} } @referenced_by;
+              }
 
             if ((!@references) && (!@referenced_by) && (!$r_flags->{"extended"}))
               { next; };
-
-            #if (defined $post_filter)
-            #  { @references   = grep { post_name_filter($_) } @references;
-            #    @referenced_by= grep { post_name_filter($_) } @referenced_by;
-            #  };
 
             if ($r_flags->{"extended"})
               {
@@ -1417,7 +1486,9 @@ sub create_regexp_func
 
     if ($regexp=~ s/^!//)
     # leading '!' is an inverted regular expression
-      { $invert= 1; }
+      {
+        $invert= 1; 
+      }
 
     if ($regexp !~ /\//)
       { $regexp= "/$regexp/"; };
@@ -1436,6 +1507,7 @@ sub create_regexp_func
         else
           { $str= "sub $funcname " .
                   " { return( scalar (\$_[0]!~$regexp) ); }";
+            warn "EVAL:\n$str\n";
             eval( $str );
           };
       };
@@ -1551,14 +1623,20 @@ Syntax:
       Effects of [regexp2]:
 
       If given, all dependencies must match this regular expression.
-      Dependencies that to not match are not shown. With option "--rec" (see
-      below) records that do not match are not followed. Note that this may be
-      an inverse regular expression (see "regular expressions:" further above). 
+      Dependencies that to not match are not shown. 
+      With option "--rec" (see below) records that do not match are not
+      followed. Note that this may be an inverse regular expression (see
+      "regular expressions:" further above). 
 
       Effects of other options:
 
       -r  : additionally show all records in db-file format
       -l  : just list the record names
+      --ll: list record names and dependent record names
+      --restrict :
+            show only dependencies that are also present in the list of
+            records. The restricts the shown dependencies if a regexp (see
+            above) or option --name-file is given.
       --db: only show records in db-file format, do not show dependency
             details.
       --dot :
@@ -1569,6 +1647,17 @@ Syntax:
             use a more verbose format for the report
       --rec [distance]: recursively look for connected records up to
             [distance]. A direct connection has distance 1. 
+
+      recipe to explore connections to a record, start with 
+        echo RECORDNAME > recs
+        # loop
+        dbfilter -e DBFILE -R ALL --name-file recs --ll | \\
+            grep -v EXPRESSION | tee recs.tmp
+        # evaluate the results, adapt EXPRESSION
+        # if results are good, copy:
+        cp recs.tmp recs
+        # go to "loop"
+     
 
     --recursive --rec [distance]
       this option can be used together with --record-references.
