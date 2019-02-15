@@ -695,6 +695,8 @@ sub list_record_references
                 @references= grep { exists $reclist_h{$_} } @references;
                 #@referenced_by= grep { exists $reclist_h{$_} } @referenced_by;
               }
+            # ensure that the record is in the plot even if it has no connection:
+            $links{"\"$recname\""}= 1;
             foreach my $r (@references)
               { 
                 my $label= $r_references_hash->{$r};
@@ -734,9 +736,6 @@ sub list_record_references
                 @referenced_by= grep { exists $reclist_h{$_} } @referenced_by;
               }
 
-            if ((!@references) && (!@referenced_by) && (!$r_flags->{"extended"}))
-              { next; };
-
             if ($r_flags->{"extended"})
               {
                 printf("Name: %s\n",$recname);
@@ -760,7 +759,7 @@ sub list_record_references
                       }
                   }
               }
-              else
+            else
               {
                 print $recname;
                 # print "distance" to source records:
