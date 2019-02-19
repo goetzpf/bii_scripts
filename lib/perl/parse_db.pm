@@ -228,6 +228,7 @@ sub parse
     if ($db=~/^\s*$/)
       { _simple_parse_error(__LINE__,$filename,"\"\" cannot be parsed"); }
 
+    my $len= length($db);
     for(;;)
       {
         if ($level==0)
@@ -236,6 +237,8 @@ sub parse
             $db=~/\G$space_or_comment/ogscx;
 
             last if ($db=~/\G[\s\r\n]*$/gsc);
+            last if (pos($db)>=$len); 
+            # ^ needed for files without EOL at the end
 
             if ($db=~ /$template_def/ogscx)
               {
