@@ -1506,7 +1506,6 @@ sub create_regexp_func
         else
           { $str= "sub $funcname " .
                   " { return( scalar (\$_[0]!~$regexp) ); }";
-            warn "EVAL:\n$str\n";
             eval( $str );
           };
       };
