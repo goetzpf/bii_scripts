@@ -35,7 +35,7 @@ except ImportError:
 
 #import ptimezone
 
-def caget(pv,type_=float, tmo=0.01, maxtmo=3):
+def caget(pv,type_=float, tmo=0.1, maxtmo=5):
     """reads a single value with timestamp.
 
     parameters:
@@ -166,26 +166,22 @@ def boot_time_from_vxstats(pv_prefix):
     (_, timestamp)= caget(pv_prefix+":cpuScanPeriod",float)
     return timestamp
 
-idcp_prefix_map= { "idcp3"  : "U125ID2R",
-                   "idcp5"  : "UE56ID3R",
-                   "idcp6"  : "U41IT3R",
-                   "idcp7"  : "U49ID4R",
-                   "idcp8"  : "UE49IT4R",
-                   "idcp9"  : "UE52ID5R",
-                   "idcp10" : "UE46IT5R",
-                   "idcp11" : "UE56ID6R",
-                   "idcp110": "U139ID6R",
-                   "idcp12" : "UE48IT6R",
-                   "idcp13" : "UE112ID7R",
-                   "idcp15" : "U49ID8R",
-                   "idcp80" : "U48IV",
-                   "idcp81" : "UE56IV",
-                   "idcp96" : "U125IV",
-                   "idcp90" : "U125IL2RP",
-                   "idcp98" : "U2IV",
-                   "idcp97" : "U3IV",
-                   "idcp95" : "U4IV",
-                   "idcp99" : "U1IV",
+idcp_prefix_map= { 
+                   "idcp90"  : "U125IL2RP",
+                   "idcp3"   : "U125ID2R",
+                   "idcp5"   : "UE56ID3R",
+                   "idcp6"   : "U41IT3R",
+                   "idcp7"   : "U49ID4R",
+                   "idcp8"   : "UE49IT4R",
+                   "idcp9"   : "UE52ID5R",
+                   "idcp10"  : "UE46IT5R",
+                   "idcp11"  : "UE56ID6R",
+                   "idcp110" : "U139ID6R",
+                   "idcp12"  : "UE48IT6R",
+                   "idcp120" : "U17IT6R",
+                   "idcp13"  : "UE112ID7R",
+                   "idcp15"  : "U49ID8R",
+                   "idcp99"  : "U1IV",
                  }
 
 def idcp_prefix(name):
