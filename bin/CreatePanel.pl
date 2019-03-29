@@ -236,7 +236,7 @@
     	$r_substData = parse_db::parse($file,$inFileName,'asArray');
     }
     else {
-    	$r_substData = parse_subst::parse($file,'templateList');
+    	$r_substData = parse_subst::parse($file,'templateList',$inFileName);
     }
 #print "inFileName '$inFileName', fileType '$fileType', ",Dumper($r_substData),"\nSubstitutions '$substPar'):";#print Dumper($rH_subst);die;
 
