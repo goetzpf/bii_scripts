@@ -1215,13 +1215,14 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName)
     if len(devObj.signal)>0:
         devName = devName+":"+devObj.signal
     panelNameDict={'DEVN':devName}
-
     outLink = ""
     if( devObj.disableRec ):
         outLink = devObj.disableRec+" PP NMS"
 
     fields = epicsUtils.parseParam(devObj.prec)
-    epicsUtils.epicsTemplate('bi',{'DEVN':devName},{'SNAME':"stHeartBeat",
+    
+    devObj.rtype = "bi"
+    heartBeat = {'SNAME':"stHeartBeat",
     'DESC':"CPU-Heartbeat",
     'SCAN':"I/O Intr",
     'PINI':"YES",
@@ -1229,7 +1230,10 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName)
     'INP':"@"+devObj.port,
     'ZNAM':"Heart",
     'ONAM':"Beat",
-    'FLNK':devName+":fwdHeartBeat"},devObj.dbFileName)
+    'FLNK':devName+":fwdHeartBeat"}
+    heartBeat.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
+    epicsUtils.epicsTemplate('bi',{'DEVN':devName},heartBeat,devObj.dbFileName)
+
     epicsUtils.epicsTemplate('bo',{'DEVN':devName},{'SNAME':"fwdHeartBeat",
     'DOL':devName+":stHeartBeat",
     'OUT':devName+":intWdgCounter PP",
