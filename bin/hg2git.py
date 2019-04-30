@@ -57,6 +57,14 @@ def _system(cmd, catch_stdout, verbose, dry_run):
         raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
     return(child_stdout)
 
+def rename(old, new, verbose, dry_run):
+    """rename a file."""
+    if dry_run or verbose:
+        print "> rename %s to %s" % (old, new)
+    if dry_run:
+        return
+    os.rename(old, new)
+
 # -----------------------------------------------
 # mercurial commands
 # -----------------------------------------------
@@ -137,10 +145,14 @@ def git_replay(author, log,actions,verbose,dry_run):
         action= item[0]
         if action=="rename":
             (old,new)= item[1:3]
+            # mercurial already has renamed the file, undo the rename:
+            rename(new, old, verbose, dry_run) 
             git_cmd("mv %s %s" % (old,new),False,verbose,dry_run)
         elif action=="added":
             git_cmd("add %s" % item[1],False,verbose,dry_run)
         elif action=="removed":
+            # recreate the file so git can remove it:
+            git_cmd("checkout -- %s" % item[1],False,verbose,dry_run)
             git_cmd("rm %s" % item[1],False,verbose,dry_run)
         elif action=="modified":
             git_cmd("add %s" % item[1],False,verbose,dry_run)
