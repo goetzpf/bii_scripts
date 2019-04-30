@@ -488,7 +488,7 @@ DOCTXT_TXT_LIST= USE_PERL.txt
 
 # files in the doc/txt directory that can be HTML converted
 # with rst2html
-RST_TXT_LIST= CONTENTS.rst
+RST_TXT_LIST= index.rst CONTENTS.rst
 
 CGI_LIST= lib/perl/BDNS.pm bin/devname
 
