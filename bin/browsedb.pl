@@ -99,8 +99,8 @@ $global_data{about} =
         "updated and improved by Victoria Laux",
         "HZB GmbH, Berlin, Adlershof",
         "Comments/Suggestions, please mail to:",
-        "pfeiffer\@mail.bessy.de",
-        "laux\@mail.bessy.de" ];
+        "Goetz.Pfeiffer\@helmholtz-berlin.de",
+        "Victoria.Laux\@helmholtz-berlin.de" ];
 
 #$global_data{debug} = 1;
 

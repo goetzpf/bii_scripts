@@ -27,7 +27,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 # converts capfast (*.sch) files to epics database (*.db) format.
 # 
 # author:                 Goetz Pfeiffer
-# mail:                   pfeiffer@mail.bessy.de
+# mail:                   Goetz.Pfeiffer@helmholtz-berlin.de
 # last modification date: 2002-06-13
 
 # ---------------------------------------------------------------------

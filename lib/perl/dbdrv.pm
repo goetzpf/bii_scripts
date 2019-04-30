@@ -1063,7 +1063,7 @@ logged in as database administrator (Oracle 8.0.5)
 
 =head1 AUTHOR
 
-Goetz Pfeiffer,  pfeiffer@mail.bessy.de
+Goetz Pfeiffer,  Goetz.Pfeiffer@helmholtz-berlin.de
 
 =head1 SEE ALSO
 
