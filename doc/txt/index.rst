@@ -28,7 +28,7 @@ You can download our primary darcs repository::
 
 and browse it at
 
-  `<https://www-csr.bessy.de/cgi-bin/darcsweb.cgi?r=bii-scripts;a=summary>`_
+  `<https://www-csr.bessy.de/cgi-bin/darcsweb.cgi?r=bii_scripts;a=summary>`_
 
 We also maintain a mercurial repository that is created by converting the darcs
 repository. You can browse it here:
