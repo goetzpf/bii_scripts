@@ -10,7 +10,7 @@ Documentation
 
 You find documentation of the scripts here:
 
-`documentation <CONTENTS.html>`_
+  `documentation <CONTENTS.html>`_
 
 Distribution
 ------------
@@ -26,16 +26,19 @@ You can download our primary darcs repository::
 
   darcs get http://www-csr.bessy.de/control/bii_scripts/repo/bii_scripts
 
+and browse it at
+
+  `<https://www-csr.bessy.de/cgi-bin/darcsweb.cgi?r=bii-scripts;a=summary>`_
+
 We also maintain a mercurial repository that is created by converting the darcs
 repository. You can browse it here:
 
-`bii_scripts repository <http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts>`_.
+  `<http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts>`_.
 
 or clone it::
- 
+
   hg clone http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts
 
 Our development takes place in the darcs repository, so if you want to have
 your changes commited in our repositories, it may be easier if you use darcs.
 But we can also convert mercurial bundles back to darcs.
-
