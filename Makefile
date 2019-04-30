@@ -488,7 +488,7 @@ DOCTXT_TXT_LIST= USE_PERL.txt
 
 # files in the doc/txt directory that can be HTML converted
 # with rst2html
-RST_TXT_LIST= CONTENTS.txt
+RST_TXT_LIST= CONTENTS.rst
 
 CGI_LIST= lib/perl/BDNS.pm bin/devname
 
@@ -897,7 +897,7 @@ build_html_txt_doc: $(HTML_BUILD_DIR) $(_HTML_DOCTXT_TXT_BUILD_LIST) $(_HTML_RST
 $(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt
 	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
 
-$(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt
+$(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.rst
 ifeq (1,$(DOCUTILS_AVAILABLE))
 	rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) --cloak-email-addresses $< $@
 else
