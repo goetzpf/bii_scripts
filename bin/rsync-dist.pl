@@ -947,7 +947,7 @@ sub dist
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n";
+        print "\nHost:$remote_host:\n" if ($opt_dry_run);
 
          my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, 
                             $rcmd, 1);
@@ -1070,7 +1070,7 @@ sub move_file
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n"; 
+        print "\nHost:$remote_host:\n" if ($opt_dry_run);
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1293,7 +1293,7 @@ sub change_link
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n";
+        print "\nHost:$remote_host:\n" if ($opt_dry_run);
         my($rc,$r_lines)= myssh_cmd(
           $remote_host, $remote_user, $remote_path, $rcmd, 1, 1);
         print maybe_filter_output($r_lines);
@@ -1481,7 +1481,7 @@ sub internal_server_lock
     my @locked;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user, $remote_mpath)= @$r;
-        print "\nHost:$remote_host:\n";
+        print "\nHost:$remote_host:\n" if ($opt_dry_run);
 
         if ($recursion)
           { warn "trying to $action lock on $remote_host...\n"; };
@@ -1541,7 +1541,7 @@ sub rebuild_last
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n";
+        print "\nHost:$remote_host:\n" if ($opt_dry_run);
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
@@ -1591,7 +1591,7 @@ sub create_branch
     my $all_rc=1;
     foreach my $r (@$r_hosts_users)
       { my($remote_host, $remote_user)= @$r;
-        print "\nHost:$remote_host:\n";
+        print "\nHost:$remote_host:\n" if ($opt_dry_run);
         my($rc)= myssh_cmd($remote_host, $remote_user, $remote_path, $rcmd);
         $all_rc&= $rc;
         if (!$rc)
