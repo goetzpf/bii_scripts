@@ -295,20 +295,18 @@ import sys
 import os
 import re
 
-# On host "elbe", there is a python module "ca" installed at
+# On host "elbe" and "stretch", there is a python module "ca" installed at
 # "/opt/Epics/extensions/python/lib/python2.7". This module however, is
 # incompatible with this script. We have to take "ca.py" from
 # "/opt/csr/lib/python". A proper solution would be to set PYTHONPATH correctly
 # (with "/opt/csr/lib/python" first), which would have to be configured in
 # "/opt/csr/setup.d/setup.sh". However, it is unclear if this would break some
-# other scripts. So for now we change the module search path in this script,
-# but only when it runs on host "elbe":
+# other scripts. So for now we change the module search path in this script:
 
 import platform
-if platform.node()=="elbe":
-    sys.path=[x for x in sys.path \
-              if not \
-              x.startswith("/opt/Epics/extensions/python/lib/python2.7")]
+sys.path=[x for x in sys.path \
+          if not \
+          x.startswith("/opt/Epics/extensions/python/lib/python2.7")]
 
 # pylint: disable=unused-import
 try:
