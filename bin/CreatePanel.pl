@@ -44,7 +44,7 @@
 #      -I searchPath                    Search paht(s) for panel widgets
 #      -i                               Add ., .., $EPICS_DISPLAY_PATH','$EDMDATAFILES' 
 #      	    	    	    	        variable to search path(s) for panel widgets
-#      -M                               Create make dependencies
+#      -M                               Create make dependencies. Call CreatePanel.pl ... -M <INFILE> <OUTFILE>.d
 #      -border				extra space to the panel border left,right,bottom in pixel (layout grid only)
 #      -layout line|xy|grid|table|column|rawline placement of the widgets, (default = by line) 
 #      -type adl|edl                    Create edl or mfp file (default is edl)
@@ -293,8 +293,8 @@
     if( $opt_M == 1)
     {
         my $target = $outFileName;
-        $target =~ s/.depends$//;
-	print FILE "$target: ",join(' ',keys(%dependencies)),"\n";
+        $target =~ s/\.d.*$//;
+	    print FILE "$target: ",join(' ',keys(%dependencies)),"\n";
     }
     elsif($type eq 'adl')
     {
