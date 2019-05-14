@@ -1051,7 +1051,7 @@ def getWagoLink(devObj):
             #Linear conversion from real raw values 16bit hex to EGUL,EGUF defined in Column H. Col.I means just HOPR/LOPR
             raw = epicsUtils.matchRe(devObj.rangeRaw,"\s*(.*)\s*\-\s*(.*)\s*") 
             if raw is None:
-                raise ValueError("Col.H Raw Value not defined")
+                raise ValueError("Col.H Raw Value not defined (means LINR value range here)")
             fields.update({'LINR': "LINEAR",
                     'EGUL': raw[0].strip(),
                     'EGUF': raw[1].strip(),
