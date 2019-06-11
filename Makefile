@@ -303,7 +303,7 @@ PYTHONLIB_DIRLIST:=$(filter-out CVS,\
 		  $(call find_subdirs,$(PYTHONLIB_SRC_DIR),1))
 
 # scripts with embedded POD documentation
-POD_SCRIPT_LIST=rsync-dist.pl multi-commit.pl bdns_lookup.pl
+POD_SCRIPT_LIST=multi-commit.pl bdns_lookup.pl
 
 # scripts with no embedded documentation
 # create online help by executing "(script 2>&1; true)
@@ -405,19 +405,15 @@ POD_PERLLIB_LIST= \
 	canlink.pm \
 	capfast_defaults.pm \
 	cfgfile.pm \
-	container.pm \
 	CreateX.pm \
 	dbdrv.pm \
 	dbitable.pm \
 	expander.pm \
-	extended_glob.pm \
-	maillike.pm \
 	ODB.pm \
 	Options.pm \
 	parse_db.pm \
 	parse_subst.pm \
-	scan_makefile.pm \
-	simpleconf.pm
+	scan_makefile.pm 
 
 # python libraries with embedded pydoc documentation
 PYDOC_PYTHONLIB_LIST= \

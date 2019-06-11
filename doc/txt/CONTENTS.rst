@@ -451,18 +451,6 @@ Scripts
   | Here is the documentation and the source of the script itself:
   | `documentation <scripts/rsync-dist-info.html>`__
 
-**rsync-dist.pl**
-  | manages binary distributions to remote servers. No old version is ever lost.
-    Uses hard-links to save storage space. Manages also symbolic links that
-    point to the distribution directories on the server.
-  | The script needs the following perl modules:
-  | `simpleconf.pm`_ 
-  | `container.pm`_ 
-  | `maillike.pm`_ 
-  | `extended_glob.pm`_ 
-  | Here is the documentation and the source of the script itself:
-  | `documentation <scripts/rsync-dist.html>`__
-
 **Sch2db.pl**
   | a perl sch to db converter. Converts capfast(\*.sch) files to the db file
     format as it is used in EPICS. This is faster and more flexible that the
@@ -602,17 +590,6 @@ Perl Libraries
     unfinished and in alpha-release state. 
   | `documentation <modules/cfgfile.html>`__
 
-.. _container.pm:
-
-**container.pm**
-  | This provides routines to import and export perl variables into 
-    a single hash. A map-hash defines what hash-key is connected
-    to what variable. Importing and exporting is performed by
-    copying scalars, arrays and hashes. This is not a simple copy
-    of references. Note that deeply nested structures are
-    deeply copied.  
-  | `documentation <modules/container.html>`__
-
 **CreateX.pm**
   | Routines that help to write CreateX.pl scripts. Not quite sure
     what this does. Connects to the oracle database.
@@ -647,21 +624,6 @@ Perl Libraries
     if-statements, complex expressions and for-loops among others
   | `documentation <modules/expander.html>`__
 
-.. _extended_glob.pm:
-
-**extended_glob.pm**
-  | a Perl module for extended filename globbing.
-  | `documentation <modules/extended_glob.html>`__
-
-.. _maillike.pm:
-
-**maillike.pm**
-  | This module is used to parse and create data files in a 
-    format similar to mail (RFC822). The data is organized in
-    records, each record has a number of fields and to each 
-    field of a record an certain content is associated.
-  | `documentation <modules/maillike.html>`__
-
 **makeDocStyle.pm**
   | module for the makeDoc* scripts.
 
@@ -694,16 +656,6 @@ Perl Libraries
     a hash reference containing all variables that are set within
     the makefile together with all environment variables.
   | `documentation <modules/scan_makefile.html>`__
-
-.. _simpleconf.pm:
-
-**simpleconf.pm**
-  | This module is used to parse and create configuration files
-    in a very simple format. The data is typically organized in
-    lines where each line contains a field-name and the contents
-    of the field. Empty lines and lines starting with a "#" character
-    (which are usually a comment) are ignored.
-  | `documentation <modules/simpleconf.html>`__
 
 **tokParse.pm**
   | token parser utilities (for makeDocTxt).
