@@ -441,6 +441,14 @@ Scripts
   | tool for management for distribution of binary files with. The successor of
     this script is rsync-dist.pl.
 
+**rsync-dist.pl**
+  | A Perl script for managing distributions of binary files. 
+  | This script can be used to copy files (usually binary distributions of
+    programs) to a remote server while preserving all the old versions of
+    these distributions. It can also create and change symbolic links that
+    point to certain distributions.
+  | `homepage <https://bitbucket.org/goetzpf/rsync-dist/src/default>`__
+
 **rsync-dist-info.py**
   | this program prints summaries and statistics of rsync-dist link-log files.
   | The script needs the following perl modules:

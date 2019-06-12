@@ -258,6 +258,10 @@ SHARE_SRC_DIR=share
 # the standard css file:
 CSS_SRC_FILE=docStyle.css
 
+# pure html files located in doc/html are installed, too. These files are
+# simply copied:
+HTML_FILE_LIST=$(filter-out index.html,$(call find_files,$(DOC_HTML_SRC_DIR),*.html,10))
+
 # directories below $(SHARE_SRC_DIR) that have to be installed in
 # the share-directory,
 # search all directories below $(SHARE_SRC_DIR), depth 1, omit "CVS"
@@ -614,6 +618,15 @@ _HTML_ALL_PYTHONLIB_INSTALL_LIST= \
   $(addprefix $(PYTHONLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PYTHONLIB_LIST)))
 endif
 
+# extra html files
+_HTML_EXTRA_BUILD_LIST=$(addprefix $(HTML_BUILD_DIR)/,$(HTML_FILE_LIST))
+
+ifneq "$(USE_RSYNC)" "yes"
+# all extra html files that are installed
+_HTML_ALL_EXTRA_INSTALL_LIST= \
+  $(addprefix $(HTML_INSTALL_DIR)/,$(HTML_FILE_LIST))
+endif
+
 # list of all (generated) html files belonging to scripts with POD documentation
 _HTML_POD_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(POD_SCRIPT_LIST)))
@@ -677,7 +690,9 @@ endif
 
 #############################################################
 
-.PHONY:	default all install install_html_txt install_shared install_scripts \
+.PHONY:	default all install install_html_txt install_shared \
+	install_html_extra \
+	install_scripts \
 	install_perl_libs \
 	install_python_libs install_html install_html_script \
 	install_html_perllib install_html_pythonlib \
@@ -696,7 +711,7 @@ all: build
 
 # install....................................................
 
-install: install_html_txt install_shared install_scripts \
+install: install_html_extra install_html_txt install_shared install_scripts \
 	 install_perl_libs install_python_libs install_html
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
@@ -756,6 +771,11 @@ $(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/%
 install_css: $(HTML_INSTALL_DIR)/$(CSS_SRC_FILE)
 
 $(HTML_INSTALL_DIR)/docStyle.css: $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
+	$(INSTALL) $< $@
+
+install_html_extra: build_html_extra $(HTML_INSTALL_DIR) $(SCRIPT_HTML_INSTALL_DIR) $(_HTML_ALL_EXTRA_INSTALL_LIST)
+
+$(_HTML_ALL_EXTRA_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/%
 	$(INSTALL) $< $@
 
 install_html_script: build_html_script $(SCRIPT_HTML_INSTALL_DIR) $(_HTML_ALL_SCRIPT_INSTALL_LIST)
@@ -903,11 +923,17 @@ else
 endif
 
 # ...........................................................
-# build documentation for perl scripts
+# build documentation for scripts
 build_html_script: \
+	build_html_extra \
 	build_html_script_pods build_html_script_plaintxt \
 	build_html_script_rst \
 	build_html_script_doctxt
+
+build_html_extra: $(HTML_BUILD_DIR) $(SCRIPT_HTML_BUILD_DIR) $(_HTML_EXTRA_BUILD_LIST)
+
+$(_HTML_EXTRA_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_HTML_SRC_DIR)/%.html
+	cp $< $@
 
 build_html_script_pods: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_POD_SCRIPT_BUILD_LIST)
 
