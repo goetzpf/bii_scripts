@@ -197,6 +197,28 @@ def list_files(area, use_ssh, verbose, dry_run):
         (ssh, dir_)= ssh_opt.split(":")
         syscall(["ssh", ssh, "cd %s && ls *.log" % dir_], verbose, dry_run)
 
+def list_all_files(area, use_ssh, verbose, dry_run):
+    """show avaliable files."""
+    ssh_opt= None
+    if use_ssh:
+        ssh_opt= areas[area].get("ssh")
+        if not ssh_opt:
+            sys.stderr.write(("note: ssh not available for %s, using "
+                              "wget instead") % area)
+
+    if not ssh_opt:
+        # pylint: disable=line-too-long
+        syscall(["bash", "-c",
+                 (r"wget %s -O - --quiet | "
+                  r"sed -e 's/<[^>]*>/ /g;s/^ *\([^ ]\+\) \+\([^ ]\+\) \+\([^ ]\+\).*/\1 \2 \3/g' | "
+                  r"grep : |"
+                  r"column -t" ) % \
+                  (CONSERVER_URL + areas[area]["directory"])],
+                verbose, dry_run)
+    else:
+        (ssh, dir_)= ssh_opt.split(":")
+        syscall(["ssh", ssh, "cd %s && ls -l --time-style=long-iso" % dir_], verbose, dry_run)
+
 
 def process(options, args):
     """do all the work."""
@@ -208,7 +230,11 @@ def process(options, args):
         sys.exit("error: unknown area %s. Run '%s -h' for help" % \
                  (repr(area),script_shortname()))
     if options.list:
-        list_files(area, options.ssh, options.verbose, options.dry_run)
+        list_files(area, options.ssh,
+                   options.verbose, options.dry_run)
+    elif options.list_all:
+        list_all_files(area, options.ssh,
+                       options.verbose, options.dry_run)
     else:
         get_log_files(area, args[1:], options.ssh, options.force,
                       options.verbose, options.dry_run, options.restrict)
@@ -262,9 +288,15 @@ def main():
                       help="Just list available files. PATTERN is "
                            "ignored in this case."
                      )
+    parser.add_option("--list-all",
+                      action="store_true",
+                      help="List all log files with date. PATTERN is "
+                           "ignored in this case. With --ssh this also "
+                           "displays the file sizes."
+                     )
     parser.add_option("--ssh",
                       action="store_true",
-                      help="Directly copy files with ssh. Not available "
+                      help="Use ssh instead of http. Not available "
                            "for all areas.",
                      )
     parser.add_option("--force",
