@@ -15,7 +15,7 @@ import re
 
 from optparse import OptionParser
 # version of the program:
-my_version= "1.0"
+my_version= "1.1"
 
 CONSERVER_URL= "http://conserver.acc.bessy.de/conserver/"
 
