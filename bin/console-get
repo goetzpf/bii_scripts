@@ -178,7 +178,11 @@ def get_log_files(area, pattern, use_ssh, opt_force, verbose, dry_run, restrict)
     move_files(tempdir.name, opt_force, verbose)
     tempdir.cleanup()
 
-def list_files(area, use_ssh, verbose, dry_run):
+def glob2rx(st):
+    """convert glob pattern to regexp pattern."""
+    return st.replace(".",r"\.").replace("*",".*")
+
+def list_files(area, pattern, use_ssh, verbose, dry_run):
     """show avaliable files."""
     ssh_opt= None
     if use_ssh:
@@ -187,17 +191,25 @@ def list_files(area, use_ssh, verbose, dry_run):
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
     if not ssh_opt:
+        if not pattern:
+            mask= r"\.log "
+        else:
+            mask= glob2rx(pattern) + r"\.log "
         syscall(["bash", "-c",
                  (r"wget %s -O - --quiet | sed -e 's/<[^>]*>/ /g' | "
-                  r"grep '\.log ' | "
+                  r"grep '%s' | "
                   r"sed -e 's/^ *\([^ ]\+\).*/\1/' | sort") % \
-                  (CONSERVER_URL + areas[area]["directory"])],
+                  (CONSERVER_URL + areas[area]["directory"], mask)],
                 verbose, dry_run)
     else:
+        if not pattern:
+            mask= "*.log"
+        else:
+            mask= pattern+".log"
         (ssh, dir_)= ssh_opt.split(":")
-        syscall(["ssh", ssh, "cd %s && ls *.log" % dir_], verbose, dry_run)
+        syscall(["ssh", ssh, "cd %s && ls %s" % (dir_, mask)], verbose, dry_run)
 
-def list_all_files(area, use_ssh, verbose, dry_run):
+def list_all_files(area, pattern, use_ssh, verbose, dry_run):
     """show avaliable files."""
     ssh_opt= None
     if use_ssh:
@@ -207,17 +219,26 @@ def list_all_files(area, use_ssh, verbose, dry_run):
                               "wget instead") % area)
 
     if not ssh_opt:
+        if not pattern:
+            extra= ""
+        else:
+            extra= "grep "+glob2rx(pattern)+" |"
         # pylint: disable=line-too-long
         syscall(["bash", "-c",
                  (r"wget %s -O - --quiet | "
                   r"sed -e 's/<[^>]*>/ /g;s/^ *\([^ ]\+\) \+\([^ ]\+\) \+\([^ ]\+\).*/\1 \2 \3/g' | "
-                  r"grep : |"
+                  r"grep : | %s"
                   r"column -t" ) % \
-                  (CONSERVER_URL + areas[area]["directory"])],
+                  (CONSERVER_URL + areas[area]["directory"], extra)],
                 verbose, dry_run)
     else:
+        if not pattern:
+            mask= ""
+        else:
+            mask= pattern
         (ssh, dir_)= ssh_opt.split(":")
-        syscall(["ssh", ssh, "cd %s && ls -l --time-style=long-iso" % dir_], verbose, dry_run)
+        syscall(["ssh", ssh, "cd %s && ls -l --time-style=long-iso %s" % \
+                             (dir_, mask)], verbose, dry_run)
 
 
 def process(options, args):
@@ -226,22 +247,22 @@ def process(options, args):
         sys.exit("error: area not specified. Run '%s -h' for help" % \
                  script_shortname())
     area= args[0].strip()
+    pattern= None
+    if len(args)>1:
+        pattern= args[1]
     if area not in areas:
         sys.exit("error: unknown area %s. Run '%s -h' for help" % \
                  (repr(area),script_shortname()))
     if options.list:
-        list_files(area, options.ssh,
+        list_files(area, pattern, options.ssh,
                    options.verbose, options.dry_run)
     elif options.list_all:
-        list_all_files(area, options.ssh,
+        list_all_files(area, pattern, options.ssh,
                        options.verbose, options.dry_run)
     else:
         if len(args)>2:
             sys.stderr.write("warning: extra arguments ignored: %s" % \
                              repr(args[2:]))
-        pattern= None
-        if len(args)>1:
-            pattern= args[1]
         get_log_files(area, pattern, options.ssh, options.force,
                       options.verbose, options.dry_run, options.restrict)
 
@@ -271,7 +292,7 @@ examples:
             -> get log files for eis13g
     %s id eis11*
             -> get log files whose names begin with "eis11"
-""" % tuple([area_descriptions(4)]+[script_shortname()]*3)
+""" % tuple([area_descriptions(4)]+[script_shortname()]*2)
 
 def main():
     """The main function.
@@ -289,14 +310,14 @@ def main():
                      )
     parser.add_option("--list",
                       action="store_true",
-                      help="Just list available files. PATTERN is "
-                           "ignored in this case."
+                      help="Just list available files. You can narrow the "
+                           "output by providing a PATTERN."
                      )
     parser.add_option("--list-all",
                       action="store_true",
-                      help="List all log files with date. PATTERN is "
-                           "ignored in this case. With --ssh this also "
-                           "displays the file sizes."
+                      help="List all log files with date. You can narrow "
+                           "the output by providing a PATTERN. With --ssh "
+                           "this also displays the file sizes."
                      )
     parser.add_option("--ssh",
                       action="store_true",
