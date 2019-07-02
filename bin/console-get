@@ -152,16 +152,16 @@ def move_files(tempdir_name, opt_force, verbose):
         sys.exit("no logfiles found, maybe the AREA is wrong "
                  "or the file doesn't exist")
 
-def get_log_files(area, patterns, use_ssh, opt_force, verbose, dry_run, restrict):
+def get_log_files(area, pattern, use_ssh, opt_force, verbose, dry_run, restrict):
     """get all the log files."""
     # pylint: disable=too-many-arguments
-    if not patterns:
+    if not pattern:
         files="*"
     elif restrict is None:
-        files= [f.strip()+".log*" for f in patterns]
+        files= pattern.strip()+".log"
     else:
         extensions= [".log"] + [(".log.%d.gz" % i) for i in range(1,restrict)]
-        files= [f.strip()+e for f in patterns for e in extensions]
+        files= [pattern.strip() + e for e in extensions]
     tempdir= tempfile.TemporaryDirectory(prefix="console-get-")
     old_dir= os.getcwd()
     if verbose:
@@ -236,7 +236,13 @@ def process(options, args):
         list_all_files(area, options.ssh,
                        options.verbose, options.dry_run)
     else:
-        get_log_files(area, args[1:], options.ssh, options.force,
+        if len(args)>2:
+            sys.stderr.write("warning: extra arguments ignored: %s" % \
+                             repr(args[2:]))
+        pattern= None
+        if len(args)>1:
+            pattern= args[1]
+        get_log_files(area, pattern, options.ssh, options.force,
                       options.verbose, options.dry_run, options.restrict)
 
 def script_shortname():
@@ -248,25 +254,23 @@ def print_summary():
     print("%-20s: get english pronounciation info\n" % \
             script_shortname())
 
-usage = """usage: %%prog [OPTIONS] AREA {PATTERN}
+usage = """usage: %%prog [OPTIONS] AREA [PATTERN]
 downloads and concatenates console log files"
 
 AREA is a mandatory parameter. For each area
     there is a specific directory on the console server.
     These are the known areas:
 %s
-{PATTERN} is an optional parameter. If it is is given,
+[PATTERN] is an optional parameter. If it is is given,
     only files starting with that name are processed.
     It may be a simple string or a file-glob expression.
-    If {PATTERN} is omitted, all log files are processed.
+    If [PATTERN] is omitted, all log files are processed.
 
 examples:
     %s id eis13g
             -> get log files for eis13g
     %s id eis11*
             -> get log files whose names begin with "eis11"
-    %s id eis11g* eis8g*
-            -> get log files whose names begin with "eis11g" or "eis8g"
 """ % tuple([area_descriptions(4)]+[script_shortname()]*3)
 
 def main():
