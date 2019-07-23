@@ -230,7 +230,7 @@ class baseData(object):
     @staticmethod
     def getStringVALlen():  return baseData.baseLen[baseData.base]['StringVALlen']
 
-recordSet = {'longin':'INP','longout':'OUT','ai':'INP','ao':'OUT','bi':'INP','bo':'OUT','mbbi':'INP','mbbo':'OUT','sel':None,'calc':None,'seq':None,'calcout':'OUT','mbbiDirect':'INP','mbboDirect':'OUT'}
+recordSet = {'longin':'INP','longout':'OUT','ai':'INP','ao':'OUT','bi':'INP','bo':'OUT','mbbi':'INP','mbbo':'OUT','sel':None,'calc':None,'seq':None,'calcout':'OUT','mbbiDirect':'INP','mbboDirect':'OUT','stringin':'INP','stringout':'OUT'}
 def procInOut(rtyp):
     """ Is it a in or out record type? Return 'INP'|'OUT' for records or 
     templates that begin with a known record name from the list: 
@@ -606,7 +606,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
         fields['SDIS']= sdis
         fields['DESC']= devObj.DESC
         INFO = None
-        
+
         try:
             if len(devObj.reqFlag) > 0:
                 par = epicsUtils.parseParam(devObj.reqFlag)
@@ -625,6 +625,8 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
                 createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
             elif devObj.rtype in ('mbbiDirect','mbboDirect') :
                 fields.update({'NOBT': 16,})
+                epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,INFO)
+            elif devObj.rtype in ('stringin','stringout') :
                 epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,INFO)
             elif devObj.rtype in ('bi','bo'):
                     createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines)
