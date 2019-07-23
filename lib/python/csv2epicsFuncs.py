@@ -188,7 +188,7 @@ class csvData(object):
         except IndexError: self.dbFileName = ""
         
     def __str__(self):
-       return "*** csvData Object:\ndev: '"+self.dev+"'\nrtype: '"+self.rtype+"'\nsignal: '"+self.signal+"'\nport: '"+self.port+"'\nport: '"+self.port+"'\ncanId: '"+self.canId+\
+       return "*** csvData Object:\ndev: '"+self.dev+"'\nrtype: '"+self.rtype+"'\nsignal: '"+self.signal+"'\n: '"+self.port+"'\ncanId: '"+self.canId+\
        "'\ncardNr: '"+self.cardNr+"'\nchan: '"+self.chan+"'\nrangeRaw: '"+self.rangeRaw+"'\nrangeEng: '"+self.rangeEng+"'\negu: '"+self.egu+\
        "'\nrangeAlhVal: '"+self.rangeAlhVal+"'\nrangeAlhSevr: '"+self.rangeAlhSevr+"'\nDESC: '"+self.DESC+"'\nprec: '"+self.prec+\
        "'\narchPeriod: '"+self.archPeriod+"'\nreqFlag: '"+self.reqFlag+"'\nalhGroup: '"+self.alhGroup+"'\nalhFlags: '"+self.alhFlags+\
