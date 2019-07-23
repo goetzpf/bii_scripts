@@ -714,7 +714,7 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
         return getWagoLink(devObj)
 
     else:
-        raise ValueError("Illegal Link")
+        raise ValueError("Illegal Port/Link-Type (Col.D): " + devObj.port.upper())
 
 
 
@@ -1224,10 +1224,6 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName)
     devObj.rtype = "bi"
     heartBeat = {'SNAME':"stHeartBeat",
     'DESC':"CPU-Heartbeat",
-    'SCAN':"I/O Intr",
-    'PINI':"YES",
-    'DTYP':"opc",
-    'INP':"@"+devObj.port,
     'ZNAM':"Heart",
     'ONAM':"Beat",
     'FLNK':devName+":fwdHeartBeat"}
