@@ -1261,7 +1261,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName)
     else:
         epicsUtils.epicsTemplate('bo', {'DEVN':devName}, {'SNAME':"cmdDisa",
         'DESC':"Disable: "+devName,
-        'INP': devName+":intWdgCounter.OVAL NPP NMS",
+        'OUT': devName+":intWdgCounter.OVAL NPP NMS",
         'ZNAM':"enable",
         'ONAM':"disable",
         'OSV':"MAJOR"},devObj.dbFileName)
