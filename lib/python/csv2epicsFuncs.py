@@ -834,13 +834,14 @@ def getOpcuaLink(devObj,devName):
     if linkType is None:
         raise ValueError("No known link type for record/template:'"+rtyp+"'. INP/OUT expected")
 
+    if len(devObj.canId) == 0:
+        link = '@'+devObj.cardNr
+    else:
+        link = '@'+devObj.canId+" "+devObj.cardNr
     # direct access to the opcua item
     if len(devObj.chan) == 0:
-        if len(devObj.canId) == 0:
-            fields[linkType] = '@'+devObj.cardNr
-        else:
-            fields[linkType] = '@'+devObj.canId+" "+devObj.cardNr
         fields['DTYP'] = 'OPCUA'
+        fields[linkType] = link
         if linkType == 'INP':
             fields['SCAN'] = 'I/O Intr'
         if devObj.rtype in ('mbbi','mbbo'):
