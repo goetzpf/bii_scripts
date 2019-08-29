@@ -274,8 +274,13 @@ def setupPlugins(searchPathList):
 
 def getShiftParam(bits):
     """
-    Bitrange to paramteres NOBT, SHFT. Parameter bits = 'n' or bits = 'n - m' ,
-    SHIFT = n, NOBT = nr of elements.
+    For mbbi/oRecords: Calculate paramteres NOBT, SHFT from bitrange 'n - m'
+
+    For bi/oRecords: get bit number 'n' to be used in link to mbbi/oDirectRecord
+    that gets the data.
+
+    bits = 'n' or bits = 'n - m' , SHIFT = n, NOBT = nr of elements.
+
     Return tupel: (NOBT,SHFT),  NOBT=1 for bits = 'n'
     E.G getShiftParam('5 - 7') = (3,5), getShiftParam('7') = (1,7)
     """
@@ -860,10 +865,15 @@ def getOpcuaLink(devObj,devName):
     # special processing for binary records that access just one or some bits of a opcUaItem
     elif devObj.rtype in ('bi','mbbi','bo','mbbo'):
         (nobt,shft) = getShiftParam(devObj.chan)
-        fields['SHFT'] = shft
         if  devObj.rtype in ['mbbi','mbbo']:
-            fields['DTYP'] = "Raw Soft Channel"
+            fields['SHFT'] = shft
             fields['NOBT'] = nobt
+            if devObj.rtype  == 'mbbi':
+                fields['DTYP'] = "Raw Soft Channel"
+            else:       # mbbo: direct access, mbboDirect as output record is NOT reasonable!
+                fields['DTYP'] = 'OPCUA'
+                fields[linkType] = link
+                return fields
         else:
             fields['DTYP'] = "Soft Channel"
         fields[linkType] = PLC_Address(linkType,devObj.rtype,link,link,shft,devName,devObj,'OPCUA').getLink()
