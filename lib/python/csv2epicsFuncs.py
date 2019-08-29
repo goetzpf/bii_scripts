@@ -195,7 +195,7 @@ class csvData(object):
        "'\nalhSort: '"+self.alhSort+"'\npanelName: '"+self.panelName+"'\npanelGroup: '"+self.panelGroup+"'\npanelSort: '"+self.panelSort+"'\nEPICS File Name: '"+self.dbFileName+"'\n*** End"
 class baseData(object):
 # EPICS R3.14. String lengths as found in: aiRecord.h, mbbiRecord.h mbbiDirectRecord.h
-    base = "3.14.8"
+    base = "3.15.6"
     baseLen={               # C-strings, so usable length is len-1
         '3.14.8': {'RecName': 60,# record name   
                   'DESClen': 28,# DESC field
@@ -205,6 +205,13 @@ class baseData(object):
                   'StringVALlen': 39, # stringin/stringout VAL
                  },
         '3.14.12': {'RecName': 60,# record name  
+                  'DESClen': 40,# DESC field
+                  'ASGlen': 28, # ASG field
+                  'MBBlen': 25, # mbbi/mbbo strings
+                  'NAMlen': 25, # bi/bo ONAM, ZNAM
+                  'StringVALlen': 39, # stringin/stringout VAL
+                 },
+        '3.15.6': {'RecName': 60,# record name  
                   'DESClen': 40,# DESC field
                   'ASGlen': 28, # ASG field
                   'MBBlen': 25, # mbbi/mbbo strings
