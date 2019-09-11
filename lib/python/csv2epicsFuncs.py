@@ -447,11 +447,10 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     templates that make use of the typical analog fields as HOPR,LOPR,EGU,PREC 
     and LOLO,LOW,HIGH,HIHI + according severities.
     """
+    if len(devObj.rangeAlhVal) > 0:
+        fields = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
     if len(devObj.rangeEng) > 0:
         fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
-    if len(devObj.rangeAlhVal) > 0:
-        field = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
-
     if (not fields.has_key('LINR')): # not if conversion is allready defined by setupRecordLink()
         fields.update(createSlopeConversion(devObj.rangeEng,devObj.rangeRaw))    # additional parameters should override calculated values for PREC
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
