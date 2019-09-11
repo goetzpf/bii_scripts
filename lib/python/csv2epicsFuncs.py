@@ -448,7 +448,7 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     and LOLO,LOW,HIGH,HIHI + according severities.
     """
     if len(devObj.rangeAlhVal) > 0:
-        fields = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
+        fields.update = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
     if len(devObj.rangeEng) > 0:
         fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
     if (not fields.has_key('LINR')): # not if conversion is allready defined by setupRecordLink()
