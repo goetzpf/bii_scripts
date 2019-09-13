@@ -359,7 +359,6 @@ def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
             raise ValueError("number of alarm limits not equal to severities: "+str(limitVals)+" != "+str(limitSevr))
         if len(limitSevr[0]) > 0:   # means not empty severities
             for (v,s) in zip(limitVals,limitSevr):  
-                print v,s
                 (valName,val)     = v.split("=")
                 if valName not in ('LOLO','LOW','HIGH','HIHI'):
                     raise ValueError("createAlarmLimits(): Illegal Status tag: "+valName)
