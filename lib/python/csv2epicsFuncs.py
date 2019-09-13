@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+version = "1"
 """
  *  Author  B.Kuner
 
@@ -37,7 +38,8 @@
   by ModbusTCP coupler and support for soft and other hardware support
 
 - def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,inFileName,lines):
-- def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,inFileName):
+- def getOpcLink(devObj,devName,opc_name,PLCLink):
+- def getOpcuaLink(devObj,devName)
 - def getVmeLink()
 - def getCANLink()
 - def getWagoLink()
@@ -84,7 +86,6 @@ Check heartbeat signal from SPS to watch communication
 - def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
 
 """
-
 import csv
 import math
 import sys
@@ -714,11 +715,11 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     if devObj.port.upper() == 'VME':
         return getVmeLink(devObj.rtype,devObj.canId,devObj.cardNr,devObj.chan)
 
-    # depreciated option -c opc !!
+    # depreciated option -c opc and link in col.D, devObj.port !!
     if canOption == 'opc':
         PLCLink = devObj.port
         return getOpcLink(devObj,devName,opc_name,PLCLink)
-
+    # New: set opc tag in Col.D por, and link in Col E,F
     if devObj.port.upper() ==  'OPC':
         PLCLink = devObj.canId + ";" + devObj.cardNr
         return getOpcLink(devObj,devName,opc_name,PLCLink)

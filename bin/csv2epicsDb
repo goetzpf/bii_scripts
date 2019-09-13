@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 from optparse import OptionParser
 import sys
 import os
@@ -29,7 +28,7 @@ import epicsUtils
 import csv2epicsFuncs
 import pprint
 
-my_version = "2017.3.15"
+my_version = "R1-"+csv2epicsFuncs.version+"-"+epicsUtils.version
 
 #******************************* Main program *******************************
 
@@ -52,7 +51,7 @@ Multiple .db or .substitutions  files (Col. W)
     csv2epicsDb [-h OPTIONS]  -D data.csv                       
  """
 parser = OptionParser(usage=usage,
-                 version="%%prog %s" % my_version,
+                 version=my_version,
                  )
 parser.add_option("-a","--output_arch", 
                  action="store",
@@ -67,7 +66,7 @@ parser.add_option("-b", "--base",
 parser.add_option("-c","--can", 
                  action="store",
                  type="string",
-                 help="CAN port Nr., or 'opc' for OPC server access",
+                 help="DEPRECIATED don't use in new projects! CAN port Nr., or 'opc' for OPC server access",
                  )
 parser.add_option("-d","--output_db", 
                  action="store",
