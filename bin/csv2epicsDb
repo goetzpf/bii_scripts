@@ -258,7 +258,7 @@ for argument in args:
                 else:
                     devObj = devModule.myCsvData(device,options)
             except ValueError:
-                warnings.append([inFileName,lines,"Parse line, exeption: "+str(device[0])+"', '"+str(device[1])+"', '"+str(device[2])])
+                warnings.append([inFileName,lines,"Parse line, exeption in: "+str(device[0])+"', '"+str(device[1])+"', '"+str(device[2])+"'"])
                 continue
 
             if len(devObj.rtype) == 0:  # line is no device
@@ -273,7 +273,7 @@ for argument in args:
 
             ## Check if Description exceeds the EPICS String length, truncate it and create warning
             if len(devObj.DESC) > csv2epicsFuncs.baseData.getDESClen():
-                warnings.append([inFileName,lines,"Truncate DESC",devName+":"+devObj.signal,devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
+                warnings.append([inFileName,lines,"Truncate DESC "+devName+":"+devObj.signal+": "+devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]+"<TRUNC>"+devObj.DESC[csv2epicsFuncs.baseData.getDESClen():]])
                 devObj.DESC = devObj.DESC[0:csv2epicsFuncs.baseData.getDESClen()]
             
             # use col W if defined output_multiFile, else options.output_db
@@ -321,7 +321,7 @@ for argument in args:
                 if len(devObj.reqFlag) > 0: 
                     req += map(lambda x: devName+":"+x,devObj.reqFlag.split("|"))
             else:
-                warnings.append([inFileName,lines,"Skip record/template",devName+":"+devObj.signal,"Unsupported: '"+devObj.rtype+"'"])
+                warnings.append([inFileName,lines,"Skip record/template",devName+":"+devObj.signal,"Unsupported: record/template type: '"+devObj.rtype+"'"])
                 continue
             # END create record/template
 
@@ -332,7 +332,7 @@ for argument in args:
 
             if options.panel is not None and len(devObj.panelName)>0: # for panel creation
                 if len(devObj.panelName )>0 and not panelWidgetName:
-                    warnings.append([inFileName,lines,"Missing widgetName for: '"+devName+":"+devObj.signal+"' Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' "+argument])
+                    warnings.append([inFileName,lines,"Missing widgetName for "+devName+":"+devObj.signal+" Panel: '"+devObj.panelName+"' Widget: '" +str(panelWidgetName)+"' "+argument])
                 panelList.addItem(devObj.panelName,devObj.panelGroup,panelNameDict,panelDict,panelWidgetName,devObj.panelSort)
 
             if devObj.archPeriod is not None and len(devObj.archPeriod)>0:
@@ -343,7 +343,7 @@ for argument in args:
                 try:
                     csv2epicsFuncs.setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,options.cmLog)
                 except ValueError as err:
-                    warnings.append([inFileName,lines,str(err)+": "+inFileName+"'"])
+                    warnings.append([inFileName,lines,"ERROR in setEpicsAlh for "+devname+":"+devObj.signal+" type:" +devObj.rtype+": "+tr(err)])
         except :
             sys.stderr.write( "*********************\nPARSE EXCEPTION in file: '"+argument+"' line:"+str(lines)+" '"+str(device[0])+"', '"+str(device[1])+"', '"+str(device[2])+"'\n*********************\n" )
             raise
@@ -399,6 +399,6 @@ for argument in args:
 
     if len(warnings) > 0:
         sys.stderr.write( "\nWARNINGS\n********\n\n" )
-        epicsUtils.printTable(warnings, ["file","line","Warning","PV-Name","Value"])
+        epicsUtils.printTable(warnings, ["file","line","Warning"])
         sys.stderr.write( "\n" )
 

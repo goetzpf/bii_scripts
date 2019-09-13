@@ -449,15 +449,15 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     and LOLO,LOW,HIGH,HIHI + according severities.
     """
     if len(devObj.rangeAlhVal) > 0:
-        fields.update(createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr))
+            fields.update(createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr))
     if len(devObj.rangeEng) > 0:
         fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
     if (not fields.has_key('LINR')): # not if conversion is allready defined by setupRecordLink()
         fields.update(createSlopeConversion(devObj.rangeEng,devObj.rangeRaw))    # additional parameters should override calculated values for PREC
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
-    
+
     epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,getInfo(devObj))
-    
+   
 def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup fields for bi/bo type records/templates and create instance
     - Setup fields for state names and severities from the columns H,I,K
@@ -468,7 +468,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
     try:
         (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,inFileName,lines,warnings)
     except ValueError, e:
-        warnings.append([inFileName,lines,"SKIP RECORD: ",devName+":"+devObj.signal,str(e)])
+        warnings.append([inFileName,lines,"SKIP RECORD "+devName+":"+devObj.signal,str(e)])
         return
     # set name and severity fields
     idx=0
@@ -479,7 +479,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
         namStr = rangeENG[idx]
         l = len(namStr)
         if l > baseData.getNAMlen():
-            warnings.append([inFileName,lines,"TRUNCATE bi/bo string",devName+":"+devObj.signal,namStr[0:baseData.getNAMlen()] +"<TRUNC>" + namStr[(baseData.getNAMlen()):]])
+            warnings.append([inFileName,lines,"TRUNCATE bi/bo string "+devName+":"+devObj.signal+": "+namStr[0:baseData.getNAMlen()] +"<TRUNC>" + namStr[(baseData.getNAMlen()):]])
             namStr = namStr[0:baseData.getNAMlen()]
         fields[state+"NAM"]=namStr
         if epicsUtils.hasIndex(rangeALH,idx) is True:
@@ -504,7 +504,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
 
     pvName = devName+":"+devObj.signal
     if len(rangeENG) > 16:
-        warnings.append([inFileName,lines,"Truncate mbb modes",pvName,"nr of modes="+str(len(rangeENG))+ "(max 16)"])
+        warnings.append([inFileName,lines,"Truncate mbb modes "+pvName+" nr of modes="+str(len(rangeENG))+ "(max 16)"])
 
     idx = 0
     for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
@@ -525,7 +525,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
             namStr = rangeENG[idx]
             if len(namStr) > baseData.getMBBlen():
                 
-                warnings.append([inFileName,lines,"TRUNCATE mbb string",pvName,namStr[0:baseData.getMBBlen()] +"|" + namStr[baseData.getMBBlen():]])
+                warnings.append([inFileName,lines,"TRUNCATE mbb string "+pvName+": "+namStr[0:baseData.getMBBlen()] +"|" + namStr[baseData.getMBBlen():]])
                 namStr = namStr[0:baseData.getMBBlen()]
             dbRec.field[state+"ST"]=namStr
             dbRec.field[state+"VL"]=rangeRAW[idx]
@@ -567,7 +567,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
                 dbRec.field[state+"SV"] = rangeALH[idx]
             eng = rangeENG[idx]
             if len(eng) > baseData.getStringVALlen():
-                warnings.append([inFileName,lines,"TRUNCATE mbb string",pvName,eng[0:baseData.getStringVALlen()]+" | "+ eng[evObj.getStringVALlen():]])
+                warnings.append([inFileName,lines,"TRUNCATE mbb string "+pvName+": "+eng[0:baseData.getStringVALlen()]+" | "+ eng[evObj.getStringVALlen():]])
                 eng = eng[0:baseData.getStringVALlen()]
             epicsUtils.epicsTemplate('stringout',{'DEVN':devName},{'SNAME':devObj.signal+"St"+str(idx),
                                     'VAL':eng,
@@ -604,7 +604,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
     autoSRRequest = []      # signals for autoSaveRestore
 
     if (len(devName)+len(devObj.signal)+1) > baseData.getRecNameLen():
-        warnings.append([inFileName,lines,"WARN: ",devName+":"+devObj.signal,"Record name length excedet max="+str(baseData.getRecNameLen())])
+        warnings.append([inFileName,lines,"WARN "+devName+":"+devObj.signal+": Record name length excedet max="+str(baseData.getRecNameLen())])
     
     fields = {}
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N
@@ -647,7 +647,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
             else: # Soft record that processes neither states nor analog values. All fields are defined in col. N
                 epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName,INFO)
         except ValueError, e:
-            warnings.append([inFileName,lines,"WARN",pvName,str(e)])
+            warnings.append([inFileName,lines,"WARN in procRecord(): "+pvName+": "+str(e)])
 
         if devObj.rtype in ('bo') :
             panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
@@ -1194,7 +1194,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
                 (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,inFileName,lines,warnings)
 
             except ValueError, e:
-                warnings.append([inFileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
+                warnings.append([inFileName,lines,"SKIP RECORD "+devName+":"+devObj.signal+" range definition error: "+str(e)])
                 return
 
             idx = 0
@@ -1209,7 +1209,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
                     epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
                 idx += 1
             if not anyAlarm:
-                warnings.append([inFileName,lines,"SKIP Alarmsignal:",devName+":"+devObj.signal,": Missing Bessy Alarm State"])
+                warnings.append([inFileName,lines,"SKIP Alarmsignal: "+devName+":"+devObj.signal+": Missing Bessy Alarm State"])
                 return
 
         elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
@@ -1282,7 +1282,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName)
             'ONAM':"disable",
             'OSV':"MAJOR"},devObj.dbFileName)
         else:
-            warnings.append([inFileName,lines,"SKIP watchdog template disable record: Illegal --dis option: ",devObj.disableRec,": Can't parse"])
+            warnings.append([inFileName,lines,"SKIP watchdog template disable record: Illegal --dis option: "+devObj.disableRec+": Can't parse"])
     else:
         epicsUtils.epicsTemplate('bo', {'DEVN':devName}, {'SNAME':"cmdDisa",
         'DESC':"Disable: "+devName,
