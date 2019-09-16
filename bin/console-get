@@ -156,9 +156,9 @@ def get_log_files(area, pattern, use_ssh, opt_force, verbose, dry_run, restrict)
     """get all the log files."""
     # pylint: disable=too-many-arguments
     if not pattern:
-        files="*"
+        files=["*"]
     elif restrict is None:
-        files= pattern.strip()+".log"
+        files= [pattern.strip()+".log"]
     else:
         extensions= [".log"] + [(".log.%d.gz" % i) for i in range(1,restrict)]
         files= [pattern.strip() + e for e in extensions]
