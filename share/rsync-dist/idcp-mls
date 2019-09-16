@@ -12,7 +12,7 @@ RSYNC_DIST_LINKPATH= /opt/IOC/idcp/links
 
 #prepend the distribution directory to the link-source path
 #(only for the commands "add-links" and "change-links")
-RSYNC_DIST_PREFIX_DISTDIR= 1
+RSYNC_DIST_PREFIX_DISTDIR= ../dist
 
 #local distribution directories
 RSYNC_DIST_LOCALPATH= bin,db,dbd,dl
@@ -27,7 +27,7 @@ RSYNC_DIST_WORLDREADABLE= 1
 RSYNC_DIST_CHECKSUM= 1
 
 #use this branch for distributing files
-#RSYNC_DIST_BRANCH= 
+#RSYNC_DIST_BRANCH=
 
 #name of the version-file that is created
 RSYNC_DIST_VERSION_FILE= bin/DISTVERSION

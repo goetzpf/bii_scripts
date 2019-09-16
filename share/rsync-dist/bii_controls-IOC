@@ -1,8 +1,8 @@
 RSYNC_DIST_HOST=iocadm@nfs.ctl
-RSYNC_DIST_PATH=/opt/IOC/BII-Controls/base-3-14/dist
-RSYNC_DIST_LINKPATH=/opt/IOC/BII-Controls/base-3-14/links
+RSYNC_DIST_PATH=/opt/IOC/BII-Controls/dist
+RSYNC_DIST_LINKPATH=/opt/IOC/BII-Controls/links
 RSYNC_DIST_PREFIX_DISTDIR=1
-RSYNC_DIST_LOCALPATH=bin,db,dbd,iocBoot,.darcs-restore
+RSYNC_DIST_LOCALPATH=bin,db,dbd,iocBoot,.darcs-restore,darcs-signature
 RSYNC_DIST_LOCALPREFIX=
 RSYNC_DIST_WORLDREADABLE=1
 RSYNC_DIST_CHECKSUM=1
