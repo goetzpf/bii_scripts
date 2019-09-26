@@ -339,6 +339,8 @@ PLAINTXT_H_SCRIPT_LIST= \
 	darcs-kompare \
 	darcs-meld \
 	darcs-sig \
+	hg-kompare \
+	hg-meld \
 	git-meld \
 	hg-compare-repos \
 	idcp-dist-info \
@@ -381,7 +383,7 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 # scripts with no embedded documentation
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PY_SCRIPT_LIST= \
-	hg-kompare.py pyone.py sqlutil.py ssh-pw.py \
+	pyone.py sqlutil.py ssh-pw.py \
 	hg2darcs.py hg2git.py python-modules.py
 
 RST_DOC_SCRIPT_LIST= \
