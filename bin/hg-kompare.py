@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 # Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
@@ -31,10 +31,6 @@ def script_shortname():
     """return the name of this script without a path component."""
     return os.path.basename(sys.argv[0])
 
-def print_summary():
-    """print a short summary of the scripts function."""
-    print "%-20s: a tool for ...\n" % script_shortname()
-
 extdiff_help="""
 hg extdiff [OPT]... [FILE]...
 
@@ -65,33 +61,41 @@ options:
 use "hg -v help extdiff" to show global options
 """
 
+short_help="""
+    simply calls \"hg extdiff -p kompare {options}\" where {options} are
+    all options known by the \"hg extdiff\" command.
+    Note that you can use option -p to specify a different diff program.
+    Note that the file $HOME/.hgrc must contain the line:
+        extdiff=
+    in the [extensions] section.
+
+Here is the original help from "hg extdiff":
+"""
+
 def main():
     """The main function.
 
     parse the command-line options and perform the command
     """
     def myexec(cmd,args):
-	n_args=[cmd]
-	n_args.extend(args)
-	os.execvp(cmd,n_args)
+        n_args=[cmd]
+        n_args.extend(args)
+        os.execvp(cmd,n_args)
     args= sys.argv[1:]
+    use_default_kompare_program= True
     for a in args:
-	if a.startswith("-p") or a.startswith("--program"):
-	    sys.exit(("option \"%s\" cannot be used here since\n"+\
-	              "this script uses always kompare as\n"+\
-		      "comparison program\n") % a)
-	if a.startswith("-h") or a.startswith("--help"):
-	    print sys.argv[0],"\n\n",\
-                  "    simply calls \"hg extdiff -p kompare {options}\" where {options} are\n",\
-                  "    all options (except -p) that are known by the \"hg extdiff\" command.\n",\
-		  "    Note that the file $HOME/.hgrc must contain the line:\n",\
-		  "        extdiff=\n",\
-                  "    in the [extensions] section.\n\n",\
-                  "    Here is the help from \"hg extdiff\":"
-	    print extdiff_help
-	    #myexec("hg",["help","extdiff"])
-	    sys.exit(0)
-    n_args=["extdiff","-p","kompare"]
+        if a.startswith("-p") or a.startswith("--program"):
+            use_default_kompare_program= False
+            continue
+        if a.startswith("-h") or a.startswith("--help"):
+            print(script_shortname())
+            print(short_help)
+            print(extdiff_help)
+            #myexec("hg",["help","extdiff"])
+            sys.exit(0)
+    n_args=["extdiff"]
+    if use_default_kompare_program:
+        n_args.extend(["-p","kompare"])
     n_args.extend(args)
     myexec("hg",n_args)
 
