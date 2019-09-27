@@ -350,18 +350,24 @@ def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
     field = {}
     if rangeAlhVal != "":
         field=epicsUtils.parseParam(rangeAlhVal)
-
-    limitVals = rangeAlhVal.split("|")      # ATTENTION: preserve the order of alarm and severity fields
-    limitSevr = rangeAlhSevr.split("|")
-    if len(limitSevr[0]) > 0:   # means not empty severities
-        for (v,s) in zip(limitVals,limitSevr):  
-            (valName,val)     = v.split("=")
-            if valName   == 'LOLO': field['LLSV'] = s
-            elif valName == 'LOW':  field['LSV']  = s
-            elif valName == 'HIGH': field['HSV']  = s
-            elif valName == 'HIHI': field['HHSV'] = s
-            else: 
-                raise ValueError("Illegal Alarm value '"+valName+"'")
+        if type(field) != dict:
+            raise ValueError("alarm limit data is not a dictionary: "+rangeAlhVal)
+        limitVals = rangeAlhVal.split("|")      # ATTENTION: preserve the order of alarm and severity fields
+        limitSevr = rangeAlhSevr.split("|")
+        if len(limitSevr) != len(limitVals):
+            raise ValueError("number of alarm limits not equal to severities: "+str(limitVals)+" != "+str(limitSevr))
+        if len(limitSevr[0]) > 0:   # means not empty severities
+            for (v,s) in zip(limitVals,limitSevr):  
+                (valName,val)     = v.split("=")
+                if valName not in ('LOLO','LOW','HIGH','HIHI'):
+                    raise ValueError("createAlarmLimits(): Illegal Status tag: "+valName)
+                try:
+                    if valName   == 'LOLO': field['LLSV'] = s
+                    elif valName == 'LOW':  field['LSV']  = s
+                    elif valName == 'HIGH': field['HSV']  = s
+                    elif valName == 'HIHI': field['HHSV'] = s
+                except ValueError, e:
+                    raise ValueError("createAlarmLimits(): Illegal Alarm tag: "+valName)
     return field
 
 def createSlopeConversion(rangeEng,rangeRaw):
@@ -448,7 +454,7 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     and LOLO,LOW,HIGH,HIHI + according severities.
     """
     if len(devObj.rangeAlhVal) > 0:
-        fields.update(createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr))
+            fields.update(createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr))
     if len(devObj.rangeEng) > 0:
         fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
     if (not fields.has_key('LINR')): # not if conversion is allready defined by setupRecordLink()
