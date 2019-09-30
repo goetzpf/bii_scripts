@@ -227,7 +227,7 @@ for argument in args:
         print "   Reading data from "+argument
 
     try :
-        (inFileName,fileExt) = epicsUtils.matchRe(argument.split('/')[-1],'(.*)\.(.*)') 
+        inFileName = argument.split('/')[-1]
     except TypeError : 
         epicsUtils.die("found no in-fileName in: "+argument)
 
