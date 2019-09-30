@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+version = "1"
 """
  *  Author  B.Kuner
 
@@ -37,7 +38,8 @@
   by ModbusTCP coupler and support for soft and other hardware support
 
 - def setupRecordLink(devName,devObj,canOption,opc_name,iocTag,inFileName,lines):
-- def getOpcLink(PLCLink,rtyp,bits,device_name,opc_name,lines,inFileName):
+- def getOpcLink(devObj,devName,opc_name,PLCLink):
+- def getOpcuaLink(devObj,devName)
 - def getVmeLink()
 - def getCANLink()
 - def getWagoLink()
@@ -84,7 +86,6 @@ Check heartbeat signal from SPS to watch communication
 - def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
 
 """
-
 import csv
 import math
 import sys
@@ -160,7 +161,7 @@ class csvData(object):
         try:
             self.DESC = decoded.encode("ISO-8859-1")
         except UnicodeEncodeError,e:
-            raise ValueError("%s, string before UTF-8 decode: %s, string "
+            raise ValueError("Warning in DESC encode to ISO-8859-1 (Col. M): %s, string before UTF-8 decode: %s, string "
                              "after UTF-8 decode: %s" % \
                              (str(e),repr(self.DESC),repr(decoded)))
 
@@ -336,7 +337,7 @@ def getDisplayLimits(rangeEng,egu):
     """
     eng = epicsUtils.matchRe(rangeEng,"\s*(.*)[ ]+\-[ ]+(.*)\s*")
     if eng == None or len(eng) != 2:
-        raise ValueError("Range Eng. not defined")
+        raise ValueError("Warning: Range Eng. not defined")
     return({'LOPR':float(eng[0]),'HOPR':float(eng[1]),'EGU':egu});
 
 def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
@@ -351,11 +352,11 @@ def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
     if rangeAlhVal != "":
         field=epicsUtils.parseParam(rangeAlhVal)
         if type(field) != dict:
-            raise ValueError("alarm limit data is not a dictionary: "+rangeAlhVal)
+            raise ValueError("Warning: alarm limit data is not a dictionary: "+rangeAlhVal)
         limitVals = rangeAlhVal.split("|")      # ATTENTION: preserve the order of alarm and severity fields
         limitSevr = rangeAlhSevr.split("|")
         if len(limitSevr) != len(limitVals):
-            raise ValueError("number of alarm limits not equal to severities: "+str(limitVals)+" != "+str(limitSevr))
+            raise ValueError("Warning: number of alarm limits not equal to severities: "+str(limitVals)+" != "+str(limitSevr))
         if len(limitSevr[0]) > 0:   # means not empty severities
             for (v,s) in zip(limitVals,limitSevr):  
                 (valName,val)     = v.split("=")
@@ -367,7 +368,7 @@ def createAlarmLimits(rangeAlhVal,rangeAlhSevr):
                     elif valName == 'HIGH': field['HSV']  = s
                     elif valName == 'HIHI': field['HHSV'] = s
                 except ValueError, e:
-                    raise ValueError("createAlarmLimits(): Illegal Alarm tag: "+valName)
+                    raise ValueError("Warning: createAlarmLimits(): Illegal Alarm tag: "+valName)
     return field
 
 def createSlopeConversion(rangeEng,rangeRaw):
@@ -403,7 +404,7 @@ def createSlopeConversion(rangeEng,rangeRaw):
                 # set prec to 5 digits. may be overrwritten by additional parameters (col. N)
                 field['PREC'] = abs(int(math.log(abs(float(hopr-lopr))/10000)/math.log(10.0)))+1
         else:
-            raise ValueError("Missing Engeneering data for conversion")
+            raise ValueError("Warning: Missing Engeneering data for conversion")
 
     return field
 
@@ -420,17 +421,18 @@ def getBinaryAttributes(rangeEng,rangeRaw,rangeAlhSevr,inFileName,lines,warnings
     if isinstance(r,list) is True and len(r)>1:
         rangeENG = map(lambda x: x.strip(),r)
         rangeLen = len(r)
+        
         r = rangeRaw.split("|")
         if isinstance(r,list) is True and len(r) == rangeLen:
             rangeRAW = map(lambda x: x.strip(),r)
         else:
-            raise ValueError("Illegal rangeRaw (Col: I): \'"+rangeRaw+"\'")
+            raise ValueError("Warning length of rangeRaw (Col: H) \'"+rangeRaw+"\' != rangeEng (Col I): \'"+rangeEng+"\'")
         r = rangeAlhSevr.split("|")
         if isinstance(r,list) is True and r[0] != '':   # No alarms is ok, but..
             if len(r) == rangeLen:
                 rangeALH =  map(lambda x: x.strip(),r)
             else:
-                raise ValueError("Illegal length of rangeAlh (Col: L): \'"+rangeAlhSevr+"\'")
+                raise ValueError("Warning length of rangeAlh (Col: L): \'"+rangeAlhSevr+"\' != rangeEng (Col I): \'"+rangeEng+"\'")
         else:                                           # .. fake a NO_ALARM range
             rangeALH = map(lambda x: "NO_ALARM",range(rangeLen))
     else:
@@ -460,9 +462,9 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
     if (not fields.has_key('LINR')): # not if conversion is allready defined by setupRecordLink()
         fields.update(createSlopeConversion(devObj.rangeEng,devObj.rangeRaw))    # additional parameters should override calculated values for PREC
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
-    
+
     epicsUtils.epicsTemplate(devObj.rtype,{'DEVN':devName},fields,devObj.dbFileName,getInfo(devObj))
-    
+   
 def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
     """ Setup fields for bi/bo type records/templates and create instance
     - Setup fields for state names and severities from the columns H,I,K
@@ -473,7 +475,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
     try:
         (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,inFileName,lines,warnings)
     except ValueError, e:
-        warnings.append([inFileName,lines,"SKIP RECORD: ",devName+":"+devObj.signal,str(e)])
+        warnings.append([inFileName,lines,"SKIP RECORD "+devName+":"+devObj.signal,str(e)])
         return
     # set name and severity fields
     idx=0
@@ -484,7 +486,7 @@ def createBiBoRecord(devName,fields,devObj,warnings,inFileName,lines):
         namStr = rangeENG[idx]
         l = len(namStr)
         if l > baseData.getNAMlen():
-            warnings.append([inFileName,lines,"TRUNCATE bi/bo string",devName+":"+devObj.signal,namStr[0:baseData.getNAMlen()] +"<TRUNC>" + namStr[(baseData.getNAMlen()):]])
+            warnings.append([inFileName,lines,"TRUNCATE bi/bo string "+devName+":"+devObj.signal+": "+namStr[0:baseData.getNAMlen()] +"<TRUNC>" + namStr[(baseData.getNAMlen()):]])
             namStr = namStr[0:baseData.getNAMlen()]
         fields[state+"NAM"]=namStr
         if epicsUtils.hasIndex(rangeALH,idx) is True:
@@ -509,7 +511,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
 
     pvName = devName+":"+devObj.signal
     if len(rangeENG) > 16:
-        warnings.append([inFileName,lines,"Truncate mbb modes",pvName,"nr of modes="+str(len(rangeENG))+ "(max 16)"])
+        warnings.append([inFileName,lines,"Truncate mbb modes "+pvName+" nr of modes="+str(len(rangeENG))+ "(max 16)"])
 
     idx = 0
     for state in ["ZR","ON","TW","TH","FR","FV","SX","SV","EI","NI","TE","EL","TV","TT","FT","FF"]:
@@ -530,7 +532,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
             namStr = rangeENG[idx]
             if len(namStr) > baseData.getMBBlen():
                 
-                warnings.append([inFileName,lines,"TRUNCATE mbb string",pvName,namStr[0:baseData.getMBBlen()] +"|" + namStr[baseData.getMBBlen():]])
+                warnings.append([inFileName,lines,"TRUNCATE mbb string "+pvName+": "+namStr[0:baseData.getMBBlen()] +"|" + namStr[baseData.getMBBlen():]])
                 namStr = namStr[0:baseData.getMBBlen()]
             dbRec.field[state+"ST"]=namStr
             dbRec.field[state+"VL"]=rangeRAW[idx]
@@ -572,7 +574,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
                 dbRec.field[state+"SV"] = rangeALH[idx]
             eng = rangeENG[idx]
             if len(eng) > baseData.getStringVALlen():
-                warnings.append([inFileName,lines,"TRUNCATE mbb string",pvName,eng[0:baseData.getStringVALlen()]+" | "+ eng[evObj.getStringVALlen():]])
+                warnings.append([inFileName,lines,"TRUNCATE mbb string "+pvName+": "+eng[0:baseData.getStringVALlen()]+" | "+ eng[evObj.getStringVALlen():]])
                 eng = eng[0:baseData.getStringVALlen()]
             epicsUtils.epicsTemplate('stringout',{'DEVN':devName},{'SNAME':devObj.signal+"St"+str(idx),
                                     'VAL':eng,
@@ -609,7 +611,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
     autoSRRequest = []      # signals for autoSaveRestore
 
     if (len(devName)+len(devObj.signal)+1) > baseData.getRecNameLen():
-        warnings.append([inFileName,lines,"WARN: ",devName+":"+devObj.signal,"Record name length excedet max="+str(baseData.getRecNameLen())])
+        warnings.append([inFileName,lines,"WARN "+devName+":"+devObj.signal+": Record name length excedet max="+str(baseData.getRecNameLen())])
     
     fields = {}
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N
@@ -652,7 +654,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
             else: # Soft record that processes neither states nor analog values. All fields are defined in col. N
                 epicsUtils.epicsTemplate(devObj.rtype, {'DEVN':devName}, fields,devObj.dbFileName,INFO)
         except ValueError, e:
-            warnings.append([inFileName,lines,"WARN",pvName,str(e)])
+            warnings.append([inFileName,lines,"WARN in procRecord(): "+pvName+": "+str(e)])
 
         if devObj.rtype in ('bo') :
             panelDict.update({'SNAME':devObj.signal,'EGU':devObj.egu,'DESC':devObj.DESC})
@@ -720,11 +722,11 @@ def setupRecordLink(devName,devObj,canOption,opc_name,iocTag):
     if devObj.port.upper() == 'VME':
         return getVmeLink(devObj.rtype,devObj.canId,devObj.cardNr,devObj.chan)
 
-    # depreciated option -c opc !!
+    # depreciated option -c opc and link in col.D, devObj.port !!
     if canOption == 'opc':
         PLCLink = devObj.port
         return getOpcLink(devObj,devName,opc_name,PLCLink)
-
+    # New: set opc tag in Col.D por, and link in Col E,F
     if devObj.port.upper() ==  'OPC':
         PLCLink = devObj.canId + ";" + devObj.cardNr
         return getOpcLink(devObj,devName,opc_name,PLCLink)
@@ -1199,7 +1201,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
                 (rangeENG,rangeRAW,rangeALH) = getBinaryAttributes(devObj.rangeEng,devObj.rangeRaw,devObj.rangeAlhSevr,inFileName,lines,warnings)
 
             except ValueError, e:
-                warnings.append([inFileName,lines,"SKIP RECORD: range definition error",devName+":"+devObj.signal,str(e)])
+                warnings.append([inFileName,lines,"SKIP RECORD "+devName+":"+devObj.signal+" range definition error: "+str(e)])
                 return
 
             idx = 0
@@ -1214,7 +1216,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
                     epicsUtils.epicsAlh(devName,sig,nodePath,tags,sort)
                 idx += 1
             if not anyAlarm:
-                warnings.append([inFileName,lines,"SKIP Alarmsignal:",devName+":"+devObj.signal,": Missing Bessy Alarm State"])
+                warnings.append([inFileName,lines,"SKIP Alarmsignal: "+devName+":"+devObj.signal+": Missing Bessy Alarm State"])
                 return
 
         elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
@@ -1287,7 +1289,7 @@ def watchdog(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName)
             'ONAM':"disable",
             'OSV':"MAJOR"},devObj.dbFileName)
         else:
-            warnings.append([inFileName,lines,"SKIP watchdog template disable record: Illegal --dis option: ",devObj.disableRec,": Can't parse"])
+            warnings.append([inFileName,lines,"SKIP watchdog template disable record: Illegal --dis option: "+devObj.disableRec+": Can't parse"])
     else:
         epicsUtils.epicsTemplate('bo', {'DEVN':devName}, {'SNAME':"cmdDisa",
         'DESC':"Disable: "+devName,
