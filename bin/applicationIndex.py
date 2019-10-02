@@ -170,20 +170,31 @@ def findApplications(topPath):
     if options.verbose is True: print "*** FindApplications in top: '"+topPath+"' : \n", appList
     appDb = {}
     dbApp = {}
-    for db in appList:
-        db = eU.substRe(db,"O\..*\/","")
-        d = eU.matchRe(db,".*/(.*?App.*)")
-        if d is not None:       # look for something like: myApp/[Db/]myFile.db
-            item = d[0].split("/")
-            if len(item) < 2:
-                print "Error in findApplications:",d[0]
-                sys.exit()
-            appName = item[0]
-            dbFileName = item[-1]
-            if not appDb.has_key(appName):
-                appDb[appName] = []
-            appDb[appName].append(dbFileName)
-            dbApp[dbFileName] = appName
+    for p in appList:
+        item = p.replace(topPath,"",1).split('/')[1:]
+#        print item
+        if len(item) < 2:
+            continue
+        path       = item[0:-1]
+        dbFileName = item[-1]
+        d = eU.matchRe(item[0],"(.*?App.*)")
+        appName = None
+        for n in path:
+            i = n.find("App")
+            if i == -1:
+                continue
+            else:
+                appName = n
+                break
+        if appName is None:
+#            print "Warning in findApplications() skip",dbFileName,"can't find App name in",p
+#            sys.exit()
+            continue
+
+        if not appDb.has_key(appName):
+            appDb[appName] = []
+        appDb[appName].append(dbFileName)
+        dbApp[dbFileName] = appName
     return (appDb,dbApp)
 
 def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
@@ -224,7 +235,7 @@ def hardware(ioc,dbFile,param,iocname,pvname,fieldDict) :
             mux = int(fieldDict['multiplexor'])
             fieldDict['CARD'] =  mux/2
             fieldDict['CHAN'] =  mux%2
-    else:
+    elif link is not None:
         vmeLnk = eU.matchRe(link,"#C\s*(\d+)\s*S\s*(\d+)")
         if vmeLnk is not None:
             fieldDict['CARD'] =  vmeLnk[0]
