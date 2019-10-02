@@ -106,9 +106,7 @@ def getIocStartupData(topPath):
             dbIoc[dbFile].append(ioc)
     return(iocDb,dbIoc)
 
-def processStCmd(topPath,iocList):
-    iocDb = {}
-    dbIoc = {}
+def processStCmd(parseFile,iocDb,dbIoc):
 
     tokDefList =( ('B_OPEN', (r'\(',) ),\
         ('B_CLOSE',     (r'\)',) ),\
@@ -121,48 +119,51 @@ def processStCmd(topPath,iocList):
         )
     tokReList = tP.compileTokDefList(tokDefList)
 
-    if options.verbose is True: print "*** processStCmd() for:\n",iocList
-    for iocName in iocList:
-        parseFileName = topPath+"/iocBoot/ioc"+iocName+"/st.cmd"
-        if not os.path.isfile(parseFileName): eU.die("File doesn't exist: "+parseFileName)
-        try :
-            IN_FILE = open(parseFileName) 
-        except IOError: 
-            eU.die("can't open input file: "+parseFileName)
-        if options.verbose is True: print "Reading data from "+parseFileName
+    if options.verbose is True: print "*** processStCmd() for:\n",parseFile
+    if not os.path.isfile(parseFile): eU.die("File doesn't exist: "+parseFile)
+    try :
+        IN_FILE = open(parseFile) 
+    except IOError: 
+        print "Skip input file (can't open):",parseFile
+        return
+    if options.verbose is True: print "Reading data from:",parseFile
 
-        dbdFile=topPath+"/dbd/"
-        envDict={}
-        lineNr = 0
-        for line in IN_FILE:
-            lineNr += 1
-            parsedLine = tP.parseStCmd(line,tokReList,lineNr)
-            if not parsedLine: continue
-            cmd = parsedLine[0]
-            if cmd == "epicsEnvSet":
-                #print "epicsEnvSet,PARSE: '%s'" %line, parsedLine
+    dbdFile=topPath+"/dbd/"
+    envDict={}
+    lineNr = 0
+    for line in IN_FILE:
+        lineNr += 1
+        parsedLine = tP.parseStCmd(line,tokReList,lineNr)
+        if not parsedLine: continue
+        cmd = parsedLine[0]
+        if cmd == "epicsEnvSet":
+            #print "epicsEnvSet,PARSE: '%s'" %line, parsedLine
+            try:
                 envDict[parsedLine[1]]=parsedLine[2]
-            if cmd == "putenv":
-                #print "putenv,PARSE: '%s'" %line, parsedLine
-                (name,value)=parsedLine[1].split("=")
-                envDict[name]=value
-            if cmd == "dbLoadDatabase":
-                #print "dbLoadDatabase,PARSE: '%s'" %line, parsedLine
-                dbdFile += substEnvVariables(eU.substRe(parsedLine[1],"dbd/",""),envDict)
-            if cmd == "dbLoadRecords":
-                #print "dbLoadRecords,PARSE: '%s'" %line, parsedLine
-                dbFile = substEnvVariables(eU.substRe(parsedLine[1],"db/",""),envDict)
-                param = ""
-                if len(parsedLine) == 3:
-                    param = parsedLine[2]
-                    #print "param:",param,eU.parseParam(substEnvVariables(param,envDict),',')
-                if not iocDb.has_key(iocName):
-                    iocDb[iocName] = []
-                iocDb[iocName].append( {'DB':dbFile,'SUBST':eU.parseParam(substEnvVariables(param,envDict),',')})
-                if not dbIoc.has_key(dbFile):
-                    dbIoc[dbFile] = []
-                dbIoc[dbFile].append(iocName)
-    return (iocDb,dbIoc)
+            except IndexError:
+                (var,val) = parsedLine[1].split('=')
+                envDict[var]=val
+        if cmd == "putenv":
+            #print "putenv,PARSE: '%s'" %line, parsedLine
+            (name,value)=parsedLine[1].split("=")
+            envDict[name]=value
+        if cmd == "dbLoadDatabase":
+            #print "dbLoadDatabase,PARSE: '%s'" %line, parsedLine
+            dbdFile += substEnvVariables(eU.substRe(parsedLine[1],"dbd/",""),envDict)
+        if cmd == "dbLoadRecords":
+            #print "dbLoadRecords,PARSE: '%s'" %line, parsedLine
+            dbFile = substEnvVariables(eU.substRe(parsedLine[1],"db/",""),envDict)
+            param = ""
+            if len(parsedLine) == 3:
+                param = parsedLine[2]
+                #print "param:",param,eU.parseParam(substEnvVariables(param,envDict),',')
+            if not iocDb.has_key(iocName):
+                iocDb[iocName] = []
+            iocDb[iocName].append( {'DB':dbFile,'SUBST':eU.parseParam(substEnvVariables(param,envDict),',')})
+            if not dbIoc.has_key(dbFile):
+                dbIoc[dbFile] = []
+            dbIoc[dbFile].append(iocName)
+    return
 
 def findApplications(topPath):
     appString = systemCall(['find',topPath,"-name","*.db"])
@@ -301,20 +302,26 @@ except:
 if iocDb == None: iocDb = {}
 if dbIoc == None: dbIoc = {}
 
+# look for iocs in TOP/iocBoot
 iocString = systemCall(['ls',topPath+"/iocBoot"])
-iocList = []
 for ioc in iocString.split("\n"):
     i = eU.matchRe(ioc,"ioc(.*)")
     if i is None:
         continue
     iocName = i[0]
     if not iocDb.has_key(iocName):
-        iocList.append(iocName)
+        processStCmd(topPath+"/iocBoot/"+ioc+"/st.cmd",iocDb,dbIoc)
 
-(iD,dI) = processStCmd(topPath,iocList)
-
-if iD: iocDb.update(iD)
-if dI: dbIoc.update(dI)
+# look for iocs in TOP/SoftIocApp
+iocString = systemCall(['ls',topPath+"/SoftIocApp"])
+for ioc in iocString.split("\n"):
+    i = eU.matchRe(ioc,"st.cmd.(.*)")
+    if i is None:
+        continue
+    iocName = i[0]
+    #print iocName, ioc, topPath+"/SoftIocApp/"+ioc
+    if not iocDb.has_key(iocName):
+        processStCmd(topPath+"/SoftIocApp/"+ioc,iocDb,dbIoc)
 
 if options.verbose is True: 
     print "\n*** IOC loads this .db:"
