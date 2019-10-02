@@ -190,6 +190,14 @@ Scripts
   | compares the logs of two mercurial repositories with tkdiff.
   | `documentation <scripts/hg-compare-repos.html>`__
 
+**hg-kompare**
+  | Show mercurual patches with kompare..
+  | `documentation <scripts/hg-kompare.html>`__
+
+**hg-meld**
+  | Show mercurual patches with meld..
+  | `documentation <scripts/hg-meld.html>`__
+
 **darcs-compare-repos**
   | compares the logs of two darcs repositories with tkdiff.
   | `documentation <scripts/darcs-compare-repos.html>`__
