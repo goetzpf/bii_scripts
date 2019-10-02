@@ -333,6 +333,7 @@ PLAINTXT_H_SCRIPT_LIST= \
 	ctl-dist-info \
 	ctl-restore \
 	console-get \
+	console-watch \
 	db2dot \
 	dbdiff \
 	darcs-compare-repos \

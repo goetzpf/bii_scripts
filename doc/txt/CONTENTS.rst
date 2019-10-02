@@ -134,6 +134,10 @@ Scripts
   | download and concatenate console server files.
   | `documentation <scripts/console-get.html>`__
 
+**console-watch**
+  | display growth rate of console server files.
+  | `documentation <scripts/console-watch.html>`__
+
 **CreatePanel.pl**
   | Create Panels for 'dm2k' or 'edm' from EPICS-Database '.substitution' files
     and widgets for each item of the '.substitution' file.
