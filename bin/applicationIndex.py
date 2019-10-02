@@ -35,7 +35,7 @@ import tokParse as tP
 # the list of known DTYPs get it with:
 # find $(TOP)/db -name *.db|xargs perl -e 'while(<>){print "$1\n" if($_=~/DTYP,\s*\"(.*)\"/);}'|sort -u
 hardwareDtypList = ['esd AIO16','ADA16','BESSY MuxV','Dyncon','EK IO32','ESRF MuxV',
-                    'Highland DDG V85x','OMS MAXv','OMS VME58','Rfmux1366','TDU','V375',
+                    'Highland DDG V85x','OMS MAXv','OMS VME58','OMS VME8/44','Rfmux1366','TDU','V375',
                     'V680','VHQ','Vpdu'
                    ]
 
@@ -82,7 +82,7 @@ def getIocStartupData(topPath):
     path = topPath+"/GenericBootApp/O.Common"
     iocPy = []
     for item in systemCall(['ls',path]).split("\n"):
-        py = eU.matchRe(item,'(IOC.*)\.py')
+        py = eU.matchRe(item,'([XI]+OC.*)\.py')
         if py: iocPy += py
     if len(iocPy) == 0:
         return (None,None)
@@ -315,7 +315,10 @@ for ioc in iocString.split("\n"):
 
 if iD: iocDb.update(iD)
 if dI: dbIoc.update(dI)
-#pp.pprint(iocDb)
+
+if options.verbose is True: 
+    print "\n*** IOC loads this .db:"
+    pp.pprint(iocDb)
 #pp.pprint(dbIoc)
 #sys.exit()
 iocHw = None
