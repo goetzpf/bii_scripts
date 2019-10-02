@@ -111,7 +111,7 @@ def parse(parse,tokReList,line):
 		raise ValueError("Can't find token Content for parse")
     	if parsePos < len(parse):
 	    if parseNext == parsePos:   # tokReList done, but no new position - means no match 
-	    	raise "Line "+str(line)+": Illegal token in: '"+parse[0:parsePos]+"***'"+parse[parsePos:]+"'***'"
+	    	raise ValueError("Line "+str(line)+": Illegal token in: '"+parse[0:parsePos]+"***'"+parse[parsePos:]+"'***'")
 	    else:
 		parsePos = parseNext    # found new position
 	else:   	    	    	    # end reached: break while
