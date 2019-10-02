@@ -1,0 +1,119 @@
+#!/bin/bash
+
+set -e
+
+USER=conservr
+HOST=conserver.acc.bessy.de
+DIR=/var/log/conserver
+
+# measurement time:
+TIME=10
+
+# omit small changes:
+MIN=-1
+
+function HELP {
+  me=`basename $0`
+  echo "$me: check how fast console log files are growing"
+  echo 
+  echo "The program logs on to the console server via ssh and reads the filesizes of"
+  echo "all *.log files. It then sleeps for a given time and reads the filesizes"
+  echo "again. After this it calculates how much the files have grown in that time"
+  echo "and displays the results."
+  echo
+  echo "usage: $me [options]"
+  echo "  common options:"
+  echo "    -h             : this help"
+  echo "    -t --time TIME : Specify measurement time in seconds, default: $TIME"
+  echo "    -m --min MINDELTA: "
+  echo "                     Files that have grown less than MINDELTA are not printed."
+  echo
+  echo "  options for retrieving the data:"
+  echo "    -u --user USER : Specify the user for the ssh command, default: $USER."
+  echo "    -H --host HOST : Specify the console server host, default: $HOST."
+  echo "                     (The mls conserver host is: conserver.mlscs.bessy.de)".
+  echo "    -d --dir DIR   : Specify the directory with the log files, default: $DIR."
+  echo
+  echo "example usage:"
+  echo "  $me -t 10 -m 100"
+  exit 0
+}
+
+
+function filesizes {
+  # args: $1: filename to be created
+  ssh $USER@$HOST "cd $DIR && find . -name '*.log' -printf \"%p %s\n\"  2>/dev/null" > $1
+}
+
+declare -a ARGS
+VERBOSE=""
+DRY_RUN=""
+
+while true; do
+    case "$1" in
+        -h | --help )
+            HELP;
+            shift
+            ;;
+        -t | --time )
+            TIME="$2"
+            shift 2
+            ;;
+        -m | --min )
+            MIN="$2"
+            shift 2
+            ;;
+        -u | --user )
+            USER="$2"
+            shift 2
+            ;;
+        -H | --host )
+            HOST="$2"
+            shift 2
+            ;;
+        -d | --dir )
+            DIR="$2"
+            shift 2
+            ;;
+    -- ) shift; break ;;
+    * ) 
+            if [ -z "$1" ]; then
+                break;
+            fi
+            ARGS+=("$1")
+            shift
+            ;;
+  esac
+done
+
+RAW1=$(mktemp /tmp/conserver-watch.XXXXXX)
+RAW2=$(mktemp /tmp/conserver-watch.XXXXXX)
+
+set +e
+filesizes $RAW1
+echo "sleep for $TIME seconds..." >&2
+sleep $TIME
+filesizes $RAW2
+set -e
+
+echo "calculating..." >&2
+FILES=$(mktemp /tmp/conserver-watch.XXXXXX)
+
+cat $RAW1 | sed -e 's/ .*//' > $FILES
+
+LIST1=$(mktemp /tmp/conserver-watch.XXXXXX)
+LIST2=$(mktemp /tmp/conserver-watch.XXXXXX)
+
+grep -f $FILES $RAW1 | sort > $LIST1
+grep -f $FILES $RAW2 | sort > $LIST2
+
+rm -f $FILES
+rm -f $RAW1
+rm -f $RAW2
+
+perl -e "printf(\"%-50s %16s %15s\n\",\"filename\",\"size (byte)\",\"delta (byte)\")"
+paste $LIST1 $LIST2 | perl -ne "chomp;@a=split(/\s+/);\$d=\$a[3]-\$a[1];next if(\$d<$MIN);printf(\"%-50s %16d %14d\n\",\$a[0],\$a[3],\$d)"
+
+rm -f $LIST1
+rm -f $LIST2
+
