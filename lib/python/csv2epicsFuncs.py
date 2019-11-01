@@ -1137,7 +1137,8 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
 
     - ALH Sort (col. S):   An optional sort number to define the order within a group
     """
-    if len(alhSignals) == 0:
+    nSignals = len(alhSignals)
+    if nSignals == 0:
         return
     for sig in alhSignals:
         nodePath = devObj.alhGroup
@@ -1182,7 +1183,8 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
                         tags[name] = value
                 except TypeError: # no name=value
                     raise ValueError('Illegal name-value pair in ALH-Flags (col R): '+tag)
-
+        if nSignals > 1:
+            tags['ALIAS'] = sig+": "+tags['ALIAS']
 
         # The --cmLog Option:
         # - report each state of a bi, mbbi....
