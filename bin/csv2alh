@@ -45,12 +45,28 @@ def str2col(s):
 
 #******************************* Main program *******************************
 
-usage        = """* Author  B.Kuner
+usage        = """USAGE: csv2alh --col n [-h OPTIONS] csv file
 
-Create an alarm handler configuration from an .csv file
-Data: col n="signal|list" col n+1 = "alhFile|PATH", col n+2 = alh flag list
+Create an alarm handler configuration from an .csv file. The csv2epicsDb allowsn only
+one alh definition. This program allows to create additional alarm handlers from the 
+same table by defining arbitrary collumns. There is need of 4 subsequent collumns, 
+beginning with the column defined in opcion -c.
 
-USAGE: csv2alh --col n [-h OPTIONS] csv file"""
+Columns may be defined by its number (first=0) or spreadsheet-tag (first=A). 
+
+Spreadsheet data: 
+
+- col n   ="signal|list" If the item is a record use col. C, otherwise a signal defined in the template
+- col n+1 = "alhFile|PATH",e.g.. 'RF|$(ALHGROUP_PREFIX)|SignCuit' 
+- col n+2 = alh flag list, e.g..: 'COMMAND=run_edm.sh -m DEVN=\$(DEVN),TAB=6 PAHX_CTRL.edl|ALIAS= Button Emergency Stop All:'
+- col n+3 = Optional sort order
+
+Example Makefile rule, defines a devicename in col a, alh definition beginning in AA, take
+signal only if defined col B, substitute variable in csv data:
+
+    hardware.alh: $(COMMON_DIR)/EPICSData.csv
+            csv2alh -c AA -n A -d B --var TAG=myTag $<
+"""
 parser = OptionParser(usage=usage,
                  version="%%prog %s" % my_version,
                  )
@@ -62,7 +78,7 @@ parser.add_option("-c","--col",
 parser.add_option("-d","--disa", 
                  action="store",
                  type="string",
-                 help="Ignore item if this col is not defined",
+                 help="Check if this item is enabled or ignore it if this col is not defined",
                  )
 parser.add_option("-g","--output_alh_no_group", 
                  action="store_true",
@@ -81,7 +97,7 @@ parser.add_option("-t","--separator",
 parser.add_option("--var", 
                  action="append",
                  type="string",
-                 help="Define variable in the csv file. CSV-file tag: $(VAR) fill with: --var VAR=huhu"
+                 help="Substitute variable in the csv file. CSV-file tag: $(VAR) fill with: --var VAR=huhu"
                  )
 
 (options, args) = parser.parse_args()
