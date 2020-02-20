@@ -238,7 +238,27 @@ class baseData(object):
     @staticmethod
     def getStringVALlen():  return baseData.baseLen[baseData.base]['StringVALlen']
 
-recordSet = {'longin':'INP','longout':'OUT','ai':'INP','ao':'OUT','bi':'INP','bo':'OUT','mbbi':'INP','mbbo':'OUT','sel':None,'calc':None,'seq':None,'calcout':'OUT','mbbiDirect':'INP','mbboDirect':'OUT','stringin':'INP','stringout':'OUT'}
+# all these rtyps are recognized as records and processed by function 'procRecord'. 
+# The output type is used as link type when the output link is created, see fuction 'setupRecordLink'
+# Other rtyps are treat as templates and processed by its own function as defined in the plugin
+recordSet = {'longin':'INP',
+    'longout':'OUT',
+    'ai':'INP',
+    'ao':'OUT',
+    'bi':'INP',
+    'bo':'OUT',
+    'mbbi':'INP',
+    'mbbo':'OUT',
+    'mbbiDirect':'INP',
+    'mbboDirect':'OUT',
+    'stringin':'INP',
+    'stringout':'OUT',
+    'calc':None,
+    'calcout':'OUT',
+    'dfanout':None,
+    'sel':None,
+    'seq':None,
+    }
 def procInOut(rtyp):
     """ Is it a in or out record type? Return 'INP'|'OUT' for records or 
     templates that begin with a known record name from the list: 
