@@ -479,6 +479,8 @@ def createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines):
             fields.update(createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr))
     if len(devObj.rangeEng) > 0:
         fields.update(getDisplayLimits(devObj.rangeEng,devObj.egu))
+    elif len(devObj.egu) > 0:
+         fields.update({'EGU':devObj.egu})
     if (not fields.has_key('LINR')): # not if conversion is allready defined by setupRecordLink()
         fields.update(createSlopeConversion(devObj.rangeEng,devObj.rangeRaw))    # additional parameters should override calculated values for PREC
     fields.update(epicsUtils.parseParam(devObj.prec)) # Common fieles from Col. N may overwrite!
