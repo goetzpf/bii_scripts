@@ -1,5 +1,7 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
+
+"""convert mercurial to darcs patches by re-recording the patches."""
 
 # Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
@@ -10,22 +12,23 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# pylint: disable=invalid-name, missing-module-docstring
 
 from optparse import OptionParser
 
 import subprocess
-import os.path
 import sys
 import os
-import shutil
+import os.path
 import tempfile
 
 # -----------------------------------------------
@@ -42,7 +45,7 @@ def _system(cmd, catch_stdout, verbose, dry_run):
     ValueError
     """
     if dry_run or verbose:
-        print ">", cmd
+        print(">", cmd)
         if dry_run:
             return None
     if catch_stdout:
@@ -55,12 +58,15 @@ def _system(cmd, catch_stdout, verbose, dry_run):
     (child_stdout, child_stderr) = p.communicate()
     if p.returncode!=0:
         raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
-    return(child_stdout)
+    if child_stdout is None:
+        return
+    # decode: return result as <str> instead of <bytes>
+    return child_stdout.decode()
 
 def rename(old, new, verbose, dry_run):
     """rename a file."""
     if dry_run or verbose:
-        print "> rename %s to %s" % (old, new)
+        print("> rename %s to %s" % (old, new))
     if dry_run:
         return
     os.rename(old, new)
@@ -94,8 +100,6 @@ def hg_status(revision, verbose):
              "R" : "removed",
            }
     result= hg_cmd("status --change %s -C" % revision, True, verbose, False)
-    last_flag= None
-    last_name= None
     ignore_list= set()
     actions= []
     mylist= []
@@ -131,9 +135,9 @@ def hg_log(revision,verbose):
 
 def hg_revision_range(revision1, revision2, verbose):
     """return all revisions between revision1 and revision2."""
-    all= hg_cmd("log -r %s:%s --template '{rev}\\n'" % (revision1,revision2),
-                True,verbose, False)
-    return [i for i in all.splitlines() if not i.isspace() and i!=""]
+    all_= hg_cmd("log -r %s:%s --template '{rev}\\n'" % (revision1,revision2),
+                 True,verbose, False)
+    return [i for i in all_.splitlines() if not i.isspace() and i!=""]
 
 def darcs_replay(author, log,actions,verbose,dry_run):
     """replay actions in darcs."""
@@ -146,7 +150,8 @@ def darcs_replay(author, log,actions,verbose,dry_run):
         if action=="rename":
             (old,new)= item[1:3]
             # mercurial already has renamed the file, undo the rename:
-            rename(new, old, verbose, dry_run) 
+            # pylint: disable= arguments-out-of-order
+            rename(new, old, verbose, dry_run)
             darcs_cmd("mv %s %s" % (old,new),False,verbose,dry_run)
         elif action=="added":
             darcs_cmd("add %s" % item[1],False,verbose,dry_run)
@@ -157,7 +162,7 @@ def darcs_replay(author, log,actions,verbose,dry_run):
         elif action=="modified":
             pass # nothing to do
         else:
-            raise ValueError, "unknown action: \"%s\"" % action
+            raise ValueError("unknown action: \"%s\"" % action)
     if not dry_run:
         (handle,path)= tempfile.mkstemp(prefix="hg-darcs-",text=True)
         fh= os.fdopen(handle,"w")
@@ -168,10 +173,10 @@ def darcs_replay(author, log,actions,verbose,dry_run):
     darcs_cmd("record --logfile=%s -A '%s' -a" % (path,author),
               False,verbose,dry_run)
     if dry_run:
-        print "LOG:"
-        print "-" * 40
-        print log
-        print "-" * 40
+        print("LOG:")
+        print("-" * 40)
+        print(log)
+        print("-" * 40)
     if not dry_run:
         os.remove(path)
 
@@ -197,9 +202,9 @@ def convert_from_to(revision1, revision2, verbose, dry_run):
 # version of the program:
 my_version= "1.0"
 
-def process(options,args):
-    filelist= []
-    if (options.revision is None):
+def process(options,_):
+    """do all the work."""
+    if options.revision is None:
         sys.exit("error: revision is mandatory")
     revs= options.revision.split(":")
     if len(revs)>2:
@@ -214,7 +219,7 @@ def script_shortname():
 
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: convert mercurial revisions to darcs...\n" % script_shortname()
+    print("%-20s: convert mercurial revisions to darcs...\n" % script_shortname())
 
 def main():
     """The main function.
@@ -225,8 +230,8 @@ def main():
     usage = "usage: %prog -r [revisions] {extra options}"
 
     parser = OptionParser(usage=usage,
-                	  version="%%prog %s" % my_version,
-			  description=
+                          version="%%prog %s" % my_version,
+                          description= \
                             "This program converts mercurial revisions to "+\
                             "darcs revisions. The changes, log messages and "+\
                             "author information remain intact, only the "+\
@@ -237,18 +242,18 @@ def main():
     parser.add_option("--summary",  # implies dest="nodelete"
                       action="store_true", # default: None
                       help="print a summary of the function of the program",
-		      )
+                      )
     parser.add_option("-r", "--revision", # implies dest="file"
                       action="store", # OptionParser's default
-		      type="string",  # OptionParser's default
+                      type="string",  # OptionParser's default
                       help= "Specify the REVISION. REVISION may be a "+\
                             "mercurial revision or a revision range where two "+\
                             "revisions are separated by a colon. If just one "+\
                             "revision is given, all revisions from there to "+\
                             "\"tip\" are taken. Tags or strings like \"tip\" "+\
                             "may also be used as a revision specification.",
-		      metavar="REVISION"  # for help-generation text
-		      )
+                      metavar="REVISION"  # for help-generation text
+                      )
     parser.add_option("-v", "--verbose",   # implies dest="switch"
                       action="store_true", # default: None
                       help="print to the screen what the program does",
@@ -258,18 +263,17 @@ def main():
                       help="do not apply any changes",
                      )
 
-    x= sys.argv
+    #x= sys.argv
     (options, args) = parser.parse_args()
     # options: the options-object
     # args: list of left-over args
 
     if options.summary:
         print_summary()
-	sys.exit(0)
+        sys.exit(0)
 
     process(options,args)
     sys.exit(0)
 
 if __name__ == "__main__":
     main()
-
