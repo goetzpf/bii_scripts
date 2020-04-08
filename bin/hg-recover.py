@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2020 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
@@ -185,7 +185,7 @@ except ImportError:
 import re
 
 # version of the program:
-my_version= "1.0"
+my_version= "1.0.1"
 
 default_file= "hg-recover.tar.gz"
 
@@ -458,8 +458,8 @@ If there is a field "qparent" in "metadata.yaml", you should use the option "-r
 
 Clone the central repository with:
 
-"hg clone [-r qparent] [central repository] [source dir]"
-"cd [source dir]
+  hg clone [-r qparent] [central repository] [source dir]
+  cd [source dir]
 
 2. apply outgoing patches
 
@@ -468,34 +468,41 @@ followed by one or more integers (the revision numbers of outgoing patches),
 these patches have to be applied to the repository. They are placed in the file
 "hg-bundle". Apply the patches with:
 
-"hg unbundle [data-dir]/hg-bundle"
+  hg unbundle [data-dir]/hg-bundle
 
-3. set the specified revision
+3. apply mq patches
+
+If in the file "metadata.yaml" there is a line "mq patches used: true", then
+you have to apply an mq patch bundle with this command:
+
+  hg unbundle [data-dir]/mq-bundle
+
+4. set the specified revision
 
 In the file "metadata.yaml", the line starting with "revision" contains the
 revision number that was used in the working copy. Update to this revision
 with:
 
-"hg update -r [revision]"
+  hg update -r [revision]
 
-4. apply uncomitted changes
+5. apply uncomitted changes
 
 If in the file "metadata.yaml", the line starting with "uncomitted changes"
 contains "true", then there are changes not committed to the repository that
 have to be applied. These are in the file "hg-diff". In this case apply these
 changes with:
 
-"patch -p1 < [data-dir]/hg-diff
+  patch -p1 < [data-dir]/hg-diff
 
-5. add files not known to the repository
+6. add files not known to the repository
 
 If in the file "metadata.yaml", the line starting with "unknown files" contains
 "true", then there are additional files not known to the repository. Add them
 with:
 
-"tar -xzf [data-dir]/unknown-files.tar.gz"
+  tar -xzf [data-dir]/unknown-files.tar.gz
 
-6. restore the mq patches
+7. restore the mq patches
 
 If in the file "metadata.yaml", the line starting with "mq patches used"
 contains "true", then there were applied mq patches in the original repository.
@@ -504,7 +511,7 @@ file "metadata.yaml" after "patchname list:".  Each item contains a number and
 a string, separated by a colon ":".
 Now apply:
 
-"hg qimport -r [number] -n [string]" 
+  hg qimport -r [number] -n [string]
 
 For each of the lines from the topmost entry (the biggest revision number) to
 the bottom (with the smallest revision number). This recreates the patches and
@@ -686,9 +693,15 @@ def hg_outgoing(central_repo, verbose):
         print "outgoing patches: ", ",".join([str(e) for e in l])
     return l
 
-def create_hg_bundle(filename, central_repo, verbose, dry_run):
+def create_hg_bundle(filename, central_repo, base,
+                     verbose, dry_run):
     """create a bundle of outgoing patches."""
-    hg_cmd("bundle %s %s" % (filename,central_repo), 
+    cmd= ["bundle", filename]
+    if central_repo:
+        cmd.append(central_repo)
+    if base:
+        cmd.append("--base %s" % base)
+    hg_cmd(" ".join(cmd),
            catch_stdout=not verbose,
            verbose=verbose, dry_run=dry_run)
 
@@ -826,7 +839,14 @@ def create_recover_data(working_copy,
         mkfile(hg_cmd("diff", True, verbose, dry_run),
                join(data_dir,"hg-diff"), verbose, dry_run)
     if len(outgoing_patches)>0:
-        create_hg_bundle(join(data_dir,"hg-bundle"),central_repo, 
+        create_hg_bundle(join(data_dir,"hg-bundle"),
+                         central_repo, 
+                         None,
+                         verbose, dry_run)
+    if patchlist is not None:
+        create_hg_bundle(join(data_dir,"mq-bundle"),
+                         None,
+                         "qparent",
                          verbose, dry_run)
     if len(unknown_files)>0:
         make_archive(join(data_dir,"unknown-files.tar.gz"),
@@ -891,6 +911,8 @@ def recover_data(working_copy,
     data_dir= join("..",data_dir)
     if len(bag["outgoing patches"])>0:
         apply_hg_bundle(join(data_dir,"hg-bundle"), verbose, dry_run)
+    if bag["mq patches used"]:
+        apply_hg_bundle(join(data_dir,"mq-bundle"), verbose, dry_run)
     hg_cmd("update -r %s" % bag["revision"], 
            not verbose, verbose, dry_run=dry_run)
     if bag["uncommitted changes"]:
