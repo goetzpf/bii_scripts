@@ -49,9 +49,11 @@ LICENSE
 README
 	The file you reading at the moment
 
-Licensing
-=========
+License and copyright
+=====================
 
-Currently BESSY internal use only. If not stated otherwise, copyrighted by
-Helmholtz-Zentrum Berlin für Materialien und Energie. The original license
-text can be found in "LICENSE".
+Copyright (c) 2020 by 
+`Helmholtz-Zentrum Berlin <https://www.helmholtz-berlin.de>`_.
+
+This software of this project can be used under GPL v.3, see file "LICENSE".
+
