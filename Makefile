@@ -641,7 +641,7 @@ $(SETENV):
 # build shared files ........................................
 
 build_shared: $(SHARE_BUILD_DIR)
-	cp -a $(SHARE_SRC_DIR)/* $<
+	rsync -ac $(SHARE_SRC_DIR)/ $</
 
 # build scripts .............................................
 
