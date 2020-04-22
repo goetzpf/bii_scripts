@@ -680,7 +680,7 @@ $(PYTHON3LIB_BUILD_DIR)/%: $(PYTHON3LIB_SRC_DIR)/% $(PYTHON3LIB_BUILD_DIR)
 
 # build html ................................................
 
-build_html: clear_errlog build_html_txt_doc build_html_script build_html_perllib \
+build_html: build_html_txt_doc build_html_script build_html_perllib \
 	    build_html_pythonlib
 	@if [ 0 -ne `grep -v WARNING: $(ERRLOG) 2>/dev/null | wc -l` ]; then \
 		echo "*************************************"; \
