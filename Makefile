@@ -113,7 +113,7 @@ rm_extension_list=$(basename $(1))
 force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
 # rsync command
-rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(RSYNC_HOST):'$(2)'
+rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(WWW_RSYNC_HOST):'$(2)'
 
 #############################################################
 
@@ -727,11 +727,11 @@ $(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLI
 	if test -e $<; then $(INSTALL) $< $@; fi
 endif
 
-ifneq ($(strip $(RSYNC_HOST)),)
-# if $(RSYNC_HOST) is not empty:
+ifneq ($(strip $(WWW_RSYNC_HOST)),)
+# if $(WWW_RSYNC_HOST) is not empty:
 
 install_html: cp_css build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
-	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(RSYNC_DIR)/html/)
+	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(WWW_RSYNC_DIR)/html/)
 
 cp_css: $(HTML_BUILD_DIR) $(HTML_BUILD_DIR)/$(CSS_SRC_FILE)
 

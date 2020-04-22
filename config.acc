@@ -3,10 +3,10 @@
 
 # Host to distribute documentation to. If empty, do not use rsync.
 # Use "user@host" in order to define a ssh user.
-RSYNC_HOST=wwwcsr@www-csr.bessy.de
+WWW_RSYNC_HOST=wwwcsr@www-csr.bessy.de
 
 # Directory where rsync places files:
-RSYNC_DIR=/home/wwwcsr/www/control/bii_scripts
+WWW_RSYNC_DIR=/home/wwwcsr/www/control/bii_scripts
 
 # define this macro when make should
 # create the installation directories in

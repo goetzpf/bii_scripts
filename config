@@ -3,10 +3,10 @@
 
 # Host to distribute documentation to. If empty, do not use rsync.
 # Use "user@host" in order to define a ssh user.
-RSYNC_HOST=
+WWW_RSYNC_HOST=
 
 # Directory where rsync places files:
-RSYNC_DIR=
+WWW_RSYNC_DIR=
 
 # define this macro when make should
 # create the installation directories in
