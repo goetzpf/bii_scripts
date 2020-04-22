@@ -170,16 +170,6 @@ endif
 INSTALL_FLAGS=-D $(INSTALL_G_FLAG) -m $(INSTALL_PERMS)
 INSTALL_XFLAGS=-D $(INSTALL_G_FLAG) -m $(INSTALL_XPERMS)
 
-ifeq ($(strip $(INSTALL_GROUP)),)
-    define makedir
-	mkdir -p -m $(INSTALL_XPERMS) $1
-    endef
-else
-    define makedir
-	mkdir -p -m $(INSTALL_XPERMS) $1 && chgrp $(INSTALL_GROUP) $1
-    endef
-endif
-
 # out-comment the following if
 # docutils (http://docutils.sourceforge.net)
 # are not installed
@@ -661,8 +651,7 @@ install: install_html_extra install_html_txt install_shared install_scripts \
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
 
 $(_SHARE_INSTALL_DIRLIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
-	rm -rf $@ && \
-	$(call makedir,$@)
+	rm -rf $@ && mkdir -p $@
 
 $(_SHARE_INSTALL_LIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	$(INSTALL) $< $@
@@ -678,8 +667,7 @@ $(_PERLLIB_INSTALL_LIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	$(INSTALL) $< $@
 
 $(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
-	rm -rf $@ && \
-	$(call makedir,$@)
+	rm -rf $@ && mkdir -p $@
 
 install_python_libs: build_python_libs \
 	$(_PYTHON_LIB_INSTALL_DIRS) \
@@ -971,7 +959,7 @@ $(_ALL_INSTALL_DIRLIST): %:
 	then \
 		touch $@; \
 	else \
-		$(call makedir,$@); \
+	        mkdir -p $@ \
 	fi
 endif
 
@@ -980,7 +968,7 @@ $(_ALL_ALWAYS_INSTALL_DIRLIST): %:
 	then \
 		touch $@; \
 	else \
-		$(call makedir,$@); \
+	        mkdir -p $@ \
 	fi
 
 # debugging .................................................
