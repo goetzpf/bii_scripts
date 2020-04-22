@@ -10,21 +10,27 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# pylint: disable= bad-whitespace, invalid-name
+
+"""remove tabs in files."""
+
+# pylint: disable= deprecated-module
 from optparse import OptionParser
 #import string
 import os.path
+import sys
 import re
 
-from FilterFile import *
+import FilterFile as FF
 
 # version of the program:
 my_version= "1.0"
@@ -32,85 +38,86 @@ my_version= "1.0"
 compose_var= { "lines":0, "changed":0 , "max":-1}
 
 def print_stat(lines,changed,filename=None):
-	st= ""
-	if filename is not None:
-		st= "File: \"%s\"\n\t" % filename
-	st+= "input lines: %5d  changed lines: %5d  (%3.2f%%)\n" % \
-	     (lines,changed,
-	      changed/float(lines)*100)
-	print >> sys.stderr, st
+    """print statistic"""
+    st= ""
+    if filename is not None:
+        st= "File: \"%s\"\n\t" % filename
+    st+= "input lines: %5d  changed lines: %5d  (%3.2f%%)\n" % \
+         (lines,changed,
+          changed/float(lines)*100)
+    print >> sys.stderr, st
 
 def compose(funclist, val):
-	"""apply each function from a list to a value recursivly."""
-	for func in funclist:
-		val= func(val)
-	return val
+    """apply each function from a list to a value recursivly."""
+    for func in funclist:
+        val= func(val)
+    return val
 
 def line_filter(in_file, out_file, funclist, maxlines= None):
-	"""filter a file, apply each function given to each line."""
+    """filter a file, apply each function given to each line."""
+    lines=0
+    changed= 0
+    skip= False
+    fi= FF.FilterFile(filename=in_file, mode="r",opennow=True)
+    fo= FF.FilterFile(filename=out_file,mode="u",opennow=True,\
+                      replace_ext="old")
 
-        lines=0
-	changed= 0
-	skip= False
-	fi= FilterFile(filename=in_file, mode="r",opennow=True)
-	fo= FilterFile(filename=out_file,mode="u",opennow=True,\
-		       replace_ext="old")
-
-	for line in fi.fh():
-		lines+= 1
-		if skip:
-			new= line
-		else:
-			new= compose(funclist,line)
-			if new!=line:
-				changed+= 1
-				if maxlines is not None:
-					maxlines-= 1
-					if maxlines<=0:
-						skip= True
-		fo.write(new)
-	fi.close()
-	fo.close()
-	return(lines,changed)
+    for line in fi.fh():
+        lines+= 1
+        if skip:
+            new= line
+        else:
+            new= compose(funclist,line)
+            if new!=line:
+                changed+= 1
+                if maxlines is not None:
+                    maxlines-= 1
+                    if maxlines<=0:
+                        skip= True
+        fo.write(new)
+    fi.close()
+    fo.close()
+    return(lines,changed)
 
 def unspc(string):
-	"""remove trailing spaces in a string."""
-	trl_spc= re.compile(r'[ \t]+$')
-	return re.sub(trl_spc, "", string)
+    """remove trailing spaces in a string."""
+    trl_spc= re.compile(r'[ \t]+$')
+    return re.sub(trl_spc, "", string)
 
 def untab(string, tabsize):
-	"""remove tabs in a string."""
-	return string.expandtabs(tabsize)
+    """remove tabs in a string."""
+    return string.expandtabs(tabsize)
 
 def txt_cleanup_on_file(filename,options):
-	"""perform cleanup filter on a given file or stdin."""
-	w_mode= "w"
-	w_file= None
-	funclist= []
-	if options.inplace is not None:
-		if filename is None:
-			raise ValueError, "filename must be given for inplace"
-		w_file= filename
-	if options.unspc is not None:
-		funclist.append(unspc)
-	if options.untab is not None:
-		funclist.append(lambda s: untab(s, options.tabwidth))
-	if len(funclist)<=0:
-		funclist.append(lambda x: x)
-	(lines,changed)= line_filter(filename, w_file, funclist, options.max)
-	if options.stats:
-		print_stat(lines,changed,filename)
+    """perform cleanup filter on a given file or stdin."""
+    #w_mode= "w"
+    w_file= None
+    funclist= []
+    if options.inplace is not None:
+        if filename is None:
+            raise ValueError, "filename must be given for inplace"
+        w_file= filename
+    if options.unspc is not None:
+        funclist.append(unspc)
+    if options.untab is not None:
+        funclist.append(lambda s: untab(s, options.tabwidth))
+    if len(funclist)<=0:
+        funclist.append(lambda x: x)
+    (lines,changed)= line_filter(filename, w_file, funclist, options.max)
+    if options.stats:
+        print_stat(lines,changed,filename)
 
 def txt_cleanup_on_filelist(options,args):
-	filelist= []
-	if (options.file is not None):
-		filelist=[options.file]
-	if len(args)>0: # extra arguments
-		filelist.extend(args)
-	if len(filelist)<=0:
-		filelist= [None]
-	for f in filelist:
-		txt_cleanup_on_file(f,options)
+    """do cleanup on list of files"""
+    filelist= []
+    if options.file is not None:
+        filelist=[options.file]
+    if args: # extra arguments
+        filelist.extend(args)
+    if len(filelist)<=0:
+        filelist= [None]
+    for f in filelist:
+        txt_cleanup_on_file(f,options)
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -121,6 +128,7 @@ def print_summary():
     print "%-20s: a cleanup tool for text files\n" % script_shortname()
 
 def print_doc():
+    """print documentation."""
     print \
     """\
 ================
@@ -217,75 +225,74 @@ def main():
     usage = "usage: %prog [options] {files}"
 
     parser = OptionParser(usage=usage,
-                	  version="%%prog %s" % my_version,
-			  description="this program removes tabs and "
-			              "trailing spaces in files.")
+                          version="%%prog %s" % my_version,
+                          description="this program removes tabs and "
+                                      "trailing spaces in files.")
 
     parser.set_defaults(tabwidth="8")
 
     parser.add_option("--summary",  # implies dest="nodelete"
                       action="store_true", # default: None
                       help="print a summary of the function of the program",
-		      )
+                     )
     parser.add_option("-f", "--file", # implies dest="file"
                       action="store", # OptionParser's default
-		      type="string",  # OptionParser's default
+                      type="string",  # OptionParser's default
                       help="specify the FILE",
-		      metavar="FILE"  # for help-generation text
-		      )
+                      metavar="FILE"  # for help-generation text
+                     )
     parser.add_option("-i", "--inplace",   # implies dest="switch"
                       action="store_true", # default: None
                       help="change files in-place",
-		      )
+                     )
     parser.add_option("-s", "--unspc",   # implies dest="switch"
                       action="store_true", # default: None
                       help="remove traling spaces in lines",
-		      )
+                     )
     parser.add_option("-u", "--untab", # implies dest="file"
                       action="store_true", # default: None
                       help="remove tabs.",
-		     )
+                     )
     parser.add_option("--tabwidth",   # implies dest="file"
                       action="store", # OptionParser's default
-		      type="int",  # OptionParser's default
+                      type="int",  # OptionParser's default
                       help="Use TABWIDTH, when --untab is specified",
-		      metavar= "TABWIDTH"
-		     )
+                      metavar= "TABWIDTH"
+                     )
     parser.add_option("-S", "--stats",   # implies dest="switch"
                       action="store_true", # default: None
-                      help="print statistics on changed lines " +
-		           "to stderr",
-		      )
+                      help="print statistics on changed lines "
+                           "to stderr",
+                     )
     parser.add_option("--max",   # implies dest="switch"
                       action="store", # OptionParser's default
-		      type="int",  # OptionParser's default
+                      type="int",  # OptionParser's default
                       help="change up to LINENO lines",
-		      metavar= "LINENO"
-		      )
-    parser.add_option( "--doc",            # implies dest="switch"
+                      metavar= "LINENO"
+                     )
+    parser.add_option("--doc",            # implies dest="switch"
                       action="store_true", # default: None
                       help="create online help in restructured text"
-		           "format. Use \"./txtcleanup.py --doc | rst2html\" "
-			   "to create html-help"
-		      )
+                           "format. Use \"./txtcleanup.py --doc | rst2html\" "
+                           "to create html-help"
+                     )
 
 
-    x= sys.argv
+    #x= sys.argv
     (options, args) = parser.parse_args()
     # options: the options-object
     # args: list of left-over args
 
     if options.summary:
         print_summary()
-	sys.exit(0)
+        sys.exit(0)
 
     if options.doc:
         print_doc()
-	sys.exit(0)
+        sys.exit(0)
 
     txt_cleanup_on_filelist(options,args)
     sys.exit(0)
 
 if __name__ == "__main__":
     main()
-
