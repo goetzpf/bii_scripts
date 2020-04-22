@@ -26,20 +26,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 use strict;
 
 use FindBin;
-
-# enable this if you want to search modules like dbitable.pm
-# relative to the location of THIS script:
-# ------------------------------------------------------------
-#CONFIGURE: deactivate_when USE_PERL5LIB
-use lib "$FindBin::RealBin/../lib/perl";
-
-
-# You may specify where to look for perl extensions like Tk or
-# find Tk::TableMatrix here. The following line activates
-# my private installed extensions on host ocean:
-# ------------------------------------------------------------
-#CONFIGURE: activate_when USE_GP_MODULES
-# use lib "/home/unix/pfeiffer/project/perl/lib/site_perl";
+use File::Basename;
 
 use Sys::Hostname;
 use Config;
@@ -47,7 +34,6 @@ use Cwd;
 use File::Spec;
 use File::Find;
 
-#use Tk 800.024; <-- problems on ocean
 use Tk;
 use Tk::Menu;
 use Tk::Dialog;
@@ -90,7 +76,6 @@ use vars qw($opt_help $opt_bigfonts);
 
 my %global_data;
 
-
 $global_data{title} = "BrowseDB";
 $global_data{version} = "0.95";
 
@@ -108,6 +93,7 @@ $global_data{license}= [ "HZB License"];
 
 $global_data{os} = $Config{osname};
 
+my %bii_scripts_config= read_biiscripts_config();
 
 if (!GetOptions("help|h", "bigfonts|b"))
   { die "parameter error, use \"$0 -h\" to display the online-help\n"; };
@@ -146,9 +132,7 @@ $global_data{home} = $ENV{"HOME"};
 if (!defined $global_data{home})
   { $global_data{home} = ""; };
 
-#CONFIGURE: make_variable BROWSEDB_SHARE_DIR $share_dir
-#CONFIGURE: deactivate_when BROWSEDB_SHARE_DIR
-my $share_dir= path_beautify("$FindBin::RealBin/../share/browsedb");
+my $share_dir= $bii_scripts_config{SHARE_INSTALL_DIR} . "/browsedb";
 
 $global_data{share_dir} = $share_dir;
 
@@ -7352,6 +7336,30 @@ sub conn_f_find
     # return a hash-ref: res-table-name => [res_col1,res_col2...]
     return($r_res_tab->{$f_col});
   }
+
+# load bii_scripts config file
+#_______________________________________________________
+
+sub read_biiscripts_config
+  {
+    my $filename = "$FindBin::RealBin/bii_scripts.config";
+    open(my $fh, '<:encoding(UTF-8)', $filename)
+      or die "Could not open file '$filename' $!";
+    my $TOP= dirname("$FindBin::RealBin");
+    my %bii_config;
+    while (my $line = <$fh>)
+      {
+        chomp $line;
+        if ($line!~/([^=]+)=(.*)/)
+          { next; }
+        my $name= $1;
+        my $val= $2;
+        $val=~ s/\$TOP\b/$TOP/g;
+        $bii_config{$name}= $val;
+    }
+  close $fh;
+  return %bii_config;
+}
 
 # beautify a file-path
 #_______________________________________________________

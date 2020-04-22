@@ -633,14 +633,6 @@ $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/% $(SCRIPT_BUILD_DIR)
 	cp $< $(@D)
 	chmod a+rx $@
 
-# browsedb.pl needs to be patched, so we have an
-# extra rule here:
-$(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
-	cp $< $(@D)
-	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR)/browsedb \
-	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
-	chmod ug+x $@
-
 # build perl libs............................................
 
 build_perl_libs: $(PERLLIB_BUILD_DIR) $(_PERLLIB_BUILD_LIST)
