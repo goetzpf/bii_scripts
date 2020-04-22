@@ -147,11 +147,6 @@ RSYNC_DIR=/home/wwwcsr/www/control/bii_scripts
 # case the do not exist already
 # CREATE_INSTALL_DIRS=1
 
-# environment variables for programs.........................
-PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
-
-PYTHON2PATHNEW=$(PYTHON2LIB_SRC_DIR):$(PYTHONPATH)
-
 # program parameters ........................................
 
 # group for installed files and directories
@@ -218,6 +213,8 @@ DOCUTILS_AVAILABLE:=$(shell (rst2html -h >/dev/null 2>&1 && echo "1") || echo "0
 LOCAL_BUILD_DIR=out
 
 ERRLOG=$(LOCAL_BUILD_DIR)/ERRLOG.TXT
+
+SETENV=$(LOCAL_BUILD_DIR)/SETENV.sh
 
 HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html
 
@@ -753,6 +750,13 @@ clean:
 
 build: build_shared build_scripts build_perl_libs build_python_libs build_html
 
+# also makes all scripts executable:
+$(SETENV):
+	mkdir -p $(LOCAL_BUILD_DIR)
+	echo "export PERL5LIB=$$(readlink -e $(PERLLIB_SRC_DIR)):$$PERL5LIB" > $@
+	echo "export PYTHONPATH=$$(readlink -e $(PYTHON2LIB_SRC_DIR)):$$PYTHONPATH" >> $@
+	chmod u+x $(SCRIPT_SRC_DIR)/* 
+
 # build shared files ........................................
 
 build_shared: $(SHARE_BUILD_DIR) $(_SHARE_BUILD_DIRLIST) $(_SHARE_BUILD_LIST)
@@ -818,8 +822,8 @@ clear_errlog:
 # build documentation from plain text files
 build_html_txt_doc: $(HTML_BUILD_DIR) $(_HTML_DOCTXT_TXT_BUILD_LIST) $(_HTML_RST_TXT_BUILD_LIST)
 
-$(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt
-	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
+$(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt $(SETENV)
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
 
 $(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.rst
 ifeq (1,$(DOCUTILS_AVAILABLE))
@@ -856,34 +860,34 @@ build_html_script_plaintxt: $(SCRIPT_HTML_BUILD_DIR) \
 			    $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST)
 
-$(_HTML_PLAINTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
+$(_HTML_PLAINTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/% $(SETENV)
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) perl $<  2>&1; true)   >> $@
+	(. $(SETENV) && $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
-$(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
+$(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/% $(SETENV)
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) perl $< -h 2>&1; true) >> $@
+	(. $(SETENV) && $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
-$(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.p
+$(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.p $(SETENV)
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) perl $< -h 2>&1; true) >> $@
+	(. $(SETENV) && $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
-$(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
+$(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl $(SETENV)
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) perl $< -h 2>&1; true) >> $@
+	(. $(SETENV) && $< -h 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
-$(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
+$(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py $(SETENV)
 	@echo "<PRE>"      >  $@
-	(PYTHONPATH=$(PYTHON2PATHNEW) $(PYTHON2) $< -h 2>>$(ERRLOG); true) >> $@
+	(. $(SETENV) && $< -h 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 
-$(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
+$(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl $(SETENV)
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) perl $<  2>&1; true)   >> $@
+	(. $(SETENV) && $<  2>&1; true)   >> $@
 	@echo "</PRE>"     >> $@
 
 build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_SCRIPT_BUILD_LIST) \
@@ -892,32 +896,32 @@ build_html_script_rst: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_RST_SCRIPT_BUILD_LIST) \
 tt:
 	echo $(_HTML_RST_SCRIPT_BUILD_LIST)
 
-$(_HTML_RST_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
+$(_HTML_RST_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/% $(SETENV)
 ifeq (1,$(DOCUTILS_AVAILABLE))
-	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHON2PATHNEW) perl $< --doc 2>>$(ERRLOG); true) | \
+	(. $(SETENV) && $< --doc 2>>$(ERRLOG); true) | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHON2PATHNEW) perl $< --doc 2>>$(ERRLOG); true) >> $@
+	(. $(SETENV) && $< --doc 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 endif
 
-$(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
+$(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py $(SETENV)
 ifeq (1,$(DOCUTILS_AVAILABLE))
-	PYTHONPATH=$(PYTHON2PATHNEW) $(PYTHON2) $< --doc | \
+	. $(SETENV) && $< --doc | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
-	(PYTHONPATH=$(PYTHON2PATHNEW) $(PYTHON2) $< --doc 2>>$(ERRLOG); true) >> $@
+	(. $(SETENV) && $< --doc 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 endif
 
 
 build_html_script_doctxt: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_DOCTXT_SCRIPT_BUILD_LIST)
 
-$(_HTML_DOCTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
-	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+$(_HTML_DOCTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl $(SETENV)
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
@@ -932,9 +936,9 @@ $(_HTML_POD_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC
 
 build_html_perllib_doctxt: $(PERLLIB_HTML_BUILD_DIR) $(_HTML_DOCTXT_PERLLIB_BUILD_LIST)
 
-$(_HTML_DOCTXT_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm
-	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	PERL5LIB=$(PERL5LIBNEW) perl $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+$(_HTML_DOCTXT_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm $(SETENV)
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
@@ -944,8 +948,8 @@ build_html_pythonlib: build_html_pythonlib_pydocs
 
 build_html_pythonlib_pydocs: $(PYTHON2LIB_HTML_BUILD_DIR) $(_HTML_PYDOC_PYTHON2LIB_BUILD_LIST)
 
-$(_HTML_PYDOC_PYTHON2LIB_BUILD_LIST): $(PYTHON2LIB_HTML_BUILD_DIR)/%.html: $(PYTHON2LIB_SRC_DIR)/%.py
-	d=`pwd` && cd $(@D) && PYTHONPATH=$$d/$(PYTHON2PATHNEW) $(PYDOC2) -w $$d/$< 2>>$$d/$(ERRLOG)
+$(_HTML_PYDOC_PYTHON2LIB_BUILD_LIST): $(PYTHON2LIB_HTML_BUILD_DIR)/%.html: $(PYTHON2LIB_SRC_DIR)/%.py $(SETENV)
+	. $(SETENV); d=`pwd` && cd $(@D) && $(PYDOC2) -w $$d/$< 2>>$$d/$(ERRLOG)
 
 # directory creation.........................................
 
