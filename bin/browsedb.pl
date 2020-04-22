@@ -132,7 +132,7 @@ $global_data{home} = $ENV{"HOME"};
 if (!defined $global_data{home})
   { $global_data{home} = ""; };
 
-my $share_dir= $bii_scripts_config{SHARE_INSTALL_DIR} . "/browsedb";
+my $share_dir= $bii_scripts_config{SHARE_INSTALL_DIR} . "/bii_scripts/browsedb";
 
 $global_data{share_dir} = $share_dir;
 
