@@ -113,7 +113,7 @@ rm_extension_list=$(basename $(1))
 force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
 # rsync command
-rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(WWW_RSYNC_HOST):'$(2)'
+rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x '$(1)' '$(WWW_RSYNC_HOST):$(2)'
 
 #############################################################
 
