@@ -687,40 +687,40 @@ Python Libraries
 
 **BDNS.py**
   | BESSY device name parser.
-  | `documentation <modules/BDNS.py>`__
+  | `documentation <python/bii_scripts/BDNS.html>`__
 
 .. _boottime.py:
 
 **boottime.py**
   | get the boot time of an BESSY IOC by querying a certain pv.
-  | `documentation <python/boottime.html>`__
+  | `documentation <python/bii_scripts/boottime.html>`__
 
 **canlink.py**
   | A python version of the perl module canlink.pl. All functions implemented
     there are now also available in python. This module is used to encode and
     decode the CAN link as it is used in the LowCal device support that is part
     of the MultiCAN package developed here at HZB.
-  | `documentation <python/canlink.html>`__
+  | `documentation <python/bii_scripts/canlink.html>`__
 
 **canLink.py**
   | partial python implementation of canlink.pl: decode the lowCAL hardware 
     link as it is used in the BESSY MultiCAN device support for EPICS.
-  | `documentation <python/canLink.html>`__
+  | `documentation <python/bii_scripts/canLink.html>`__
 
 .. _dateutils.py:
 
 **dateutils.py**
   | utilities for string <-> datetime conversions.
-  | `documentation <python/dateutils.html>`__
+  | `documentation <python/bii_scripts/dateutils.html>`__
 
 **p_enum.py**
   | enumeration types for python.
-  | `documentation <python/p_enum.html>`__
+  | `documentation <python/bii_scripts/p_enum.html>`__
 
 **epicsUtils.py**
   | Utility collection to parse and handle with EPICS data: Database files,
     Alarm Handler, Panels etc
-  | `documentation <python/epicsUtils.html>`__
+  | `documentation <python/bii_scripts/epicsUtils.html>`__
 
 **FilterFile.py**
   | a python module for scripts that read or write to files
@@ -728,63 +728,63 @@ Python Libraries
     be used to modify a file in a safe way by creating a temporary
     file and renaming the original file and the temporary file
     upon close.
-  | `documentation <python/FilterFile.html>`__
+  | `documentation <python/bii_scripts/FilterFile.html>`__
 
 **listOfDict.py**
   | Functions to operate with the combined datatype list of dictionary items.
-  | `documentation <python/listOfDict.html>`__
+  | `documentation <python/bii_scripts/listOfDict.html>`__
 
 **lslparser.py**
   | a module to parse the output of "ls -l".
-  | `documentation <python/lslparser.html>`__
+  | `documentation <python/bii_scripts/lslparser.html>`__
 
 **maillike.py**
   | parse texts that have a mail-like format.
-  | `documentation <python/maillike.html>`__
+  | `documentation <python/bii_scripts/maillike.html>`__
 
 **numpy_util.py**
   | Utilities to numpy structured arrays. These arrays can be used to hold the
     data of number tables. This module is used by numpy_table.py and
     tableutil.py.
-  | `documentation <python/numpy_util.html>`__
+  | `documentation <python/bii_scripts/numpy_util.html>`__
 
 **numpy_table.py**
   | Implements a table class based on numpy structured arrays. This module is
     basically an object oriented wrapper for all functions in numpy_util.py. It
     is used by tableutil.py.
-  | `documentation <python/numpy_table.html>`__
+  | `documentation <python/bii_scripts/numpy_table.html>`__
 
 **pdict.py**
   | implements a dictionary for one-to-one relations.
-  | `documentation <python/pdict.html>`__
+  | `documentation <python/bii_scripts/pdict.html>`__
 
 **pfunc.py**
   | utilities for python functions and lambda statements.
-  | `documentation <python/pfunc.html>`__
+  | `documentation <python/bii_scripts/pfunc.html>`__
 
 **ptestlib.py**
   | a module providing routines for doctest testcode.
-  | `documentation <python/ptestlib.html>`__
+  | `documentation <python/bii_scripts/ptestlib.html>`__
 
 **putil.py**
   | This module provides functions for working
     with lists among other utilities.
-  | `documentation <python/putil.html>`__
+  | `documentation <python/bii_scripts/putil.html>`__
 
 **rdump.py**
   | a module for dumping of nested structures.
-  | `documentation <python/rdump.html>`__
+  | `documentation <python/bii_scripts/rdump.html>`__
 
 .. _rsync_dist_lib.py:
 
 **rsync_dist_lib.py**
   | sync_dist_info classes for parsing rsync-dist log files.
-  | `documentation <python/rsync_dist_lib.html>`__
+  | `documentation <python/bii_scripts/rsync_dist_lib.html>`__
 
 **sqlpotion.py**
   | a module with utilities and support functions for sqlalchemy.
-  | `documentation <python/sqlpotion.html>`__
+  | `documentation <python/bii_scripts/sqlpotion.html>`__
 
 **typecheck.py**
   | a module with type-tests and type-assertions.
-  | `documentation <python/typecheck.html>`__
+  | `documentation <python/bii_scripts/typecheck.html>`__
