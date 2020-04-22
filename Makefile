@@ -777,7 +777,7 @@ build_scripts: $(SCRIPT_BUILD_DIR) $(_SCRIPT_BUILD_LIST)
 
 $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/%
 	cp $< $(@D)
-	chmod u+x $@
+	chmod a+rx $@
 
 # browsedb.pl needs to be patched, so we have an
 # extra rule here:
@@ -785,7 +785,7 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 	cp $< $(@D)
 	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR)/browsedb \
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
-	chmod u+x $@
+	chmod ug+x $@
 
 # build perl libs............................................
 
@@ -793,6 +793,7 @@ build_perl_libs: $(PERLLIB_BUILD_DIR) $(_PERLLIB_BUILD_DIRLIST) $(_PERLLIB_BUILD
 
 $(PERLLIB_BUILD_DIR)/%: $(PERLLIB_SRC_DIR)/%
 	cp $< $(@D)
+	chmod a+r $@
 
 $(_PERLLIB_BUILD_DIRLIST): $(PERLLIB_BUILD_DIR)/%:
 	mkdir -p $@
@@ -802,10 +803,10 @@ $(_PERLLIB_BUILD_DIRLIST): $(PERLLIB_BUILD_DIR)/%:
 build_python_libs: $(PYTHONLIB_BUILD_DIR)  $(_PYTHON2LIB_BUILD_LIST) $(_PYTHON3LIB_BUILD_LIST)
 
 $(PYTHON2LIB_BUILD_DIR)/%: $(PYTHON2LIB_SRC_DIR)/%
-	mkdir -p $(@D) && cp $< $@
+	mkdir -p $(@D) && cp $< $@ && chmod a+r $@
 
 $(PYTHON3LIB_BUILD_DIR)/%: $(PYTHON3LIB_SRC_DIR)/%
-	mkdir -p $(@D) && cp $< $@
+	mkdir -p $(@D) && cp $< $@ && chmod a+r $@
 
 # build html ................................................
 
