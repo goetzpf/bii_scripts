@@ -30,7 +30,7 @@ fi
 
 ABS_INSTALLDIR=$(readlink -e "$INSTALLDIR")
 
-mkdir -p $INSTALLDIR/bin $INSTALLDIR/share/html/bii_scripts $INSTALLDIR/lib/perl $INSTALLDIR/lib/python
+#mkdir -p $INSTALLDIR/bin $INSTALLDIR/share/html/bii_scripts $INSTALLDIR/lib/perl $INSTALLDIR/lib/python
 USE_RSYNC=no INSTALL_PREFIX=$INSTALLDIR make -s -e install
 
 SETENV="$INSTALLDIR/setenv.sh"
