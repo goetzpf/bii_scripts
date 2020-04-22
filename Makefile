@@ -113,7 +113,8 @@ rm_extension_list=$(basename $(1))
 force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
 # rsync command
-rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x '$(1)' '$(WWW_RSYNC_HOST):$(2)'
+html_rsync_cmd=rsync -a -u --chmod=a+r,Da+x '$(1)' '$(HTML_RSYNC_HOST):$(2)'
+install_rsync_cmd=rsync -a -u --chmod=a+r,Da+x '$(1)' '$(INSTALL_RSYNC_HOST):$(2)'
 
 #############################################################
 
@@ -146,28 +147,7 @@ PYDOC2:=pydoc$(PYTHON2VERSION)
 # the basename of the pydoc utility:
 PYDOC3:=pydoc$(PYTHON3VERSION)
 
-# the standard unix install command
-INSTALL=install $(INSTALL_FLAGS)
-INSTALLX=install $(INSTALL_XFLAGS)
-
 # program parameters ........................................
-
-# group for installed files and directories
-# use "scrptdev" if you are in this group:
-INSTALL_GROUP:=$(filter scrptdev,$(shell groups))
-
-# permissions for installed directories and executable files
-INSTALL_XPERMS=ug=rwx,o=rx
-
-# permissions for all other installed files
-INSTALL_PERMS=ug=rw,o=r
-
-# parameters for the install command
-ifneq ($(strip $(INSTALL_GROUP)),)
-    INSTALL_G_FLAG=-g $(INSTALL_GROUP)
-endif
-INSTALL_FLAGS=-D $(INSTALL_G_FLAG) -m $(INSTALL_PERMS)
-INSTALL_XFLAGS=-D $(INSTALL_G_FLAG) -m $(INSTALL_XPERMS)
 
 # out-comment the following if
 # docutils (http://docutils.sourceforge.net)
@@ -177,17 +157,13 @@ DOCUTILS_AVAILABLE:=$(shell (rst2html -h >/dev/null 2>&1 && echo "1") || echo "0
 # install directories..........................................
 
 BUILD_DIRS=
-INSTALL_DIRS= $(SCRIPT_INSTALL_DIR) $(PERLLIB_INSTALL_DIR) $(PYTHON2LIB_INSTALL_DIR) $(PYTHON3LIB_INSTALL_DIR) $(HTML_INSTALL_DIR) $(SCRIPT_HTML_INSTALL_DIR) $(PERLLIB_HTML_INSTALL_DIR) $(PYTHONLIB_HTML_INSTALL_DIR)
+INSTALL_DIRS= $(SCRIPT_INSTALL_DIR) $(PERLLIB_INSTALL_DIR) $(PYTHON2LIB_INSTALL_DIR) $(PYTHON3LIB_INSTALL_DIR) 
+
+HTML_INSTALL_DIRS= $(HTML_INSTALL_DIR) $(SCRIPT_HTML_INSTALL_DIR) $(PERLLIB_HTML_INSTALL_DIR) $(PYTHONLIB_HTML_INSTALL_DIR)
 
 SCRIPT_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/scripts
 PERLLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/perl
 PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/python
-
-ifeq ($(PYTHON2LIB_INSTALL_DIR),$(PYTHON3LIB_INSTALL_DIR))
-_PYTHON_LIB_INSTALL_DIRS=$(PYTHON2LIB_INSTALL_DIR)
-else
-_PYTHON_LIB_INSTALL_DIRS=$(PYTHON2LIB_INSTALL_DIR) $(PYTHON3LIB_INSTALL_DIR)
-endif
 
 # build directories..........................................
 
@@ -459,13 +435,9 @@ _SHARE_BUILD_LIST=$(addprefix $(SHARE_BUILD_DIR)/,$(SHARE_SRC_LIST))
 _SHARE_BUILD_DIRLIST=$(addprefix $(SHARE_BUILD_DIR)/,$(SHARE_DIR_LIST))
 BUILD_DIRS+=$(_SHARE_BUILD_DIRLIST)
 
-_SHARE_INSTALL_LIST=$(addprefix $(SHARE_INSTALL_DIR)/,$(SHARE_SRC_LIST))
-
 # variables for the "scripts" directory......................
 
 _SCRIPT_BUILD_LIST=$(addprefix $(SCRIPT_BUILD_DIR)/,$(SCRIPT_LIST))
-
-_SCRIPT_INSTALL_LIST=$(addprefix $(SCRIPT_INSTALL_DIR)/,$(SCRIPT_LIST))
 
 # variables for the "lib/perl" directory.....................
 
@@ -474,15 +446,10 @@ _PERLLIB_BUILD_LIST=$(addprefix $(PERLLIB_BUILD_DIR)/,$(PERLLIB_LIST))
 _PERLLIB_BUILD_DIRLIST=$(addprefix $(PERLLIB_BUILD_DIR)/,$(PERLLIB_DIR_LIST))
 BUILD_DIRS+=$(_PERLLIB_BUILD_DIRLIST)
 
-_PERLLIB_INSTALL_LIST=$(addprefix $(PERLLIB_INSTALL_DIR)/,$(PERLLIB_LIST))
-
 # variables for the "lib/python" directory.....................
 
 _PYTHON2LIB_BUILD_LIST=$(addprefix $(PYTHONLIB_BUILD_DIR)/,$(PYTHON2LIB_LIST))
 _PYTHON3LIB_BUILD_LIST=$(addprefix $(PYTHONLIB_BUILD_DIR)/,$(PYTHON3LIB_LIST))
-
-_PYTHON2LIB_INSTALL_LIST=$(addprefix $(PYTHON2LIB_INSTALL_DIR)/,$(PYTHON2LIB_LIST))
-_PYTHON3LIB_INSTALL_LIST=$(addprefix $(PYTHON3LIB_INSTALL_DIR)/,$(PYTHON3LIB_LIST))
 
 # variables for html documentation generation................
 
@@ -592,47 +559,33 @@ all: build
 
 install: install_html \
 	 install_shared install_scripts \
-	 install_perl_libs install_python_libs 
+	 install_perl_libs \
+	 install_python2_libs \
+	 install_python3_libs 
 
-install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_LIST)
+install_shared: build_shared install_dirs
+	$(call install_rsync_cmd,$(SHARE_BUILD_DIR)/,$(SHARE_INSTALL_DIR)/)
 
-$(_SHARE_INSTALL_LIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/% $(SHARE_INSTALL_DIR)
-	$(INSTALL) $< $@
+install_scripts: build_scripts install_dirs
+	$(call install_rsync_cmd,$(SCRIPT_BUILD_DIR)/,$(SCRIPT_INSTALL_DIR)/)
 
-install_scripts: build_scripts $(SCRIPT_INSTALL_DIR) $(_SCRIPT_INSTALL_LIST)
+install_perl_libs: build_perl_libs install_dirs
+	$(call install_rsync_cmd,$(PERLLIB_BUILD_DIR)/,$(PERLLIB_INSTALL_DIR)/)
 
-$(_SCRIPT_INSTALL_LIST): $(SCRIPT_INSTALL_DIR)/%: $(SCRIPT_BUILD_DIR)/% $(SCRIPT_INSTALL_DIR)
-	$(INSTALLX) $< $@
+install_python2_libs: build_python_libs install_dirs
+	$(call install_rsync_cmd,$(PYTHON2LIB_BUILD_DIR),$(PYTHON2LIB_INSTALL_DIR)/)
 
-install_perl_libs: build_perl_libs $(PERLLIB_INSTALL_DIR) $(_PERLLIB_INSTALL_LIST)
+install_python3_libs: build_python_libs install_dirs
+	$(call install_rsync_cmd,$(PYTHON3LIB_BUILD_DIR),$(PYTHON3LIB_INSTALL_DIR)/)
 
-$(_PERLLIB_INSTALL_LIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/% $(PERLLIB_INSTALL_DIR)
-	$(INSTALL) $< $@
-
-install_python_libs: build_python_libs \
-	$(_PYTHON_LIB_INSTALL_DIRS) \
-	$(_PYTHON2LIB_INSTALL_LIST) \
-	$(_PYTHON3LIB_INSTALL_LIST) 
-
-$(_PYTHON2LIB_INSTALL_LIST): $(PYTHON2LIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/% $(PYTHON2LIB_INSTALL_DIR)
-	$(INSTALL) $< $@
-
-$(_PYTHON3LIB_INSTALL_LIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/% $(PYTHON3LIB_INSTALL_DIR)
-	$(INSTALL) $< $@
-
+ifneq ($(strip $(HTML_RSYNC_HOST)),)
 ifneq ($(strip $(HTML_INSTALL_DIR)),)
-# if $(HTML_INSTALL_DIR) is not empty:
-install_html: $(HTML_INSTALL_DIR) build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
-	cp -a $(HTML_BUILD_DIR)/* $(HTML_INSTALL_DIR)
+# if $(HTML_RSYNC_HOST) is not empty:
+
+install_html: build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib html_install_dirs
+	$(call html_rsync_cmd,$(HTML_BUILD_DIR)/,$(HTML_INSTALL_DIR)/)
 
 endif
-
-ifneq ($(strip $(WWW_RSYNC_HOST)),)
-# if $(WWW_RSYNC_HOST) is not empty:
-
-install_html: build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
-	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(WWW_RSYNC_DIR)/html/)
-
 endif
 
 install_cgi: $(CGI_LIST)
@@ -855,8 +808,11 @@ $(_HTML_PYDOC_PYTHON3LIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTH
 $(BUILD_DIRS) : % :
 	mkdir -p $@
 
-$(INSTALL_DIRS) : % :
-	mkdir -p $@
+install_dirs:
+	ssh $(INSTALL_RSYNC_HOST) mkdir -p $(INSTALL_DIRS)
+
+html_install_dirs:
+	ssh $(HTML_RSYNC_HOST) mkdir -p $(HTML_INSTALL_DIRS)
 
 # debugging .................................................
 

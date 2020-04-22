@@ -1,17 +1,13 @@
 # variables that can be used to distribute the documentation files
 # with rsync:
 
+# Host to distribute program files to.
+# Use "user@host" in order to define a ssh user.
+INSTALL_RSYNC_HOST=localhost
+
 # Host to distribute documentation to. If empty, do not use rsync.
 # Use "user@host" in order to define a ssh user.
-WWW_RSYNC_HOST=
-
-# Directory where rsync places files:
-WWW_RSYNC_DIR=
-
-# define this macro when make should
-# create the installation directories in
-# case the do not exist already
-CREATE_INSTALL_DIRS=1
+HTML_RSYNC_HOST=localhost
 
 # install directories .......................................
 
