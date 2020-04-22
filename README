@@ -1,28 +1,51 @@
 This is the BESSY-scripts bundle.
 
-You find here modules for perl and scripts that hopefully
-will make your work easier.
+You find here modules for perl and python and a collection of scripts that
+hopefully will make your work easier.
 
 How to make and install
 =======================
 
-First make install.sh executable::
+Installation with make
+----------------------
+
+Basically files are installed with "make install". However, there are many
+options how and where you install the files. 
+
+The variables needed by make are defined in files whose names start with
+"config". By default, make reads file "config". When you set variable
+"BII_CONFIG" on the command line, you may specify a different configuration
+file. 
+
+Call for a generic installation::
+
+  INSTALL_PREFIX=[DIR] make -sj install
+
+Call for an installation at BESSY development hosts::
+
+  BII_CONFIG=config.acc make -sj install
+
+Call for an installation at BESSY controlsystem hosts::
+
+  BII_CONFIG=config.ctl make -sj install
+
+Installation with install.sh
+----------------------------
+
+File "install.sh" is here to make installation even easier.
+
+First you have to make install.sh executable::
 
   chmod u+x install.sh
 
-Automatic build and installation under /opt/csr is performed by executing::
+Then for a generic installation call::
+
+  ./install.sh [DIR]
+
+At BESSY (HZB) install on our development hosts with this command::
 
   ./install.sh
 
-on the command line. If you want to install to a different location, 
-call install like this::
-
-  ./install.sh DIRECTORY
-
-All files are then installed below DIRECTORY.
-
-You fine-tune installation directories by editing file "config".
-  
 Documentation
 =============
 
@@ -48,6 +71,8 @@ LICENSE
 
 README
 	The file you reading at the moment
+
+HTML Documentation is created by "make" and installed with "make install".
 
 License and copyright
 =====================

@@ -72,17 +72,10 @@
 
 # includes
 
-ifeq ($(strip $(BII_CONFIG)),)
 # if $(BII_CONFIG) is empty, use file "config":
-BII_CONFIG=config
-endif
+BII_CONFIG ?=config
 
 include $(BII_CONFIG)
-
-ifeq ($(strip $(INSTALL_PREFIX)),)
-# if INSTALL_PREFIX is empty:
-$(error variable INSTALL_PREFIX must be defined)
-endif
 
 # functions
 
@@ -113,8 +106,8 @@ rm_extension_list=$(basename $(1))
 force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
 # rsync command
-html_rsync_cmd=rsync -a -u --chmod=a+r,Da+x '$(1)' '$(HTML_RSYNC_HOST):$(2)'
-install_rsync_cmd=rsync -a -u --chmod=a+r,Da+x '$(1)' '$(INSTALL_RSYNC_HOST):$(2)'
+html_rsync_cmd=rsync $(HTML_RSYNC_OPTS) '$(1)' '$(HTML_RSYNC_HOST):$(2)'
+install_rsync_cmd=rsync $(INSTALL_RSYNC_OPTS) '$(1)' '$(INSTALL_RSYNC_HOST):$(2)'
 
 #############################################################
 
@@ -542,11 +535,37 @@ all: build
 
 # install....................................................
 
+define HELPTEXT
+  @echo "How to install bii_scripts:" >&2
+  @echo "" >&2
+  @echo "For a generic installation do:" >&2
+  @echo "    define INSTALL_PREFIX in file config " >&2
+  @echo "      or call make with:" >&2
+  @echo "    INSTALL_PREFIX=ABSOLUTE-PATH make install" >&2
+  @echo "For an installation at BESSY development hosts elbe and stretch call:" >&2
+  @echo "    BII_CONFIG=config.acc make install" >&2
+  @echo "For an installation at BESSY control system call:" >&2
+  @echo "    BII_CONFIG=config.ctl make install" >&2
+endef
+
+# show help for installation of scripts:
+
+help:
+	$(HELPTEXT)
+
+ifeq ($(strip $(INSTALL_PREFIX)),)
+# if INSTALL_PREFIX is empty:
+install:
+	@echo "ERROR: INSTALL_PREFIX is not defined !" >&2
+	@echo >&2
+	$(HELPTEXT)
+else
 install: install_html \
 	 install_shared install_scripts \
 	 install_perl_libs \
 	 install_python2_libs \
 	 install_python3_libs 
+endif
 
 install_shared: build_shared install_dirs
 	$(call install_rsync_cmd,$(SHARE_BUILD_DIR)/,$(SHARE_INSTALL_DIR)/)
@@ -793,10 +812,10 @@ $(BUILD_DIRS) : % :
 	mkdir -p $@
 
 install_dirs:
-	ssh $(INSTALL_RSYNC_HOST) mkdir -p $(INSTALL_DIRS)
+	ssh $(INSTALL_RSYNC_HOST) $(call INSTALL_MKDIR,$(INSTALL_DIRS))
 
 html_install_dirs:
-	ssh $(HTML_RSYNC_HOST) mkdir -p $(HTML_INSTALL_DIRS)
+	ssh $(HTML_RSYNC_HOST) $(call HTML_MKDIR,$(HTML_INSTALL_DIRS))
 
 # debugging .................................................
 
