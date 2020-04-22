@@ -1,0 +1,47 @@
+# variables that can be used to distribute the documentation files
+# with rsync:
+
+# Host to distribute documentation to. If empty, do not use rsync.
+# Use "user@host" in order to define a ssh user.
+RSYNC_HOST=
+
+# Directory where rsync places files:
+RSYNC_DIR=
+
+# define this macro when make should
+# create the installation directories in
+# case the do not exist already
+CREATE_INSTALL_DIRS=1
+
+# install directories .......................................
+
+# INSTALL_PREFIX must be defined here or on the command line:
+INSTALL_PREFIX=
+
+SHARE_INSTALL_DIR=$(INSTALL_PREFIX)/share
+
+SCRIPT_INSTALL_DIR=$(INSTALL_PREFIX)/bin
+
+PERLLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/perl
+
+# Use the following to install to different directories depending on the python
+# version. PYTHON*VERSION consists of the major and minor version number e.g.
+# "3.5" for python 3.5.3. 
+#PYTHON2LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python$(PYTHON2VERSION)
+#PYTHON3LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python$(PYTHON3VERSION)
+
+# use these lines if your python library directory is the same for python2 and
+# python3:
+PYTHON2LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
+PYTHON3LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
+
+# Root directory where the html documentation is copied to. If empty, do
+# not install html documentation.
+HTML_INSTALL_DIR=$(INSTALL_PREFIX)/share/html/bii_scripts
+
+SCRIPT_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/scripts
+
+PERLLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/perllib
+
+PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
+

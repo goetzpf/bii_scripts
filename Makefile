@@ -70,6 +70,20 @@
 
 #############################################################
 
+# includes
+
+ifeq ($(strip $(BII_CONFIG)),)
+# if $(BII_CONFIG) is empty, use file "config":
+BII_CONFIG=config
+endif
+
+include $(BII_CONFIG)
+
+ifeq ($(strip $(INSTALL_PREFIX)),)
+# if INSTALL_PREFIX is empty:
+$(error variable INSTALL_PREFIX must be defined)
+endif
+
 # functions
 
 #############################################################
@@ -137,20 +151,6 @@ PYDOC3:=pydoc$(PYTHON3VERSION)
 INSTALL=install $(INSTALL_FLAGS)
 INSTALLX=install $(INSTALL_XFLAGS)
 
-# variables that can be used to distribute the documentation files
-# with rsync:
-USE_RSYNC=yes
-# ^^^ use "yes" if rsync is to be used, "no" otherwise
-RSYNC_HOST=wwwcsr@www-csr.bessy.de
-# ^^^ use "user@host" in order to set a specific user
-RSYNC_DIR=/home/wwwcsr/www/control/bii_scripts
-# ^^^ this is the directory where rsync places files
-
-# define this macro when make should
-# create the installation directories in
-# case the do not exist already
-CREATE_INSTALL_DIRS=1
-
 # program parameters ........................................
 
 # group for installed files and directories
@@ -178,34 +178,6 @@ else
     define makedir
 	mkdir -p -m $(INSTALL_XPERMS) $1 && chgrp $(INSTALL_GROUP) $1
     endef
-endif
-
-# install directories .......................................
-
-INSTALL_PREFIX=/opt/csr
-
-SHARE_INSTALL_DIR=$(INSTALL_PREFIX)/share
-
-SCRIPT_INSTALL_DIR=$(INSTALL_PREFIX)/bin
-
-PERLLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/perl
-
-PYTHON2LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python$(PYTHON2VERSION)
-PYTHON3LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python$(PYTHON3VERSION)
-
-ifneq "$(USE_RSYNC)" "yes"
-HTML_INSTALL_DIR=$(INSTALL_PREFIX)/share/html/bii_scripts
-
-SCRIPT_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/scripts
-
-PERLLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/perllib
-
-PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
-else
-HTML_INSTALL_DIR=
-SCRIPT_HTML_INSTALL_DIR=
-PERLLIB_HTML_INSTALL_DIR=
-PYTHONLIB_HTML_INSTALL_DIR=
 endif
 
 # out-comment the following if
@@ -574,7 +546,9 @@ _DOC_ALL_PERLLIB_LIST= $(POD_PERLLIB_LIST) $(DOCTXT_PERLLIB_LIST)
 _DOC_ALL_PYTHON2LIB_LIST= $(PYDOC_PYTHON2LIB_LIST)
 _DOC_ALL_PYTHON3LIB_LIST= $(PYDOC_PYTHON3LIB_LIST)
 
-ifneq "$(USE_RSYNC)" "yes"
+ifneq ($(strip $(HTML_INSTALL_DIR)),)
+# if $(HTML_INSTALL_DIR) is not empty:
+
 # all html files for perl-libs that are installed
 _HTML_ALL_PERLLIB_INSTALL_LIST= \
   $(addprefix $(PERLLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PERLLIB_LIST)))
@@ -587,7 +561,9 @@ endif
 # extra html files
 _HTML_EXTRA_BUILD_LIST=$(addprefix $(HTML_BUILD_DIR)/,$(HTML_FILE_LIST))
 
-ifneq "$(USE_RSYNC)" "yes"
+ifneq ($(strip $(HTML_INSTALL_DIR)),)
+# if $(HTML_INSTALL_DIR) is not empty:
+
 # all extra html files that are installed
 _HTML_ALL_EXTRA_INSTALL_LIST= \
   $(addprefix $(HTML_INSTALL_DIR)/,$(HTML_FILE_LIST))
@@ -643,7 +619,9 @@ _DOC_ALL_SCRIPT_LIST=  \
 	$(RST_DOC_SCRIPT_LIST) \
 	$(RST_DOC_PY_SCRIPT_LIST) $(DOCTXT_SCRIPT_LIST)
 
-ifneq "$(USE_RSYNC)" "yes"
+ifneq ($(strip $(HTML_INSTALL_DIR)),)
+# if $(HTML_INSTALL_DIR) is not empty:
+
 # list of all html files that are generated for scripts
 _HTML_ALL_SCRIPT_INSTALL_LIST= \
   $(addprefix $(SCRIPT_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_SCRIPT_LIST)))
@@ -714,7 +692,8 @@ $(_PYTHON2LIB_INSTALL_LIST): $(PYTHON2LIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)
 $(_PYTHON3LIB_INSTALL_LIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
 	$(INSTALL) $< $@
 
-ifneq "$(USE_RSYNC)" "yes"
+ifneq ($(strip $(HTML_INSTALL_DIR)),)
+# if $(HTML_INSTALL_DIR) is not empty:
 install_html: install_css install_html_script install_html_perllib install_html_pythonlib
 
 install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
@@ -746,7 +725,11 @@ install_html_pythonlib: build_html_pythonlib $(PYTHONLIB_HTML_INSTALL_DIR) $(_HT
 
 $(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/%
 	if test -e $<; then $(INSTALL) $< $@; fi
-else
+endif
+
+ifneq ($(strip $(RSYNC_HOST)),)
+# if $(RSYNC_HOST) is not empty:
+
 install_html: cp_css build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
 	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(RSYNC_DIR)/html/)
 

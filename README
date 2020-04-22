@@ -20,6 +20,8 @@ call install like this::
   ./install.sh DIRECTORY
 
 All files are then installed below DIRECTORY.
+
+You fine-tune installation directories by editing file "config".
   
 Documentation
 =============
