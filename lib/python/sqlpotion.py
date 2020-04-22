@@ -100,6 +100,8 @@ import shutil
 import p_enum
 import pdict
 
+assert sys.version_info[0]==2
+
 if sys.version_info<(2,5):
     raise AssertionError, "this module requires python 2.5 or greater"
 

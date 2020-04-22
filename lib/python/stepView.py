@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 import ca
 import pfunc
 from Tkinter import *
@@ -29,6 +30,8 @@ import step
 import stepConfig
 import time
 import os
+
+assert sys.version_info[0]==2
 
 def warn(msg):
     tkMessageBox.showwarning(title="Warning", message=msg)

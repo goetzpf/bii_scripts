@@ -322,6 +322,7 @@ import dateutils
 import rsync_dist_lib as rd
 import boottime
 
+assert sys.version_info[0]==2
 
 # version of the program:
 MY_VERSION= "1.1"

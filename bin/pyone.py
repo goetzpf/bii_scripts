@@ -75,6 +75,7 @@ Examples:
 
 import sys, re, string, getopt
 
+assert sys.version_info[0]==2
 
 ##  User objects (seen from the script)
 ##

@@ -24,7 +24,10 @@ This module provides functions for working
 with lists among other utilities.
 """
 
+import sys
 from typecheck import *
+
+assert sys.version_info[0]==2
 
 def qm(expr,val1,val2):
 	"""like question-mark ('?') operator in c or perl.

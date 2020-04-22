@@ -25,7 +25,10 @@ This module has some utilities for python functions and
 lambda statements.
 """
 
+import sys
 from typecheck import *
+
+assert sys.version_info[0]==2
 
 def lprint(*args):
     """make print an ordinary function.

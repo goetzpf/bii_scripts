@@ -24,6 +24,7 @@ This module contains parser classes for the rsync-dist log files
 as well as classes to generate reports on link-logs.
 """
 
+import sys
 import datetime
 import os.path
 import re
@@ -32,6 +33,8 @@ from maillike import MailLikeRecord, MailLikeRecords
 from lslparser import LslEntry, LslEntries
 import dateutils
 import subprocess
+
+assert sys.version_info[0]==2
 
 def _system(cmd, catch_stdout=True):
     """execute a command.

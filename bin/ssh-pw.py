@@ -34,6 +34,8 @@ except ImportError:
     else:
 	raise
 
+assert sys.version_info[0]==2
+
 my_version= "1.0"
 
 def parse_mail_addr(st):

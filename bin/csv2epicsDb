@@ -28,6 +28,8 @@ import epicsUtils
 import csv2epicsFuncs
 import pprint
 
+assert sys.version_info[0]==2
+
 my_version = "R1-"+csv2epicsFuncs.version+"-"+epicsUtils.version
 
 #******************************* Main program *******************************

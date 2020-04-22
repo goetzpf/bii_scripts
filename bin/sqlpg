@@ -22,6 +22,8 @@
 import os, sys, re
 from optparse import OptionParser
 
+assert sys.version_info[0]==2
+
 class PostgresWrapper:
     config = {
         "verbose": False,

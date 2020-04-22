@@ -183,6 +183,8 @@ from optparse import OptionParser
 import os
 #from traceback import *
 
+assert sys.version_info[0]==2
+
 my_version = "1.1"
 
 try:

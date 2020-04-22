@@ -143,6 +143,8 @@ except ImportError:
 
 import re
 
+assert sys.version_info[0]==2
+
 # version of the program:
 my_version= "1.0"
 

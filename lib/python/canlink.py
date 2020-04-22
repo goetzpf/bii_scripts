@@ -31,6 +31,8 @@ the CAN bus that was developed for the BESSY II control system.
 
 import sys
 
+assert sys.version_info[0]==2
+
 VERSION="1.0"
 
 _warn= sys.stderr.write

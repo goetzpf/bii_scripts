@@ -27,8 +27,11 @@
 """
 
 import re
+import sys
 
 from collections import OrderedDict
+
+assert sys.version_info[0]==2
 
 MAXLENGTH = 22
 

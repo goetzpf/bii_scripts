@@ -31,6 +31,8 @@ except ImportError:
     sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
                      __name__)
 
+assert sys.version_info[0]==2
+
 # pylint: disable=invalid-name
 
 #import ptimezone

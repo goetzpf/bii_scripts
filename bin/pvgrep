@@ -20,10 +20,13 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 import os
 from glob import glob
 import re
 import argparse
+
+assert sys.version_info[0]==3
 
 parser = argparse.ArgumentParser('pvgrep')
 parser.add_argument('regexp', nargs=1, help='regexp to match PVnames')

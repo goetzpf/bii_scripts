@@ -31,6 +31,8 @@ import listOfDict as lod
 import pprint as pp
 import canLink as cL
 import tokParse as tP
+
+assert sys.version_info[0]==2
 # Searching for Hardware means to look at the DTYP field of a record. So here we define
 # the list of known DTYPs get it with:
 # find $(TOP)/db -name *.db|xargs perl -e 'while(<>){print "$1\n" if($_=~/DTYP,\s*\"(.*)\"/);}'|sort -u

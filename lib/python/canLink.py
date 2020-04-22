@@ -138,7 +138,10 @@ must be specified.
 
 3. Specify NID and CID, in this case, define C<nid> and C<cid>
 """
+import sys
 import epicsUtils as eU
+
+assert sys.version_info[0]==2
 
 char_list= {  'a': {"server":0,"multi":0, "access":'r'  },
               'b': {"server":0,"multi":0, "access":'w'  },

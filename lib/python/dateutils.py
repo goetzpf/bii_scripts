@@ -24,6 +24,8 @@ import locale
 import datetime
 import sys
 
+assert sys.version_info[0]==2
+
 def parse_isodate(str):
     """parse an ISO date without a time.
 

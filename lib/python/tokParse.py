@@ -40,9 +40,11 @@ Token definition Example:
 
 *  Return:  a list of tokens
 """
+import sys
 import pprint
 import re
 
+assert sys.version_info[0]==2
 
 def compileTokDefList(tokDefList):
     """ Compile and return the token definitions

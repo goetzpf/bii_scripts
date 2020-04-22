@@ -34,7 +34,10 @@ Records are separated by lines that contain two
 percent characters "%%".
 """
 
+import sys
 import re
+
+assert sys.version_info[0]==2
 
 def _empty_str(str):
     """tests if a string is empty or consists only of whitespaces.

@@ -263,6 +263,8 @@ import time  # actually only needed for Python Version < 2.7
 import datetime
 import os.path
 
+assert sys.version_info[0]==2
+
 # version of the program:
 my_version= "1.0"
 

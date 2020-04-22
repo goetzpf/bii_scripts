@@ -78,6 +78,8 @@ import re
 import tempfile
 import subprocess
 
+assert sys.version_info[0]==2
+
 # ----------------------------
 # code for self-tests
 # ----------------------------

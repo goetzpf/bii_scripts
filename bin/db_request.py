@@ -55,6 +55,8 @@ except ImportError:
     else:
         raise
 
+assert sys.version_info[0]==2
+
 myversion = "0.2.1"
 
 dbProtocolList = ["odbc",  "access", "mssql", "mysql", "mxodbc", "oci8",

@@ -18,6 +18,10 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+
+assert sys.version_info[0]==2
+
 class OneToOne(object):
     def __init__(self,*args,**kwargs):
         """the constructor of the OneToOne object.

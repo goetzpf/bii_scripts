@@ -28,7 +28,10 @@ when a variable is not of the expected type.
 
 #import string
 
+import sys
 from types import *
+
+assert sys.version_info[0]==2
 
 # ==========================================================
 # various type tests 

@@ -27,6 +27,8 @@ from signal import *
 from sys import stdout
 import sys
 
+assert sys.version_info[0]==2
+
 def procSig(signum, frame):
     if signum == 2:
 	sys.exit()

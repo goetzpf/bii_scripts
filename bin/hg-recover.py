@@ -170,6 +170,8 @@ import tarfile
 # repository in the mean time. So it is preferred to set HG_QUIRK to False when
 # possible.
 
+assert sys.version_info[0]==2
+
 HG_QUIRK= False
 
 _no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary","--doc"))

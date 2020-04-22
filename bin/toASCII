@@ -23,6 +23,8 @@ import sys
 from optparse import OptionParser
 from curses.ascii import controlnames 
 
+assert sys.version_info[0]==2
+
 def proc(ar):
     repStr = "'"
     for ch in ar: 

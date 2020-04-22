@@ -23,8 +23,11 @@
 This module contains classes and parser functions
 to parse the output of the "ls -l" command.
 """
+import sys
 import datetime
 import dateutils
+
+assert sys.version_info[0]==2
 
 def _token_subtract(str,no):
     """removes <no> tokens from the beginning of a string.

@@ -46,6 +46,8 @@ original arguments used to create the enumeration::
     >>> shirt_colour.index
     2
 """
+import sys
+assert sys.version_info[0]==2
 
 
 __author_name__ = "Ben Finney"

@@ -26,6 +26,8 @@ import pprint
 import epicsUtils as eU
 import listOfDict as lod
 
+assert sys.version_info[0]==2
+
 usage ="""USAGE: grepDb.pl -t<TRIGGER> <match> [-p<PRINT> <match>] fileName/s
 TRIGGERS:  defines what fields, records etc are of interest. The values of the trigger
    options  are processed as regular expressions and concatenated with logical AND,

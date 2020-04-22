@@ -95,6 +95,8 @@ import os
 import epicsUtils
 import pprint
 
+assert sys.version_info[0]==2
+
 class csvData(object):
     """ Store splitted, line of a csv file and store it's data to be used for 
         template and record processing. 

@@ -38,6 +38,8 @@ step.py - Configurable Measure Program
 
 """
 
+assert sys.version_info[0]==2
+
 my_version = "1.1"
 lock = threading.Lock()
 

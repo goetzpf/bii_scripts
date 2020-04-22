@@ -19,10 +19,13 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 import re
 import os
 import math
 from optparse import OptionParser
+
+assert sys.version_info[0]==2
 
 my_version = "1.0"
 

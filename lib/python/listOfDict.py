@@ -54,7 +54,11 @@ to None.
 - orderToTable(dList,order):    Extract and sort all 'order' keys, Ignore others.
 - sortToTable(dList):           sort by all keys, don't ignore any key.
 """
+import sys
 import re
+
+assert sys.version_info[0]==2
+
 def searchRe(matchStr,reStr,flags=0) :
     regx = re.compile(reStr,flags)
     return regx.search(matchStr)

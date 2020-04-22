@@ -29,6 +29,8 @@ import os
 import shutil
 import tempfile
 
+assert sys.version_info[0]==2
+
 def _copyperm(src,dest):
 	"""copy file permission and GID from one file to another."""
 	statinfo = os.stat(src)

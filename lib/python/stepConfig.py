@@ -18,12 +18,15 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 from Tkinter import *
 import tkMessageBox
 import tkSimpleDialog
 import tkFileDialog
 import step
 import stepView
+
+assert sys.version_info[0]==2
 
 class ChooseConfigDialog(Toplevel):
     """

@@ -67,6 +67,8 @@ try:
 except ImportError, e:
     BDNS_EXIST = None
 
+assert sys.version_info[0]==2
+
 def die(errMsg,line=None):
     """
     like perl die function: print message and stacktrace, than exit program

@@ -11,6 +11,8 @@ import sys
 import subprocess
 import re
 
+assert sys.version_info[0]==2
+
 # -----------------------------------------------
 # basic system utilities
 # -----------------------------------------------

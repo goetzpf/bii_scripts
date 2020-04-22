@@ -25,7 +25,10 @@ Exaple for all following routines:
 >>> r = Tk()
 '''
 
+import sys
 from Tkinter import *
+
+assert sys.version_info[0]==2
 
 class tkDialogInput():
     ''' Getting a string back from entry input

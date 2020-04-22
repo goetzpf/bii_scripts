@@ -36,8 +36,11 @@ from rdump import drepr,dstr,dstrd,prepr,pstr,pstrd
 # imports
 # ---------------------------------------------
 
+import sys
 from typecheck import *
 from putil import *
+
+assert sys.version_info[0]==2
 
 # ---------------------------------------------
 # constants and globals

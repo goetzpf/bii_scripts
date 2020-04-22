@@ -31,6 +31,8 @@ import os
 import os.path
 import tempfile
 
+assert sys.version_info[0]==3
+
 # -----------------------------------------------
 # basic system utilities
 # -----------------------------------------------
