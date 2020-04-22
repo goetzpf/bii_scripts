@@ -494,12 +494,6 @@ _HTML_DOCTXT_TXT_BUILD_LIST=\
 _HTML_RST_TXT_BUILD_LIST=\
   $(addprefix $(HTML_BUILD_DIR)/,$(call force_extension_list,html,$(RST_TXT_LIST)))
 
-# list of all html files belonging to txt that are to be installed
-#  first: a helper variable:
-_HTML_TXT_LIST= $(DOCTXT_TXT_LIST) $(RST_TXT_LIST)
-_HTML_TXT_INSTALL_LIST=\
-  $(addprefix $(HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_HTML_TXT_LIST)))
-
 # list of all (POD generated) html files belonging to perl libs
 _HTML_POD_PERLLIB_BUILD_LIST=\
   $(addprefix $(PERLLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(POD_PERLLIB_LIST)))
@@ -515,35 +509,11 @@ _HTML_PYDOC_PYTHON2LIB_BUILD_LIST=\
 _HTML_PYDOC_PYTHON3LIB_BUILD_LIST=\
   $(addprefix $(PYTHONLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PYDOC_PYTHON3LIB_LIST)))
 
-# all perl-libs for which documentation is generated
-_DOC_ALL_PERLLIB_LIST= $(POD_PERLLIB_LIST) $(DOCTXT_PERLLIB_LIST)
-
 # all python-libs for which documentation is generated
-_DOC_ALL_PYTHON2LIB_LIST= $(PYDOC_PYTHON2LIB_LIST)
 _DOC_ALL_PYTHON3LIB_LIST= $(PYDOC_PYTHON3LIB_LIST)
-
-ifneq ($(strip $(HTML_INSTALL_DIR)),)
-# if $(HTML_INSTALL_DIR) is not empty:
-
-# all html files for perl-libs that are installed
-_HTML_ALL_PERLLIB_INSTALL_LIST= \
-  $(addprefix $(PERLLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PERLLIB_LIST)))
-
-# all html files for python-libs that are installed
-_HTML_ALL_PYTHONLIB_INSTALL_LIST= \
-  $(addprefix $(PYTHONLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PYTHON2LIB_LIST) $(_DOC_ALL_PYTHON3LIB_LIST)))
-endif
 
 # extra html files
 _HTML_EXTRA_BUILD_LIST=$(addprefix $(HTML_BUILD_DIR)/,$(HTML_FILE_LIST))
-
-ifneq ($(strip $(HTML_INSTALL_DIR)),)
-# if $(HTML_INSTALL_DIR) is not empty:
-
-# all extra html files that are installed
-_HTML_ALL_EXTRA_INSTALL_LIST= \
-  $(addprefix $(HTML_INSTALL_DIR)/,$(HTML_FILE_LIST))
-endif
 
 # list of all (generated) html files belonging to scripts with POD documentation
 _HTML_POD_SCRIPT_BUILD_LIST=\
@@ -595,27 +565,16 @@ _DOC_ALL_SCRIPT_LIST=  \
 	$(RST_DOC_SCRIPT_LIST) \
 	$(RST_DOC_PY_SCRIPT_LIST) $(DOCTXT_SCRIPT_LIST)
 
-ifneq ($(strip $(HTML_INSTALL_DIR)),)
-# if $(HTML_INSTALL_DIR) is not empty:
-
-# list of all html files that are generated for scripts
-_HTML_ALL_SCRIPT_INSTALL_LIST= \
-  $(addprefix $(SCRIPT_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_SCRIPT_LIST)))
-endif
-
-
 #############################################################
 
 # rules
 
 #############################################################
 
-.PHONY:	default all install install_html_txt install_shared \
-	install_html_extra \
+.PHONY:	default all install install_shared \
 	install_scripts \
 	install_perl_libs \
-	install_python_libs install_html install_html_script \
-	install_html_perllib install_html_pythonlib \
+	install_python_libs install_html \
 	clean \
 	build build_shared build_scripts build_perl_libs build_python_libs \
 	build_html build_html_txt_doc build_html_script build_html_script_pods \
@@ -631,8 +590,9 @@ all: build
 
 # install....................................................
 
-install: install_html_extra install_html_txt install_shared install_scripts \
-	 install_perl_libs install_python_libs install_html
+install: install_html \
+	 install_shared install_scripts \
+	 install_perl_libs install_python_libs 
 
 install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_LIST)
 
@@ -662,32 +622,9 @@ $(_PYTHON3LIB_INSTALL_LIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)
 
 ifneq ($(strip $(HTML_INSTALL_DIR)),)
 # if $(HTML_INSTALL_DIR) is not empty:
-install_html: install_html_script install_html_perllib install_html_pythonlib
+install_html: $(HTML_INSTALL_DIR) build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
+	cp -a $(HTML_BUILD_DIR)/* $(HTML_INSTALL_DIR)
 
-install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
-
-$(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% $(HTML_INSTALL_DIR)
-	$(INSTALL) $< $@
-
-install_html_extra: build_html_extra $(HTML_INSTALL_DIR) $(SCRIPT_HTML_INSTALL_DIR) $(_HTML_ALL_EXTRA_INSTALL_LIST)
-
-$(_HTML_ALL_EXTRA_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% $(HTML_INSTALL_DIR)
-	$(INSTALL) $< $@
-
-install_html_script: build_html_script $(SCRIPT_HTML_INSTALL_DIR) $(_HTML_ALL_SCRIPT_INSTALL_LIST)
-
-$(_HTML_ALL_SCRIPT_INSTALL_LIST): $(SCRIPT_HTML_INSTALL_DIR)/%: $(SCRIPT_HTML_BUILD_DIR)/% $(SCRIPT_HTML_INSTALL_DIR)
-	$(INSTALL) $< $@
-
-install_html_perllib: build_html_perllib $(PERLLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PERLLIB_INSTALL_LIST)
-
-$(_HTML_ALL_PERLLIB_INSTALL_LIST): $(PERLLIB_HTML_INSTALL_DIR)/%: $(PERLLIB_HTML_BUILD_DIR)/% $(PERLLIB_HTML_INSTALL_DIR)
-	$(INSTALL) $< $@
-
-install_html_pythonlib: build_html_pythonlib $(PYTHONLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PYTHONLIB_INSTALL_LIST)
-
-$(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/% $(PYTHONLIB_HTML_INSTALL_DIR)
-	if test -e $<; then $(INSTALL) $< $@; fi
 endif
 
 ifneq ($(strip $(WWW_RSYNC_HOST)),)
