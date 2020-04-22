@@ -125,7 +125,6 @@ rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(WWW_RSYNC_HOS
 # TYPE: DIR: a directory
 #       LIST: a list of files
 #       FILE: a single file path
-#       DIRLIST: a list of directories
 # _VAR: kind of "local" variable whose definition
 #       should not be edited
 
@@ -177,6 +176,9 @@ DOCUTILS_AVAILABLE:=$(shell (rst2html -h >/dev/null 2>&1 && echo "1") || echo "0
 
 # install directories..........................................
 
+BUILD_DIRS=
+INSTALL_DIRS= $(SCRIPT_INSTALL_DIR) $(PERLLIB_INSTALL_DIR) $(PYTHON2LIB_INSTALL_DIR) $(PYTHON3LIB_INSTALL_DIR) $(HTML_INSTALL_DIR) $(SCRIPT_HTML_INSTALL_DIR) $(PERLLIB_HTML_INSTALL_DIR) $(PYTHONLIB_HTML_INSTALL_DIR)
+
 ifeq ($(PYTHON2LIB_INSTALL_DIR),$(PYTHON3LIB_INSTALL_DIR))
 _PYTHON_LIB_INSTALL_DIRS=$(PYTHON2LIB_INSTALL_DIR)
 else
@@ -192,22 +194,30 @@ ERRLOG=$(LOCAL_BUILD_DIR)/ERRLOG.TXT
 SETENV=$(LOCAL_BUILD_DIR)/SETENV.sh
 
 HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html
+BUILD_DIRS+=$(HTML_BUILD_DIR)
 
 SCRIPT_HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html/scripts
+BUILD_DIRS+=$(SCRIPT_HTML_BUILD_DIR)
 
 PERLLIB_HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html/modules
+BUILD_DIRS+=$(PERLLIB_HTML_BUILD_DIR)
 
 PYTHONLIB_HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html/python
+BUILD_DIRS+=$(PYTHONLIB_HTML_BUILD_DIR)
 
 SCRIPT_BUILD_DIR=$(LOCAL_BUILD_DIR)/script
+BUILD_DIRS+=$(SCRIPT_BUILD_DIR)
 
 PERLLIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/perl
+BUILD_DIRS+=$(PERLLIB_BUILD_DIR)
 
 PYTHONLIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/python
 PYTHON2LIB_BUILD_DIR=$(PYTHONLIB_BUILD_DIR)/bii_scripts
 PYTHON3LIB_BUILD_DIR=$(PYTHONLIB_BUILD_DIR)/bii_scripts3
+BUILD_DIRS+=$(PYTHONLIB_BUILD_DIR) $(PYTHON2LIB_BUILD_DIR) $(PYTHON3LIB_BUILD_DIR)
 
 SHARE_BUILD_DIR=$(LOCAL_BUILD_DIR)/share
+BUILD_DIRS+=$(SHARE_BUILD_DIR)
 
 # source directories.........................................
 
@@ -234,16 +244,13 @@ CSS_SRC_FILE=docStyle.css
 # simply copied:
 HTML_FILE_LIST=$(filter-out index.html,$(call find_files,$(DOC_HTML_SRC_DIR),*.html,10))
 
-# directories below $(SHARE_SRC_DIR) that have to be installed in
-# the share-directory,
-# search all directories below $(SHARE_SRC_DIR), depth 1, omit "CVS"
-SHARE_SRC_DIRLIST:=$(filter-out CVS,$(call find_subdirs,$(SHARE_SRC_DIR),1))
-
 # files within the share directory,
 # match *.col and *.txt in and below $(SHARE_SRC_DIR), depth 1
 SHARE_SRC_LIST:=$(call find_files,$(SHARE_SRC_DIR),*.col,2) \
                $(call find_files,$(SHARE_SRC_DIR),*.txt,2) \
                $(addprefix rsync-dist/,$(call find_files,$(SHARE_SRC_DIR)/rsync-dist,*,1))
+
+SHARE_DIR_LIST:=$(call find_subdirs,$(SHARE_SRC_DIR),1)
 
 # scripts that have to be installed
 # match all files in $(SCRIPT_SRC_DIR) with name [A-Za-z]*
@@ -257,17 +264,13 @@ SCRIPT_LIST=$(_FOUND_SCRIPT_LIST)
 PERLLIB_LIST:=$(filter-out i386-linux-thread-multi/Pezca.pm,\
 	      $(call find_files,$(PERLLIB_SRC_DIR),*.pm,100))
 
+PERLLIB_DIR_LIST:=$(call find_subdirs,$(PERLLIB_SRC_DIR),1)
+
 # python libraries that have to be installed
 # match all files in $(PYTHONLIB_SRC_DIR) with name *.py
 # depth 100 (all sub and sub-subdirs)
 PYTHON2LIB_LIST:=$(addprefix bii_scripts/, $(call find_files,$(PYTHON2LIB_SRC_DIR),*.py,100))
 PYTHON3LIB_LIST:=$(addprefix bii_scripts3/, $(call find_files,$(PYTHON3LIB_SRC_DIR),*.py,100))
-
-# a list of sub-directories within the perl-lib directory
-# find all directories below $(PERLLIB_SRC_DIR), depth 1
-# (up to one dir below), omit "i386-linux-thread-multi" and "CVS"
-PERLLIB_DIRLIST:=$(filter-out i386-linux-thread-multi CVS,\
-		$(call find_subdirs,$(PERLLIB_SRC_DIR),1))
 
 # scripts with embedded POD documentation
 POD_SCRIPT_LIST=multi-commit.pl bdns_lookup.pl
@@ -445,32 +448,12 @@ CGI_LIST= lib/perl/BDNS.pm bin/devname
 
 #############################################################
 
-# lists of directories.......................................
-
-_ALL_BUILD_DIRLIST=$(LOCAL_BUILD_DIR) \
-		   $(HTML_BUILD_DIR) $(SCRIPT_HTML_BUILD_DIR) \
-		   $(PERLLIB_HTML_BUILD_DIR) \
-		   $(PYTHONLIB_HTML_BUILD_DIR) \
-		   $(SCRIPT_BUILD_DIR) \
-		   $(PERLLIB_BUILD_DIR) \
-		   $(PYTHONLIB_BUILD_DIR) \
-		   $(SHARE_BUILD_DIR)
-
-ifdef CREATE_INSTALL_DIRS
-  _ALL_INSTALL_DIRLIST= $(SHARE_INSTALL_DIR) $(SCRIPT_INSTALL_DIR) \
-  			$(PERLLIB_INSTALL_DIR) \
-			$(_PYTHON_LIB_INSTALL_DIRS) \
-			$(HTML_INSTALL_DIR)
-endif
-_ALL_ALWAYS_INSTALL_DIRLIST= $(SCRIPT_HTML_INSTALL_DIR) $(PERLLIB_HTML_INSTALL_DIR) $(PYTHONLIB_HTML_INSTALL_DIR)
-
 # variables for the "share" directory........................
 
-_SHARE_BUILD_DIRLIST=$(addprefix $(SHARE_BUILD_DIR)/,$(SHARE_SRC_DIRLIST))
-
-_SHARE_INSTALL_DIRLIST=$(addprefix $(SHARE_INSTALL_DIR)/,$(SHARE_SRC_DIRLIST))
-
 _SHARE_BUILD_LIST=$(addprefix $(SHARE_BUILD_DIR)/,$(SHARE_SRC_LIST))
+
+_SHARE_BUILD_DIRLIST=$(addprefix $(SHARE_BUILD_DIR)/,$(SHARE_DIR_LIST))
+BUILD_DIRS+=$(_SHARE_BUILD_DIRLIST)
 
 _SHARE_INSTALL_LIST=$(addprefix $(SHARE_INSTALL_DIR)/,$(SHARE_SRC_LIST))
 
@@ -484,11 +467,10 @@ _SCRIPT_INSTALL_LIST=$(addprefix $(SCRIPT_INSTALL_DIR)/,$(SCRIPT_LIST))
 
 _PERLLIB_BUILD_LIST=$(addprefix $(PERLLIB_BUILD_DIR)/,$(PERLLIB_LIST))
 
+_PERLLIB_BUILD_DIRLIST=$(addprefix $(PERLLIB_BUILD_DIR)/,$(PERLLIB_DIR_LIST))
+BUILD_DIRS+=$(_PERLLIB_BUILD_DIRLIST)
+
 _PERLLIB_INSTALL_LIST=$(addprefix $(PERLLIB_INSTALL_DIR)/,$(PERLLIB_LIST))
-
-_PERLLIB_BUILD_DIRLIST=$(addprefix $(PERLLIB_BUILD_DIR)/,$(PERLLIB_DIRLIST))
-
-_PERLLIB_INSTALL_DIRLIST=$(addprefix $(PERLLIB_INSTALL_DIR)/,$(PERLLIB_DIRLIST))
 
 # variables for the "lib/python" directory.....................
 
@@ -648,10 +630,7 @@ all: build
 install: install_html_extra install_html_txt install_shared install_scripts \
 	 install_perl_libs install_python_libs install_html
 
-install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_DIRLIST) $(_SHARE_INSTALL_LIST)
-
-$(_SHARE_INSTALL_DIRLIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
-	rm -rf $@ && mkdir -p $@
+install_shared: build_shared $(SHARE_INSTALL_DIR) $(_SHARE_INSTALL_LIST)
 
 $(_SHARE_INSTALL_LIST): $(SHARE_INSTALL_DIR)/%: $(SHARE_BUILD_DIR)/%
 	$(INSTALL) $< $@
@@ -661,13 +640,10 @@ install_scripts: build_scripts $(SCRIPT_INSTALL_DIR) $(_SCRIPT_INSTALL_LIST)
 $(_SCRIPT_INSTALL_LIST): $(SCRIPT_INSTALL_DIR)/%: $(SCRIPT_BUILD_DIR)/%
 	$(INSTALLX) $< $@
 
-install_perl_libs: build_perl_libs $(PERLLIB_INSTALL_DIR) $(_PERLLIB_INSTALL_DIRLIST) $(_PERLLIB_INSTALL_LIST)
+install_perl_libs: build_perl_libs $(PERLLIB_INSTALL_DIR) $(_PERLLIB_INSTALL_LIST)
 
 $(_PERLLIB_INSTALL_LIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	$(INSTALL) $< $@
-
-$(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
-	rm -rf $@ && mkdir -p $@
 
 install_python_libs: build_python_libs \
 	$(_PYTHON_LIB_INSTALL_DIRS) \
@@ -751,12 +727,9 @@ $(SETENV):
 
 # build shared files ........................................
 
-build_shared: $(SHARE_BUILD_DIR) $(_SHARE_BUILD_DIRLIST) $(_SHARE_BUILD_LIST)
+build_shared: $(SHARE_BUILD_DIR) $(_SHARE_BUILD_LIST)
 
-$(_SHARE_BUILD_DIRLIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/%
-	mkdir -p $@
-
-$(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/%
+$(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/% $(_SHARE_BUILD_DIRLIST)
 	cp $< $(@D)
 
 # build scripts .............................................
@@ -777,14 +750,11 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 
 # build perl libs............................................
 
-build_perl_libs: $(PERLLIB_BUILD_DIR) $(_PERLLIB_BUILD_DIRLIST) $(_PERLLIB_BUILD_LIST)
+build_perl_libs: $(PERLLIB_BUILD_DIR) $(_PERLLIB_BUILD_LIST)
 
-$(PERLLIB_BUILD_DIR)/%: $(PERLLIB_SRC_DIR)/%
+$(PERLLIB_BUILD_DIR)/%: $(PERLLIB_SRC_DIR)/% $(_PERLLIB_BUILD_DIRLIST)
 	cp $< $(@D)
 	chmod a+r $@
-
-$(_PERLLIB_BUILD_DIRLIST): $(PERLLIB_BUILD_DIR)/%:
-	mkdir -p $@
 
 # build python libs............................................
 
@@ -948,38 +918,23 @@ $(_HTML_PYDOC_PYTHON2LIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTH
 
 $(_HTML_PYDOC_PYTHON3LIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTHONLIB_SRC_DIR)/%.py $(SETENV)
 	. $(SETENV) && top=$$(pwd) && mkdir -p $(@D) && cd $(@D) && $(PYDOC3) -w $$top/$< 2>>$$top/$(ERRLOG)
-# directory creation.........................................
 
-$(_ALL_BUILD_DIRLIST): %:
+# create build directories ..................................
+
+$(BUILD_DIRS) : % :
 	mkdir -p $@
 
-ifdef CREATE_INSTALL_DIRS
-$(_ALL_INSTALL_DIRLIST): %:
-	if [ -e $@ ]; \
-	then \
-		touch $@; \
-	else \
-	        mkdir -p $@ \
-	fi
-endif
-
-$(_ALL_ALWAYS_INSTALL_DIRLIST): %:
-	if [ -e $@ ]; \
-	then \
-		touch $@; \
-	else \
-	        mkdir -p $@ \
-	fi
+$(INSTALL_DIRS) : % :
+	mkdir -p $@
 
 # debugging .................................................
 
 t:
-	@echo _HTML_RST_TXT_INSTALL_LIST:
-	@echo $(_HTML_RST_TXT_INSTALL_LIST)
+	@echo LOCAL_BUILD_DIR: $(LOCAL_BUILD_DIR)
+	@echo HTML_BUILD_DIR: $(HTML_BUILD_DIR)
+	@echo _SHARE_BUILD_DIRLIST: $(_SHARE_BUILD_DIRLIST)
 
 found:
-	@echo SHARE_SRC_DIRLIST:
-	@echo $(SHARE_SRC_DIRLIST)
 	@echo "-------------------------------"
 	@echo SHARE_SRC_LIST:
 	@echo $(SHARE_SRC_LIST)
@@ -989,9 +944,6 @@ found:
 	@echo "-------------------------------"
 	@echo PERLLIB_LIST:
 	@echo $(PERLLIB_LIST)
-	@echo "-------------------------------"
-	@echo PERLLIB_DIRLIST:
-	@echo $(PERLLIB_DIRLIST)
 	@echo "-------------------------------"
 	@echo PYTHON2LIB_LIST:
 	@echo $(PYTHON2LIB_LIST)
