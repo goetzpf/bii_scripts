@@ -296,7 +296,7 @@ Scripts
     arbitrary perl-expressions, it is quite powerful and (if you want this) a
     programming language of its own. It features if-statements, complex
     expressions and for-loops among others.  This script needs the
-    `expander.pm`_ module. See the `expander documentation <modules/expander.html>`__
+    `expander.pm`_ module. See the `expander documentation <perl/expander.html>`__
     for a more comprehensive description of the expander file format.
   | `documentation <scripts/expander.html>`__
 
@@ -571,17 +571,17 @@ Perl Libraries
 
 **analyse_db.pm**
   | a Perl module to analyse databases parsed with parse_db.
-  | `documentation <modules/analyse_db.html>`__
+  | `documentation <perl/analyse_db.html>`__
 
 **BDNS.pm**
   | BESSY device name parser.
-  | `documentation <modules/BDNS.html>`__
+  | `documentation <perl/BDNS.html>`__
 
 **bessy_module.pm**
   | This performs a "module <command> <args...>" in the z-shell 
     environment and re-imports the environment-variables to the 
     perl-process, so they are available in the %ENV-hash
-  | `documentation <modules/bessy_module.html>`__
+  | `documentation <perl/bessy_module.html>`__
 
 **BrowseDB/TkUtils.pm**
   | Tk-utilities for browsedb.pl
@@ -596,24 +596,24 @@ Perl Libraries
   | a perl-module that can be used to encode or decode the
     "cryptic can link" as it is used in the BESSY CAN Bus
     device support for EPICS.
-  | `documentation <modules/canlink.html>`__
+  | `documentation <perl/canlink.html>`__
 
 .. _capfast_defaults.pm:
 
 **capfast_defaults.pm**
   | a Perl module that contains capfast defaults for
     record-fields.
-  | `documentation <modules/capfast_defaults.html>`__
+  | `documentation <perl/capfast_defaults.html>`__
 
 **cfgfile.pm**
   | simple module to read or write a configuration file. Probably
     unfinished and in alpha-release state. 
-  | `documentation <modules/cfgfile.html>`__
+  | `documentation <perl/cfgfile.html>`__
 
 **CreateX.pm**
   | Routines that help to write CreateX.pl scripts. Not quite sure
     what this does. Connects to the oracle database.
-  | `documentation <modules/CreateX.html>`__
+  | `documentation <perl/CreateX.html>`__
 
 **dbdrv_lite.pm**
   | low level routines for sqlite. Used by dbdrv.
@@ -627,7 +627,7 @@ Perl Libraries
 **dbdrv.pm**
   | low level utilities for SQL database access, needed by
     dbitable.
-  | `documentation <modules/dbdrv.html>`__
+  | `documentation <perl/dbdrv.html>`__
 
 **dbdrv_test.pl**
   | test-script for dbdrv. This shouldn't be in the repository!     
@@ -635,14 +635,14 @@ Perl Libraries
 **dbitable.pm**
   | an object-oriented Perl module for handling single tables
     from an SQL database
-  | `documentation <modules/dbitable.html>`__
+  | `documentation <perl/dbitable.html>`__
 
 .. _expander.pm:
 
 **expander.pm** 
   | a module to perform macro-replacements in text files. Features
     if-statements, complex expressions and for-loops among others
-  | `documentation <modules/expander.html>`__
+  | `documentation <perl/expander.html>`__
 
 **makeDocStyle.pm**
   | module for the makeDoc* scripts.
@@ -650,36 +650,36 @@ Perl Libraries
 **ODB.pm**
   | a Perl module for accessing database via DBI.  Means easier 
     handling of the DBI routines via this layer.
-  | `documentation <modules/ODB.html>`__
+  | `documentation <perl/ODB.html>`__
 
 **Options.pm**
   | a Perl module for handling programm arguments, command line in
     and output inclusive login requests.
-  | `documentation <modules/Options.html>`__
+  | `documentation <perl/Options.html>`__
 
 .. _parse_db.pm:
 
 **parse_db.pm**
   | a perl-module for parsing EPICS db-files.
-  | `documentation <modules/parse_db.html>`__
+  | `documentation <perl/parse_db.html>`__
 
 **parse_subst.pm**
   | a perl-module for parsing EPICS substitution-files.
-  | `documentation <modules/parse_subst.html>`__
+  | `documentation <perl/parse_subst.html>`__
 
 **printData.pm**
   | some console print utilities.
-  | `documentation <modules/printData.html>`__
+  | `documentation <perl/printData.html>`__
 
 **scan_makefile.pm**
   | This module scans one or more than one makefile and returns 
     a hash reference containing all variables that are set within
     the makefile together with all environment variables.
-  | `documentation <modules/scan_makefile.html>`__
+  | `documentation <perl/scan_makefile.html>`__
 
 **tokParse.pm**
   | token parser utilities (for makeDocTxt).
-  | `documentation <modules/tokParse.html>`__
+  | `documentation <perl/tokParse.html>`__
 
 ----------------
 Python Libraries
