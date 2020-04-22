@@ -527,18 +527,35 @@ _DOC_ALL_SCRIPT_LIST=  \
 
 #############################################################
 
-.PHONY:	default all install install_shared \
-	install_scripts \
-	install_perl_libs \
-	install_python_libs install_html \
-	clean \
-	build build_shared build_scripts build_perl_libs build_python_libs \
-	build_html build_html_txt_doc build_html_script build_html_script_pods \
-	build_html_script_plaintxt build_html_script_doctxt build_html_script_rst \
+.PHONY:	\
+	all \
+	build \
+	build_html \
+	build_html_extra \
 	build_html_perllib \
-	build_html_perllib_pods build_html_pythonlib \
+	build_html_perllib_doctxt \
+	build_html_perllib_pods \
+	build_html_pythonlib \
 	build_html_pythonlib_pydocs \
-	found
+	build_html_script \
+	build_html_script_doctxt \
+	build_html_script_plaintxt \
+	build_html_script_pods \
+	build_html_script_rst \
+	build_html_txt_doc \
+	build_perl_libs \
+	build_python_libs \
+	build_scripts \
+	build_shared \
+	default \
+	install \
+	install_cgi \
+	install_html \
+	install_perl_libs \
+	install_python2_libs \
+	install_python3_libs \
+	install_scripts \
+	install_shared
 
 default: build
 
