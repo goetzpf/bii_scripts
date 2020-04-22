@@ -287,11 +287,15 @@ parser.add_option("-v","--verbose",
                  action="store_true", # default: None
                  help="print debug information", 
                  )
+options= None
+args= []
 try:
     (options,args) = parser.parse_args()
     (topPath,filename) = args[0:2]
 except:
-    print "OPTIONS:",options,"\nARGS:",args[:2]
+    if options:
+        print "OPTIONS:",options
+    print "ARGS:",args[:2]
     print usage
     sys.exit()
 
