@@ -25,19 +25,19 @@ testcode becomes a bit more complicated.
 
 Here is a list of functions:
 
-inittestdir	-- set up a directory for tests. This is needed
+inittestdir     -- set up a directory for tests. This is needed
                    if files are created by the testcode. The test directory
-		   can be removed later with cleanuptestdir()
+                   can be removed later with cleanuptestdir()
 
 testdir         -- return the name of the test-directory that was created
                    as a complete path.
 
-pjoin	        -- this simply calls os.path.join, it joins a list of
+pjoin           -- this simply calls os.path.join, it joins a list of
                    strings to a complete path.
 
 tjoin           -- this returns pjoin(testdirname(),<args>), it joins
                    strings to a complete path, prepending the name
-		   of the test directory.
+                   of the test directory.
 
 mkdir           -- this creates a new sub-directory within the test 
                    directory.
@@ -48,7 +48,7 @@ rename          -- this renames a file or directory within the test
 mkfile          -- creates a file with arbitrary text in the test
                    directory.
 
-catfile		-- print the contents of a file to the console.
+catfile         -- print the contents of a file to the console.
 
 rewritefile     -- rewrites a file in the test directory with
                    arbitrary text
@@ -65,9 +65,9 @@ matches         -- test if a string matches a regular expression
 system          -- execute a system command and possibly return 
                    it's output
 
-msg		-- print a message to the user by writing to stderr. This
+msg             -- print a message to the user by writing to stderr. This
                    message can be seen on the terminal while the testcode
-		   is executed.
+                   is executed.
 
 """
 
@@ -93,14 +93,14 @@ def inittestdir(dir=None):
     parameters:
       dir   -- the directory where the test-directory is created.
                If this parameter is omitted, <tmpdir> is taken as 
-	       directory, this is usually "/tmp".
+               directory, this is usually "/tmp".
 
     Example:
     inittestdir(tmpdir)
     """
     global testdir
     if dir is None:
-	dir= tmpdir
+        dir= tmpdir
     d= tempfile.mkdtemp(dir=dir)
     testdir= d
 
@@ -116,9 +116,9 @@ def pjoin(a, *b):
     """joins path components.
     
     parameters:
-        a	-- first element of the path
-	b	-- all following elements of the path
-	           (an iterable)
+        a       -- first element of the path
+        b       -- all following elements of the path
+                   (an iterable)
     """
     return os.path.join(a,*b)
 
@@ -135,8 +135,8 @@ def mkdir(dir):
     """create a directory within tempdir.
 
     parameters:
-	dir  -- the name of the directory, a simple
-	        name not a path
+        dir  -- the name of the directory, a simple
+                name not a path
     """
     os.mkdir(tjoin(dir))
 
@@ -146,7 +146,7 @@ def mkdir(dir):
 #    """
 #    matched= re.match(rx_ls_l,line)
 #    if matched is None:
-#	raise ValueError, "line \"%s\" not parsable" % line
+#       raise ValueError, "line \"%s\" not parsable" % line
 #    items= list(matched.groups())
 #    items[2]= "user"
 #    items[3]= "group"
@@ -169,8 +169,8 @@ def rename(old, new):
     """renames a file or directory in the test directory.
 
     parameters:
-	old  -- the old name of the file or path in the test directory
-	new  -- the new name of the file or path in the test directory
+        old  -- the old name of the file or path in the test directory
+        new  -- the new name of the file or path in the test directory
     """
     os.rename(tjoin(old),tjoin(new))
 
@@ -179,12 +179,12 @@ def mkfile(text,filename=None):
     
     parameters:
         text      --  content of the file
-	filename  --  the name of the file in the test directory.
-	              If this parameter is omitted, a filename is generated.
+        filename  --  the name of the file in the test directory.
+                      If this parameter is omitted, a filename is generated.
 
     returns:
-	the complete path of the file (the path that includes
-	the name of the test directory)
+        the complete path of the file (the path that includes
+        the name of the test directory)
     """
     if filename is None:
         (fh,filename)= tempfile.mkstemp(dir=testdir)
@@ -200,8 +200,8 @@ def catfile(filename):
     """
     fh= open(tjoin(filename),"r")
     for line in fh:
-	sys.stdout.write(line)
-	#print line,
+        sys.stdout.write(line)
+        #print line,
     fh.close()
 
 def rewritefile(text,filename):
@@ -209,43 +209,43 @@ def rewritefile(text,filename):
     
     parameters:
         text      --  content of the file
-	filename  --  the name of the file in the test directory.
+        filename  --  the name of the file in the test directory.
 
     returns:
-	the complete path of the file
+        the complete path of the file
     """
     filename= tjoin(filename)
     if not os.path.exists(filename):
-	raise AssertionError, "file \"%s\" does not exist" % filename
+        raise AssertionError, "file \"%s\" does not exist" % filename
     mkfile(text,filename)
 
 def rm_rf(d):
     """delete files or diretories within test dir.
 
     parameters:
-	d  -- the name of the file or directory in the test directory
+        d  -- the name of the file or directory in the test directory
     """
     def i_rm_rf(d):
-	for path in (os.path.join(d,f) for f in os.listdir(d)):
-	    if os.path.isdir(path):
-		i_rm_rf(path)
-	    else:
-		#print "os.unlink(%s)" % path
-		os.unlink(path)
-	#print "os.rmdir(%s)" % d
-	os.rmdir(d)
+        for path in (os.path.join(d,f) for f in os.listdir(d)):
+            if os.path.isdir(path):
+                i_rm_rf(path)
+            else:
+                #print "os.unlink(%s)" % path
+                os.unlink(path)
+        #print "os.rmdir(%s)" % d
+        os.rmdir(d)
     t= testdirname()
     if t is None:
-	raise AssertionError, "testdirname() is 'None'"
+        raise AssertionError, "testdirname() is 'None'"
     if t is "":
-	raise AssertionError, "testdirname() is empty"
+        raise AssertionError, "testdirname() is empty"
     f= pjoin(t,d)
     if os.path.isdir(f):
-	i_rm_rf(f)
-	return
+        i_rm_rf(f)
+        return
     if os.path.isfile(f):
-	os.remove(f)
-	return
+        os.remove(f)
+        return
     raise AssertionError, "\"%s\" is neither file nor directory" % f
 
 
@@ -257,7 +257,7 @@ def dictprint(d):
     """prints a dict in a sorted way.
     
     parameters:
-	d  --  the dictionary to print
+        d  --  the dictionary to print
 
     Here is an example of a typical output:
     >>> ptestlib.dictprint({"A":1,"B":2})
@@ -278,8 +278,8 @@ def matches(rx,str,rx_flags=0):
     
     parameters:
         rx       -- the regular expression as string
-	str      -- the string to match
-	rx_flags -- optional flags for the regular expression
+        str      -- the string to match
+        rx_flags -- optional flags for the regular expression
     returns:
         True if the string matches, False otherwise
     """
@@ -291,14 +291,14 @@ def system(cmd, catch_stdout=True):
     
     execute a command and return it's output.
     parameters:
-	cmd           -- the command as string
-	catch_stdout  -- if True, catch stdout of the 
-	                 program an return it as a string
+        cmd           -- the command as string
+        catch_stdout  -- if True, catch stdout of the 
+                         program an return it as a string
 
     possible exceptions:
-	IOError(errcode,stderr)
-	OSError(errno,strerr)
-	ValueError
+        IOError(errcode,stderr)
+        OSError(errno,strerr)
+        ValueError
     """
     if catch_stdout:
         stdout_par=subprocess.PIPE
@@ -325,6 +325,6 @@ def msg(st):
     takes a long time.
 
     parameters:
-	st   -- the string to print
+        st   -- the string to print
     """
     print >> sys.stderr, st

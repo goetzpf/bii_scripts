@@ -288,7 +288,7 @@ class MailLikeRecords(object):
             if len(a)!=2:
                 return False
             return a[0].replace("_","").isalnum()
-	valid_data_found= None
+        valid_data_found= None
         linebuf=[]
         for line in text.splitlines():
             if valid_data_found is None:

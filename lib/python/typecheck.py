@@ -129,11 +129,11 @@ def is_dec_string(var):
     False
     """
     if not is_string(var):
-	raise TypeError, "string expected"
+        raise TypeError, "string expected"
     try:
-	a= int(var)
+        a= int(var)
     except ValueError, e:
-	return False
+        return False
     return True
 
 def is_hex_string(var):
@@ -154,16 +154,16 @@ def is_hex_string(var):
     False
     """
     if not is_string(var):
-	raise TypeError, "string expected"
+        raise TypeError, "string expected"
     try:
-	a= int(var,16)
+        a= int(var,16)
     except ValueError, e:
-	return False
+        return False
     return True
 
 def is_float_string(var):
     """test if a given string is a valid floating point number.
-	
+        
     Here are some examples:
 
     Note that the parameter must be of type string:
@@ -179,9 +179,9 @@ def is_float_string(var):
     if not is_string(var):
         raise TypeError, "string expected"
     try:
-	a=float(var)
+        a=float(var)
     except ValueError, e:
-	return False
+        return False
     return True
 
 def is_listed_string(var,stringlist,ignore_case=False):
@@ -230,7 +230,7 @@ def is_listed_string(var,stringlist,ignore_case=False):
     cmp_= var.upper()    
     for s in stringlist:
         if cmp_ == s.upper():
-	    return True
+            return True
     return False
         
 
@@ -397,15 +397,15 @@ def is_scalar(var):
     False
     """
     if is_string(var):
-	    return True
+            return True
     if is_int(var):
-	    return True
+            return True
     if is_float(var):
-	    return True
+            return True
     if var is None:
-	    return True
+            return True
     if is_bool(var):
-	    return True
+            return True
     return False
 
 # ==========================================================
@@ -470,10 +470,10 @@ def itertype(var):
     tp= None
     for i in var:
         if tp is None:
-	    tp= type(i)
-	    continue
-	if type(i) != tp:
-	    return None
+            tp= type(i)
+            continue
+        if type(i) != tp:
+            return None
     return tp
 
 def compatible_itertype(a,b):
@@ -489,12 +489,12 @@ def compatible_itertype(a,b):
     """
     t1= itertype(a)
     if t1 is None:
-	return False
+        return False
     t2= itertype(b)
     if t2 is None:
-	return False
+        return False
     if t1!=t2:
-	return False
+        return False
     return True
 
 def keytype(var):
@@ -662,7 +662,7 @@ def has_at_least_keys(dict_,keylist,ignore_case=False):
 def _pre(pre,msg):
     """internal, prepends *pre* to *msg*."""
     if pre is None:
-	return msg
+        return msg
     asrt_string(pre)
     return " ".join((pre,msg))
 
@@ -686,7 +686,7 @@ def asrt_bool(var,pre=None):
     TypeError: boolean expected
     """
     if not is_bool(var):
-	    raise TypeError, _pre(pre,"boolean expected")
+            raise TypeError, _pre(pre,"boolean expected")
 
 def asrt_int(var,pre=None):
     """assert that a variable is of type integer.
@@ -703,7 +703,7 @@ def asrt_int(var,pre=None):
     TypeError: integer expected
     """
     if not is_int(var):
-	    raise TypeError, _pre(pre,"integer expected")
+            raise TypeError, _pre(pre,"integer expected")
 
 def asrt_int_range(var,min_=None,max_=None,pre=None):
     """assert that a variable is an integer within a given range.
@@ -739,12 +739,12 @@ def asrt_int_range(var,min_=None,max_=None,pre=None):
     asrt_int(var,pre)
     if min_ is not None:
         asrt_int(min_,"min_ parameter:")
-	if var<min_:
-	    raise TypeError, _pre(pre,"integer greater or equal to %d expected" % min_)
+        if var<min_:
+            raise TypeError, _pre(pre,"integer greater or equal to %d expected" % min_)
     if max_ is not None:
         asrt_int(max_,"max_ parameter:")
-	if var>max_:
-	    raise TypeError, _pre(pre,"integer smaller or equal to %d expected" % max_)
+        if var>max_:
+            raise TypeError, _pre(pre,"integer smaller or equal to %d expected" % max_)
 
 def asrt_float(var,pre=None):
     """assert that a variable is of type float.
@@ -761,7 +761,7 @@ def asrt_float(var,pre=None):
     TypeError: float expected
     """
     if not is_float(var):
-	    raise TypeError, _pre(pre,"float expected")
+            raise TypeError, _pre(pre,"float expected")
 
 def asrt_number(var,pre=None):
     """assert that a variable is an integer or a float.
@@ -775,7 +775,7 @@ def asrt_number(var,pre=None):
     TypeError: integer or float expected
     """
     if not is_number(var):
-	raise TypeError, _pre(pre,"integer or float expected")
+        raise TypeError, _pre(pre,"integer or float expected")
 
 def asrt_string(var,pre=None):
     """assert that a variable is of type string.
@@ -792,11 +792,11 @@ def asrt_string(var,pre=None):
     TypeError: string expected
     """
     if not is_string(var):
-	raise TypeError, _pre(pre,"string expected")
+        raise TypeError, _pre(pre,"string expected")
 
 def asrt_defined(var,pre=None):
     """assert that a variable is not 'None'.
-	
+        
     Here are some examples:
     >>> asrt_defined(1)
     >>> asrt_defined("A")
@@ -806,7 +806,7 @@ def asrt_defined(var,pre=None):
     TypeError: not-None value expected
     """
     if var is None:
-	    raise TypeError, _pre(pre,"not-None value expected")
+            raise TypeError, _pre(pre,"not-None value expected")
 
 # special strings
 # ----------------------------------------------------------
@@ -827,9 +827,9 @@ def asrt_listed_string(var,stringlist,pre=None):
     TypeError: one of these strings was expected: B,A,C
     """
     if not is_listed_string(var,stringlist):
-	stlist= ",".join(stringlist)
-	raise TypeError, _pre(pre,"one of these strings was expected: %s" %\
-	                          stlist)
+        stlist= ",".join(stringlist)
+        raise TypeError, _pre(pre,"one of these strings was expected: %s" %\
+                                  stlist)
 
 def asrt_nestring(var,pre=None):
     """assert that a variable is a non-empty string.
@@ -846,7 +846,7 @@ def asrt_nestring(var,pre=None):
     TypeError: non-empty string expected
     """
     if not is_string(var) or var=="":
-	raise TypeError, _pre(pre,"non-empty string expected")
+        raise TypeError, _pre(pre,"non-empty string expected")
 
 
 # iterable types
@@ -897,7 +897,7 @@ def asrt_list(var,pre=None):
     TypeError: list expected
     """
     if not of_list(var):
-	raise TypeError, _pre(pre,"list expected")
+        raise TypeError, _pre(pre,"list expected")
 
 def asrt_tuple(var,pre=None):
     """assert that a variable is a tuple.
@@ -910,7 +910,7 @@ def asrt_tuple(var,pre=None):
     TypeError: tuple expected
     """
     if not of_tuple(var):
-	raise TypeError, _pre(pre,"tuple expected")
+        raise TypeError, _pre(pre,"tuple expected")
 
 def asrt_set(var,pre=None):
     """assert that a variable is a set.
@@ -928,7 +928,7 @@ def asrt_set(var,pre=None):
     >>> asrt_set(set((1,2)))
     """
     if not of_set(var):
-	raise TypeError, _pre(pre,"set expected")
+        raise TypeError, _pre(pre,"set expected")
 
 # dictionaries
 # ----------------------------------------------------------
@@ -944,7 +944,7 @@ def asrt_dict(var,pre=None):
     TypeError: dict expected
     """
     if not of_dict(var):
-	raise TypeError, _pre(pre,"dict expected")
+        raise TypeError, _pre(pre,"dict expected")
 
 # more complex types
 # ----------------------------------------------------------
@@ -963,7 +963,7 @@ def asrt_function(var,pre=None):
     TypeError: function expected
     """
     if not is_function(var):
-	raise TypeError, _pre(pre,"function expected")
+        raise TypeError, _pre(pre,"function expected")
 
 def asrt_type(var,pre=None):
     """assert that a variable is a type.
@@ -977,7 +977,7 @@ def asrt_type(var,pre=None):
     TypeError: type expected
      """
     if not is_type(var):
-	raise TypeError, _pre(pre,"type expected")
+        raise TypeError, _pre(pre,"type expected")
 
 def asrt_scalar(var,pre=None):
     """assert that a variable is a scalar.
@@ -993,7 +993,7 @@ def asrt_scalar(var,pre=None):
     TypeError: scalar (bool/int/float/string) expected
     """
     if not is_scalar(var):
-	    raise TypeError, _pre(pre,"scalar (bool/int/float/string) expected")
+            raise TypeError, _pre(pre,"scalar (bool/int/float/string) expected")
 
 # sub-types of composed objects
 # ----------------------------------------------------------
@@ -1015,20 +1015,20 @@ def asrt_itertype(var,type_,pre=None):
     tp= itertype(var)
     if tp is None:
         raise TypeError, _pre(pre,"elements of iterable are not all of type %s" % \
-			      type2str(type_))
+                              type2str(type_))
     if tp != type_:
         raise TypeError, _pre(pre,"elements of iterable have type %s instead of %s" % \
-			      (type2str(tp),type2str(type_)))
+                              (type2str(tp),type2str(type_)))
 
 def asrt_keytype(var,type_,pre=None):
     asrt_type(type_,"2nd parameter:")
     tp= keytype(var)
     if tp is None:
         raise TypeError, _pre(pre,"keys of dict are not all of type %s" % \
-			      type2str(type_))
+                              type2str(type_))
     if tp != type_:
         raise TypeError, _pre(pre,"keys of dict have type %s instead of %s" % \
-			      (type2str(tp),type2str(type_)))
+                              (type2str(tp),type2str(type_)))
 
 def asrt_compatible_itertypes(a,b,pre=None):
     """assert that all elements of two iterables have the same type.
@@ -1042,7 +1042,7 @@ def asrt_compatible_itertypes(a,b,pre=None):
     TypeError: element types of iterables are not compatible
     """
     if not compatible_itertype(a,b):
-	raise TypeError, _pre(pre,"element types of iterables are not compatible")
+        raise TypeError, _pre(pre,"element types of iterables are not compatible")
 
 
 def asrt_compatible_lists(a,b,pre=None):
@@ -1103,9 +1103,9 @@ def asrt_only_allowed_keys(dict_,keylist,ignore_case=False,pre=None):
     TypeError: iterable type expected
     """
     if not has_only_allowed_keys(dict_,keylist,ignore_case):
-	allowed=",".join(keylist)
-	raise TypeError, _pre(pre,"some keys of dict are not within the list of " 
-	                      "allowed keys %s" % allowed)
+        allowed=",".join(keylist)
+        raise TypeError, _pre(pre,"some keys of dict are not within the list of " 
+                              "allowed keys %s" % allowed)
 
 def asrt_exactly_all_keys(dict_,keylist,ignore_case=False,pre=None):
     """assert that the keys of the keylist are equal to all the keys of the dict.
@@ -1156,8 +1156,8 @@ def asrt_exactly_all_keys(dict_,keylist,ignore_case=False,pre=None):
     TypeError: iterable type expected
     """
     if not has_exactly_all_keys(dict_,keylist,ignore_case):
-	allowed=",".join(keylist)
-	raise TypeError, _pre(pre,"the keylist of the dict is not equal to %s" % allowed)
+        allowed=",".join(keylist)
+        raise TypeError, _pre(pre,"the keylist of the dict is not equal to %s" % allowed)
 
 def asrt_at_least_keys(dict_,keylist,ignore_case=False,pre=None):
     """assert that a dictionary contains all keys given in a keylist.
@@ -1199,9 +1199,9 @@ def asrt_at_least_keys(dict_,keylist,ignore_case=False,pre=None):
     TypeError: iterable type expected
     """
     if not has_at_least_keys(dict_,keylist,ignore_case):
-	allowed=",".join(keylist)
-	raise TypeError, _pre(pre,"the keylist of the dict does not contain all of the "
-	                      "required keys %s" % allowed)
+        allowed=",".join(keylist)
+        raise TypeError, _pre(pre,"the keylist of the dict does not contain all of the "
+                              "required keys %s" % allowed)
 
 
 def _test():

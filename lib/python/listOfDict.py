@@ -25,16 +25,16 @@ This are functions to operate with the combined datatype list of dictionary item
 * Functions to filter from a dList. Return the tuple of (match,notMatch) dictionaries
 
 - filterMatch(dList,filterPar): test all items on its keys that are defined by the filter
-    	    	    	    	parameter keys. Each value has to match at least one of the 
-				filter parameter list.
+                                parameter keys. Each value has to match at least one of the 
+                                filter parameter list.
   filterPar = {KEY:[VAL1,VAL2, ..], ..}
 - filterRegExp(dList,mKey,mStr,flags=0): Test all items on one mKey, Value has to match
-    	    	    	    	the mStr regulas expression.
+                                the mStr regulas expression.
 - filterAllValuesRegExp(dList,mStr,flags=0): Test all values of all items on the mStr
-    	    	    	    	regular expression. Filter only those items that match in at 
-				least one value.
+                                regular expression. Filter only those items that match in at 
+                                least one value.
 - filterValueRange(dList,mKey,fromPar,toPar) Test all items for the value of 'key' to be 
-    	    	    	    	in range of 'value' >= 'fromPar', 'value' <='toPar'.
+                                in range of 'value' >= 'fromPar', 'value' <='toPar'.
 
 * Functions operating on the all occuring keys of the whole listOfDict
 
@@ -46,13 +46,13 @@ This are functions to operate with the combined datatype list of dictionary item
                                 values ar of no concern here.
 - sort(dList,order=None):       sort by keys and values in lexical order.Optional parameter 
                                 order is a list of keys to be respected in the given order.
-    	    	    	    	Other keys are ignored. The items are returned unchanged
+                                Other keys are ignored. The items are returned unchanged
 
 Functions to translate the dList to a table. Not occuring keys are represented
 to None.
 
-- orderToTable(dList,order): 	Extract and sort all 'order' keys, Ignore others.
-- sortToTable(dList): 	    	sort by all keys, don't ignore any key.
+- orderToTable(dList,order):    Extract and sort all 'order' keys, Ignore others.
+- sortToTable(dList):           sort by all keys, don't ignore any key.
 """
 import re
 def searchRe(matchStr,reStr,flags=0) :
@@ -123,13 +123,13 @@ def filterAllValuesRegExp(dList,mStr,flags=0):
     filteredOut = []
     for dic in dList:
         try:
-	    for mKey in dic.keys():
-        	if searchRe(dic[mKey],mStr,flags) is not None:
-		    raise ValueError
-	except ValueError:
-    	    filtered.append(dic)
-   	else:
-    	    filteredOut.append(dic)
+            for mKey in dic.keys():
+                if searchRe(dic[mKey],mStr,flags) is not None:
+                    raise ValueError
+        except ValueError:
+            filtered.append(dic)
+        else:
+            filteredOut.append(dic)
     return (filtered,filteredOut)
 
 def filterValueRange(dList,key,fromPar,toPar):
@@ -147,16 +147,16 @@ def filterValueRange(dList,key,fromPar,toPar):
     filtered = []
     filteredOut = []
     for dic in dList:
-	value = dic[key]
-	try:
-	    if fromPar and value <  fromPar :
-        	raise ValueError
-	    if toPar and value >  toPar :
-        	raise ValueError
-	except ValueError:
-    	    filteredOut.append(dic)
-   	else:
-    	    filtered.append(dic)
+        value = dic[key]
+        try:
+            if fromPar and value <  fromPar :
+                raise ValueError
+            if toPar and value >  toPar :
+                raise ValueError
+        except ValueError:
+            filteredOut.append(dic)
+        else:
+            filtered.append(dic)
     return (filtered,filteredOut)
 
 def getAllKeys(dList):
@@ -231,7 +231,7 @@ def sort(dList,order=None):
         o = order[0];
         if a.has_key(o) and b.has_key(o):
             result = cmp(a[o],b[o])
-	    if result != 0:
+            if result != 0:
                 return result
             elif len(order) > 1:
                 return cmpDictByOrderKeys(a,b,order[1:])

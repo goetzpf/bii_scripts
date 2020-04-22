@@ -198,8 +198,8 @@ def _submap(func,mylist,index):
     new=[]
     for elm in mylist:
         e= elm[:] # copy of the sublist
-	e[index]= func(e[index])
-	new.append(e)
+        e[index]= func(e[index])
+        new.append(e)
     return new
 
 def list2str(listpar):
@@ -249,14 +249,14 @@ def str_dump_util(mystr,indent,options=None):
         return [mystr]
     elif options.format==STR:
         if options.start:
-	    return [_ispc(indent),mystr]
-	else:
-	    return ["\n",_ispc(indent),mystr]
+            return [_ispc(indent),mystr]
+        else:
+            return ["\n",_ispc(indent),mystr]
     else:
         raise TypeError, "unknown format (number: %d)" % options.format
 
 def record_dump_util(key_val_list,indent,key_add_indent,val_add_indent,
-		     open_st,close_st,options=None):
+                     open_st,close_st,options=None):
     """dumps a dict value.
 
     parameters:
@@ -289,16 +289,16 @@ def record_dump_util(key_val_list,indent,key_add_indent,val_add_indent,
     <BLANKLINE>
               (mytype
                       'k1' : 
-                	  1,
+                          1,
                       'k2' : 
-                	  2
+                          2
               )
     >>> pr(record_dump_util(l,10,8,4,"(mytype",")",Options(format=STR,start=True)))
               (mytype
                       'k1' : 
-                	  1,
+                          1,
                       'k2' : 
-                	  2
+                          2
               )
     >>> pr(record_dump_util(l,10,8,4,"(mytype",")",Options(format=STR_D,start=False)))
     <BLANKLINE>
@@ -320,18 +320,18 @@ def record_dump_util(key_val_list,indent,key_add_indent,val_add_indent,
         cls= " " + close_st
         inb= ", "
     elif options.format==STR_D:
-	opn= ["\n",_ispc(indent),open_st]
+        opn= ["\n",_ispc(indent),open_st]
         cls= ["\n",_ispc(indent),close_st]
-	if options.start:
-	    opn.pop(0)
-	    opt= Options(other=options,start=False)
+        if options.start:
+            opn.pop(0)
+            opt= Options(other=options,start=False)
         inb= ","
     elif options.format==STR:
-	opn= ["\n",_ispc(indent),open_st]
+        opn= ["\n",_ispc(indent),open_st]
         cls= ["\n",_ispc(indent),close_st]
-	if options.start:
-	    opn.pop(0)
-	    opt= Options(other=options,start=False)
+        if options.start:
+            opn.pop(0)
+            opt= Options(other=options,start=False)
         inb= ","
     else:
         raise TypeError, "unknown format (number: %d)" % options.format
@@ -342,13 +342,13 @@ def record_dump_util(key_val_list,indent,key_add_indent,val_add_indent,
     l= [opn,
         ljoin([inb],\
               map(lambda x: [x[0],ldump(x[1],\
-	                                indent+key_add_indent+val_add_indent,\
-				        opt)\
-			    ],\
+                                        indent+key_add_indent+val_add_indent,\
+                                        opt)\
+                            ],\
                   _submap( lambda x: _coltrim(repr(x),\
-		                             indent+key_add_indent,\
-					     val_add_indent,\
-					     opt.format),
+                                             indent+key_add_indent,\
+                                             val_add_indent,\
+                                             opt.format),
                           key_val_list,0
                         ),
                  ),
@@ -521,8 +521,8 @@ class Options(Dumpable):
     indent_inc    -- indent-level of sub-elements
     key_indent    -- indentation for dictionary-keys
     start         -- if True, the dump must not start with a carriage return, if
-    		     False, may start with a single carriage return. The
-		     default is True
+                     False, may start with a single carriage return. The
+                     default is True
 
     The Options class is derived from the Dumpable class, so an Options object
     can be printted and has __str__ and __repr__ defined.
@@ -533,39 +533,39 @@ class Options(Dumpable):
     default values are taken:
     >>> print Options()
     (rdump.Options:
-	'format' : 
+        'format' : 
             0,
-	'indent_inc' : 
+        'indent_inc' : 
             4,
-	'key_indent' : 
+        'key_indent' : 
             4,
-	'start' : 
+        'start' : 
             True
     )
 
     We can also set all fields explicitly to different values:
     >>> print Options(format=STR,indent_inc=1,key_indent=2,start=False)
     (rdump.Options:
-	'format' : 
+        'format' : 
             1,
-	'indent_inc' : 
+        'indent_inc' : 
             1,
-	'key_indent' : 
+        'key_indent' : 
             2,
-	'start' : 
+        'start' : 
             False
     )
 
     And we can "clone" an existing Options object:
     >>> print Options(Options(format=STR,indent_inc=1,key_indent=2,start=False))
     (rdump.Options:
-	'format' : 
+        'format' : 
             1,
-	'indent_inc' : 
+        'indent_inc' : 
             1,
-	'key_indent' : 
+        'key_indent' : 
             2,
-	'start' : 
+        'start' : 
             False
     )
 
@@ -573,13 +573,13 @@ class Options(Dumpable):
     differently:
     >>> print Options(Options(format=STR,indent_inc=1,key_indent=2,start=False),indent_inc=100)
     (rdump.Options:
-	'format' : 
+        'format' : 
             1,
-	'indent_inc' : 
+        'indent_inc' : 
             100,
-	'key_indent' : 
+        'key_indent' : 
             2,
-	'start' : 
+        'start' : 
             False
     )
     """
@@ -587,7 +587,7 @@ class Options(Dumpable):
                  other=None,
                  format=None,
                  indent_inc=None, key_indent=None,
-		 start=None):
+                 start=None):
         if other is not None:
             if not isinstance(other,Options):
                 raise TypeError, "other must be of same class"
@@ -614,16 +614,16 @@ class Options(Dumpable):
         the strings in order to create an output string.
         """
         asrt_int_range(indent,min_=0)
-	return record_dump_util([["format",self.format],
-	                	 ["indent_inc",self.indent_inc],
-	                	 ["key_indent",self.key_indent],
-	                	 ["start",self.start]],
-	                	indent,
-				4,
-				options.indent_inc,
-		        	"(rdump.Options:",
-				")",
-				options)
+        return record_dump_util([["format",self.format],
+                                 ["indent_inc",self.indent_inc],
+                                 ["key_indent",self.key_indent],
+                                 ["start",self.start]],
+                                indent,
+                                4,
+                                options.indent_inc,
+                                "(rdump.Options:",
+                                ")",
+                                options)
 
 default_options= Options()
 
@@ -711,9 +711,9 @@ def list_dumper(val,indent,options=default_options):
     Now we print the list in "STR" format:
     >>> print list2str(list_dumper(a,0,Options(format=STR)))
     [
-	1,
-	2,
-	3
+        1,
+        2,
+        3
     ]
 
     We define a more complicated, nested list:
@@ -728,15 +728,15 @@ def list_dumper(val,indent,options=default_options):
     for indent_inc is 4):
     >>> print list2str(list_dumper(a,0,Options(format=STR)))
     [
-	1,
-	2,
-	[
+        1,
+        2,
+        [
             'A',
             'B',
             'C'
-	],
-	4,
-	5
+        ],
+        4,
+        5
     ]
 
     The same with indent_inc set to 8 looks like this:
@@ -787,25 +787,25 @@ def list_dumper(val,indent,options=default_options):
         cls= " %s" % br_cls   # closing string
         inb= ", "  # in-between string
         opt= options
-	oopt= options
+        oopt= options
     elif options.format==STR_D:
         opn= ["\n",_ispc(indent),br_opn]
         cls= ["\n",_ispc(indent),br_cls]
-	if options.start:
-	    opn.pop(0)
+        if options.start:
+            opn.pop(0)
             opt= Options(other=options,start=False)
-	else:
-	    opt= options
+        else:
+            opt= options
         inb= ", "
         oopt= Options(other=opt,format=STR,start=False)
     elif options.format==STR:
         opn= ["\n",_ispc(indent),br_opn]
         cls= ["\n",_ispc(indent),br_cls]
-	if options.start:
-	    opn.pop(0)
-	    opt= Options(other=options,start=False)
-	else:
-	    opt= options
+        if options.start:
+            opn.pop(0)
+            opt= Options(other=options,start=False)
+        else:
+            opt= options
         inb= ","
         oopt= opt
     else:
@@ -852,13 +852,13 @@ def dict_dumper(val,indent,options=default_options):
     Printed in "STR" format it looks like this:
     >>> print list2str(dict_dumper(a,0,Options(format=STR)))
     {
-	'A' : 
+        'A' : 
             1,
-	'B' : 
+        'B' : 
             2,
-	'C' : 
+        'C' : 
             5,
-	'kjhkjhkh' : 
+        'kjhkjhkh' : 
             12123
     }
 
@@ -874,46 +874,46 @@ def dict_dumper(val,indent,options=default_options):
     Printed in "STR" format it looks like this:
     >>> print list2str(dict_dumper(a,0,Options(format=STR, indent_inc=8)))
     {
-	'A'   : 
-        	1,
-	'B'   : 
-        	{
+        'A'   : 
+                1,
+        'B'   : 
+                {
                     'XX'  : 
                             12,
                     'YY'  : 
                             13
-        	},
-	'C'   : 
-        	5,
-	'kjhkjhkh' : 
-        	12123
+                },
+        'C'   : 
+                5,
+        'kjhkjhkh' : 
+                12123
     }
 
     Printed in "STR_D" format it looks like this:
     >>> print list2str(dict_dumper(a,0,Options(format=STR_D, indent_inc=8)))
     {
-	'A'   : 1,
-	'B'   : 
-        	{
+        'A'   : 1,
+        'B'   : 
+                {
                     'XX'  : 12,
                     'YY'  : 13
-        	},
-	'C'   : 5,
-	'kjhkjhkh' : 12123
+                },
+        'C'   : 5,
+        'kjhkjhkh' : 12123
     }
 
     Here we print in "STR_D" format with a different value for key_indent.
     The value for indent_inc 
     >>> print list2str(dict_dumper(a,0,Options(format=STR_D, indent_inc=4,key_indent=12)))
     {
-        	'A' : 1,
-        	'B' : 
+                'A' : 1,
+                'B' : 
                     {
-                        	'XX' : 12,
-                        	'YY' : 13
+                                'XX' : 12,
+                                'YY' : 13
                     },
-        	'C' : 5,
-        	'kjhkjhkh' : 12123
+                'C' : 5,
+                'kjhkjhkh' : 12123
     }
 
     """
@@ -922,8 +922,8 @@ def dict_dumper(val,indent,options=default_options):
     return record_dump_util(_dict2list(val),
                          indent,
                          options.key_indent,
-			 options.indent_inc,
-		         "{", "}", options)
+                         options.indent_inc,
+                         "{", "}", options)
 
 # ---------------------------------------------
 # dumper management
@@ -933,22 +933,22 @@ def set_dumper(func, typename):
     """adds a new dumper function.
 
     parameters:
-    func -- 	this is the dumper function. This function must
-            	be of the type: func(val,indent)
-            	val is the value to dump, indent the indentation
-            	level for each new started line. The function
-            	must return a list of strings which may also
-            	contain nested lists of strings or further nested
-            	lists. The function must test the type of <val>
-            	and return <None> if the type is unknown. The rdump
-            	module will then try other dumper-functions on the
-            	given value.
+    func --     this is the dumper function. This function must
+                be of the type: func(val,indent)
+                val is the value to dump, indent the indentation
+                level for each new started line. The function
+                must return a list of strings which may also
+                contain nested lists of strings or further nested
+                lists. The function must test the type of <val>
+                and return <None> if the type is unknown. The rdump
+                module will then try other dumper-functions on the
+                given value.
     typename -- the name under which the dumper can later be found,
-                usually the name of the datatype it dumps.	    
+                usually the name of the datatype it dumps.          
  
     returns:    None if it is a new dumper (new typename) or 
                 the replaced dumper function if a dumper was already
-		registered under that typename
+                registered under that typename
                 
 
     This is how you add a dumper for your class:
@@ -1020,13 +1020,13 @@ def set_dumper(func, typename):
     asrt_function(func)
     asrt_string(typename)
     if _dumpers_dict.has_key(typename):
-	idx= _dumpers_dict[typename]
-	old= _dumpers[idx]
-	_dumpers[idx]= func
-	return old
+        idx= _dumpers_dict[typename]
+        old= _dumpers[idx]
+        _dumpers[idx]= func
+        return old
     else:
-      	_dumpers.append(func)
-	_dumpers_dict[typename]= len(_dumpers)-1
+        _dumpers.append(func)
+        _dumpers_dict[typename]= len(_dumpers)-1
         return None
 
 # set all dumpers (except the default-dumper):
@@ -1090,14 +1090,14 @@ def dumpstr(val,indent=0,options=default_options):
     [ 1, 2 ]
     >>> print dumpstr([1,2],options=Options(format=STR))
     [
-	1,
-	2
+        1,
+        2
     ]
     >>> print dumpstr([1,2],indent=4,options=Options(format=STR))
-	[
+        [
             1,
             2
-	]
+        ]
 
     And here are examples with a more complicated list:
     >>> print dumpstr(["A",1,[2,3],{"X":1,"Y":2}],options=Options(format=REPR))
@@ -1105,18 +1105,18 @@ def dumpstr(val,indent=0,options=default_options):
 
     >>> print dumpstr(["A",1,[2,3],{"X":1,"Y":2}],options=Options(format=STR))
     [
-	'A',
-	1,
-	[
+        'A',
+        1,
+        [
             2,
             3
-	],
-	{
+        ],
+        {
             'X' : 
-        	1,
+                1,
             'Y' : 
-        	2
-	}
+                2
+        }
     ]
 
     The "STR_D" format spans several lines, like "STR" but tries to
@@ -1124,14 +1124,14 @@ def dumpstr(val,indent=0,options=default_options):
     placing dictionary values right behind the dictionary keys:
     >>> print dumpstr(["A",1,[2,3],{"X":1,"Y":2}],options=Options(format=STR_D))
     [
-	'A', 1, 
-	[
+        'A', 1, 
+        [
             2, 3
-	], 
-	{
+        ], 
+        {
             'X' : 1,
             'Y' : 2
-	}
+        }
     ]
     """
     asrt_int_range(indent,min_=0)
@@ -1161,15 +1161,15 @@ def dstr(val,indent=0):
     Here is an example:
     >>> print dstr([1,{"A":[2,3]},"XY"]) 
     [
-	1,
-	{
+        1,
+        {
             'A' : 
-        	[
+                [
                     2,
                     3
-        	]
-	},
-	'XY'
+                ]
+        },
+        'XY'
     ]
     """
     return dumpstr(val,indent=indent,options=Options(format=STR))
@@ -1184,14 +1184,14 @@ def dstrd(val,indent=0):
     Here is an example:
     >>> print dstrd([1,{"A":[2,3]},"XY"]) 
     [
-	1, 
-	{
+        1, 
+        {
             'A' : 
-        	[
+                [
                     2, 3
-        	]
-	}, 
-	'XY'
+                ]
+        }, 
+        'XY'
     ]
     """
     return dumpstr(val,indent=indent,options=Options(format=STR_D))
@@ -1212,32 +1212,32 @@ def dump(val,indent=0,options=default_options):
     { 'A' : 1, 'B' : [ 1, 2 ], 'C' : { 'X' : 10, 'Y' : 11 } }
     >>> dump({"A":1,"B":[1,2],"C":{"X":10,"Y":11}},options=Options(format=STR))
     {
-	'A' : 
+        'A' : 
             1,
-	'B' : 
+        'B' : 
             [
-        	1,
-        	2
+                1,
+                2
             ],
-	'C' : 
+        'C' : 
             {
-        	'X' : 
+                'X' : 
                     10,
-        	'Y' : 
+                'Y' : 
                     11
             }
     }
     >>> dump({"A":1,"B":[1,2],"C":{"X":10,"Y":11}},options=Options(format=STR_D))
     {
-	'A' : 1,
-	'B' : 
+        'A' : 1,
+        'B' : 
             [
-        	1, 2
+                1, 2
             ],
-	'C' : 
+        'C' : 
             {
-        	'X' : 10,
-        	'Y' : 11
+                'X' : 10,
+                'Y' : 11
             }
     }
     """
@@ -1268,15 +1268,15 @@ def pstr(val,indent=0):
     Here is an example:
     >>> pstr([1,{"A":[2,3]},"XY"]) 
     [
-	1,
-	{
+        1,
+        {
             'A' : 
-        	[
+                [
                     2,
                     3
-        	]
-	},
-	'XY'
+                ]
+        },
+        'XY'
     ]
     """
     dump(val,indent=indent,options=Options(format=STR))
@@ -1291,14 +1291,14 @@ def pstrd(val,indent=0):
     Here is an example:
     >>> pstrd([1,{"A":[2,3]},"XY"]) 
     [
-	1, 
-	{
+        1, 
+        {
             'A' : 
-        	[
+                [
                     2, 3
-        	]
-	}, 
-	'XY'
+                ]
+        }, 
+        'XY'
     ]
     """
     dump(val,indent=indent,options=Options(format=STR_D))

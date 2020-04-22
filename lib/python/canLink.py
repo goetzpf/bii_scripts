@@ -190,7 +190,7 @@ type_list= {  'a': {"type": 'string',"raw": 0,"signed": 0,"array": 0 },
               'h': {"type": 'mid' ,  "raw": 1,"signed": 1,"array": 1 },
               'H': {"type": 'mid' ,  "raw": 1,"signed": 0,"array": 1 },
 
-	      'Z': {"type": 'zero',  "raw": 0,"signed": 0,"array": 0 },
+              'Z': {"type": 'zero',  "raw": 0,"signed": 0,"array": 0 },
             }
 
 
@@ -248,12 +248,12 @@ def encode( pDict ):
 
     ch = inv_char_list[ key_from_hash_val_list(pDict,cl) ]
     if ch is None:
-    	raise ValueError("encode(): internal error |"+ch+"|!")
+        raise ValueError("encode(): internal error |"+ch+"|!")
     st = st+ch+" "
 
     ch= inv_type_list[ key_from_hash_val_list(pDict,tl) ]
     if ch is None:
-    	raise ValueError("encode(): internal error |"+ch+"|!")
+        raise ValueError("encode(): internal error |"+ch+"|!")
 
     st += ch
 
@@ -281,8 +281,8 @@ def decode (linkStr):
     linkItems = linkStr.split(' ')
 
     if len(linkItems) != 10:
-    	warn("decode(): unknown can link format (element no) "+linkStr)
-	return None
+        warn("decode(): unknown can link format (element no) "+linkStr)
+        return None
 
     c = eU.matchRe(linkItems[0],"^\@(\w)$")
     if c is None:
@@ -291,14 +291,14 @@ def decode (linkStr):
     ch = c[0]
 
     if char_list.has_key(ch) is False:
-      	warn("decode(): unknown variable-type char "+ch+" in this link: "+linkStr)
+        warn("decode(): unknown variable-type char "+ch+" in this link: "+linkStr)
         return None
 
     result.update(char_list[ch])
     
     
     if type_list.has_key(linkItems[1]) is False:
-      	warn("decode(): unknown data-type char: "+f[1]+" in this link: "+linkStr)
+        warn("decode(): unknown data-type char: "+f[1]+" in this link: "+linkStr)
         return None
 
     dataType= type_list[linkItems[1]]
@@ -309,8 +309,8 @@ def decode (linkStr):
         if eU.matchRe(item,"^[0-9a-fA-F]+") is None:
             warn("decode(): error in field no "+str(item)+", not a hex-number, link: "+linkStr)
             return None
-    	else:
-    	    result[itemName] = int(item,16)
+        else:
+            result[itemName] = int(item,16)
     result['inhibit'] = result['inhibit'] * 0.1; # unit: [ms]
 
     calc_cidnidsob(result)
@@ -333,13 +333,13 @@ def complete( p ):
     check_set(p,'multi',0)
 
     if check_exists(p,'access','access type','complete()') is None:
-    	return 
+        return 
     if  eU.matchRe(p['access'], "^(r|w|rw)$") is None:
         warn ("complete(): unknown access type!")
         return
 
     if check_exists(p,'type','data type','complete()') is None:
-    	return
+        return
     if eU.matchRe(p['type'],"^(string|short|long|char|mid|zero)$") is None:
         warn("complete(): unknown data type!")
         return
@@ -354,22 +354,22 @@ def complete( p ):
     check_set(p,'array',0)
 
     if check_exists(p,'port'   ,'port','complete()') is None:
-    	return
+        return
     calc_cob(p)
     calc_cidnidsob(p)
 
     (needs_r,needs_w)= calc_rw_needs(p)
 
     if needs_r:
-      	if check_exists(p,'in_cob' ,'in-cob','complete()') is None:
-	    return 
+        if check_exists(p,'in_cob' ,'in-cob','complete()') is None:
+            return 
     if needs_w:
          if check_exists(p,'out_cob','out-cob','complete()') is None:
-	    return
+            return
 
     if p['multi']:
         if check_exists(p,'multiplexor','multiplexor','complete()') is None:
-	    return
+            return
     else:
         check_set(p,'multiplexor',0)
 
@@ -405,12 +405,12 @@ def calc_cob(linkParams):
         if linkParams.has_key('out_cob') is False:
             calc_w=1
     if not (calc_r or calc_w):
-    	return
+        return
 
     if check_exists(linkParams,'nid' ,'nid','calc_cob()') is None:
-    	return 
+        return 
     if linkParams.has_key('cid') is True:
-      	c1= cidnid2cob( linkParams[cid], 0, linkParams[nid] ) # writeobj on srvr
+        c1= cidnid2cob( linkParams[cid], 0, linkParams[nid] ) # writeobj on srvr
         c2= cidnid2cob( linkParams[cid], 1, linkParams[nid] ) # readobj on srvr
 
         if linkParams[server]:
@@ -422,12 +422,12 @@ def calc_cob(linkParams):
     else:
         if calc_r:
             if check_exists(linkParams,'in_sob' ,'in_sob','calc_cob()') is None:
-	    	return
+                return
             linkParams['in_cob'] = sobnid2cob( linkParams['in_sob'] , linkParams['nid'] );
 
         if calc_w:
             if check_exists(linkParams,'out_sob' ,'out_sob','calc_cob()') is None:
-	    	return
+                return
             linkParams['out_cob']= sobnid2cob( linkParams['out_sob'], linkParams['nid'] );
 
 #       if linkParams[multi] is None: # special treatment for basic-variables
@@ -453,24 +453,24 @@ def calc_cidnidsob(linkParams):
 
     if needs_r != 0:
         if check_exists(linkParams,'in_cob' ,'in_cob' , functionName) is None:
-	    return None
+            return None
     if needs_w != 0:
         if check_exists(linkParams,'out_cob','out_cob', functionName) is None:
-	    return None
+            return None
 
     if linkParams.has_key('cid') is True and linkParams.has_key('nid') is True:
-    	return None
+        return None
 
     if linkParams.has_key('nid') is True:
         if needs_r and linkParams.has_key('in_sob') is True and \
-	   needs_w and linkParams.has_key('out_sob') is True:
+           needs_w and linkParams.has_key('out_sob') is True:
            return
       
 
     if needs_r != 0:
-    	(cid1,d1,nid1) = cob2cidnid( linkParams['in_cob'] )  
+        (cid1,d1,nid1) = cob2cidnid( linkParams['in_cob'] )  
     if needs_w != 0:
-    	(cid2,d2,nid2) = cob2cidnid( linkParams['out_cob'] )
+        (cid2,d2,nid2) = cob2cidnid( linkParams['out_cob'] )
     is_server= linkParams['server']
 
     set_cid=None
@@ -478,17 +478,17 @@ def calc_cidnidsob(linkParams):
     if needs_r and needs_w:
         if (cid1==cid2) and (nid1==nid2):
             set_cid=cid1
-	    set_nid=nid1
+            set_nid=nid1
 
     if needs_r: # so d1 is defined, is_server==d1 demanded
         if is_server == d1:
             set_cid=cid1
-	    set_nid=nid1
+            set_nid=nid1
       
     if needs_w: # so d2 is defined, is_server!=d2 demanded
         if is_server != d2:
             set_cid=cid2
-	    set_nid=nid2
+            set_nid=nid2
       
     if set_cid is not None:
         linkParams['cid']= set_cid
@@ -501,9 +501,9 @@ def calc_cidnidsob(linkParams):
     nid_out=None
 
     if needs_r:
-    	(sob_in ,nid_in) = cob2sobnid( linkParams['in_cob'] )
+        (sob_in ,nid_in) = cob2sobnid( linkParams['in_cob'] )
     if needs_w:
-    	(sob_out,nid_out)= cob2sobnid( linkParams['out_cob'] )
+        (sob_out,nid_out)= cob2sobnid( linkParams['out_cob'] )
 
     if needs_r and needs_w and (nid_in!=nid_out):
         # warn "functionName: contradicting NID's were calculated\n";
@@ -531,12 +531,12 @@ def cob2cidnid(cob):
     """
     if (cob<0) or (cob>2047):
         warn( "cob2cidnid(): cob is invalid: "+cob)
-	return None
+        return None
 
     nid = cob & 0x3F;
     d   = 0
     if (cob & 0x40):
-    	d = 1
+        d = 1
     cid = cob >> 7
     
     return (cid,d,nid)
@@ -552,7 +552,7 @@ def cob2sobnid(cob):
     """
     if ((cob<0) or (cob>2047)):
         warn ("cob2sobnid(): cob is invalid: "+cob)
-	return None
+        return None
 
     nid= cob & 0x3F
     sob= cob >> 6
@@ -567,10 +567,10 @@ def sobnid2cob(sob,nid):
     """
     if (sob<0) or (sob>26):
         warn( "sobnid2cob(): sob out of range: "+str(sob))
-	return
+        return
     if (nid<1) or (nid>63):
         warn( "cidnid2cob(): nid out of range: "+str(nid))
-	return
+        return
     return  (sob << 6) | nid
 
 def maxlen(r_properties):
@@ -581,13 +581,13 @@ def maxlen(r_properties):
     if typ == 'char':
         l=1
     elif typ == 'short':
-      	l=2
+        l=2
     elif typ == 'mid':
-      	l=3
+        l=3
     elif typ == 'long':
-      	l=4
+        l=4
     elif typ == 'zero':
-      	l=0
+        l=0
     else:
         return None
 
@@ -606,17 +606,17 @@ def calc_rw_needs(linkParams):
     needs_w = 0
 
     if linkParams['multi']:
-    	if access == 'w':
+        if access == 'w':
             if linkParams['server'] != 0:
                 needs_r=1
             else:
                 needs_w=1
         else:
             needs_r=1
-	    needs_w=1
+            needs_w=1
     elif access == 'rw':
         needs_r=1
-	needs_w=1
+        needs_w=1
     elif access == 'w':
         if  linkParams['server'] != 0:
             needs_r=1
@@ -632,16 +632,16 @@ def calc_rw_needs(linkParams):
 
 def check_set(r_p,key,val):
     if r_p.has_key(key) is False:
-      	r_p[key] = val
+        r_p[key] = val
 
 def check_exists(linkParams,key,name,func,keyList=None):
     """ internal """
     if linkParams.has_key(key) is False:
-      	warn(func+": "+name+" is not specified!")
-    	return None
+        warn(func+": "+name+" is not specified!")
+        return None
     elif keyList and linkParams[key] not in keyList:
-      	warn(func+": '"+name+"' = '"+linkParams[key]+"'is not part of: "+str(keyList) )
-    	return None
+        warn(func+": '"+name+"' = '"+linkParams[key]+"'is not part of: "+str(keyList) )
+        return None
     
     return 1
 
@@ -650,58 +650,58 @@ def hwLowcal2canLink(fieldDict,pvName=""):
     """
     canPar = {}
     if check_exists(fieldDict,'BTYP','BTYP',"hwLowcal2canLink() "+pvName,('NIL','CHAR','UCHAR','SHORT','USHORT','LONG','ULONG')):
-	if fieldDict['BTYP'][0] == 'U':
+        if fieldDict['BTYP'][0] == 'U':
             canPar['signed'] = 1
             canPar['type'] = fieldDict['BTYP'][1:].lower()
-	else:
+        else:
             canPar['signed'] = 0
             canPar['type'] = fieldDict['BTYP'].lower()
     elif check_exists(fieldDict,'CLAS','CLAS',"hwLowcal2canLink() "+pvName,('Multiplexed','Basic')):
-	if fieldDict['CLAS'] == 'Multiplexed':
-	    canPar['multi'] = 1
-	else: canPar['multi'] = 0
-    else:     	return
+        if fieldDict['CLAS'] == 'Multiplexed':
+            canPar['multi'] = 1
+        else: canPar['multi'] = 0
+    else:       return
     if check_exists(fieldDict,'PORT','PORT',"hwLowcal2canLink() "+pvName):
-	canPar['port'] = int(fieldDict['PORT'])
-    else:     	return
+        canPar['port'] = int(fieldDict['PORT'])
+    else:       return
     if fieldDict.has_key('INHB') is False:
-	canPar['inhibit'] = 0
+        canPar['inhibit'] = 0
     else:
-	canPar['inhibit'] = int(fieldDict['INHB'])
+        canPar['inhibit'] = int(fieldDict['INHB'])
     if fieldDict.has_key('UTYP') is False:
-	canPar['server'] = 0
+        canPar['server'] = 0
     else: 
-    	canPar['server'] = 1
+        canPar['server'] = 1
     if check_exists(fieldDict,'ATYP','ATYP',"hwLowcal2canLink() "+pvName,('RO','WO','RW')):
-	if fieldDict['ATYP'] == 'RO': canPar['access'] = 'r'
-	if fieldDict['ATYP'] == 'WO': canPar['access'] = 'w'
-	else:                         canPar['access'] = 'rw'
-    else:     	return
+        if fieldDict['ATYP'] == 'RO': canPar['access'] = 'r'
+        if fieldDict['ATYP'] == 'WO': canPar['access'] = 'w'
+        else:                         canPar['access'] = 'rw'
+    else:       return
     if fieldDict.has_key('NELM') and int(fieldDict['NELM']) > 1:
-	canPar['arraysize'] = int(fieldDict['NELM'])
-	canPar['array'] = 1
+        canPar['arraysize'] = int(fieldDict['NELM'])
+        canPar['array'] = 1
     else:
-	canPar['arraysize'] = 0
-	canPar['array'] = 0
+        canPar['arraysize'] = 0
+        canPar['array'] = 0
     if check_exists(fieldDict,'DLEN','DLEN',"hwLowcal2canLink() "+pvName):
-	canPar['maxlength'] = int(fieldDict['DLEN'])
-    else:     	return
+        canPar['maxlength'] = int(fieldDict['DLEN'])
+    else:       return
     if fieldDict.has_key('OBJO'):
-	canPar['out_cob'] = int(fieldDict['OBJO'])
-    else:     	
-	canPar['out_cob'] = 0
+        canPar['out_cob'] = int(fieldDict['OBJO'])
+    else:       
+        canPar['out_cob'] = 0
     if fieldDict.has_key('OBJI'):
-	canPar['in_cob'] = int(fieldDict['OBJI'])
-    else:     	
-	canPar['in_cob'] = 0
+        canPar['in_cob'] = int(fieldDict['OBJI'])
+    else:       
+        canPar['in_cob'] = 0
     if fieldDict.has_key('MUX'):
-	canPar['multiplexor'] = int(fieldDict['MUX'])
-    else:     	
-	canPar['multiplexor'] = 0
+        canPar['multiplexor'] = int(fieldDict['MUX'])
+    else:       
+        canPar['multiplexor'] = 0
     if fieldDict.has_key('TMO'):
-	canPar['timeout'] = int(fieldDict['TMO'])
-    else:     	
-	canPar['timeout'] = 0
+        canPar['timeout'] = int(fieldDict['TMO'])
+    else:       
+        canPar['timeout'] = 0
     return encode(canPar)
 
 import sys
@@ -734,20 +734,20 @@ def test():
 
 
     par = {'access': 'rw',
-	   'array': 1,
-	   'arraysize': 2,
-	   'in_cob': 257,
-	   'inhibit': 16,
-	   'maxlength': 5,
-	   'multi': 0,
-	   'multiplexor': 2,
-	   'out_cob': 321,
-	   'port': 1,
-	   'raw': 0,
-	   'server': 0,
-	   'signed': 1,
-	   'timeout': 500,
-	   'type': 'short'}
+           'array': 1,
+           'arraysize': 2,
+           'in_cob': 257,
+           'inhibit': 16,
+           'maxlength': 5,
+           'multi': 0,
+           'multiplexor': 2,
+           'out_cob': 321,
+           'port': 1,
+           'raw': 0,
+           'server': 0,
+           'signed': 1,
+           'timeout': 500,
+           'type': 'short'}
     pprint.pprint( complete(par) )
 
     pprint.pprint( hwLowcalPar )

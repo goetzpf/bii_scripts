@@ -118,10 +118,10 @@ rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(RSYNC_HOST):'
 # programs ..................................................
 
 # the basename of the python binary:
-PYTHON:=python
+PYTHON:=python2
 
 # the basename of the pydoc utility:
-PYDOC:=pydoc
+PYDOC:=pydoc2
 
 # the standard unix install command
 INSTALL=install $(INSTALL_FLAGS)
@@ -844,10 +844,6 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 	cp $< $(@D)
 	USE_PERL5LIB=1 BROWSEDB_SHARE_DIR=$(SHARE_INSTALL_DIR)/browsedb \
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
-	chmod u+x $@
-
-$(SCRIPT_BUILD_DIR)/hg-sig: $(SCRIPT_SRC_DIR)/hg-sig
-	sed '1c\#!/usr/bin/env '$(PYTHON) $< >$@
 	chmod u+x $@
 
 # extra rules for python 3 scripts:

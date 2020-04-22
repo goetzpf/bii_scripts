@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2
 # -*- coding: UTF-8 -*-
 """show which python modules a python script uses."""
 

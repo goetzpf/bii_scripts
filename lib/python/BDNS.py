@@ -219,7 +219,7 @@ def parse_named(devname):
     """
     elms= parse(devname)
     if elms is None:
-	return {}
+        return {}
     return OrderedDict(zip(_fields,elms))
 
 def sortNamesBy(devicenames,order):
@@ -284,9 +284,9 @@ def mkOrder(order):
     if( order == 'DEFAULT'):
         order_list = _default_order[:]
     elif isinstance(order,list) or isinstance(order,tuple):
-    	order_list = [namepart2index(i) for i in order]
+        order_list = [namepart2index(i) for i in order]
     else:
-    	order_list = [namepart2index(i) for i in re.split(r'[,\s]+',order)]
+        order_list = [namepart2index(i) for i in re.split(r'[,\s]+',order)]
     if len(order_list)<=0:
         sys.stderr.write("illegal order parameter")
     return order_list
