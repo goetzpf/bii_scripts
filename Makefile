@@ -224,14 +224,6 @@ CSS_SRC_FILE=docStyle.css
 # simply copied:
 HTML_FILE_LIST=$(filter-out index.html,$(call find_files,$(DOC_HTML_SRC_DIR),*.html,10)) $(call find_files,$(DOC_HTML_SRC_DIR),*.css,10)
 
-# files within the share directory,
-# match *.col and *.txt in and below $(SHARE_SRC_DIR), depth 1
-SHARE_SRC_LIST:=$(call find_files,$(SHARE_SRC_DIR),*.col,2) \
-               $(call find_files,$(SHARE_SRC_DIR),*.txt,2) \
-               $(addprefix rsync-dist/,$(call find_files,$(SHARE_SRC_DIR)/rsync-dist,*,1))
-
-SHARE_DIR_LIST:=$(call find_subdirs,$(SHARE_SRC_DIR),1)
-
 # scripts that have to be installed
 # match all files in $(SCRIPT_SRC_DIR) with name [A-Za-z]*
 # that are executable, depth 1 (no subdir-search)
@@ -428,13 +420,6 @@ CGI_LIST= lib/perl/BDNS.pm bin/devname
 
 #############################################################
 
-# variables for the "share" directory........................
-
-_SHARE_BUILD_LIST=$(addprefix $(SHARE_BUILD_DIR)/,$(SHARE_SRC_LIST))
-
-_SHARE_BUILD_DIRLIST=$(addprefix $(SHARE_BUILD_DIR)/,$(SHARE_DIR_LIST))
-BUILD_DIRS+=$(_SHARE_BUILD_DIRLIST)
-
 # variables for the "scripts" directory......................
 
 _SCRIPT_BUILD_LIST=$(addprefix $(SCRIPT_BUILD_DIR)/,$(SCRIPT_LIST))
@@ -611,10 +596,8 @@ $(SETENV):
 
 # build shared files ........................................
 
-build_shared: $(SHARE_BUILD_DIR) $(_SHARE_BUILD_LIST)
-
-$(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/% $(SHARE_BUILD_DIR) $(_SHARE_BUILD_DIRLIST)
-	cp $< $(@D)
+build_shared: $(SHARE_BUILD_DIR)
+	cp -a $(SHARE_SRC_DIR)/* $<
 
 # build scripts .............................................
 
@@ -820,7 +803,6 @@ html_install_dirs:
 t:
 	@echo LOCAL_BUILD_DIR: $(LOCAL_BUILD_DIR)
 	@echo HTML_BUILD_DIR: $(HTML_BUILD_DIR)
-	@echo _SHARE_BUILD_DIRLIST: $(_SHARE_BUILD_DIRLIST)
 
 found:
 	@echo "-------------------------------"
