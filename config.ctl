@@ -46,5 +46,4 @@ PYTHON3LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
 
 # Root directory where the html documentation is copied to. If empty, do
 # not install html documentation.
-#HTML_INSTALL_DIR=$(INSTALL_PREFIX)/share/html/bii_scripts
 HTML_INSTALL_DIR=
