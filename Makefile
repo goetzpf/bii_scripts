@@ -66,7 +66,7 @@
 #    add scriptname to the DOCTXT_PERLLIB_LIST variable
 
 # for python modules with embedded pydoc documentation
-#    add scriptname to the PYDOC_PYTHONLIB_LIST variable
+#    add scriptname to the PYDOC_PYTHON2LIB_LIST variable
 
 #############################################################
 
@@ -118,10 +118,16 @@ rsync_cmd=rsync -a -u --delete --chmod=a+r,Da+x -e "ssh " '$(1)' $(RSYNC_HOST):'
 # programs ..................................................
 
 # the basename of the python binary:
-PYTHON:=python2
+PYTHON2:=python2
+
+# the basename of the python3 binary:
+PYTHON3:=python3
 
 # the basename of the pydoc utility:
-PYDOC:=pydoc2
+PYDOC2:=pydoc2
+
+# the basename of the pydoc utility:
+PYDOC3:=pydoc2
 
 # the standard unix install command
 INSTALL=install $(INSTALL_FLAGS)
@@ -144,7 +150,7 @@ RSYNC_DIR=/home/wwwcsr/www/control/bii_scripts
 # environment variables for programs.........................
 PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
 
-PYTHONPATHNEW=$(PYTHONLIB_SRC_DIR):$(PYTHONPATH)
+PYTHON2PATHNEW=$(PYTHON2LIB_SRC_DIR):$(PYTHONPATH)
 
 # program parameters ........................................
 
@@ -185,7 +191,7 @@ SCRIPT_INSTALL_DIR=$(INSTALL_PREFIX)/bin
 
 PERLLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/perl
 
-PYTHONLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
+PYTHON2LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
 
 ifneq "$(USE_RSYNC)" "yes"
 HTML_INSTALL_DIR=$(INSTALL_PREFIX)/share/html/bii_scripts
@@ -194,12 +200,12 @@ SCRIPT_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/scripts
 
 PERLLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/perllib
 
-PYTHONLIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
+PYTHON2LIB_HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)/pythonlib
 else
 HTML_INSTALL_DIR=
 SCRIPT_HTML_INSTALL_DIR=
 PERLLIB_HTML_INSTALL_DIR=
-PYTHONLIB_HTML_INSTALL_DIR=
+PYTHON2LIB_HTML_INSTALL_DIR=
 endif
 
 # out-comment the following if
@@ -219,13 +225,13 @@ SCRIPT_HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html/scripts
 
 PERLLIB_HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html/modules
 
-PYTHONLIB_HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html/python
+PYTHON2LIB_HTML_BUILD_DIR=$(LOCAL_BUILD_DIR)/html/python
 
 SCRIPT_BUILD_DIR=$(LOCAL_BUILD_DIR)/script
 
 PERLLIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/perl
 
-PYTHONLIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/python
+PYTHON2LIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/python
 
 SHARE_BUILD_DIR=$(LOCAL_BUILD_DIR)/share
 
@@ -239,7 +245,7 @@ SCRIPT_SRC_DIR=bin
 
 PERLLIB_SRC_DIR=lib/perl
 
-PYTHONLIB_SRC_DIR=lib/python
+PYTHON2LIB_SRC_DIR=lib/python
 
 SHARE_SRC_DIR=share
 
@@ -276,9 +282,9 @@ PERLLIB_LIST:=$(filter-out i386-linux-thread-multi/Pezca.pm,\
 	      $(call find_files,$(PERLLIB_SRC_DIR),*.pm,100))
 
 # python libraries that have to be installed
-# match all files in $(PYTHONLIB_SRC_DIR) with name *.pm
+# match all files in $(PYTHON2LIB_SRC_DIR) with name *.pm
 # depth 100 (all sub and sub-subdirs)
-PYTHONLIB_LIST:=$(call find_files,$(PYTHONLIB_SRC_DIR),*.py,100)
+PYTHON2LIB_LIST:=$(call find_files,$(PYTHON2LIB_SRC_DIR),*.py,100)
 
 # a list of sub-directories within the perl-lib directory
 # find all directories below $(PERLLIB_SRC_DIR), depth 1
@@ -287,10 +293,10 @@ PERLLIB_DIRLIST:=$(filter-out i386-linux-thread-multi CVS,\
 		$(call find_subdirs,$(PERLLIB_SRC_DIR),1))
 
 # a list of sub-directories within the python-lib directory
-# find all directories below $(PYTHONLIB_SRC_DIR), depth 1
+# find all directories below $(PYTHON2LIB_SRC_DIR), depth 1
 # (up to one dir below), omit "i386-linux-thread-multi" and "CVS"
-PYTHONLIB_DIRLIST:=$(filter-out CVS,\
-		  $(call find_subdirs,$(PYTHONLIB_SRC_DIR),1))
+PYTHON2LIB_DIRLIST:=$(filter-out CVS,\
+		  $(call find_subdirs,$(PYTHON2LIB_SRC_DIR),1))
 
 # scripts with embedded POD documentation
 POD_SCRIPT_LIST=multi-commit.pl bdns_lookup.pl
@@ -409,7 +415,7 @@ POD_PERLLIB_LIST= \
 	scan_makefile.pm 
 
 # python libraries with embedded pydoc documentation
-PYDOC_PYTHONLIB_LIST= \
+PYDOC_PYTHON2LIB_LIST= \
 	BDNS.py \
 	boottime.py \
 	dateutils.py \
@@ -468,18 +474,18 @@ CGI_LIST= lib/perl/BDNS.pm bin/devname
 _ALL_BUILD_DIRLIST=$(LOCAL_BUILD_DIR) \
 		   $(HTML_BUILD_DIR) $(SCRIPT_HTML_BUILD_DIR) \
 		   $(PERLLIB_HTML_BUILD_DIR) \
-		   $(PYTHONLIB_HTML_BUILD_DIR) \
+		   $(PYTHON2LIB_HTML_BUILD_DIR) \
 		   $(SCRIPT_BUILD_DIR) \
 		   $(PERLLIB_BUILD_DIR) \
-		   $(PYTHONLIB_BUILD_DIR) \
+		   $(PYTHON2LIB_BUILD_DIR) \
 		   $(SHARE_BUILD_DIR)
 
 ifdef CREATE_INSTALL_DIRS
   _ALL_INSTALL_DIRLIST= $(SHARE_INSTALL_DIR) $(SCRIPT_INSTALL_DIR) \
-  			$(PERLLIB_INSTALL_DIR) $(PYTHONLIB_INSTALL_DIR) \
+  			$(PERLLIB_INSTALL_DIR) $(PYTHON2LIB_INSTALL_DIR) \
 			$(HTML_INSTALL_DIR)
 endif
-_ALL_ALWAYS_INSTALL_DIRLIST= $(SCRIPT_HTML_INSTALL_DIR) $(PERLLIB_HTML_INSTALL_DIR) $(PYTHONLIB_HTML_INSTALL_DIR)
+_ALL_ALWAYS_INSTALL_DIRLIST= $(SCRIPT_HTML_INSTALL_DIR) $(PERLLIB_HTML_INSTALL_DIR) $(PYTHON2LIB_HTML_INSTALL_DIR)
 
 # variables for the "share" directory........................
 
@@ -509,13 +515,13 @@ _PERLLIB_INSTALL_DIRLIST=$(addprefix $(PERLLIB_INSTALL_DIR)/,$(PERLLIB_DIRLIST))
 
 # variables for the "lib/python" directory.....................
 
-_PYTHONLIB_BUILD_LIST=$(addprefix $(PYTHONLIB_BUILD_DIR)/,$(PYTHONLIB_LIST))
+_PYTHON2LIB_BUILD_LIST=$(addprefix $(PYTHON2LIB_BUILD_DIR)/,$(PYTHON2LIB_LIST))
 
-_PYTHONLIB_INSTALL_LIST=$(addprefix $(PYTHONLIB_INSTALL_DIR)/,$(PYTHONLIB_LIST))
+_PYTHON2LIB_INSTALL_LIST=$(addprefix $(PYTHON2LIB_INSTALL_DIR)/,$(PYTHON2LIB_LIST))
 
-_PYTHONLIB_BUILD_DIRLIST=$(addprefix $(PYTHONLIB_BUILD_DIR)/,$(PYTHONLIB_DIRLIST))
+_PYTHON2LIB_BUILD_DIRLIST=$(addprefix $(PYTHON2LIB_BUILD_DIR)/,$(PYTHON2LIB_DIRLIST))
 
-_PYTHONLIB_INSTALL_DIRLIST=$(addprefix $(PYTHONLIB_INSTALL_DIR)/,$(PYTHONLIB_DIRLIST))
+_PYTHON2LIB_INSTALL_DIRLIST=$(addprefix $(PYTHON2LIB_INSTALL_DIR)/,$(PYTHON2LIB_DIRLIST))
 
 # variables for html documentation generation................
 
@@ -542,14 +548,14 @@ _HTML_DOCTXT_PERLLIB_BUILD_LIST=\
   $(addprefix $(PERLLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(DOCTXT_PERLLIB_LIST)))
 
 # list of all (generated) html files belonging to python libs
-_HTML_PYDOC_PYTHONLIB_BUILD_LIST=\
-  $(addprefix $(PYTHONLIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PYDOC_PYTHONLIB_LIST)))
+_HTML_PYDOC_PYTHON2LIB_BUILD_LIST=\
+  $(addprefix $(PYTHON2LIB_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PYDOC_PYTHON2LIB_LIST)))
 
 # all perl-libs for which documentation is generated
 _DOC_ALL_PERLLIB_LIST= $(POD_PERLLIB_LIST) $(DOCTXT_PERLLIB_LIST)
 
 # all python-libs for which documentation is generated
-_DOC_ALL_PYTHONLIB_LIST= $(PYDOC_PYTHONLIB_LIST)
+_DOC_ALL_PYTHON2LIB_LIST= $(PYDOC_PYTHON2LIB_LIST)
 
 ifneq "$(USE_RSYNC)" "yes"
 # all html files for perl-libs that are installed
@@ -557,8 +563,8 @@ _HTML_ALL_PERLLIB_INSTALL_LIST= \
   $(addprefix $(PERLLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PERLLIB_LIST)))
 
 # all html files for python-libs that are installed
-_HTML_ALL_PYTHONLIB_INSTALL_LIST= \
-  $(addprefix $(PYTHONLIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PYTHONLIB_LIST)))
+_HTML_ALL_PYTHON2LIB_INSTALL_LIST= \
+  $(addprefix $(PYTHON2LIB_HTML_INSTALL_DIR)/,$(call force_extension_list,html,$(_DOC_ALL_PYTHON2LIB_LIST)))
 endif
 
 # extra html files
@@ -680,13 +686,13 @@ $(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	rm -rf $@ && \
 	$(call makedir,$@)
 
-install_python_libs: build_python_libs $(PYTHONLIB_INSTALL_DIR) \
-	$(_PYTHONLIB_INSTALL_DIRLIST)  $(_PYTHONLIB_INSTALL_LIST) 
+install_python_libs: build_python_libs $(PYTHON2LIB_INSTALL_DIR) \
+	$(_PYTHON2LIB_INSTALL_DIRLIST)  $(_PYTHON2LIB_INSTALL_LIST) 
 
-$(_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
+$(_PYTHON2LIB_INSTALL_LIST): $(PYTHON2LIB_INSTALL_DIR)/%: $(PYTHON2LIB_BUILD_DIR)/%
 	$(INSTALL) $< $@
 
-$(_PYTHONLIB_INSTALL_DIRLIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
+$(_PYTHON2LIB_INSTALL_DIRLIST): $(PYTHON2LIB_INSTALL_DIR)/%: $(PYTHON2LIB_BUILD_DIR)/%
 	rm -rf $@
 	$(call makedir,$@)
 
@@ -718,9 +724,9 @@ install_html_perllib: build_html_perllib $(PERLLIB_HTML_INSTALL_DIR) $(_HTML_ALL
 $(_HTML_ALL_PERLLIB_INSTALL_LIST): $(PERLLIB_HTML_INSTALL_DIR)/%: $(PERLLIB_HTML_BUILD_DIR)/%
 	$(INSTALL) $< $@
 
-install_html_pythonlib: build_html_pythonlib $(PYTHONLIB_HTML_INSTALL_DIR) $(_HTML_ALL_PYTHONLIB_INSTALL_LIST)
+install_html_pythonlib: build_html_pythonlib $(PYTHON2LIB_HTML_INSTALL_DIR) $(_HTML_ALL_PYTHON2LIB_INSTALL_LIST)
 
-$(_HTML_ALL_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_HTML_INSTALL_DIR)/%: $(PYTHONLIB_HTML_BUILD_DIR)/%
+$(_HTML_ALL_PYTHON2LIB_INSTALL_LIST): $(PYTHON2LIB_HTML_INSTALL_DIR)/%: $(PYTHON2LIB_HTML_BUILD_DIR)/%
 	if test -e $<; then $(INSTALL) $< $@; fi
 else
 install_html: cp_css build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
@@ -741,7 +747,7 @@ install_cgi: $(CGI_LIST)
 clean:
 	rm -rf $(LOCAL_BUILD_DIR)
 	rm -f pod2htmd.tmp pod2htmi.tmp
-	rm -f $(PYTHONLIB_SRC_DIR)/*.pyc
+	rm -f $(PYTHON2LIB_SRC_DIR)/*.pyc
 
 # build......................................................
 
@@ -773,9 +779,6 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 	perl $(PERLLIB_SRC_DIR)/browsedb_conf.PL $(SCRIPT_BUILD_DIR)/dummy
 	chmod u+x $@
 
-# extra rules for python 3 scripts:
-_PYTHON_2TO3_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(addsuffix 3.py,$(basename $(PYTHON_2TO3_SCRIPTS))))
-
 # build perl libs............................................
 
 build_perl_libs: $(PERLLIB_BUILD_DIR) $(_PERLLIB_BUILD_DIRLIST) $(_PERLLIB_BUILD_LIST)
@@ -788,12 +791,12 @@ $(_PERLLIB_BUILD_DIRLIST): $(PERLLIB_BUILD_DIR)/%:
 
 # build python libs............................................
 
-build_python_libs: $(PYTHONLIB_BUILD_DIR)  $(_PYTHONLIB_BUILD_DIRLIST)  $(_PYTHONLIB_BUILD_LIST) 
+build_python_libs: $(PYTHON2LIB_BUILD_DIR)  $(_PYTHON2LIB_BUILD_DIRLIST)  $(_PYTHON2LIB_BUILD_LIST) 
 
-$(PYTHONLIB_BUILD_DIR)/%: $(PYTHONLIB_SRC_DIR)/%
+$(PYTHON2LIB_BUILD_DIR)/%: $(PYTHON2LIB_SRC_DIR)/%
 	cp $< $(@D)
 
-$(_PYTHONLIB_BUILD_DIRLIST): $(PYTHONLIB_BUILD_DIR)/%:
+$(_PYTHON2LIB_BUILD_DIRLIST): $(PYTHON2LIB_BUILD_DIR)/%:
 	mkdir -p $@
 
 # build html ................................................
@@ -875,7 +878,7 @@ $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCR
 
 $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 	@echo "<PRE>"      >  $@
-	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON) $< -h 2>>$(ERRLOG); true) >> $@
+	(PYTHONPATH=$(PYTHON2PATHNEW) $(PYTHON2) $< -h 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl
@@ -891,21 +894,21 @@ tt:
 
 $(_HTML_RST_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%
 ifeq (1,$(DOCUTILS_AVAILABLE))
-	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHONPATHNEW) perl $< --doc 2>>$(ERRLOG); true) | \
+	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHON2PATHNEW) perl $< --doc 2>>$(ERRLOG); true) | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
-	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHONPATHNEW) perl $< --doc 2>>$(ERRLOG); true) >> $@
+	(PERL5LIB=$(PERL5LIBNEW) PYTHONPATH=$(PYTHON2PATHNEW) perl $< --doc 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 endif
 
 $(_HTML_RST_PY_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.py
 ifeq (1,$(DOCUTILS_AVAILABLE))
-	PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON) $< --doc | \
+	PYTHONPATH=$(PYTHON2PATHNEW) $(PYTHON2) $< --doc | \
 	   rst2html --stylesheet-path=$(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE) > $@
 else
 	@echo "<PRE>"      >  $@
-	(PYTHONPATH=$(PYTHONPATHNEW) $(PYTHON) $< --doc 2>>$(ERRLOG); true) >> $@
+	(PYTHONPATH=$(PYTHON2PATHNEW) $(PYTHON2) $< --doc 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 endif
 
@@ -939,10 +942,10 @@ $(_HTML_DOCTXT_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_
 
 build_html_pythonlib: build_html_pythonlib_pydocs
 
-build_html_pythonlib_pydocs: $(PYTHONLIB_HTML_BUILD_DIR) $(_HTML_PYDOC_PYTHONLIB_BUILD_LIST)
+build_html_pythonlib_pydocs: $(PYTHON2LIB_HTML_BUILD_DIR) $(_HTML_PYDOC_PYTHON2LIB_BUILD_LIST)
 
-$(_HTML_PYDOC_PYTHONLIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTHONLIB_SRC_DIR)/%.py
-	d=`pwd` && cd $(@D) && PYTHONPATH=$$d/$(PYTHONPATHNEW) $(PYDOC) -w $$d/$< 2>>$$d/$(ERRLOG)
+$(_HTML_PYDOC_PYTHON2LIB_BUILD_LIST): $(PYTHON2LIB_HTML_BUILD_DIR)/%.html: $(PYTHON2LIB_SRC_DIR)/%.py
+	d=`pwd` && cd $(@D) && PYTHONPATH=$$d/$(PYTHON2PATHNEW) $(PYDOC2) -w $$d/$< 2>>$$d/$(ERRLOG)
 
 # directory creation.........................................
 
@@ -989,10 +992,10 @@ found:
 	@echo PERLLIB_DIRLIST:
 	@echo $(PERLLIB_DIRLIST)
 	@echo "-------------------------------"
-	@echo PYTHONLIB_LIST:
-	@echo $(PYTHONLIB_LIST)
+	@echo PYTHON2LIB_LIST:
+	@echo $(PYTHON2LIB_LIST)
 	@echo "-------------------------------"
-	@echo PYTHONLIB_DIRLIST:
-	@echo $(PYTHONLIB_DIRLIST)
+	@echo PYTHON2LIB_DIRLIST:
+	@echo $(PYTHON2LIB_DIRLIST)
 	@echo "-------------------------------"
 
