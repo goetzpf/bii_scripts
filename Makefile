@@ -106,8 +106,17 @@ rm_extension_list=$(basename $(1))
 force_extension_list=$(addsuffix .$(1),$(basename $(2)))
 
 # rsync command
-html_rsync_cmd=rsync $(HTML_RSYNC_OPTS) '$(1)' '$(HTML_RSYNC_HOST):$(2)'
-install_rsync_cmd=rsync $(INSTALL_RSYNC_OPTS) '$(1)' '$(INSTALL_RSYNC_HOST):$(2)'
+ifeq ($(strip $(HTML_RSYNC_HOST)),)
+  html_rsync_cmd=rsync $(HTML_RSYNC_OPTS) '$(1)' '$(2)'
+else
+  html_rsync_cmd=rsync $(HTML_RSYNC_OPTS) '$(1)' '$(HTML_RSYNC_HOST):$(2)'
+endif
+
+ifeq ($(strip $(INSTALL_RSYNC_HOST)),)
+  install_rsync_cmd=rsync $(INSTALL_RSYNC_OPTS) '$(1)' '$(2)'
+else
+  install_rsync_cmd=rsync $(INSTALL_RSYNC_OPTS) '$(1)' '$(INSTALL_RSYNC_HOST):$(2)'
+endif
 
 #############################################################
 
@@ -584,14 +593,11 @@ install_python2_libs: build_python_libs install_dirs
 install_python3_libs: build_python_libs install_dirs
 	$(call install_rsync_cmd,$(PYTHON3LIB_BUILD_DIR),$(PYTHON3LIB_INSTALL_DIR)/)
 
-ifneq ($(strip $(HTML_RSYNC_HOST)),)
 ifneq ($(strip $(HTML_INSTALL_DIR)),)
-# if $(HTML_RSYNC_HOST) is not empty:
-
+# if $(HTML_INSTALL_DIR) is not empty:
 install_html: build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib html_install_dirs
 	$(call html_rsync_cmd,$(HTML_BUILD_DIR)/,$(_HTML_INSTALL_DIR)/)
 
-endif
 endif
 
 install_cgi: $(CGI_LIST)
@@ -813,11 +819,21 @@ $(_HTML_PYDOC_PYTHON3LIB_BUILD_LIST): $(PYTHONLIB_HTML_BUILD_DIR)/%.html: $(PYTH
 $(BUILD_DIRS) : % :
 	mkdir -p $@
 
+ifeq ($(strip $(INSTALL_RSYNC_HOST)),)
+install_dirs:
+	$(call INSTALL_MKDIR,$(INSTALL_DIRS))
+else
 install_dirs:
 	ssh $(INSTALL_RSYNC_HOST) $(call INSTALL_MKDIR,$(INSTALL_DIRS))
+endif
 
+ifeq ($(strip $(HTML_RSYNC_HOST)),)
+html_install_dirs:
+	$(call HTML_MKDIR,$(HTML_INSTALL_DIRS))
+else
 html_install_dirs:
 	ssh $(HTML_RSYNC_HOST) $(call HTML_MKDIR,$(HTML_INSTALL_DIRS))
+endif
 
 # debugging .................................................
 

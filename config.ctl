@@ -5,7 +5,8 @@
 # with rsync:
 
 # Rsync configuration for program, library and share files installation:
-# Rsync destination, may be "localhost", HOST or USER@HOST:
+# Rsync destination, may be "localhost", HOST or USER@HOST. If left empty
+# do not use ssh for rsync:
 INSTALL_RSYNC_HOST=opiadm@nfs.ctl.bessy.de
 # Rsync options, you usually don't have to change these:
 INSTALL_RSYNC_OPTS=-crlEogC --chmod=a+r,Da+x
@@ -13,7 +14,8 @@ INSTALL_RSYNC_OPTS=-crlEogC --chmod=a+r,Da+x
 INSTALL_MKDIR=mkdir -m 775 -p $(1)
 
 # Rsync configuration HTML file installation:
-# Rsync destination, may be "localhost", HOST or USER@HOST:
+# Rsync destination, may be "localhost", HOST or USER@HOST. If left empty
+# do not use ssh for rsync:
 HTML_RSYNC_HOST=
 # Rsync options, you usually don't have to change these:
 HTML_RSYNC_OPTS=-crlEogC --chmod=a+r,Da+x
