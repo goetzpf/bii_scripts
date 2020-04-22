@@ -448,6 +448,11 @@ PYDOC_PYTHON2LIB_LIST= $(addprefix bii_scripts/, \
 	numpy_util.py \
 	typecheck.py)
 
+# python3 libraries with embedded pydoc documentation
+PYDOC_PYTHON3LIB_LIST= $(addprefix bii_scripts3/, \
+	canlink.py \
+	)
+
 # scripts that have embedded documentation that can be HTML converted
 # with makeDocTxt
 DOCTXT_SCRIPT_LIST= makeDocTxt.pl \
