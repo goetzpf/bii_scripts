@@ -141,12 +141,6 @@ RSYNC_DIR=/home/wwwcsr/www/control/bii_scripts
 # case the do not exist already
 # CREATE_INSTALL_DIRS=1
 
-# set this macro to "yes" if 
-# make shall create python 3 versions of the python
-# libraries and some of the python scripts.
-CREATE_PYTHON3=no
-
-
 # environment variables for programs.........................
 PERL5LIBNEW=$(PERL5LIB):$(PERLLIB_SRC_DIR)
 
@@ -193,8 +187,6 @@ PERLLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/perl
 
 PYTHONLIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python
 
-PYTHON3LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python3
-
 ifneq "$(USE_RSYNC)" "yes"
 HTML_INSTALL_DIR=$(INSTALL_PREFIX)/share/html/bii_scripts
 
@@ -234,8 +226,6 @@ SCRIPT_BUILD_DIR=$(LOCAL_BUILD_DIR)/script
 PERLLIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/perl
 
 PYTHONLIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/python
-
-PYTHON3LIB_BUILD_DIR=$(LOCAL_BUILD_DIR)/lib/python3
 
 SHARE_BUILD_DIR=$(LOCAL_BUILD_DIR)/share
 
@@ -277,11 +267,7 @@ SHARE_SRC_LIST:=$(call find_files,$(SHARE_SRC_DIR),*.col,2) \
 # match all files in $(SCRIPT_SRC_DIR) with name [A-Za-z]*
 # that are executable, depth 1 (no subdir-search)
 _FOUND_SCRIPT_LIST:=$(call find_files,$(SCRIPT_SRC_DIR),*,1)
-ifeq "$(CREATE_PYTHON3)" "yes"
-SCRIPT_LIST=$(_FOUND_SCRIPT_LIST) $(addsuffix 3.py,$(basename $(PYTHON_2TO3_SCRIPTS)))
-else
 SCRIPT_LIST=$(_FOUND_SCRIPT_LIST)
-endif
 
 # perl libraries that have to be installed
 # match all files in $(PERLLIB_SRC_DIR) with name *.pm
@@ -447,30 +433,6 @@ PYDOC_PYTHONLIB_LIST= \
 	numpy_util.py \
 	typecheck.py
 
-# python libs that can be converted to a python3 script:
-PYTHON_2TO3_LIB_LIST= \
-	BDNS.py \
-	FilterFile.py \
-	pfunc.py \
-	rsync_dist_lib.py \
-	boottime.py \
-	lslparser.py \
-	ptestlib.py \
-	sqlpotion.py \
-	dateutils.py \
-	maillike.py \
-	putil.py \
-	tkdialogplus.py \
-	p_enum.py \
-	pdict.py \
-	rdump.py \
-	typecheck.py
-
-
-# python scripts that can be converted to a python3 script:
-PYTHON_2TO3_SCRIPTS= \
-	archiver2camonitor.py
-
 # scripts that have embedded documentation that can be HTML converted
 # with makeDocTxt
 DOCTXT_SCRIPT_LIST= makeDocTxt.pl \
@@ -512,17 +474,10 @@ _ALL_BUILD_DIRLIST=$(LOCAL_BUILD_DIR) \
 		   $(PYTHONLIB_BUILD_DIR) \
 		   $(SHARE_BUILD_DIR)
 
-ifeq "$(CREATE_PYTHON3)" "yes"
-_ALL_BUILD_DIRLIST+= $(PYTHON3LIB_BUILD_DIR)
-endif
-
 ifdef CREATE_INSTALL_DIRS
   _ALL_INSTALL_DIRLIST= $(SHARE_INSTALL_DIR) $(SCRIPT_INSTALL_DIR) \
   			$(PERLLIB_INSTALL_DIR) $(PYTHONLIB_INSTALL_DIR) \
 			$(HTML_INSTALL_DIR)
-ifeq "$(CREATE_PYTHON3)" "yes"
-  _ALL_INSTALL_DIRLIST+= $(PYTHON3LIB_INSTALL_DIR)
-endif
 endif
 _ALL_ALWAYS_INSTALL_DIRLIST= $(SCRIPT_HTML_INSTALL_DIR) $(PERLLIB_HTML_INSTALL_DIR) $(PYTHONLIB_HTML_INSTALL_DIR)
 
@@ -561,21 +516,6 @@ _PYTHONLIB_INSTALL_LIST=$(addprefix $(PYTHONLIB_INSTALL_DIR)/,$(PYTHONLIB_LIST))
 _PYTHONLIB_BUILD_DIRLIST=$(addprefix $(PYTHONLIB_BUILD_DIR)/,$(PYTHONLIB_DIRLIST))
 
 _PYTHONLIB_INSTALL_DIRLIST=$(addprefix $(PYTHONLIB_INSTALL_DIR)/,$(PYTHONLIB_DIRLIST))
-
-ifeq "$(CREATE_PYTHON3)" "yes"
-_PYTHON3LIB_BUILD_LIST=$(addprefix $(PYTHON3LIB_BUILD_DIR)/,$(PYTHON_2TO3_LIB_LIST))
-
-_PYTHON3LIB_INSTALL_LIST=$(addprefix $(PYTHON3LIB_INSTALL_DIR)/,$(PYTHON_2TO3_LIB_LIST))
-
-_PYTHON3LIB_BUILD_DIRLIST=$(addprefix $(PYTHON3LIB_BUILD_DIR)/,$(PYTHONLIB_DIRLIST))
-
-_PYTHON3LIB_INSTALL_DIRLIST=$(addprefix $(PYTHON3LIB_INSTALL_DIR)/,$(PYTHONLIB_DIRLIST))
-else
-_PYTHON3LIB_BUILD_LIST=
-_PYTHON3LIB_INSTALL_LIST=
-_PYTHON3LIB_BUILD_DIRLIST=
-_PYTHON3LIB_INSTALL_DIRLIST=
-endif
 
 # variables for html documentation generation................
 
@@ -740,26 +680,13 @@ $(_PERLLIB_INSTALL_DIRLIST): $(PERLLIB_INSTALL_DIR)/%: $(PERLLIB_BUILD_DIR)/%
 	rm -rf $@ && \
 	$(call makedir,$@)
 
-ifeq "$(CREATE_PYTHON3)" "yes"
-install_python_libs: build_python_libs $(PYTHONLIB_INSTALL_DIR) $(PYTHON3LIB_INSTALL_DIR) \
-	$(_PYTHONLIB_INSTALL_DIRLIST)  $(_PYTHONLIB_INSTALL_LIST) \
-	$(_PYTHON3LIB_INSTALL_DIRLIST) $(_PYTHON3LIB_INSTALL_LIST)
-else
 install_python_libs: build_python_libs $(PYTHONLIB_INSTALL_DIR) \
 	$(_PYTHONLIB_INSTALL_DIRLIST)  $(_PYTHONLIB_INSTALL_LIST) 
-endif
 
 $(_PYTHONLIB_INSTALL_LIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
 	$(INSTALL) $< $@
 
 $(_PYTHONLIB_INSTALL_DIRLIST): $(PYTHONLIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)/%
-	rm -rf $@
-	$(call makedir,$@)
-
-$(_PYTHON3LIB_INSTALL_LIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHON3LIB_BUILD_DIR)/%
-	$(INSTALL) $< $@
-
-$(_PYTHON3LIB_INSTALL_DIRLIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHON3LIB_BUILD_DIR)/%
 	rm -rf $@
 	$(call makedir,$@)
 
@@ -849,14 +776,6 @@ $(SCRIPT_BUILD_DIR)/browsedb.pl: $(SCRIPT_SRC_DIR)/browsedb.pl
 # extra rules for python 3 scripts:
 _PYTHON_2TO3_SCRIPTS=$(addprefix $(SCRIPT_BUILD_DIR)/,$(addsuffix 3.py,$(basename $(PYTHON_2TO3_SCRIPTS))))
 
-# extra rules for converting from python2 to python3:
-$(_PYTHON_2TO3_SCRIPTS): $(SCRIPT_BUILD_DIR)/%3.py: $(SCRIPT_SRC_DIR)/%.py
-	expand $< > $@
-	python3-2to3 $@ -w -n >/dev/null 2>&1
-	python3-2to3 $@ -w -n -d >/dev/null 2>&1
-	sed -i'' '1c\#!/usr/bin/env 'python3 $@
-	chmod u+x $@
-
 # build perl libs............................................
 
 build_perl_libs: $(PERLLIB_BUILD_DIR) $(_PERLLIB_BUILD_DIRLIST) $(_PERLLIB_BUILD_LIST)
@@ -869,25 +788,12 @@ $(_PERLLIB_BUILD_DIRLIST): $(PERLLIB_BUILD_DIR)/%:
 
 # build python libs............................................
 
-ifeq "$(CREATE_PYTHON3)" "yes"
-build_python_libs: $(PYTHONLIB_BUILD_DIR)  $(_PYTHONLIB_BUILD_DIRLIST)  $(_PYTHONLIB_BUILD_LIST) \
-		   $(PYTHON3LIB_BUILD_DIR) $(_PYTHON3LIB_BUILD_DIRLIST) $(_PYTHON3LIB_BUILD_LIST)
-else
 build_python_libs: $(PYTHONLIB_BUILD_DIR)  $(_PYTHONLIB_BUILD_DIRLIST)  $(_PYTHONLIB_BUILD_LIST) 
-endif
 
 $(PYTHONLIB_BUILD_DIR)/%: $(PYTHONLIB_SRC_DIR)/%
 	cp $< $(@D)
 
 $(_PYTHONLIB_BUILD_DIRLIST): $(PYTHONLIB_BUILD_DIR)/%:
-	mkdir -p $@
-
-$(PYTHON3LIB_BUILD_DIR)/%: $(PYTHONLIB_SRC_DIR)/%
-	expand $< > $@
-	python3-2to3 $@ -w -n >/dev/null 2>&1
-	python3-2to3 $@ -w -n -d >/dev/null 2>&1
-
-$(_PYTHON3LIB_BUILD_DIRLIST): $(PYTHONLIB_BUILD_DIR)/%:
 	mkdir -p $@
 
 # build html ................................................
