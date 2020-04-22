@@ -174,8 +174,8 @@ while true; do
     esac
 done
 
-. $(MYDIR)/bii_scripts.config
-CONFIGFILE_PATH=$(SHARE_INSTALL_DIR)/bii_scripts/rsync-dist 
+. $MYDIR/bii_scripts.config
+CONFIGFILE_PATH=$SHARE_INSTALL_DIR/bii_scripts/rsync-dist 
 
 configfile="$CONFIGFILE_PATH/$app-$part"
 
