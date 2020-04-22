@@ -459,7 +459,7 @@ Scripts
     programs) to a remote server while preserving all the old versions of
     these distributions. It can also create and change symbolic links that
     point to certain distributions.
-  | `homepage <https://bitbucket.org/goetzpf/rsync-dist/src/default>`__
+  | `homepage <https://rsync-dist.sourceforge.io>`__
 
 **rsync-dist-info.py**
   | this program prints summaries and statistics of rsync-dist link-log files.
