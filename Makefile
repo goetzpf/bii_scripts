@@ -242,7 +242,7 @@ CSS_SRC_FILE=docStyle.css
 
 # pure html files located in doc/html are installed, too. These files are
 # simply copied:
-HTML_FILE_LIST=$(filter-out index.html,$(call find_files,$(DOC_HTML_SRC_DIR),*.html,10))
+HTML_FILE_LIST=$(filter-out index.html,$(call find_files,$(DOC_HTML_SRC_DIR),*.html,10)) $(call find_files,$(DOC_HTML_SRC_DIR),*.css,10)
 
 # files within the share directory,
 # match *.col and *.txt in and below $(SHARE_SRC_DIR), depth 1
@@ -658,16 +658,11 @@ $(_PYTHON3LIB_INSTALL_LIST): $(PYTHON3LIB_INSTALL_DIR)/%: $(PYTHONLIB_BUILD_DIR)
 
 ifneq ($(strip $(HTML_INSTALL_DIR)),)
 # if $(HTML_INSTALL_DIR) is not empty:
-install_html: install_css install_html_script install_html_perllib install_html_pythonlib
+install_html: install_html_script install_html_perllib install_html_pythonlib
 
 install_html_txt: build_html_txt_doc $(HTML_INSTALL_DIR) $(_HTML_TXT_INSTALL_LIST)
 
 $(_HTML_TXT_INSTALL_LIST): $(HTML_INSTALL_DIR)/%: $(HTML_BUILD_DIR)/% $(HTML_INSTALL_DIR)
-	$(INSTALL) $< $@
-
-install_css: $(HTML_INSTALL_DIR)/$(CSS_SRC_FILE)
-
-$(HTML_INSTALL_DIR)/docStyle.css: $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
 	$(INSTALL) $< $@
 
 install_html_extra: build_html_extra $(HTML_INSTALL_DIR) $(SCRIPT_HTML_INSTALL_DIR) $(_HTML_ALL_EXTRA_INSTALL_LIST)
@@ -694,13 +689,8 @@ endif
 ifneq ($(strip $(WWW_RSYNC_HOST)),)
 # if $(WWW_RSYNC_HOST) is not empty:
 
-install_html: cp_css build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
+install_html: build_html_txt_doc build_html_script build_html_perllib build_html_pythonlib 
 	$(call rsync_cmd,$(HTML_BUILD_DIR)/,$(WWW_RSYNC_DIR)/html/)
-
-cp_css: $(HTML_BUILD_DIR) $(HTML_BUILD_DIR)/$(CSS_SRC_FILE)
-
-$(HTML_BUILD_DIR)/$(CSS_SRC_FILE): $(DOC_HTML_SRC_DIR)/$(CSS_SRC_FILE)
-	$(INSTALL) $< $@
 
 endif
 
@@ -807,7 +797,7 @@ build_html_script: \
 
 build_html_extra: $(HTML_BUILD_DIR) $(SCRIPT_HTML_BUILD_DIR) $(_HTML_EXTRA_BUILD_LIST)
 
-$(_HTML_EXTRA_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_HTML_SRC_DIR)/%.html $(HTML_BUILD_DIR)
+$(_HTML_EXTRA_BUILD_LIST): $(HTML_BUILD_DIR)/%: $(DOC_HTML_SRC_DIR)/% $(HTML_BUILD_DIR)
 	cp $< $@
 
 build_html_script_pods: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_POD_SCRIPT_BUILD_LIST)
