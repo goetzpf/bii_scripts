@@ -30,7 +30,7 @@ import os.path
 import sys
 import re
 
-import FilterFile as FF
+import bii_scripts.FilterFile as FF
 
 assert sys.version_info[0]==2
 

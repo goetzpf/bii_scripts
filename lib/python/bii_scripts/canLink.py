@@ -139,7 +139,7 @@ must be specified.
 3. Specify NID and CID, in this case, define C<nid> and C<cid>
 """
 import sys
-import epicsUtils as eU
+import bii_scripts.epicsUtils as eU
 
 assert sys.version_info[0]==2
 

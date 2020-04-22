@@ -47,7 +47,7 @@ Here is an easy example, suppose the file "table.txt" contains these lines::
 
 Then we can calculate a velocity v=dx/dt and a distance r=sqrt(x**2+y**2) with
 these commands::
-  from numpy_util import *
+  from bii_scripts.numpy_util import *
   from math import *
   tab= From_File("test.tab")
   tab= derive_add(tab,"t",["x"],["velocity"])

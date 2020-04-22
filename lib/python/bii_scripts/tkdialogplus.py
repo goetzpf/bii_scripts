@@ -21,7 +21,7 @@
 ''' tkDialogInput is an enhancement for tkDialog
 
 Exaple for all following routines:
->>> from tkdialogplus import *
+>>> from bii_scripts tkdialogplus import *
 >>> r = Tk()
 '''
 

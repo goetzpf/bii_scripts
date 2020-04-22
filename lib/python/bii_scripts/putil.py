@@ -25,7 +25,7 @@ with lists among other utilities.
 """
 
 import sys
-from typecheck import *
+from bii_scripts.typecheck import *
 
 assert sys.version_info[0]==2
 

@@ -23,8 +23,8 @@ import re
 import sys
 import os
 import pprint
-import epicsUtils as eU
-import listOfDict as lod
+import bii_scripts.epicsUtils as eU
+import bii_scripts.listOfDict as lod
 
 assert sys.version_info[0]==2
 

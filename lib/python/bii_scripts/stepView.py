@@ -20,14 +20,14 @@
 
 import sys
 import ca
-import pfunc
+from bii_scripts import pfunc
 from Tkinter import *
 import tkFont
 import tkMessageBox
 import tkSimpleDialog
 import tkFileDialog
-import step
-import stepConfig
+from bii_scripts import step
+from bii_scripts import stepConfig
 import time
 import os
 

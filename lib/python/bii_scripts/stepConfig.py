@@ -23,8 +23,8 @@ from Tkinter import *
 import tkMessageBox
 import tkSimpleDialog
 import tkFileDialog
-import step
-import stepView
+from bii_scripts import step
+from bii_scripts import stepView
 
 assert sys.version_info[0]==2
 

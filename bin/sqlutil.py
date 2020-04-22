@@ -56,7 +56,7 @@ except ImportError:
     else:
 	raise
 
-import sqlpotion
+from bii_scripts import sqlpotion
 
 assert sys.version_info[0]==2
 

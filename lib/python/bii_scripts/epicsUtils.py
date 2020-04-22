@@ -59,10 +59,10 @@ import re
 import math
 import csv
 import os.path
-import listOfDict as lod
 import pprint
+import bii_scripts.listOfDict as lod
 try:
-    import BDNS
+    from bii_scripts import BDNS
     BDNS_EXIST = 1      
 except ImportError, e:
     BDNS_EXIST = None

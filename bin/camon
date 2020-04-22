@@ -19,7 +19,13 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import ca
+try:
+    import ca
+except ImportError:
+    import sys
+    sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
+                     __name__)
+
 import re
 import time
 from optparse import OptionParser

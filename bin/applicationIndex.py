@@ -26,11 +26,11 @@ import re
 import os
 import os.path
 import subprocess
-import epicsUtils as eU
-import listOfDict as lod
+import bii_scripts.epicsUtils as eU
+import bii_scripts.listOfDict as lod
 import pprint as pp
-import canLink as cL
-import tokParse as tP
+import bii_scripts.canLink as cL
+import bii_scripts.tokParse as tP
 
 assert sys.version_info[0]==2
 # Searching for Hardware means to look at the DTYP field of a record. So here we define

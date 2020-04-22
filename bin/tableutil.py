@@ -292,7 +292,7 @@ import sys
 import re
 import inspect
 
-from numpy_table import *
+from bii_scripts.numpy_table import *
 
 assert sys.version_info[0]==2
 

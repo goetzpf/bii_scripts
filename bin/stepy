@@ -175,7 +175,7 @@ import time
 import sys
 #import string
 import signal
-import pfunc
+from bii_scripts import pfunc
 from types import FunctionType
 from optparse import OptionParser
 #import threading

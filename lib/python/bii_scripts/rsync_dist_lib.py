@@ -28,11 +28,11 @@ import sys
 import datetime
 import os.path
 import re
-
-from maillike import MailLikeRecord, MailLikeRecords
-from lslparser import LslEntry, LslEntries
-import dateutils
 import subprocess
+
+from bii_scripts.maillike import MailLikeRecord, MailLikeRecords
+from bii_scripts.lslparser import LslEntry, LslEntries
+from bii_scripts import dateutils
 
 assert sys.version_info[0]==2
 

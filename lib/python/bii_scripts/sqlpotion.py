@@ -37,7 +37,7 @@ Here are some examples how to use this module together
 with sqlalchemy:
 
 import sqlalchemy
-from sqlpotion import *
+from bii_scripts.sqlpotion import *
 
 user="you-oracle-username-here"
 passwd= "your-oracle-password-here"
@@ -97,8 +97,8 @@ import tempfile
 import os
 import shutil
 
-import p_enum
-import pdict
+from bii_scripts import p_enum
+from bii_scripts import pdict
 
 assert sys.version_info[0]==2
 
@@ -108,7 +108,7 @@ if sys.version_info<(2,5):
 xx="""
 
 import sqlalchemy
-from sqlpotion import *
+from bii_scripts.sqlpotion import *
 (meta,conn)=connect_database("pfeiffer","*******")
 (mmeta,mconn)=connect_memory()
 tbl_insertion=table_object("TBL_INSERTION",meta)
@@ -507,7 +507,7 @@ def _mk_temp_file():
         of the new temporary file.
 
     Here is an example:
-    # import ptestlib as t
+    # import bii_scripts.ptestlib as t
     >>> (fh,tempname)=_mk_temp_file()
     >>> written= fh.write("hello, world!\n")
     >>> fh.close()
@@ -524,7 +524,7 @@ def _replace_with_temp(filename,tempfilename,replace_ext="bak"):
     r"""replace a file with the tempfile, make a backup of the old file.
 
     Here is an example:
-    # import ptestlib as t
+    # import bii_scripts.ptestlib as t
     >>> t.inittestdir()
     >>> filename=t.mkfile("Hello, world\n","testfile")
     >>> tempfilename= t.mkfile("Hello, new world\n","testfile2")
@@ -2160,7 +2160,7 @@ def dtt_write_qsources(conn, qsource_dict, filename="", trim_columns=True):
     contents of the first table. Note that the order of the tables
     within the file changes when we do this. This is the standard
     behaviour if we re-write tables in a collection.
-    # import ptestlib as t
+    # import bii_scripts.ptestlib as t
     >>> (meta,conn)=connect_memory()
     >>> tbl= make_test_table(meta,"mytable",("id:int:primary","name:str"))
     >>> set_table(tbl, ((1,"cd"),(2,"ab")))
@@ -4493,7 +4493,7 @@ def _test():
     # importing modules that are only needed for
     # testing is a bit tricky here, due to the way
     # doctest works...
-    globals()["t"] = __import__("ptestlib") # import ptestlib as t
+    globals()["t"] = __import__("ptestlib") # import bii_scripts.ptestlib as t
     import doctest
     doctest.testmod()
     print "done!"

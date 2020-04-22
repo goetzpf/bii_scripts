@@ -129,7 +129,7 @@ import os.path
 
 import re
 
-import FilterFile
+from bii_scripts import FilterFile
 
 assert sys.version_info[0]==2
 

@@ -24,8 +24,8 @@ import sys
 import os
 import csv
 import os.path
-import epicsUtils
-import csv2epicsFuncs
+from bii_scripts import epicsUtils
+from bii_scripts import csv2epicsFuncs
 import pprint
 
 assert sys.version_info[0]==2

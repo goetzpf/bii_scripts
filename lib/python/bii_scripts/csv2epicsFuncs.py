@@ -92,8 +92,8 @@ import sys
 import imp
 import os
 #import os.path
-import epicsUtils
 import pprint
+from bii_scripts import epicsUtils
 
 assert sys.version_info[0]==2
 

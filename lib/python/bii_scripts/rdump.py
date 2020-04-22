@@ -28,8 +28,8 @@ at run-time with object-_dumpers, that are then used
 if an object of that class is encountered.
 
 A proposed way to import this module is this:
-import rdump
-from rdump import drepr,dstr,dstrd,prepr,pstr,pstrd
+from bii_scripts import rdump
+from bii_scripts.rdump import drepr,dstr,dstrd,prepr,pstr,pstrd
 """
 
 # ---------------------------------------------
@@ -37,8 +37,8 @@ from rdump import drepr,dstr,dstrd,prepr,pstr,pstrd
 # ---------------------------------------------
 
 import sys
-from typecheck import *
-from putil import *
+from bii_scripts.typecheck import *
+from bii_scripts.putil import *
 
 assert sys.version_info[0]==2
 

@@ -272,7 +272,7 @@ from optparse import OptionParser
 
 import xml.etree.ElementTree as ET
 
-import dateutils
+from bii_scripts import dateutils
 
 assert sys.version_info[0]==2
 

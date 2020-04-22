@@ -318,9 +318,9 @@ except ImportError:
 # pylint: enable=unused-import
 
 import datetime
-import dateutils
-import rsync_dist_lib as rd
-import boottime
+from bii_scripts import dateutils
+import bii_scripts.rsync_dist_lib as rd
+from bii_scripts import boottime
 
 assert sys.version_info[0]==2
 
