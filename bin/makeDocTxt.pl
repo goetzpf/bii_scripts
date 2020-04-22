@@ -42,6 +42,7 @@
 Options::register(
   ["nocontents", "c", "", "leave out table-of-contents"],
   ["quiet", "q", "",      "output only warnings and errors"],
+  ["css", "C", "=s",      "css style sheet file"],
 );
 
 my $usage = "makeDocTxt.pl [OPTIONS] infile.txt [outfile.html]\n".
@@ -312,7 +313,7 @@ my $config = Options::parse($usage, 1);
     $docContens .= "$preBlockCont\n";
   }
 
-  my ($fileHeader,$fileFooter) = makeDocStyle::blabla($title);
+  my ($fileHeader,$fileFooter) = makeDocStyle::blabla($title,undef,undef,$config->{"css"});
 
   open(OUT_FILE, ">$outFileName") or die "can't open output file: $outFileName: $!";
   print OUT_FILE $fileHeader;

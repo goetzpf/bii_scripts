@@ -844,7 +844,7 @@ clear_errlog:
 build_html_txt_doc: $(HTML_BUILD_DIR) $(_HTML_DOCTXT_TXT_BUILD_LIST) $(_HTML_RST_TXT_BUILD_LIST)
 
 $(_HTML_DOCTXT_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.txt $(SETENV)
-	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl $< $@
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl --css ../$(CSS_SRC_FILE) $< $@
 
 $(_HTML_RST_TXT_BUILD_LIST): $(HTML_BUILD_DIR)/%.html: $(DOC_TXT_SRC_DIR)/%.rst
 ifeq (1,$(DOCUTILS_AVAILABLE))
@@ -942,7 +942,7 @@ build_html_script_doctxt: $(SCRIPT_HTML_BUILD_DIR) $(_HTML_DOCTXT_SCRIPT_BUILD_L
 
 $(_HTML_DOCTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.pl $(SETENV)
 	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl --css ../$(CSS_SRC_FILE) $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
@@ -959,7 +959,7 @@ build_html_perllib_doctxt: $(PERLLIB_HTML_BUILD_DIR) $(_HTML_DOCTXT_PERLLIB_BUIL
 
 $(_HTML_DOCTXT_PERLLIB_BUILD_LIST): $(PERLLIB_HTML_BUILD_DIR)/%.html: $(PERLLIB_SRC_DIR)/%.pm $(SETENV)
 	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocPerl.pl $< $@.tmp
-	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl $@.tmp $@
+	. $(SETENV) && $(SCRIPT_SRC_DIR)/makeDocTxt.pl --css ../$(CSS_SRC_FILE) $@.tmp $@
 	rm -f $@.tmp
 
 # ...........................................................
