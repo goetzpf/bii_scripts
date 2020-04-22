@@ -570,10 +570,12 @@ define HELPTEXT
   @echo "    define INSTALL_PREFIX in file config " >&2
   @echo "      or call make with:" >&2
   @echo "    INSTALL_PREFIX=ABSOLUTE-PATH make install" >&2
-  @echo "For an installation at BESSY development hosts elbe and stretch call:" >&2
-  @echo "    BII_CONFIG=config.acc make install" >&2
+  @echo "For an installation at BESSY development host elbe call:" >&2
+  @echo "    BII_CONFIG=config.elbe.acc make install" >&2
+  @echo "For an installation at BESSY development host stretch call:" >&2
+  @echo "    BII_CONFIG=config.stretch.acc make install" >&2
   @echo "For an installation at BESSY control system call:" >&2
-  @echo "    BII_CONFIG=config.ctl make install" >&2
+  @echo "    BII_CONFIG=config.nfs.ctl make install" >&2
 endef
 
 # show help for installation of scripts:

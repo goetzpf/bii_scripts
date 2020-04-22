@@ -3,11 +3,12 @@
 HOSTNAME=$(hostname -f)
 
 if [ -z "$1" ]; then
-    if echo $HOSTNAME| grep '\(aragon\|jalon\|elbe\|stretch\)\.acc\.bessy\.de' -q ; then
+    if echo $HOSTNAME| grep '\(elbe\|stretch\)\.acc\.bessy\.de' -q ; then
+        SHORTHOST=$(echo $HOSTNAME | sed -e 's/\..*//')
         echo "darcs pull is executed in order to prevent"
         echo "you from installing old program versions by accident"
         darcs pull
-        BII_CONFIG=config.acc make -sj install
+        BII_CONFIG=config.$SHORTHOST.acc make -sj install
         exit
     fi
     echo "usage: $0 [install-directory]"
