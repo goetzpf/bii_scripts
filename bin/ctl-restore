@@ -21,17 +21,20 @@ set -e
 
 shopt -s nocasematch
 
-CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
+SCRIPT_FULL_NAME=$(readlink -e $0)
+MYDIR=$(dirname $SCRIPT_FULL_NAME)
+MYNAME=$(basename $SCRIPT_FULL_NAME)
+TOP=$(readlink -e $MYDIR/..)
+# TOP needed for bii_scripts.config
 
 verbose="no"
 app="bii_controls"
 part="IOC"
 
 function print_short_help {
-    me=`basename $0`
-    echo "$me: restore a version of BII-Controls or MLS-Controls"
+    echo "$MYNAME: restore a version of BII-Controls or MLS-Controls"
     echo "usage:"
-    echo "  $me [options] VERSION"
+    echo "  $MYNAME [options] VERSION"
     echo "      [VERSION] must be the ISO date string as it is used by"
     echo "      rsync-dist. "
     echo "options:"
@@ -105,6 +108,9 @@ while true; do
         ;;
     esac
 done
+
+. $(MYDIR)/bii_scripts.config
+CONFIGFILE_PATH=$(SHARE_INSTALL_DIR)/rsync-dist 
 
 configfile="$CONFIGFILE_PATH/$app-$part"
 

@@ -22,7 +22,11 @@ set -e
 
 shopt -s nocasematch
 
-CONFIGFILE_PATH=/opt/csr/share/rsync-dist 
+SCRIPT_FULL_NAME=$(readlink -e $0)
+MYDIR=$(dirname $SCRIPT_FULL_NAME)
+MYNAME=$(basename $SCRIPT_FULL_NAME)
+TOP=$(readlink -e $MYDIR/..)
+# TOP needed for bii_scripts.config
 
 verbose="no"
 app="bii_controls"
@@ -33,8 +37,7 @@ names=""
 show_versions="no"
 
 function print_short_help {
-    me=`basename $0`
-    echo "$me: a small wrapper that calls rsync-dist-info.py"
+    echo "$MYNAME: a small wrapper that calls rsync-dist-info.py"
     echo "options:"
     echo "  -h: this help"
     echo "  --help: this text PLUS the help from rsync-dist-info.py"
@@ -51,13 +54,13 @@ function print_short_help {
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
     echo 
     echo "Examples:"
-    echo "  $me [name]"
+    echo "  $MYNAME [name]"
     echo "      shows version information for the given name (IOC)"
-    echo "  $me --list"
+    echo "  $MYNAME --list"
     echo "      list all known names (IOCS)"
-    echo "  $me --active"
+    echo "  $MYNAME --active"
     echo "      show all versions still in use"
-    echo "  $me -v [version]"
+    echo "  $MYNAME -v [version]"
     echo "      shows information for the given version"
     echo
     echo "Note: only versions that still exist on the server are shown"
@@ -170,6 +173,9 @@ while true; do
         ;;
     esac
 done
+
+. $(MYDIR)/bii_scripts.config
+CONFIGFILE_PATH=$(SHARE_INSTALL_DIR)/rsync-dist 
 
 configfile="$CONFIGFILE_PATH/$app-$part"
 

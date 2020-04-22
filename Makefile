@@ -236,7 +236,7 @@ SHARE_DIR_LIST:=$(call find_subdirs,$(SHARE_SRC_DIR),1)
 # match all files in $(SCRIPT_SRC_DIR) with name [A-Za-z]*
 # that are executable, depth 1 (no subdir-search)
 _FOUND_SCRIPT_LIST:=$(call find_files,$(SCRIPT_SRC_DIR),*,1)
-SCRIPT_LIST=$(_FOUND_SCRIPT_LIST)
+SCRIPT_LIST=$(filter-out bii_scripts.config,$(_FOUND_SCRIPT_LIST))
 
 # perl libraries that have to be installed
 # match all files in $(PERLLIB_SRC_DIR) with name *.pm
@@ -618,7 +618,16 @@ $(_SHARE_BUILD_LIST): $(SHARE_BUILD_DIR)/%: $(SHARE_SRC_DIR)/% $(SHARE_BUILD_DIR
 
 # build scripts .............................................
 
-build_scripts: $(SCRIPT_BUILD_DIR) $(_SCRIPT_BUILD_LIST)
+build_scripts: $(SCRIPT_BUILD_DIR) $(_SCRIPT_BUILD_LIST) $(SCRIPT_BUILD_DIR)/bii_scripts.config
+
+$(SCRIPT_BUILD_DIR)/bii_scripts.config:
+	echo "INSTALL_PREFIX=$(INSTALL_PREFIX)" > $@
+	echo "SHARE_INSTALL_DIR=$(SHARE_INSTALL_DIR)" >> $@
+	echo "SCRIPT_INSTALL_DIR=$(SCRIPT_INSTALL_DIR)" >> $@
+	echo "PERLLIB_INSTALL_DIR=$(PERLLIB_INSTALL_DIR)" >> $@
+	echo "PYTHON2LIB_INSTALL_DIR=$(PYTHON2LIB_INSTALL_DIR)" >> $@
+	echo "PYTHON3LIB_INSTALL_DIR=$(PYTHON3LIB_INSTALL_DIR)" >> $@
+	echo "HTML_INSTALL_DIR=$(HTML_INSTALL_DIR)" >> $@
 
 $(SCRIPT_BUILD_DIR)/%: $(SCRIPT_SRC_DIR)/% $(SCRIPT_BUILD_DIR)
 	cp $< $(@D)
