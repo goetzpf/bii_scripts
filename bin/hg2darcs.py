@@ -69,7 +69,34 @@ def rename(old, new, verbose, dry_run):
         print("> rename %s to %s" % (old, new))
     if dry_run:
         return
+    dir_= os.path.dirname(new)
+    if dir_: # if "new" has a ditrectory part:
+        if not os.path.isdir(dir_): # if the ditrectory doesn't exist:
+            os.mkdir(dir_)
     os.rename(old, new)
+
+# -----------------------------------------------
+# path utilities
+# -----------------------------------------------
+
+def parent_dirs(d):
+    """return the directory and all it's parent directories."""
+    while True:
+        if not d:
+            return
+        yield d
+        d= os.path.dirname(d)
+
+def all_parent_dirs(dirs):
+    """return sorted list of all the parent directories of a list of dirs.
+    """
+    n= set()
+    for d in dirs:
+        for pd in parent_dirs(d):
+            n.add(pd)
+    l= sorted(n)
+    l.reverse()
+    return l
 
 # -----------------------------------------------
 # mercurial commands
@@ -82,6 +109,11 @@ def hg_cmd(cmd, catch_stdout, verbose, dry_run):
 def darcs_cmd(cmd, catch_stdout, verbose, dry_run):
     """get data from a hg command."""
     return _system("darcs %s" % cmd, catch_stdout, verbose, dry_run)
+
+def hg_simple_status(file_or_dir, verbose):
+    """run a simple "hg status -A".
+    """
+    return hg_cmd("status -A %s" % file_or_dir, True, verbose, False)
 
 def hg_status(revision, verbose):
     """get status flags for the changes of a given revision.
@@ -145,6 +177,8 @@ def darcs_replay(author, log,actions,verbose,dry_run):
     rest   = [i for i in actions if i[0]!="rename"]
     actions_= renames
     actions_.extend(rest)
+    added_dirs= set()
+    maybe_removed_dirs=set()
     for item in actions_:
         action= item[0]
         if action=="rename":
@@ -152,18 +186,31 @@ def darcs_replay(author, log,actions,verbose,dry_run):
             # mercurial already has renamed the file, undo the rename:
             # pylint: disable= arguments-out-of-order
             rename(new, old, verbose, dry_run)
-            darcs_cmd("mv %s %s" % (old,new),False,verbose,dry_run)
+            # we must take care if the target directory does not exist:
+            dir_= os.path.dirname(new)
+            if dir_ not in added_dirs:
+                darcs_cmd("add %s" % dir_,False,verbose,dry_run)
+                added_dirs.add(dir_)
+            maybe_removed_dirs.add(os.path.dirname(old))
+            darcs_cmd("mv --case-ok %s %s" % (old,new),False,verbose,dry_run)
         elif action=="added":
-            darcs_cmd("add %s" % item[1],False,verbose,dry_run)
+            darcs_cmd("add --case-ok %s" % item[1],False,verbose,dry_run)
         elif action=="removed":
             # recreate the file so darcs can remove it:
-            darcs_cmd("revert %s" % item[1],False,verbose,dry_run)
+            darcs_cmd("revert --all %s" % item[1],False,verbose,dry_run)
             darcs_cmd("remove %s" % item[1],False,verbose,dry_run)
+            maybe_removed_dirs.add(os.path.dirname(item[1]))
         elif action=="modified":
             pass # nothing to do
         else:
             raise ValueError("unknown action: \"%s\"" % action)
     if not dry_run:
+        if maybe_removed_dirs:
+            all_possible_removed_dirs= all_parent_dirs(maybe_removed_dirs)
+            for dir_ in all_possible_removed_dirs:
+                if not hg_simple_status(dir_, verbose):
+                    # if this is empty. the directory is unknown to mercurial
+                    darcs_cmd("remove %s" % dir_,False,verbose,dry_run)
         (handle,path)= tempfile.mkstemp(prefix="hg-darcs-",text=True)
         fh= os.fdopen(handle,"w")
         fh.write(log)
