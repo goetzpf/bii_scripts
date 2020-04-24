@@ -18,7 +18,7 @@ INSTALL_MKDIR=sg scrptdev -c "mkdir -m 775 -p $(1)"
 # do not use ssh for rsync:
 HTML_RSYNC_HOST=
 # Rsync options, you usually don't have to change these:
-HTML_RSYNC_OPTS=-crlEogC --chmod=a+r,Da+x
+HTML_RSYNC_OPTS=-crlEC --chmod=a+r,Da+x
 # Directory creation command. A make function, $(1) is the directory list:
 HTML_MKDIR=mkdir -m 775 -p $(1)
 
