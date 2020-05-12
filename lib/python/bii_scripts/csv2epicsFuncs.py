@@ -255,6 +255,8 @@ recordSet = {'longin':'INP',
     'mbboDirect':'OUT',
     'stringin':'INP',
     'stringout':'OUT',
+    'int64in':'INP',
+    'int64out':'OUT',
     'calc':None,
     'calcout':'OUT',
     'dfanout':None,
@@ -265,7 +267,7 @@ def procInOut(rtyp):
     """ Is it a in or out record type? Return 'INP'|'OUT' for records or 
     templates that begin with a known record name from the list: 
     
-    'longin,longout,ai,ao,bi,bo,mbbi,mbbo,mbbiDirect,mbboDirect'
+    'longin,longout,ai,ao,bi,bo,mbbi,mbbo,mbbiDirect,mbboDirect,int64in,int64out'
     
     Other records or templates return 'None'
     """
@@ -620,7 +622,7 @@ def createMbbIoRecord(devName,fields,devObj,warnings,inFileName,lines):
 
 def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileName):
     """ Is an EPICS record in: 
-    ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout']
+    ['ai','ao','longin','longout','bi','bo','mbbi','mbbo','calc','calcout','int64in','int64out']
         Setup EPICS record and return other data: 
         (alhSignals,arcSignals,panelDict,panelNameDict,panelWidgetName)
     """
@@ -664,7 +666,7 @@ def procRecord(devName,devObj,canOption,opc_name,iocTag,warnings,lines,inFileNam
             l=None
             fields.update(setupRecordLink(devName,devObj,canOption,opc_name,iocTag))
 
-            if devObj.rtype in ('ai','ao','longin','longout','calc','calcout','sel') :
+            if devObj.rtype in ('ai','ao','longin','longout','calc','calcout','sel','int64in','int64out') :
                 createAnalogRecord(devName,fields,devObj,warnings,inFileName,lines)
             elif devObj.rtype in ('mbbiDirect','mbboDirect') :
                 fields.update({'NOBT': 16,})
@@ -984,9 +986,9 @@ class PLC_Address(object):
                         'OUT':  link},dbFileName)
 def getVmeLink(rtyp,canId,cardNr,chan):
     fields = {}
-    if rtyp in ('ai','longin','bi','mbbi','mbbiDirect',):
+    if rtyp in ('ai','longin','bi','mbbi','mbbiDirect','int64in'):
         linkTyp = 'INP'
-    elif rtyp in ('ao','longout','bo','mbbo','mbboDirect'):
+    elif rtyp in ('ao','longout','bo','mbbo','mbboDirect','int64out'):
         linkTyp = 'OUT'
     else:
         raise ValueError("Record type not supported: "+rtyp)
@@ -997,7 +999,7 @@ def getVmeLink(rtyp,canId,cardNr,chan):
         fields['NOBT'] = nobt
         fields['SHFT'] = shft
         fields[linkTyp] = "#C%dS0"% (int(cardNr),)
-    elif rtyp in ('bi','bo','ai','longin','ao','longout'):  # access direct to card/channel
+    elif rtyp in ('bi','bo','ai','longin','ao','longout','int64in','int64out'):  # access direct to card/channel
         fields[linkTyp] = "#C%dS%d"% (int(cardNr),int(shft))
     return (fields)
 
@@ -1031,7 +1033,7 @@ def getCANLink(rtyp,port,canId,cardNr,chan,name,iocTag,devObj):
     """
     fields = {}
     #print "getCANLink(",rtyp,port,canId,cardNr,chan,name,lineNr,")"
-    if rtyp in ('ai','longin','mbbiDirect','mbboDirect'):
+    if rtyp in ('ai','longin','mbbiDirect','mbboDirect','int64in'):
         fields['DTYP'] = "lowcal"
         fields['INP'] = createAdaCanLink(port,canId,cardNr,chan)
     elif rtyp in ['ao','longout']:
@@ -1245,7 +1247,7 @@ def setEpicsAlh(devName,alhSignals,devObj,warnings,lines,inFileName,cmLog):
                 warnings.append([inFileName,lines,"SKIP Alarmsignal: "+devName+":"+devObj.signal+": Missing Bessy Alarm State"])
                 return
 
-        elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout'):
+        elif cmLog and devObj.rtype in ('ai','ao','longin','longout','calc','calcout','int64in','int64out'):
             #print "*** setEpicsAlh(%s:%s, %s"%(devName,sig,rtype)
             alias = tags['ALIAS']
             fields = createAlarmLimits(devObj.rangeAlhVal,devObj.rangeAlhSevr)
