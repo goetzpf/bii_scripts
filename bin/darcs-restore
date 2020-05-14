@@ -19,7 +19,8 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 if test $# -ne 2; then
-  echo "usage: $0 [user@host:]source-dir dest-dir"
+  echo "Restore source tree from remote install directory."
+  echo "usage: $0 [user@host:]install-dir new-source-dir"
   exit
 fi
 test -d $2 && echo "$0: target directory already exists!" && exit
