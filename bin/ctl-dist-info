@@ -26,7 +26,7 @@ SCRIPT_FULL_NAME=$(readlink -e $0)
 MYDIR=$(dirname $SCRIPT_FULL_NAME)
 MYNAME=$(basename $SCRIPT_FULL_NAME)
 TOP=$(readlink -e $MYDIR/..)
-# TOP needed for bii_scripts.config
+# TOP needed for default bii_scripts.config
 
 verbose="no"
 app="bii_controls"
@@ -195,13 +195,14 @@ done
 # read bii_scripts configuration variables:
 if [ -e $MYDIR/bii_scripts.config ]; then
     . $MYDIR/bii_scripts.config
+else
+    echo "error, file bii_scripts.config not found" >&2
+    exit
 fi
 
-# the share directory is either set by BII_SCRIPTS_SHARE_DIR or by
-# SHARE_INSTALL_DIR as it is defined in bii_scripts.config:
-if [ -z "$BII_SCRIPTS_SHARE_DIR" ]; then
-    BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
-fi
+# The share directory is defined by SHARE_INSTALL_DIR from file 
+# bii_scripts.config:
+BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
 
 CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist 
 

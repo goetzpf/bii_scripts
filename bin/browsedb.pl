@@ -133,20 +133,8 @@ $global_data{home} = $ENV{"HOME"};
 if (!defined $global_data{home})
   { $global_data{home} = ""; };
 
-my $share_dir;
-if (exists $ENV{BII_SCRIPTS_SHARE_DIR})
-  {
-    $share_dir= $ENV{BII_SCRIPTS_SHARE_DIR} .  "/bii_scripts/browsedb";
-  }
-else
-  {
-    if (!exists $bii_scripts_config{SHARE_INSTALL_DIR})
-      {
-        die "error: share dir cannot be set";
-      }
-    $share_dir= $bii_scripts_config{SHARE_INSTALL_DIR} . 
-                 "/bii_scripts/browsedb";
-  }
+my $share_dir= $bii_scripts_config{SHARE_INSTALL_DIR} . 
+             "/bii_scripts/browsedb";
 
 $global_data{share_dir} = $share_dir;
 
@@ -7360,7 +7348,7 @@ sub read_biiscripts_config
     my $filename = "$FindBin::RealBin/bii_scripts.config";
     if (! -e $filename)
       {
-        return %bii_config;
+        die "error, file bii_scripts.config not found";
       }
     open(my $fh, '<:encoding(UTF-8)', $filename)
       or die "Could not open file '$filename' $!";

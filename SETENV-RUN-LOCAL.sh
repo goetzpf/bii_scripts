@@ -9,7 +9,6 @@ chmod u+rwx $BII_SCRIPTS_TOP/bin/*
 export PERL5LIB=$BII_SCRIPTS_TOP/lib/perl:$PERL5LIB
 export PYTHONPATH=$BII_SCRIPTS_TOP/lib/python:$PYTHONPATH
 PATH=$BII_SCRIPTS_TOP/bin:$PATH
-export BII_SCRIPTS_SHARE_DIR=$BII_SCRIPTS_TOP/share
 
 # set prompt:
 PS1="bii-scr $PS1"
