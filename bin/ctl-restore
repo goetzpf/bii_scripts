@@ -40,8 +40,11 @@ function print_short_help {
     echo "options:"
     echo "  -h: this help"
     echo "  -a --app [application]: application, currently known:"
-    echo "        bii : bii-controls, the default"
-    echo "        mls : mls-controls"
+    echo "        bii      : bii-controls, the default"
+    echo "        mls      : mls-controls"
+    echo "        erl      : erl-controls"
+    echo "        bl       : bl-controls"
+    echo "        hobicat  : hobicat-controls"
     echo "  -p --part [part]: specify the distributed part of the application"
     echo "        currently known: "
     echo "        ioc : the binary and db files, the default"
@@ -67,6 +70,21 @@ while true; do
             fi
             if [[ $2 =~ ^mls ]]; then
                 app="mls_controls"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^erl ]]; then
+                app="erl_controls"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^bl ]]; then
+                app="bl_controls"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^hobicat ]]; then
+                app="hobicat_controls"
                 shift 2
                 break
             fi
