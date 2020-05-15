@@ -125,6 +125,8 @@ CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist
 configfile="$CONFIGFILE_PATH/$app-$part"
 
 source $configfile
+# take only the first rsync dist host if there is more than one:
+RSYNC_DIST_HOST=$(echo $RSYNC_DIST_HOST | sed -e 's/,.*//')
 
 VERSION=${ARGS[0]}
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
