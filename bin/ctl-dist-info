@@ -174,8 +174,18 @@ while true; do
     esac
 done
 
-. $MYDIR/bii_scripts.config
-CONFIGFILE_PATH=$SHARE_INSTALL_DIR/bii_scripts/rsync-dist 
+# read bii_scripts configuration variables:
+if [ -e $MYDIR/bii_scripts.config ]; then
+    . $MYDIR/bii_scripts.config
+fi
+
+# the share directory is either set by BII_SCRIPTS_SHARE_DIR or by
+# SHARE_INSTALL_DIR as it is defined in bii_scripts.config:
+if [ -z "$BII_SCRIPTS_SHARE_DIR" ]; then
+    BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
+fi
+
+CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist 
 
 configfile="$CONFIGFILE_PATH/$app-$part"
 

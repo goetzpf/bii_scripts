@@ -46,6 +46,17 @@ At BESSY (HZB) install on our development hosts with this command::
 
   ./install.sh
 
+Running the scripts directly from the source directory
+======================================================
+
+In order to run the scripts directly from the source directory you have to
+"source" the file SETENV-RUN-LOCAL.sh like shown here::
+
+  . ./SETENV-RUN-LOCAL.sh
+
+This feature is here for making it easier to debug the scripts, usually you
+should do a regular install as described above.
+
 Documentation
 =============
 
