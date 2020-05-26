@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
 # Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
@@ -31,13 +31,16 @@ my_version = "0.3"
 atBESSY=not re.search("ctl.bessy.de", fqdn) is None
 atMLS=not re.search("mlscs.bessy.de", fqdn) is None
 atERL=not re.search("ctl.erl.site", fqdn) is None
-atOffice=not atBESSY and not atMLS and not atERL
+atBPRO=not re.search("ctl.erl.bessy.de", fqdn) is None
+atOffice=not atBESSY and not atMLS and not atERL and not atBPRO
     
 archs = []
-if atOffice or atBESSY: archs += [("bii",     "archiver",       "",         "")]
-if atOffice:            archs += [("mls",     "archiver",       "",         "MLS/")]
-if atMLS:               archs += [("mls",     "archiver.mlscs", "",         "")]
-if atOffice or atERL:   archs += [("hobicat", "archiver",       "hobicat/", "")]
+if atOffice or atBESSY: archs += [("bii",     "archiver",         "",         "")]
+if atOffice:            archs += [("mls",     "archiver",         "",         "MLS/")]
+#if atOffice:            archs += [("bpro",    "archiver",         "bpro/",    "BPRO/")]
+if atOffice or atBPRO:  archs += [("bpro",    "archiver.ctl.erl", "bpro/",    "")]
+if atMLS:               archs += [("mls",     "archiver.mlscs",   "",         "")]
+if atOffice or atERL:   archs += [("hobicat", "archiver",         "hobicat/", "")]
 
 facilities=", ".join([l[0] for l in archs])
 n=facilities.rfind(',')
