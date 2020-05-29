@@ -1,0 +1,704 @@
+#!/usr/bin/env python3
+"""query idcp StructuredData parameters from xmlrpc server."""
+
+import sys
+import os
+import argparse
+import re
+
+import socket
+import http
+
+import xmlrpc
+import xmlrpc.client
+
+import pprint
+
+# pylint: disable=bad-whitespace, invalid-name
+
+DBNAME="id_db"
+#HOST="elbe.acc.bessy.de"
+#HOST="orange.fritz.box"
+HOST="gwc2c.acc.bessy.de"
+PORT=7643
+#PORT=12347
+
+SERVERDEFAULT="%s:%s" % (HOST,PORT)
+
+URL=None
+
+CONNECT_ERRMSG=None
+
+XML_OBJ = None
+
+# -----------------------------------------------
+# global ID datastructure, filled when the program is running:
+
+DEFAULT_COLUMNS= ["name", "devicename","key","prefix","application",
+                  "group","status"]
+COLUMNS= set(DEFAULT_COLUMNS)
+
+# -----------------------------------------------
+# basic StructuredData XMLRPC function calls
+
+def db_find(pattern,paths=""):
+    """execute StructuredData "find" command."""
+    try:
+        return XML_OBJ.fun.find(pattern,False,paths,DBNAME)
+    except (http.client.RemoteDisconnected,
+            socket.gaierror):
+        sys.exit(CONNECT_ERRMSG)
+
+def db_txt_find(pattern,paths=""):
+    """execute StructuredData "txt.find" command."""
+    try:
+        return XML_OBJ.txt.find(pattern,"aligned",paths,DBNAME)
+    except (http.client.RemoteDisconnected,
+            socket.gaierror):
+        sys.exit(CONNECT_ERRMSG)
+
+def db_paths(pattern,paths=""):
+    """execute StructuredData "paths" command."""
+    try:
+        return XML_OBJ.fun.paths(pattern,paths,DBNAME)
+    except (http.client.RemoteDisconnected,
+            socket.gaierror):
+        sys.exit(CONNECT_ERRMSG)
+
+def db_get(pattern,paths=""):
+    """execute StructuredData "get" command."""
+    try:
+        return XML_OBJ.fun.get(pattern,False,paths,DBNAME)
+    except (http.client.RemoteDisconnected,
+            socket.gaierror):
+        sys.exit(CONNECT_ERRMSG)
+
+# -----------------------------------------------
+# small structureddata emulation
+
+# It is just nicer to have proper handling of StructuredData paths this way.
+# In principle, x.split(".") and ".".join(l) would do...
+
+_sd_re_escaped_wc= re.compile(r'\\+(\*|\*\*|#)$')
+
+def sd_unescape_in_stringkey(st):
+    r"""unescape special characters.
+
+    replace '\.' with '.' and '\[number\]' with '[number]'
+    This is needed in order to convert keylist to a path which
+    contains the characters '.' or '[' or ']'.
+    """
+    if st== r"\*" : # related to class SpecialKey
+        return "*"
+    if st== r"\**": # related to class SpecialKey
+        return "**"
+    if st== r"\#" : # related to class SpecialKey
+        return "#"
+    if st.startswith("\\"): # starts already with a backslash
+        if _sd_re_escaped_wc.match(st) is not None:
+            return st[1:]
+    st= st.replace(r"\.",".")
+    st= st.replace(r"\[","[")
+    st= st.replace(r"\]","]")
+    return st
+
+_sd_re_escaped_wc= re.compile(r'\\+(\*|\*\*|#)$')
+
+def sd_escape_in_stringkey(st):
+    r"""escape special characters with a backslash.
+
+    replace '.' with '\.' and '[number]' with '\[number\]'
+    This is needed in order to convert path which contains
+    the characters '.' or '[' or ']' to a keylist.
+    """
+    if st=="*" : # related to class SpecialKey
+        return r"\*"
+    if st=="**": # related to class SpecialKey
+        return r"\**"
+    if st=="#" : # related to class SpecialKey
+        return r"\#"
+    if st.startswith("\\"): # starts already with a backslash
+        if _sd_re_escaped_wc.match(st) is not None:
+            return "\\" + st
+    st= st.replace(".", r"\.")
+    st= st.replace("[", r"\[")
+    st= st.replace("]", r"\]")
+    return st
+
+_sd_re_br= re.compile(r'(?<!\\)(\[)')
+_sd_re_split= re.compile(r'(?<!\\)\.')
+_sd_re_no= re.compile(r'\[(\d+)\]')
+
+def sd_string_to_keyobject(val):
+    """convert a wildcard to be used by the MatchPaths object.
+    """
+    if isinstance(val, str):
+        return sd_unescape_in_stringkey(val)
+    return val
+
+def _sd_keyconvert(key_, include_separator=False):
+    """convert a single key_."""
+    if include_separator:
+        separator= "."
+    else:
+        separator= ""
+    if isinstance(key_, tuple):
+        extra= key_[1]
+        key_= key_[0]
+    else:
+        extra= ""
+    if isinstance(key_, str):
+        key_= sd_escape_in_stringkey(key_)
+    elif isinstance(key_, int):
+        separator= ""
+        key_= "[%d]" % key_
+    else:
+        key_= str(key_)
+    return "".join((separator,key_,extra))
+
+def sd_path_split(path):
+    """simple split of StructuredData path.
+
+    Caution: NO support for wildcards in paths !
+    """
+    if not path: # empty string or None
+        return []
+    path= _sd_re_br.sub(r".\1", path)
+    lst= _sd_re_split.split(path)
+    res= []
+    for elm in lst:
+        m= _sd_re_no.match(elm)
+        if m is not None:
+            elm= int(m.group(1))
+        else:
+            elm= sd_string_to_keyobject(elm)
+        res.append(elm)
+    return res
+
+def sd_join_path(keylist):
+    r"""joins a path from a keylist.
+
+    This method joins a list of keys to a path.  It doesn't need access to
+    the StructuredDataStore so it is a static method. Usually each key of
+    the keylist is a SpecialKey object, a string or an integer or a pair.
+    In the latter case the pair consists of a SpecialKey, a string or an
+    integer and an extra string. All these are combined to form a
+    StructuredData path.
+    """
+    path= ".".join([_sd_keyconvert(x) for x in keylist])
+    # avoid things like "A.[3]B":
+    return path.replace(".[","[")
+
+# -----------------------------------------------
+# basic query functions
+
+_id_sd_keys= set()
+def sd_key_set():
+    """return set of id keys in the StructuredData database."""
+    if not _id_sd_keys:
+        for p in db_paths("id-data.*"):
+            _id_sd_keys.add(sd_path_split(p)[1])
+    return _id_sd_keys
+
+_id_names= {}
+def id_names(sd_key= None):
+    """return a dict with id_names properties."""
+    if not _id_names:
+        for my_sd_key in sd_key_set():
+            _id_names[my_sd_key]= db_get(sd_join_path(("id-data",
+                                                       my_sd_key,"names")))
+    if not sd_key:
+        return _id_names
+    return _id_names[sd_key]
+
+_id_global= {}
+def id_global(sd_key= None):
+    """return a dict with id_global properties."""
+    if not _id_global:
+        for my_sd_key in sd_key_set():
+            _id_global[my_sd_key]= db_get(sd_join_path(("id-data",
+                                                        my_sd_key,"global")))
+    if not sd_key:
+        return _id_global
+    return _id_global[sd_key]
+
+_id_all= {}
+def id_all(sd_key):
+    """return all data for an insertion device."""
+    d= _id_all.get(sd_key)
+    if not d:
+        d= db_get(sd_join_path(("id-data",sd_key)))
+        _id_all[sd_key]= d
+    return d
+
+_id_aliases= {}
+def _get_aliases():
+    """get alias names for ids."""
+    def add_alias(alias, key_):
+        """add alias."""
+        _id_aliases[alias]= key_
+        _id_aliases[alias.lower()]= key_
+    if not _id_aliases:
+        for sd_key, names in id_names().items():
+            add_alias(sd_key, sd_key)
+            for n in names.values():
+                if isinstance(n, int):
+                    add_alias(str(n), sd_key)
+                    continue
+                add_alias(n, sd_key)
+                if "/" in n:
+                    add_alias(n.replace("/","-"), sd_key)
+    return _id_aliases
+
+def find_sd_key(name):
+    """find sd_key from a given name."""
+    return _get_aliases()[name]
+
+def devicename(name):
+    """find devicename from a given name."""
+    sd_key= find_sd_key(name)
+    return id_names(sd_key)["devicename"]
+
+def key(name, must_exist= True, default= None):
+    """find key."""
+    sd_key= find_sd_key(name)
+    if must_exist:
+        return id_names(sd_key)["key"]
+    return id_names(sd_key).get("key", default)
+
+def prefix(name, must_exist= True, default= None):
+    """find prefix."""
+    sd_key= find_sd_key(name)
+    if must_exist:
+        return id_names(sd_key)["prefix"]
+    return id_names(sd_key).get("prefix", default)
+
+def application(name, must_exist= True, default= None):
+    """find application."""
+    sd_key= find_sd_key(name)
+    if must_exist:
+        return id_global(sd_key)["application"]
+    return id_global(sd_key).get("application", default)
+
+def status(name, must_exist= True, default= None):
+    """find status."""
+    sd_key= find_sd_key(name)
+    if must_exist:
+        return id_global(sd_key)["device_status"]
+    return id_global(sd_key).get("device_status", default)
+
+def group(name, must_exist= True, default= None):
+    """find status."""
+    sd_key= find_sd_key(name)
+    if must_exist:
+        return id_global(sd_key)["rsync_dist_group"]
+    return id_global(sd_key).get("rsync_dist_group", default)
+
+# -----------------------------------------------
+# console I/O
+
+def console_print_list(lst):
+    """simple list printer."""
+    l= sorted(lst)
+    print(" ".join([str(elm) for elm in l]))
+
+def console_print_table(table, heading=None):
+    """print a table, auto-format columns."""
+    widths= {}
+    formats= {}
+    if heading:
+        for i, h in enumerate(heading):
+            widths[i]= len(h)
+    for line in table:
+        for i, col in enumerate(line):
+            if isinstance(col, int):
+                col= str(col)
+                if i not in formats:
+                    formats[i]= "%%%dd"
+            else:
+                if i not in formats:
+                    formats[i]= "%%-%ds"
+            sz= len(col)
+            old= widths.get(i, 0)
+            if sz>old:
+                widths[i]= sz
+    sorted_widths_keys= sorted(widths.keys())
+    f= " ".join([formats[i] % widths[i] for i in sorted_widths_keys])
+    if heading:
+        hf= " ".join(["%%-%ds" % widths[i] for i in sorted_widths_keys])
+        print(hf % tuple(heading))
+        l= 0
+        for w in widths.values():
+            l+= w
+        l+= len(widths)
+        print("-" * l)
+    for line in table:
+        print(f % tuple(line))
+
+# -----------------------------------------------
+# commands
+
+def cmd_list(args, rest):
+    """perform list command."""
+    # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+    print_columns= DEFAULT_COLUMNS
+    if rest:
+        print_columns= []
+        for r in rest:
+            f= r.lower()
+            if f in COLUMNS:
+                print_columns.append(f)
+            else:
+                sys.exit("error: unknown format or option "+repr(r))
+
+    search_columns= set(print_columns)
+
+    rx_name= None
+    if args.name:
+        rx_name= re.compile(args.name)
+        search_columns.add("name")
+
+    rx_application= None
+    if args.application:
+        rx_application= re.compile(args.application)
+        search_columns.add("application")
+
+    rx_group= None
+    if args.group:
+        rx_group= re.compile(args.group)
+        search_columns.add("group")
+
+    rx_status= None
+    if args.status:
+        rx_status= re.compile(args.status)
+        search_columns.add("status")
+
+    sort_column= print_columns[0]
+    if args.sort_by:
+        if not args.sort_by in COLUMNS:
+            sys.exit("error: unknown column")
+        if not args.sort_by in print_columns:
+            sys.exit("error: sort column not in printed columns")
+        sort_column= args.sort_by
+
+    if not args.id:
+        sd_keys= sd_key_set()
+    else:
+        sd_keys= [find_sd_key(args.id)]
+
+    result= {}
+    idx=0
+    for sd_key in sd_keys:
+        n= result.setdefault(sd_key, {})
+        idx+= 1
+        n["idx"]= idx # an extra index used for sorting
+        for col in search_columns:
+            if col=="name":
+                n[col]= sd_key
+                if rx_name:
+                    if not rx_name.match(sd_key):
+                        # must skip this entry
+                        n["SKIP"]= True
+            elif col=="key":
+                n[col]= key(sd_key, must_exist= False, default=0)
+            elif col=="prefix":
+                n[col]= prefix(sd_key, must_exist= False, default="")
+            elif col=="devicename":
+                n[col]= devicename(sd_key)
+            elif col=="application":
+                n[col]= application(sd_key, must_exist= False, default="")
+                if rx_application:
+                    if not rx_application.match(n[col]):
+                        # must skip this entry
+                        n["SKIP"]= True
+            elif col=="status":
+                n[col]= status(sd_key, must_exist= False, default="")
+                if rx_status:
+                    if not rx_status.match(n[col]):
+                        # must skip this entry
+                        n["SKIP"]= True
+            elif col=="group":
+                n[col]= group(sd_key, must_exist= False, default="")
+                if rx_group:
+                    if not rx_group.match(n[col]):
+                        # must skip this entry
+                        n["SKIP"]= True
+            else:
+                raise AssertionError("internal error")
+
+    #pprint.pprint(result)#@@@
+    # calc sort keys:
+    for k in result:
+        sk= result[k][sort_column]
+        if sk==0:
+            sk= result[k]["idx"]/1000.0
+        elif isinstance(sk, str):
+            sk= "%s.%6d" % (sk, result[k]["idx"])
+        result[k]["sk"]= sk
+
+    table= []
+    for k in sorted(result.keys(), key=lambda k: result[k]["sk"]):
+        r= result[k]
+        if r.get("SKIP"):
+            continue
+        line= []
+        for col in print_columns:
+            line.append(r[col])
+        table.append(line)
+
+    if not table:
+        print("no match")
+        return
+
+    if args.no_heading:
+        heading= None
+    else:
+        heading= print_columns
+    #console_print_list(result)
+    console_print_table(table, heading)
+
+def cmd_listcolumns():
+    """perform listcolumns command."""
+    print(" ".join(sorted(COLUMNS)))
+
+def cmd_paths(rest):
+    """perform "paths" command."""
+    if not rest:
+        sys.exit("error, 'PATTERN' parameter is mandatory.")
+    pattern= rest[0]
+    paths=""
+    if len(rest)>1:
+        paths= rest[1:]
+    print("\n".join(db_paths(pattern, paths)))
+
+def cmd_find(rest):
+    """perform "find" command."""
+    if not rest:
+        sys.exit("error, 'PATTERN' parameter is mandatory.")
+    pattern= rest[0]
+    paths=""
+    if len(rest)>1:
+        paths= rest[1:]
+    #for elm in db_find(pattern, paths):
+    #    print("%s %s" % (elm[0], elm[1]))
+    print(db_txt_find(pattern, paths))
+    #print("\n".join(db_txt_find(pattern, paths)))
+    #console_print_table(t, heading=None)
+
+def cmd_get(rest):
+    """perform "find" command."""
+    if not rest:
+        sys.exit("error, 'PATTERN' parameter is mandatory.")
+    pattern= rest[0]
+    paths=""
+    if len(rest)>1:
+        paths= rest[1:]
+    #for elm in db_find(pattern, paths):
+    #    print("%s %s" % (elm[0], elm[1]))
+    pprint.pprint(db_get(pattern, paths))
+    #print("\n".join(db_txt_find(pattern, paths)))
+    #console_print_table(t, heading=None)
+
+
+#def get_properties():
+#    """get some of the ID properties.
+#    """
+#    for n in id_names():
+#        # get all parameters for that insertion device:
+#        all_= db_get(sd_join_path('id-data',n))
+#        d= id_data.setdefault(n, {})
+#        d["application"]= all_["global"]["application"]
+#        d["devicename"]= all_["names"]["devicename"]
+#        d["key"]= all_["names"]["key"]
+#        d["prefix"]= all_["names"]["prefix"]
+#        aliases= {}
+#        for k,v in all_[names]:
+#            aliases[v]= n
+#            aliases[v.lower()]= n
+
+# -----------------------------------------------
+# main program
+
+def process(args, rest):
+    """do all the work.
+    """
+    #print("args:",args)
+    #print("rest:",rest)
+    # pylint: disable= global-statement, too-many-return-statements
+    # pylint: disable= too-many-branches, too-many-statements
+    global HOST, PORT, URL, CONNECT_ERRMSG, XML_OBJ
+    if args.summary:
+        print_summary()
+        sys.exit(0)
+    if not rest:
+        sys.exit("command missing, use '-h' to get help")
+    if args.server:
+        errmsg= "%s has not the form 'HOST:PORT'" % args.server
+        if not ":" in args.server:
+            sys.exit(errmsg)
+        l= args.server.split(":")
+        if len(l)!=2:
+            sys.exit(errmsg)
+        HOST= l[0]
+        try:
+            PORT= int(l[1])
+        except ValueError:
+            sys.exit(errmsg)
+    URL='http://%s:%d' % (HOST, PORT)
+    CONNECT_ERRMSG="Error: cannot connect to "+URL
+    # this only creates the object, it does not actually connect:
+    XML_OBJ = xmlrpc.client.ServerProxy(URL)
+
+    if rest[0]== "devicename":
+        l= []
+        for n in rest[1:]:
+            l.append(devicename(n))
+        print(" ".join(l))
+        return
+    if rest[0]== "prefix":
+        l= []
+        for n in rest[1:]:
+            l.append(prefix(n))
+        print(" ".join(l))
+        return
+    if rest[0]== "dump":
+        d={}
+        for n in rest[1:]:
+            sd_key= find_sd_key(n)
+            d[sd_key]= id_all(sd_key)
+        pprint.pprint(d)
+        return
+    if rest[0]== "list":
+        cmd_list(args, rest[1:])
+        return
+    if rest[0]== "listcolumns":
+        cmd_listcolumns()
+        return
+    if rest[0]== "paths":
+        cmd_paths(rest[1:])
+        return
+    if rest[0]== "find":
+        cmd_find(rest[1:])
+        return
+    if rest[0]== "get":
+        cmd_get(rest[1:])
+        return
+    try:
+        k= find_sd_key(rest[0])
+    except KeyError:
+        sys.exit("unknown command: %s" % rest[0])
+    args.id= k
+    cmd_list(args, rest[1:])
+
+VERSION= "1.0"
+
+SUMMARY="Show insertion device properties by querying the "+\
+        "StructuredData database."
+
+USAGE= "%(prog)s [options] command"
+
+DESC= '''
+Show insertion device properties by querying the StructuredData database.
+
+Known commands:
+    devicename NAME [NAME ...]
+        Get the devicename for the given insertion device. NAME may be any
+        common name that specifes an insertion device like:
+        U49ID4R u49id4r U49-1:Bii7 u49-1:bii7 7 U49-1 u49-1 U49/1 u49/1 idcp7
+    prefix NAME [NAME ...]
+        Show the prefix ("idcpNN") for the given insertion device. NAME is
+        the same as for command "devicename" above.
+    dump NAME [NAME ...]
+        Print all the StructuredData data for the given insertion device.
+    list [COLUMN [COLUMN...]]
+        List properties for all insertion devices. If no COLUMN is specified,
+        return all known columns (see command 'listcolumns' below).
+        If COLUMN is specified, only show the specified columns in the given
+        order. Unless option --sort-by is used, sort by the first column.
+    listcolumns
+        List known column names
+
+Raw StructuredData access (note: most options are ignored for these):
+    paths PATTERN [PATHS]
+        Execute StructuredData "paths" command.
+    find PATTERN [PATHS]
+        Execute StructuredData "find" command.
+    get PATTERN [PATHS]
+        Execute StructuredData "get" command.
+'''
+
+def script_shortname():
+    """return the name of this script without a path component."""
+    return os.path.basename(sys.argv[0])
+
+def print_summary():
+    """print a short summary of the scripts function."""
+    print("%-20s: %s\n" % (script_shortname(), SUMMARY))
+
+
+def main():
+    """The main function.
+
+    parse the command-line options and perform the command
+    """
+    parser = argparse.ArgumentParser(\
+                 usage= USAGE,
+                 description= DESC,
+                 formatter_class=argparse.RawDescriptionHelpFormatter,
+                                    )
+    parser.add_argument('--version', action='version', version='%%(prog)s %s' % VERSION)
+
+    parser.add_argument("--summary",
+                        action="store_true",
+                        help="print a summary of the function of the program",
+                       )
+    parser.add_argument("-S", "--sort-by",
+                        help="specify the SORTCOLUMN",
+                        metavar="SORTCOLUMN"
+                       )
+    parser.add_argument("-N", "--no-heading",
+                        action="store_true",
+                        help="do not print a table heading",
+                        )
+    parser.add_argument("-n", "--name",
+                        help="filter by NAME (regexp)",
+                        metavar="NAME"
+                       )
+    parser.add_argument("-i", "--id",
+                        help="filter by IDNAME. IDNAME must be "
+                             "any common name that specifies the insertion "
+                             "device.",
+                        metavar="IDNAME"
+                       )
+    parser.add_argument("-a", "--application",
+                        help="filter by APPLICATION (regexp)",
+                        metavar="APPLICATION"
+                       )
+    parser.add_argument("-g", "--group",
+                        help="filter by GROUP (regexp)",
+                        metavar="GROUP"
+                       )
+    parser.add_argument("-s", "--status",
+                        help="filter by STATUS (regexp)",
+                        metavar="STATUS"
+                       )
+    parser.add_argument("--server",
+                        help=("specify the StructuredData XML-RPC "
+                              "server in the form 'HOST:PORT'. The "
+                              "default is %s:%s") % \
+                              (HOST, PORT),
+                        metavar="STATUS"
+                       )
+
+
+    (args, rest) = parser.parse_known_args()
+
+    if args.summary:
+        print_summary()
+        sys.exit(0)
+
+    process(args, rest)
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
