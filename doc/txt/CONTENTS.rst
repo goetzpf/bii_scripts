@@ -158,13 +158,15 @@ Scripts
 
 **ctl-dist-info**
   | A wrapper script for rsync-dist-info.py that is used to get information on
-    installed software versions of the BII and MLS controlsystem.
+    installed software versions of the BII-Controls, MLS-Controls,
+    ERL-Controls, BL-Controls or HoBiCaT-Controls application.
   | `documentation <scripts/csv2plot.html>`__
 
 **ctl-restore**
   | A small wrapper script that calls darcs-restore to restore the source
     directory along with it's darcs repository for a given version of the
-    BII-Controls applucation.
+    BII-Controls, MLS-Controls, ERL-Controls, BL-Controls or HoBiCaT-Controls
+    application.
   | `documentation <scripts/ctl-restore>`__
 
 **cvs-recover.py**
@@ -373,6 +375,12 @@ Scripts
     directory along with it's mercurial repository for a given version of IDCP
     as it is installed on the MLS undulator.
   | `documentation <scripts/idcp-mls-restore>`__
+
+**iddb**
+  | A script that queries the Insertion Device StructuredData database server
+    on gwc2c to display a table with names and properties of insertion devices
+    or to do arbitrary queries on that database.
+  | `documentation <scripts/iddb>`__
 
 **ioc-reboot.py**
   | Reboots one or several IOCs via telnet and "reboot" command.
