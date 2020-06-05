@@ -432,6 +432,10 @@ Scripts
     search, regular expressions that match across line-ends.
   | `documentation <scripts/pfind.html>`__
 
+**pg_request.py**
+  | a tool to perform SQL requests on the PostgreSQL database.
+  | `documentation <scripts/pg_request.html>`__
+
 **psh**
   | a perl-shell. Useful for testing small functions or expressions in an
     interactive shell.

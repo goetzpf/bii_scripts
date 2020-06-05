@@ -341,7 +341,8 @@ RST_DOC_PY_SCRIPT_LIST= \
 	cvs-recover.py \
 	db_request.py \
 	hg-recover.py \
-        ioc-reboot.py \
+	ioc-reboot.py \
+	pg_request.py \
 	repo-loginfo.py \
 	rsync-dist-info.py \
 	tableutil.py \
