@@ -70,6 +70,8 @@ assert sys.version_info[0]==3
 
 VERSION = "1.0"
 
+SCRIPTNAME= os.path.basename(__file__)
+
 CONNECT_TIMEOUT= 5 # seconds
 
 SQL_SHOW_TABLES="SELECT  table_schema , table_name  " \
@@ -396,7 +398,7 @@ def main():
                         help=("Create online help in restructured text "
                               "format. Use \"%s --doc | "
                               "rst2html\" for creation of html help.") % \
-                              os.path.basename(__file__))
+                              SCRIPTNAME)
     parser.add_argument("--profiles",
                         action="store_true",
                         help="List properties of known connection profiles.")
@@ -474,6 +476,7 @@ def main():
         if os.isatty(0):
             dbSQLString = input('SQL statement: ')
         else:
+            errprint("%s: reading SQL statement from stdin" % SCRIPTNAME)
             dbSQLString = input()
 
     if args.verbose:
