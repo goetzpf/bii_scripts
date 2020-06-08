@@ -78,6 +78,10 @@ SQL_SHOW_TABLES="SELECT  table_schema , table_name  " \
                 "FROM information_schema.tables " \
                 "ORDER BY table_schema, table_name"
 
+SQL_SHOW_COLUMNS= "SELECT column_name, data_type " \
+                  "FROM information_schema.columns "\
+                  "WHERE table_schema='%s' AND table_name='%s'"
+
 # predefined connection profiles ('\' avoid some pylint warnings):
 
 PROFILES= { "devices2" : \
@@ -328,6 +332,7 @@ Several output formats are supported:
 The COMMAND|SQLCOMMAND must be a valid SQL statement or one of:
 
 - tables : list all tables
+- columns TABLESCHEMA.TABLENAME : list columns of a table
 
 If no SQL-statement is given, the program expects to read a statement from
 standard input.
@@ -419,6 +424,10 @@ def main():
                         help="Print some diagnostic to stderr.")
 
     (args, rest) = parser.parse_known_args()
+    if rest:
+        for r in rest:
+            if r.startswith("-"):
+                sys.exit("unknown option: %s" % repr(r))
 
     # Section for argument options
 
@@ -457,8 +466,8 @@ def main():
     for f in Formatter.known_formats:
         if f=="default":
             continue
-        f= f.replace("-", "_")
-        if getattr(args, f):
+        attr= f.replace("-", "_")
+        if getattr(args, attr):
             if format_!="default":
                 sys.exit("contradicting format options")
             format_= f
@@ -467,17 +476,24 @@ def main():
         errprint("Set output format to", repr(args.format))
 
     # Section for commands
-    if rest:
-        if rest[0]=="tables":
-            dbSQLString=SQL_SHOW_TABLES
-        else:
-            dbSQLString = rest[0]
-    else:
+    if not rest:
         if os.isatty(0):
             dbSQLString = input('SQL statement: ')
         else:
             errprint("%s: reading SQL statement from stdin" % SCRIPTNAME)
             dbSQLString = input()
+    else:
+        if rest[0]=="tables":
+            dbSQLString=SQL_SHOW_TABLES
+        elif rest[0]=="columns":
+            if len(rest)<2:
+                sys.exit("ERROR: TABLESCHEMA.TABLENAME argument missing")
+            if "." not in rest[1]:
+                sys.exit("ERROR: TABLESCHEMA.TABLENAME argument contains "
+                         "no dot")
+            dbSQLString= SQL_SHOW_COLUMNS % tuple(rest[1].split("."))
+        else:
+            dbSQLString = rest[0]
 
     if args.verbose:
         errprint("SQL statement:", repr(dbSQLString))
