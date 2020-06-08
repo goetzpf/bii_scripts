@@ -72,6 +72,10 @@ VERSION = "1.0"
 
 CONNECT_TIMEOUT= 5 # seconds
 
+SQL_SHOW_TABLES="SELECT  table_schema , table_name  " \
+                "FROM information_schema.tables " \
+                "ORDER BY table_schema, table_name"
+
 # predefined connection profiles ('\' avoid some pylint warnings):
 
 PROFILES= { "devices2" : \
@@ -305,7 +309,7 @@ def errprint_lines(lines):
     for l in lines:
         errprint(l)
 
-USAGE= "%(prog)s [options] command"
+USAGE= "%(prog)s [OPTIONS] COMMAND|SQLCOMMAND"
 
 DESC="""
 Perform an SQL query on a PostgreSQL database and print the results to the
@@ -318,6 +322,10 @@ Several output formats are supported:
 - json : Print result as a JSON structure.
 - csv : Print comma separated values with minumal quoting.
 - csv-quoted : Print comma separated values, everything quoted.
+
+The COMMAND|SQLCOMMAND must be a valid SQL statement or one of:
+
+- tables : list all tables
 
 If no SQL-statement is given, the program expects to read a statement from
 standard input.
@@ -458,10 +466,13 @@ def main():
 
     # Section for commands
     if rest:
-        dbSQLString = rest[0]
+        if rest[0]=="tables":
+            dbSQLString=SQL_SHOW_TABLES
+        else:
+            dbSQLString = rest[0]
     else:
         if os.isatty(0):
-            dbSQLString = input('Statement: ')
+            dbSQLString = input('SQL statement: ')
         else:
             dbSQLString = input()
 
