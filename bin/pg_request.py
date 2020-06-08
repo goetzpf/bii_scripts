@@ -348,6 +348,7 @@ console.
 Several output formats are supported:
 
 - default : Print row elements as raw (python) strings separated with spaces.
+- table : Print a nice table with aligned columns.
 - python : Print result as a python structure which is list of tuples.
 - json : Print result as a JSON structure.
 - csv : Print comma separated values with minumal quoting.
