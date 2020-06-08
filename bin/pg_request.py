@@ -239,6 +239,21 @@ class Formatter:
                                         quoting= quoting,
                                         lineterminator=os.linesep
                                        )
+        if format_name in ("json", "python"):
+            # json cannot represent the PostgreSQL "DECIMAL" type, so we
+            # register an automatic converter in this case. The converter
+            # converts from decimal to float. 
+            # Although pprint.pprint (format "python") could print a decimal,
+            # it still would be unusual in a python variable so we do the
+            # conversion for format "python", too.
+            # This was taken from:
+            # https://stackoverflow.com/questions/56359506/how-to-get-float-values-from-postgresql-table-as-float-only-instead-of-decimal-i
+            DEC2FLOAT = psycopg2.extensions.new_type(\
+                            psycopg2.extensions.DECIMAL.values,
+                            'DEC2FLOAT',
+                            lambda value, curs: float(value) \
+                                if value is not None else None)
+            psycopg2.extensions.register_type(DEC2FLOAT)
     @classmethod
     def known_formats_str(cls):
         """return a string of known formats."""
