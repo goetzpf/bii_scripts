@@ -392,6 +392,18 @@ def main():
     parser.add_argument("--profiles",
                         action="store_true",
                         help="List properties of known connection profiles.")
+    parser.add_argument("--csv",
+                        action="store_true",
+                        help="Define output format to csv.")
+    parser.add_argument("--csv-quoted",
+                        action="store_true",
+                        help="Define output format to csv-quoted.")
+    parser.add_argument("--python",
+                        action="store_true",
+                        help="Define output format to python.")
+    parser.add_argument("--json",
+                        action="store_true",
+                        help="Define output format to json.")
     parser.add_argument("-v", "--verbose",
                         action="store_true",
                         help="Print some diagnostic to stderr.")
@@ -425,15 +437,22 @@ def main():
 
     # Section for formatting options
 
+    format_= "default"
     if args.format:
-        try:
-            formatter= Formatter(args.format)
-        except ValueError:
+        if args.format not in Formatter.known_formats:
             sys.exit("Unknown format %s. Use option '-h' to see "
                      "a list of valid formats." % \
                      repr(args.format))
-    else:
-        formatter= Formatter()
+        format_= args.format
+    for f in Formatter.known_formats:
+        if f=="default":
+            continue
+        f= f.replace("-", "_")
+        if getattr(args, f):
+            if format_!="default":
+                sys.exit("contradicting format options")
+            format_= f
+    formatter= Formatter(format_)
     if args.verbose:
         errprint("Set output format to", repr(args.format))
 
