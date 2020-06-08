@@ -66,6 +66,16 @@ except ImportError:
     else:
         raise
 
+tabulate_found= False
+try:
+    import tabulate
+    tabulate_found= True
+except ImportError:
+    if _no_check:
+        sys.stderr.write("WARNING: (in %s) optional module tabulate not "
+                         "found\n" % \
+                         sys.argv[0])
+
 assert sys.version_info[0]==3
 
 VERSION = "1.0"
@@ -223,10 +233,12 @@ for k, v in PROFILES.items():
 class Formatter:
     """a class to format the output."""
     # csv-quoted: A csv format where *every* value is quoted in double-quotes.
-    known_formats= set(("default", "python", "json", "csv", "csv-quoted"))
+    known_formats= set(("default", "table", "python", "json",
+                        "csv", "csv-quoted"))
     # must_collect: True for formats where we first have to collect all the
     # data in a single variable before we can print it.
     must_collect= { "default": False,
+                    "table": True,
                     "python": True,
                     "json": True,
                     "csv": False,
@@ -239,6 +251,7 @@ class Formatter:
         self.format_= format_name
         self.collected_lines= []
         self.must_collect= self.__class__.must_collect[format_name]
+        self.has_header= False
         self.csvwriter= None
         if format_name in ("csv", "csv-quoted"):
             quoting=csv.QUOTE_MINIMAL
@@ -249,7 +262,7 @@ class Formatter:
                                         quoting= quoting,
                                         lineterminator=os.linesep
                                        )
-        if format_name in ("json", "python"):
+        if format_name in ("table", "json", "python"):
             # json cannot represent the PostgreSQL "DECIMAL" type, so we
             # register an automatic converter in this case. The converter
             # converts from decimal to float. 
@@ -268,8 +281,10 @@ class Formatter:
     def known_formats_str(cls):
         """return a string of known formats."""
         return ", ".join([repr(f) for f in sorted(cls.known_formats)])
-    def process_line(self, line):
+    def process_line(self, line, is_header= False):
         """process a line."""
+        if is_header:
+            self.has_header= True
         if self.must_collect:
             self.collected_lines.append(line)
             return
@@ -285,6 +300,15 @@ class Formatter:
         if self.format_ == "default":
             for line in self.collected_lines:
                 print(" ".join([str(e) for e in line]))
+            return
+        if self.format_ == "table":
+            if self.has_header:
+                headers= self.collected_lines[0]
+                table= self.collected_lines[1:]
+            else:
+                headers= ()
+                table= self.collected_lines
+            print(tabulate.tabulate(table, headers))
             return
         if self.format_ == "python":
             if self.collected_lines:
@@ -416,6 +440,9 @@ def main():
     parser.add_argument("--python",
                         action="store_true",
                         help="Define output format to python.")
+    parser.add_argument("--table",
+                        action="store_true",
+                        help="Define output format to table.")
     parser.add_argument("--json",
                         action="store_true",
                         help="Define output format to json.")
@@ -475,6 +502,10 @@ def main():
     if args.verbose:
         errprint("Set output format to", repr(args.format))
 
+    if format_=="table" and (not tabulate_found):
+        sys.exit("Error: The python module 'tabulate' is needed for "
+                 "format 'table' but this doesn't seem to be installed")
+
     # Section for commands
     if not rest:
         if os.isatty(0):
@@ -522,7 +553,7 @@ def main():
             errprint("Fetching data...")
         if args.header:
             headers = tuple([col.name for col in dbSQLCursor.description])
-            formatter.process_line(headers)
+            formatter.process_line(headers, is_header= True)
         for record in dbSQLCursor:
             formatter.process_line(record)
         dbSQLCursor.close()
