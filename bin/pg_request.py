@@ -402,7 +402,7 @@ Several output formats are supported:
 - python : Print result as a python structure which is list of tuples.
 - json : Print result as a JSON structure.
 - json-full : Print result as a full key-value JSON structure.
-- csv : Print comma separated values with minumal quoting.
+- csv : Print comma separated values with minimal quoting.
 - csv-quoted : Print comma separated values, everything quoted.
 """
 
@@ -509,7 +509,8 @@ def main():
                         help="Define output format to json.")
     parser.add_argument("--json-full",
                         action="store_true",
-                        help="Define output format to json.")
+                        help="Define output format to json with a full "
+                             "key-value structure.")
     parser.add_argument("-v", "--verbose",
                         action="store_true",
                         help="Print some diagnostic to stderr.")
