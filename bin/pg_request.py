@@ -41,10 +41,10 @@ Overview
 This is port of the old db_request.py tool to python 3. It uses psycopg2 to
 access a postgreSQL database.
 
-It features:
+Features:
 
 - Predefined profiles of database connection parameters
-- Prefefined SQL queries for inspecting a database
+- Prefefined SQL queries for inspecting the database
 - A number of output formats, among them CSV, JSON and Python.
 
 """
@@ -364,7 +364,7 @@ def errprint_lines(lines):
     for l in lines:
         errprint(l)
 
-USAGE= "%(prog)s [OPTIONS] COMMAND|SQLCOMMAND"
+USAGE= "%(prog)s [OPTIONS] COMMAND"
 
 DESC_HEAD="""
 Perform an SQL query on a PostgreSQL database and print the results to the
@@ -372,26 +372,13 @@ console.
 """
 
 DESC_BODY="""
-Output formats
---------------
+The COMMAND
+-----------
 
-Several output formats are supported:
+COMMAND must be a valid SQL statement or one these strings:
 
-- default : Print row elements as raw (python) strings separated with spaces.
-- table : Print a nice table with aligned columns.
-- python : Print result as a python structure which is list of tuples.
-- json : Print result as a JSON structure.
-- json-full : Print result as a full key-value JSON structure.
-- csv : Print comma separated values with minumal quoting.
-- csv-quoted : Print comma separated values, everything quoted.
-
-The COMMAND parameter
----------------------
-
-The COMMAND|SQLCOMMAND must be a valid SQL statement or one of:
-
-- tables : list all tables
-- columns TABLESCHEMA.TABLENAME : list columns of a table
+- tables : List all tables.
+- columns TABLESCHEMA.TABLENAME : List columns of a table.
 
 If no SQL-statement is given, the program expects to read a statement from
 standard input.
@@ -404,11 +391,24 @@ The database connection arguments can be specified with a profile (option
 --instance, --server and --port. Missing connection arguments are requested
 interactively on the command line. Command line options take precedence over
 the specifed profile.
+
+Output formats
+--------------
+
+Several output formats are supported:
+
+- default : Print row elements as raw (python) strings separated with spaces.
+- table : Print a nice table with aligned columns.
+- python : Print result as a python structure which is list of tuples.
+- json : Print result as a JSON structure.
+- json-full : Print result as a full key-value JSON structure.
+- csv : Print comma separated values with minumal quoting.
+- csv-quoted : Print comma separated values, everything quoted.
 """
 
 DESC_FOOTER="""
-Command line
-------------
+Command line options
+--------------------
 """
 
 def get_doc(parser):
@@ -441,12 +441,15 @@ def main():
     """
     # pylint: disable= too-many-locals, too-many-branches, too-many-statements
 
+    if "--doc" in sys.argv:
+        desc=""
+    else:
+        desc= "".join((DESC_HEAD, DESC_BODY, DESC_FOOTER))
     parser = argparse.ArgumentParser(\
                  usage= USAGE,
-                 description= DESC_HEAD+DESC_BODY+DESC_FOOTER,
+                 description= desc,
                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                     )
-
     dbSQLString = None
     dbProfile = DbProfile()
 
