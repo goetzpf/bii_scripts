@@ -39,11 +39,11 @@ Overview
 --------
 
 This is port of the old db_request.py tool to python 3. It uses psycopg2 to
-access a postgreSQL database. 
+access a postgreSQL database.
 
 It features:
 
-- Predefined profiles of database connection parameters 
+- Predefined profiles of database connection parameters
 - Prefefined SQL queries for inspecting a database
 - A number of output formats, among them CSV, JSON and Python.
 
@@ -58,8 +58,10 @@ import json
 import csv
 import getpass
 import argparse
+import subprocess
 
-_no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--doc"))
+_no_check= len(sys.argv)==2 and (sys.argv[1] in \
+                                 ("-h","--help","--doc","--man"))
 try:
     import psycopg2
 except ImportError:
@@ -269,7 +271,7 @@ class Formatter:
         if format_name in ("table", "json", "python"):
             # json cannot represent the PostgreSQL "DECIMAL" type, so we
             # register an automatic converter in this case. The converter
-            # converts from decimal to float. 
+            # converts from decimal to float.
             # Although pprint.pprint (format "python") could print a decimal,
             # it still would be unusual in a python variable so we do the
             # conversion for format "python", too.
@@ -389,13 +391,28 @@ Command line
 ------------
 """
 
+def get_doc(parser):
+    """get embedded restructured text documentation."""
+    l= [__doc__, DESC_BODY, DESC_FOOTER, "", parser.format_help()]
+    return "\n".join(l)
+
 def print_doc(parser):
     """print embedded restructured text documentation."""
-    print(__doc__)
-    print(DESC_BODY)
-    print(DESC_FOOTER)
-    print()
-    parser.print_help()
+    print(get_doc(parser))
+
+def print_man():
+    """print help in "man" style."""
+    me     = subprocess.Popen([__file__, "--doc"],
+                              stdout= subprocess.PIPE
+                             )
+    rst2man= subprocess.Popen(["rst2man"],
+                              stdin= me.stdout,
+                              stdout= subprocess.PIPE
+                             )
+    man    = subprocess.Popen(["man", "-l", "-"],
+                              stdin= rst2man.stdout,
+                             )
+    man.wait()
 
 def main():
     """ Here all the action starts up.
@@ -413,6 +430,15 @@ def main():
     dbSQLString = None
     dbProfile = DbProfile()
 
+    parser.add_argument("--doc",
+                        action="store_true",
+                        help=("Create online help in restructured text "
+                              "format. Use \"%s --doc | "
+                              "rst2html\" for creation of html help.") % \
+                              SCRIPTNAME)
+    parser.add_argument("--man",
+                        action="store_true",
+                        help="Display a man page")
     parser.add_argument("-u", "--user",
                         help="Set the USERNAME.",
                         metavar="USERNAME")
@@ -440,12 +466,6 @@ def main():
     parser.add_argument("--header",
                         action="store_true",
                         help="Add column header.")
-    parser.add_argument("--doc",
-                        action="store_true",
-                        help=("Create online help in restructured text "
-                              "format. Use \"%s --doc | "
-                              "rst2html\" for creation of html help.") % \
-                              SCRIPTNAME)
     parser.add_argument("--profiles",
                         action="store_true",
                         help="List properties of known connection profiles.")
@@ -479,6 +499,9 @@ def main():
     if args.doc:
         print_doc(parser)
         return
+    if args.man:
+        print_man()
+        return
     if args.profiles:
         dbProfiles.show()
         return
@@ -504,7 +527,7 @@ def main():
     format_= "default"
     if args.format:
         if args.format not in Formatter.known_formats:
-            sys.exit("Unknown format %s. Use option '-h' to see "
+            sys.exit("Unknown format %s. Use option '-h' or '--man' to see "
                      "a list of valid formats." % \
                      repr(args.format))
         format_= args.format
