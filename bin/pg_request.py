@@ -238,8 +238,9 @@ for k, v in PROFILES.items():
 
 class Formatter:
     """a class to format the output."""
+    # pylint: disable= too-many-instance-attributes
     # csv-quoted: A csv format where *every* value is quoted in double-quotes.
-    known_formats= set(("default", "table", "python", "json",
+    known_formats= set(("default", "table", "python", "json", "json-full",
                         "csv", "csv-quoted"))
     # must_collect: True for formats where we first have to collect all the
     # data in a single variable before we can print it.
@@ -247,6 +248,7 @@ class Formatter:
                     "table": True,
                     "python": True,
                     "json": True,
+                    "json-full": True,
                     "csv": False,
                     "csv-quoted": False,
                   }
@@ -259,6 +261,9 @@ class Formatter:
         self.must_collect= self.__class__.must_collect[format_name]
         self.has_header= False
         self.csvwriter= None
+        self.needs_header_= False
+        self.headers= None
+        self.must_restructure= False
         if format_name in ("csv", "csv-quoted"):
             quoting=csv.QUOTE_MINIMAL
             if format_name=="csv-quoted":
@@ -268,7 +273,10 @@ class Formatter:
                                         quoting= quoting,
                                         lineterminator=os.linesep
                                        )
-        if format_name in ("table", "json", "python"):
+        if format_name == "json-full":
+            self.needs_header_= True
+            self.must_restructure= True
+        if format_name in ("table", "json", "json-full", "python"):
             # json cannot represent the PostgreSQL "DECIMAL" type, so we
             # register an automatic converter in this case. The converter
             # converts from decimal to float.
@@ -287,10 +295,21 @@ class Formatter:
     def known_formats_str(cls):
         """return a string of known formats."""
         return ", ".join([repr(f) for f in sorted(cls.known_formats)])
+    def needs_header(self):
+        """return if formatter needs to know the header."""
+        return self.needs_header_
     def process_line(self, line, is_header= False):
         """process a line."""
         if is_header:
             self.has_header= True
+            if self.format_== "json-full":
+                # must store the header separately
+                self.headers= line
+        if self.must_restructure:
+            if is_header:
+                return
+            self.collected_lines.append(dict(zip(self.headers, line)))
+            return
         if self.must_collect:
             self.collected_lines.append(line)
             return
@@ -320,7 +339,7 @@ class Formatter:
             if self.collected_lines:
                 pprint.pprint(self.collected_lines)
             return
-        if self.format_ == "json":
+        if self.format_ in ("json", "json-full"):
             if self.collected_lines:
                 print(json.dumps(self.collected_lines, sort_keys= True, indent= 4))
             return
@@ -362,6 +381,7 @@ Several output formats are supported:
 - table : Print a nice table with aligned columns.
 - python : Print result as a python structure which is list of tuples.
 - json : Print result as a JSON structure.
+- json-full : Print result as a full key-value JSON structure.
 - csv : Print comma separated values with minumal quoting.
 - csv-quoted : Print comma separated values, everything quoted.
 
@@ -484,6 +504,9 @@ def main():
     parser.add_argument("--json",
                         action="store_true",
                         help="Define output format to json.")
+    parser.add_argument("--json-full",
+                        action="store_true",
+                        help="Define output format to json.")
     parser.add_argument("-v", "--verbose",
                         action="store_true",
                         help="Print some diagnostic to stderr.")
@@ -592,7 +615,7 @@ def main():
     try:
         if args.verbose:
             errprint("Fetching data...")
-        if args.header:
+        if args.header or formatter.needs_header():
             headers = tuple([col.name for col in dbSQLCursor.description])
             formatter.process_line(headers, is_header= True)
         for record in dbSQLCursor:
