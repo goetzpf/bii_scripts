@@ -39,10 +39,14 @@ Overview
 --------
 
 This is port of the old db_request.py tool to python 3. It uses psycopg2 to
-access the postgreSQL database.
+access a postgreSQL database. 
 
-The format options have been a bit reduced but now use python standard modules
-to create output in default, python, json and csv format.
+It features:
+
+- Predefined profiles of database connection parameters 
+- Prefefined SQL queries for inspecting a database
+- A number of output formats, among them CSV, JSON and Python.
+
 """
 
 #pylint: disable= invalid-name, bad-whitespace
@@ -341,9 +345,14 @@ def errprint_lines(lines):
 
 USAGE= "%(prog)s [OPTIONS] COMMAND|SQLCOMMAND"
 
-DESC="""
+DESC_HEAD="""
 Perform an SQL query on a PostgreSQL database and print the results to the
 console.
+"""
+
+DESC_BODY="""
+Output formats
+--------------
 
 Several output formats are supported:
 
@@ -354,6 +363,9 @@ Several output formats are supported:
 - csv : Print comma separated values with minumal quoting.
 - csv-quoted : Print comma separated values, everything quoted.
 
+The COMMAND parameter
+---------------------
+
 The COMMAND|SQLCOMMAND must be a valid SQL statement or one of:
 
 - tables : list all tables
@@ -362,6 +374,9 @@ The COMMAND|SQLCOMMAND must be a valid SQL statement or one of:
 If no SQL-statement is given, the program expects to read a statement from
 standard input.
 
+The connection profile
+----------------------
+
 The database connection arguments can be specified with a profile (option
 --profile) or separately with command line options --user, --password,
 --instance, --server and --port. Missing connection arguments are requested
@@ -369,16 +384,18 @@ interactively on the command line. Command line options take precedence over
 the specifed profile.
 """
 
+DESC_FOOTER="""
+Command line
+------------
+"""
+
 def print_doc(parser):
     """print embedded restructured text documentation."""
     print(__doc__)
-    print("Command line usage")
-    print("------------------")
+    print(DESC_BODY)
+    print(DESC_FOOTER)
     print()
     parser.print_help()
-    print("\nProfiles\n========\n")
-    print("\nThese profiles are known::\n")
-    dbProfiles.show("  ")
 
 def main():
     """ Here all the action starts up.
@@ -389,7 +406,7 @@ def main():
 
     parser = argparse.ArgumentParser(\
                  usage= USAGE,
-                 description= DESC,
+                 description= DESC_HEAD+DESC_BODY+DESC_FOOTER,
                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                     )
 
