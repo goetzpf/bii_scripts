@@ -1064,7 +1064,7 @@ sub   parseVars
             }
 	}
 	#print "Loop: $loops, found: (",join(',',keys(%vars)),")\n";
-	foreach my $varName(keys(%vars))
+	foreach my $varName(sort keys(%vars))
 	{
             my $varValue = $vars{$varName};
 	    $value =~ s/\$\($varName\)/$varValue/g ;
