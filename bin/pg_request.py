@@ -100,7 +100,8 @@ SQL_SHOW_COLUMNS= "SELECT column_name, data_type " \
 
 # predefined connection profiles ('\' avoid some pylint warnings):
 
-PROFILES= { "devices2" : \
+PROFILES= { \
+            "devices2" : \
               { \
                 "user"    : "anonymous",
                 "password": "bessyguest",
@@ -117,6 +118,8 @@ PROFILES= { "devices2" : \
                 "port"    : 5432
               },
           }
+
+DEFAULT_PROFILE= "devices2015"
 
 class DbProfile:
     """hold a database access profile."""
@@ -479,9 +482,17 @@ def main():
                         metavar="INSTANCE")
     parser.add_argument("-x", "--profile",
                         help=("Use a PROFILE with predefined database "
-                              "connection parameters, one of %s.") % \
-                              dbProfiles.key_string(),
+                              "connection parameters, one of %s. "
+                              "%s is the default if this option is not "
+                              "given.") % \
+                              (dbProfiles.key_string(), repr(DEFAULT_PROFILE)),
                         metavar="PROFILE")
+    parser.add_argument("-X", "--no-profile",
+                        action="store_true",
+                        help="Do not use the default profile. You must "
+                             "specify the connection parameters by "
+                             "separate command line options or interactively "
+                             "in this case.")
     parser.add_argument("-o", "--format",
                         help="Define the output FORMAT, known: "
                              "%s." % Formatter.known_formats_str(),
@@ -535,6 +546,9 @@ def main():
 
     # Section for connecting options
 
+    if not args.profile:
+        if not args.no_profile:
+            args.profile= DEFAULT_PROFILE
     if args.profile:
         try:
             dbProfile= dbProfiles.get_clone(args.profile)

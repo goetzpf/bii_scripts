@@ -170,7 +170,9 @@ else
   { $db_table_name= shift; };
 
 my @predefined_databases= ('devices', 
-                           'machine;host=dbgate1.trs.bessy.de;port=9999');
+                           'machine;host=dbgate1.trs.bessy.de;port=9999',
+                           'devices_2015;host=dbnode1.trs.bessy.de;port=5432'
+                          );
 
 $global_data{database}{db_driver}     = "Oracle";
 $global_data{database}{db_source}     = "devices";
