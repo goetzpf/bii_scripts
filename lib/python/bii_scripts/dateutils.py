@@ -9,12 +9,12 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -24,9 +24,11 @@ import locale
 import datetime
 import sys
 
+# pylint: disable= invalid-name, bad-whitespace
+
 assert sys.version_info[0]==2
 
-def parse_isodate(str):
+def parse_isodate(str_):
     """parse an ISO date without a time.
 
     This function parses an ISO date (without time) and returns
@@ -35,7 +37,7 @@ def parse_isodate(str):
     an example is 2006-10-09.
 
     parameters:
-        str     -- the string to parse
+        str_     -- the string to parse
     returns:
         a datetime.datetime object
 
@@ -49,9 +51,9 @@ def parse_isodate(str):
        ...
     ValueError: unconverted data remains: x
     """
-    return datetime.datetime.strptime(str,"%Y-%m-%d")
+    return datetime.datetime.strptime(str_,"%Y-%m-%d")
 
-def parse_isodatetime(str):
+def parse_isodatetime(str_):
     """parse an ISO date.
 
     This function parses an ISO date and returns
@@ -60,7 +62,7 @@ def parse_isodatetime(str):
     an example is 2006-10-09T10:33:09.
 
     parameters:
-        str     -- the string to parse
+        str_     -- the string to parse
     returns:
         a datetime.datetime object
 
@@ -76,7 +78,7 @@ def parse_isodatetime(str):
        ...
     ValueError: time data '2006-99-09T10:33:09' does not match format '%Y-%m-%dT%H:%M:%S'
     """
-    return datetime.datetime.strptime(str,"%Y-%m-%dT%H:%M:%S")
+    return datetime.datetime.strptime(str_,"%Y-%m-%dT%H:%M:%S")
 
 def isodatetime(d):
     """converts a date to ISO format.
@@ -114,7 +116,7 @@ def isolsl(d):
     """
     return d.strftime("%Y-%m-%d %H:%M")
 
-def parse_lsl_isodate(str):
+def parse_lsl_isodate(str_):
     """parse an ISO-like date produced from ls -l.
 
     This function parses a date in the form
@@ -122,7 +124,7 @@ def parse_lsl_isodate(str):
     command may produce. It returns a datetime.datetime object.
 
     parameters:
-        str     -- the string to parse
+        str_     -- the string to parse
     returns:
         a datetime.datetime object
 
@@ -136,7 +138,7 @@ def parse_lsl_isodate(str):
        ...
     ValueError: time data 'Oct  9 10:42' does not match format '%Y-%m-%d %H:%M'
     """
-    return datetime.datetime.strptime(str,"%Y-%m-%d %H:%M")
+    return datetime.datetime.strptime(str_,"%Y-%m-%d %H:%M")
 
 # test with the default locale plus "de_DE.UTF-8":
 
@@ -144,7 +146,7 @@ if sys.version_info[0:2] <= (2,5):
     # Here is a fix for python version 2.5. For some weird reason, parsing a
     # date with locale "de_DE.UTF-8" fails, you must set the locale then to
     # "de_DE" and then parse the date again. You must do exactly this,
-    # replacing "de_DE.UTF-8" just with "de_DE" doesn't work. 
+    # replacing "de_DE.UTF-8" just with "de_DE" doesn't work.
     _locale_list=(None, "de_DE.UTF-8", "de_DE")
 else:
     _locale_list=(None, "de_DE.UTF-8")
@@ -153,13 +155,13 @@ _default_locale= locale.setlocale(locale.LC_TIME, None)
 _locales_missing= set()
 
 # test if locales can be used:
-for l in _locale_list:
-    if l is None:
+for _l in _locale_list:
+    if _l is None:
         continue
     try:
-        locale.setlocale(locale.LC_TIME, l)
+        locale.setlocale(locale.LC_TIME, _l)
     except locale.Error:
-        _locales_missing.add(l)
+        _locales_missing.add(_l)
         break
 locale.setlocale(locale.LC_TIME, _default_locale)
 
@@ -178,8 +180,8 @@ def _translate_months(st):
         st= st.replace(de, en)
     return st
 
-def my_strptime(st, format):
-    # a strptime replacement that checks with several locales:
+def my_strptime(st, format_):
+    """a strptime replacement that checks with several locales."""
     locale_changed= False
     try:
         for i in xrange(len(_locale_list)):
@@ -190,17 +192,19 @@ def my_strptime(st, format):
                 locale.setlocale(locale.LC_TIME, l)
                 locale_changed= True
             try:
-                ret= datetime.datetime.strptime(st, format)
+                ret= datetime.datetime.strptime(st, format_)
                 return ret
-            except ValueError, e:
+            except ValueError:
                 pass
         # last resort, try replacing german month names with english month
         # names:
-        ret= datetime.datetime.strptime(_translate_months(st), format)
+        ret= datetime.datetime.strptime(_translate_months(st), format_)
         return ret
     finally:
         if locale_changed:
             locale.setlocale(locale.LC_TIME, _default_locale)
+
+# pylint: disable= line-too-long
 
 def parse_lsl_shortdate(st,year=None):
     """parse a possibly yearless date produced from ls -l.
@@ -248,7 +252,7 @@ def parse_lsl_shortdate(st,year=None):
             s= st
         try:
             return my_strptime(s, format_)
-        except ValueError, e:
+        except ValueError:
             pass
     locales= ["default"] + [l for l in _locale_list if l]
     formats_= [f for f,_ in formats]
@@ -257,7 +261,9 @@ def parse_lsl_shortdate(st,year=None):
          (repr(st), repr(formats_), repr(locales))
     raise ValueError(msg)
 
-def parse_lsl_date(str,year=None):
+# pylint: enable= line-too-long
+
+def parse_lsl_date(str_,year=None):
     """parse a date produced by "ls -l".
 
     Here are some examples:
@@ -273,15 +279,15 @@ def parse_lsl_date(str,year=None):
     ValueError: lsl date 'Oct  9 10:42x' not parsable
     """
     try:
-        d= parse_lsl_isodate(str)
+        d= parse_lsl_isodate(str_)
         return d
-    except ValueError, e:
+    except ValueError:
         pass
     try:
-        d= parse_lsl_shortdate(str,year)
+        d= parse_lsl_shortdate(str_,year)
         return d
-    except ValueError, e:
-        raise ValueError, "lsl date '%s' not parsable" % str
+    except ValueError:
+        raise ValueError, "lsl date '%s' not parsable" % str_
 
 def _test():
     import doctest
