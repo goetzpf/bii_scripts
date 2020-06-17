@@ -9,12 +9,12 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -24,12 +24,13 @@ This module contains classes and parser functions
 to parse the output of the "ls -l" command.
 """
 import sys
-import datetime
 from bii_scripts import dateutils
+
+# pylint: disable= invalid-name, bad-whitespace
 
 assert sys.version_info[0]==2
 
-def _token_subtract(str,no):
+def _token_subtract(str_,no):
     """removes <no> tokens from the beginning of a string.
 
     Here are some examples:
@@ -46,19 +47,19 @@ def _token_subtract(str,no):
     >>> _token_subtract("a bc def ghi  jkl",3)
     'ghi  jkl'
     """
-    elms= str.split()
-    if (len(elms)<no):
+    elms= str_.split()
+    if len(elms)<no:
         raise ValueError,"string hasn't got %d tokens" % no
     for e in elms[:no]:
-        str= str.replace(e,"",1)
-    return str.lstrip()
+        str_= str_.replace(e,"",1)
+    return str_.lstrip()
 
-def _datetime_of_lsl_tokenlist(list,year=None):
-    """parses a date produced by ls -l from a list of strings.
+def _datetime_of_lsl_tokenlist(list_,year=None):
+    """parses a date produced by ls -l from a list_ of strings.
 
-    The list should be the result of str.split() which splits
+    The list_ should be the result of str.split() which splits
     a string along sequences of spaces. The function returns
-    the parsed date and the remaining parts of the list.
+    the parsed date and the remaining parts of the list_.
 
     If the string has no information on the year, the year
     may be set with the second parameter. This function
@@ -68,14 +69,14 @@ def _datetime_of_lsl_tokenlist(list,year=None):
     mmm d HH:MM (with mmm the month name)
 
     parameters:
-        list    -- the list of strings that is parsed
+        list_    -- the list_ of strings that is parsed
         year    -- the year that is used when the date string
                    contains no year (optional). If this is not given and the
                    date string contains no year, the current year is used.
 
     returns:
         (date,newlist) where <date> is a datetime.datetime object
-        and <newlist> is the rest of the list with the parts belonging
+        and <newlist> is the rest of the list_ with the parts belonging
         to the parsed date removed.
 
     Here are some examples:
@@ -90,22 +91,22 @@ def _datetime_of_lsl_tokenlist(list,year=None):
     >>> _datetime_of_lsl_tokenlist("nOct  9 10:42 idcp13 ->".split())
     Traceback (most recent call last):
        ...
-    ValueError: no parsable date in list: ['nOct', '9', '10:42', 'idcp13', '->']
+    ValueError: no parsable date in list_: ['nOct', '9', '10:42', 'idcp13', '->']
     """
-    str= " ".join(list[0:2])
+    str_= " ".join(list_[0:2])
     try:
-        d= dateutils.parse_lsl_isodate(str)
-        return(d, list[2:])
-    except ValueError,e:
+        d= dateutils.parse_lsl_isodate(str_)
+        return(d, list_[2:])
+    except ValueError:
         pass
-    str= " ".join(list[0:3])
+    str_= " ".join(list_[0:3])
     try:
-        d= dateutils.parse_lsl_shortdate(str,year)
-        return(d, list[3:])
-    except ValueError,e:
-        raise ValueError, "no parsable date in list: %s" % repr(list)
+        d= dateutils.parse_lsl_shortdate(str_,year)
+        return(d, list_[3:])
+    except ValueError:
+        raise ValueError, "no parsable date in list_: %s" % repr(list_)
 
-def _parse_lsl_symlink(str):
+def _parse_lsl_symlink(str_):
     """parse a symlink as it is listed by ls -l command.
 
     returns a tuple consisting of the
@@ -120,9 +121,9 @@ def _parse_lsl_symlink(str):
     ValueError: string has wrong format: '/opt/IOC/Releases/idcp/dist/2009-03-16T14:46:04'
     """
     try:
-        (name,source)= str.split("->")
-    except ValueError,e:
-        raise ValueError,"string has wrong format: '%s'" % str
+        (name,source)= str_.split("->")
+    except ValueError:
+        raise ValueError,"string has wrong format: '%s'" % str_
     name= name.rstrip()
     source= source.strip()
     return(name,source)
@@ -133,6 +134,8 @@ class LslEntry(object):
     This class is used to parse a single line of the
     output of the "ls -l" command under unix.
     """
+    # pylint: disable= too-many-instance-attributes
+    # pylint: disable= line-too-long
     def __init__(self, text="",year=None):
         """parses a single line of the output of "ls -l"
 
@@ -186,6 +189,7 @@ class LslEntry(object):
         self.symlink_to  = ""
         if text!="":
             self.parse(text,year)
+    # pylint: enable= line-too-long
     def __str__(self):
         """converts the data to a string.
         """
@@ -202,11 +206,11 @@ class LslEntry(object):
         st= self.__str__()
         return "LslEntry('%s')" % st
 
-    def parse(self,str,year=None):
+    def parse(self,str_,year=None):
         """parses a line of the output of the "ls -l" command.
 
         """
-        elms= str.strip().split()
+        elms= str_.strip().split()
         token_no= len(elms)
         self.mode_string= elms[0]
         self.hardlinks  = int(elms[1])
@@ -215,13 +219,15 @@ class LslEntry(object):
         self.size       = long(elms[4])
         elms= elms[5:]
         (self.timestamp,elms)= _datetime_of_lsl_tokenlist(elms, year)
-        self.name= _token_subtract(str,token_no-len(elms))
+        self.name= _token_subtract(str_,token_no-len(elms))
         if self.is_symlink():
             (self.symlink_from,self.symlink_to)= _parse_lsl_symlink(self.name)
             self.name= self.symlink_from
     def is_symlink(self):
+        """return True if it is a symlink."""
         return self.mode_string[0]=="l"
     def is_dir(self):
+        """return True if it is a directory."""
         return self.mode_string[0]=="d"
 
 class LslEntries(object):
@@ -239,7 +245,7 @@ class LslEntries(object):
     lrwxrwxrwx   1 pfeiffer pfeiffer        18 2009-07-09 11:38 pylib -> devel/python/pylib
     -rw-rw-r--   1 pfeiffer pfeiffer   5464500 2009-07-28 13:35 python2.ps
     """
-    def __init__(self, text="", lines=[], year= None):
+    def __init__(self, text="", lines=None, year= None):
         """create the LslEntries object.
 
         parameters:
@@ -254,16 +260,19 @@ class LslEntries(object):
                        default of the unix time library is used which
                        is "1900".
         """
+        if lines is None:
+            lines= []
         self._entries= {}
         self.parse(text,lines,year)
     def append(self, entry):
         """append a single LslEntry to the list.
         """
         self._entries[entry.name]= entry
-    def parse(self, text="", lines=[], year= None):
+    def parse(self, text="", lines=None, year= None):
+        """parse a text."""
         if text!="":
             lines= text.splitlines()
-        if len(lines)==0:
+        if lines is None:
             return
         for line in lines:
             if line=="" or line.isspace():
@@ -273,20 +282,22 @@ class LslEntries(object):
             entry= LslEntry(line, year)
             self._entries[entry.name]= entry
     def names(self):
+        """return names."""
         return sorted(self._entries.keys())
     def items(self):
+        """return items."""
         for name in self.names():
             yield (name,self._entries[name])
     def __str__(self):
         """print contents like "ls -l" would do.
         """
         lines= []
-        for name,entry in self.items():
+        for _,entry in self.items():
             lines.append(str(entry))
         return "\n".join(lines)
     def __repr__(self):
         """return repr-string of the object."""
-        lines= [str(i) for n,i in self.items()]
+        lines= [str(i) for _,i in self.items()]
         text= "\n".join(lines)
         return "LslEntries('''\n%s''')" % text
 
