@@ -23,60 +23,63 @@
 
 # pylint: disable= invalid-name, bad-whitespace
 
-import time
 import datetime
 import sys
+import subprocess
+
 try:
-    from ca import _ca
-    import ca
+    import epics
 except ImportError:
-    sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
-                     __name__)
+    sys.stderr.write(("WARNING: (in %s.py) mandatory module epics "
+                      "(aka 'pyepics') not found\n") % __name__)
 
 assert sys.version_info[0]==3
 
 # pylint: disable=invalid-name
 
-#import ptimezone
+VERSION="1.1"
+TIMEOUT= 0.5
 
-def caget(pv,type_=float, tmo=0.1, maxtmo=5):
-    """reads a single value with timestamp.
+def _system(cmd, catch_stdout=True):
+    """execute a command.
 
-    parameters:
-        pv      -- the name of the process variable
-        type_   -- the python type wanted, currently
-                   supported are int, float and str
-        tmo     -- the internal sleep time, this times
-                   the maxtmo parameter gives the overall
-                   timeout
-        maxtmo  -- the number of times the function tries
-                   to get a value
-    returns:
-        a tuple consisting of the value and a datetime.datetime
-        object that is the epics timestamp.
+    execute a command and return the programs output
+    may raise:
+    IOError(errcode,stderr)
+    OSError(errno,strerr)
+    ValueError
     """
-    typemap= { int : ca.DBR_TIME_LONG,
-               float: ca.DBR_TIME_DOUBLE,
-               str: ca.DBR_TIME_STRING
-             }
-    ch= ca.channel(pv)
-    ch.wait_conn()
-    if not ch.isConnected():
-        raise ca.caError("no connection to PV '%s'" % pv)
-    epicstype= typemap.get(type_)
-    if epicstype is None:
-        raise ValueError("unsupported type: '%s'" % type_)
-    ch.get(Type= epicstype)
-    ch.flush()
-    while not ch.updated:
-        time.sleep(tmo)
-        maxtmo -=tmo
-        if maxtmo <=0:
-            ch.clear()
-            raise ca.caError("unable to get value for PV '%s'" % pv)
-    # garbage collection of ch will remove the channel access connection
-    ch.clear()
-    return (ch.val, datetime.datetime.fromtimestamp(ca.TS2UTC(ch.ts)))
+    def to_str(data):
+        """decode byte stream to unicode string."""
+        if data is None:
+            return None
+        return data.decode()
+    if catch_stdout:
+        stdout_par=subprocess.PIPE
+    else:
+        stdout_par=None
+
+    p= subprocess.Popen(cmd, shell=True,
+                        stdout=stdout_par, stderr=subprocess.PIPE,
+                        close_fds=True)
+    (child_stdout, child_stderr) = p.communicate()
+    if p.returncode!=0:
+        raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % \
+                      (cmd,to_str(child_stderr)))
+    return to_str(child_stdout)
+
+def idcp_prefix(st):
+    """get idcp devicename by calling "iddb" utility."""
+    e_= None
+    try:
+        # may raise IOError when the insertion device is unknown:
+        result= _system("iddb devicename %s" % st)
+        return result.strip()
+    except IOError as e:
+        # complicated in order to support Python 3.2.3:
+        e_= e
+    if e_ is not None:
+        raise ValueError("error while calling iddb: %s" % str(e_))
 
 def datetime_from_string(st):
     """parse a string like "09-OCT-2009 16:27:09"."""
@@ -85,20 +88,6 @@ def datetime_from_string(st):
 def datetime_from_iso(st):
     """parse a string like "2009-10-09T16:27:09"."""
     return datetime.datetime.strptime(st,"%Y-%m-%dT%H:%M:%S")
-
-def boot_time_from_uptime(pv_prefix):
-    """return the time when the IOC was rebooted.
-
-    parameters:
-        pv_prefix -- the PV prefix for PV's on the IOC
-    returns:
-        the boottime as a datetime.datetime object
-
-    This requires that the IOC has a record named "pv_prefix:uptime".
-    """
-    (uptime, timestamp)= caget(pv_prefix+":uptime",int)
-    td= datetime.timedelta(seconds=uptime)
-    return timestamp-td
 
 def boot_time_from_rebootTime(pv_prefix):
     """return the time when the IOC was rebooted.
@@ -112,7 +101,12 @@ def boot_time_from_rebootTime(pv_prefix):
     that contains the reboot time in the format "%d-%b-%Y %H:%M:%S",
     e.g. "09-OCT-2009 16:27:09".
     """
-    (val, _)= caget(pv_prefix+":rebootTime",str)
+    pvname= pv_prefix+":rebootTime"
+    pv=epics.PV(pvname, connection_timeout= TIMEOUT)
+    val= pv.get(timeout=TIMEOUT)
+    del pv # cleanup
+    if val is None:
+        raise IOError("couldn't read "+pvname)
     return datetime_from_string(val)
 
 def boot_time_from_bootTime(pv_prefix):
@@ -127,7 +121,12 @@ def boot_time_from_bootTime(pv_prefix):
     that contains the reboot time in the format "%Y-%m-%dT%H:%M:%S",
     e.g. "2009-10-21T16:27:09".
     """
-    (val, _)= caget(pv_prefix+":bootTime",str)
+    pvname= pv_prefix+":bootTime"
+    pv= epics.PV(pvname, connection_timeout= TIMEOUT)
+    val= pv.get(timeout=TIMEOUT)
+    del pv # cleanup
+    if val is None:
+        raise IOError("couldn't read "+pvname)
     return datetime_from_iso(val)
 
 def ca_try(call_list):
@@ -137,11 +136,9 @@ def ca_try(call_list):
     for (func, arg) in call_list:
         try:
             return func(arg)
-        except _ca.error as e:
+        except IOError as e_:
             # ca error, try next function:
-            pass
-        except ca.caError as e:
-            # ca error, try next function:
+            e= e_
             pass
         # any other error, continue exception
     if e is None:
@@ -152,47 +149,6 @@ def ca_try(call_list):
     raise IOError("all channel access IO failed, diagnostics: \n%s" % \
             ("\n".join(l)))
     # the program should never get here:
-
-def boot_time_from_vxstats(pv_prefix):
-    """return the time when the IOC was rebooted.
-
-    parameters:
-        pv_prefix -- the PV prefix for PV's on the IOC
-    returns:
-        the boottime as a datetime.datetime object
-
-    This requires that the IOC has a record named "pv_prefix:cpuScanPeriod"
-    and that this record was processed only once, when the IOC
-    was rebooted.
-    """
-    (_, timestamp)= caget(pv_prefix+":cpuScanPeriod",float)
-    return timestamp
-
-idcp_prefix_map= { \
-                   "idcp90"  : "U125IL2RP",
-                   "idcp3"   : "U125ID2R",
-                   "idcp5"   : "UE56ID3R",
-                   "idcp6"   : "U41IT3R",
-                   "idcp7"   : "U49ID4R",
-                   "idcp8"   : "UE49IT4R",
-                   "idcp9"   : "UE52ID5R",
-                   "idcp10"  : "UE46IT5R",
-                   "idcp11"  : "UE56ID6R",
-                   "idcp110" : "U139ID6R",
-                   "idcp12"  : "UE48IT6R",
-                   "idcp120" : "U17IT6R",
-                   "idcp13"  : "UE112ID7R",
-                   "idcp15"  : "U49ID8R",
-                   "idcp99"  : "U1IV",
-                 }
-
-def idcp_prefix(name):
-    """returns the undulator prefix for an insertion device IOC.
-    """
-    pre= idcp_prefix_map.get(name)
-    if pre is None:
-        raise ValueError("unknown idcp name: '%s'" % name)
-    return pre
 
 def boottime(link_name):
     """returns the boot-time for an IOC.
@@ -208,17 +164,16 @@ def boottime(link_name):
     """
     type_= "BESSY"
     link= (link_name.split(".",1)[0]).lower()
-    try:
+    if link.startswith("idcp"):
         devname= idcp_prefix(link)
         type_= "IDCP"
-    except ValueError as _:
+    else:
         devname= link.upper()
     if link.endswith("p"):
         type_= "MLS"
 
     if type_== "IDCP":
-        funcs= [(boot_time_from_bootTime, devname),
-                (boot_time_from_uptime, devname)]
+        funcs= [(boot_time_from_bootTime, devname)]
     else:
         funcs= [(boot_time_from_bootTime, devname),
                 (boot_time_from_rebootTime, devname)]
