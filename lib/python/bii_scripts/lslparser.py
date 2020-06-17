@@ -70,7 +70,8 @@ def _datetime_of_lsl_tokenlist(list,year=None):
     parameters:
         list    -- the list of strings that is parsed
         year    -- the year that is used when the date string
-                   contains no year (optional)
+                   contains no year (optional). If this is not given and the
+                   date string contains no year, the current year is used.
 
     returns:
         (date,newlist) where <date> is a datetime.datetime object
@@ -80,9 +81,9 @@ def _datetime_of_lsl_tokenlist(list,year=None):
     Here are some examples:
     >>> _datetime_of_lsl_tokenlist("2009-03-16 14:46 idcp8 ->".split())
     (datetime.datetime(2009, 3, 16, 14, 46), ['idcp8', '->'])
-    >>> _datetime_of_lsl_tokenlist("Oct  9 10:42 idcp13 ->".split())
+    >>> _datetime_of_lsl_tokenlist("Oct  9 10:42 idcp13 ->".split(), 1900)
     (datetime.datetime(1900, 10, 9, 10, 42), ['idcp13', '->'])
-    >>> _datetime_of_lsl_tokenlist(" Oct  9 10:42 idcp13 ->".split())
+    >>> _datetime_of_lsl_tokenlist(" Oct  9 10:42 idcp13 ->".split(), 1900)
     (datetime.datetime(1900, 10, 9, 10, 42), ['idcp13', '->'])
     >>> _datetime_of_lsl_tokenlist(" Oct  9 2007 idcp13 ->".split())
     (datetime.datetime(2007, 10, 9, 0, 0), ['idcp13', '->'])
@@ -146,7 +147,7 @@ class LslEntry(object):
 
         Here are some examples:
 
-        >>> l= LslEntry("lrwxr-xr-x   1 idadm    expermt        27 Oct  9 13:14 idcp13 -> ../dist/2006-10-09T10:33:09")
+        >>> l= LslEntry("lrwxr-xr-x   1 idadm    expermt        27 Oct  9 13:14 idcp13 -> ../dist/2006-10-09T10:33:09", 1900)
         >>> print l
         lrwxr-xr-x   1    idadm  expermt        27 1900-10-09 13:14 idcp13 -> ../dist/2006-10-09T10:33:09
         >>> l= LslEntry("lrwxr-xr-x   1 idadm    expermt        27 Oct  9 2007 13:14 idcp13 -> ../dist/2006-10-09T10:33:09")
@@ -159,14 +160,14 @@ class LslEntry(object):
         True
         >>> l.is_dir()
         False
-        >>> l= LslEntry("-rwxr-xr-x   1 idadm    expermt        27 Oct  9 13:14 idcp13")
+        >>> l= LslEntry("-rwxr-xr-x   1 idadm    expermt        27 Oct  9 13:14 idcp13", 1900)
         >>> print l
         -rwxr-xr-x   1    idadm  expermt        27 1900-10-09 13:14 idcp13
         >>> l.is_symlink()
         False
         >>> l.is_dir()
         False
-        >>> l= LslEntry("drwxr-xr-x   1 idadm    expermt        27 Oct  9 13:14 dist")
+        >>> l= LslEntry("drwxr-xr-x   1 idadm    expermt        27 Oct  9 13:14 dist", 1900)
         >>> print l
         drwxr-xr-x   1    idadm  expermt        27 1900-10-09 13:14 dist
         >>> l.is_symlink()
