@@ -369,11 +369,10 @@ POD_PERLLIB_LIST= \
 # python2 libraries with embedded pydoc documentation
 PYDOC_PYTHON2LIB_LIST= $(addprefix bii_scripts/, \
 	BDNS.py \
-	boottime.py \
-	dateutils.py \
 	canlink.py\
 	canLink.py\
 	csv2epicsFuncs.py\
+	dateutils.py \
         p_enum.py \
 	epicsUtils.py\
 	FilterFile.py \
@@ -385,7 +384,6 @@ PYDOC_PYTHON2LIB_LIST= $(addprefix bii_scripts/, \
 	ptestlib.py \
 	putil.py \
 	rdump.py \
-	rsync_dist_lib.py \
 	sqlpotion.py \
 	numpy_table.py \
 	numpy_util.py \
@@ -393,7 +391,13 @@ PYDOC_PYTHON2LIB_LIST= $(addprefix bii_scripts/, \
 
 # python3 libraries with embedded pydoc documentation
 PYDOC_PYTHON3LIB_LIST= $(addprefix bii_scripts3/, \
+	boottime.py \
 	canlink.py \
+	dateutils.py \
+	FilterFile.py \
+	lslparser.py \
+	maillike.py \
+	rsync_dist_lib.py \
 	)
 
 # scripts that have embedded documentation that can be HTML converted
