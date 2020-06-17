@@ -208,11 +208,11 @@ def my_strptime(st, format_):
 def parse_lsl_shortdate(st,year=None):
     """parse a possibly yearless date produced from ls -l.
 
-    This function parses a date that was produced by "ls -l".
-    It returns a datetime.datetime object.  Note that this function sets the
-    year to 1900, if not specified differently by it's second parameter.  Note
-    also, that 29th of February is an invalid date for the year 1900.
-    The function currently tries the default locale and the de_DE locale.
+    This function parses a date that was produced by "ls -l".  It returns a
+    datetime.datetime object.  Note that this function sets the year to the
+    current year if not specified differently by it's second parameter.  Note
+    also, that 29th of February could be invalid for the current year.  The
+    function currently tries the default locale and the de_DE locale.
 
     parameters:
         st     -- the string to parse
