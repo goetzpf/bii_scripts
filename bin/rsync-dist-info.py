@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 # pylint: disable=invalid-name
 
@@ -297,33 +297,12 @@ import os
 import re
 
 import datetime
-from bii_scripts import dateutils
-import bii_scripts.rsync_dist_lib as rd
-from bii_scripts import boottime
+from bii_scripts3 import dateutils
+import bii_scripts3.rsync_dist_lib as rd
+from bii_scripts3 import boottime
+from functools import reduce
 
-# On host "elbe" and "stretch", there is a python module "ca" installed at
-# "/opt/Epics/extensions/python/lib/python2.7". This module however, is
-# incompatible with this script. We have to take "ca.py" from
-# "/opt/csr/lib/python". A proper solution would be to set PYTHONPATH correctly
-# (with "/opt/csr/lib/python" first), which would have to be configured in
-# "/opt/csr/setup.d/setup.sh". However, it is unclear if this would break some
-# other scripts. So for now we change the module search path in this script:
-
-sys.path=[x for x in sys.path \
-          if not \
-          x.startswith("/opt/Epics/extensions/python/lib/python2.7")]
-
-# pylint: disable=unused-import
-try:
-    from ca import _ca
-    import ca
-except ImportError:
-    sys.stderr.write("WARNING: (in %s.py) mandatory module ca not found\n" % \
-                     __name__)
-# pylint: enable=unused-import
-
-
-assert sys.version_info[0]==2
+assert sys.version_info[0]==3
 
 # version of the program:
 MY_VERSION= "1.1"
@@ -339,9 +318,9 @@ def boot_times(objs, verbose=False, csv=False):
         d= d2-d1
         return "%6.1f" % (d.days+d.seconds/86400.0)
     # get all names, but only the names that are not deleted:
-    names= [n for n in objs.logByName.keys() if objs.logByName.name_exists(n)]
+    names= [n for n in list(objs.logByName.keys()) if objs.logByName.name_exists(n)]
     act_dist= {}
-    for name, entries in objs.logByName.items():
+    for name, entries in list(objs.logByName.items()):
         act_dist[name]= entries[-1]
     if verbose:
         h_format= "%(name)-15s %(version)-19s  %(activated)-19s  "+\
@@ -356,19 +335,19 @@ def boot_times(objs, verbose=False, csv=False):
         h_format= "%(name)-15s %(version)-19s  %(activated)-19s  "+\
                         "%(booted)-19s  %(comment)s"
         r_format= h_format
-    print h_format % {"name":"name",
+    print(h_format % {"name":"name",
                       "version":"version",
                       "activated":"activated",
                       "booted":"booted",
                       "days":"days running",
                       "comment":"comment"
-                     }
+                     })
     today= datetime.datetime.today()
     for name in names:
         (activated,version)= act_dist[name]
         try:
             booted= boottime.boottime(name)
-        except IOError, _:
+        except IOError as _:
             booted= None
             comment="IOC cannot be contacted!"
         if version is None:
@@ -386,7 +365,7 @@ def boot_times(objs, verbose=False, csv=False):
                                   daydiff(activated,today).strip()
                 else:
                     comment=""
-        print r_format % \
+        print(r_format % \
                { "name":name,
                  "version": str(version) if version is not None else "-",
                  "activated": dateutils.isodatetime(activated),
@@ -394,7 +373,7 @@ def boot_times(objs, verbose=False, csv=False):
                            if booted is not None else "-",
                  "days": daydiff(booted,today),
                  "comment": comment,
-               }
+               })
 
 
 def process(options):
@@ -466,7 +445,7 @@ def process(options):
         # print wanted_versions
         # print "-" * 20
         distLog= distLog.select(wanted_versions)
-        print distLog
+        print(distLog)
         sys.exit(0)
 
     if options.fallback_info:
@@ -485,8 +464,8 @@ def process(options):
         # remove the <None> element from existent_versions:
         existent.remove(None)
         idles= existent_versions().difference(objs.logByName.versions_set())
-        print "idle versions:"
-        print "\n".join(sorted(idles))
+        print("idle versions:")
+        print("\n".join(sorted(idles)))
         return
 
     if options.filter_names:
@@ -529,7 +508,7 @@ def process(options):
             try:
                 since_date= \
                     dateutils.parse_isodate(options.filter_inactive_since)
-            except ValueError,_:
+            except ValueError as _:
                 sys.exit("invalid date:%s" % options.filter_inactive_since)
         keep= objs.versionActivities.inactive_versions(since_date)
         # keep the Version==<None> entries:
@@ -566,15 +545,15 @@ def process(options):
     elif options.lifetimes:
         objs.versionLifetimes.print_with_actives(objs.versionActivities)
     else:
-        print "error: one of -n, -v or -l must be specified"
+        print("error: one of -n, -v or -l must be specified")
         sys.exit(1)
     if options.fallback_info:
-        print "\nget information on a versions (comma separated list) with:"
-        print "rsync-dist-info.py -c %s --version-info [VERSIONS]" % \
-              options.config
-        print "\nperform a fallback with:"
-        print "rsync-dist.pl -c %s change-links [VERSION],%s" % \
-              (options.config, options.fallback_info)
+        print("\nget information on a versions (comma separated list) with:")
+        print("rsync-dist-info.py -c %s --version-info [VERSIONS]" % \
+              options.config)
+        print("\nperform a fallback with:")
+        print("rsync-dist.pl -c %s change-links [VERSION],%s" % \
+              (options.config, options.fallback_info))
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -582,19 +561,19 @@ def script_shortname():
 
 def print_doc():
     """print embedded reStructuredText documentation."""
-    print __doc__
+    print(__doc__)
 
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: a tool for processing the rsync-dist link log\n" % \
-          script_shortname()
+    print("%-20s: a tool for processing the rsync-dist link log\n" % \
+          script_shortname())
 
 def _test():
     """does a self-test of some functions defined here."""
-    print "performing self test..."
+    print("performing self test...")
     import doctest
     doctest.testmod()
-    print "done!"
+    print("done!")
 
 def main():
     """The main function.
