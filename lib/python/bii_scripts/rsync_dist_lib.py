@@ -9,12 +9,12 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -24,14 +24,15 @@ This module contains parser classes for the rsync-dist log files
 as well as classes to generate reports on link-logs.
 """
 
+# pylint: disable= invalid-name, bad-whitespace, too-many-lines
+
 import sys
 import datetime
 import os.path
-import re
 import subprocess
 
-from bii_scripts.maillike import MailLikeRecord, MailLikeRecords
-from bii_scripts.lslparser import LslEntry, LslEntries
+from bii_scripts.maillike import MailLikeRecords
+from bii_scripts.lslparser import LslEntries
 from bii_scripts import dateutils
 
 assert sys.version_info[0]==2
@@ -56,7 +57,7 @@ def _system(cmd, catch_stdout=True):
     (child_stdout, child_stderr) = p.communicate()
     if p.returncode!=0:
         raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
-    return(child_stdout)
+    return child_stdout
 
 def _prset(s):
     """print a set, only for python3 compabitability of the doctests."""
@@ -115,6 +116,8 @@ def get_dist_ls(config_file, extra_opts=""):
     result= _system(cmd)
     return LslEntries(result)
 
+# pylint: disable= line-too-long
+
 class LinkLs(object):
     """get directory information on all distributions in the dist-dir.
 
@@ -153,7 +156,7 @@ class LinkLs(object):
     >>> for n,l in d.items():
     ...   print n,":"
     ...   print "  ",l
-    ... 
+    ...
     BAWATCH :
        lrwxrwxrwx   1   iocadm     iocs        56 2009-02-18 15:12 BAWATCH -> /dist/2009-02-18T15:12:20
     IOC1S11G :
@@ -174,12 +177,6 @@ class LinkLs(object):
     """
     def __init__(self, lsl_entries):
         """initializes the object from an LslEntries object."""
-        def is_iso(st):
-            try:
-                d= dateutils.parse_isodatetime(name)
-                return True
-            except ValueError,e:
-                return False
         self._dict= {}
         for name,entry in lsl_entries.items():
             if not entry.is_symlink():
@@ -207,7 +204,7 @@ class LinkLs(object):
     def _lsl_entries(self):
         """create a LslEntries object."""
         lsl= LslEntries()
-        for n,l in self.items():
+        for _,l in self.items():
             lsl.append(l)
         return lsl
     def __str__(self):
@@ -216,6 +213,8 @@ class LinkLs(object):
     def __repr__(self):
         """returns a repr-string representation of the object."""
         return "LinkLs(%s)" % repr(self._lsl_entries())
+
+# pylint: enable= line-too-long
 
 class DistLs(object):
     """get directory information on all distributions in the dist-dir.
@@ -277,11 +276,12 @@ class DistLs(object):
     """
     def __init__(self, lsl_entries):
         """initializes the object from an LslEntries object."""
-        def is_iso(st):
+        def is_iso(name):
+            """test if date is an iso date."""
             try:
-                d= dateutils.parse_isodatetime(name)
+                dateutils.parse_isodatetime(name)
                 return True
-            except ValueError,e:
+            except ValueError:
                 return False
         self._dict= {}
         for name,entry in lsl_entries.items():
@@ -310,7 +310,7 @@ class DistLs(object):
     def _lsl_entries(self):
         """create a LslEntries object."""
         lsl= LslEntries()
-        for n,l in self.items():
+        for _,l in self.items():
             lsl.append(l)
         return lsl
     def __str__(self):
@@ -436,8 +436,8 @@ class DistLog(object):
         if maillike_records is not None:
             self.convert(maillike_records)
     def convert(self, maillike_records):
-        """reads the contents of an MailLikeRecords object."""
-        """convert data in maillike records.
+        """reads the contents of an MailLikeRecords object.
+           convert data in maillike records.
         """
         for record in maillike_records:
             self._dict[record["VERSION"]]= record
@@ -463,7 +463,7 @@ class DistLog(object):
     def _maillikerecords(self):
         """returns a MailLikeRecords object."""
         records= MailLikeRecords()
-        for v,r in self.items():
+        for _,r in self.items():
             records.append(r)
         return records
     def __str__(self):
@@ -471,12 +471,13 @@ class DistLog(object):
         return str(self._maillikerecords())
     def __repr__(self):
         """returns a repr-string representation of the object."""
-        return "DistLog(%s)" % repr(self._maillikerecords())
+        return "%s(%s)" % (self.__class__.__name__,
+                           repr(self._maillikerecords()))
     def select(self, wanted_versions):
         """copy wanted versions from another object to this one."""
-        new= DistLog()
+        new= self.__class__()
         for v in wanted_versions:
-            new._dict[v]= self._dict[v]
+            new._dict[v]= self._dict[v] # pylint: disable= protected-access
         return new
 
 def my_basename(path):
@@ -630,8 +631,8 @@ class LLogByName(object):
     def versions_set(self):
         """returns a set with all versions."""
         v= set()
-        for n,l in self.items():
-            for date,ver in l:
+        for _,l in self.items():
+            for _,ver in l:
                 if ver is not None:
                     v.add(ver)
         return v
@@ -653,29 +654,32 @@ class LLogByName(object):
             yield(n,self._dict[n])
     def select_names(self, keys, use_regexp= False):
         """copy wanted names from another object to this one."""
-        new= LLogByName()
+        # pylint: disable= consider-iterating-dictionary
+        new= self.__class__()
         if not use_regexp:
             for n in keys:
                 v= self._dict.get(n)
                 if v is not None:
-                    new._dict[n]= v
+                    new._dict[n]= v # pylint: disable= protected-access
         else:
             for n in self._dict.keys():
                 for rx in keys:
                     if rx.match(n):
+                        # pylint: disable= protected-access
                         new._dict[n]= self._dict[n]
-        new._calc_activated()
+        new._calc_activated() # pylint: disable= protected-access
         return new
     def select_versions(self, versions):
         """copy wanted versions from another object to this one."""
-        new= LLogByName()
+        new= self.__class__()
         for name,entries in self.items():
             for date,version in entries:
                 if version in versions:
+                    # pylint: disable= protected-access
                     new._append(name, date, version)
         for name,ver in self._activated.items():
             if ver in versions:
-                new._activated[name]= ver
+                new._activated[name]= ver # pylint: disable= protected-access
         return new
     def _parse(self, maillike_records):
         """parses the log_struc-links file by name.
@@ -713,6 +717,7 @@ class LLogByName(object):
                 self._append(n,date,changed_versions[n])
         # fix lists in case the log-links file is not
         # strictly sorted by date:
+        # pylint: disable= consider-iterating-dictionary
         for n in self._dict.keys():
             self._dict[n]= sorted(self._dict[n], key=lambda x:x[0])
         self._calc_activated()
@@ -733,7 +738,7 @@ class LLogByName(object):
         for name in keys:
             if not self._dict.has_key(name):
                 raise ValueError, "name '%s' not found" % name
-            for (date,version) in self._dict[name]:
+            for (_,version) in self._dict[name]:
                 if version is not None:
                     version_set.add(version)
         return version_set
@@ -902,10 +907,12 @@ class LLogByVersion(object):
         if not use_regexp:
             selected_names= set(names)
             def find_names(myset):
+                """find names."""
                 return myset.intersection(selected_names)
         else:
             selected_names= names
             def find_names(myset):
+                """find names."""
                 found=set()
                 for elm in myset:
                     for rx in selected_names:
@@ -920,9 +927,10 @@ class LLogByVersion(object):
                 diff= name_set.symmetric_difference(old_set)
                 old_set= name_set
                 # none of the wanted names present, continue:
-                if len(find_names(diff))==0:
+                if not find_names(diff):
                     continue
                 # new._dict[version]= {} if it does not yet exist:
+                # pylint: disable= protected-access
                 d= new._dict.setdefault(version,{})
                 # add names that are wanted:
                 d[date]= find_names(name_set)
@@ -932,6 +940,7 @@ class LLogByVersion(object):
         new= LLogByVersion()
         for version,datedict in self.items():
             if version in versions:
+                # pylint: disable= protected-access
                 new._dict[version]= datedict
         return new
     def convert(self,namesortedlog=None):
@@ -940,12 +949,12 @@ class LLogByVersion(object):
         This function converts the LLogByName object
         to an LLogByVersion object.
         """
+        # pylint: disable= too-many-locals
         # a dict mapping versions to a dict mapping
         # a date to a set of names:
         # a dict mapping a version to a last-date:
         if namesortedlog is None:
             return
-        last_date_of_version={}
         for name, nlogs in namesortedlog.items():
             old_version= None
             for entry in nlogs:
@@ -973,7 +982,7 @@ class LLogByVersion(object):
                     else:
                         try:
                             cur_set.remove(name)
-                        except KeyError,e:
+                        except KeyError:
                             print "LLogByVersion.convert(): "+\
                                   "warning: not found (ver,date,name): '%s' '%s' '%s'" % \
                                   (version,d,name)
@@ -998,7 +1007,7 @@ class LLogByVersion(object):
             lines.append("%s:" % version)
             for date in sorted(datedict.keys()):
                 names= sorted(datedict[date])
-                if len(names)==0:
+                if not names:
                     lines.append("%24s" % date)
                 else:
                     lines.append("%24s    %s" % (date, " ".join(names)))
@@ -1111,6 +1120,7 @@ class LLogActivity(object):
     2008-10-16T12:42:03
     """
     def __init__(self, versionsortedlog=None, todays_date=None):
+        # pylint: disable= unused-argument
         self._dict= {}
         self.convert(versionsortedlog)
     def keys(self):
@@ -1137,7 +1147,7 @@ class LLogActivity(object):
         new= LLogActivity()
         for v in versions:
             if self.has_key(v):
-                new._dict[v]= self[v]
+                new._dict[v]= self[v] # pylint: disable= protected-access
         return new
     def active_versions(self):
         """returns a set of versions that are still active."""
@@ -1185,7 +1195,7 @@ class LLogActivity(object):
             dates= sorted(version_dict.keys())
             for d in dates:
                 name_set= version_dict[d]
-                if len(name_set)==0:
+                if not name_set:
                     # no longer in use
                     if in_use_since is None:
                         continue
@@ -1331,7 +1341,7 @@ class LLogLifeTimes(object):
         new= LLogLifeTimes()
         for v in versions:
             if self.has_key(v):
-                new._dict[v]= self[v]
+                new._dict[v]= self[v] # pylint: disable= protected-access
         return new
     def convert(self, llogactivity, todays_date=None):
         """calculate lifetimes of versions in fractional days.
