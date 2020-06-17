@@ -20,6 +20,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# pylint: disable= invalid-name, bad-whitespace
 # pylint: disable=line-too-long
 
 """
@@ -290,10 +291,15 @@ Reference of command line options
 
 # pylint: enable=line-too-long
 
-from optparse import OptionParser
+from optparse import OptionParser # pylint: disable=deprecated-module
 import sys
 import os
 import re
+
+import datetime
+from bii_scripts import dateutils
+import bii_scripts.rsync_dist_lib as rd
+from bii_scripts import boottime
 
 # On host "elbe" and "stretch", there is a python module "ca" installed at
 # "/opt/Epics/extensions/python/lib/python2.7". This module however, is
@@ -303,7 +309,6 @@ import re
 # "/opt/csr/setup.d/setup.sh". However, it is unclear if this would break some
 # other scripts. So for now we change the module search path in this script:
 
-import platform
 sys.path=[x for x in sys.path \
           if not \
           x.startswith("/opt/Epics/extensions/python/lib/python2.7")]
@@ -317,10 +322,6 @@ except ImportError:
                      __name__)
 # pylint: enable=unused-import
 
-import datetime
-from bii_scripts import dateutils
-import bii_scripts.rsync_dist_lib as rd
-from bii_scripts import boottime
 
 assert sys.version_info[0]==2
 
@@ -808,5 +809,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
