@@ -9,12 +9,12 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -28,18 +28,20 @@ spaces. Everything that follows including following lines
 is regarded as field value until a new line starts with
 a field name. A colon may be escaped with "\" in order
 to be able to have words followed by colons in the
-field value part. 
+field value part.
 
 Records are separated by lines that contain two
 percent characters "%%".
 """
+
+# pylint: disable= invalid-name, bad-whitespace
 
 import sys
 import re
 
 assert sys.version_info[0]==2
 
-def _empty_str(str):
+def _empty_str(str_):
     """tests if a string is empty or consists only of whitespaces.
 
     Here are some examples:
@@ -50,9 +52,9 @@ def _empty_str(str):
     >>> _empty_str("")
     True
     """
-    if len(str)==0:
+    if not str_:
         return True
-    return str.isspace()
+    return str_.isspace()
 
 class MailLikeRecord(object):
     r"""this class holds the data of a single record.
@@ -106,7 +108,7 @@ class MailLikeRecord(object):
     >>> r.has_key("FIELD7")
     False
     """
-    def __init__(self,text="",linelist=[]):
+    def __init__(self,text="",linelist=None):
         """initializes the object.
 
         parameters:
@@ -121,7 +123,7 @@ class MailLikeRecord(object):
         self._fielddict= {}
         if text!="":
             self.parse_text(text)
-        elif len(linelist)>0:
+        elif linelist:
             self.parse_lines(linelist)
     def keys(self):
         """returns a list of keys in the order they were found.
@@ -150,6 +152,7 @@ class MailLikeRecord(object):
         """prints the object in the maillike format."""
         rx_fieldlike= re.compile(r'^(\w+):')
         def quote(st):
+            """escape colon in string"""
             return re.sub(rx_fieldlike,r'\1\\:',st)
         lines= []
         for field in self._fieldlist:
@@ -177,6 +180,7 @@ class MailLikeRecord(object):
         """
         rx_qfield= re.compile(r'^(\w+)\\:')
         def unquote(val):
+            """unescape colon in string."""
             return re.sub(rx_qfield,r'\1:',val)
         rx_field= re.compile(r'^(\w+)(?<!\\):\s*(.*)$')
         curr_field=None
@@ -184,7 +188,7 @@ class MailLikeRecord(object):
         for l in lines:
             if _empty_str(l):
                 l= ""
-            if len(l)==0:
+            if not l:
                 if curr_field is None:
                     continue
                 curr_value.append(l)
@@ -300,16 +304,16 @@ class MailLikeRecords(object):
                         valid_data_found= True
                     else:
                         raise ValueError(("No valid 'maillike' data found "
-                                          "in:\n%s\m") % repr(text))
+                                          "in:\n%s\n") % repr(text))
             if line!="%%":
                 # skip empty lines at the start of records:
-                if len(linebuf)>0 or not _empty_str(line):
+                if linebuf or not _empty_str(line):
                     linebuf.append(line)
             else:
-                if len(linebuf)>0:
+                if linebuf:
                     self._records.append(MailLikeRecord(linelist=linebuf))
                 linebuf=[]
-        if len(linebuf)>0:
+        if linebuf:
             self._records.append(MailLikeRecord(linelist=linebuf))
     def __iter__(self):
         """returns the list of MailLikeRecord records."""
@@ -325,7 +329,7 @@ class MailLikeRecords(object):
         """
         texts=[]
         for r in self:
-            if len(texts)>0:
+            if texts:
                 texts.append("%%\n")
             texts.append(str(r))
         return "".join(texts)
