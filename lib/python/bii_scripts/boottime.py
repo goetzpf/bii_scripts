@@ -21,6 +21,8 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# pylint: disable= invalid-name, bad-whitespace
+
 import time
 import datetime
 import sys
@@ -168,7 +170,7 @@ def boot_time_from_vxstats(pv_prefix):
     (_, timestamp)= caget(pv_prefix+":cpuScanPeriod",float)
     return timestamp
 
-idcp_prefix_map= { 
+idcp_prefix_map= { \
                    "idcp90"  : "U125IL2RP",
                    "idcp3"   : "U125ID2R",
                    "idcp5"   : "UE56ID3R",
@@ -223,4 +225,3 @@ def boottime(link_name):
         funcs= [(boot_time_from_bootTime, devname),
                 (boot_time_from_rebootTime, devname)]
     return ca_try(funcs)
-
