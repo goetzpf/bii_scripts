@@ -697,7 +697,7 @@ Python Libraries
 
 **boottime.py**
   | get the boot time of an BESSY IOC by querying a certain pv.
-  | `documentation <python/bii_scripts/boottime.html>`__
+  | `documentation <python/bii_scripts3/boottime.html>`__
 
 **canlink.py**
   | A python version of the perl module canlink.pl. All functions implemented
@@ -783,7 +783,7 @@ Python Libraries
 
 **rsync_dist_lib.py**
   | sync_dist_info classes for parsing rsync-dist log files.
-  | `documentation <python/bii_scripts/rsync_dist_lib.html>`__
+  | `documentation <python/bii_scripts3/rsync_dist_lib.html>`__
 
 **sqlpotion.py**
   | a module with utilities and support functions for sqlalchemy.
