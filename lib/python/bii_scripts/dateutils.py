@@ -229,7 +229,7 @@ def parse_lsl_shortdate(st,year=None):
     >>> parse_lsl_shortdate("Oct  9 10:42b",2005)
     Traceback (most recent call last):
        ...
-    ValueError: time data 'Oct  9 10:42b' does not match any of the known formats: ['%b %d %H:%M %Y', '%d. %b %H:%M %Y', '%b %d %Y'] for locales ['default', 'de_DE.UTF-8']
+    ValueError: time data 'Oct  9 10:42b' does not match any of the known formats: ['%b %d %H:%M %Y', '%d. %b %H:%M %Y', '%d. %b %Y', '%b %d %Y'] for locales ['default', 'de_DE.UTF-8']
     """
     if year is None:
         # if the year is not give, we assume the current year:
