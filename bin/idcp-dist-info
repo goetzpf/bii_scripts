@@ -18,25 +18,47 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-CONFIGFILE_PATH=/opt/OPI/idcp
+set -e
 
-CONFIGFILE_BII=$CONFIGFILE_PATH/rsync-dist.config.BII
-CONFIGFILE_MLS=$CONFIGFILE_PATH/rsync-dist.config.MLS
+SCRIPT_FULL_NAME=$(readlink -e $0)
+MYDIR=$(dirname $SCRIPT_FULL_NAME)
+MYNAME=$(basename $SCRIPT_FULL_NAME)
+TOP=$(readlink -e $MYDIR/..)
+# TOP needed for default bii_scripts.config
 
-CONFIGFILE=$CONFIGFILE_BII
+facility="bii"
+show_versions="no"
+names=""
+list_links="no"
+verbose=""
+dryrun=""
 
 function print_short_help {
-    echo "$0: a small wrapper that calls rsync-dist-info.py"
+    echo "$MYNAME: a small wrapper that calls rsync-dist-info.py"
     echo "options:"
     echo "  -h: this help"
-    echo "  -H: this text PLUS the help from rsync-dist-info.py"
+    echo "  --help: this text PLUS the help from rsync-dist-info.py"
     echo "  --id [ID] : filter for this insertion device"
     echo "  --ids : filter for all ID's that are installed and use"
     echo "      the rsync-dist.pl (Ue56/2 is not in this list)"
     echo "  --id-list : show the known insertion devices and their idcp-name"
-    echo "  --facility [FACILITY]: set the facility, facility may"
+    echo "  --list : just list the link names"
+    echo "  -f --facility [FACILITY]: set the facility, facility may"
     echo "      be 'bii' (default) or 'mls'"
+    echo "  --verbose: show executed command"
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
+    echo 
+    echo "Examples:"
+    echo "  $MYNAME [name]"
+    echo "      shows version information for the given name (IOC)"
+    echo "  $MYNAME --list"
+    echo "      list all known names (IOCS)"
+    echo "  $MYNAME --active"
+    echo "      show all versions still in use"
+    echo "  $MYNAME -v [version]"
+    echo "      shows information for the given version"
+    echo
+    echo "Note: only versions that still exist on the server are shown"
 }
 
 function print_long_help {
@@ -48,27 +70,24 @@ function print_long_help {
     rsync-dist-info.py -h
 }
 
-function list_ids {
-    iddb -a idcp
-    exit 0
-}
-
-facility="bii"
-dryrun=""
-realargs="$@"
-while [ $# -gt 0 ]; do
+args=("$@")
+while true; do
     case "$1" in
       -h)
         print_short_help
         exit 0
         ;;
-      -H)
+      --help)
         print_long_help
         exit 0
         ;;
       --id-list)
         iddb -a idcp
         exit 0
+        ;;
+      --list)
+        list_links="yes"
+        shift
         ;;
       --id)
         prefix=$(iddb prefix "$2" 2>/dev/null)
@@ -77,32 +96,57 @@ while [ $# -gt 0 ]; do
             exit 1
         fi
         opts="$opts --filter-names $prefix"
-        shift
+        shift 2
         ;;
       --idcp)
         opts="$opts --filter-names idcp$2"
-        shift
+        shift 2
         ;;
       --ids)
         ids_par_given="yes"
+        shift
         ;;
-      -n| --names| -v| --versions| -l| --lifetimes| --idle| --boot-times| --version-info)
+      -n| --names| -l| --lifetimes| --idle| --boot-times)
         saveme="$saveme $1"
         cmd_given="yes"
+        shift
+        ;;
+      -v| --versions)
+        saveme="$saveme $1"
+        show_versions="yes"
+        cmd_given="yes"
+        shift
+        ;;
+      --version-info)
+        saveme="$saveme $1 $2"
+        cmd_given="yes"
+        shift 2
+        ;;
+      --filter-names| --filter-names-rx| --filter-versions| --filter-inactive-since)
+        saveme="$saveme $1 $2"
+        shift 2
+        ;;
+      --filter-lifetime-smaller| --filter-lifetime-bigger| --fallback-info)
+        saveme="$saveme $1 $2"
+        shift 2
+        ;;
+      --active)
+        saveme="$saveme -v --filter-active"
+        cmd_given="yes"
+        shift
         ;;
       --last)
         saveme="$saveme $1 $2"
-        shift
         last_given="yes"
+        shift 2
         ;;
-      --facility)
+      -f| --facility)
         facility="no"
         if [ "$2" = "bii" ]; then
             facility="$2"
         fi
         if [ "$2" = "mls" ]; then
             facility="$2"
-            CONFIGFILE=$CONFIGFILE_MLS
         fi
         if [ "$facility" = "no" ]; then
             echo "unknown faciliy: $2"
@@ -110,16 +154,53 @@ while [ $# -gt 0 ]; do
         fi
         shift
         ;;
+      --verbose)
+        verbose="yes"
+        shift
+        ;;
       --dry-run)
         dryrun="yes"
+        shift
         ;;
+      -- ) shift; break ;;
       *)
-        saveme="$saveme $1"
-        #break 2
+        if [ -z "$1" ]; then
+            break;
+        fi
+        if [[ $1 =~ ^- ]]; then
+            saveme="$saveme $1"
+        else
+            names="$names $1"
+        fi
+        shift
         ;;
     esac
-    shift
 done
+
+# read bii_scripts configuration variables:
+if [ -e $MYDIR/bii_scripts.config ]; then
+    . $MYDIR/bii_scripts.config
+else
+    echo "error, file bii_scripts.config not found" >&2
+    exit
+fi
+
+# The share directory is defined by SHARE_INSTALL_DIR from file 
+# bii_scripts.config:
+BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
+
+CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist 
+
+configfile=$CONFIGFILE_PATH/idcp
+if [ "$faciliy" == "MLS" ]; then
+    configfile=$CONFIGFILE_PATH/idcp-mls
+fi
+
+opts="$opts -c $configfile --filter-existent"
+
+if [ $list_links = "yes" ]; then
+    opts="$opts -n -b"
+fi
 
 if [[ -n "$ids_par_given" ]]; then
     # facility in upper-case:
@@ -128,13 +209,20 @@ if [[ -n "$ids_par_given" ]]; then
     opts="$opts --filter-names $installed_ids"
 fi
 
-opts="$opts -c $CONFIGFILE"
-
 if [[ -z "$cmd_given" ]]; then
     opts="$opts -n"
 fi
 if [[ -z "$last_given" ]]; then
     opts="$opts --last 10"
+fi
+
+if [ -n "$names" ]; then
+    names_list=`echo $names | sed -e 's/ \+/,/g'`
+    if [ $show_versions = "no" ]; then
+        opts="$opts --filter-names $names_list"
+    else
+        opts="$opts --filter-versions $names_list"
+    fi
 fi
 
 opts="$opts $saveme"
@@ -144,7 +232,10 @@ opts="$opts $saveme"
 #echo saved word: $saveme
 #echo run real command: "$@"
 #echo "opts: $opts"
-if [[ -z "$dryrun" ]]; then
+if [ -z "$dryrun" ]; then
+    if [ "$verbose" = "yes" ]; then
+        echo "rsync-dist-info.py $opts"
+    fi
     rsync-dist-info.py $opts
 else
     echo "rsync-dist-info.py $opts"
