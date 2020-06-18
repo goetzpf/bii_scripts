@@ -1,6 +1,6 @@
 # Source this script in order to run the scripts locally!
 
-BII_SCRIPTS_TOP=$(dirname $(readlink -e $0))
+BII_SCRIPTS_TOP=$PWD
 
 # make scripts executable:
 chmod u+rwx $BII_SCRIPTS_TOP/bin/*
