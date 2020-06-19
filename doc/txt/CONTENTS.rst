@@ -699,7 +699,7 @@ Python Libraries
 
 **BDNS.py**
   | BESSY device name parser.
-  | `documentation <python/bii_scripts/BDNS.html>`__
+  | `documentation <python/bii_scripts3/BDNS.html>`__
 
 .. _boottime.py:
 

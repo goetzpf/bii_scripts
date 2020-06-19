@@ -391,6 +391,7 @@ PYDOC_PYTHON2LIB_LIST= $(addprefix bii_scripts/, \
 
 # python3 libraries with embedded pydoc documentation
 PYDOC_PYTHON3LIB_LIST= $(addprefix bii_scripts3/, \
+	BDNS.py \
 	boottime.py \
 	canlink.py \
 	dateutils.py \
