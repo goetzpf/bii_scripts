@@ -1,0 +1,9 @@
+How the test works:
+
+cat PVLIST | perl test_bdns.pl > PERL
+cat PVLIST | python2 test_bdns.py > PYTHON
+diff PERL PYTHON
+
+Both files should be equal!
+
+

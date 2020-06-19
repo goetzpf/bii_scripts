@@ -1,7 +1,7 @@
 #/usr/bin/env python
 
 import sys
-import BDNS
+from bii_scripts import BDNS
 
 pvs=[]
 for l in sys.stdin:
