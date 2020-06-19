@@ -32,9 +32,9 @@ remote_context=$darcs_restore_dir/remote-context
 local_context=$darcs_restore_dir/local-context
 local_patches=$darcs_restore_dir/local-patches
 repo=`cat $darcs_restore_dir/defaultrepo`
-darcs get --repo-name=$temp/pre-restored --context=$remote_context $repo || exit
+darcs clone --lazy --repo-name=$temp/pre-restored --context=$remote_context $repo || exit
 darcs apply --allow-conflicts --repodir=$temp/pre-restored $local_patches || exit
-darcs get --repo-name=$restored --context=$local_context $temp/pre-restored || exit
+darcs clone --complete --repo-name=$restored --context=$local_context $temp/pre-restored || exit
 #unrecord the tag
 yes | darcs unrecord --last=1 --repodir=$restored
 #unrecord unadded files
