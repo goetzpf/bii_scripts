@@ -20,7 +20,7 @@
 
 if test $# -ne 2; then
   echo "Restore source tree from remote install directory."
-  echo "usage: $0 [user@host:]install-dir new-source-dir"
+  echo "usage: $(basename $0) [user@host:]install-dir new-source-dir"
   exit
 fi
 test -d $2 && echo "$0: target directory already exists!" && exit
