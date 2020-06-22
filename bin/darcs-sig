@@ -36,6 +36,9 @@ function HELP {
     exit 0
 }
 
+# prevent darcs from creating color codes:
+export DARCS_DONT_COLOR=1
+
 args=("$@")
 show_dir="yes"
 use_pager="no"
