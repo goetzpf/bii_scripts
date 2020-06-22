@@ -45,6 +45,7 @@ function print_short_help {
     echo "      the rsync-dist.pl (Ue56/2 is not in this list)"
     echo "  --id-list : show the known insertion devices and their idcp-name"
     echo "  --list : just list the link names"
+    echo "  --active : show information on all active versions"
     echo "  -f --facility [FACILITY]: set the facility, facility may"
     echo "      be 'bii' (default) or 'mls'"
     echo "  --verbose: show executed command"
