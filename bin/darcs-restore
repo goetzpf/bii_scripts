@@ -25,7 +25,7 @@ if test $# -ne 2; then
 fi
 test -d $2 && echo "$0: target directory already exists!" && exit
 temp=`mktemp -d`
-scp -r $1/.darcs-restore $temp || exit
+scp -q -r $1/.darcs-restore $temp || exit
 darcs_restore_dir=$temp/.darcs-restore
 restored=$2
 remote_context=$darcs_restore_dir/remote-context
@@ -36,13 +36,14 @@ darcs clone --lazy --repo-name=$temp/pre-restored --context=$remote_context $rep
 darcs apply --allow-conflicts --repodir=$temp/pre-restored $local_patches || exit
 darcs clone --complete --repo-name=$restored --context=$local_context $temp/pre-restored || exit
 #unrecord the tag
-yes | darcs unrecord --last=1 --repodir=$restored
+yes | darcs unrecord -a --last=1 --repodir=$restored
 #unrecord unadded files
-yes | darcs unrecord -p'^NOT-ADDED$' --last=1 --repodir=$restored
+yes | darcs unrecord -q -p'^NOT-ADDED$' --last=1 --repodir=$restored
 #un-add these files
-darcs whatsnew -s  --repodir=$restored | grep -v 'No changes!' | sed 's/^A //' | xargs darcs remove --repodir=$restored
+darcs whatsnew -s  --repodir=$restored | grep -v 'No changes!' | \
+  sed 's/^A //' | xargs darcs remove --repodir=$restored 2>&1 | grep -v 'nothing removed'
 #unrecord unrecorded changes
-yes | darcs unrecord -p'^NOT-RECORDED$' --repodir=$restored --last=1
+yes | darcs unrecord -q -p'^NOT-RECORDED$' --repodir=$restored --last=1
 echo $repo > $restored/_darcs/prefs/defaultrepo
 rm -f $restored/_darcs/prefs/repos
 rm -rf $temp
