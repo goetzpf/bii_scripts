@@ -10,12 +10,12 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -30,11 +30,11 @@ hg-recover.py
 Overview
 ===============
 This tool can be used to backup and recover a mercurial working
-copy complete with the mercurial repository. 
+copy complete with the mercurial repository.
 
 Instead of saving the complete repository this script only saves
 differences relative to a central mercurial repository. By this,
-much disk space is saved, the backup file has usually only about 
+much disk space is saved, the backup file has usually only about
 100kBytes or less.
 
 If the backed up repository uses mq patch queues, the tool saves
@@ -95,7 +95,7 @@ Reference of command line options
   print a summary of the function of the program
 
 --doc
-  create online help in restructured text format. 
+  create online help in restructured text format.
   Use "./hg-recover.py --doc | rst2html" to create html-help"
 
 -f FILENAME, --file=FILENAME
@@ -130,8 +130,10 @@ Reference of command line options
   do not apply any changes
 """
 
+# pylint: disable= invalid-name, bad-whitespace, too-many-lines
 
-from optparse import OptionParser
+
+from optparse import OptionParser # pylint: disable= deprecated-module
 #import string
 import sys
 import subprocess
@@ -139,9 +141,12 @@ import os
 import os.path
 import shutil
 import tarfile
+import re
+
+# pylint: disable= line-too-long
 
 # set the following variable to True in order to implement a work around for a
-# mercurial bug. 
+# mercurial bug.
 
 # Here is an example for a command that fails:
 #   hg clone -r 00a1405aaff2 http://repo.acc.bessy.de/hg/id_db id_db
@@ -169,6 +174,8 @@ import tarfile
 # repository in the mean time. So it is preferred to set HG_QUIRK to False when
 # possible.
 
+# pylint: enable= line-too-long
+
 assert sys.version_info[0]==3
 
 HG_QUIRK= False
@@ -178,12 +185,11 @@ try:
     import yaml
 except ImportError:
     if _no_check:
-	sys.stderr.write("WARNING: (in %s) mandatory module yaml not found\n" % \
-			 sys.argv[0])
+        sys.stderr.write("WARNING: (in %s) mandatory module yaml not found\n" % \
+                         sys.argv[0])
     else:
-	raise
+        raise
 
-import re
 
 # version of the program:
 my_version= "1.0.1"
@@ -218,7 +224,7 @@ def _system(cmd, catch_stdout, verbose, dry_run):
     (child_stdout, child_stderr) = p.communicate()
     if p.returncode!=0:
         raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
-    return(child_stdout)
+    return child_stdout
 
 def copyfile(src, dest, verbose, dry_run):
     """copies a file."""
@@ -228,13 +234,13 @@ def copyfile(src, dest, verbose, dry_run):
             return
     shutil.copyfile(src, dest)
 
-def rmdir(dir, verbose, dry_run):
+def rmdir(dir_, verbose, dry_run):
     """remove recursivly a directory."""
     if dry_run or verbose:
-        print("rm -rf %s" % dir)
+        print("rm -rf %s" % dir_)
         if dry_run:
             return
-    shutil.rmtree(dir)
+    shutil.rmtree(dir_)
 
 def my_chdir(newdir, verbose):
     """change directory, return the old directory."""
@@ -248,7 +254,7 @@ def my_chdir(newdir, verbose):
 
 def mkfile(text,filename, verbose, dry_run):
     """create a file with a given text.
-    
+
     parameters:
         text      --  content of the file
         filename  --  the name of the file
@@ -277,11 +283,11 @@ def splitpath(path):
     """converts a path to a list."""
     l= []
     while True:
-      (path,t)= os.path.split(path)
-      if t=="":
-        l.reverse()
-        return l
-      l.append(t)
+        (path,t)= os.path.split(path)
+        if t=="":
+            l.reverse()
+            return l
+        l.append(t)
 
 def splitext(path):
     """split file-name and extension."""
@@ -294,9 +300,9 @@ def splitext(path):
 
 def check_ext(path):
     """check if path ends with .tar or .tar.gz.
-    
+
     This function also returns the mode for
-    the tarfile.open() function. 
+    the tarfile.open() function.
     """
     (path, extension)= splitext(path)
     if extension not in ["",".tar",".tar.gz"]:
@@ -320,22 +326,23 @@ def remove_paths(path_list, paths_to_remove):
     new= []
     paths_to_remove= [os.path.abspath(p) for p in paths_to_remove]
     for p in path_list:
-	if os.path.abspath(p) not in paths_to_remove:
-	    new.append(p)
+        if os.path.abspath(p) not in paths_to_remove:
+            new.append(p)
     return new
 
-def is_subdir(parent_dir, dir):
-    """test if dir is a sub-directory of parent_dir.
-    
+def is_subdir(parent_dir, dir_):
+    """test if dir_ is a sub-directory of parent_dir.
+
     Note the follwing relation:
-    is_subdir(dir,dir) == True
+    is_subdir(dir_,dir_) == True
     """
     parent_dir= os.path.abspath(parent_dir)
-    dir= os.path.abspath(dir)
+    dir_= os.path.abspath(dir_)
     parent_parts= splitpath(parent_dir)
-    dir_parts= splitpath(dir)
+    dir_parts= splitpath(dir_)
     if len(parent_parts)>len(dir_parts):
         return False
+    # pylint: disable= consider-using-enumerate
     for i in range(len(parent_parts)):
         if parent_parts[i]!=dir_parts[i]:
             return False
@@ -353,6 +360,7 @@ def my_relpath(path, start):
     path_parts= plist(path)
     start_parts= plist(start)
     matches= -1
+    # pylint: disable= consider-using-enumerate
     for i in range(len(start_parts)):
         if i>len(path_parts):
             break
@@ -390,10 +398,11 @@ def tarfile_mode(extension, write= True):
         st= st + "gz"
     return st
 
-def make_archive(tarfile_name, filelist, verbose, dry_run, 
+def make_archive(tarfile_name, filelist, verbose, dry_run,
                  start_dir= None,
                  mode="w:gz"):
     """create a tar.gz file from a list of files."""
+    # pylint: disable= too-many-arguments
     if dry_run or verbose:
         print("creating tar file: %s" % tarfile_name)
         if dry_run:
@@ -443,8 +452,8 @@ This file shows how to restore the mercurial repository
 manually. However, "hg-recover -r -f [filename]" should do
 all these things automatically.
 
-[data-dir] is the name of the directory containing the 
-recovery information and should be an absolute path. 
+[data-dir] is the name of the directory containing the
+recovery information and should be an absolute path.
 You get this path if you enter "pwd" within the data-dir.
 
 1. clone the central repository
@@ -543,14 +552,14 @@ def hg_qparent(verbose, dry_run):
 
     returns:
         if there are no applied patches
-	    None
-	Otherwise
-	    a hashkey
+            None
+        Otherwise
+            a hashkey
     """
     filename= os.path.join(".hg","patches","status")
     if not os.path.exists(filename):
-	return None
-    if ""==hg_cmd("qapplied", True, verbose, dry_run):
+        return None
+    if hg_cmd("qapplied", True, verbose, dry_run)=="":
         # there is a patch queue but none of the patches is applied
         return None
     qparent= hg_cmd("log -r qparent --template '{node|short}:{node}\n'",
@@ -562,28 +571,28 @@ def hg_hash_patchname_list(verbose, dry_run):
 
     returns:
         if there are no applied patches
-	    None
-	Otherwise
-	    a list of tuples (hashkey,patchname).
+            None
+        Otherwise
+            a list of tuples (hashkey,patchname).
     """
     filename= os.path.join(".hg","patches","status")
     if not os.path.exists(filename):
-	return None
+        return None
     patchmap= {}
     f= open(filename)
     for line in f:
         line= line.strip()
         (longrev,patchname)= line.split(":")
-	patchmap[longrev]= patchname
+        patchmap[longrev]= patchname
     f.close()
     if len(patchmap)==0:
-	return None
-    all= hg_cmd("log -r qbase:tip --template '{node|short}:{node}\n'",
-                True,verbose,dry_run)
+        return None
+    all_= hg_cmd("log -r qbase:tip --template '{node|short}:{node}\n'",
+                 True,verbose,dry_run)
     new= []
-    for l in all.splitlines():
-	(shorthashkey,longhashkey)= l.split(":")
-	new.append((shorthashkey,patchmap[longhashkey]))
+    for l in all_.splitlines():
+        (shorthashkey,longhashkey)= l.split(":")
+        new.append((shorthashkey,patchmap[longhashkey]))
     return new
 
 rx_section=re.compile(r'^\[(\w+)\]\s*$')
@@ -642,7 +651,7 @@ def hg_default_repo(verbose):
 
 def hg_status(exclude_list, hg_options, verbose):
     """returns the output of "hg status".
-    
+
     Note that the strings in the exclude list are
     handled as file-glob patterns.
     """
@@ -654,13 +663,13 @@ def hg_status(exclude_list, hg_options, verbose):
     args=""
     if len(arglist)>1:
         args= " ".join(arglist)
-    return _system("hg status%s" % args, catch_stdout= True, 
+    return _system("hg status%s" % args, catch_stdout= True,
                    verbose=verbose, dry_run= False)
 
 def hg_unknown_files(exclude_list, verbose):
     """return a list of files unknown to mercurial.
-    
-    Note that files from the exclude_list (if given) are 
+
+    Note that files from the exclude_list (if given) are
     removed from the list of unknown files.
     """
     files= hg_status(exclude_list, "-u", verbose)
@@ -687,9 +696,9 @@ def hg_outgoing(central_repo, verbose):
     l= []
     for line in patchdata.splitlines():
         m= rx_hashkey.match(line)
-	if m is None:
-	    continue
-	l.append(m.group(1))
+        if m is None:
+            continue
+        l.append(m.group(1))
     if verbose:
         print("outgoing patches: ", ",".join([str(e) for e in l]))
     return l
@@ -708,7 +717,7 @@ def create_hg_bundle(filename, central_repo, base,
 
 def apply_hg_bundle(filename, verbose, dry_run):
     """create a bundle of outgoing patches."""
-    hg_cmd("unbundle %s" % filename, 
+    hg_cmd("unbundle %s" % filename,
            not verbose,
            verbose=verbose, dry_run=dry_run)
 
@@ -726,14 +735,14 @@ def rebuild_patchdir(patchlist, verbose, dry_run):
                 break
             # mercurial may return an error "no phases changed"
     for (rev,patchname) in patchlist:
-	hg_cmd("qimport -n \"%s\" -r %s" % (patchname,rev), False, verbose, dry_run)
+        hg_cmd("qimport -n \"%s\" -r %s" % (patchname,rev), False, verbose, dry_run)
 
 # -----------------------------------------------
 # major functions
 # -----------------------------------------------
 
 def recover_qparent(bag,
-                    data_dir, 
+                    data_dir,
                     verbose, dry_run):
     """recover the "qparent" revision.
 
@@ -749,9 +758,9 @@ def recover_qparent(bag,
         # are no outgoing patches there should be no mq patches an no "qparent"
         # revision.
         return None
-    hg_cmd("clone %s %s %s" % ("", 
-                               bag["central repository"], 
-                               bag["source dir"]), 
+    hg_cmd("clone %s %s %s" % ("",
+                               bag["central repository"],
+                               bag["source dir"]),
            not verbose, verbose, dry_run)
     old_dir= my_chdir(bag["source dir"], verbose or dry_run)
     data_dir= join("..",data_dir)
@@ -772,10 +781,11 @@ def recover_qparent(bag,
     return parents[0]
 
 def create_recover_data(working_copy,
-                        data_dir, 
+                        data_dir,
                         central_repo,
                         verbose, dry_run):
     """create recovery data for a working directory."""
+    # pylint: disable= too-many-locals, too-many-branches
     data_dir= os.path.abspath(data_dir)
     (data_dir, extension)= check_ext(data_dir)
     old_dir= my_chdir(working_copy, verbose)
@@ -787,11 +797,10 @@ def create_recover_data(working_copy,
         if not os.path.isdir(data_dir):
             raise ValueError("error, \"%s\" is the name of an existing file" % \
                   data_dir)
-        else:
-            rm_files([join(data_dir,f) for f in
-                       ["hg-status", "hg-bundle", "unknown-files.tar.gz", 
-                        "metadata.yaml", "hg-diff", "hgrc", "README"]
-                     ], verbose, dry_run)
+        rm_files([join(data_dir,f) for f in \
+                   ["hg-status", "hg-bundle", "unknown-files.tar.gz",
+                    "metadata.yaml", "hg-diff", "hgrc", "README"] \
+                   ], verbose, dry_run)
     else:
         os.mkdir(data_dir)
     default_repo= hg_default_repo(verbose or dry_run)
@@ -801,15 +810,15 @@ def create_recover_data(working_copy,
     unknown_files= hg_unknown_files([], verbose)
     exclude_list= [data_dir]
     if extension!="":
-	exclude_list.append(data_dir+extension)
+        exclude_list.append(data_dir+extension)
     unknown_files= remove_paths(unknown_files, exclude_list)
 
     source_path= os.getcwd()
     outgoing_patches= hg_outgoing(central_repo, verbose or dry_run)
     qparent= hg_qparent(verbose or dry_run, False)
     patchlist= hg_hash_patchname_list(verbose or dry_run, False)
-    bag= { 
-           "source path" : source_path, 
+    bag= { \
+           "source path" : source_path,
            "source dir" : last_path_element(source_path),
            "revision": revision,
            "uncommitted changes": uncommitted_changes,
@@ -817,13 +826,13 @@ def create_recover_data(working_copy,
            "default repository" : default_repo,
            "central repository" : central_repo,
            "unknown files" : (len(unknown_files)>0),
-	   "mq patches used" : (patchlist is not None),
-	 }
+           "mq patches used" : (patchlist is not None),
+         }
     if patchlist is not None:
         bag["qparent"]= qparent # this bag element is not there in old
                                 # recovery files where this feature was not
                                 # yet implemented.
-	bag["patchname list"] = ["%s:%s" % i for i in reversed(patchlist)]
+        bag["patchname list"] = ["%s:%s" % i for i in reversed(patchlist)]
     # print yaml.dump(bag)
     s= yaml.dump(bag,default_flow_style=False)
     mkfile(s, join(data_dir,"metadata.yaml"), verbose, dry_run)
@@ -839,7 +848,7 @@ def create_recover_data(working_copy,
                join(data_dir,"hg-diff"), verbose, dry_run)
     if len(outgoing_patches)>0:
         create_hg_bundle(join(data_dir,"hg-bundle"),
-                         central_repo, 
+                         central_repo,
                          None,
                          verbose, dry_run)
     if patchlist is not None:
@@ -851,15 +860,16 @@ def create_recover_data(working_copy,
         make_archive(join(data_dir,"unknown-files.tar.gz"),
                      unknown_files, verbose, dry_run)
     if extension!="":
-        make_archive(data_dir+extension, [data_dir], verbose, dry_run, 
+        make_archive(data_dir+extension, [data_dir], verbose, dry_run,
                      start_dir= os.path.dirname(data_dir),
                      mode=tarfile_mode(extension,write=True))
         rmdir(data_dir, verbose, dry_run)
 
 def recover_data(working_copy,
-                 data_dir, 
+                 data_dir,
                  verbose, dry_run):
     """recover repository from the given recovery data."""
+    # pylint: disable= too-many-branches
     data_dir= search_datafile(data_dir)
     data_dir= os.path.abspath(data_dir)
     (data_dir, extension)= check_ext(data_dir)
@@ -870,7 +880,7 @@ def recover_data(working_copy,
                 raise ValueError(("error: neither \"%s\" nor \"%s\" " +\
                                   "do exist") % (data_dir+extension,data_dir))
         else:
-            extract_archive(data_dir+extension, verbose, False, 
+            extract_archive(data_dir+extension, verbose, False,
                             tarfile_mode(extension,write=False))
             data_dir= os.path.basename(data_dir)
     join= os.path.join
@@ -887,20 +897,20 @@ def recover_data(working_copy,
             # clone only up to the qparent version:
             cloneopt="-r %s" % qparent
     if not HG_QUIRK:
-        hg_cmd("clone %s %s %s" % (cloneopt, 
-                                   bag["central repository"], 
-                                   bag["source dir"]), 
+        hg_cmd("clone %s %s %s" % (cloneopt,
+                                   bag["central repository"],
+                                   bag["source dir"]),
                not verbose, verbose, dry_run)
     else:
         if not bag["central repository"].startswith("http://"):
-            hg_cmd("clone %s %s %s" % (cloneopt, 
-                                       bag["central repository"], 
-                                       bag["source dir"]), 
+            hg_cmd("clone %s %s %s" % (cloneopt,
+                                       bag["central repository"],
+                                       bag["source dir"]),
                    not verbose, verbose, dry_run)
         else:
-            hg_cmd("clone %s %s %s" % ("", 
-                                       bag["central repository"], 
-                                       bag["source dir"]), 
+            hg_cmd("clone %s %s %s" % ("",
+                                       bag["central repository"],
+                                       bag["source dir"]),
                    not verbose, verbose, dry_run)
             if cloneopt:
                 hg_cmd("update -R %s %s" % (bag["source dir"], cloneopt),
@@ -919,18 +929,18 @@ def recover_data(working_copy,
                              "probably an error.\n")
         else:
             apply_hg_bundle(mq_bundle_path, verbose, dry_run)
-    hg_cmd("update -r %s" % bag["revision"], 
+    hg_cmd("update -r %s" % bag["revision"],
            not verbose, verbose, dry_run=dry_run)
     if bag["uncommitted changes"]:
-	_system("patch -p1 < %s" % join(data_dir,"hg-diff"), 
-		catch_stdout= not verbose,
-		verbose=verbose, dry_run=dry_run)
+        _system("patch -p1 < %s" % join(data_dir,"hg-diff"),
+                catch_stdout= not verbose,
+                verbose=verbose, dry_run=dry_run)
     if bag["unknown files"]:
         extract_archive(join(data_dir,"unknown-files.tar.gz"), verbose, dry_run)
 
     if bag.get("mq patches used"):
-	rebuild_patchdir( [ i.split(":") for i in bag["patchname list"] ],
-			  verbose, dry_run)
+        rebuild_patchdir( [ i.split(":") for i in bag["patchname list"] ],
+                          verbose, dry_run)
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -964,67 +974,67 @@ def main():
 
     parser.set_defaults(working_copy=".", file= default_file)
 
-    parser.add_option("--summary",  # implies dest="nodelete"
-                      action="store_true", # default: None
+    parser.add_option("--summary",
+                      action="store_true",
                       help="print a summary of the function of the program",
                       )
-    parser.add_option( "--doc",            # implies dest="switch"
-                  action="store_true", # default: None
-                  help="create online help in restructured text"
-                       "format. Use \"./hg-recover.py --doc | rst2html\" "
-                       "to create html-help"
-                  )
-    parser.add_option("-f", "--file", # implies dest="file"
-                      action="store", # OptionParser's default
-                     type="string",  # OptionParser's default
+    parser.add_option("--doc",
+                      action="store_true",
+                      help="create online help in restructured text"
+                           "format. Use \"./hg-recover.py --doc | rst2html\" "
+                           "to create html-help"
+                     )
+    parser.add_option("-f", "--file",
+                      action="store",
+                      type="string",
                       help="create mercurial recovery data in the " +\
                            "given file or directory. If the given name " +\
                            "ends with \".tar\" or \".tag.gz\", a tar " +\
                            "file or a compressed tar file is created. " +\
                            "The default for this is \"%s\"" % default_file,
-                     metavar="FILENAME"  # for help-generation text
+                      metavar="FILENAME"
                      )
-    parser.add_option("-w", "--working-copy", # implies dest="file"
-                      action="store", # OptionParser's default
-                     type="string",  # OptionParser's default
+    parser.add_option("-w", "--working-copy",
+                      action="store",
+                      type="string",
                       help="specify where the WORKINGCOPY is " +\
                            "found, \".\" is the default. " +\
                            "For --recover, this is the directory " +\
                            "where the working copy directory will " +\
                            "be created as a sub-directory.",
-                     metavar="WORKINGCOPY"  # for help-generation text
+                      metavar="WORKINGCOPY"
                      )
-    parser.add_option("-c", "--create", # implies dest="file"
-                      action="store_true", # default: None
+    parser.add_option("-c", "--create",
+                      action="store_true",
                       help="create mercurial recovery data in the " +\
                            "given DATA_DIRECTORY. If the given name " +\
                            "ends with \".tar\" or \".tag.gz\", a tar " +\
                            "file or a compressed tar file is created. ",
-                     metavar="DATA_DIRECTORY"  # for help-generation text
+                      metavar="DATA_DIRECTORY"
                      )
-    parser.add_option("-r", "--recover", # implies dest="file"
-                      action="store_true", # OptionParser's default
+    parser.add_option("-r", "--recover",
+                      action="store_true",
                       help="recover repository from the recovery data " +\
                            "in the given DATA_DIRECTORY",
-                     metavar="DATA_DIRECTORY"  # for help-generation text
+                      metavar="DATA_DIRECTORY"
                      )
-    parser.add_option("--central-repo", # implies dest="file"
-                      action="store", # OptionParser's default
-                     type="string",  # OptionParser's default
+    parser.add_option("--central-repo",
+                      action="store",
+                      type="string",
                       help="specify the CENTRALREPOSITORY",
-                     metavar="CENTRALREPOSITORY"  # for help-generation text
+                      metavar="CENTRALREPOSITORY"
                      )
-    parser.add_option("-v", "--verbose",   # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("-v", "--verbose",
+                      action="store_true",
                       help="print to the screen what the program does",
                      )
-    parser.add_option("--dry-run",   # implies dest="switch"
-                      action="store_true", # default: None
+    parser.add_option("--dry-run",
+                      action="store_true",
                       help="do not apply any changes",
                      )
 
-    x= sys.argv
-    (options, args) = parser.parse_args()
+    # x= sys.argv
+    (options, _) = parser.parse_args()
     # options: the options-object
     # args: list of left-over args
 
@@ -1055,4 +1065,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
