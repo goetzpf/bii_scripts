@@ -133,7 +133,6 @@ Reference of command line options
 
 from optparse import OptionParser
 #import string
-import os.path
 import sys
 import subprocess
 import os
@@ -914,7 +913,14 @@ def recover_data(working_copy,
     if len(bag["outgoing patches"])>0:
         apply_hg_bundle(join(data_dir,"hg-bundle"), verbose, dry_run)
     if bag["mq patches used"]:
-        apply_hg_bundle(join(data_dir,"mq-bundle"), verbose, dry_run)
+        mq_bundle_path= join(data_dir,"mq-bundle")
+        if not os.path.exists(mq_bundle_path):
+            sys.stderr.write("    Warning: File mq-bundle not found. "
+                             "For old restore files this is OK\n"
+                             "    but for newer ones it is "
+                             "probably an error.\n")
+        else:
+            apply_hg_bundle(mq_bundle_path, verbose, dry_run)
     hg_cmd("update -r %s" % bag["revision"], 
            not verbose, verbose, dry_run=dry_run)
     if bag["uncommitted changes"]:
