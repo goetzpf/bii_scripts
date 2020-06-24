@@ -1,38 +1,38 @@
 #name of the remote host(s)
-RSYNC_DIST_HOST= nfs.blc.bessy.de,elbe.acc.bessy.de
+RSYNC_DIST_HOST=nfs.blc.bessy.de,elbe.acc.bessy.de
 
 #name of the remote user(s)
-RSYNC_DIST_USER= iocadm,iocadm
+RSYNC_DIST_USER=iocadm,iocadm
 
 #remote distribution directory
-RSYNC_DIST_PATH= /opt/IOC/idcp/dist
+RSYNC_DIST_PATH=/opt/IOC/idcp/dist
 
 #remote link directory
-RSYNC_DIST_LINKPATH= /opt/IOC/idcp/links
+RSYNC_DIST_LINKPATH=/opt/IOC/idcp/links
 
 #prepend the distribution directory to the link-source path
 #(only for the commands "add-links" and "change-links")
-RSYNC_DIST_PREFIX_DISTDIR= ../dist
+RSYNC_DIST_PREFIX_DISTDIR=../dist
 
 #local distribution directories
-RSYNC_DIST_LOCALPATH= bin,db,dbd,dl
+RSYNC_DIST_LOCALPATH=bin,db,dbd,dl
 
 #prefix prepended to all localpaths
-RSYNC_DIST_LOCALPREFIX= .
+RSYNC_DIST_LOCALPREFIX=.
 
 #make all dirs on server world-readable
-RSYNC_DIST_WORLDREADABLE= 1
+RSYNC_DIST_WORLDREADABLE=1
 
 #use checksum to detect file changes
-RSYNC_DIST_CHECKSUM= 1
+RSYNC_DIST_CHECKSUM=1
 
 #use this branch for distributing files
 #RSYNC_DIST_BRANCH=
 
 #name of the version-file that is created
-RSYNC_DIST_VERSION_FILE= bin/DISTVERSION
+RSYNC_DIST_VERSION_FILE=bin/DISTVERSION
 
 #editor for log-messages and tags
-RSYNC_DIST_EDITOR= vim
+RSYNC_DIST_EDITOR=vim
 
 
