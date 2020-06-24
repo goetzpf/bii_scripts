@@ -27,7 +27,8 @@ MYNAME=$(basename $SCRIPT_FULL_NAME)
 TOP=$(readlink -e $MYDIR/..)
 # TOP needed for default bii_scripts.config
 
-verbose="no"
+verbose=""
+dryrun=""
 app="bii_controls"
 part="IOC"
 
@@ -152,6 +153,11 @@ QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 MYVERSION=`echo $VERSION | sed -e 's/://g'`
 
 echo -e "* creating directory $MYVERSION"
-darcs-restore $RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION $MYVERSION
-
-echo -e "\nversion $VERSION was restored in directory $MYVERSION"
+CMD="darcs-restore $RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION $MYVERSION"
+if [ -n "$verbose" -o -n "$dryrun" ]; then
+    echo "$CMD"
+fi
+if [ -z "$dryrun" ]; then
+    $CMD
+    echo -e "\nversion $VERSION was restored in directory $MYVERSION"
+fi

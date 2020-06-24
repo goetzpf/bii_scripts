@@ -27,7 +27,8 @@ MYNAME=$(basename $SCRIPT_FULL_NAME)
 TOP=$(readlink -e $MYDIR/..)
 # TOP needed for default bii_scripts.config
 
-verbose="no"
+verbose=""
+dryrun=""
 
 # "" stands for "bii", the default
 facility="bii"
@@ -45,6 +46,26 @@ function print_short_help {
     echo "        mls      : mls-controls"
     echo "  --verbose: show executed command"
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
+}
+
+function CMD {
+    # $1: command
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "$1"
+    fi
+    if [ -z "$dryrun" ]; then
+        bash -c "$1"
+    fi
+}
+
+function CD {
+    # $1: dir
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "cd $1"
+    fi
+    if [ -z "$dryrun" ]; then
+        cd "$1" > /dev/null
+    fi
 }
 
 declare -a ARGS
@@ -113,20 +134,18 @@ VERSION=${ARGS[0]}
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 MYVERSION=`echo $VERSION | sed -e 's/://g'`
 
-if [ -d "$MYVERSION" ]; then
+if [ -d "$MYVERSION" -a -z "$dryrun" ]; then
     echo "error, directory $MYVERSION already exists"
     exit 1
 fi
 
 echo -e "* creating directory $MYVERSION"
-mkdir $MYVERSION
-cd $MYVERSION >/dev/null
+CMD "mkdir $MYVERSION"
+CD "$MYVERSION"
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-CMD="scp $RSYNC_DIST_USER@$RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION/dbd/hg-recover* ."
-$CMD
-
+CMD "scp $RSYNC_DIST_USER@$RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION/dbd/hg-recover* ."
 if [ "$?" -ne 0 ]; then 
     echo 
     echo "error, no restore data found for $VERSION"
@@ -134,42 +153,51 @@ if [ "$?" -ne 0 ]; then
     echo -e "\t$CMD"
     exit 1
 fi
-if [ -e hg-recover.tar.gz ]
+
+if [ -e hg-recover.tar.gz -a -z "$dryrun" ]
 then
-        # old hg-recover
-        echo -e "\n* recovering idcp working directory..."
-        hg-recover.py -r hg-recover.tar.gz
-        cd ..
+    # old hg-recover
+    echo -e "\n* recovering idcp working directory..."
+    CMD "hg-recover.py -r hg-recover.tar.gz"
+    CD ".."
 else
-        # new hg-recover with 
-        # idcp_db recover information
-        echo -e "\n* recovering idcp working directory..."
-        hg-recover.py -r -f hg-recover-idcp.tar.gz
-        cd idcp* > /dev/null
-        if [ -e ../hg-recover-idcp_db.tar.gz ]
-        then
-                # old idcp_db directory
-                echo -e "* recovering idcp_db working directory..."
-                hg-recover.py -r -f ../hg-recover-idcp_db.tar.gz
-        fi 
-        if [ -e ../hg-recover-id_db.tar.gz ]
-        then
-                # the newer version, id_db
-                if ! grep '^\(IDCP_DATABASE\|MINISD_CACHE\).*ID_DB_DIR' config/config.template > /dev/null
-                then
-                        # id_db is placed in "idcp"
-                        echo -e "* recovering idcp/id_db working directory..."
-                        hg-recover.py -r -f ../hg-recover-id_db.tar.gz
-                else
-                        # id_db is placed in "idcp/add_ons/src"
-                        echo -e "* recovering idcp/add_ons/src/id_db working directory..."
-                        mkdir -p add_ons/src
-                        cd add_ons/src
-                        hg-recover.py -r -f ../../../hg-recover-id_db.tar.gz
-                        cd ../..
-                fi
+    # new hg-recover with 
+    # idcp_db recover information
+    echo -e "\n* recovering idcp working directory..."
+    CMD "hg-recover.py -r -f hg-recover-idcp.tar.gz"
+    if [ -z "$dryrun" ]; then
+        CD $(ls -d idcp*)
+    else
+        echo "cd idcp*"
+    fi
+    if [ -e ../hg-recover-idcp_db.tar.gz -a -z "$dryrun" ]; then
+        # old idcp_db directory
+        echo -e "* recovering idcp_db working directory..."
+        CMD "hg-recover.py -r -f ../hg-recover-idcp_db.tar.gz"
+    fi 
+    if [ -e ../hg-recover-id_db.tar.gz -o -n "$dryrun" ]; then
+        # the newer version, id_db
+        add_ons_used=""
+        if [ -z "$dryrun" ]; then
+            if grep '^\(IDCP_DATABASE\|MINISD_CACHE\).*ID_DB_DIR' config/config.template > /dev/null; then
+                add_ons_used="yes"
+            fi
         fi
-        cd ../..
+        if [ -z "$add_ons_used" -a -z "$dryrun" ]
+        then
+                # id_db is placed in "idcp"
+                echo -e "* recovering idcp/id_db working directory..."
+                CMD "hg-recover.py -r -f ../hg-recover-id_db.tar.gz"
+        else
+                # id_db is placed in "idcp/add_ons/src"
+                echo -e "* recovering idcp/add_ons/src/id_db working directory..."
+                CMD "mkdir -p add_ons/src"
+                CD "add_ons/src"
+                CMD "hg-recover.py -r -f ../../../hg-recover-id_db.tar.gz"
+                CD "../.."
+        fi
+    fi
+    CD "../.."
 fi
 echo -e "\nversion $VERSION was restored in directory $MYVERSION"
 
