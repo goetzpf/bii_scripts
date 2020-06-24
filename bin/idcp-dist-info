@@ -28,7 +28,7 @@ MYNAME=$(basename $SCRIPT_FULL_NAME)
 TOP=$(readlink -e $MYDIR/..)
 # TOP needed for default bii_scripts.config
 
-facility="BII"
+facility_uc="BII"
 show_versions="no"
 names=""
 list_links="no"
@@ -144,14 +144,14 @@ while true; do
         shift 2
         ;;
       -f| --facility)
-        facility="no"
+        facility_uc="no"
         if [ "$2" = "bii" ]; then
-            facility="BII"
+            facility_uc="BII"
         fi
         if [ "$2" = "mls" ]; then
-            facility="MLS"
+            facility_uc="MLS"
         fi
-        if [ "$facility" = "no" ]; then
+        if [ "$facility_uc" = "no" ]; then
             echo "unknown facility: $2"
             exit 1
         fi
@@ -194,10 +194,9 @@ BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
 
 CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist 
 
-configfile=$CONFIGFILE_PATH/idcp
-if [ "$facility" == "MLS" ]; then
-    configfile=$CONFIGFILE_PATH/idcp-mls
-fi
+facility=$(echo "$facility_uc" | tr '[:upper:]' '[:lower:]')
+
+configfile="$CONFIGFILE_PATH/idcp-$facility"
 
 opts="$opts -c $configfile --filter-existent"
 
@@ -207,7 +206,7 @@ fi
 
 if [[ -n "$ids_par_given" ]]; then
     # facility must be in upper-case:
-    installed_ids=$(iddb -a idcp -g $facility -s installed list prefix --no-heading | xargs | sed -e 's/ /,/g')
+    installed_ids=$(iddb -a idcp -g $facility_uc -s installed list prefix --no-heading | xargs | sed -e 's/ /,/g')
     opts="$opts --filter-names $installed_ids"
 fi
 

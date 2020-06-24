@@ -17,55 +17,116 @@
 # 
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+set -e
 
-BOOTHOST_BII="iocadm@nfs.blc.bessy.de"
-BOOTHOST_MLS="iocadm@nfs.mlscs.bessy.de"
+shopt -s nocasematch
 
-if [ -z "$1" ] || [ "$1" = "-h" ]; then
-        echo "usage: $0 VERSION [BOOTHOST-SSH|FACILITY]"
-        echo "  downloads the hg-restore file for the given VERSION"
-        echo "  of idcp and restores the source and repository."
-        echo
-        echo "  BOOTHOST-SSH is optional, it should have the form USER@HOST."
-        echo "  Alternatively you can specify a FACILITY instead of BOOTHOST-SSH."
-        echo "  These two facilities are known, bii is the default:"
-        echo "    bii mls"
+SCRIPT_FULL_NAME=$(readlink -e $0)
+MYDIR=$(dirname $SCRIPT_FULL_NAME)
+MYNAME=$(basename $SCRIPT_FULL_NAME)
+TOP=$(readlink -e $MYDIR/..)
+# TOP needed for default bii_scripts.config
+
+verbose="no"
+
+# "" stands for "bii", the default
+facility="bii"
+
+function print_short_help {
+    echo "$MYNAME: restore a version of IDCP"
+    echo "usage:"
+    echo "  $MYNAME [options] VERSION"
+    echo "      [VERSION] must be the ISO date string as it is used by"
+    echo "      rsync-dist. "
+    echo "options:"
+    echo "  -h: this help"
+    echo "  -f --facility [FACILITY]: application, currently known:"
+    echo "        bii      : bii-controls, the default"
+    echo "        mls      : mls-controls"
+    echo "  --verbose: show executed command"
+    echo "  --dry-run : just show how rsync-dist-info.py would be called"
+}
+
+declare -a ARGS
+
+while true; do
+    case "$1" in
+      -h | --help)
+        print_short_help
         exit 0
+        ;;
+      -f| --facility)
+        while true; do
+            if [[ $2 =~ ^bii ]]; then
+                facility="bii"
+                shift 2
+                break
+            fi
+            if [[ $2 =~ ^mls ]]; then
+                facility="mls"
+                shift 2
+                break
+            fi
+        done
+        ;;
+      --verbose)
+        verbose="yes"
+        shift
+        ;;
+      --dry-run)
+        dryrun="yes"
+        shift
+        ;;
+      -- ) shift; break ;;
+      * ) 
+        if [ -z "$1" ]; then
+            break;
+        fi
+        ARGS+=("$1")
+        shift
+        ;;
+    esac
+done
+
+# read bii_scripts configuration variables:
+if [ -e $MYDIR/bii_scripts.config ]; then
+    . $MYDIR/bii_scripts.config
+else
+    echo "error, file bii_scripts.config not found" >&2
+    exit
 fi
 
-DISTDIR=/opt/IOC/idcp/dist
-VERSION=$1
+# The share directory is defined by SHARE_INSTALL_DIR from file 
+# bii_scripts.config:
+BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
+
+CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist 
+
+configfile="$CONFIGFILE_PATH/idcp-$facility"
+
+source $configfile
+# take only the first rsync dist host if there is more than one:
+RSYNC_DIST_HOST=$(echo $RSYNC_DIST_HOST | sed -e 's/,.*//')
+RSYNC_DIST_USER=$(echo $RSYNC_DIST_USER | sed -e 's/,.*//')
+
+VERSION=${ARGS[0]}
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 MYVERSION=`echo $VERSION | sed -e 's/://g'`
-
-if [ -z "$2" ];then
-    BOOTHOST="$BOOTHOST_BII"
-else
-    case "$2" in 
-        bii) 
-            BOOTHOST="$BOOTHOST_BII"
-            ;;
-        mls)
-            BOOTHOST="$BOOTHOST_MLS"
-            ;;
-        *)
-            BOOTHOST="$2"
-            ;;
-    esac
-fi
 
 if [ -d "$MYVERSION" ]; then
     echo "error, directory $MYVERSION already exists"
     exit 1
 fi
+
 echo -e "* creating directory $MYVERSION"
 mkdir $MYVERSION
 cd $MYVERSION >/dev/null
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-CMD="scp $BOOTHOST:$DISTDIR/$QVERSION/dbd/hg-recover* ."
+CMD="scp $RSYNC_DIST_USER@$RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION/dbd/hg-recover* ."
 $CMD
+
 if [ "$?" -ne 0 ]; then 
     echo 
     echo "error, no restore data found for $VERSION"
@@ -111,3 +172,4 @@ else
         cd ../..
 fi
 echo -e "\nversion $VERSION was restored in directory $MYVERSION"
+
