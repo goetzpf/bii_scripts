@@ -145,6 +145,10 @@ CD "$MYVERSION"
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
+# automatic script abort switched off here:
+set +e
+
+
 CMD "scp $RSYNC_DIST_USER@$RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION/dbd/hg-recover* ."
 if [ "$?" -ne 0 ]; then 
     echo 
@@ -165,6 +169,9 @@ else
     # idcp_db recover information
     echo -e "\n* recovering idcp working directory..."
     CMD "hg-recover.py -r -f hg-recover-idcp.tar.gz"
+    # Note: in case of an error we continue here on purpose in order to at
+    # least restore the id_db directory. The script does not abort in case of
+    # an error due to "set +e" before.
     if [ -z "$dryrun" ]; then
         CD $(ls -d idcp*)
     else
