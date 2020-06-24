@@ -218,7 +218,7 @@ if [[ -z "$last_given" ]]; then
 fi
 
 if [ -n "$names" ]; then
-    names_list=`echo $names | sed -e 's/ \+/,/g'`
+    names_list=$(echo $names | xargs iddb prefix | sed -e 's/ \+/,/g')
     if [ $show_versions = "no" ]; then
         opts="$opts --filter-names $names_list"
     else
