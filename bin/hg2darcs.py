@@ -189,10 +189,12 @@ def darcs_replay(author, log,actions,verbose,dry_run):
             # pylint: disable= arguments-out-of-order
             rename(new, old, verbose, dry_run)
             # we must take care if the target directory does not exist:
+            olddir_= os.path.dirname(old)
             dir_= os.path.dirname(new)
-            if dir_ not in added_dirs:
-                darcs_cmd("add %s" % dir_,False,verbose,dry_run)
-                added_dirs.add(dir_)
+            if olddir_ != dir_:
+                if dir_ not in added_dirs:
+                    darcs_cmd("add %s" % dir_,False,verbose,dry_run)
+                    added_dirs.add(dir_)
             maybe_removed_dirs.add(os.path.dirname(old))
             darcs_cmd("mv --case-ok %s %s" % (old,new),False,verbose,dry_run)
         elif action=="added":
