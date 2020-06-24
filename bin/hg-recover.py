@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 # Copyright 2020 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
@@ -169,7 +169,7 @@ import tarfile
 # repository in the mean time. So it is preferred to set HG_QUIRK to False when
 # possible.
 
-assert sys.version_info[0]==2
+assert sys.version_info[0]==3
 
 HG_QUIRK= False
 
@@ -204,7 +204,7 @@ def _system(cmd, catch_stdout, verbose, dry_run):
     ValueError
     """
     if dry_run or verbose:
-        print ">", cmd
+        print(">", cmd)
         if dry_run:
             return None
     if catch_stdout:
@@ -223,7 +223,7 @@ def _system(cmd, catch_stdout, verbose, dry_run):
 def copyfile(src, dest, verbose, dry_run):
     """copies a file."""
     if dry_run or verbose:
-        print "copy %s to %s" % (src,dest)
+        print("copy %s to %s" % (src,dest))
         if dry_run:
             return
     shutil.copyfile(src, dest)
@@ -231,7 +231,7 @@ def copyfile(src, dest, verbose, dry_run):
 def rmdir(dir, verbose, dry_run):
     """remove recursivly a directory."""
     if dry_run or verbose:
-        print "rm -rf %s" % dir
+        print("rm -rf %s" % dir)
         if dry_run:
             return
     shutil.rmtree(dir)
@@ -242,7 +242,7 @@ def my_chdir(newdir, verbose):
         return None
     olddir= os.getcwd()
     if verbose:
-        print "cd %s" % newdir
+        print("cd %s" % newdir)
     os.chdir(newdir)
     return olddir
 
@@ -258,7 +258,7 @@ def mkfile(text,filename, verbose, dry_run):
         the name of the test directory)
     """
     if dry_run or verbose:
-        print "creating %s" % filename
+        print("creating %s" % filename)
         if dry_run:
             return
     file= open(filename, "w")
@@ -300,8 +300,8 @@ def check_ext(path):
     """
     (path, extension)= splitext(path)
     if extension not in ["",".tar",".tar.gz"]:
-        raise ValueError, "only \".tar\" or \".tar.gz\" are allowed " +\
-                          "as file extension"
+        raise ValueError("only \".tar\" or \".tar.gz\" are allowed " +\
+                          "as file extension")
     return (path, extension)
 
 def search_datafile(data_dir):
@@ -336,7 +336,7 @@ def is_subdir(parent_dir, dir):
     dir_parts= splitpath(dir)
     if len(parent_parts)>len(dir_parts):
         return False
-    for i in xrange(len(parent_parts)):
+    for i in range(len(parent_parts)):
         if parent_parts[i]!=dir_parts[i]:
             return False
     return True
@@ -353,7 +353,7 @@ def my_relpath(path, start):
     path_parts= plist(path)
     start_parts= plist(start)
     matches= -1
-    for i in xrange(len(start_parts)):
+    for i in range(len(start_parts)):
         if i>len(path_parts):
             break
         if path_parts[i]!=start_parts[i]:
@@ -370,10 +370,10 @@ def rm_files(filelist, verbose, dry_run):
     for f in filelist:
         if os.path.exists(f):
             if dry_run:
-                print "file %s exists, would remove it" % f
+                print("file %s exists, would remove it" % f)
                 continue
             if verbose:
-                print "file %s exists, remove it" % f
+                print("file %s exists, remove it" % f)
             os.remove(f)
 
 # -----------------------------------------------
@@ -395,11 +395,11 @@ def make_archive(tarfile_name, filelist, verbose, dry_run,
                  mode="w:gz"):
     """create a tar.gz file from a list of files."""
     if dry_run or verbose:
-        print "creating tar file: %s" % tarfile_name
+        print("creating tar file: %s" % tarfile_name)
         if dry_run:
-            print "files:"
+            print("files:")
             for f in filelist:
-                print "\t%s" % f
+                print("\t%s" % f)
             return
     old_dir= None
     if (start_dir is not None) and (start_dir!=""):
@@ -420,7 +420,7 @@ def make_archive(tarfile_name, filelist, verbose, dry_run,
 def extract_archive(tarfile_name, verbose, dry_run, mode="r:gz"):
     """extract a tar.gz file."""
     if dry_run or verbose:
-        print "extracting from tar file %s" % tarfile_name
+        print("extracting from tar file %s" % tarfile_name)
         if dry_run:
             return
     t= tarfile.open(tarfile_name, mode)
@@ -614,7 +614,7 @@ def hg_revision(verbose):
         changes= True
         data= data[0:-1]
     if verbose:
-        print "found revision: %s  uncomitted changes: %s" % (data,changes)
+        print("found revision: %s  uncomitted changes: %s" % (data,changes))
     return (data, changes)
 
 def hg_default_repo(verbose):
@@ -622,7 +622,7 @@ def hg_default_repo(verbose):
 
     filename= os.path.join(".hg","hgrc")
     if verbose:
-        print "scanning", filename
+        print("scanning", filename)
     f= open(filename)
     section= None
     for line in f:
@@ -636,7 +636,7 @@ def hg_default_repo(verbose):
             if tp is not None:
                 if tp[0]=="default":
                     if verbose:
-                        print "default repo from .hgrc is: %s" % tp[1]
+                        print("default repo from .hgrc is: %s" % tp[1])
                     return tp[1]
     return None
 
@@ -667,13 +667,13 @@ def hg_unknown_files(exclude_list, verbose):
     lst= []
     for l in files.splitlines():
         if not l.startswith("? "):
-            raise ValueError, "unexpected output from hg:\"%s\"" % l
+            raise ValueError("unexpected output from hg:\"%s\"" % l)
         file= l[2:]
         lst.append(file)
     if verbose:
-        print "found unknown files:"
+        print("found unknown files:")
         for f in lst:
-            print "\t%s" % f
+            print("\t%s" % f)
     return lst
 
 rx_hashkey=re.compile(r'^\s*([0-9A-Fa-f]{6,})\s*$')
@@ -691,7 +691,7 @@ def hg_outgoing(central_repo, verbose):
 	    continue
 	l.append(m.group(1))
     if verbose:
-        print "outgoing patches: ", ",".join([str(e) for e in l])
+        print("outgoing patches: ", ",".join([str(e) for e in l]))
     return l
 
 def create_hg_bundle(filename, central_repo, base,
@@ -720,7 +720,7 @@ def rebuild_patchdir(patchlist, verbose, dry_run):
     for (rev,patchname) in patchlist:
         try:
             hg_cmd("phase --force --draft -r %s" % rev, True, False, dry_run)
-        except IOError,e:
+        except IOError as e:
             if -1!= str(e).find("unknown command"):
                 # if mercurial doesn't support "phase", leave the loop:
                 break
@@ -764,8 +764,8 @@ def recover_qparent(bag,
     # is, or if there is no parent patch at all the program stops with an
     # assertion:
     if len(parents)!=1:
-        raise AssertionError, "revision %s does not have a single parent" % \
-                               first_patch
+        raise AssertionError("revision %s does not have a single parent" % \
+                               first_patch)
     # throw away the repository:
     delete_dir= my_chdir(old_dir, verbose or dry_run)
     rmdir(delete_dir, verbose, dry_run)
@@ -781,14 +781,12 @@ def create_recover_data(working_copy,
     old_dir= my_chdir(working_copy, verbose)
     join= os.path.join
     if not (os.path.exists(".hg") and os.path.isdir(".hg")):
-        raise ValueError, \
-              "error, no mercurial repository data found in \"%s\"" % \
-              working_copy
+        raise ValueError("error, no mercurial repository data found in \"%s\"" % \
+              working_copy)
     if os.path.exists(data_dir):
         if not os.path.isdir(data_dir):
-            raise ValueError, \
-                  "error, \"%s\" is the name of an existing file" % \
-                  data_dir
+            raise ValueError("error, \"%s\" is the name of an existing file" % \
+                  data_dir)
         else:
             rm_files([join(data_dir,f) for f in
                        ["hg-status", "hg-bundle", "unknown-files.tar.gz", 
@@ -869,8 +867,8 @@ def recover_data(working_copy,
     if extension!="":
         if not os.path.exists(data_dir+extension):
             if not os.path.exists(data_dir):
-                raise ValueError,("error: neither \"%s\" nor \"%s\" " +\
-                                  "do exist") % (data_dir+extension,data_dir)
+                raise ValueError(("error: neither \"%s\" nor \"%s\" " +\
+                                  "do exist") % (data_dir+extension,data_dir))
         else:
             extract_archive(data_dir+extension, verbose, False, 
                             tarfile_mode(extension,write=False))
@@ -940,11 +938,11 @@ def script_shortname():
 
 def print_doc():
     """print embedded reStructuredText documentation."""
-    print __doc__
+    print(__doc__)
 
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: backup and recovery a mercurial repository\n" % script_shortname()
+    print("%-20s: backup and recovery a mercurial repository\n" % script_shortname())
 
 def main():
     """The main function.
