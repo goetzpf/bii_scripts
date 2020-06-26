@@ -811,7 +811,7 @@ Cache
 -----
 
 The program can cache data from sql requests in files in a cache directory,
-which can be specifed by the command line options --cache and --cache
+which can be specifed by the command line options --cache and 
 --cachemode or envorinment variables PG_REQUEST_CACHE and PG_REQUEST_CACHEMODE. 
 
 The cache directory contains a file "directory.json", which is a JSON file than
