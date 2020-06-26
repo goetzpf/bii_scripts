@@ -46,6 +46,8 @@ Features:
 - Predefined profiles of database connection parameters
 - Prefefined SQL queries for inspecting the database
 - A number of output formats, among them CSV, JSON and Python.
+- Data from requests can be cached. The program can be used so it tries to read
+  the cache first, before it contacts the database.
 
 """
 
@@ -59,6 +61,7 @@ import csv
 import getpass
 import argparse
 import subprocess
+import hashlib
 
 _no_check= len(sys.argv)==2 and (sys.argv[1] in \
                                  ("-h","--help","--doc","--man"))
@@ -121,6 +124,102 @@ PROFILES= { \
 
 DEFAULT_PROFILE= "devices2015"
 
+def hash_str(data):
+    """create an md5 hash of any python data."""
+    if isinstance(data, str):
+        st= data
+    else:
+        # convert any other data to a string in a generic way:
+        st= json.dumps(data)
+    h= hashlib.new("md5")
+    h.update(st.encode()) # must encode st as UTF-8
+    return h.hexdigest()
+
+class Cache:
+    """handle a query cache."""
+    dict_basename="directory.json"
+    def __init__(self, cache_dir):
+        """initialize."""
+        self.cache_dir= cache_dir
+        self.cache_dict_filename= os.path.join(cache_dir,
+                                               self.__class__.dict_basename)
+        if not os.path.exists(cache_dir):
+            os.mkdir(cache_dir)
+        if not os.path.isdir(cache_dir):
+            raise ValueError("error, %s is not a directory." % cache_dir)
+        if not os.path.exists(self.cache_dict_filename):
+            self.cache_dict= {}
+            return
+        self.read_cache_dict()
+    def full_cache_filename(self, cache_file):
+        """prepend the cache_dir to the filename."""
+        return os.path.join(self.cache_dir, cache_file)
+    def read_cache_dict(self):
+        """read the cache_dict file."""
+        with open(self.cache_dict_filename) as fh:
+            # may raise IOError, ValueError:
+            self.cache_dict= json.load(fh)
+    def write_cache_dict(self):
+        """write the cache_dict file."""
+        with open(self.cache_dict_filename, "w") as fh:
+            json.dump(self.cache_dict, fh, ensure_ascii= False, sort_keys=
+                      True, indent=4)
+    def cache_name(self, connection_string, sql):
+        """get filename with cache data."""
+        connection_data= self.cache_dict.get(connection_string)
+        if connection_data is None:
+            return None
+        return connection_data.get(sql)
+    def add_cache_name(self, connection_string, sql, filename):
+        """add a new filename to self.cache_dict."""
+        connection_data= self.cache_dict.setdefault(connection_string, {})
+        connection_data[sql]= filename
+    def lookup(self, connection_string, sql):
+        """lookup results of an sql statement."""
+        cache_name= self.cache_name(connection_string, sql)
+        if cache_name is None:
+            return None
+        with open(self.full_cache_filename(cache_name)) as fh:
+            result= json.load(fh)
+        return result
+    def update(self, connection_string, sql, data):
+        """update the cache."""
+        cache_name= self.cache_name(connection_string, sql)
+        must_write= False
+        if cache_name is None:
+            # make new entry
+            cache_name= "%s-%s.json" % \
+                        (hash_str(connection_string),
+                         hash_str(sql))
+            self.add_cache_name(connection_string, sql, cache_name)
+            must_write= True
+        with open(self.full_cache_filename(cache_name), "w") as fh:
+            json.dump(data, fh, ensure_ascii= False, indent=4)
+        if must_write:
+            self.write_cache_dict()
+    def cleanup_caches(self):
+        """remove caches not referenced in cache_dict."""
+        cache_name_set= set()
+        for connection_data in self.cache_dict.values():
+            for cache_name in connection_data.values():
+                cache_name_set.add(cache_name)
+        cache_files = []
+        for (_, _, filenames) in os.walk(self.cache_dir):
+            cache_files.extend(filenames)
+            break
+        for cache_file in cache_files:
+            if not cache_file in cache_name_set:
+                os.unlink(self.full_cache_filename(cache_file))
+    def cleanup_cache_dir(self):
+        """remove entries in cache_dir that have no existing files."""
+        for connection_data in self.cache_dict.values():
+            del_list= []
+            for key, cache_name in connection_data.items():
+                if not os.path.exists(self.full_cache_filename(cache_name)):
+                    del_list.append(key)
+            for key in del_list:
+                del connection_data[key]
+
 class DbIo:
     """query database, handle database cache."""
     # pylint: disable= too-many-instance-attributes
@@ -142,6 +241,28 @@ class DbIo:
         self._port       = port
         self._db_handle  = None
         self._db_cursor  = None
+        self._cache      = None
+        self._cache_mode = None
+        self._cache_data = None
+        self._read_from_cache= False
+        self._fill_cache  = False
+        self._sql= None
+    def set_cache(self, cache_dir, mode):
+        """set a cache.
+
+        mode:
+          "cache" : try to read from the cache first, if this fails read from
+                     the database and update the cache.
+          "update": read always from the database and update the cache
+        """
+        if mode not in ("cache", "update"):
+            raise ValueError("error, mode must be 'cache' or 'update'")
+        self._cache_mode= mode
+        self._cache= Cache(cache_dir)
+    def connection_string(self):
+        """return a connection string."""
+        return "%s@%s:%d/%s" % (self._user, self._server,
+                                self._port, self._instance)
     def connection_info(self):
         """return connection info as a simple string."""
         return "%s@%s/%s" % (self._user, self._server, self._instance)
@@ -171,12 +292,28 @@ class DbIo:
         May raise:
           psycopg2.Error
         """
+        self._sql= sql
+        if self._cache:
+            if self._cache_mode=="cache":
+                self._cache_data= self._cache.lookup(self.connection_string(), sql)
+                if self._cache_data:
+                    self._read_from_cache= True
+                    # cached data was found
+                    return
+
         if self._db_handle is None:
-            raise IOError("cannot start query: no connection")
+            # auto-connect here
+            self.connect()
         self._db_cursor = self._db_handle.cursor()
         self._db_cursor.execute(sql)
+        if self._cache:
+            # line 0 is always the heading
+            self._cache_data= [list(self.get_headers())]
+            self._fill_cache= True
     def get_headers(self):
         """get query headers."""
+        if self._read_from_cache:
+            return self._cache_data[0]
         if self._db_handle is None:
             raise IOError("cannot get headers: no connection")
         if self._db_cursor is None:
@@ -184,12 +321,25 @@ class DbIo:
         return tuple([col.name for col in self._db_cursor.description])
     def get_line(self):
         """get query data."""
+        if self._read_from_cache:
+            for i in range(1, len(self._cache_data)):
+                yield self._cache_data[i]
+            self._cache_data= None
+            self._read_from_cache= False
+            return
         if self._db_handle is None:
             raise IOError("cannot get line: no connection")
         if self._db_cursor is None:
             raise IOError("cannot get line: no sql query active")
         for record in self._db_cursor:
+            if self._fill_cache:
+                self._cache_data.append(record)
             yield record
+        if self._fill_cache:
+            self._cache.update(self.connection_string(), self._sql,
+                               self._cache_data)
+            self._cache_data= None
+            self._fill_cache= False
         self._db_cursor.close()
         self._db_cursor= None
 
@@ -211,6 +361,14 @@ class DbProfile:
         self.instance= instance
         self.server= server
         self.port= port
+    def __repr__(self):
+        """return a nice repr string."""
+        return "%s(%s)" % (self.__class__.__name__,
+                           ", ".join([repr(d) for d in (self.user,
+                                                        self.password,
+                                                        self.instance,
+                                                        self.server,
+                                                        self.port)]))
     @classmethod
     def clone(cls, other):
         """create a copy."""
@@ -316,7 +474,7 @@ class Formatter:
                     "csv": False,
                     "csv-quoted": False,
                   }
-    def __init__(self, format_name= "default"):
+    def __init__(self, format_name= "default", uses_cache= False):
         """initialize the object."""
         if format_name not in self.__class__.known_formats:
             raise ValueError("unknown format: %s" % repr(format_name))
@@ -340,7 +498,8 @@ class Formatter:
         if format_name == "json-full":
             self.needs_header_= True
             self.must_restructure= True
-        if format_name in ("table", "json", "json-full", "python"):
+        if (format_name in ("table", "json", "json-full", "python")) or \
+            uses_cache:
             # json cannot represent the PostgreSQL "DECIMAL" type, so we
             # register an automatic converter in this case. The converter
             # converts from decimal to float.
@@ -405,7 +564,8 @@ class Formatter:
             return
         if self.format_ in ("json", "json-full"):
             if self.collected_lines:
-                print(json.dumps(self.collected_lines, sort_keys= True, indent= 4))
+                print(json.dumps(self.collected_lines, ensure_ascii= False,
+                                 sort_keys= True, indent= 4))
             return
         if self.format_ in ("csv", "csv-quoted"):
             for line in self.collected_lines:
@@ -468,6 +628,28 @@ Several output formats are supported:
 - json-full : Print result as a full key-value JSON structure.
 - csv : Print comma separated values with minimal quoting.
 - csv-quoted : Print comma separated values, everything quoted.
+
+Cache
+-----
+
+The program can cache data from sql requests in files in a cache directory,
+which can be specifed by the command line options --cache and --cache
+--cachemode or envorinment variables PG_REQUEST_CACHE and PG_REQUEST_CACHEMODE. 
+
+The cache directory contains a file "directory.json", which is a JSON file than
+maps a connection data string and a sql statement to a file and a number of
+json data files, one for each sql query. The data files are named
+HASH1-HASH2.json where HASH1 is an MD5 hash on the connection data string and
+HASH2 is an MD5 hash on the sql query string.
+
+There are two cachemodes:
+
+cache
+  Try to read the cache first. If data is missing, query the database
+  and add the data to the cache.
+
+update
+  Always query the database and put all data in the cache.
 """
 
 DESC_FOOTER="""
@@ -583,6 +765,13 @@ def main():
                         action="store_true",
                         help="Define output format to json with a full "
                              "key-value structure.")
+    parser.add_argument("-c", "--cache",
+                        help="Define a CACHEDIRECTORY",
+                        metavar="CACHEDIRECTORY")
+    parser.add_argument("--cachemode",
+                        help="Define the CACHEMODE, allowed : "
+                             "'cache' (default) or 'update'",
+                        metavar="CACHEMODE")
     parser.add_argument("-v", "--verbose",
                         action="store_true",
                         help="Print some diagnostic to stderr.")
@@ -604,6 +793,21 @@ def main():
     if args.profiles:
         dbProfiles.show()
         return
+
+    # cache handling
+    cache_dir= None
+    cachemode= "cache"
+    if "PG_REQUEST_CACHE" in os.environ:
+        cache_dir= os.environ["PG_REQUEST_CACHE"]
+    if "PG_REQUEST_CACHEMODE" in os.environ:
+        cachemode= os.environ["PG_REQUEST_CACHEMODE"]
+    if args.cache:
+        cache_dir= args.cache
+    if args.cachemode:
+        cachemode= args.cachemode
+    if cachemode not in ("cache","update"):
+        sys.exit("ERROR: only 'cache' and 'update' allowed "
+                 "for cachemode")
 
     # Section for connecting options
 
@@ -641,7 +845,7 @@ def main():
             if format_!="default":
                 sys.exit("contradicting format options")
             format_= f
-    formatter= Formatter(format_)
+    formatter= Formatter(format_, bool(cache_dir))
     if args.verbose:
         errprint("Set output format to", repr(args.format))
 
@@ -675,15 +879,11 @@ def main():
     # Section for execution
     dbio= DbIo.FromDbProfile(dbProfile)
 
-    try:
-        dbio.connect()
+    if cache_dir:
+        dbio.set_cache(cache_dir, cachemode)
 
-        if args.verbose:
-            errprint("Connecting to", dbio.connection_info())
-    except psycopg2.Error as e:
-        sys.exit("ERROR: connect to %s returns:\"n%s\n" % \
-                 (dbio.connection_info(), str(e)))
     try:
+        # we use the dbio autoconnect feature here:
         dbio.start_query(dbSQLString)
     except psycopg2.Error as e:
         dbio.disconnect()
