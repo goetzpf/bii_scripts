@@ -121,6 +121,78 @@ PROFILES= { \
 
 DEFAULT_PROFILE= "devices2015"
 
+class DbIo:
+    """query database, handle database cache."""
+    # pylint: disable= too-many-instance-attributes
+    @classmethod
+    def FromDbProfile(cls, dbprofile):
+        """create from DbProfile."""
+        return cls(dbprofile.user,
+                   dbprofile.password,
+                   dbprofile.instance,
+                   dbprofile.server,
+                   dbprofile.port)
+    def __init__(self, user, password, instance, server, port):
+        """remember connection data."""
+        # pylint: disable= too-many-arguments
+        self._user       = user
+        self._password   = password
+        self._instance   = instance
+        self._server     = server
+        self._port       = port
+        self._db_handle  = None
+        self._db_cursor  = None
+    def connection_info(self):
+        """return connection info as a simple string."""
+        return "%s@%s/%s" % (self._user, self._server, self._instance)
+    def connect(self):
+        """connect.
+
+        May raise:
+          psycopg2.Error
+        """
+        self._db_handle= psycopg2.connect(user = self._user,
+                                          password= self._password,
+                                          host= self._server,
+                                          port= self._port,
+                                          dbname= self._instance,
+                                          connect_timeout=CONNECT_TIMEOUT)
+    def disconnect(self):
+        """disconnect."""
+        if self._db_handle is not None:
+            self._db_handle.close()
+            self._db_handle= None
+    def __del__(self):
+        """destructor."""
+        self.disconnect()
+    def start_query(self, sql):
+        """start a query.
+
+        May raise:
+          psycopg2.Error
+        """
+        if self._db_handle is None:
+            raise IOError("cannot start query: no connection")
+        self._db_cursor = self._db_handle.cursor()
+        self._db_cursor.execute(sql)
+    def get_headers(self):
+        """get query headers."""
+        if self._db_handle is None:
+            raise IOError("cannot get headers: no connection")
+        if self._db_cursor is None:
+            raise IOError("cannot get headers: no sql query active")
+        return tuple([col.name for col in self._db_cursor.description])
+    def get_line(self):
+        """get query data."""
+        if self._db_handle is None:
+            raise IOError("cannot get line: no connection")
+        if self._db_cursor is None:
+            raise IOError("cannot get line: no sql query active")
+        for record in self._db_cursor:
+            yield record
+        self._db_cursor.close()
+        self._db_cursor= None
+
 class DbProfile:
     """hold a database access profile."""
     property_list=["user", "password", "instance", "server", "port"]
@@ -197,17 +269,6 @@ class DbProfile:
         """print to console."""
         for l in self.show_str(indent):
             print(l)
-    def connection_info(self):
-        """return connection info as a simple string."""
-        return "%s@%s/%s" % (self.user, self.server, self.instance)
-    def connect(self):
-        """create a psycopg connection handle."""
-        return psycopg2.connect(user = self.user,
-                                password= self.password,
-                                host= self.server,
-                                port= self.port,
-                                dbname= self.instance,
-                                connect_timeout=CONNECT_TIMEOUT)
 
 class DbProfiles:
     """hold a collection of DbProfile objects."""
@@ -612,21 +673,20 @@ def main():
         errprint("SQL statement:", repr(dbSQLString))
 
     # Section for execution
+    dbio= DbIo.FromDbProfile(dbProfile)
 
-    dbConnectHandle= None
     try:
-        dbConnectHandle = dbProfile.connect()
+        dbio.connect()
 
         if args.verbose:
-            errprint("Connecting to", dbProfile.connection_info())
+            errprint("Connecting to", dbio.connection_info())
     except psycopg2.Error as e:
         sys.exit("ERROR: connect to %s returns:\"n%s\n" % \
-                 (dbProfile.connection_info(), str(e)))
+                 (dbio.connection_info(), str(e)))
     try:
-        dbSQLCursor = dbConnectHandle.cursor()
-        dbSQLCursor.execute(dbSQLString)
+        dbio.start_query(dbSQLString)
     except psycopg2.Error as e:
-        dbConnectHandle.close()
+        dbio.disconnect()
         sys.exit("ERROR: executing statement %s returns:\n%s" % \
                  (repr(dbSQLString), str(e)))
 
@@ -634,19 +694,18 @@ def main():
         if args.verbose:
             errprint("Fetching data...")
         if args.header or formatter.needs_header():
-            headers = tuple([col.name for col in dbSQLCursor.description])
+            headers = dbio.get_headers()
             formatter.process_line(headers, is_header= True)
-        for record in dbSQLCursor:
-            formatter.process_line(record)
-        dbSQLCursor.close()
+        for line in dbio.get_line():
+            formatter.process_line(line)
     except psycopg2.Error as e:
-        dbConnectHandle.close()
+        dbio.disconnect()
         sys.exit(("ERROR: connect to %s and execute statement %s "
                   "while looping on cursor: %s\n") % \
-                 (dbProfile.connection_info(), repr(dbSQLString), str(e)))
+                 (dbio.connection_info(), repr(dbSQLString), str(e)))
     formatter.finish()
 
-    dbConnectHandle.close()
+    dbio.disconnect()
     return
 
 if __name__ == "__main__":
