@@ -209,6 +209,11 @@ def _system(cmd, catch_stdout, verbose, dry_run):
     OSError(errno,strerr)
     ValueError
     """
+    def to_str(data):
+        """decode byte stream to unicode string."""
+        if data is None:
+            return None
+        return data.decode()
     if dry_run or verbose:
         print(">", cmd)
         if dry_run:
@@ -223,8 +228,9 @@ def _system(cmd, catch_stdout, verbose, dry_run):
                         close_fds=True)
     (child_stdout, child_stderr) = p.communicate()
     if p.returncode!=0:
-        raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
-    return child_stdout
+        raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % \
+                      (cmd,to_str(child_stderr)))
+    return to_str(child_stdout)
 
 def copyfile(src, dest, verbose, dry_run):
     """copies a file."""
