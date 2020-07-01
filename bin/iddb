@@ -13,75 +13,109 @@ import xmlrpc
 import xmlrpc.client
 
 import pprint
+import importlib
 
 # pylint: disable=bad-whitespace, invalid-name
 
+# -----------------------------------------------
+# global variables
+
 DBNAME="id_db"
-#HOST="elbe.acc.bessy.de"
-#HOST="orange.fritz.box"
 HOST="gwc2c.acc.bessy.de"
 PORT=7643
-#PORT=12347
 
-SERVERDEFAULT="%s:%s" % (HOST,PORT)
-
-URL=None
-
-CONNECT_ERRMSG=None
-
-XML_OBJ = None
-
-# -----------------------------------------------
-# global ID datastructure, filled when the program is running:
+TIMEOUT=5.0 # timeout for XMLRPC
 
 DEFAULT_COLUMNS= ["name", "devicename","key","prefix","application",
                   "group","status"]
 COLUMNS= set(DEFAULT_COLUMNS)
 
 # -----------------------------------------------
-# basic StructuredData XMLRPC function calls
+# Database access by file loading and StructuredData libraries
 
-def db_find(pattern,paths=""):
-    """execute StructuredData "find" command."""
-    try:
-        return XML_OBJ.fun.find(pattern,False,paths,DBNAME)
-    except (http.client.RemoteDisconnected,
-            socket.gaierror):
-        sys.exit(CONNECT_ERRMSG)
-
-def db_txt_find(pattern,paths=""):
-    """execute StructuredData "txt.find" command."""
-    try:
-        return XML_OBJ.txt.find(pattern,"aligned",paths,DBNAME)
-    except (http.client.RemoteDisconnected,
-            socket.gaierror):
-        sys.exit(CONNECT_ERRMSG)
-
-def db_paths(pattern,paths=""):
-    """execute StructuredData "paths" command."""
-    try:
-        return XML_OBJ.fun.paths(pattern,paths,DBNAME)
-    except (http.client.RemoteDisconnected,
-            socket.gaierror):
-        sys.exit(CONNECT_ERRMSG)
-
-def db_get(pattern,paths=""):
-    """execute StructuredData "get" command."""
-    try:
-        return XML_OBJ.fun.get(pattern,False,paths,DBNAME)
-    except (http.client.RemoteDisconnected,
-            socket.gaierror):
-        sys.exit(CONNECT_ERRMSG)
+class DbFile:
+    """Database access via StructuredData modules and file loading."""
+    def __init__(self, filename):
+        """initialize."""
+        # import StructuredData modules locally:
+        try:
+            self.SD= importlib.import_module("StructuredData.Classes")
+            self.fun= importlib.import_module("StructuredData.SDshelllibFun")
+            self.txt= importlib.import_module("StructuredData.SDshelllibTxt")
+        except ModuleNotFoundError:
+            sys.exit("Error: Couldn't load the StructuredData python "
+                     "modules. These must be available when you use this "
+                     "program with option '-f'.")
+        # Load the file into a StructuredDataContainer:
+        self.SDC= self.SD.StructuredDataContainer.from_yaml_file(filename)
+    def db_find(self,pattern,paths=""):
+        """execute StructuredData "find" command."""
+        return self.fun.find(pattern,False,paths,self.SDC)
+    def db_txt_find(self,pattern,paths=""):
+        """execute StructuredData "txt.find" command."""
+        return self.txt.find(pattern,"aligned",paths,self.SDC)
+    def db_paths(self,pattern,paths=""):
+        """execute StructuredData "paths" command."""
+        return self.fun.paths(pattern,paths,self.SDC)
+    def db_get(self,pattern,paths=""):
+        """execute StructuredData "get" command."""
+        return self.fun.get(pattern,False,paths,self.SDC)
 
 # -----------------------------------------------
-# small structureddata emulation
+# Database access by XMLRPC function calls
+
+class DbXML:
+    """Database access via XMLRPC."""
+    def errmsg(self, msg):
+        """create a nice error message."""
+        if not msg:
+            return self.CONNECT_ERRMSG
+        return "%s (%s)" % (self.CONNECT_ERRMSG, msg)
+    def __init__(self, host, port):
+        """initialize."""
+        socket.setdefaulttimeout(TIMEOUT)
+        self.URL='http://%s:%d' % (host, port)
+        self.CONNECT_ERRMSG="Error: cannot connect to "+self.URL
+        # this only creates the object, it does not actually connect:
+        self.XML_OBJ = xmlrpc.client.ServerProxy(self.URL)
+    def db_find(self,pattern,paths=""):
+        """execute StructuredData "find" command."""
+        try:
+            return self.XML_OBJ.fun.find(pattern,False,paths,DBNAME)
+        except (http.client.RemoteDisconnected,
+                socket.gaierror, socket.timeout) as e:
+            sys.exit(self.errmsg(str(e)))
+    def db_txt_find(self,pattern,paths=""):
+        """execute StructuredData "txt.find" command."""
+        try:
+            return self.XML_OBJ.txt.find(pattern,"aligned",paths,DBNAME)
+        except (http.client.RemoteDisconnected,
+                socket.gaierror, socket.timeout) as e:
+            sys.exit(self.errmsg(str(e)))
+    def db_paths(self,pattern,paths=""):
+        """execute StructuredData "paths" command."""
+        try:
+            return self.XML_OBJ.fun.paths(pattern,paths,DBNAME)
+        except (http.client.RemoteDisconnected,
+                socket.gaierror, socket.timeout) as e:
+            sys.exit(self.errmsg(str(e)))
+    def db_get(self,pattern,paths=""):
+        """execute StructuredData "get" command."""
+        try:
+            return self.XML_OBJ.fun.get(pattern,False,paths,DBNAME)
+        except (http.client.RemoteDisconnected,
+                socket.gaierror, socket.timeout) as e:
+            sys.exit(self.errmsg(str(e)))
+
+# -----------------------------------------------
+# small structureddata emulation (sde)
 
 # It is just nicer to have proper handling of StructuredData paths this way.
 # In principle, x.split(".") and ".".join(l) would do...
 
-_sd_re_escaped_wc= re.compile(r'\\+(\*|\*\*|#)$')
+_sde_re_escaped_wc= re.compile(r'\\+(\*|\*\*|#)$')
 
-def sd_unescape_in_stringkey(st):
+def sde_unescape_in_stringkey(st):
     r"""unescape special characters.
 
     replace '\.' with '.' and '\[number\]' with '[number]'
@@ -95,16 +129,14 @@ def sd_unescape_in_stringkey(st):
     if st== r"\#" : # related to class SpecialKey
         return "#"
     if st.startswith("\\"): # starts already with a backslash
-        if _sd_re_escaped_wc.match(st) is not None:
+        if _sde_re_escaped_wc.match(st) is not None:
             return st[1:]
     st= st.replace(r"\.",".")
     st= st.replace(r"\[","[")
     st= st.replace(r"\]","]")
     return st
 
-_sd_re_escaped_wc= re.compile(r'\\+(\*|\*\*|#)$')
-
-def sd_escape_in_stringkey(st):
+def sde_escape_in_stringkey(st):
     r"""escape special characters with a backslash.
 
     replace '.' with '\.' and '[number]' with '\[number\]'
@@ -118,25 +150,25 @@ def sd_escape_in_stringkey(st):
     if st=="#" : # related to class SpecialKey
         return r"\#"
     if st.startswith("\\"): # starts already with a backslash
-        if _sd_re_escaped_wc.match(st) is not None:
+        if _sde_re_escaped_wc.match(st) is not None:
             return "\\" + st
     st= st.replace(".", r"\.")
     st= st.replace("[", r"\[")
     st= st.replace("]", r"\]")
     return st
 
-_sd_re_br= re.compile(r'(?<!\\)(\[)')
-_sd_re_split= re.compile(r'(?<!\\)\.')
-_sd_re_no= re.compile(r'\[(\d+)\]')
+_sde_re_br= re.compile(r'(?<!\\)(\[)')
+_sde_re_split= re.compile(r'(?<!\\)\.')
+_sde_re_no= re.compile(r'\[(\d+)\]')
 
-def sd_string_to_keyobject(val):
+def sde_string_to_keyobject(val):
     """convert a wildcard to be used by the MatchPaths object.
     """
     if isinstance(val, str):
-        return sd_unescape_in_stringkey(val)
+        return sde_unescape_in_stringkey(val)
     return val
 
-def _sd_keyconvert(key_, include_separator=False):
+def _sde_keyconvert(key_, include_separator=False):
     """convert a single key_."""
     if include_separator:
         separator= "."
@@ -148,7 +180,7 @@ def _sd_keyconvert(key_, include_separator=False):
     else:
         extra= ""
     if isinstance(key_, str):
-        key_= sd_escape_in_stringkey(key_)
+        key_= sde_escape_in_stringkey(key_)
     elif isinstance(key_, int):
         separator= ""
         key_= "[%d]" % key_
@@ -156,26 +188,26 @@ def _sd_keyconvert(key_, include_separator=False):
         key_= str(key_)
     return "".join((separator,key_,extra))
 
-def sd_path_split(path):
+def sde_path_split(path):
     """simple split of StructuredData path.
 
     Caution: NO support for wildcards in paths !
     """
     if not path: # empty string or None
         return []
-    path= _sd_re_br.sub(r".\1", path)
-    lst= _sd_re_split.split(path)
+    path= _sde_re_br.sub(r".\1", path)
+    lst= _sde_re_split.split(path)
     res= []
     for elm in lst:
-        m= _sd_re_no.match(elm)
+        m= _sde_re_no.match(elm)
         if m is not None:
             elm= int(m.group(1))
         else:
-            elm= sd_string_to_keyobject(elm)
+            elm= sde_string_to_keyobject(elm)
         res.append(elm)
     return res
 
-def sd_join_path(keylist):
+def sde_join_path(keylist):
     r"""joins a path from a keylist.
 
     This method joins a list of keys to a path.  It doesn't need access to
@@ -185,114 +217,111 @@ def sd_join_path(keylist):
     integer and an extra string. All these are combined to form a
     StructuredData path.
     """
-    path= ".".join([_sd_keyconvert(x) for x in keylist])
+    path= ".".join([_sde_keyconvert(x) for x in keylist])
     # avoid things like "A.[3]B":
     return path.replace(".[","[")
 
 # -----------------------------------------------
 # basic query functions
 
-_id_sd_keys= set()
-def sd_key_set():
-    """return set of id keys in the StructuredData database."""
-    if not _id_sd_keys:
-        for p in db_paths("id-data.*"):
-            _id_sd_keys.add(sd_path_split(p)[1])
-    return _id_sd_keys
-
-_id_names= {}
-def id_names(sd_key= None):
-    """return a dict with id_names properties."""
-    if not _id_names:
-        for my_sd_key in sd_key_set():
-            _id_names[my_sd_key]= db_get(sd_join_path(("id-data",
-                                                       my_sd_key,"names")))
-    if not sd_key:
-        return _id_names
-    return _id_names[sd_key]
-
-_id_global= {}
-def id_global(sd_key= None):
-    """return a dict with id_global properties."""
-    if not _id_global:
-        for my_sd_key in sd_key_set():
-            _id_global[my_sd_key]= db_get(sd_join_path(("id-data",
-                                                        my_sd_key,"global")))
-    if not sd_key:
-        return _id_global
-    return _id_global[sd_key]
-
-_id_all= {}
-def id_all(sd_key):
-    """return all data for an insertion device."""
-    d= _id_all.get(sd_key)
-    if not d:
-        d= db_get(sd_join_path(("id-data",sd_key)))
-        _id_all[sd_key]= d
-    return d
-
-_id_aliases= {}
-def _get_aliases():
-    """get alias names for ids."""
-    def add_alias(alias, key_):
-        """add alias."""
-        _id_aliases[alias]= key_
-        _id_aliases[alias.lower()]= key_
-    if not _id_aliases:
-        for sd_key, names in id_names().items():
-            add_alias(sd_key, sd_key)
-            for n in names.values():
-                if isinstance(n, int):
-                    add_alias(str(n), sd_key)
-                    continue
-                add_alias(n, sd_key)
-                if "/" in n:
-                    add_alias(n.replace("/","-"), sd_key)
-    return _id_aliases
-
-def find_sd_key(name):
-    """find sd_key from a given name."""
-    return _get_aliases()[name]
-
-def devicename(name):
-    """find devicename from a given name."""
-    sd_key= find_sd_key(name)
-    return id_names(sd_key)["devicename"]
-
-def key(name, must_exist= True, default= None):
-    """find key."""
-    sd_key= find_sd_key(name)
-    if must_exist:
-        return id_names(sd_key)["key"]
-    return id_names(sd_key).get("key", default)
-
-def prefix(name, must_exist= True, default= None):
-    """find prefix."""
-    sd_key= find_sd_key(name)
-    if must_exist:
-        return id_names(sd_key)["prefix"]
-    return id_names(sd_key).get("prefix", default)
-
-def application(name, must_exist= True, default= None):
-    """find application."""
-    sd_key= find_sd_key(name)
-    if must_exist:
-        return id_global(sd_key)["application"]
-    return id_global(sd_key).get("application", default)
-
-def status(name, must_exist= True, default= None):
-    """find status."""
-    sd_key= find_sd_key(name)
-    if must_exist:
-        return id_global(sd_key)["device_status"]
-    return id_global(sd_key).get("device_status", default)
-
-def group(name, must_exist= True, default= None):
-    """find status."""
-    sd_key= find_sd_key(name)
-    if must_exist:
-        return id_global(sd_key)["rsync_dist_group"]
-    return id_global(sd_key).get("rsync_dist_group", default)
+class Query:
+    """do all queries, implement also a query cache."""
+    def __init__(self, dbobj):
+        """initialize."""
+        self.dbobj= dbobj
+        self._id_sd_keys= set()
+        self._id_names= {}
+        self._id_global= {}
+        self._id_all= {}
+        self._id_aliases= {}
+    def sd_key_set(self):
+        """return set of id keys in the StructuredData database."""
+        if not self._id_sd_keys:
+            for p in self.dbobj.db_paths("id-data.*"):
+                self._id_sd_keys.add(sde_path_split(p)[1])
+        return self._id_sd_keys
+    def id_names(self, sd_key= None):
+        """return a dict with id_names properties."""
+        if not self._id_names:
+            for my_sd_key in self.sd_key_set():
+                self._id_names[my_sd_key]= \
+                    self.dbobj.db_get(sde_join_path(("id-data", my_sd_key,
+                                                     "names")))
+        if not sd_key:
+            return self._id_names
+        return self._id_names[sd_key]
+    def id_global(self,sd_key= None):
+        """return a dict with id_global properties."""
+        if not self._id_global:
+            for my_sd_key in self.sd_key_set():
+                self._id_global[my_sd_key]= \
+                    self.dbobj.db_get(sde_join_path(("id-data",
+                                                     my_sd_key,
+                                                     "global")))
+        if not sd_key:
+            return self._id_global
+        return self._id_global[sd_key]
+    def id_all(self,sd_key):
+        """return all data for an insertion device."""
+        d= self._id_all.get(sd_key)
+        if not d:
+            d= self.dbobj.db_get(sde_join_path(("id-data",sd_key)))
+            self._id_all[sd_key]= d
+        return d
+    def _get_aliases(self):
+        """get alias names for ids."""
+        def add_alias(alias, key_):
+            """add alias."""
+            self._id_aliases[alias]= key_
+            self._id_aliases[alias.lower()]= key_
+        if not self._id_aliases:
+            for sd_key, names in self.id_names().items():
+                add_alias(sd_key, sd_key)
+                for n in names.values():
+                    if isinstance(n, int):
+                        add_alias(str(n), sd_key)
+                        continue
+                    add_alias(n, sd_key)
+                    if "/" in n:
+                        add_alias(n.replace("/","-"), sd_key)
+        return self._id_aliases
+    def find_sd_key(self,name):
+        """find sd_key from a given name."""
+        return self._get_aliases()[name]
+    def devicename(self,name):
+        """find devicename from a given name."""
+        sd_key= self.find_sd_key(name)
+        return self.id_names(sd_key)["devicename"]
+    def key(self,name, must_exist= True, default= None):
+        """find key."""
+        sd_key= self.find_sd_key(name)
+        if must_exist:
+            return self.id_names(sd_key)["key"]
+        return self.id_names(sd_key).get("key", default)
+    def prefix(self,name, must_exist= True, default= None):
+        """find prefix."""
+        sd_key= self.find_sd_key(name)
+        if must_exist:
+            return self.id_names(sd_key)["prefix"]
+        return self.id_names(sd_key).get("prefix", default)
+    def application(self,name, must_exist= True, default= None):
+        """find application."""
+        sd_key= self.find_sd_key(name)
+        if must_exist:
+            return self.id_global(sd_key)["application"]
+        return self.id_global(sd_key).get("application", default)
+    def status(self, name, must_exist= True, default= None):
+        """find status."""
+        sd_key= self.find_sd_key(name)
+        if must_exist:
+            return self.id_global(sd_key)["device_status"]
+        return self.id_global(sd_key).get("device_status", default)
+    def group(self,name, must_exist= True, default= None):
+        """find status."""
+        sd_key= self.find_sd_key(name)
+        if must_exist:
+            return self.id_global(sd_key)["rsync_dist_group"]
+        return self.id_global(sd_key).get("rsync_dist_group", default)
 
 # -----------------------------------------------
 # console I/O
@@ -338,7 +367,7 @@ def console_print_table(table, heading=None):
 # -----------------------------------------------
 # commands
 
-def cmd_list(args, rest):
+def cmd_list(query_obj, args, rest):
     """perform list command."""
     # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     print_columns= DEFAULT_COLUMNS
@@ -382,9 +411,9 @@ def cmd_list(args, rest):
         sort_column= args.sort_by
 
     if not args.id:
-        sd_keys= sd_key_set()
+        sd_keys= query_obj.sd_key_set()
     else:
-        sd_keys= [find_sd_key(args.id)]
+        sd_keys= [query_obj.find_sd_key(args.id)]
 
     result= {}
     idx=0
@@ -400,25 +429,27 @@ def cmd_list(args, rest):
                         # must skip this entry
                         n["SKIP"]= True
             elif col=="key":
-                n[col]= key(sd_key, must_exist= False, default=0)
+                n[col]= query_obj.key(sd_key, must_exist= False, default=0)
             elif col=="prefix":
-                n[col]= prefix(sd_key, must_exist= False, default="")
+                n[col]= query_obj.prefix(sd_key, must_exist= False, default="")
             elif col=="devicename":
-                n[col]= devicename(sd_key)
+                n[col]= query_obj.devicename(sd_key)
             elif col=="application":
-                n[col]= application(sd_key, must_exist= False, default="")
+                n[col]= query_obj.application(sd_key, must_exist= False,
+                                              default="")
                 if rx_application:
                     if not rx_application.match(n[col]):
                         # must skip this entry
                         n["SKIP"]= True
             elif col=="status":
-                n[col]= status(sd_key, must_exist= False, default="")
+                n[col]= query_obj.status(sd_key, must_exist= False,
+                                         default="")
                 if rx_status:
                     if not rx_status.match(n[col]):
                         # must skip this entry
                         n["SKIP"]= True
             elif col=="group":
-                n[col]= group(sd_key, must_exist= False, default="")
+                n[col]= query_obj.group(sd_key, must_exist= False, default="")
                 if rx_group:
                     if not rx_group.match(n[col]):
                         # must skip this entry
@@ -426,7 +457,6 @@ def cmd_list(args, rest):
             else:
                 raise AssertionError("internal error")
 
-    #pprint.pprint(result)#@@@
     # calc sort keys:
     for k in result:
         sk= result[k][sort_column]
@@ -454,14 +484,13 @@ def cmd_list(args, rest):
         heading= None
     else:
         heading= print_columns
-    #console_print_list(result)
     console_print_table(table, heading)
 
 def cmd_listcolumns():
     """perform listcolumns command."""
     print(" ".join(sorted(COLUMNS)))
 
-def cmd_paths(rest):
+def cmd_paths(db_obj, rest):
     """perform "paths" command."""
     if not rest:
         sys.exit("error, 'PATTERN' parameter is mandatory.")
@@ -469,9 +498,9 @@ def cmd_paths(rest):
     paths=""
     if len(rest)>1:
         paths= rest[1:]
-    print("\n".join(db_paths(pattern, paths)))
+    print("\n".join(db_obj.db_paths(pattern, paths)))
 
-def cmd_find(rest):
+def cmd_find(db_obj, rest):
     """perform "find" command."""
     if not rest:
         sys.exit("error, 'PATTERN' parameter is mandatory.")
@@ -481,11 +510,11 @@ def cmd_find(rest):
         paths= rest[1:]
     #for elm in db_find(pattern, paths):
     #    print("%s %s" % (elm[0], elm[1]))
-    print(db_txt_find(pattern, paths))
+    print(db_obj.db_txt_find(pattern, paths))
     #print("\n".join(db_txt_find(pattern, paths)))
     #console_print_table(t, heading=None)
 
-def cmd_get(rest):
+def cmd_get(db_obj, rest):
     """perform "find" command."""
     if not rest:
         sys.exit("error, 'PATTERN' parameter is mandatory.")
@@ -493,28 +522,7 @@ def cmd_get(rest):
     paths=""
     if len(rest)>1:
         paths= rest[1:]
-    #for elm in db_find(pattern, paths):
-    #    print("%s %s" % (elm[0], elm[1]))
-    pprint.pprint(db_get(pattern, paths))
-    #print("\n".join(db_txt_find(pattern, paths)))
-    #console_print_table(t, heading=None)
-
-
-#def get_properties():
-#    """get some of the ID properties.
-#    """
-#    for n in id_names():
-#        # get all parameters for that insertion device:
-#        all_= db_get(sd_join_path('id-data',n))
-#        d= id_data.setdefault(n, {})
-#        d["application"]= all_["global"]["application"]
-#        d["devicename"]= all_["names"]["devicename"]
-#        d["key"]= all_["names"]["key"]
-#        d["prefix"]= all_["names"]["prefix"]
-#        aliases= {}
-#        for k,v in all_[names]:
-#            aliases[v]= n
-#            aliases[v.lower()]= n
+    pprint.pprint(db_obj.db_get(pattern, paths))
 
 # -----------------------------------------------
 # main program
@@ -526,70 +534,74 @@ def process(args, rest):
     #print("rest:",rest)
     # pylint: disable= global-statement, too-many-return-statements
     # pylint: disable= too-many-branches, too-many-statements
-    global HOST, PORT, URL, CONNECT_ERRMSG, XML_OBJ
+    global HOST, PORT
     if args.summary:
         print_summary()
         sys.exit(0)
-    if args.server:
-        errmsg= "%s has not the form 'HOST:PORT'" % args.server
-        if not ":" in args.server:
-            sys.exit(errmsg)
-        l= args.server.split(":")
-        if len(l)!=2:
-            sys.exit(errmsg)
-        HOST= l[0]
-        try:
-            PORT= int(l[1])
-        except ValueError:
-            sys.exit(errmsg)
-    URL='http://%s:%d' % (HOST, PORT)
-    CONNECT_ERRMSG="Error: cannot connect to "+URL
-    # this only creates the object, it does not actually connect:
-    XML_OBJ = xmlrpc.client.ServerProxy(URL)
+
+    dbobj= None
+    if args.file:
+        dbobj= DbFile(args.file)
+    else:
+        if args.server:
+            errmsg= "%s has not the form 'HOST:PORT'" % args.server
+            if not ":" in args.server:
+                sys.exit(errmsg)
+            l= args.server.split(":")
+            if len(l)!=2:
+                sys.exit(errmsg)
+            HOST= l[0]
+            try:
+                PORT= int(l[1])
+            except ValueError:
+                sys.exit(errmsg)
+        dbobj= DbXML(HOST, PORT)
+
+    dbquery= Query(dbobj)
 
     if not rest:
-        cmd_list(args, rest[1:])
+        cmd_list(dbquery, args, rest[1:])
         return
     if rest[0]== "list":
-        cmd_list(args, rest[1:])
+        cmd_list(dbquery, args, rest[1:])
         return
     if rest[0]== "devicename":
         l= []
         for n in rest[1:]:
-            l.append(devicename(n))
+            l.append(dbquery.devicename(n))
         print(" ".join(l))
         return
     if rest[0]== "prefix":
         l= []
         for n in rest[1:]:
-            l.append(prefix(n))
+            l.append(dbquery.prefix(n))
         print(" ".join(l))
         return
     if rest[0]== "dump":
         d={}
         for n in rest[1:]:
-            sd_key= find_sd_key(n)
-            d[sd_key]= id_all(sd_key)
+            sd_key= dbquery.find_sd_key(n)
+            d[sd_key]= dbquery.id_all(sd_key)
         pprint.pprint(d)
         return
     if rest[0]== "listcolumns":
         cmd_listcolumns()
         return
     if rest[0]== "paths":
-        cmd_paths(rest[1:])
+        cmd_paths(dbobj, rest[1:])
         return
     if rest[0]== "find":
-        cmd_find(rest[1:])
+        cmd_find(dbobj, rest[1:])
         return
     if rest[0]== "get":
-        cmd_get(rest[1:])
+        cmd_get(dbobj, rest[1:])
         return
     try:
-        k= find_sd_key(rest[0])
+        k= dbquery.find_sd_key(rest[0])
     except KeyError:
         sys.exit("unknown command: %s" % rest[0])
     args.id= k
-    cmd_list(args, rest[1:])
+    cmd_list(dbquery, args, rest[1:])
 
 VERSION= "1.0"
 
@@ -696,9 +708,15 @@ def main():
                               "server in the form 'HOST:PORT'. The "
                               "default is %s:%s") % \
                               (HOST, PORT),
-                        metavar="STATUS"
+                        metavar="SERVER"
                        )
-
+    parser.add_argument("-f", "--file",
+                        help="Load STRUCTUREDDATAFILE instead of contacting "
+                             "the XMLRPC server. Note: For this the "
+                             "StructuredData python modules must be "
+                             "installed.",
+                        metavar="STRUCTUREDDATAFILE"
+                       )
 
     (args, rest) = parser.parse_known_args()
 
