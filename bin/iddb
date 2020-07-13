@@ -42,7 +42,12 @@ class DbFile:
             self.SD= importlib.import_module("StructuredData.Classes")
             self.fun= importlib.import_module("StructuredData.SDshelllibFun")
             self.txt= importlib.import_module("StructuredData.SDshelllibTxt")
-        except ModuleNotFoundError:
+        # Note: from python 3.6 on, we actually get a ModuleNotFoundError
+        # exception here, but since this is a child class of ImportError, the
+        # code here still works. Aside from this, changing ImportError to
+        # ModuleNotFoundError would break compatibility with older python
+        # versions.
+        except ImportError:
             sys.exit("Error: Couldn't load the StructuredData python "
                      "modules. These must be available when you use this "
                      "program with option '-f'.")
