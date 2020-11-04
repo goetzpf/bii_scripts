@@ -893,40 +893,37 @@ def recover_data(working_copy,
     meta= open(join(data_dir,"metadata.yaml"))
     bag= yaml.load(meta)
     meta.close()
-    cloneopt= ""
+    qparent= None
     if bag.get("mq patches used"):
         qparent= bag.get("qparent")
         if qparent is None:
             # qparent revision was not saved, try to recover it:
             qparent= recover_qparent(bag, data_dir, verbose, dry_run)
-        if qparent is not None:
-            # clone only up to the qparent version:
-            cloneopt="-r %s" % qparent
+        # Note: qparent may be part of the bundle that is yet to be applied, so
+        # we do not yet do 'hg update -r [qparent]':
     if not HG_QUIRK:
-        hg_cmd("clone %s %s %s" % (cloneopt,
-                                   bag["central repository"],
-                                   bag["source dir"]),
+        hg_cmd("clone %s %s" % (bag["central repository"],
+                                bag["source dir"]),
                not verbose, verbose, dry_run)
     else:
         if not bag["central repository"].startswith("http://"):
-            hg_cmd("clone %s %s %s" % (cloneopt,
-                                       bag["central repository"],
-                                       bag["source dir"]),
+            hg_cmd("clone %s %s" % (bag["central repository"],
+                                    bag["source dir"]),
                    not verbose, verbose, dry_run)
         else:
             hg_cmd("clone %s %s %s" % ("",
                                        bag["central repository"],
                                        bag["source dir"]),
                    not verbose, verbose, dry_run)
-            if cloneopt:
-                hg_cmd("update -R %s %s" % (bag["source dir"], cloneopt),
-                       not verbose, verbose, dry_run)
 
     my_chdir(bag["source dir"], verbose or dry_run)
     data_dir= join("..",data_dir)
     if len(bag["outgoing patches"])>0:
         apply_hg_bundle(join(data_dir,"hg-bundle"), verbose, dry_run)
     if bag["mq patches used"]:
+        # go to "qparent" version:
+        hg_cmd("update -r %s" % qparent,
+               not verbose, verbose, dry_run)
         mq_bundle_path= join(data_dir,"mq-bundle")
         if not os.path.exists(mq_bundle_path):
             sys.stderr.write("    Warning: File mq-bundle not found. "
