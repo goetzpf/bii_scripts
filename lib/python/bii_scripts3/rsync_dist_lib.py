@@ -884,7 +884,6 @@ class LLogByVersion():
     >>> vlog.print_(brief=True)
     version                  names
     2006-10-09T10:28:13      idcp9
-    2008-10-16T12:42:03      
     """
     def __init__(self, llogbyname= None):
         self._dict= {}
@@ -1008,6 +1007,8 @@ class LLogByVersion():
                 datedict= self[ver]
                 last_date= sorted(datedict.keys())[-1]
                 names= sorted(datedict[last_date])
+                if not names:
+                    continue
                 lines.append("%-24s %s" % (ver, " ".join(names)))
             return "\n".join(lines)
         lines= ["ver. date                   name(s)"]
