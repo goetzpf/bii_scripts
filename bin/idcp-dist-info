@@ -41,13 +41,14 @@ function print_short_help {
     echo "  -h: this help"
     echo "  --help: this text PLUS the help from rsync-dist-info.py"
     echo "  --id [ID] : filter for this insertion device"
-    echo "  --ids : filter for all ID's that are installed and use"
-    echo "      the rsync-dist.pl (Ue56/2 is not in this list)"
+    echo "  --ids : filter for all ID's that are installed at"
+    echo "      the given FACILITY."
     echo "  --id-list : show the known insertion devices and their idcp-name"
     echo "  --list : just list the link names"
     echo "  --active : show information on all active versions"
     echo "  -f --facility [FACILITY]: set the facility, facility may"
     echo "      be 'bii' (default) or 'mls'"
+    echo "  -b --brief: pass --brief option to rsync-dist-info.py"
     echo "  --verbose: show executed command"
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
     echo 
@@ -107,6 +108,10 @@ while true; do
         ;;
       --ids)
         ids_par_given="yes"
+        shift
+        ;;
+      -b| --brief)
+        brief_given="yes"
         shift
         ;;
       -n| --names| -l| --lifetimes| --idle| --boot-times)
@@ -215,6 +220,9 @@ if [[ -z "$cmd_given" ]]; then
 fi
 if [[ -z "$last_given" ]]; then
     opts="$opts --last 10"
+fi
+if [[ -n "$brief_given" ]]; then
+    opts="$opts -b"
 fi
 
 if [ -n "$names" ]; then
