@@ -882,8 +882,9 @@ class LLogByVersion():
          2008-10-20 12:19:30    idcp8
          2008-10-21 12:10:00
     >>> vlog.print_(brief=True)
-    2006-10-09T10:28:13
-    2008-10-16T12:42:03
+    version                  names
+    2006-10-09T10:28:13      idcp9
+    2008-10-16T12:42:03      
     """
     def __init__(self, llogbyname= None):
         self._dict= {}
@@ -1002,7 +1003,13 @@ class LLogByVersion():
     def _str(self,brief= False):
         """pretty-prints the object."""
         if brief:
-            return "\n".join(list(self.keys()))
+            lines= ["%-24s %s" % ("version", "names")]
+            for ver in self.keys():
+                datedict= self[ver]
+                last_date= sorted(datedict.keys())[-1]
+                names= sorted(datedict[last_date])
+                lines.append("%-24s %s" % (ver, " ".join(names)))
+            return "\n".join(lines)
         lines= ["ver. date                   name(s)"]
         first= True
         for version, datedict in list(self.items()):

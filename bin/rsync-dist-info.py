@@ -237,8 +237,9 @@ Reference of command line options
   activated.
 
 -b, --brief
-  brief output, with -n just show link names,
-  with -v and -l just show version names
+  brief output, with -n just show link names, with -v 
+  just show version and most recent links, with -l just 
+  show version names.
 
 --last NO
   with --names, print only the last NO versions
@@ -653,8 +654,9 @@ def main():
                      )
     parser.add_option("-b", "--brief",   # implies dest="switch"
                       action="store_true", # default: None
-                      help="brief output, with -n just show link names,"+\
-                           "with -v and -l just show version names"
+                      help="brief output, with -n just show link "
+                           "names, with -v just show version and most "
+                           "recent links, with -l just show version names.",
                      )
     parser.add_option("--last",   # implies dest="switch"
                       action="store", # default: None
