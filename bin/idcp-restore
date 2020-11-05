@@ -41,10 +41,10 @@ function print_short_help {
     echo "      rsync-dist. "
     echo "options:"
     echo "  -h: this help"
-    echo "  -f --facility [FACILITY]: application, currently known:"
-    echo "        bii      : bii-controls, the default"
-    echo "        mls      : mls-controls"
-    echo "  --verbose: show executed command"
+    echo "  -f --facility [FACILITY]: define facility, currently known:"
+    echo "        bii      : BESSY storage ring, the default"
+    echo "        mls      : MLS storage ring"
+    echo "  --verbose : show executed command"
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
 }
 
