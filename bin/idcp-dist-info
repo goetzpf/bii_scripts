@@ -34,6 +34,22 @@ names=""
 list_links="no"
 verbose=""
 dryrun=""
+names_rx=""
+
+cmdret=""
+
+function CMD {
+    # $1: command
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "$1"
+    fi
+    if [ -z "$dryrun" ]; then
+        bash -c "$1"
+        cmdret=$?
+    else
+        cmdret=0
+    fi
+}
 
 function print_short_help {
     echo "$MYNAME: a small wrapper that calls rsync-dist-info.py"
@@ -49,6 +65,7 @@ function print_short_help {
     echo "  -f --facility [FACILITY]: set the facility, facility may"
     echo "      be 'bii' (default) or 'mls'"
     echo "  -b --brief: pass --brief option to rsync-dist-info.py"
+    echo "  --idnames : show insertion device names instead of link names."
     echo "  --verbose: show executed command"
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
     echo 
@@ -61,6 +78,18 @@ function print_short_help {
     echo "      show all versions still in use"
     echo "  $MYNAME -v [version]"
     echo "      shows information for the given version"
+    echo "  $MYNAME --ids --active"
+    echo "      shows all active versions for all IDs"
+    echo "  $MYNAME --ids --active -v"
+    echo "      shows all active versions for all IDs ordered by version"
+    echo "  $MYNAME --ids --active -v -b"
+    echo "      shows all active versions for all IDs ordered by version"
+    echo "      one line per version (brief format)"
+    echo "  $MYNAME --ids --active -v -b --idnames"
+    echo "      shows all active versions for all IDs ordered by version"
+    echo "      one line per version (brief format), ID names instead of"
+    echo "      link names"
+    echo 
     echo
     echo "Note: only versions that still exist on the server are shown"
 }
@@ -162,6 +191,10 @@ while true; do
         fi
         shift 2
         ;;
+      --idnames)
+        names_rx=$(iddb -a idcp list prefix name -N | sed -e 's/^\([^ ]\+\) \+\([^ ]\+\).*/s#\\<\1\\>#\2#;/' | paste -sd "")
+        shift
+        ;;
       --verbose)
         verbose="yes"
         shift
@@ -241,12 +274,10 @@ opts="$opts $saveme"
 #echo saved word: $saveme
 #echo run real command: "$@"
 #echo "opts: $opts"
-if [ -z "$dryrun" ]; then
-    if [ "$verbose" = "yes" ]; then
-        echo "rsync-dist-info.py $opts"
-    fi
-    rsync-dist-info.py $opts
-else
-    echo "rsync-dist-info.py $opts"
+cmd="rsync-dist-info.py $opts"
+if [ -n "$names_rx" ]; then
+    cmd="$cmd | sed -e \"$names_rx\""
 fi
+
+CMD "$cmd"
 
