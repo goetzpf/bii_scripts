@@ -39,3 +39,6 @@
 ^out
 ^pod2htm[di]\.tmp$
 ^\.darcs-restore($|/)
+
+# python 3 cache:
+lib/python/bii_scripts3/__pycache__
