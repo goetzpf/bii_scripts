@@ -486,8 +486,15 @@ class Signature:
         self.status= None
         self.identify= None
         self.checksum_map= {}
-    def scan(self):
-        """scan all patches of a repository."""
+    def scan(self, all_branches= True):
+        """scan all patches of a repository.
+
+        Parameters:
+          - all_branches : If set, get logs for *all* patches, otherwise
+                           get only logs for patches that are direct
+                           ancestors of the current ("hg identify")
+                           version.
+        """
         # pylint: disable= too-many-branches, too-many-statements
         def scan(line):
             """test if a line is a new field.
@@ -506,14 +513,26 @@ class Signature:
                 raise ValueError("error: \"%s\" not parseable" % line)
             return (line[:idx], line[idx+2:])
 
+        self.status= hg_status(self._directory, self._verbose, self._dry_run)
+        self.identify= hg_identify(self._directory, None,
+                                   self._verbose, self._dry_run)
+
         template= "DESC:\t{desc|tabindent}\nFILES:\t{files}\n" + \
                   "TAGS:\t{tags}\nNODE:\t{node|short}\n\n"
         if self._extra is None:
             extra= ""
         else:
             extra= " %s" % self._extra
-        reply= hg_cmd("log --template \"%s\" -R %s%s" % \
-                      (template, self._directory, extra),
+        # get patches from old --> new
+        # we revert this later on
+        if all_branches:
+            revspec= "-r 0:%s" % self.identify
+        else:
+            # double "::" does the trick of only getting direct
+            # ancestors:
+            revspec= "-r 0::%s" % self.identify
+        reply= hg_cmd("log %s --template \"%s\" -R %s%s" % \
+                      (revspec, template, self._directory, extra),
                       True, True, self._verbose, self._dry_run)
         self.patches= []
         curr_patch= None
@@ -554,6 +573,9 @@ class Signature:
             self.qbase_node= self.patches[self.qbase_idx].node()
         else:
             self.qbase_node= None
+        # revert patch order to new --> old:
+        self.patches.reverse()
+
         (empty, chk)= hg_patch_checksum(self._directory,
                                         None,
                                         self._verbose, self._dry_run)
@@ -563,9 +585,6 @@ class Signature:
             self.unrecorded_changes= True
             self.unrecorded_patch= Patch()
             self.unrecorded_patch.checksum(chk)
-        self.status= hg_status(self._directory, self._verbose, self._dry_run)
-        self.identify= hg_identify(self._directory, None,
-                                   self._verbose, self._dry_run)
 
     def calc_checksums(self, from_node, show_progress):
         """calculate checksums for patches.
@@ -758,7 +777,7 @@ def process_files(options, args):
             if os.path.exists(options.wcache):
                 signature.read_checksum_map(options.wcache)
 
-        signature.scan()
+        signature.scan(all_branches= False)
 
         from_node= None
         if options.checksum_start:
@@ -806,8 +825,8 @@ def process_files(options, args):
                 signature1.read_checksum_map(options.wcache)
                 signature2.read_checksum_map(options.wcache)
 
-        signature1.scan()
-        signature2.scan()
+        signature1.scan(all_branches= False)
+        signature2.scan(all_branches= False)
 
         from_rev= None
         if options.checksum_start:
