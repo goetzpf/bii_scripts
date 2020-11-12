@@ -180,9 +180,12 @@ assert sys.version_info[0]==3
 
 HG_QUIRK= False
 
+_YAML_MAJOR_VERSION= None
+
 _no_check= len(sys.argv)==2 and (sys.argv[1] in ("-h","--help","--summary","--doc"))
 try:
     import yaml
+    _YAML_MAJOR_VERSION= int(yaml.__version__.split(".")[0])
 except ImportError:
     if _no_check:
         sys.stderr.write("WARNING: (in %s) mandatory module yaml not found\n" % \
@@ -891,7 +894,11 @@ def recover_data(working_copy,
             data_dir= os.path.basename(data_dir)
     join= os.path.join
     meta= open(join(data_dir,"metadata.yaml"))
-    bag= yaml.load(meta)
+    if _YAML_MAJOR_VERSION >=5:
+        bag= yaml.load(meta, Loader= yaml.FullLoader)
+    else:
+        bag= yaml.load(meta)
+
     meta.close()
     qparent= None
     if bag.get("mq patches used"):
