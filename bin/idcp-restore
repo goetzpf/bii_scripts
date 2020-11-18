@@ -33,6 +33,9 @@ dryrun=""
 # "" stands for "bii", the default
 facility="bii"
 
+# directory to create:
+dir=""
+
 function print_short_help {
     echo "$MYNAME: restore a version of IDCP"
     echo "usage:"
@@ -41,6 +44,9 @@ function print_short_help {
     echo "      rsync-dist. "
     echo "options:"
     echo "  -h: this help"
+    echo "  --dir DIR : Create source tree in directory DIR. Otherwise a"
+    echo "              directory name is created from the VERSION string"
+    echo "              in the form YYYY-MM-DDTHHMMSS."
     echo "  -f --facility [FACILITY]: define facility, currently known:"
     echo "        bii      : BESSY storage ring, the default"
     echo "        mls      : MLS storage ring"
@@ -75,6 +81,10 @@ while true; do
       -h | --help)
         print_short_help
         exit 0
+        ;;
+      --dir)
+        dir="$2"
+        shift 2
         ;;
       -f| --facility)
         while true; do
@@ -132,7 +142,11 @@ RSYNC_DIST_USER=$(echo $RSYNC_DIST_USER | sed -e 's/,.*//')
 
 VERSION=${ARGS[0]}
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
-MYVERSION=`echo $VERSION | sed -e 's/://g'`
+if [ -z "$dir" ]; then
+    MYVERSION=`echo $VERSION | sed -e 's/://g'`
+else
+    MYVERSION="$dir"
+fi
 
 if [ -d "$MYVERSION" -a -z "$dryrun" ]; then
     echo "error, directory $MYVERSION already exists"
