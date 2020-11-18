@@ -364,6 +364,14 @@ Scripts
     control) IOCs
   | `documentation <scripts/idcp-dist-info>`__
 
+**idcp-get-source**
+  | Get and and optionally build the source of installed versions of IDCP.
+  | You can provide the undulator name or the version string. You can also
+    retrieve the latest IDCP version. This script works for the BESSY and MLS
+    facility. It can also show a list of installed insertion devices and an
+    give an overview of currently used IDCP versions.
+  | `documentation <scripts/idcp-get-source>`__
+
 **idcp-restore**
   | A small wrapper script that calls hg-recover.py to restore the source
     directory along with it's mercurial repository for a given version of IDCP

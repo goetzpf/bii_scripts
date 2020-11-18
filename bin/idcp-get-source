@@ -1,0 +1,322 @@
+#!/bin/bash
+
+# Copyright 2020 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# <https://www.helmholtz-berlin.de>
+#
+# Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set -e
+
+shopt -s nocasematch
+
+SCRIPT_FULL_NAME=$(readlink -e $0)
+MYDIR=$(dirname $SCRIPT_FULL_NAME)
+MYNAME=$(basename $SCRIPT_FULL_NAME)
+
+id=""
+latest=""
+dir=""
+facility="bii"
+configure=""
+build=""
+version=""
+verbose=""
+dryrun=""
+dryrun_cmdret=""
+cmdret=""
+cmddata=""
+
+function CMD {
+    # $1: command
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "$1"
+    fi
+    if [ -z "$dryrun" ]; then
+        bash -c "$1"
+        cmdret=$?
+    else
+        cmdret=0
+    fi
+}
+
+function CMDRET {
+    # $1: command
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "$1"
+    fi
+    if [ -z "$dryrun_cmdret" ]; then
+        cmdret=0
+        # without '|| ...' the script will exit right here
+        # in case of an error:
+        cmddata=$(bash -c "$1") || cmdret=$?
+    else
+        cmdret=0
+    fi
+}
+
+function CD {
+    # $1: dir
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "cd $1"
+    fi
+    if [ -z "$dryrun" ]; then
+        cd "$1" > /dev/null
+    fi
+}
+
+function print_short_help {
+    echo "$MYNAME: Get source code of installed versions of IDCP"
+    echo 
+    echo "IDCP is the Insertion Device Control Program"
+    echo "The program restores the source tree of IDCP, the Insertion Device"
+    echo "Control Program."
+    echo
+    echo "usage:"
+    echo "  $MYNAME [options] COMMAND"
+    echo
+    echo "commands:"
+    echo "  id ID     : Get sources currenty used for this ID (Insertion device)"
+    echo "  version VERSION :"
+    echo "              Get sources for the given version"
+    echo "  latest    : Get sources of the latest active version for the "
+    echo "              given facility."
+    echo "  ids       : Show known insertion devices"
+    echo "  versions  : Show all versions currently in use."
+    echo
+    echo "options:"
+    echo "  -h --help : this help"
+    echo "  --configure :"
+    echo "              Run 'idcp-configure' command in the source tree"
+    echo "  --build   : Run 'idcp-configure' and 'make' in the source tree"
+    echo "  --dir DIR : Create source tree in directory DIR. Otherwise a"
+    echo "              directory name is created from the VERSION string"
+    echo "              in the form YYYY-MM-DDTHHMMSS."
+    echo "  --facility FACILITY :"
+    echo "              Use the given facility, currently known:"
+    echo "              bii      : BESSY storage ring, the default"
+    echo "              mls      : MLS storage ring"
+    echo "  --verbose : show executed commands"
+    echo "  --dry-run : do not create files, just show the commands"
+    echo 
+    echo "Examples:"
+    echo "  $MYNAME id UE112 --build"
+    echo "      create source tree for the UE112 undulator and build the"
+    echo "      application"
+    echo "  $MYNAME id UE112 --dir IDCP"
+    echo "      create source tree for the UE112 undulator in directory 'IDCP'"
+    echo "  $MYNAME version 2020-01-10T11:23:00"
+    echo "      create source tree for version 2020-01-10T11:23:00"
+    echo "  $MYNAME latest --facility mls"
+    echo "      create source tree for latest installed version for facility mls"
+}
+
+declare -a ARGS
+while true; do
+    case "$1" in
+      -h | --help)
+        # if the "less" is present, use it:
+        if less -V >/dev/null 2>&1; then
+            $SCRIPT_FULL_NAME --help-raw | less
+            exit 0
+        else
+            print_short_help
+            exit 0
+        fi
+        ;;
+      --help-raw)
+        print_short_help
+        exit 0
+        ;;
+      --dir)
+        dir="$2"
+        shift 2
+        ;;
+      -f| --facility)
+        if [ "$2" = "bii" ]; then
+            facility="$2"
+        fi
+        if [ "$2" = "mls" ]; then
+            facility="$2"
+        fi
+        if [ -z "$facility" ]; then
+            echo "unknown facility: $2"
+            exit 1
+        fi
+        shift 2
+        ;;
+      --configure)
+        configure="yes"
+        shift
+        ;;
+      --build)
+        configure="yes"
+        build="yes"
+        shift
+        ;;
+      -v | --verbose)
+        verbose="yes"
+        shift
+        ;;
+      -n | --dry-run)
+        verbose="yes"
+        dryrun="yes"
+        shift
+        ;;
+      -- ) shift; break ;;
+      *)
+        if [ -z "$1" ]; then
+            break;
+        fi
+        ARGS+=("$1")
+        shift
+        ;;
+    esac
+done
+
+# examine commands
+prev=""
+state=""
+for arg in "${ARGS[@]}"; do
+    if [ "$state" == "complete" ]; then
+        echo "error, contradicting commands: ${ARGS[@]}"
+        exit 1
+    fi
+    if [ -n "$prev" ]; then
+        # get command argument
+        if [ "$prev" == "id" ]; then
+            id="$arg"
+            state="complete"
+            continue
+        fi
+        if [ "$prev" == "version" ]; then
+            version="$arg"
+            state="complete"
+            continue
+        fi
+    fi
+    if [[ "$arg" =~ ^(id|version)$ ]]; then
+        prev="$arg"
+        state="incomplete"
+        continue
+    fi
+    if [ "$arg" == "latest" ]; then
+        latest="yes"
+        state="complete"
+        break
+    fi
+    if [ "$arg" == "ids" ]; then
+        iddb -a idcp
+        exit 0
+    fi
+    if [ "$arg" == "versions" ]; then
+        idcp-dist-info --ids --active -v -b --idnames
+        exit 0
+    fi
+done
+
+if [ "$state" == "incomplete" ]; then
+    echo "error, missing argument for command $prev"
+    exit 1
+fi
+
+if [ "$state" != "complete" ]; then
+    echo "error, command missing"
+    exit 1
+fi
+
+if [ -n "$id" ]; then
+    # id is given, determine canonical ID name and facility:
+    echo
+    echo "Get canonical ID name and facility..."
+    CMDRET "iddb --id \"$id\" list name group -N 2>/dev/null"
+    if [ $cmdret -ne 0 ]; then
+        echo "unknown ID:$2 ('iddb $2' returned an error)"
+        exit 1
+    fi
+    data="$cmddata"
+    CMDRET "echo $data | sed -e 's/ .*//'"
+    id="$cmddata"
+    CMDRET "echo $data | sed -e 's/^[^ ]\+ \(.*\)/\L\1/'"
+    facility="$cmddata"
+fi
+
+if [ -n "$latest" ]; then
+    echo
+    echo "Get latest version for facility $facility..."
+    CMDRET "idcp-dist-info --ids --active -f \"$facility\" -v -b | tail -n 1 | sed -e 's/ .*//'"
+    if [ $cmdret -ne 0 ]; then
+        echo "couldn't get latest version for facility $facility, fatal error"
+        exit 1
+    fi
+    version="$cmddata"
+fi
+
+if [ -z "$version" ]; then
+    echo
+    echo "Get current version for $id..."
+    CMDRET "idcp-dist-info --id \"$id\" -f \"$facility\" -v -b | tail -n 1 | sed -e 's/ .*//'"
+    if [ $cmdret -ne 0 ]; then
+        echo "couldn't get version for $id, fatal error"
+        exit 1
+    fi
+    version="$cmddata"
+fi
+
+extra_opts=""
+if [ -n "$dir" ]; then
+    extra_opts="--dir $dir "
+fi
+
+echo
+echo "Restoring source tree from hg-recover files..."
+echo
+CMD "idcp-restore $extra_opts-f \"$facility\" \"$version\""
+
+if [ -n "$dir" ]; then
+    created_dir="$dir"
+else
+    if [ -n "$dryrun" ]; then
+        created_dir=$(echo "$version" | sed -e 's/://g')
+    else
+        CMDRET "ls -rt | tail -n 1"
+        created_dir="$cmddata"
+    fi
+fi
+
+if [ -z "$configure" ]; then
+    echo
+    echo "The program source is now set up in directory '$created_dir/idcp'."
+    exit 0
+fi
+
+CD "$created_dir"
+CD idcp
+echo 
+echo "Running idcp-configure..."
+echo
+CMD ./idcp-configure
+echo
+echo "The program source is now set up in directory '$created_dir/idcp'."
+echo
+if [ -z "$build" ]; then
+    echo "You may build the application with:"
+    echo "  make -sj"
+    echo
+    echo "Do also have a look at the README file."
+else
+    CMD "sumo build new --makeflags '-sj' --no-err-build-exists"
+    CMD "make -sj"
+fi
