@@ -27,6 +27,11 @@ MYNAME=$(basename $SCRIPT_FULL_NAME)
 TOP=$(readlink -e $MYDIR/..)
 # TOP needed for default bii_scripts.config
 
+# Note: we override the central repo definition in the restore data with these
+# directories:
+IDCP_CENTRALREPO="http://repo.acc.bessy.de/hg/idcp/idcp"
+ID_DB_CENTRALREPO="http://repo.acc.bessy.de/hg/id_db"
+
 verbose=""
 dryrun=""
 
@@ -176,13 +181,13 @@ if [ -e hg-recover.tar.gz -a -z "$dryrun" ]
 then
     # old hg-recover
     echo -e "\n* recovering idcp working directory..."
-    CMD "hg-recover.py -r hg-recover.tar.gz"
+    CMD "hg-recover.py --central-repo $IDCP_CENTRALREPO -r hg-recover.tar.gz"
     CD ".."
 else
     # new hg-recover with 
     # idcp_db recover information
     echo -e "\n* recovering idcp working directory..."
-    CMD "hg-recover.py -r -f hg-recover-idcp.tar.gz"
+    CMD "hg-recover.py --central-repo $IDCP_CENTRALREPO -r -f hg-recover-idcp.tar.gz"
     # Note: in case of an error we continue here on purpose in order to at
     # least restore the id_db directory. The script does not abort in case of
     # an error due to "set +e" before.
@@ -194,7 +199,7 @@ else
     if [ -e ../hg-recover-idcp_db.tar.gz -a -z "$dryrun" ]; then
         # old idcp_db directory
         echo -e "* recovering idcp_db working directory..."
-        CMD "hg-recover.py -r -f ../hg-recover-idcp_db.tar.gz"
+        CMD "hg-recover.py --central-repo $IDCP_CENTRALREPO -r -f ../hg-recover-idcp_db.tar.gz"
     fi 
     if [ -e ../hg-recover-id_db.tar.gz -o -n "$dryrun" ]; then
         # the newer version, id_db
@@ -208,13 +213,13 @@ else
         then
                 # id_db is placed in "idcp"
                 echo -e "* recovering idcp/id_db working directory..."
-                CMD "hg-recover.py -r -f ../hg-recover-id_db.tar.gz"
+                CMD "hg-recover.py --central-repo $ID_DB_CENTRALREPO -r -f ../hg-recover-id_db.tar.gz"
         else
                 # id_db is placed in "idcp/add_ons/src"
                 echo -e "* recovering idcp/add_ons/src/id_db working directory..."
                 CMD "mkdir -p add_ons/src"
                 CD "add_ons/src"
-                CMD "hg-recover.py -r -f ../../../hg-recover-id_db.tar.gz"
+                CMD "hg-recover.py --central-repo $ID_DB_CENTRALREPO -r -f ../../../hg-recover-id_db.tar.gz"
                 CD "../.."
         fi
     fi
