@@ -894,8 +894,13 @@ def create_recover_data(working_copy,
 
 def recover_data(working_copy,
                  data_dir,
+                 central_repo,
                  verbose, dry_run):
-    """recover repository from the given recovery data."""
+    """recover repository from the given recovery data.
+    
+    Note: Usually central_repo is empty, then take central_repo from
+          metadata.yaml.
+    """
     # pylint: disable= too-many-branches
     data_dir= search_datafile(data_dir)
     data_dir= os.path.abspath(data_dir)
@@ -916,8 +921,10 @@ def recover_data(working_copy,
         bag= yaml.load(meta, Loader= yaml.FullLoader)
     else:
         bag= yaml.load(meta)
-
     meta.close()
+    # patch central repository entry, if central_repo is given:
+    if central_repo:
+        bag["central repository"]= central_repo
     qparent= None
     if bag.get("mq patches used"):
         qparent= bag.get("qparent")
@@ -1050,7 +1057,13 @@ def main():
     parser.add_option("--central-repo",
                       action="store",
                       type="string",
-                      help="specify the CENTRALREPOSITORY",
+                      help="specify the CENTRALREPOSITORY. This is routinely "
+                           "used when recovery data is created "
+                           "(option --create). It can, however, also be "
+                           "used when recovering a repository "
+                           "(option --recover). In the latter case the "
+                           "CENTRALREPOSITORY defined in the recovery file "
+                           "is ignored and the given value is taken.",
                       metavar="CENTRALREPOSITORY"
                      )
     parser.add_option("-v", "--verbose",
@@ -1086,6 +1099,7 @@ def main():
     if options.recover:
         recover_data(working_copy= options.working_copy,
                      data_dir= options.file,
+                     central_repo= options.central_repo,
                      verbose= options.verbose,
                      dry_run= options.dry_run)
         sys.exit(0)
