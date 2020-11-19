@@ -604,6 +604,23 @@ def hg_hash_patchname_list(verbose, dry_run):
         new.append((shorthashkey,patchmap[longhashkey]))
     return new
 
+def hg_enable_mq(dir_, verbose, dry_run):
+    """enable mq extension in repo.
+    
+    This is needed when the user hasn't enabled mq in hier personal .hgrc.
+    """
+    filename= os.path.join(dir_, ".hg", "hgrc")
+    lines=[ "[extensions]\n",
+            "hgext.mq=\n" ]
+    if verbose or dry_run:
+        print("append to %s the following lines:" % filename)
+        print("".join(lines))
+    if dry_run:
+        return
+    with open(filename, 'a') as fh:
+        fh.write("[extensions]\n")
+        fh.write("hgext.mq=\n")
+
 rx_section=re.compile(r'^\[(\w+)\]\s*$')
 
 def get_section(st):
@@ -772,6 +789,7 @@ def recover_qparent(bag,
                                bag["source dir"]),
            not verbose, verbose, dry_run)
     old_dir= my_chdir(bag["source dir"], verbose or dry_run)
+    hg_enable_mq("", verbose, dry_run) # enable mq in .hg/hgrc
     data_dir= join("..",data_dir)
     apply_hg_bundle(join(data_dir,"hg-bundle"), verbose, dry_run)
     # the last patch in "patchname list" should be the first patch ("qbase")
@@ -924,6 +942,7 @@ def recover_data(working_copy,
                    not verbose, verbose, dry_run)
 
     my_chdir(bag["source dir"], verbose or dry_run)
+    hg_enable_mq("", verbose, dry_run) # enable mq in .hg/hgrc
     data_dir= join("..",data_dir)
     if len(bag["outgoing patches"])>0:
         apply_hg_bundle(join(data_dir,"hg-bundle"), verbose, dry_run)
