@@ -317,6 +317,6 @@ if [ -z "$build" ]; then
     echo
     echo "Do also have a look at the README file."
 else
-    CMD "sumo build new --makeflags '-sj' --no-err-build-exists"
+    CMD "sumo build new --makeflags '-sj' --no-err-build-exists || true"
     CMD "make -sj"
 fi
