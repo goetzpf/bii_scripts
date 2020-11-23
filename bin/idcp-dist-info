@@ -20,7 +20,7 @@
 
 set -e
 
-shopt -s nocasematch
+#shopt -s nocasematch
 
 SCRIPT_FULL_NAME=$(readlink -e $0)
 MYDIR=$(dirname $SCRIPT_FULL_NAME)
@@ -53,12 +53,18 @@ function CMD {
 
 function print_short_help {
     echo "$MYNAME: a small wrapper that calls rsync-dist-info.py"
+    echo
+    echo "usage: $MYNAME [OPTIONS] [ID]"
+    echo
     echo "options:"
     echo "  -h: this help"
     echo "  --help: this text PLUS the help from rsync-dist-info.py"
     echo "  --id [ID] : filter for this insertion device"
     echo "  --ids : filter for all ID's that are installed at"
     echo "      the given FACILITY."
+    echo "  -v --versions : order results by version"
+    echo "  -V --version VERSION : show information for VERSION"
+    echo "  --version-info VERSION : show log information for VERSION"
     echo "  --id-list : show the known insertion devices and their idcp-name"
     echo "  --list : just list the link names"
     echo "  --active : show information on all active versions"
@@ -76,8 +82,10 @@ function print_short_help {
     echo "      list all known names (IOCS)"
     echo "  $MYNAME --active"
     echo "      show all versions still in use"
-    echo "  $MYNAME -v [version]"
-    echo "      shows information for the given version"
+    echo "  $MYNAME --version [VERSION]"
+    echo "      shows links and link changes for the given version"
+    echo "  $MYNAME --version-info [VERSION]"
+    echo "      shows log information for the given version"
     echo "  $MYNAME --ids --active"
     echo "      shows all active versions for all IDs"
     echo "  $MYNAME --ids --active -v"
@@ -131,8 +139,8 @@ while true; do
         opts="$opts --filter-names $prefix"
         shift 2
         ;;
-      --idcp)
-        opts="$opts --filter-names idcp$2"
+      -V| --version)
+        opts="$opts --filter-version $2"
         shift 2
         ;;
       --ids)
@@ -209,6 +217,7 @@ while true; do
             break;
         fi
         if [[ $1 =~ ^- ]]; then
+            # it's an option to be passed to rsync-dist-info.py: 
             saveme="$saveme $1"
         else
             names="$names $1"
