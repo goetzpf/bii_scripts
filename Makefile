@@ -329,7 +329,7 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PY_SCRIPT_LIST= \
 	pyone.py sqlutil.py ssh-pw.py \
-	hg2darcs.py hg2git.py python-modules.py
+	hg2darcs.py hg2git.py python-modules.py subst-dump.py
 
 RST_DOC_SCRIPT_LIST= \
         hg-sig \
@@ -399,6 +399,7 @@ PYDOC_PYTHON3LIB_LIST= $(addprefix bii_scripts3/, \
 	FilterFile.py \
 	lslparser.py \
 	maillike.py \
+	parse_subst.py \
 	rsync_dist_lib.py \
 	)
 

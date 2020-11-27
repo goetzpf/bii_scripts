@@ -525,6 +525,11 @@ Scripts
     some variables $(VARIABLE).
   | `documentation <scripts/stripUnresolvedDb.html>`__
 
+**subst-dump.py**
+  | Parse and dump EPICS substitution files as JSON or python data. Can also be
+    used to verify, if a substitution is valid.
+  | `subst-dump.html <../script/subst-dump.html>`__
+
 **subst2exp.pl**
   | convert substitution-files to expander format for usage with the expander.pl
     script. This can be used on the fly as an alternative to EPICS msi, or to
@@ -736,6 +741,10 @@ Python Libraries
 **p_enum.py**
   | enumeration types for python.
   | `documentation <python/bii_scripts/p_enum.html>`__
+
+**parse_subst.py**
+  | Parse EPICS substitution files.
+  | `documentation <python/bii_scripts/parse_subst.html>`__
 
 **epicsUtils.py**
   | Utility collection to parse and handle with EPICS data: Database files,
