@@ -1,6 +1,224 @@
-#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
-"""parse EPICS substitution files.
+
+# Copyright 2020 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# <https://www.helmholtz-berlin.de>
+#
+# Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""
+===========
+parse_subst
+===========
+
+Preface
+=======
+
+This module contains a parser function for epics substitution-files. The
+contents of the db-file are returned in a python dictionary or list structure
+that can then be used for further evaluation.
+
+Implemented Functions
+---------------------
+
+parse
++++++
+
+Definition::
+
+  parse(data, mode= "dict", errmsg_prefix= None)
+
+This function parses a given string variable that must contain a complete
+substitution-file. It returns a data structure where the parsed data is
+stored.
+
+The new "global" statement in substitution files is also supported. Globals are
+resolved, meaning that definitions of global values are merged in the local
+per-file definitions. Applications that use parse_subst do not have to be
+aware of the global statement.
+
+parameters:
+
+- data          : The string containing the substitution data.
+- mode          : Either "dict" or "list". This determines the format of the
+                  returned data structure, see examples below.
+- errmsg_prefix : This message is prepended to possible parse error messages
+
+parse_file
+++++++++++
+
+Definition::
+
+  parse_file(filename, mode= "dict", encoding= None)
+
+This function parses the contents of a file specified by a filename. If the
+parameter "filename" is "-", it reads from STDIN. It returns a data structure
+where the parsed data is stored.
+
+parameters:
+
+- filename : The name of the file.
+- mode     : Either "dict" or "list". This determines the format of the
+             returned data structure, see examples below.
+- encoding : The encoding of the file, the default is your system's encoding
+             default, which usually is UTF-8. A list of valid encodings can be
+             found at:
+             https://docs.python.org/3/library/codecs.html#standard-encodings.
+
+json_str
+++++++++
+
+Definition::
+
+  json_str(var, ensure_ascii= True)
+
+This function converts a python data structure to a JSON string. It uses the
+standard JSON module from python with some useful defaults.
+
+parameters:
+
+- var          : The data structure.
+- ensure_ascii : If True, ensure that the JSON string contains only ASCII
+                 characters, all other characters are converted to JSON escape
+                 codes. If False, leave non-ASCII characters in the string.
+
+json_print
+++++++++++
+
+Definition::
+
+  json_print(var, ensure_ascii= True)
+
+This function converts a python data structure to a JSON string and prints it
+to the console. It uses the standard JSON module from python with some useful
+defaults.
+
+parameters:
+
+- var          : The data structure.
+- ensure_ascii : If True, ensure that the JSON string contains only ASCII
+                 characters, all other characters are converted to JSON escape
+                 codes. If False, leave non-ASCII characters in the string.
+
+data structures
+---------------
+
+In all the examples below, this is the substitution data parsed::
+
+  file adimogbl.template
+    {
+      {
+	GBASE="U3IV:",
+	TRIG1="U3IV:AdiMoVGblTrg.PROC",
+      }
+    }
+  file adimovhgbl.template
+    {
+      {
+	GBASE="U3IV:",
+	DRV="V",
+	AdiMopVer="9",
+	TRIG1="U3IV:AdiVGblPvr.PROC",
+      }
+      {
+	GBASE="U3IV:",
+	DRV="H",
+	AdiMopVer="9",
+	TRIG1="U3IV:AdiHGblPvr.PROC",
+      }
+    }
+
+dict structure
+++++++++++++++
+
+When the "mode" parameter of the parse function is not given or set to 'dict',
+the parse function returns a dict structure.
+
+Each template-name is a key in the dictionary. It's value is a list that
+contains the data for that template.
+
+The list contains dictionary for each instantiation of that template.
+
+Each instantiation dictionary contains a key-value pair for each field name
+value.  Note that undefined fields-values are empty strings ("").
+
+Example of a dictionary that parse() returns::
+
+  {
+    'adimovhgbl.template' : [
+                               {
+                                 'TRIG1' : 'U3IV:AdiVGblPvr.PROC',
+                                 'DRV' : 'V',
+                                 'GBASE' : 'U3IV:',
+                                 'AdiMopVer' : '9'
+                               },
+                               {
+                                 'TRIG1' : 'U3IV:AdiHGblPvr.PROC',
+                                 'DRV' : 'H',
+                                 'GBASE' : 'U3IV:',
+                                 'AdiMopVer' : '9'
+                               }
+                             ],
+    'adimogbl.template' : [
+                             {
+                               'TRIG1' : 'U3IV:AdiMoVGblTrg.PROC',
+                               'GBASE' : 'U3IV:'
+                             }
+                           ]
+  }
+
+list structure
+++++++++++++++
+
+When the "mode" parameter of the parse function is set to 'list', the parse
+function returns a list structure.
+
+The list contains a list for each template-name. Within these lists, the first
+element is the template-name, all following elements are dictionaries, one for
+each instantiation of that template.
+
+Each instantiation dictionary contains a key-value pair for each field name
+value.  Note that undefined fields-values are empty strings ("").
+
+Example of a dictionary that parse() returns::
+
+  [
+    [
+      'adimogbl.template',
+      {
+        'TRIG1' : 'U3IV:AdiMoVGblTrg.PROC',
+        'GBASE' : 'U3IV:'
+      }
+    ],
+    [
+      'adimovhgbl.template',
+      {
+        'TRIG1' : 'U3IV:AdiVGblPvr.PROC',
+        'DRV' : 'V',
+        'GBASE' : 'U3IV:',
+        'AdiMopVer' : '9'
+      },
+      {
+        'TRIG1' : 'U3IV:AdiHGblPvr.PROC',
+        'DRV' : 'H',
+        'GBASE' : 'U3IV:',
+        'AdiMopVer' : '9'
+      }
+    ]
+  ]
+
 """
 
 # pylint: disable=invalid-name, bad-whitespace
@@ -10,6 +228,8 @@ import re
 import json
 import locale
 import bisect
+
+MODES= set(("dict", "list"))
 
 WARNINGS=True
 PERMISSIVE=True
@@ -240,18 +460,26 @@ class ParseException(Exception):
 # -------------------------------------
 
 # read all of a variable
-def parse(data, errmsg_prefix= None):
+def parse(data, mode= "dict", errmsg_prefix= None):
     """convert a single string."""
     # pylint: disable= too-many-branches
     # pylint: disable= too-many-statements
     # pylint: disable= too-many-locals
+    if mode not in MODES:
+        raise ValueError("unknown mode: %s" % mode)
+
     if errmsg_prefix:
         _msg= errmsg_prefix
     else:
         _msg=""
 
     all_= data
-    file_defs= {}
+    if mode=="dict":
+        file_defs= {}
+        dict_format= True
+    else:
+        file_defs= []
+        dict_format= False
 
     global_defs= {}
     curr_file_list= None
@@ -260,21 +488,21 @@ def parse(data, errmsg_prefix= None):
     pattern_value_list= None
 
     pos= 0
-    mode=["top"]
+    state=["top"]
     maxpos= len(all_)
     while pos<maxpos:
         # print("pos:",pos)         # @@@
-        # print("mode:",repr(mode)) # @@@
+        # print("state:",repr(state)) # @@@
         # print("ST: ", repr(all_[pos:])) # @@@
-        if mode[-1] == "top":
+        if state[-1] == "top":
             m= rx_top.search(all_,pos)
             if m:
                 pos= m.end()
                 if m.group(2)=="file":
-                    mode.append("file")
+                    state.append("file")
                     continue
                 if m.group(2)=="global":
-                    mode.append("global")
+                    state.append("global")
                     continue
                 if m.group(2)=="":
                     if m.group(1)=="":
@@ -291,15 +519,15 @@ def parse(data, errmsg_prefix= None):
                     continue
             raise ParseException(_msg+"expected 'file' or 'global' at",
                                  all_, pos)
-        if mode[-1] == "global":
+        if state[-1] == "global":
             m= rx_bracket1.match(all_, pos)
             if not m:
                 raise ParseException(_msg+"expected '{' after 'global' at",
                                      all_, pos)
             pos= m.end()
-            mode[-1]= "global defs"
+            state[-1]= "global defs"
             continue
-        if mode[-1] == "global defs":
+        if state[-1] == "global defs":
             m= rx_def.match(all_,pos)
             if not m:
                 raise ParseException(_msg+"expected definitions after 'global' at",
@@ -310,10 +538,10 @@ def parse(data, errmsg_prefix= None):
             global_defs[name]= value
             b= m.group(7) # optional closing bracket
             if b=="}":
-                mode.pop()
+                state.pop()
             continue
 
-        if mode[-1] == "file":
+        if state[-1] == "file":
             m= rx_file_head.match(all_,pos)
             if not m:
                 raise ParseException(_msg+"expected filename after 'file' at",
@@ -321,17 +549,21 @@ def parse(data, errmsg_prefix= None):
             pos= m.end()
             #print "MATCH:",all_[m.start():m.end()]
             curr_file_list= []
-            file_defs[unquote(m.group(2))]= curr_file_list
-            mode[-1]= "file defs"
+            if not dict_format:
+                curr_file_list.append(unquote(m.group(2)))
+                file_defs.append(curr_file_list)
+            else:
+                file_defs[unquote(m.group(2))]= curr_file_list
+            state[-1]= "file defs"
             continue
-        if mode[-1] == "file defs":
+        if state[-1] == "file defs":
             m= rx_pattern.match(all_, pos)
             if m is not None:
                 pos= m.end()
                 #curr_file_list_defs= dict(global_defs)
                 pattern_name_list= []
                 pattern_value_list= []
-                mode.append("pattern")
+                state.append("pattern")
                 continue
             m= rx_bracket1.match(all_, pos)
             if m is not None:
@@ -339,14 +571,14 @@ def parse(data, errmsg_prefix= None):
                 pos= m.end()
                 curr_file_list_defs= dict(global_defs)
                 curr_file_list.append(curr_file_list_defs)
-                mode.append("defs")
+                state.append("defs")
                 continue
             m= rx_bracket2.match(all_,pos)
             if m is not None:
                 #print "MATCH:",all_[m.start():m.end()]
                 #new.extend((m.group(1),"),"))
                 pos= m.end()
-                mode.pop() # pop "file defs"
+                state.pop() # pop "file defs"
                 continue
             if PERMISSIVE:
                 m= rx_comma.match(all_,pos)
@@ -357,25 +589,25 @@ def parse(data, errmsg_prefix= None):
                                  "after 'file' at",
                                  all_, pos)
 
-        if mode[-1] == "pattern":
+        if state[-1] == "pattern":
             m= rx_bracket1.match(all_, pos)
             if m:
                 #print "MATCH:",all_[m.start():m.end()]
                 pos= m.end()
                 if not pattern_name_list:
-                    mode.append("pattern names")
+                    state.append("pattern names")
                 else:
-                    mode.append("pattern vars")
+                    state.append("pattern vars")
                 continue
             m= rx_bracket2.match(all_, pos)
             if m:
                 pos= m.end()
-                mode.pop() # pop "pattern"
-                mode.pop() # pop "file defs"
+                state.pop() # pop "pattern"
+                state.pop() # pop "file defs"
                 continue
             raise ParseException(_msg+"expected '}' after 'pattern' at",
                                  all_, pos)
-        if mode[-1] == "pattern names":
+        if state[-1] == "pattern names":
             m= rx_val.match(all_,pos)
             if not m:
                 raise ParseException(_msg+"expected variable names after "
@@ -386,9 +618,9 @@ def parse(data, errmsg_prefix= None):
             pattern_name_list.append(unquote(m.group(2)))
             b= m.group(3)
             if b == "}":
-                mode.pop()
+                state.pop()
             continue
-        if mode[-1] == "pattern vars":
+        if state[-1] == "pattern vars":
             m= rx_val.match(all_,pos)
             if not m:
                 raise ParseException(_msg+"expected values after 'pattern' at",
@@ -402,10 +634,10 @@ def parse(data, errmsg_prefix= None):
                 defs= dict(global_defs)
                 defs.update(zip(pattern_name_list, pattern_value_list))
                 curr_file_list.append(defs)
-                mode.pop()
+                state.pop()
             continue
 
-        if mode[-1] == "defs":
+        if state[-1] == "defs":
             m= rx_def.match(all_,pos)
             if m is None:
                 if PERMISSIVE:
@@ -413,7 +645,7 @@ def parse(data, errmsg_prefix= None):
                     if m:
                         # empty definition
                         pos= m.end()
-                        mode.pop()
+                        state.pop()
                         continue
                 raise ParseException(_msg+"expected variable definitions at",
                                      all_, pos)
@@ -429,12 +661,12 @@ def parse(data, errmsg_prefix= None):
                 curr_file_list_defs[name]= value
             b= m.group(7) # optional closing bracket
             if b == "}":
-                mode.pop() # pop "defs"
+                state.pop() # pop "defs"
             continue
     return file_defs
 
 # read all of a variable
-def parse_file(filename, encoding= None):
+def parse_file(filename, mode= "dict", encoding= None):
     """parse a file."""
     if filename != "-":
         if not encoding:
@@ -446,7 +678,7 @@ def parse_file(filename, encoding= None):
     all_= f.read()
     if filename != "-":
         f.close()
-    return parse(all_, "file %s:\n" % filename)
+    return parse(all_, mode= mode, errmsg_prefix= "file %s:\n" % filename)
 
 # -------------------------------------
 # output functions:
