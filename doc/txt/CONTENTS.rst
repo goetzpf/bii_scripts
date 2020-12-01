@@ -744,7 +744,7 @@ Python Libraries
 
 **parse_subst.py**
   | Parse EPICS substitution files.
-  | `documentation <python/bii_scripts/parse_subst.html>`__
+  | `documentation <python/bii_scripts3/parse_subst.html>`__
 
 **epicsUtils.py**
   | Utility collection to parse and handle with EPICS data: Database files,
