@@ -25,7 +25,6 @@
 # pylint: disable=invalid-name, bad-whitespace
 
 import argparse
-#import string
 import os.path
 import sys
 import pprint
@@ -49,13 +48,16 @@ OUTPUTFORMATs are:
     PYTHON       : standard dictionary format as python data
     JSON-LIST    : list format as JSON
     PYTHON-LIST  : list format as python data
+    SUBSTFILE    : substitution file
 '''
 
-OUTPUTFORMATS= set(("JSON", "PYTHON", "JSON-LIST", "PYTHON-LIST"))
+OUTPUTFORMATS= set(("JSON", "PYTHON", "JSON-LIST", "PYTHON-LIST",
+                    "SUBSTFILE"))
 
 def process(args, rest):
     """do all the work.
     """
+    # pylint: disable= too-many-branches
     #print("args:",args)
     #print("rest:",rest)
     #if args.summary:
@@ -79,6 +81,9 @@ def process(args, rest):
     mode= "dict"
     if format_.endswith("-LIST"):
         mode= "list"
+    if format_=="SUBSTFILE" and args.keep_order:
+        # only this format keeps the order:
+        mode= "list"
     for filename in rest:
         try:
             data= parse_subst.parse_file(filename, mode= mode, encoding= encoding)
@@ -92,6 +97,8 @@ def process(args, rest):
             parse_subst.json_print(data, ensure_ascii= ensure_ascii)
         elif format_.startswith("PYTHON"):
             pprint.pprint(data)
+        elif format_=="SUBSTFILE":
+            parse_subst.create_print(data)
         else:
             raise AssertionError()
 
@@ -130,6 +137,11 @@ def main():
     parser.add_argument("--json-no-ascii",
                         action="store_true",
                         help="do not escape non-ascii chars in json",
+                       )
+    parser.add_argument("--keep-order",
+                        action="store_true",
+                        help="For SUBSTFILE format, keep original "
+                             "order of 'file' statements",
                        )
     parser.add_argument("--quiet",
                         action="store_true",

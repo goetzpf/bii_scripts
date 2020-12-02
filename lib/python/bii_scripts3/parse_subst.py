@@ -251,11 +251,14 @@ st_space_or_comment    = r'\s*(?:\s*(?:|\#[^\r\n]*)[\r\n]+)*\s*'
 
 st_quoted_word         = r'\"(?:\w+)\"'
 st_unquoted_word       = r'(?:\w+)'
+rx_complete_unquoted_word= re.compile(st_unquoted_word+'$')
 
 st_quoted              = r'\"(?:.*?)(?<!\\)\"'
 st_unquoted_filename   = r'(?:[^\/\s\{\}]+)'
+rx_unquoted_filename= re.compile(st_unquoted_filename, re.M)
 
 st_unquoted_value      = r'(?:[^"\s\{\},]+)'
+rx_complete_unquoted_value= re.compile(st_unquoted_value+'$')
 
 st_comma               = r'\s*,'
 rx_comma= re.compile(st_comma, re.M)
@@ -325,6 +328,30 @@ def unquote(st):
     except IndexError as _:
         pass
     return st
+
+def quote(st):
+    """always return a quoted string.
+
+    Here are some examples:
+    >>> quote('')
+    '""'
+    >>> quote('a')
+    '"a"'
+    >>> quote('"a"')
+    '"a"'
+    >>> quote('"a')
+    '"a"'
+    >>> quote('a"')
+    '"a"'
+    """
+    if st=="":
+        return '""'
+    if st[0]!='"':
+        st= '"'+st
+    if st[-1]!='"':
+        st= st+'"'
+    return st
+
 
 def warning(msg):
     """warning to stderr."""
@@ -548,11 +575,12 @@ def parse(data, mode= "dict", errmsg_prefix= None):
                                      all_, pos)
             pos= m.end()
             #print "MATCH:",all_[m.start():m.end()]
-            curr_file_list= []
             if not dict_format:
+                curr_file_list= []
                 curr_file_list.append(unquote(m.group(2)))
                 file_defs.append(curr_file_list)
             else:
+                curr_file_list= file_defs.get(unquote(m.group(2)), [])
                 file_defs[unquote(m.group(2))]= curr_file_list
             state[-1]= "file defs"
             continue
@@ -720,3 +748,48 @@ def json_str(var, ensure_ascii= True):
 def json_print(var, ensure_ascii= True):
     """print as JSON to the console."""
     print(json_str(var, ensure_ascii= ensure_ascii))
+
+def create(data):
+    """create substitution data from structure."""
+    # pylint: disable= too-many-branches
+    if isinstance(data, dict):
+        format_= "dict"
+    elif isinstance(data, list):
+        format_= "list"
+    else:
+        raise TypeError("wrong data type: %s" % repr(data))
+    lines=[]
+    ind_2= " "*2
+    ind_4= " "*4
+    if format_=="dict":
+        elm_list= sorted(data.keys())
+    elif format_=="list":
+        elm_list= data
+    for elm in elm_list:
+        if format_=="dict":
+            filename= elm
+            lst= data[filename]
+        elif format_=="list":
+            filename= elm[0]
+            lst= elm[1:]
+        else:
+            raise AssertionError("unexpected format_: %s" % repr(format_))
+        if not rx_unquoted_filename.match(filename):
+            filename= quote(filename)
+        lines.append("file %s {" % filename)
+        for datadict in lst:
+            lines.append("%s{" % ind_2)
+            for varname in sorted(datadict.keys()):
+                value= datadict[varname]
+                if not rx_complete_unquoted_word.match(varname):
+                    varname= quote(varname)
+                if not rx_complete_unquoted_value.match(value):
+                    value= quote(value)
+                lines.append("%s%s=%s," % (ind_4, varname, value))
+            lines.append("%s}" % ind_2)
+        lines.append("}")
+    return lines
+
+def create_print(data):
+    """print data returned by create."""
+    print("\n".join(create(data)))
