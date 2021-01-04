@@ -228,6 +228,7 @@ import re
 import json
 import locale
 import bisect
+import textwrap
 
 MODES= set(("dict", "list"))
 
@@ -749,9 +750,30 @@ def json_print(var, ensure_ascii= True):
     """print as JSON to the console."""
     print(json_str(var, ensure_ascii= ensure_ascii))
 
-def create(data):
+def create(data, use_pattern=False, maxlen= None):
     """create substitution data from structure."""
-    # pylint: disable= too-many-branches
+    # pylint: disable= too-many-branches, too-many-locals, too-many-statements
+    def mywrap(maxlen, prefix, suffix, suffix_single, str_):
+        """do my wrap."""
+        if not maxlen:
+            return [ "".join((prefix,str_,suffix_single))]
+        l_prefix= len(prefix)
+        l_suffix= len(suffix_single)
+        if len(str_)+l_prefix+l_suffix < maxlen:
+            return [ "".join((prefix,str_,suffix_single))]
+        wrapped= textwrap.wrap(str_, maxlen-l_prefix)
+        first= True
+        result= []
+        indent= " " * len(prefix)
+        for w in wrapped:
+            if first:
+                result.append("".join((prefix, w)))
+                first= False
+                continue
+            result.append("".join((indent, w)))
+        result.append(suffix)
+        return result
+
     if isinstance(data, dict):
         format_= "dict"
     elif isinstance(data, list):
@@ -777,19 +799,50 @@ def create(data):
         if not rx_unquoted_filename.match(filename):
             filename= quote(filename)
         lines.append("file %s {" % filename)
-        for datadict in lst:
-            lines.append("%s{" % ind_2)
-            for varname in sorted(datadict.keys()):
-                value= datadict[varname]
-                if not rx_complete_unquoted_word.match(varname):
-                    varname= quote(varname)
-                if not rx_complete_unquoted_value.match(value):
-                    value= quote(value)
-                lines.append("%s%s=%s," % (ind_4, varname, value))
-            lines.append("%s}" % ind_2)
-        lines.append("}")
+        if use_pattern:
+            # collect all field names
+            columns= set()
+            for datadict in lst:
+                columns.update(set(datadict.keys()))
+            col_lst= []
+            col_qlst= []
+            for col in sorted(columns):
+                col_lst.append(col)
+                if not rx_complete_unquoted_word.match(col):
+                    col= quote(col)
+                col_qlst.append(col)
+            lines.extend(mywrap(maxlen,
+                                "%spattern { " % ind_2,
+                                "%s        }" % ind_2,
+                                " }",
+                                ", ".join(col_qlst)))
+            for datadict in lst:
+                val_lst= []
+                for col in col_lst:
+                    value= datadict.get(col, "")
+                    if not rx_complete_unquoted_value.match(value):
+                        value= quote(value)
+                    val_lst.append(value)
+                lines.extend(mywrap(maxlen,
+                                    "%s{ " % ind_2,
+                                    "%s}" % ind_2,
+                                    " }",
+                                    ", ".join(val_lst)))
+            lines.append("}")
+        else:
+            for datadict in lst:
+                lines.append("%s{" % ind_2)
+                for varname in sorted(datadict.keys()):
+                    value= datadict[varname]
+                    if not rx_complete_unquoted_word.match(varname):
+                        varname= quote(varname)
+                    if not rx_complete_unquoted_value.match(value):
+                        value= quote(value)
+                    lines.append("%s%s=%s," % (ind_4, varname, value))
+                lines.append("%s}" % ind_2)
+            lines.append("}")
     return lines
 
-def create_print(data):
+def create_print(data, use_pattern=False, maxlen= None):
     """print data returned by create."""
-    print("\n".join(create(data)))
+    print("\n".join(create(data, use_pattern= use_pattern, maxlen= maxlen)))

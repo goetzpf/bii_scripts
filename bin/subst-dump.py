@@ -49,10 +49,11 @@ OUTPUTFORMATs are:
     JSON-LIST    : list format as JSON
     PYTHON-LIST  : list format as python data
     SUBSTFILE    : substitution file
+    SUBSTPATTERN : substitution file format with "pattern" statements
 '''
 
 OUTPUTFORMATS= set(("JSON", "PYTHON", "JSON-LIST", "PYTHON-LIST",
-                    "SUBSTFILE"))
+                    "SUBSTFILE", "SUBSTPATTERN"))
 
 def process(args, rest):
     """do all the work.
@@ -81,7 +82,7 @@ def process(args, rest):
     mode= "dict"
     if format_.endswith("-LIST"):
         mode= "list"
-    if format_=="SUBSTFILE" and args.keep_order:
+    if (format_ in ("SUBSTFILE", "SUBSTPATTERN")) and args.keep_order:
         # only this format keeps the order:
         mode= "list"
     for filename in rest:
@@ -99,6 +100,9 @@ def process(args, rest):
             pprint.pprint(data)
         elif format_=="SUBSTFILE":
             parse_subst.create_print(data)
+        elif format_=="SUBSTPATTERN":
+            parse_subst.create_print(data, use_pattern= True,
+                                     maxlen= args.length)
         else:
             raise AssertionError()
 
@@ -133,6 +137,12 @@ def main():
     parser.add_argument("--format",
                         help="specify the OUTPUTFORMAT",
                         metavar="OUTPUTFORMAT"
+                       )
+    parser.add_argument("--length",
+                        help="specify maximum line length for format "
+                             "SUBSTPATTERN",
+                        type=int,
+                        metavar="LENGTH"
                        )
     parser.add_argument("--json-no-ascii",
                         action="store_true",
