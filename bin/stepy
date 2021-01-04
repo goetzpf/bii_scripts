@@ -188,7 +188,7 @@ assert sys.version_info[0]==2
 my_version = "1.1"
 
 try:
-    import step
+    from bii_scripts import step
 except ImportError:
     if len(sys.argv)==2 and (sys.argv[1] in ("--doc")):
         pass
@@ -390,7 +390,7 @@ if options.file is not None:
 if options.win or ( options.loop is None and options.execute is None):
     try:
     	import Tkinter
-    	import stepView
+    	from bii_scripts import stepView
     except ImportError, e:
     	print "Don't support GUI: ",e
     	sys.exit()

@@ -998,6 +998,8 @@ Strip.Option.GraphLineWidth   2\n"
 	pid = os.spawnlp(os.P_NOWAIT,'StripTool','StripTool',fileName)
 #	print pid, ' StripTool ',fileName
 
+stepConfig.STEPVIEWLABELCLASS= LabelEntryWidget
+
 def main():
     """
     The main function.

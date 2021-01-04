@@ -24,9 +24,15 @@ import tkMessageBox
 import tkSimpleDialog
 import tkFileDialog
 from bii_scripts import step
-from bii_scripts import stepView
+# Do NOT import stepView here, stepView already imports stepConfig, this
+# creates a mutual dependency that makes problems. 
+# We resolve this by defining STEPVIEWLABELCLASS which must be set to class
+# LabelEntryWidget from module stepView within the module initialization of
+# stepView.
 
 assert sys.version_info[0]==2
+
+STEPVIEWLABELCLASS= None
 
 class ChooseConfigDialog(Toplevel):
     """
@@ -129,7 +135,7 @@ class ConfigMeasDialog(Toplevel):
         listFrame.rowconfigure(1,weight=1)
         self.valList.grid(row=1,column=0,sticky=W+E+N+S )
         listFrame.pack(side=LEFT,fill=BOTH,expand=1,padx=5,pady=5)
-        self.pvEntr = stepView.LabelEntryWidget(self,"Add PV:",None,None)
+        self.pvEntr = STEPVIEWLABELCLASS(self,"Add PV:",None,None)
         self.pvEntr.pack(side=TOP,padx=5,pady=5,anchor=E)
         addBut = Button(self,width=25,text="Add PV",command=self.addCmd)
         addBut.pack(side=TOP,padx=5,pady=5,anchor=E)
