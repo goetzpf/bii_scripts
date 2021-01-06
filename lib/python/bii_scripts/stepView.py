@@ -19,7 +19,6 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-import ca
 from bii_scripts import pfunc
 from Tkinter import *
 import tkFont

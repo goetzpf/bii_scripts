@@ -19,7 +19,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-import ca
+from epics import PV
 import time
 import sys
 import string
@@ -31,9 +31,9 @@ import threading
 import atexit
 import os
 import pprint, StringIO
-#from traceback import *
+
 """
-step.py - Configurable Measure Program
+step.py - Configurable Measure Loops
 ****************************************
 
 """
@@ -41,7 +41,6 @@ step.py - Configurable Measure Program
 assert sys.version_info[0]==2
 
 my_version = "1.1"
-lock = threading.Lock()
 
 def warnSh(warnStr): 
     print warnStr
@@ -50,7 +49,8 @@ def warnSh(warnStr):
 warnfuncArr = [warnSh]
 
 def setWarnFunc(func):
-    warnfuncArr[0] = func
+    pass
+#    warnfuncArr[0] = func
 
 def warnFunc(msg):
     warnfuncArr[0](msg)
@@ -86,11 +86,9 @@ class SaveRestore(object):
 
     @staticmethod
     def restore(pvName):
-        chSet = ca.channel(pvName)
-        chSet.wait_conn(dt=0.1,wait=10)
         val = SaveRestore.caputStore[pvName]
 #       print "SaveRestore restore:", pvName,val, chSet
-        caput(val,chSet)
+        caput(val,pvName)
         del SaveRestore.caputStore[pvName]
     @staticmethod
     def restoreAll(verbose=None):
@@ -146,69 +144,64 @@ class SaveRestore(object):
 #  Base functions for channel access (module ca)
 #  ============================================
 #
+pvCa = {}
+""" Create and connect a PV variable if not allready exist.
+    Return: the PV or false if the PV can't be connected
+"""
+def getCa(pvName):
+    if pvName in pvCa:
+        return pvCa[pvName]
+    else:
+        p = PV(pvName)
+        connected = p.wait_for_connection(timeout=3.0)
+
+        if connected == True:
+            pvCa[pvName] = p
+            return p
+        else:
+            return False
+
 def caExist(chName) :
-    """
+    """ Create and connect a PV variable if not allready exist.
     Return: True if chName is found, otherwise False
     """
-    try :
-        ch = ca.channel(chName)
-        ch.wait_conn(dt=0.1,wait=10)
-        return True
-    except ca.caError,e:
+    if getCa(chName) == False:
         return False
+    return True
     
-def caput(val,chSet) :
+def caput(val,pvName) :
+    """ Create and connect a PV variable if not allready exist.
+    Put val to pvName.
     """
-    Primitive channel access functions provide for exception handling
-    and communication with the thread of the ca-module
+    pv = getCa(pvName)
+    stat = pv.put(val,wait=True)
 
-    pvs will be setup and hold in a dictionary within ca-module
-    
-    Example:
-    
-        try:
-            chSet = ca.channel(pvName)
-            chSet.wait_conn(dt=0.1,wait=10)
-        except ca.caError,e:
-            return False
-        caput(value,chSet)
-        return True
-    """
-    try :
-        lock.acquire();
-        chSet.put(val)
-        chSet.flush()
-    except ca.caError,e:
-        warnFunc( "caput ERROR: '"+chSet.name+"': "+e.__doc__)
-        lock.release()
+    if stat == None:
+        warnFunc( "caput ERROR: '"+pvName)
         return False
     else :
-        lock.release()
         return True
 
-def caget(pv,dbrTtype=-1):
+def caget(pvName):
+    """ Create and connect a PV variable if not allready exist.
+    Get val from pvName.
     """
-    see caput(), 
-    """
-    try :
-        lock.acquire();
-        val = ca.Get(pv,Type=dbrTtype)
-    except ca.caError,e:
-        warnFunc( "caget ERROR: '"+pv+"': "+e.__doc__)
-        val = None
-    lock.release()
+    pv = getCa(pvName)
+    val = pv.get()
+    if val == None:
+        warnFunc( "caget ERROR: '"+pv)
     return val
 
 cadiffPVs = {}
 def cadiff(pv,dbrTtype=-1):
-    """
+    """ Create and connect a PV variable if not allready exist.
     Return the difference value of consecutive calls of a PV OR 
     None for the first call or ca-error. This works for multiple PVs! see also caput
     """
-    try :
-        now = ca.Get(pv,Type=dbrTtype)
-    except ca.caError,e:
-        warnFunc( "cadiff ERROR: '"+pv+"': "+e.__doc__)
+    pv = getCa(pvName)
+    now = pv.get()
+    if now == None:
+        warnFunc( "cadiff ERROR: '"+pv)
         return None
     else :
         if cadiffPVs.has_key(pv) :
@@ -228,30 +221,31 @@ class monPV :
     - set/read event flag
     """ 
     def __init__(self, pv,Type=-1):
-        self.val = None
-        self.event = False
-        def myCB(ch,val) : 
-            self.val = val
+        self.pvName = pv
+        self.val    = None
+        self.event  = False
+        def onChanges(pvname=None, value=None, char_value=None, **kw):
+            self.val = value
             self.event = True
-        ca.Monitor(pv,myCB)
+        mypv = getCa(pv)
+        if mypv == False:
+            warnFunc("Error: Can't init PV: "+pv)
+        else:
+            mypv.add_callback(onChanges)
+
     def get(self) : 
         """
         - o.get()     Return: PV.VAL
         """
         if self.val != None : 
-            return self.val[0] 
+            return self.val
         else : 
             return None
-    def getAll(self) : 
-        """
-        - o.getAll()  Return: (VAL,STAT,SEVR,TS)
-        """
-        return self.val
     def testEvent(self) : 
         """
         o.testEvent() Return: True if any monitor occured since last call of testEvent() or False if not
         """
-        if self.event == True : 
+        if self.event == True :
             self.event = False
             return True
         else : 
@@ -318,15 +312,12 @@ class setPV(anyLoopPV) :
         Create a motor object and setup all PVs, monitors to operate this motor.
         """
         anyLoopPV.__init__(self,name)
-        self.chSet= None
-        self.chSet = ca.channel(self.pvName)
-        self.chSet.wait_conn(dt=0.1,wait=10)
 
     def toDict(self):
         return {'TYPE':'PV','PV':self.pvName}
     def set(self, val) :
         self.setVal = val
-        caput(val,self.chSet)
+        caput(val,self.pvName)
 
 class motorPV(anyLoopPV) :
     """
@@ -401,9 +392,6 @@ class funcPV(anyLoopPV):
     """
     def __init__(self, name,func):
         anyLoopPV.__init__(self,name)
-        self.chSet = None
-        self.chSet = ca.channel(self.pvName)
-        self.chSet.wait_conn(dt=0.1,wait=10)
         self.func  = func
         if func is not None: self.setFunc(func)
     def toDict(self):
@@ -417,7 +405,7 @@ class funcPV(anyLoopPV):
             raise SyntaxError(" "+self.pvName+" has illegal Function: \n'"+self.func+"'")
          
         self.setVal = fVal
-        caput(fVal,self.chSet)
+        caput(fVal,self.pvName)
 
 class linPV(anyLoopPV):
     """
@@ -444,7 +432,7 @@ class linPV(anyLoopPV):
         if steps == 0: raise ZeroDivisionError
         fVal = (self.end-self.begin) * step/steps + self.begin
         self.setVal = fVal
-        caput(fVal,self.chSet)
+        caput(fVal,self.pvName)
    
 ################################################################################
 #
@@ -573,7 +561,6 @@ class measurePvs(object) :
         """
 #       print "Create: measurePvs(",measPvNames,")"
         self.hItemWidths = []
-        self.chansCa = []   # ca channels for the pvs to be measured
 
         self.chanNames = [] # names of the measured PVs
         self.chanVals = []  # last measured data
@@ -619,8 +606,6 @@ class measurePvs(object) :
         self.hasTimestamp = hasTs
         del(self.chanNames)
         self.chanNames=[]
-        del(self.chansCa)
-        self.chansCa=[]
         del(self.chanVals)
         self.chanVals=[]
         map(lambda x: self.addPv(x),chList)
@@ -638,7 +623,6 @@ class measurePvs(object) :
                 idx = self.chanNames.index(chName)
                 #print "delPv",chName, idx,self.chanNames[idx]
                 del(self.chanNames[idx])
-                del(self.chansCa[idx])
                 del(self.chanVals[idx])
         except ValueError,e:
             warnFunc( chName+" not found")
@@ -649,14 +633,12 @@ class measurePvs(object) :
         Return None if done, errStr if failed (pv don't exist)
         """
         errStr = None
-        try :
-            ch = ca.channel(chName)
-            ch.wait_conn(dt=0.1,wait=10)
-            self.chansCa.append(ch)
+        stat = caExist(chName)
+        if stat == False:
+            warnFunc("Measure '"+chName+"': Not Connected")
+        else:
             self.chanVals.append(None)  # default each value to None
             self.chanNames.append(chName)
-        except ca.caError,e:
-            warnFunc("Measure '"+chName+"': "+e.__doc__)
 
     def printHeader(self,toString=False,joinStr=" | ") :
         """
@@ -722,15 +704,13 @@ class measurePvs(object) :
         """
         if self.hasTimestamp is True:
             self.timestamp = time.localtime() [0:6]
-        if len(self.chansCa) <= 0:
+        if len(self.chanNames) <= 0:
             return
-        try :
-            for ch in self.chansCa: 
-                ch.get()
-            self.chansCa[0].pend_event(1)
-        except ca.caError,e:
-            return
-        self.chanVals = map(lambda x: x.val,self.chansCa)
+        for (pvName,idx) in zip(self.chanNames,range(0,len(self.chanNames),1)): 
+            val = caget(pvName)
+            if val == None:
+                return
+            self.chanVals[idx] = val
 
         self.measData.append(self.getVals()[:])
         
@@ -892,7 +872,8 @@ class MeasThread(object):
             #print "runLoop: Enter idx: ",idx,self.getRunControlStr(),"Timestamp=",self.mPvs.hasTimestamp #,"loop:",l
             while self.notFinished(l.setVal,l.fromVal,l.toVal,l.incVal) is True:
                 try:
-                    for s in l.setPv: s.set(l.setVal)       # HERE: set the new value
+                    for s in l.setPv: 
+                        s.set(l.setVal)       # HERE: set the new value
                 except Exception, e:
                     warnFunc("Loop ERROR can't set:"+str(e) )
                     self.stopCmd()

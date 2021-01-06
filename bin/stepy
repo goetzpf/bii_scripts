@@ -170,18 +170,13 @@ Bugs and Enhancement - TuDu
     muss die Leere Zeile angeklickt werden - Mist!
 """
 import re
-#import ca
 import time
 import sys
-#import string
 import signal
 from bii_scripts import pfunc
 from types import FunctionType
 from optparse import OptionParser
-#import threading
-#import atexit
 import os
-#from traceback import *
 
 assert sys.version_info[0]==2
 
