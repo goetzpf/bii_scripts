@@ -25,7 +25,6 @@ import sys
 import re
 import os
 import copy
-import epicsUtils
 import xml.etree.ElementTree as ET
 import xml.dom.minidom 
 from bii_scripts3 import parse_subst
