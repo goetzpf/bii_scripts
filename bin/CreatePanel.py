@@ -32,11 +32,98 @@ from bii_scripts3 import parse_subst
 # version of the program:
 __version__= "0.10" #VERSION#
 
+def parseParam(fieldPar,delim='|'):
+    """
+    Parse parameter string:
+
+    * just one word or something without delimiter '|'
+
+        >>> x = "eins"
+        >>> print epicsUtils.parseParam(x)
+        eins
+        >>> x = "eins,zwei"
+        >>> print epicsUtils.parseParam(x)
+        eins,zwei
+
+    * a string of names seperated by '|' delimiter: Return it as list
+
+        >>> x = "eins|zwei"
+        >>> print epicsUtils.parseParam(x)
+        ['eins', 'zwei']
+
+    * name value pairs: returned as dictionary
+
+        >>> x = "eins=1|zwei=2"
+        >>> print epicsUtils.parseParam(x)
+        {'eins': '1', 'zwei': '2'}
+        
+    * raise ValueError for inconsistent data
+    """
+    commFields = {}
+    valList = splitQuotedParam(fieldPar,delim) # split parameters
+    if len(valList) == 0 or valList[0] == '':
+        return {}
+    first = valList[0]
+    n = first.find('=')
+    if n == -1:
+        if len(valList) == 1:   # is just a value
+            return first
+        else:
+            return valList      # is a list
+    else:
+        commFields[first[:n]] = first[(n+1):]
+    
+    # is a dictionary
+    if len(valList) == 0:
+        return commFields
+    for v in valList[1:]:
+        n = v.find('=')
+        if n == -1:
+            raise ValueError("Inconsistent dictionary data in parse parameter: %s"%(fieldPar))
+        else:
+            commFields[v[:n]] = v[(n+1):]
+    return commFields
+
+def printTable(rT,header=None,sortIdx=None) :
+    """
+    Print formated table
+
+    Parameter:
+
+    - rT,       # The table, a array reference (rows) of an array reference (columns)
+    - header,   # (optional) Header, list of strings for each collumn
+    - sortIdx   # (optional) Index of the column the table should be sorted to
+    """
+    lines = header
+    formatMax = []          # max item length of a collumn
+    rTable = rT
+    if (sortIdx is not None) and sortIdx < len(rT[0]):
+        rTable = sorted(rT,key=lambda x: x[sortIdx])
+    if header is not None:
+        formatMax = [len(x) for x in lines]
+    #print "header: ",formatMax
+    def choose(x):
+        if x[0] < x[1]: return x[1]
+        else: return x[0]
+    def length(x):
+        if x is not None:
+            return len(str(x))
+        else:
+            sys.stderr.write( str(x) )
+            return 0
+    for row in rTable:
+        fLen = [length(x) for x in row]
+        formatMax = [choose(x) for x in zip(formatMax,fLen)]
+    sys.stderr.write( " | ".join(["{0:>{1}}".format(h,l) for (l,h) in zip(formatMax,header)] )+"\n" )
+    sys.stderr.write( "-+-".join([x*'-' for x in formatMax] )+"\n" )
+    for line in rTable:
+        sys.stderr.write( " | ".join(["{0:>{1}}".format(h,l) for (l,h)in zip(formatMax,line)] )+"\n" )
+
 class Dbg:
     def __init__(self,head=None): 
         self.header = head
         self.data   = []
-    def print(self): epicsUtils.printTable(self.data,self.header)
+    def print(self): printTable(self.data,self.header)
     def add(self,lineData): self.data.append(lineData)
     def clear(self): self.data = []
 regPretty=re.compile("\n\t+\n",re.M)
@@ -795,7 +882,7 @@ class getOption(object):
 
     self.substitutions = None    
     if options.subst:
-        self.substitutions = epicsUtils.parseParam(options.subst,';')
+        self.substitutions = parseParam(options.subst,';')
         if self.verbose: print("SUBST:\t",self.substitutions)
 
     self.dependencies = None    
