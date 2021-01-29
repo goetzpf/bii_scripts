@@ -31,6 +31,27 @@ from bii_scripts3 import parse_subst
 # version of the program:
 __version__= "0.10" #VERSION#
 
+def splitQuotedParam(fieldPar,delim=';'):
+    parse = []
+    beg = 0     # begin of a field
+    end = 0     # end of a field - by unquoted delimiter
+    nextStr = ""
+    while end >= 0:
+        
+        end = fieldPar.find(delim,beg)
+        if end < 0:
+            nextStr = nextStr + fieldPar[beg:]
+            parse.append(nextStr)
+        else:
+            if fieldPar[end-1] == "\\":
+                nextStr = nextStr + fieldPar[beg:end-1] + delim
+            else:
+                nextStr = nextStr + fieldPar[beg:end]
+                parse.append(nextStr)
+                nextStr = ""
+        beg = end+1
+    return parse
+
 def parseParam(fieldPar,delim='|'):
     """
     Parse parameter string:
