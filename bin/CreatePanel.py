@@ -737,7 +737,9 @@ def process_file(opts):
                 sys.stderr.write("-M: dependant file '{}' not found\n".format(widgetFileName))
             else:
                 depFiles.append(wdgFile)
-        print("{}: {}".format(opts.outFile," ".join(depFiles) ) )
+        with open(opts.outFile+".d",mode="w") as w:
+            w.write("{}: {}\n".format(opts.outFile," ".join(depFiles) ))
+
         return
     for wdg in dependencies:
         w = ParsedWidget(file=wdg,options=opts)
