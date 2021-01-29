@@ -37,7 +37,7 @@ def splitQuotedParam(fieldPar,delim=';'):
     end = 0     # end of a field - by unquoted delimiter
     nextStr = ""
     while end >= 0:
-        
+
         end = fieldPar.find(delim,beg)
         if end < 0:
             nextStr = nextStr + fieldPar[beg:]
@@ -213,6 +213,7 @@ class ParsedWidget:
         self.w = wdg.find('width').text
         self.h = wdg.find('height').text
         self.wdg = wdg
+        self.wdgStr = args['xmlStr']
         self.name = wdg.find('name').text
         #print("ParsedWidget xmlStr: ",self.name,self.w,self.h)
     elif 'file' in args:
@@ -241,6 +242,7 @@ class ParsedWidget:
             else:
                 raise ValueError("Ilegal widget file: "+wdgFile)
             self.wdg = wdgGroup
+            self.wdgStr = ET.tostring(wdgGroup)
 #            print("ParsedWidget file: ",self.name,self.w,self.h)
         else:
             sys.stderr.write(("ERROR: Can't find:",wdgFile,os.path.isfile(wdgFile))+"\n")
@@ -265,15 +267,27 @@ class ParsedWidget:
         m =self.regPvField.match(substData['PV'])
         if m != None:
             substData['PV'] = m.groups()[0]
-    
-    
-  def setWidget(self,xPos,yPos,substData):
-    wdgStr = ""
+
+  # set substitutions as group paramter, substitute at load time    
+  def setWidgetXXX(self,xPos,yPos,substData):
     wdgRoot = copy.deepcopy(self.wdg)
     self.parsePV(substData)
     macros = newElemToTree(wdgRoot,'macros')
+    x = wdgRoot.find('x')
+    y = wdgRoot.find('y')
+    x.text = str(xPos + int(x.text))
+    y.text = str(yPos + int(y.text))
     for n in substData:
         newElemToTree(macros,n,substData[n])
+    return (self.w,self.h,wdgRoot)
+
+  def setWidget(self,xPos,yPos,substData):
+    self.parsePV(substData)
+    sString = self.wdgStr
+    for n in substData:         # replace macros here for decreased load time
+        sString = sString.replace(bytes("$("+n+")",'utf-8'),bytes(str(substData[n]),'utf-8') )
+    #print("\nWIDGET: ",sString)
+    wdgRoot = ET.XML(sString)
     x = wdgRoot.find('x')
     y = wdgRoot.find('y')
     x.text = str(xPos + int(x.text))
@@ -708,7 +722,7 @@ def process_file(opts):
 """)
 
     if opts.backGroundDisplay != None:
-        (wdgWidth,wdgHeight,wdg) = opts.backGroundDisplay.setWidget(0,0,{})
+        (wdgWidth,wdgHeight,wdg) = opts.backGroundDisplay.setWidget(0,0,opts.substitutions)
         display.append(wdg)
         dWidth = display.find('width')
         dWidth.text = wdgWidth
@@ -758,7 +772,7 @@ def process_file(opts):
     printData = "Empty Print Data!"    
     yPos      = 0
     if 'title' in opts.widgetStore:
-        (wdgWidth,wdgHeight,wdg) = opts.widgetStore['title'].setWidget(0,yPos,{})
+        (wdgWidth,wdgHeight,wdg) = opts.widgetStore['title'].setWidget(0,yPos,opts.substitutions)
         display.append(wdg)
         yPos = int(wdgHeight)
 
@@ -908,6 +922,8 @@ class getOption(object):
     if options.subst:
         self.substitutions = parseParam(options.subst,';')
         if self.verbose: print("SUBST:\t",self.substitutions)
+        print("SUBST:\t",options.subst,self.substitutions)
+
 
     self.dependencies = None    
     if options.M:
