@@ -237,7 +237,7 @@
     }
     else {
         $r_substData = parse_subst::parse($file,'templateList',$inFileName);
-        print Dumper($r_substData);
+        #print Dumper($r_substData);
     }
 #print "inFileName '$inFileName', fileType '$fileType', ",Dumper($r_substData),"\nSubstitutions '$substPar'):";#print Dumper($rH_subst);die;
 
