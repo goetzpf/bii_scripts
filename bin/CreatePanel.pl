@@ -39,8 +39,7 @@
 #      -title  TitleString | Title.type Title of the panel (string or file). Default=no title
 #      -baseW filename                  Base panel name for layout=xy
 #      -x pixel                         X-Position of the panel (default=100)
-#      -y pixel         
-                Y-Position of the panel (default=100)
+#      -y pixel                         Y-Position of the panel (default=100)
 #      -w pixel                         Panel width (default=900)
 #      -I searchPath                    Search paht(s) for panel widgets
 #      -i                               Add ., .., $EPICS_DISPLAY_PATH','$EDMDATAFILES' 
