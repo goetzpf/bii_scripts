@@ -146,6 +146,7 @@ class Dbg:
     def print(self): printTable(self.data,self.header)
     def add(self,lineData): self.data.append(lineData)
     def clear(self): self.data = []
+
 regPretty=re.compile("\n\t+\n",re.M)
 def prettyXml(uglyxml):
     xx = xml.dom.minidom.parseString(uglyxml)
@@ -268,30 +269,41 @@ class ParsedWidget:
         if m != None:
             substData['PV'] = m.groups()[0]
 
-  # set substitutions as group paramter, substitute at load time    
-  def setWidgetXXX(self,xPos,yPos,substData):
-    wdgRoot = copy.deepcopy(self.wdg)
-    self.parsePV(substData)
-    macros = newElemToTree(wdgRoot,'macros')
-    x = wdgRoot.find('x')
-    y = wdgRoot.find('y')
-    x.text = str(xPos + int(x.text))
-    y.text = str(yPos + int(y.text))
-    for n in substData:
-        newElemToTree(macros,n,substData[n])
-    return (self.w,self.h,wdgRoot)
-
   def setWidget(self,xPos,yPos,substData):
-    self.parsePV(substData)
+# set substitutions as group parameter, substitute at load time 
+#    wdgRoot = copy.deepcopy(self.wdg)
+#    if substData != None:
+#        macros = newElemToTree(wdgRoot,'macros')
+#        self.parsePV(substData)
+#        for n in substData:
+#            newElemToTree(macros,n,substData[n])
+#*** END setsubstitutions as group
+
+# replace macros here for decreased load time
     sString = self.wdgStr
-    for n in substData:         # replace macros here for decreased load time
-        sString = sString.replace(bytes("$("+n+")",'utf-8'),bytes(str(substData[n]),'utf-8') )
+    if substData != None:
+        self.parsePV(substData)
+        for n in substData:         # replace macros here for decreased load time
+            sString = sString.replace(bytes("$("+n+")",'utf-8'),bytes(str(substData[n]),'utf-8') )
     #print("\nWIDGET: ",sString)
     wdgRoot = ET.XML(sString)
+#** END replace macros here
     x = wdgRoot.find('x')
     y = wdgRoot.find('y')
     x.text = str(xPos + int(x.text))
     y.text = str(yPos + int(y.text))
+
+    if substData != None and "COLOR" in substData:
+        color = substData['COLOR']
+        colorData = getColor(color)
+        if colorData != None:
+          for c in wdgRoot.iter('color'):
+              if(c.attrib['name'] == 'dummy1'):
+                  c.attrib['name']  = color
+                  c.attrib['red']   = str(colorData['red'])
+                  c.attrib['green'] = str(colorData['green'])
+                  c.attrib['blue']  = str(colorData['blue'])
+
     return (self.w,self.h,wdgRoot)
 
 def layoutLine(substData,display,yPos,opts):
@@ -983,6 +995,251 @@ class getOption(object):
         self.spaceing = int(options.border)
     if options.spaceing:
         self.spaceing = int(options.spaceing)
+
+def getColor(color):
+    try:    # number means dm2k color number
+        n=int(color)
+    except ValueError:
+        pass
+    else:
+        if n<65: color = "DM2K{}".format(str(n))
+        else: return None
+
+    alias = { 'TitleMicrotron':'DM2K19',
+            'TitleRing':'DM2K24',
+            'TitleBooster':'DM2K29',
+            'TitleDiagnostic':'DM2K33',
+            'TitleHF':'DM2K36',
+            'TitleInjLine':'DM2k39',
+            'TitleTransferline':'DM2K49',
+            'TitleLinac':'DM2K54',
+            'BGReadback':'DM2K55',
+            'Mon:NORMAL/alt':'green',
+            'Mon:MINOR':'yellow',
+            'Mon:MAJOR':'red',
+            'Disconn/Invalid':'white',
+            'Global Canvas':'DM2K4',
+            'Exit/Quit/Kill':'red',
+            'EDMhelp':'DM2K9',
+            'EDMcanvas':'DM2K3',
+            'White':'white',
+            'Black':'black',
+            'Blue':'blue',
+            'Cyan':'cyan',
+            'dummy 1':'black',
+            'dummy 2':'black',
+            'dummy 3':'black',
+            'invisible':'black'
+            }
+    if color in alias:
+        color = alias[color]
+    colors= {
+            'DM2K0':{'red':256,'green':256,'blue':256},
+            'DM2K1':{'red':237,'green':237,'blue':237},
+            'DM2K2':{'red':219,'green':219,'blue':219},
+            'DM2K3':{'red':201,'green':201,'blue':201},
+            'DM2K4':{'red':188,'green':188,'blue':188},
+            'DM2K5':{'red':175,'green':175,'blue':175},
+            'DM2K6':{'red':159,'green':159,'blue':159},
+            'DM2K7':{'red':146,'green':146,'blue':146},
+            'DM2K8':{'red':134,'green':134,'blue':134},
+            'DM2K9':{'red':120,'green':120,'blue':120},
+            'DM2K10':{'red':105,'green':105,'blue':105},
+            'DM2K11':{'red':90,'green':90,'blue':90},
+            'DM2K12':{'red':70,'green':70,'blue':70},
+            'DM2K13':{'red':45,'green':45,'blue':45},
+            'DM2K14':{'red':0,'green':0,'blue':0},
+            'DM2K15':{'red':0,'green':217,'blue':0},
+            'DM2K16':{'red':30,'green':188,'blue':0},
+            'DM2K17':{'red':51,'green':154,'blue':0},
+            'DM2K18':{'red':45,'green':127,'blue':0},
+            'DM2K19':{'red':33,'green':108,'blue':0},
+            'DM2K20':{'red':254,'green':0,'blue':0},
+            'DM2K21':{'red':223,'green':19,'blue':9},
+            'DM2K22':{'red':191,'green':25,'blue':11},
+            'DM2K23':{'red':161,'green':18,'blue':7},
+            'DM2K24':{'red':131,'green':4,'blue':0},
+            'DM2K25':{'red':88,'green':148,'blue':256},
+            'DM2K26':{'red':89,'green':126,'blue':226},
+            'DM2K27':{'red':75,'green':110,'blue':200},
+            'DM2K28':{'red':58,'green':94,'blue':172},
+            'DM2K29':{'red':39,'green':84,'blue':142},
+            'DM2K30':{'red':252,'green':244,'blue':74},
+            'DM2K31':{'red':250,'green':219,'blue':60},
+            'DM2K32':{'red':239,'green':183,'blue':43},
+            'DM2K33':{'red':226,'green':145,'blue':21},
+            'DM2K34':{'red':206,'green':97,'blue':0},
+            'DM2K35':{'red':256,'green':177,'blue':256},
+            'DM2K36':{'red':215,'green':127,'blue':227},
+            'DM2K37':{'red':175,'green':78,'blue':189},
+            'DM2K38':{'red':140,'green':26,'blue':151},
+            'DM2k39':{'red':97,'green':10,'blue':117},
+            'DM2K40':{'red':165,'green':171,'blue':256},
+            'DM2K41':{'red':136,'green':148,'blue':227},
+            'DM2K42':{'red':106,'green':115,'blue':194},
+            'DM2K43':{'red':77,'green':82,'blue':165},
+            'DM2K44':{'red':52,'green':51,'blue':135},
+            'DM2K45':{'red':200,'green':188,'blue':109},
+            'DM2K46':{'red':184,'green':158,'blue':92},
+            'DM2K47':{'red':165,'green':126,'blue':60},
+            'DM2K48':{'red':125,'green':86,'blue':39},
+            'DM2K49':{'red':88,'green':52,'blue':15},
+            'DM2K50':{'red':154,'green':256,'blue':256},
+            'DM2K51':{'red':115,'green':224,'blue':256},
+            'DM2K52':{'red':78,'green':166,'blue':250},
+            'DM2K53':{'red':42,'green':99,'blue':229},
+            'DM2K54':{'red':10,'green':0,'blue':185},
+            'DM2K55':{'red':236,'green':242,'blue':182},
+            'DM2K56':{'red':213,'green':220,'blue':158},
+            'DM2K57':{'red':188,'green':194,'blue':136},
+            'DM2K58':{'red':167,'green':165,'blue':98},
+            'DM2K59':{'red':140,'green':131,'blue':57},
+            'DM2K60':{'red':115,'green':256,'blue':107},
+            'DM2K61':{'red':82,'green':219,'blue':59},
+            'DM2K62':{'red':60,'green':181,'blue':32},
+            'DM2K63':{'red':40,'green':148,'blue':21},
+            'DM2K64':{'red':26,'green':115,'blue':9},
+            'Disconn/Invalid':{'red':256,'green':256,'blue':256},
+            'Mon:NORMAL/alt':{'red':0,'green':256,'blue':0},
+            'Mon:NORMAL':{'red':0,'green':193,'blue':0},
+            'Mon:MAJOR/unack':{'red':193,'green':0,'blue':0},
+            'Mon:MINOR/unack':{'red':193,'green':193,'blue':0},
+            'EDMcanvas':{'red':201,'green':201,'blue':201},
+            'EDMhelp':{'red':120,'green':120,'blue':120},
+            'EDMtitle':{'red':159,'green':159,'blue':159},
+            'Shell/reldsp-alt':{'red':256,'green':177,'blue':96},
+            'Relateddisplay':{'red':129,'green':88,'blue':48},
+            'Exit/Quit/Kill':{'red':256,'green':0,'blue':256},
+            'grey-1':{'red':237,'green':237,'blue':237},
+            'grey-2':{'red':219,'green':219,'blue':219},
+            'grey-4':{'red':188,'green':188,'blue':188},
+            'grey-5':{'red':175,'green':175,'blue':175},
+            'grey-7':{'red':146,'green':146,'blue':146},
+            'grey-8':{'red':134,'green':134,'blue':134},
+            'grey-10':{'red':105,'green':105,'blue':105},
+            'grey-11':{'red':90,'green':90,'blue':90},
+            'grey-12':{'red':70,'green':70,'blue':70},
+            'grey-13':{'red':45,'green':45,'blue':45},
+            'black-14':{'red':0,'green':0,'blue':0},
+            'green-16':{'red':0,'green':225,'blue':0},
+            'green-18':{'red':0,'green':161,'blue':0},
+            'green-19':{'red':0,'green':129,'blue':0},
+            'graygreen-20':{'red':206,'green':220,'blue':205},
+            'graygreen-30':{'red':185,'green':198,'blue':184},
+            'greengray-40':{'red':166,'green':178,'blue':165},
+            'green-20':{'red':225,'green':248,'blue':177},
+            'green-21':{'red':202,'green':223,'blue':159},
+            'brown-1':{'red':245,'green':219,'blue':169},
+            'brown-2':{'red':184,'green':165,'blue':126},
+            'broen-3':{'red':122,'green':109,'blue':84},
+            'mint-1':{'red':181,'green':249,'blue':215},
+            'mint-2':{'red':162,'green':224,'blue':193},
+            'steel-1':{'red':194,'green':218,'blue':217},
+            'steel-2':{'red':174,'green':196,'blue':195},
+            'steel-3':{'red':156,'green':176,'blue':175},
+            'sky-1':{'red':176,'green':218,'blue':249},
+            'sky-2':{'red':158,'green':196,'blue':224},
+            'misc-109':{'red':205,'green':202,'blue':221},
+            'misc-110':{'red':184,'green':181,'blue':198},
+            'misc-111':{'red':165,'green':162,'blue':178},
+            'misc-112':{'red':222,'green':196,'blue':251},
+            'misc-113':{'red':199,'green':176,'blue':225},
+            'misc-114':{'red':221,'green':202,'blue':221},
+            'misc-115':{'red':198,'green':181,'blue':198},
+            'misc-116':{'red':178,'green':162,'blue':178},
+            'misc-117':{'red':251,'green':235,'blue':236},
+            'misc-118':{'red':225,'green':176,'blue':212},
+            'misc-119':{'red':256,'green':151,'blue':169},
+            'dull Red':{'red':193,'green':113,'blue':126},
+            'white':{'red':256,'green':256,'blue':256},
+            'black':{'red':0,'green':0,'blue':0},
+            'blue':{'red':0,'green':0,'blue':256},
+            'red':{'red':256,'green':0,'blue':0},
+            'green':{'red':0,'green':256,'blue':0},
+            'cyan':{'red':0,'green':256,'blue':256},
+            'yellow':{'red':256,'green':256,'blue':0},
+            'purple':{'red':256,'green':0,'blue':256},
+            'gray-1':{'red':75,'green':75,'blue':75},
+            'gray-2':{'red':87,'green':87,'blue':87},
+            'gray-3':{'red':100,'green':100,'blue':100},
+            'gray-4':{'red':113,'green':113,'blue':113},
+            'gray-5':{'red':127,'green':127,'blue':127},
+            'gray-6':{'red':140,'green':140,'blue':140},
+            'gray-7':{'red':153,'green':153,'blue':153},
+            'gray-8':{'red':165,'green':165,'blue':165},
+            'gray-9':{'red':177,'green':177,'blue':177},
+            'gray-10':{'red':191,'green':191,'blue':191},
+            'gray-11':{'red':204,'green':204,'blue':204},
+            'gray-12':{'red':217,'green':217,'blue':217},
+            'gray-13':{'red':229,'green':229,'blue':229},
+            'gray-14':{'red':242,'green':242,'blue':242},
+            'red-1':{'red':96,'green':0,'blue':0},
+            'red-2':{'red':118,'green':0,'blue':0},
+            'red-3':{'red':142,'green':0,'blue':0},
+            'red-4':{'red':164,'green':0,'blue':0},
+            'red-5':{'red':187,'green':0,'blue':0},
+            'red-6':{'red':209,'green':0,'blue':0},
+            'red-7':{'red':233,'green':0,'blue':0},
+            'green-1':{'red':0,'green':96,'blue':0},
+            'green-2':{'red':0,'green':118,'blue':0},
+            'green-3':{'red':0,'green':142,'blue':0},
+            'green-4':{'red':0,'green':164,'blue':0},
+            'green-5':{'red':0,'green':187,'blue':0},
+            'green-6':{'red':0,'green':209,'blue':0},
+            'green-7':{'red':0,'green':233,'blue':0},
+            'green' :{'red':0,'green':256,'blue':0},
+            'blue-1':{'red':0,'green':0,'blue':96},
+            'blue-2':{'red':0,'green':0,'blue':148},
+            'blue-3':{'red':0,'green':0,'blue':203},
+            'yellow-1':{'red':96,'green':96,'blue':0},
+            'yellow-2':{'red':148,'green':148,'blue':0},
+            'yellow-3':{'red':203,'green':203,'blue':0},
+            'yellow':{'red':256,'green':256,'blue':0},
+            'cyan-1':{'red':0,'green':96,'blue':96},
+            'cyan-2':{'red':0,'green':148,'blue':148},
+            'cyan-3':{'red':0,'green':203,'blue':203},
+            'cyan':{'red':0,'green':256,'blue':256},
+            'purple-1':{'red':96,'green':0,'blue':96},
+            'purple-2':{'red':148,'green':0,'blue':148},
+            'purple-3':{'red':203,'green':0,'blue':203},
+            'purple':{'red':256,'green':0,'blue':256},
+            'rose-1':{'red':96,'green':82,'blue':82},
+            'rose-2':{'red':118,'green':101,'blue':101},
+            'rose-3':{'red':142,'green':122,'blue':122},
+            'rose-4':{'red':164,'green':142,'blue':142},
+            'rose-5':{'red':187,'green':160,'blue':160},
+            'rose-6':{'red':209,'green':180,'blue':180},
+            'rose-7':{'red':233,'green':201,'blue':201},
+            'rose-8':{'red':256,'green':220,'blue':220},
+            'pastel-1':{'red':82,'green':96,'blue':82},
+            'pastel-2':{'red':101,'green':118,'blue':101},
+            'pastel-3':{'red':122,'green':142,'blue':122},
+            'pastel-4':{'red':142,'green':164,'blue':142},
+            'pastel-5':{'red':160,'green':187,'blue':160},
+            'pastel-6':{'red':180,'green':209,'blue':180},
+            'pastel-7':{'red':201,'green':233,'blue':201},
+            'pastel-8':{'red':220,'green':256,'blue':220},
+            'lilac-1':{'red':82,'green':82,'blue':96},
+            'lilac-2':{'red':101,'green':101,'blue':118},
+            'lilac-3':{'red':122,'green':122,'blue':142},
+            'lilac-4':{'red':142,'green':142,'blue':164},
+            'lilac-5':{'red':160,'green':160,'blue':187},
+            'lilac-6':{'red':180,'green':180,'blue':209},
+            'lilac-7':{'red':201,'green':201,'blue':233},
+            'lilac-8':{'red':220,'green':220,'blue':256},
+            'beige-1':{'red':96,'green':96,'blue':82},
+            'beige-2':{'red':118,'green':118,'blue':101},
+            'beige-3':{'red':142,'green':142,'blue':122},
+            'beige-4':{'red':164,'green':164,'blue':142},
+            'beige-5':{'red':187,'green':187,'blue':160},
+            'beige-6':{'red':209,'green':209,'blue':180},
+            'beige-7':{'red':233,'green':233,'blue':201},
+            'beige-8':{'red':256,'green':256,'blue':220}
+            }
+    if color in colors:
+        return colors[color]
+    else:
+        return None
 
 def main():
     opts = getOption()
