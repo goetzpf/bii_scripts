@@ -89,7 +89,7 @@ _p["pcnt"]= "[0-9]*"
 
 _p["psdom_global"]= "X"
 _p["psdom_B"]= _p["psdom_global"] + "BUDLST"
-_p["psdom_F"]= _p["psdom_global"] + "ACDEGLMSVZ"
+_p["psdom_F"]= _p["psdom_global"] + "ACDEGKLMSVZ"
 _p["psdom_P"]= _p["psdom_global"] + "BUKLS"
 
 _p["psdnum"]= "[0-9]*"
