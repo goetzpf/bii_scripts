@@ -934,8 +934,6 @@ class getOption(object):
     if options.subst:
         self.substitutions = parseParam(options.subst,';')
         if self.verbose: print("SUBST:\t",self.substitutions)
-        print("SUBST:\t",options.subst,self.substitutions)
-
 
     self.dependencies = None    
     if options.M:
