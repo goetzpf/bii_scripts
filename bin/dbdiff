@@ -80,6 +80,16 @@ die "filenames are missing" if (!defined $f1);
 my $f2= shift @ARGV;
 die "second filename is missing" if (!defined $f2);
 
+if (! -e $f1)
+  {
+    die "file '$f1' doesn't exist\n";
+  };
+if (! -e $f2)
+  {
+    die "file '$f2' doesn't exist\n";
+  };
+
+
 if ((defined $opt_parse) || defined ($opt_parse_table))
   { 
     parse_diff($opt_parse_table, $opt_name_regexp, $f1,$f2); 
