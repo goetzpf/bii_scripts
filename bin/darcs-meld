@@ -23,6 +23,7 @@
 ME=`basename "$0"`
 VIEWER="meld"
 
+# Note: '-h' for help wpould collide with 'darcs diff -h <hash>'
 if [ "$1" = "--help" ]; then
     echo "$ME : use '$VIEWER' to show patches and diffs for darcs repos"
     echo "usage:"
