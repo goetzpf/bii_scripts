@@ -43,12 +43,14 @@ if [ "$1" = "--help" ]; then
     echo "    'PATCH', 'FROM-PATCH' and 'TO-PATCH' are *patch specifications*"
     echo "    They ary usually the first line of the patch comment without"
     echo "    the leading '  * ' and enclosed in single quotes."
+    echo "    See 'darcs help diff' for a comprehensive list of options."
     echo "Special characters in patch specifications:"
     echo "    Since a *patch specification* is a *regular expression*,"
     echo "    all characters that have special meanings in regular expressions"
     echo "    should be preceeded by a backslash '\\' if they are to be"
     echo "    interpreted literally. This is for example the case for"
     echo "    these characters:   *()[]"
+    echo "    See 'darcs help patterns' for details."
     exit 1
 fi
 
