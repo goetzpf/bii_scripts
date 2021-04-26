@@ -173,6 +173,7 @@ def getWidgetFile(fileName,opts):
         wdgFile = path+"/"+widgetFileName
         if os.path.isfile(wdgFile) == True:
             return (widget,wdgFile)
+    sys.stderr.write(("ERROR: Can't find widget:{} for file:{}\n".format(widgetFileName,fileName)))
     return (None,None)
 
 def createLableStr(text,width,height,x,y,size,style="REGULAR"):
@@ -223,7 +224,6 @@ class ParsedWidget:
         if opts.verbose: print("ParsedWidget FILE:",widgetFileName)
         self.wdg = None
         (widget,wdgFile) = getWidgetFile(widgetFileName,opts)
-        #print("ParsedWidget",widget,wdgFile)
         wdgGroup = ET.XML('<widget type="group" version="2.0.0"> <name>{}</name> <x>{}</x> <y>{}</y> <width>1</width> <height>1</height> <style>3</style> <transparent>true</transparent></widget>'.format(widget,opts.spaceing,opts.spaceing))
         self.name = widget
         if wdgFile != None:
@@ -245,8 +245,6 @@ class ParsedWidget:
             self.wdg = wdgGroup
             self.wdgStr = ET.tostring(wdgGroup)
 #            print("ParsedWidget file: ",self.name,self.w,self.h)
-        else:
-            sys.stderr.write(("ERROR: Can't find:",wdgFile,os.path.isfile(wdgFile))+"\n")
     else:
         sys.stderr.write("Can't create a ParsedWidget from args: "+str(args)+"\n")
 
