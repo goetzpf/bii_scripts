@@ -623,9 +623,12 @@ sub    layoutXY
         #print "rH_subst:",Dumper($r_substData);
     my $baseWidget = (defined $baseW) ? $baseW : $inFileName;
     $baseWidget =~s/\.substitutions/\.edl/;
-    
-    my ($prEdl, $panelWidth, $panelHeight) = getDisplay($baseWidget);
-    die "can' find base widget: \'$baseWidget\'" unless defined $prEdl;
+
+    my $rH_Attr;
+    $rH_Attr = $options{SUBSTITUTIONS} if( defined $options{SUBSTITUTIONS});
+    my ($base, $panelWidth, $panelHeight) = getDisplay($baseWidget);
+    my $prEdl = setWidget($base,$panelWidth,$panelHeight,$rH_Attr, 1,0,0);
+                die "can' find base widget: \'$baseWidget\'" unless defined $prEdl;
     print "layout XY: base panel: $baseWidget: w=$panelWidth, h=$panelHeight\n" if $opt_v == 1;
 
     my($p,$xPos,$yPos) = setTitle($rH_options,0,0) if defined $rH_options->{TITLE};
@@ -1275,6 +1278,7 @@ sub   setWidget
     }
 #substitute the PV variable
     $edl = parsePV($edl,$rH_Attr);
+    $edl = parsePV($edl,$options{SUBSTITUTIONS}) if( defined $options{SUBSTITUTIONS});
 #substitute all other variables
     $edl = parseVars($edl,$rH_Attr);
     $edl = parseVars($edl,$options{SUBSTITUTIONS}) if( defined $options{SUBSTITUTIONS});
