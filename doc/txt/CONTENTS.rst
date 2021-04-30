@@ -364,6 +364,12 @@ Scripts
     control) IOCs
   | `documentation <scripts/idcp-dist-info>`__
 
+**idcp-drive-info**
+  | Displays information about drives of IDCP controled undulators.
+  | This script can also show the software version of the uniserv program for
+    each undulator.
+  | `documentation <scripts/idcp-drive-info>`__
+
 **idcp-get-source**
   | Get and and optionally build the source of installed versions of IDCP.
   | You can provide the undulator name or the version string. You can also

@@ -289,6 +289,7 @@ PLAINTXT_H_SCRIPT_LIST= \
 	git-meld \
 	hg-compare-repos \
 	idcp-dist-info \
+	idcp-drive-info \
 	idcp-restore \
 	psh \
 	substdiff\
