@@ -228,6 +228,18 @@ def id_names(ids, ssh_arg, verbose, dry_run):
         return ids
     return [aliases[i] for i in ids]
 
+def id_list(installed, ssh_arg, verbose, dry_run):
+    """return a list o all ids.
+
+    If installed==True, return only installed ids.
+    """
+    init_id_data(ssh_arg, verbose, dry_run)
+    if not installed:
+        lst= list(id_data.keys())
+    else:
+        lst= [k for k in id_data if id_data[k]["status"]=="installed"]
+    return sorted(lst)
+
 def devicename(id_, ssh_arg, verbose, dry_run):
     """return devicename for an ID."""
     init_id_data(ssh_arg, verbose, dry_run)
@@ -296,14 +308,15 @@ def axles_dict(ssh_arg, verbose, dry_run):
 # middle level commands
 # -----------------------------------------------
 
-def drivetypes(ids, table, ssh_arg, verbose, dry_run):
+def drivetypes(ids, installed, table, ssh_arg, verbose, dry_run):
     """return drivetypes for a single or all IDs.
 
     ids must be a list of id names returned by id_names.
     """
+    # pylint: disable= too-many-arguments
     drivetype_d= drivetypes_dict(ssh_arg, verbose, dry_run)
     if not ids:
-        ids= sorted(drivetype_d.keys())
+        ids= id_list(installed, ssh_arg, verbose, dry_run)
     for id_ in ids:
         data= drivetype_d[id_]
         if not table:
@@ -324,14 +337,15 @@ def drivetypes(ids, table, ssh_arg, verbose, dry_run):
                     break
             print("%-10s %s" % (id_, " ".join(["%-10s" % dt for dt in l])))
 
-def axles(ids, table, ssh_arg, verbose, dry_run):
+def axles(ids, installed, table, ssh_arg, verbose, dry_run):
     """return axles for a single or all IDs.
 
     ids must be a list of id names returned by id_names.
     """
+    # pylint: disable= too-many-arguments
     axles_d= axles_dict(ssh_arg, verbose, dry_run)
     if not ids:
-        ids= sorted(axles_d.keys())
+        ids= id_list(installed, ssh_arg, verbose, dry_run)
     for id_ in ids:
         data= axles_d[id_]
         if not table:
@@ -350,22 +364,25 @@ def axles(ids, table, ssh_arg, verbose, dry_run):
             print("%-10s %s" % (id_, " ".join(["%2d" % int(n) \
                                                for n in id_axles])))
 
-def versions(ids, ssh_arg, verbose, dry_run):
+def versions(ids, installed, table, ssh_arg, verbose, dry_run):
     """return unidrive versions for a single or all IDs.
 
     ids must be a list of id names returned by id_names.
     """
     # pylint: disable= too-many-locals, too-many-nested-blocks
+    # pylint: disable= too-many-branches
+    # pylint: disable= too-many-arguments
     drivetype_d= drivetypes_dict(ssh_arg, verbose, dry_run)
     axles_d= axles_dict(ssh_arg, verbose, dry_run)
     if not ids:
-        ids= sorted(axles_d.keys())
+        ids= id_list(installed, ssh_arg, verbose, dry_run)
     for id_ in ids:
         id_name_printed= False
         dev= devicename(id_, ssh_arg, verbose, dry_run)
         axle_list= axles_d[id_]
         id_drivetypes= drivetype_d[id_]
         idx=1
+        table_output= []
         try:
             for (drive_idx, drive_axles) in enumerate(axle_list):
                 if id_drivetypes[DRIVENAMES[drive_idx]]=="unidrive":
@@ -379,17 +396,27 @@ def versions(ids, ssh_arg, verbose, dry_run):
                     # caution,     ^^^ this means that no error messages
                     # from the 'caget' command are printed. However, an
                     # error always throws an IOError exception.
-                    for i, l in enumerate(lines):
-                        val= l.strip().split()[1]
-                        if not id_name_printed:
-                            print("%s:" % id_)
-                            id_name_printed= True
-                        print("    %2d: %s" % (idx+i, val))
+                    if not table:
+                        for i, l in enumerate(lines):
+                            val= l.strip().split()[1]
+                            if not id_name_printed:
+                                print("%s:" % id_)
+                                id_name_printed= True
+                            print("    %2d: %s" % (idx+i, val))
+                    else:
+                        for l in lines:
+                            val= l.strip().split()[1]
+                            table_output.append(val)
                 idx+= axle_list[drive_idx]
         except IOError:
             if not id_name_printed:
                 print("%s:" % id_)
             print("    cannot read pv")
+        if table:
+            if table_output:
+                print("%-10s %s" % \
+                      (id_, " ".join(["%-10s" % v for v in table_output])))
+
 
 # -----------------------------------------------
 # main commands
@@ -397,7 +424,10 @@ def versions(ids, ssh_arg, verbose, dry_run):
 
 def cmd_list(args):
     """list all IDs."""
-    system(cmd_ssh(args.ssh, "iddb"),
+    cmd= "iddb -a idcp"
+    if args.installed:
+        cmd+= " -s installed"
+    system(cmd_ssh(args.ssh, cmd),
            catch_stdout= False,
            catch_stderr= False,
            env= None,
@@ -407,6 +437,7 @@ def cmd_list(args):
 def cmd_drivetypes(args, ids):
     """list drivetypes for given ids."""
     drivetypes(id_names(ids, args.ssh, args.verbose, args.dry_run),
+               args.installed,
                args.table,
                args.ssh,
                args.verbose, args.dry_run)
@@ -414,6 +445,7 @@ def cmd_drivetypes(args, ids):
 def cmd_axles(args, ids):
     """list axles for given ids."""
     axles(id_names(ids, args.ssh, args.verbose, args.dry_run),
+          args.installed,
           args.table,
           args.ssh,
           args.verbose, args.dry_run)
@@ -421,6 +453,8 @@ def cmd_axles(args, ids):
 def cmd_versions(args, ids):
     """list unidrive versions for given ids."""
     versions(id_names(ids, args.ssh, args.verbose, args.dry_run),
+             args.installed,
+             args.table,
              args.ssh,
              args.verbose, args.dry_run)
 
@@ -485,6 +519,11 @@ def main():
     parser.add_argument("-t", "--table",
                         action="store_true",
                         help="table output, one line per item",
+                       )
+    parser.add_argument("-I", "--installed",
+                        action="store_true",
+                        help="Show information only for insertion devices "
+                             "with state 'installed'."
                        )
     parser.add_argument("-v", "--verbose",
                         action="store_true",
