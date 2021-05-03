@@ -152,6 +152,13 @@ Scripts
   | Create EPICS data from a spreadsheet: EPICS.db, Panels, Alarm handler, 
   | Archiver files `documentation <scripts/csv2epicsDb.html>`__
 
+**csv2json.py**
+  | Convert CSV files to JSON and vice versa.
+  | This can be used to convert csv files as they are used in BII-Controls and
+    MLS-Controls to JSON and back again to CSV. This can be useful if you want 
+    to edit csv files or run a diff to see what was changed. CSV files have very
+    long lines that are hard to edit and are hard to use with 'diff'.
+
 **csv2plot**
   | Combine and convert numerical data from .csv files for gnuplot use.
   | `documentation <scripts/csv2plot.html>`__

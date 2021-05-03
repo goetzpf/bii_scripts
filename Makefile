@@ -329,7 +329,7 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 # scripts with no embedded documentation
 # create online help by executing "(script.pl -h 2>&1; true)
 PLAINTXT_H_PY_SCRIPT_LIST= \
-	pyone.py sqlutil.py ssh-pw.py \
+	csv2json.py pyone.py sqlutil.py ssh-pw.py \
 	hg2darcs.py hg2git.py python-modules.py subst-dump.py
 
 RST_DOC_SCRIPT_LIST= \
