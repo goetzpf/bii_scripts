@@ -627,8 +627,9 @@ sub    layoutXY
     my $rH_Attr;
     $rH_Attr = $options{SUBSTITUTIONS} if( defined $options{SUBSTITUTIONS});
     my ($base, $panelWidth, $panelHeight) = getDisplay($baseWidget);
+    die "can' find base widget: \'$baseWidget\'" unless defined $base;
+
     my $prEdl = setWidget($base,$panelWidth,$panelHeight,$rH_Attr, 1,0,0);
-                die "can' find base widget: \'$baseWidget\'" unless defined $prEdl;
     print "layout XY: base panel: $baseWidget: w=$panelWidth, h=$panelHeight\n" if $opt_v == 1;
 
     my($p,$xPos,$yPos) = setTitle($rH_options,0,0) if defined $rH_options->{TITLE};
