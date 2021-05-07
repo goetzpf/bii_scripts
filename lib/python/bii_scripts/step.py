@@ -330,18 +330,18 @@ class motorPV(anyLoopPV) :
         anyLoopPV.__init__(self,motor)
 
         chSet = None
-        chSetCmd = None
+#        chSetCmd = None
         # Setup motor PVs
         self.chSet = ca.channel(self.pvName)
         self.chSet.wait_conn(dt=0.1,wait=10)
-        self.chSetCmd = ca.channel(self.pvName + ":cmdHome")
-        self.chSetCmd.wait_conn(dt=0.1,wait=10)
+#        self.chSetCmd = ca.channel(self.pvName + ":cmdHome")
+#       self.chSetCmd.wait_conn(dt=0.1,wait=10)
         self.lvio =   monPV(self.pvName + ".LVIO")
         self.dmov =   monPV(self.pvName + ".DMOV")
         self.rbv =    monPV(self.pvName + ".RBV")
         self.lls =    monPV(self.pvName + ".LLS")
         self.hls =    monPV(self.pvName + ".HLS")
-        self.stShow = monPV(self.pvName + ":stShow",Type=1)
+#        self.stShow = monPV(self.pvName + ":stShow",Type=1)
 
     def toDict(self):
         return {'TYPE':'MOTOR','PV':self.pvName}
@@ -369,21 +369,21 @@ class motorPV(anyLoopPV) :
 #       except ValueError:
 #           warnFunc( "motorPV Error: '"+self.pvName+"LVIO ERROR - move run into soft limit for pos="+str(pos))
 
-    def home(self) :
-        """
-        Call sequencer moho home routine and wait until done or timeout
-        """
-        try :
-            chSetCmd.put(1)
-            chSetCmd.flush()
-            t1 = time.time()
-            while self.stShow.get() != 6 : # 6=DONE
-                time.sleep(0.3)
-                if self.stShow.get() == 7: # 7=ABBORT
-                    warnFunc("motorPV Error: '"+self.pvName+"moho ABBORT, stShow="+self.stShow)
-                    break
-        except ca.caError,e:
-            warnFunc( "motorPV Error: '"+self.pvName+": "+e.__doc__)
+#    def home(self) :
+#        """
+#        Call sequencer moho home routine and wait until done or timeout
+#        """
+#        try :
+#            chSetCmd.put(1)
+#            chSetCmd.flush()
+#            t1 = time.time()
+#            while self.stShow.get() != 6 : # 6=DONE
+#                time.sleep(0.3)
+#                if self.stShow.get() == 7: # 7=ABBORT
+#                    warnFunc("motorPV Error: '"+self.pvName+"moho ABBORT, stShow="+self.stShow)
+#                    break
+#        except ca.caError,e:
+#            warnFunc( "motorPV Error: '"+self.pvName+": "+e.__doc__)
 
 class funcPV(anyLoopPV):
     """
