@@ -44,6 +44,10 @@
 # help when called with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_SCRIPT_LIST variable
 
+# for scripts with name * (no file extension) that generate
+# help when called with "--help" as the only parameter
+#    add scriptname to the PLAINTXT_HELP_SCRIPT_LIST variable
+
 # for scripts with name * (no file extension) that generate 
 # reStructuredText when called with "--doc" as the only parameter
 #    add scriptname to the RST_DOC_SCRIPT_LIST variable
@@ -279,8 +283,6 @@ PLAINTXT_H_SCRIPT_LIST= \
 	db2dot \
 	dbdiff \
 	darcs-compare-repos \
-	darcs-kompare \
-	darcs-meld \
 	darcs-sig \
 	hg-kompare \
 	hg-meld \
@@ -294,6 +296,12 @@ PLAINTXT_H_SCRIPT_LIST= \
 	psh \
 	substdiff\
 	csv2plot
+
+# scripts with no embedded documentation
+# create online help by executing "(script --help 2>&1; true)
+PLAINTXT_HELP_SCRIPT_LIST= \
+	darcs-kompare \
+	darcs-meld
         
 # scripts with no embedded documentation
 # create online help by executing "(script.p -h 2>&1; true)
@@ -489,6 +497,9 @@ _HTML_POD_SCRIPT_BUILD_LIST=\
 # (plaintxt)
 _HTML_PLAINTXT_H_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_H_SCRIPT_LIST)))
+
+_HTML_PLAINTXT_HELP_SCRIPT_BUILD_LIST=\
+  $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_HELP_SCRIPT_LIST)))
 
 _HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_H_P_SCRIPT_LIST)))
@@ -741,6 +752,7 @@ $(_HTML_POD_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DI
 
 build_html_script_plaintxt: $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST) \
+			    $(_HTML_PLAINTXT_HELP_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST) \
@@ -754,6 +766,11 @@ $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_S
 $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/% $(SETENV) | $(SCRIPT_HTML_BUILD_DIR)
 	@echo "<PRE>"      >  $@
 	(. $(SETENV) && $< -h 2>&1; true) >> $@
+	@echo "</PRE>"     >> $@
+
+$(_HTML_PLAINTXT_HELP_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/% $(SETENV) | $(SCRIPT_HTML_BUILD_DIR)
+	@echo "<PRE>"      >  $@
+	(. $(SETENV) && $< --help 2>&1; true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.p $(SETENV) | $(SCRIPT_HTML_BUILD_DIR)
