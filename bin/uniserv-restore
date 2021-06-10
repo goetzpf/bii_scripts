@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-BOOTHOST="iocadm@elbe.acc.bessy.de"
+BOOTHOST="iocadm@nfs.blc.bessy.de"
 
 if [ -z "$1" ] || [ "$1" = "-h" ]; then
         echo "usage: $0 VERSION"
@@ -41,7 +41,7 @@ if [ -z "$TAGFILE" ]; then
     exit 1
 fi
 
-VERSION=$(dirname $(dirname $TAGFILE) | sed -e 's#^.*/##')
+VERSION=$(echo "$TAGFILE" | sed -e "s#$DISTDIR/##;s#/.*##")
 
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 MYVERSION="$SHORTVERSION"
