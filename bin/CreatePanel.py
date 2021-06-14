@@ -742,7 +742,7 @@ def process_file(opts):
     if opts.inFile != "-":
         f= open(opts.inFile, "r")
     else:
-        sys.stderr.write("(expect input from stdin)\n")
+        #sys.stderr.write("(expect input from stdin)\n")
         f= sys.stdin
     substFileStr= f.read()
     if opts.inFile != "-":
