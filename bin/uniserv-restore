@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2021 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
@@ -18,26 +18,140 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-BOOTHOST="iocadm@nfs.blc.bessy.de"
+SCRIPT_FULL_NAME=$(readlink -e $0)
+MYDIR=$(dirname $SCRIPT_FULL_NAME)
+MYNAME=$(basename $SCRIPT_FULL_NAME)
 
-if [ -z "$1" ] || [ "$1" = "-h" ]; then
-        echo "usage: $0 VERSION"
-        echo "  downloads the hg-restore file for the given VERSION"
-        echo "  of uniserv and restores the source and repository."
-        echo "arguments:"
-        echo "VERSION: the short version string from CONST_PROGRAM_VERSION"
-        echo "         example: 1901141049"
-        exit 0
+BOOTHOST="iocadm@nfs.blc.bessy.de"
+DISTDIR=/opt/IOC/uniserv/dist
+
+function CMD {
+    # execute a shell command
+    # arguments:
+    #   $1: command
+    # returns:
+    #   cmdret (global variable): the return code of the command
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "$1"
+    fi
+    if [ -z "$dryrun" ]; then
+        bash -c "$1"
+        cmdret=$?
+    else
+        cmdret=0
+    fi
+}
+
+function CMDRET {
+    # execute a shell command and catch standard out
+    # arguments:
+    #   $1: command
+    # returns:
+    #   cmdret (global variable): the return code of the command
+    #   cmddata (global variable): the stdout output of the command
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "$1"
+    fi
+    cmdret=0
+    # without '|| ...' the script will exit right here
+    # in case of an error:
+    cmddata=$(bash -c "$1") || cmdret=$?
+}
+
+function CD {
+    # change directory but not when dryrun is set
+    # $1: dir
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "cd $1"
+    fi
+    if [ -z "$dryrun" ]; then
+        cd "$1" > /dev/null
+    fi
+}
+
+function print_short_help {
+    echo "usage: $MYNAME VERSION [OPTIONS]"
+    echo "  Restores the source and working copy repository of an installed "
+    echo "  version of the uniserv program, the motor control program used "
+    echo "  by BESSY undulators."
+    echo
+    echo "VERSION:"
+    echo "  The short version string from CONST_PROGRAM_VERSION in the uniserv"
+    echo "  program that is also shown in the undulator 'DIAG' panel, "
+    echo "  e.g. '1901141049'."
+    echo
+    echo "OPTIONS:"
+    echo "  -h --help  : this help"
+    echo "  -f --file FILE: specify FILE"
+    echo "  -v --verbose: show what the script does"
+    echo "  -n --dry-run: just show what the script would do"
+    exit 0
+}
+
+declare -a ARGS
+skip_options=""
+
+while true; do
+    case "$1" in
+        -h | --help)
+            print_short_help
+            exit 0
+            ;;
+        -v | --verbose)
+            verbose="yes"
+            shift
+            ;;
+        -n | --dry-run)
+            verbose="yes"
+            dryrun="yes"
+            shift
+            ;;
+        -- )
+            skip_options="yes"
+            shift;
+            break
+            ;;
+        *)
+            if [ -z "$1" ]; then
+                break;
+            fi
+            if [[ $1 =~ ^- ]]; then
+                echo "unknown option: $1"
+                exit 1
+            fi
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [ -n "$skip_options" ]; then
+    while true; do
+        if [ -z "$1" ]; then
+            break;
+        fi
+        ARGS+=("$1")
+        shift
+    done
 fi
 
-DISTDIR=/opt/IOC/uniserv/dist
-SHORTVERSION=$1
+SHORTVERSION="${ARGS[0]}"
+
+if [ -z "$SHORTVERSION" ]; then
+    echo "VERSION missing."
+    exit 1
+fi
 
 # get rsync dist version name:
-TAGFILE=$(ssh $BOOTHOST find $DISTDIR -name $SHORTVERSION | sort | tail -n 1)
+CMDRET "ssh $BOOTHOST find $DISTDIR -name $SHORTVERSION | sort | tail -n 1"
+if [ $cmdret -ne 0 ]; then
+    echo "ssh command failed" >&2
+    exit 1
+fi
+TAGFILE="$cmddata"
 
 if [ -z "$TAGFILE" ]; then
-    echo "error, no version found for $SHORTVERSION"
+    echo "error, no version found for $SHORTVERSION" >&2
     exit 1
 fi
 
@@ -52,23 +166,25 @@ if [ -d "$MYVERSION" ]; then
 fi
 echo -e "* creating directory $MYVERSION"
 mkdir $MYVERSION
-cd $MYVERSION >/dev/null
+
+CD $MYVERSION
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-CMD="scp $BOOTHOST:$DISTDIR/$QVERSION/recover/*recover* ."
-echo "CMD: $CMD"
-$CMD
-if [ "$?" -ne 0 ]; then 
-    echo 
-    echo "error, no restore data found for $VERSION"
-    echo "command:"
-    echo -e "\t$CMD"
+CMD "scp $BOOTHOST:$DISTDIR/$QVERSION/recover/*recover* ."
+if [ $cmdret -ne 0 ]; then 
+    echo >&2
+    echo "error, no restore data found for $VERSION" >&2
     exit 1
 fi
 
 echo -e "\n* recovering uniserv working directory..."
-hg-recover.py -r -f uniserv-recover.tar.gz
-cd ../..
+CMD "hg-recover.py -r -f uniserv-recover.tar.gz"
+
+if [ -e "iddb-recover.tar.gz" ]; then
+    CMD "hg-recover.py -r -f iddb-recover.tar.gz"
+    CMD "mkdir -p uniserv/add_ons/src"
+    CMD "cp -a id_db uniserv/add_ons/src"
+fi
 
 echo -e "\nversion $VERSION was restored in directory $MYVERSION"
