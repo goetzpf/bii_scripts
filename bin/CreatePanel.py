@@ -924,9 +924,9 @@ def process_file(opts):
 
 #-------- get substitutions data
     if opts['inFile'] != "-":
-        f= open(opts['inFile'], "r")
+        f= open(opts['inFile'], "r",encoding=opts['encoding'])
     else:
-        #sys.stderr.write("(expect input from stdin)\n")
+        print("(expect input from stdin)\n")
         f= sys.stdin
     substFileStr= f.read()
     if opts['inFile'] != "-":
@@ -1011,6 +1011,11 @@ def main():
                       type="string",
                       help="see spaceing. For compatibility to CreatePanel.pl option",
                      )
+    parser.add_option("--encoding",
+                      action="store",
+                      type="string",
+                      help="Input file encoding, default: utf8. Files for edm, medm: latin",
+                     )
     parser.add_option("-I",
                       action="append",
                       type="string",
@@ -1082,6 +1087,10 @@ def main():
     except ValueError:
         sys.stderr.write("ERROR: missing argument for in-, out-file:"+str(args))
         sys.exit(1)
+    opts['encoding'] = 'utf8'
+    if options.encoding: 
+        opts['encoding'] = options.encoding
+
     opts['verbose'] = False
     if options.verbose: 
         print("READ: ",opts['inFile'],"WRITE:",opts['outFile'])
