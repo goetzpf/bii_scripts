@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
@@ -160,12 +162,6 @@ def getFileExt(fName):
         raise ValueError("Illegal widget name: '"+widgetname+"'")
     return (m.groups())
 
-def newElemToTree(parent,new,value=None,attrib={}):
-    x = ET.SubElement(parent,new,attrib)
-    if value != None:
-        x.text = value
-    return x
-
 def getWidgetFile(fileName,opts):
     (widget,ext) = getFileExt(fileName)
     widgetFileName = ".".join( (widget,opts['type']) )
@@ -175,6 +171,13 @@ def getWidgetFile(fileName,opts):
             return (widget,wdgFile)
     sys.stderr.write(("ERROR: Can't find widget:{} for file:{}\n".format(widgetFileName,fileName)))
     return (None,None)
+
+def newElemToTree(parent,new,value=None,attrib={}):
+    x = ET.SubElement(parent,new,attrib)
+    if value != None:
+        x.text = value
+    return x
+
 # Parsed from colors.list by:
 #  perl -ne 'printf("        \"%s\":{\"red\":%d,\"green\":%d,\"blue\":%d}\n",$1,$2/256,$3/256,$4/256) if($_=~/static.*\"(.*?)\"\s+\{\s+(\d+)\s(\d+)\s(\d+)/); '  ../../support/APPS/GENERICTEMPLATE/csv2EpicsDbApp/colors.list|sort
 def getColor(color):
@@ -387,57 +390,8 @@ def createLableStr(text,width,height,x,y,size,style="REGULAR"):
 """).format(text,width,height,x,y,size,style)
     return lable
 
-#---------------------------------
-# replace <display> of the widget file by <group>:
-# - <group> items may be set by its <x>, <y> positions at load time and 
-#   the <widget> items within are set relativ to this, so they need no proccessing!
-# - <group> item store the substitution parameters in 
-#   the <macro> section and they are filled at load time.
-class ParsedWidget:
-  def __init__(self,**args):
-    self.regPvField=re.compile(r"(.*)\.")
-    self.w = None
-    self.h = None
-    self.wdg = None
-    self.wdgStr = None
-    if 'xmlStr' in args:
-        wdg = ET.XML(args['xmlStr'])
-        self.w = wdg.find('width').text
-        self.h = wdg.find('height').text
-        self.wdg = wdg
-        self.wdgStr = args['xmlStr']
-        self.name = wdg.find('name').text
-    elif 'file' in args:
-        widgetFileName = args['file']
-        opts           = args['options']
-        (widget,wdgFile) = getWidgetFile(widgetFileName,opts)
-        self.name = widget
-        if wdgFile != None:
-            wdgGroup = None
-            parseTree = ET.parse(wdgFile)
-            display = parseTree.getroot()
-            if display.tag == 'display':
-                self.w = display.find('width').text
-                self.w = int(self.w) + opts['spaceing']
-                self.h = display.find('height').text
-                self.h = int(self.h) + opts['spaceing']
-                wdgGroup = ET.XML('<widget type="group" version="2.0.0"> <name>{}</name> <x>{}</x> <y>{}</y> <width>1</width> <height>1</height> <style>3</style> <transparent>true</transparent></widget>'.format(widget,opts['spaceing'],opts['spaceing']))
-                #print("    "+self.name+":\tSize",str(self.w),str(self.h))
-                for wdg in display.findall('widget'):
-                    #print("\t",wdg.tag,wdg.get('type'))
-                    wdgGroup.append(wdg)
-            else:
-                raise ValueError("Ilegal widget file: "+wdgFile)
-            self.wdg = wdgGroup
-            self.wdgStr = ET.tostring(wdgGroup)
-            if opts['verbose']: print("ParsedWidget file: ",self.name,self.w,self.h)
-    else:
-        sys.stderr.write("Can't create a ParsedWidget from args: "+str(args)+"\n")
-
-  def __str__(self):
-    return self.name+" w:"+str(self.w)+" h:"+str(self.h)
-
-  def parsePV(self,substData):
+regPvField=re.compile(r"(.*)\.")
+def parsePV(substData):
     """Create the variable PV for widgets that use the $(PV) variables instead
     of $(DEVN):$(SNAME) or the legacy $(NAME):$(SNAME).
     A PV substitution that contains a field is truncated to the PV name for PV
@@ -449,26 +403,85 @@ class ParsedWidget:
             substData['PV'] = ("{}:{}").format(substData['DEVN'],substData['SNAME'])
         elif ('NAME' in substData) and ('SNAME' in substData):
             substData['PV'] = ("{}:{}").format(substData['NAME'],substData['SNAME'])
-# Truncate field from PV for compatibility with CreatPanel.pl TODO: check if this is neccessary!
+    # Truncate field from PV for compatibility with CreatPanel.pl TODO: check if this is neccessary!
     else:
-        m =self.regPvField.match(substData['PV'])
+        m =regPvField.match(substData['PV'])
         if m != None:
             substData['PV'] = m.groups()[0]
 
+#---------------------------------
+# replace <display> of the widget file by <group>:
+# - <group> items may be set by its <x>, <y> positions at load time and 
+#   the <widget> items within are set relativ to this, so they need no proccessing!
+# - <group> item store the substitution parameters in 
+#   the <macro> section and they are filled at load time.
+class ParsedWidget:
+  def __init__(self,**args):
+    self.w = None
+    self.h = None
+    self.wdg = None
+    self.wdgStr = None
+    if 'options' in args:
+        self.opts = args['options']
+    else:
+        sys.stderr.write("Warning: Missing 'options' in args: "+str(args)+"\n")
+    
+    if 'xmlStr' in args:
+        wdg = ET.XML(args['xmlStr'])
+        self.w = wdg.find('width').text
+        self.h = wdg.find('height').text
+        self.wdg = wdg
+        self.wdgStr = args['xmlStr']
+        self.name = wdg.find('name').text
+    elif 'file' in args:
+        widgetFileName = args['file']
+        (widget,wdgFile) = getWidgetFile(widgetFileName,self.opts)
+        self.name = widget
+        if wdgFile != None:
+            wdgGroup = None
+            parseTree = ET.parse(wdgFile)
+            display = parseTree.getroot()
+            if display.tag == 'display':
+                self.w = display.find('width').text
+                self.w = int(self.w) + self.opts['spaceing']
+                self.h = display.find('height').text
+                self.h = int(self.h) + self.opts['spaceing']
+                wdgGroup = ET.XML('<widget type="group" version="2.0.0"> <name>{}</name> <x>{}</x> <y>{}</y> <width>1</width> <height>1</height> <style>3</style> <transparent>true</transparent></widget>'.format(widget,self.opts['spaceing'],self.opts['spaceing']))
+                #print("    "+self.name+":\tSize",str(self.w),str(self.h))
+                for wdg in display.findall('widget'):
+                    #print("\t",wdg.tag,wdg.get('type'))
+                    wdgGroup.append(wdg)
+            else:
+                raise ValueError("Ilegal widget file: "+wdgFile)
+            self.wdg = wdgGroup
+            self.wdgStr = ET.tostring(wdgGroup)
+            if self.opts['verbose']: print("ParsedWidget file: ",self.name,self.w,self.h)
+    else:
+        sys.stderr.write("Can't create a ParsedWidget from args: "+str(args)+"\n")
+
+  def __str__(self):
+    return self.name+" w:"+str(self.w)+" h:"+str(self.h)
+
   def setWidget(self,xPos,yPos,substData):
+    if self.opts['substitutions']:
+        if substData is None:
+            substData = self.opts['substitutions']
+        else:
+            substData.update(self.opts['substitutions'])
 # set substitutions as group parameter, substitute at load time 
 #    wdgRoot = copy.deepcopy(self.wdg)
 #    if substData != None:
 #        macros = newElemToTree(wdgRoot,'macros')
-#        self.parsePV(substData)
+#        parsePV(substData)
 #        for n in substData:
 #            newElemToTree(macros,n,substData[n])
 #*** END setsubstitutions as group
 
 # replace macros here for decreased load time
     sString = self.wdgStr
+
     if substData != None:
-        self.parsePV(substData)
+        parsePV(substData)
         for n in substData:         # replace macros here for decreased load time
             sString = sString.replace(bytes("$("+n+")",'utf-8'),bytes(str(substData[n]),'utf-8') )
     #print("\nWIDGET: ",sString)
@@ -734,8 +747,6 @@ def layoutXY(substData,display,yPos,opts):
         items = group[1:len(group)]
         try:        
             wdgItem = opts['widgetStore'][wName]
-            #print("\t","Cols:",cols," Rows:",rows)
-
             for item in items:
                 try:
                     (xPos,yPos) = item['PANEL_POS'].split(',')
@@ -1151,6 +1162,7 @@ def main():
     if opts['verbose']: print("WIDGETPATH:\t",opts['searchDlPath'])
 
     opts['widgetStore'] = {} # buffer allready parsed widgets 
+
     opts['backGroundDisplay'] = None
     if options.baseW:
         try:            # check if its a file name of form: name.extension
@@ -1161,12 +1173,15 @@ def main():
 
             (widget,wdgFile) = getWidgetFile(options.baseW,opts)
             if wdgFile != None:
-                parseTree = ET.parse(wdgFile)
-                display = parseTree.getroot()
+                with open(wdgFile, "r",encoding=opts['encoding']) as f:
+                    bgString = f.read()
+            if opts['substitutions'] != None:
+                for n in opts['substitutions']: # replace macros here for decreased load time
+                    bgString = bgString.replace("$("+n+")",opts['substitutions'][n] )
+            display = ET.XML(bgString)
             opts['backGroundDisplay'] = display
-
         except AttributeError:
-            sys.stderr.write("ERROR: illegal --baseW option: "+options.baseW+"\n")
+            sys.stderr.write("ERROR: in --baseW option: '"+options.baseW+"'\n")
 
     opts['spaceing'] = 0
     opts['titleWdg'] = None
@@ -1179,7 +1194,7 @@ def main():
                 sys.exit(1)
             titleWdg = ParsedWidget(file=titleFile,options=opts)
         except AttributeError:
-            titleWdg = ParsedWidget(xmlStr=createLableStr(options.title,opts['width'],30,0,0,25))
+            titleWdg = ParsedWidget(xmlStr=createLableStr(options.title,opts['width'],30,0,0,25),options=opts)
 
         except:           # title string, put to text wiget
             sys.stderr.write("ERROR: illegal --title option: "+options.title+"\n")
