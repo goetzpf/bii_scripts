@@ -29,6 +29,8 @@ ID_DB_CENTRALREPO="http://repo.acc.bessy.de/hg/id_db"
 verbose=""
 dryrun=""
 
+configfile=""
+
 # directory to create:
 dir=""
 
@@ -90,12 +92,19 @@ function print_short_help {
     echo "  e.g. '1901141049'."
     echo
     echo "OPTIONS:"
-    echo "  -h --help  : this help"
-    echo "  --dir DIR : Create source tree in directory DIR. Otherwise a"
-    echo "              directory name is created from the VERSION string"
-    echo "              in the form YYYY-MM-DDTHHMMSS."
-    echo "  -v --verbose: show what the script does"
-    echo "  -n --dry-run: just show what the script would do"
+    echo "  -h --help :"
+    echo "      this help"
+    echo "  --dir DIR :"
+    echo "    Create source tree in directory DIR. Otherwise a"
+    echo "    directory name is created from the VERSION string"
+    echo "    in the form YYYYMMDDTHHMM."
+    echo "  -c --config CONFIGFILE :"
+    echo "    Specify the rsync-dist configuration file to use. If this "
+    echo "    option is not givem, take the one from bii_scripts."
+    echo "  -v --verbose :"
+    echo "    show what the script does"
+    echo "  -n --dry-run :"
+    echo "    just show what the script would do"
     exit 0
 }
 
@@ -110,6 +119,10 @@ while true; do
             ;;
         --dir)
             dir="$2"
+            shift 2
+            ;;
+        -c | --config)
+            configfile="$2"
             shift 2
             ;;
         -v | --verbose)
@@ -150,21 +163,22 @@ if [ -n "$skip_options" ]; then
     done
 fi
 
-# read bii_scripts configuration variables:
-source $MYDIR/bii_scripts.config
-if [ $? -ne 0 ]; then
-    echo "error, file bii_scripts.config not found" >&2
-    exit
+if [ -z "$configfile" ]; then
+    # Take rsync-dist config file from bii_scripts share directory.
+    # read bii_scripts configuration variables:
+    source $MYDIR/bii_scripts.config
+    if [ $? -ne 0 ]; then
+        echo "error, file bii_scripts.config not found" >&2
+        exit
+    fi
+    # The share directory is defined by SHARE_INSTALL_DIR in file 
+    # bii_scripts.config:
+    CONFIGFILE_PATH=$SHARE_INSTALL_DIR/bii_scripts/rsync-dist 
+    configfile="$CONFIGFILE_PATH/uniserv"
 fi
 
-# The share directory is defined by SHARE_INSTALL_DIR from file 
-# bii_scripts.config:
-BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
-
-CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist 
-
-configfile="$CONFIGFILE_PATH/uniserv"
-
+# Source rsync-dist configuration file, this defines various variables, all
+# named RSYNC_DIST*
 source $configfile
 if [ $? -ne 0 ]; then
     echo "error, couldn't read $configfile" >&2
