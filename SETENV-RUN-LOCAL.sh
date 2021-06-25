@@ -32,4 +32,7 @@ else
 
     # set prompt:
     PS1="bii-scr $PS1"
+
+    # export BII_SCRIPTS_TOP, this is used by bii_scripts.config:
+    export BII_SCRIPTS_TOP
 fi
