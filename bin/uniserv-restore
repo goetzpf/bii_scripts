@@ -81,23 +81,27 @@ function CD {
 function print_short_help {
     echo "$MYNAME: restore a version of uniserv"
     echo "usage:"
-    echo "  $MYNAME VERSION [OPTIONS]"
+    echo "  $MYNAME SHORTVERSION|ISOVERSION [OPTIONS]"
     echo "  Restores the source and working copy repository of an installed "
     echo "  version of the uniserv program, the motor control program used "
     echo "  by BESSY undulators."
     echo
-    echo "VERSION:"
+    echo "SHORTVERSION:"
     echo "  The short version string from CONST_PROGRAM_VERSION in the uniserv"
     echo "  program that is also shown in the undulator 'DIAG' panel, "
     echo "  e.g. '1901141049'."
+    echo
+    echo "ISOVERSION:"
+    echo "  The rsync-dist version strings in the form YYYY-MM-DDTHH:MM:SS."
     echo
     echo "OPTIONS:"
     echo "  -h --help :"
     echo "      this help"
     echo "  --dir DIR :"
     echo "    Create source tree in directory DIR. Otherwise a"
-    echo "    directory name is created from the VERSION string"
-    echo "    in the form YYYYMMDDTHHMM."
+    echo "    directory name is created from the SHORTVERSION string"
+    echo "    in the form YYYYMMDDTHHMM or from the ISOVERSION string in the "
+    echo "    form YYYY-MM-DDTHHMMSS."
     echo "  -c --config CONFIGFILE :"
     echo "    Specify the rsync-dist configuration file to use. If this "
     echo "    option is not givem, take the one from bii_scripts."
@@ -188,32 +192,40 @@ fi
 RSYNC_DIST_HOST=$(echo $RSYNC_DIST_HOST | sed -e 's/,.*//')
 RSYNC_DIST_USER=$(echo $RSYNC_DIST_USER | sed -e 's/,.*//')
 
-SHORTVERSION="${ARGS[0]}"
-
-if [ -z "$SHORTVERSION" ]; then
-    echo "VERSION missing."
+VERSION="${ARGS[0]}"
+if [ -z "$VERSION" ]; then
+    echo "SHORTVERSION or ISOVERSION missing."
     exit 1
 fi
 
-# get rsync dist version name:
-CMDRET "ssh $RSYNC_DIST_USER@$RSYNC_DIST_HOST find $RSYNC_DIST_PATH -name $SHORTVERSION | sort | tail -n 1"
+SHORTVERSION=""
+if [[ $VERSION =~ ^[0-9]+$ ]]; then
+    # a short version string
+    SHORTVERSION="$VERSION"
 
-if [ $cmdret -ne 0 ]; then
-    echo "ssh command failed" >&2
-    exit 1
+    # get rsync dist version name:
+    CMDRET "ssh $RSYNC_DIST_USER@$RSYNC_DIST_HOST find $RSYNC_DIST_PATH -name $SHORTVERSION | sort | tail -n 1"
+
+    if [ $cmdret -ne 0 ]; then
+        echo "ssh command failed" >&2
+        exit 1
+    fi
+    TAGFILE="$cmddata"
+
+    if [ -z "$TAGFILE" ]; then
+        echo "error, no version found for $SHORTVERSION" >&2
+        exit 1
+    fi
+    VERSION=$(echo "$TAGFILE" | sed -e "s#$RSYNC_DIST_PATH/##;s#/.*##")
 fi
-TAGFILE="$cmddata"
-
-if [ -z "$TAGFILE" ]; then
-    echo "error, no version found for $SHORTVERSION" >&2
-    exit 1
-fi
-
-VERSION=$(echo "$TAGFILE" | sed -e "s#$RSYNC_DIST_PATH/##;s#/.*##")
 
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 if [ -z "$dir" ]; then
-    MYVERSION="$SHORTVERSION"
+    if [ -n "$SHORTVERSION" ]; then
+        MYVERSION="$SHORTVERSION"
+    else
+        MYVERSION=`echo $VERSION | sed -e 's/://g'`
+    fi
 else
     MYVERSION="$dir"
 fi
