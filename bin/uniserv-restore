@@ -22,8 +22,15 @@ SCRIPT_FULL_NAME=$(readlink -e $0)
 MYDIR=$(dirname $SCRIPT_FULL_NAME)
 MYNAME=$(basename $SCRIPT_FULL_NAME)
 
-BOOTHOST="iocadm@nfs.blc.bessy.de"
-DISTDIR=/opt/IOC/uniserv/dist
+# Note: we override the central repo definition in the restore data with these
+# directories:
+UNISERV_CENTRALREPO="http://repo.acc.bessy.de/hg/id-drive/uniserv"
+ID_DB_CENTRALREPO="http://repo.acc.bessy.de/hg/id_db"
+verbose=""
+dryrun=""
+
+# directory to create:
+dir=""
 
 function CMD {
     # execute a shell command
@@ -70,7 +77,9 @@ function CD {
 }
 
 function print_short_help {
-    echo "usage: $MYNAME VERSION [OPTIONS]"
+    echo "$MYNAME: restore a version of uniserv"
+    echo "usage:"
+    echo "  $MYNAME VERSION [OPTIONS]"
     echo "  Restores the source and working copy repository of an installed "
     echo "  version of the uniserv program, the motor control program used "
     echo "  by BESSY undulators."
@@ -82,7 +91,9 @@ function print_short_help {
     echo
     echo "OPTIONS:"
     echo "  -h --help  : this help"
-    echo "  -f --file FILE: specify FILE"
+    echo "  --dir DIR : Create source tree in directory DIR. Otherwise a"
+    echo "              directory name is created from the VERSION string"
+    echo "              in the form YYYY-MM-DDTHHMMSS."
     echo "  -v --verbose: show what the script does"
     echo "  -n --dry-run: just show what the script would do"
     exit 0
@@ -96,6 +107,10 @@ while true; do
         -h | --help)
             print_short_help
             exit 0
+            ;;
+        --dir)
+            dir="$2"
+            shift 2
             ;;
         -v | --verbose)
             verbose="yes"
@@ -135,6 +150,30 @@ if [ -n "$skip_options" ]; then
     done
 fi
 
+# read bii_scripts configuration variables:
+source $MYDIR/bii_scripts.config
+if [ $? -ne 0 ]; then
+    echo "error, file bii_scripts.config not found" >&2
+    exit
+fi
+
+# The share directory is defined by SHARE_INSTALL_DIR from file 
+# bii_scripts.config:
+BII_SCRIPTS_SHARE_DIR="$SHARE_INSTALL_DIR"
+
+CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist 
+
+configfile="$CONFIGFILE_PATH/uniserv"
+
+source $configfile
+if [ $? -ne 0 ]; then
+    echo "error, couldn't read $configfile" >&2
+    exit 1
+fi
+# take only the first rsync dist host if there is more than one:
+RSYNC_DIST_HOST=$(echo $RSYNC_DIST_HOST | sed -e 's/,.*//')
+RSYNC_DIST_USER=$(echo $RSYNC_DIST_USER | sed -e 's/,.*//')
+
 SHORTVERSION="${ARGS[0]}"
 
 if [ -z "$SHORTVERSION" ]; then
@@ -143,7 +182,8 @@ if [ -z "$SHORTVERSION" ]; then
 fi
 
 # get rsync dist version name:
-CMDRET "ssh $BOOTHOST find $DISTDIR -name $SHORTVERSION | sort | tail -n 1"
+CMDRET "ssh $RSYNC_DIST_USER@$RSYNC_DIST_HOST find $RSYNC_DIST_PATH -name $SHORTVERSION | sort | tail -n 1"
+
 if [ $cmdret -ne 0 ]; then
     echo "ssh command failed" >&2
     exit 1
@@ -155,23 +195,28 @@ if [ -z "$TAGFILE" ]; then
     exit 1
 fi
 
-VERSION=$(echo "$TAGFILE" | sed -e "s#$DISTDIR/##;s#/.*##")
+VERSION=$(echo "$TAGFILE" | sed -e "s#$RSYNC_DIST_PATH/##;s#/.*##")
 
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
-MYVERSION="$SHORTVERSION"
+if [ -z "$dir" ]; then
+    MYVERSION="$SHORTVERSION"
+else
+    MYVERSION="$dir"
+fi
 
-if [ -d "$MYVERSION" ]; then
+if [ -d "$MYVERSION" -a -z "$dryrun" ]; then
     echo "error, directory $MYVERSION already exists"
     exit 1
 fi
-echo -e "* creating directory $MYVERSION"
-mkdir $MYVERSION
 
-CD $MYVERSION
+echo -e "* creating directory $MYVERSION"
+CMD "mkdir $MYVERSION"
+CD "$MYVERSION"
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-CMD "scp $BOOTHOST:$DISTDIR/$QVERSION/recover/*recover* ."
+CMD "scp $RSYNC_DIST_USER@$RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION/recover/*recover* ."
+
 if [ $cmdret -ne 0 ]; then 
     echo >&2
     echo "error, no restore data found for $VERSION" >&2
@@ -179,10 +224,10 @@ if [ $cmdret -ne 0 ]; then
 fi
 
 echo -e "\n* recovering uniserv working directory..."
-CMD "hg-recover.py -r -f uniserv-recover.tar.gz"
+CMD "hg-recover.py --central-repo $UNISERV_CENTRALREPO -r -f uniserv-recover.tar.gz"
 
 if [ -e "iddb-recover.tar.gz" ]; then
-    CMD "hg-recover.py -r -f iddb-recover.tar.gz"
+    CMD "hg-recover.py --central-repo $ID_DB_CENTRALREPO -r -f iddb-recover.tar.gz"
     CMD "mkdir -p uniserv/add_ons/src"
     CMD "cp -a id_db uniserv/add_ons/src"
 fi
