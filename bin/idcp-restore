@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2021 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
@@ -17,15 +17,10 @@
 # 
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
-set -e
-
-shopt -s nocasematch
 
 SCRIPT_FULL_NAME=$(readlink -e $0)
 MYDIR=$(dirname $SCRIPT_FULL_NAME)
 MYNAME=$(basename $SCRIPT_FULL_NAME)
-TOP=$(readlink -e $MYDIR/..)
-# TOP needed for default bii_scripts.config
 
 # Note: we override the central repo definition in the restore data with these
 # directories:
@@ -41,14 +36,42 @@ facility="bii"
 # directory to create:
 dir=""
 
+function CMD {
+    # execute a shell command
+    # arguments:
+    #   $1: command
+    # returns:
+    #   cmdret (global variable): the return code of the command
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "$1"
+    fi
+    if [ -z "$dryrun" ]; then
+        bash -c "$1"
+        cmdret=$?
+    else
+        cmdret=0
+    fi
+}
+
+function CD {
+    # change directory but not when dryrun is set
+    # $1: dir
+    if [ -n "$verbose" -o -n "$dryrun" ]; then
+        echo "cd $1"
+    fi
+    if [ -z "$dryrun" ]; then
+        cd "$1" > /dev/null
+    fi
+}
+
 function print_short_help {
     echo "$MYNAME: restore a version of IDCP"
     echo "usage:"
-    echo "  $MYNAME [options] VERSION"
-    echo "      [VERSION] must be the ISO date string as it is used by"
-    echo "      rsync-dist. "
-    echo "options:"
-    echo "  -h: this help"
+    echo "  $MYNAME [OPTIONS] VERSION"
+    echo "VERSION:"
+    echo "  The ISO date string as it is used by rsync-dist. "
+    echo "OPTIONS:"
+    echo "  -h --help  : this help"
     echo "  --dir DIR : Create source tree in directory DIR. Otherwise a"
     echo "              directory name is created from the VERSION string"
     echo "              in the form YYYY-MM-DDTHHMMSS."
@@ -59,75 +82,73 @@ function print_short_help {
     echo "  --dry-run : just show how rsync-dist-info.py would be called"
 }
 
-function CMD {
-    # $1: command
-    if [ -n "$verbose" -o -n "$dryrun" ]; then
-        echo "$1"
-    fi
-    if [ -z "$dryrun" ]; then
-        bash -c "$1"
-    fi
-}
-
-function CD {
-    # $1: dir
-    if [ -n "$verbose" -o -n "$dryrun" ]; then
-        echo "cd $1"
-    fi
-    if [ -z "$dryrun" ]; then
-        cd "$1" > /dev/null
-    fi
-}
-
 declare -a ARGS
+skip_options=""
 
 while true; do
     case "$1" in
-      -h | --help)
-        print_short_help
-        exit 0
-        ;;
-      --dir)
-        dir="$2"
-        shift 2
-        ;;
-      -f| --facility)
-        while true; do
-            if [[ $2 =~ ^bii ]]; then
-                facility="bii"
-                shift 2
-                break
+        -h | --help)
+            print_short_help
+            exit 0
+            ;;
+        --dir)
+            dir="$2"
+            shift 2
+            ;;
+        -f| --facility)
+            while true; do
+                if [[ $2 =~ ^bii ]]; then
+                    facility="bii"
+                    shift 2
+                    break
+                fi
+                if [[ $2 =~ ^mls ]]; then
+                    facility="mls"
+                    shift 2
+                    break
+                fi
+            done
+            ;;
+        --verbose)
+            verbose="yes"
+            shift
+            ;;
+        -n | --dry-run)
+            dryrun="yes"
+            shift
+            ;;
+        -- )
+            skip_options="yes"
+            shift;
+            break
+            ;;
+        *)
+            if [ -z "$1" ]; then
+                break;
             fi
-            if [[ $2 =~ ^mls ]]; then
-                facility="mls"
-                shift 2
-                break
+            if [[ $1 =~ ^- ]]; then
+                echo "unknown option: $1"
+                exit 1
             fi
-        done
-        ;;
-      --verbose)
-        verbose="yes"
-        shift
-        ;;
-      --dry-run)
-        dryrun="yes"
-        shift
-        ;;
-      -- ) shift; break ;;
-      * ) 
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [ -n "$skip_options" ]; then
+    while true; do
         if [ -z "$1" ]; then
             break;
         fi
         ARGS+=("$1")
         shift
-        ;;
-    esac
-done
+    done
+fi
 
 # read bii_scripts configuration variables:
-if [ -e $MYDIR/bii_scripts.config ]; then
-    . $MYDIR/bii_scripts.config
-else
+source $MYDIR/bii_scripts.config
+if [ $? -ne 0 ]; then
     echo "error, file bii_scripts.config not found" >&2
     exit
 fi
@@ -141,11 +162,20 @@ CONFIGFILE_PATH=$BII_SCRIPTS_SHARE_DIR/bii_scripts/rsync-dist
 configfile="$CONFIGFILE_PATH/idcp-$facility"
 
 source $configfile
+if [ $? -ne 0 ]; then
+    echo "error, couldn't read $configfile" >&2
+    exit 1
+fi
 # take only the first rsync dist host if there is more than one:
 RSYNC_DIST_HOST=$(echo $RSYNC_DIST_HOST | sed -e 's/,.*//')
 RSYNC_DIST_USER=$(echo $RSYNC_DIST_USER | sed -e 's/,.*//')
 
 VERSION=${ARGS[0]}
+if [ -z "$VERSION" ]; then
+    echo "VERSION missing."
+    exit 1
+fi
+
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
 if [ -z "$dir" ]; then
     MYVERSION=`echo $VERSION | sed -e 's/://g'`
@@ -164,16 +194,12 @@ CD "$MYVERSION"
 
 echo -e "* fetching hg recover files from boot directory...\n"
 
-# automatic script abort switched off here:
-set +e
 
 
 CMD "scp $RSYNC_DIST_USER@$RSYNC_DIST_HOST:$RSYNC_DIST_PATH/$QVERSION/dbd/hg-recover* ."
-if [ "$?" -ne 0 ]; then 
-    echo 
-    echo "error, no restore data found for $VERSION"
-    echo "command:"
-    echo -e "\t$CMD"
+if [ $cmdret -ne 0 ]; then 
+    echo >&2
+    echo "error, no restore data found for $VERSION" >&2
     exit 1
 fi
 
