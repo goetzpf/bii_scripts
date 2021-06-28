@@ -772,10 +772,10 @@ def layoutXY(substData,display,yPos,opts):
         dWidth.text  = str(xMax)
     else:
         if int(dWidth.text) < xMax:
-            sys.stderr.write("Warning: Display width {} smaler than calculated, set to {}".format(dWidth.text,str(xMax))+"\n" );
+#            sys.stderr.write("Warning: Display width {} smaler than calculated, set to {}".format(dWidth.text,str(xMax))+"\n" );
             dWidth.text = str(xMax)
         if int(dHeight.text) < yMax:
-            sys.stderr.write("Warning: Display height {} smaler than calculated, set to {}".format(dHeight.text,str(yMax))+"\n" );
+#            sys.stderr.write("Warning: Display height {} smaler than calculated, set to {}".format(dHeight.text,str(yMax))+"\n" );
             dHeight.text = str(yMax)
     
     if opts['verbose']: 
@@ -937,7 +937,7 @@ def process_file(opts):
     if opts['inFile'] != "-":
         f= open(opts['inFile'], "r",encoding=opts['encoding'])
     else:
-        print("(expect input from stdin)\n")
+        if opts['verbose']: print("(expect input from stdin)\n")
         f= sys.stdin
     substFileStr= f.read()
     if opts['inFile'] != "-":
