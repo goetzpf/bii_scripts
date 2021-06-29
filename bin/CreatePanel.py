@@ -729,9 +729,9 @@ def layoutXY(substData,display,yPos,opts):
      -------------------------
 
     * The widgets placed on pixel coordinates in parameter PANEL_POS="x,y"
-    * The Title display file is the background where to place the widgets, means
-      the title determins width and height of the panel.
-    * Without title display, width and hight are calculated to fit for all widgets
+    * Option --baseW: The backround display file determins width and height of 
+      the panel. It is the canvas to place the widgets in.
+    * Without --baseW option the display width and hight is calculated to fit for all widgets
     """
     if opts['verbose']: print("layout: xy")
 
@@ -740,10 +740,9 @@ def layoutXY(substData,display,yPos,opts):
     yMax = 0
     xMax = 0
     dbg  = Dbg( ("type","x","y","substitutions") )
-
     for group in substData: # the .template files
         (wName,wExt) = getFileExt(group[0])
-        if opts['verbose']: print("Group:",wName,"at x:",xPos," y:",yPos)
+        if opts['verbose']: print("Group:",wName)
         items = group[1:len(group)]
         try:        
             wdgItem = opts['widgetStore'][wName]
@@ -755,32 +754,29 @@ def layoutXY(substData,display,yPos,opts):
                     del(item['PANEL_POS'])      # unuseful in widget substitutions
                 except KeyError:
                      sys.stderr.write("ERROR: Can't find PANEL_POS in: "+str(item)+"\n");
-                dbg.add(( ("{}:w={} h={}".format(wdgItem.name,wdgItem.w,wdgItem.h)) ,str(xPos),str(yPos),str(item)) )
+                if opts['verbose']: print("    Set:{}\tx:{} y:{}".format(wName,xPos,yPos))
                 (wdgWidth,wdgHeight,wdg) = wdgItem.setWidget(xPos,yPos,item)
                 display.append(wdg)
                 if xPos+wdgWidth > xMax: xMax = xPos+wdgWidth
-                if yPos+wdgHeight> yMax: yMax = xPos+wdgHeight
-            
+                if yPos+wdgHeight> yMax: yMax = yPos+wdgHeight
         except ValueError as err:
             sys.stderr.write("Warning: skip: "+err+"\n")
             continue
-
-    dWidth = display.find('width')
+    # parameter 'display' is set either to backGroundDisplay or the empty default display
+    dWidth  = display.find('width')
     dHeight = display.find('height')
     if opts['backGroundDisplay'] == None:
         dHeight.text = str(yMax)
         dWidth.text  = str(xMax)
     else:
         if int(dWidth.text) < xMax:
-#            sys.stderr.write("Warning: Display width {} smaler than calculated, set to {}".format(dWidth.text,str(xMax))+"\n" );
+            sys.stderr.write("Warning: Background display width:{} smaler than calculated, set to {}".format(dWidth.text,str(xMax))+"\n" );
             dWidth.text = str(xMax)
         if int(dHeight.text) < yMax:
-#            sys.stderr.write("Warning: Display height {} smaler than calculated, set to {}".format(dHeight.text,str(yMax))+"\n" );
+            sys.stderr.write("Warning: Background display height:{} smaler than calculated, set to {}".format(dHeight.text,str(yMax))+"\n" );
             dHeight.text = str(yMax)
     
-    if opts['verbose']: 
-        dbg.print()
-        print("Display width:",dWidth.text," height:",dHeight.text)
+    if opts['verbose']: print("Display width:",dWidth.text," height:",dHeight.text)
     panelStr = prettyXml(ET.tostring(display,encoding='utf-8'))
     return panelStr
 
@@ -1175,6 +1171,8 @@ def main():
             if wdgFile != None:
                 with open(wdgFile, "r",encoding=opts['encoding']) as f:
                     bgString = f.read()
+            else:
+                sys.exit(1)
             if opts['substitutions'] != None:
                 for n in opts['substitutions']: # replace macros here for decreased load time
                     bgString = bgString.replace("$("+n+")",opts['substitutions'][n] )
