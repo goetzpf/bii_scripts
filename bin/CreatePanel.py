@@ -1,5 +1,3 @@
-
-
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
@@ -926,9 +924,6 @@ def process_file(opts):
 </display>
 """)
 
-    if opts['backGroundDisplay'] != None:
-        display = opts['backGroundDisplay']
-
 #-------- get substitutions data
     if opts['inFile'] != "-":
         f= open(opts['inFile'], "r",encoding=opts['encoding'])
@@ -952,11 +947,8 @@ def process_file(opts):
                 sys.stderr.write("-M: dependant file '{}' not found\n".format(widgetFileName))
             else:
                 depFiles.append(wdgFile)
-        reg=re.compile(r"\.d\s*$")
-        target =reg.sub("",opts['outFile'])
-        with open(opts['outFile'],mode="w") as w:
-            w.write("{}: {}\n".format(target," ".join(depFiles) ))
-
+        with open(opts['outFile']+".d",mode="w") as w:
+            w.write("{}: {}\n".format(opts['outFile']," ".join(depFiles) ))
         return
     for wdg in dependencies:
         w = ParsedWidget(file=wdg,options=opts)
@@ -969,6 +961,14 @@ def process_file(opts):
             wdg = opts['widgetStore'][wKey]
             print(wKey,wdg)
 
+    if opts['backGroundDisplay'] != None:
+        display = opts['backGroundDisplay']
+    target = "stdout"
+    if opts['outFile'] != "-":
+        path=opts['outFile'].split('/')
+        (target,ext) = path[-1].split('.')
+    dN = display.find('name')
+    dN.text = target
 #-------- create display by layout
     printData = "Empty Print Data!"    
     yPos      = 0
@@ -995,9 +995,7 @@ def process_file(opts):
         output_mode = "a"
     else:
         out= sys.stdout
-    #out.write("do(\n")
     out.write(printData)
-    #out.write(")\n")
     if opts['outFile'] is not None:
         out.close()
 
