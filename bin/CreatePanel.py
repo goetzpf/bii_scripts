@@ -453,7 +453,6 @@ class ParsedWidget:
                 raise ValueError("Ilegal widget file: "+wdgFile)
             self.wdg = wdgGroup
             self.wdgStr = ET.tostring(wdgGroup)
-            if self.opts['verbose']: print("ParsedWidget file: ",self.name,self.w,self.h)
     else:
         sys.stderr.write("Can't create a ParsedWidget from args: "+str(args)+"\n")
 
@@ -789,7 +788,7 @@ def layoutGrid(substData,display,y0,opts):
             self.wdgWidth  = wdgWidth 
             self.wdgHeight = wdgHeight
             self.subst     = subst    
-    dbg  = Dbg( ("type","x","y","substitutions") )
+    dbg  = Dbg( ("Widget","x","y","substitutions") )
     itemList     = []
     for group in substData: # the .template files
         (wName,wExt) = getFileExt(group[0])
@@ -823,7 +822,9 @@ def layoutGrid(substData,display,y0,opts):
         sys.stderr.write("ERROR: No GRID items found skip Display\n")
         return
 
-    if opts['verbose']: dbg.print()
+    if opts['verbose']: 
+        print("The .substitutions data:")
+        dbg.print()
     
     xLen = 0    
     yLen = 0    
@@ -878,9 +879,9 @@ def layoutGrid(substData,display,y0,opts):
                 else:
                     R.append("None")
             tblDbg.add(R)
-        if opts['verbose']:
-            tblDbg.print()
-            print("rowMaxHeight:",rowMaxHeight,"\nspan:",spanedWidth,"\ndisplayWidth:",displayWidth,"\ndisplayHeight:",displayHeight)
+        print("\nPanel layout overview:")
+        tblDbg.print()
+
     rowPos = [0]*len(rowMaxHeight)
     rowPos[0] = int(y0)
     for y in range(1,len(rowMaxHeight)):
@@ -899,10 +900,10 @@ def layoutGrid(substData,display,y0,opts):
             xPos = colPos[x]
             yPos = rowPos[y]
             (wdgWidth,wdgHeight,wdg) = parsedWdg.setWidget(xPos,yPos,item.subst)
-            dbg.add(( ("{}:w={} h={}".format(parsedWdg.name,parsedWdg.w,parsedWdg.h)) ,str(xPos),str(yPos),str(parsedWdg)) )
+            dbg.add(( ("{}:w={} h={}".format(parsedWdg.name,parsedWdg.w,parsedWdg.h)) ,str(xPos),str(yPos),str(item.subst)) )
             display.append(wdg)
     if opts['verbose']:
-        print("The grid table:\n****************" )
+        print("\nProcessed widget positions:")
         dbg.print()
     panelStr = prettyXml(ET.tostring(display,encoding='utf-8'))
     return panelStr
@@ -956,11 +957,14 @@ def process_file(opts):
             opts['widgetStore'][w.name] = w
 
     if opts['verbose']: 
-        print("\n**** WIDGET Store:",",".join(opts['widgetStore'].keys()))
+        table=[]
+        print("\n**** WIDGET Store:")
         for wKey in opts['widgetStore']:
-            wdg = opts['widgetStore'][wKey]
-            print(wKey,wdg)
+            w=opts['widgetStore'][wKey]
+            table.append((wKey,w.w,w.h))
+        printTable(table,("Widget","width","height"),0)
 
+        print("\n**** Process LAYOUT:",opts['layout'])
     if opts['backGroundDisplay'] != None:
         display = opts['backGroundDisplay']
     target = "stdout"
@@ -1107,7 +1111,6 @@ def main():
             sys.stderr.write("ERROR: not supported --type option: "+options.type)
             sys.exit(1)
         opts['type'] = options.type
-    if opts['verbose']: print("TYPE:\t",opts['type'])
 
     opts['width'] = 900
     if options.w:
@@ -1116,7 +1119,6 @@ def main():
         except ValueError:
             sys.stderr.write("ERROR: illegal --width option: "+options.w)
             sys.exit(1)
-    if opts['verbose']: print("WIDTH:\t",opts['width'])
 
     opts['layout'] = "line"
     if options.layout:
@@ -1124,12 +1126,10 @@ def main():
             sys.stderr.write("ERROR: illegal --layout option: "+options.layout)
             sys.exit(1)
         opts['layout']= options.layout
-    if opts['verbose']: print("LAYOUT:\t",opts['layout'])
 
     opts['substitutions'] = None    
     if options.subst:
         opts['substitutions'] = parseParam(options.subst,';')
-        if opts['verbose']: print("SUBST:\t",opts['substitutions'])
 
     opts['dependencies'] = None    
     if options.M:
