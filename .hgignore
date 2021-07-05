@@ -4,6 +4,9 @@
 # ignore directory with created files for distribution:
 ^out
 
+# ignore darcs-restore data:
+^\.darcs-restore
+
 # ignore python cache files:
 ^lib/python/__pycache__/
 \.pyc
