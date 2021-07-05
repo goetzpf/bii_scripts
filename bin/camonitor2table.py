@@ -1175,8 +1175,15 @@ def interpolate(hashedlist2d, col, row1, row2, empty_rows):
     """
     # pylint: disable=too-many-locals
     if row2 is None:
-        # cannot interpolate, just copy the last value
+        # cannot interpolate, just copy the first value
         val= hashedlist2d.lookup(row1, col)
+        for row in empty_rows:
+            # note: val is a list, val[:] creates a copy:
+            hashedlist2d.set(row, col, val[:])
+        return
+    if row1 is None:
+        # cannot interpolate, just copy the last value
+        val= hashedlist2d.lookup(row2, col)
         for row in empty_rows:
             # note: val is a list, val[:] creates a copy:
             hashedlist2d.set(row, col, val[:])
