@@ -228,12 +228,16 @@ Reference of command line options
   fill empty places in the table with a linear interpolation taken from the
   rows above and below.
 
---add-seconds [seconds]
+--add-seconds [SECONDS]
   add the seconds given (a floating point value) to the timestamps.
 
 --time-rebase [OLDTIME,NEWTIME]
   Add an offset to all timestamps. The offset is calculated to ensure that
   OLDTIME is changed to NEWTIME.
+
+-T --time-columnname COLUMNNAME
+  Set the name of the time column, The default "name for this column is
+  'Timestamp'.
 
 --pvmap [PVMAP]
   Defines a mapping that replaces a pv with a new name. A PVMAP is a string
@@ -269,6 +273,8 @@ assert sys.version_info[0]==3
 
 # version of the program:
 my_version= "1.0"
+
+TIMECOLUMN='Timestamp'
 
 _last_str2date_str= None
 _last_str2date_obj= None
@@ -994,7 +1000,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
 #                          Trailing whitespace
 
 def pretty_print(hashedlist2d, columnformat=None, rjust= False,
-                 is_floattime= False,
+                 is_floattime= False, timecolumn=None,
                  separator=" ", csv=False):
     """pretty print the results from collect().
 
@@ -1068,7 +1074,7 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
         lst[0]= converter(st[0])
         lst[0]= columnformat % lst[0]
         return " ".join(lst)
-    columns= ["Timestamp                 "]
+    columns= ["%-26s" % timecolumn]
     columns.extend(hashedlist2d.columns())
 
     if (columnformat is None) or (len(columnformat)==0):
@@ -1369,9 +1375,12 @@ def process_files(options,args):
         columnformat= []
         if options.columnformat is not None:
             columnformat= options.columnformat.split()
+        if not options.time_columnname:
+            options.time_columnname= TIMECOLUMN
         pretty_print(results, columnformat,
                      options.rjust,
                      options.floattime,
+                     options.time_columnname,
                      separator, options.csv)
 
 def script_shortname():
@@ -1546,6 +1555,11 @@ def main():
                              "calculated to ensure that OLDTIME is changed "
                              "to NEWTIME.",
                         metavar="TIMESPEC"
+                       )
+    parser.add_argument("-T", "--time-columnname",
+                        help="Set the name of the time column, The default "
+                             "name for this column is 'Timestamp'.",
+                        metavar="NAME"
                        )
     parser.add_argument("-P", "--pvmap",
                         action="append",
