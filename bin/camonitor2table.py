@@ -1,7 +1,7 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2021 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
@@ -224,6 +224,10 @@ Reference of command line options
   fill empty places in the table with the first non-empty value in the same
   column from a row above.
 
+--fill-interpolate
+  fill empty places in the table with a linear interpolation taken from the
+  rows above and below.
+
 --add-seconds [seconds]
   add the seconds given (a floating point value) to the timestamps.
 
@@ -255,15 +259,13 @@ Reference of command line options
 # pylint: disable=C0103
 #                          Invalid constant name
 
-from optparse import OptionParser
-#import string
+import argparse
 import sys
 import re
-import time  # actually only needed for Python Version < 2.7
 import datetime
 import os.path
 
-assert sys.version_info[0]==2
+assert sys.version_info[0]==3
 
 # version of the program:
 my_version= "1.0"
@@ -275,26 +277,6 @@ _last_str2date_obj= None
 # unfortunately our development server has only python 2.5 as
 # newest version:
 
-def strptime_p25(st_,format_):
-    """simulate datetime.datetime.strptime.
-    """
-    if not format_.endswith(".%f"):
-        return datetime.datetime.strptime(st_,format_)
-    p= st_.find(".")
-    tp= time.strptime(st_[0:p],format_[0:-3])
-    if p==-1:
-        raise ValueError("date has wrong format_: \"%s\"" % st_)
-    frac= int(st_[p+1:])
-    date= datetime.datetime(tp[0],tp[1],tp[2],tp[3],tp[4],tp[5],frac)
-    return date
-
-def strftime_p25(date,format_):
-    """simulate datetime.datetime.strptime.
-    """
-    if not format_.endswith(".%f"):
-        return date.strftime(format_)
-    return date.strftime(format_[0:-3]) + (".%06d" % date.microsecond)
-
 def strftime(date,format_):
     """returns date.strftime(format_)."""
     return date.strftime(format_)
@@ -302,21 +284,11 @@ def strftime(date,format_):
 # pylint: disable=C0301
 #                          Line too long
 
-def time_total_seconds_25(td):
-    """return the total seconds in a timedelta object for python 2.5.
-
-    Here is an example:
-    >>> td= datetime.datetime(2011,01,01,13,32,15,250000)-datetime.datetime(2011,01,01,13,30,0)
-    >>> time_total_seconds_25(td)
-    135.25
-    """
-    return float(td.days*86400+td.seconds)+td.microseconds/1E6
-
 def time_total_seconds(td):
     """return the total seconds in a timedelta object.
 
     Here is an example:
-    >>> td= datetime.datetime(2011,01,01,13,32,15,250000)-datetime.datetime(2011,01,01,13,30,0)
+    >>> td= datetime.datetime(2011,0o1,0o1,13,32,15,250000)-datetime.datetime(2011,0o1,0o1,13,30,0)
     >>> time_total_seconds(td)
     135.25
     """
@@ -324,15 +296,6 @@ def time_total_seconds(td):
 
 # pylint: enable=C0301
 #                          Line too long
-
-if sys.version_info < (2,7):
-    strptime_= strptime_p25
-    total_seconds_= time_total_seconds_25
-    strftime_= strftime_p25
-else:
-    strptime_= datetime.datetime.strptime
-    total_seconds_= time_total_seconds
-    strftime_= strftime
 
 # date and time utilities
 # ----------------------------------------
@@ -384,13 +347,13 @@ def str2date(st):
         return _last_str2date_obj
     i= st_.find(".")
     if i==-1:
-        date= strptime_(st_,"%Y-%m-%d %H:%M:%S")
+        date= datetime.datetime.strptime(st_,"%Y-%m-%d %H:%M:%S")
     else:
         if len(st_)-i > 7:
             if not st_[i+7:].isdigit():
                 raise ValueError("extra characters found: \"%s\"" % \
                                  st_[i+7:])
-        date= strptime_(st_[0:i+7],"%Y-%m-%d %H:%M:%S.%f")
+        date= datetime.datetime.strptime(st_[0:i+7],"%Y-%m-%d %H:%M:%S.%f")
     _last_str2date_str= st_
     _last_str2date_obj= date
     return date
@@ -404,7 +367,7 @@ def str2date_ui(st):
         return None
     try:
         d= str2date(st)
-    except ValueError,_:
+    except ValueError as _:
         sys.exit("error: \"%s\" is not a valid timestamp" % st)
     return d
 
@@ -416,7 +379,7 @@ def date2str(date):
     >>> date2str(d)
     '2011-01-25 14:22:20.822485'
     """
-    return strftime_(date, "%Y-%m-%d %H:%M:%S.%f")
+    return strftime(date, "%Y-%m-%d %H:%M:%S.%f")
 
 def float_time(date, start_date):
     """convert timestamps to float-time.
@@ -435,12 +398,12 @@ def float_time(date, start_date):
     ...            str2date("2011-01-24 14:22:20"))
     86400.822485
     """
-    return total_seconds_(date-start_date)
+    return time_total_seconds(date-start_date)
 
 # classes
 # ----------------------------------------
 
-class RxReplace(object):
+class RxReplace:
     """Change a string with a regular expression."""
     # pylint: disable=R0903
     #                          Too few public methods
@@ -452,9 +415,14 @@ class RxReplace(object):
             raise ValueError("invalid replacement regexp: '%s'" % st)
         self.flags=0
         for char in m.group(3):
+            # we do not use "raise..from" here since this doesn't work on
+            # python 3.2:
+            e= None
             try:
                 self.flags|= getattr(re, char.upper())
-            except AttributeError, _:
+            except AttributeError as _e:
+                e= _e
+            if e is not None:
                 raise ValueError("unknown flag '%s' in regexp '%s'" % \
                                  (char,st))
         self.rx= re.compile(m.group(1), self.flags)
@@ -463,7 +431,7 @@ class RxReplace(object):
         """do the replacement."""
         return self.rx.sub(self.repl, st)
 
-class RxReplacer(object):
+class RxReplacer:
     """Change a string with a regular expressions."""
     # pylint: disable=R0903
     #                          Too few public methods
@@ -491,7 +459,7 @@ class RxReplacer(object):
         self.cache[st]= st
         return st
 
-class HashIndex(object):
+class HashIndex:
     """maps a string to an index.
 
     This associates a fixed index to each string it is given.
@@ -511,11 +479,11 @@ class HashIndex(object):
     2
     >>> h.last()
     2
-    >>> h.keys()
+    >>> list(h.keys())
     ['A', 'B', 'C']
-    >>> h.has_key("A")
+    >>> "A" in h
     True
-    >>> h.has_key("X")
+    >>> "X" in h
     False
     >>> h.relabel("B","BB")
     >>> h.index("BB")
@@ -554,10 +522,13 @@ class HashIndex(object):
         return sorted(self._map.keys())
     def has_key(self, val):
         """Test if a key is in the map."""
-        return self._map.has_key(val)
+        return val in self._map
+    def __contains__(self, val):
+        """Test if a key is in the map."""
+        return val in self._map
     def __repr__(self):
         """return "repr" string of the object."""
-        return "HashIndex(%s)" % repr(self.keys())
+        return "HashIndex(%s)" % repr(list(self.keys()))
     def __str__(self):
         """return "repr" string of the object."""
         return repr(self)
@@ -565,7 +536,7 @@ class HashIndex(object):
 # pylint: disable=C0301
 #                          Line too long
 
-class HashedList(object):
+class HashedList:
     """gives access to elements of a list by a hash key.
 
     Here are some examples:
@@ -587,14 +558,14 @@ class HashedList(object):
     >>> h.set("E","new-val")
     >>> h
     HashedList([('A', 'x'), ('B', 'y'), ('C', 'z'), ('D', [1]), ('E', 'new-val')])
-    >>> h.has_key("B")
+    >>> "B" in h
     True
-    >>> h.has_key("X")
+    >>> "X" in h
     False
     >>> h.relabel("C","CC")
     >>> h
     HashedList([('A', 'x'), ('B', 'y'), ('CC', 'z'), ('D', [1]), ('E', 'new-val')])
-    >>> h.keys()
+    >>> list(h.keys())
     ['A', 'B', 'CC', 'D', 'E']
     >>> h.delete("CC")
     >>> h
@@ -654,31 +625,34 @@ class HashedList(object):
         self._h_index.relabel(old_key, new_key)
     def keys(self):
         """Return all the keys."""
-        return self._h_index.keys()
+        return list(self._h_index.keys())
     def has_key(self, val):
         """Test if a key is known to the object."""
-        return self._h_index.has_key(val)
+        return val in self._h_index
+    def __contains__(self, val):
+        """Test if a key is known to the object."""
+        return val in self._h_index
     def __repr__(self):
         """return "repr" string of the object."""
         l= []
-        for k in self.keys():
+        for k in list(self.keys()):
             l.append((k, self.lookup(k)))
         return "HashedList(%s)" % repr(l)
     def __str__(self):
         """return "repr" string of the object."""
         return repr(self)
 
-class HashedList2D(object):
+class HashedList2D:
     """a 2-dimensional HashedList.
 
     Here are some examples:
     >>> h= HashedList2D()
     >>> h.set(1,"A", "x")
-    >>> print h
+    >>> print(h)
     (1,A) : x
     >>> h.set(1,"B", "y")
     >>> h.set(2,"B", "z")
-    >>> print h
+    >>> print(h)
     (1,A) : x
     (1,B) : y
     (2,A) : None
@@ -696,13 +670,13 @@ class HashedList2D(object):
     >>> h.has_column("C")
     False
     >>> h.relabel_row(2,3)
-    >>> print h
+    >>> print(h)
     (1,A) : x
     (1,B) : y
     (3,A) : None
     (3,B) : z
     >>> h.fill_incomplete(lambda x: x is None)
-    >>> print h
+    >>> print(h)
     (1,A) : x
     (1,B) : y
     (3,A) : x
@@ -726,16 +700,16 @@ class HashedList2D(object):
         return val.set(column, set_value= set_value, value= value, constructor= constructor)
     def rows(self):
         """Return all rows."""
-        return self._rows.keys()
+        return list(self._rows.keys())
     def columns(self):
         """Return number of columns."""
-        return self._column_hashindex.keys()
+        return list(self._column_hashindex.keys())
     def has_row(self, val):
         """Test if a row is known to the object."""
-        return self._rows.has_key(val)
+        return val in self._rows
     def has_column(self, val):
         """Test if a column is known to the object."""
-        return self._column_hashindex.has_key(val)
+        return val in self._column_hashindex
     def relabel_row(self, old_row, new_row):
         """Give a row a new name."""
         self._rows.relabel(old_row, new_row)
@@ -744,8 +718,8 @@ class HashedList2D(object):
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
         column_list= self.columns()
-        lasts= dict([(k,None) for k in column_list])
-        for row in self._rows.keys():
+        lasts= { k: None for k in column_list }
+        for row in list(self._rows.keys()):
             for col in column_list:
                 val= self.lookup(row, col)
                 if is_empty_func(val):
@@ -778,7 +752,7 @@ class HashedList2D(object):
         column_list= self.columns()
         befores= [None]*len(column_list)
         holes= [None]*len(column_list)
-        for row in self._rows.keys():
+        for row in list(self._rows.keys()):
             for (idx,col) in enumerate(column_list):
                 val= self.lookup(row, col)
                 if not is_empty_func(val):
@@ -800,7 +774,7 @@ class HashedList2D(object):
         """Removes rows where not all columns have a value."""
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
-        row_list= self._rows.keys()
+        row_list= list(self._rows.keys())
         column_list= self.columns()
         for row in row_list:
             for col in column_list:
@@ -808,8 +782,8 @@ class HashedList2D(object):
                     self._rows.delete(row)
                     continue
     def __str__(self):
-        rows= self._rows.keys()
-        columns= self._column_hashindex.keys()
+        rows= list(self._rows.keys())
+        columns= list(self._column_hashindex.keys())
         lines=[]
         for r in rows:
             for c in columns:
@@ -926,7 +900,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
     ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.822486 -14212
     ... '''
     >>> results=collect(t.splitlines())
-    >>> print results
+    >>> print(results)
     (2011-01-25 14:22:15.522486,U3IV:AdiUn14PmsPosI) : ['-12078']
     (2011-01-25 14:22:15.522486,U3IV:AdiUn9PmsPosI) : None
     (2011-01-25 14:22:15.622486,U3IV:AdiUn14PmsPosI) : ['-12753']
@@ -974,7 +948,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
         try:
             (pv,date,val)= parse_line(line)
         except:
-            print "parse error in line %d" % lineno
+            print("parse error in line %d" % lineno)
             raise
         if from_time is not None:
             if date<from_time:
@@ -1003,7 +977,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
             pv= pvmaprx.sub(pv)
 
         if dump:
-            print rebuild_line((pv, date, val))
+            print(rebuild_line((pv, date, val)))
         else:
             h.set( date, pv, val )
         lines+=1
@@ -1013,7 +987,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
     if progress:
         sys.stderr.write("\n")
     if dump:
-        return
+        return None
     return h
 
 # pylint: disable=C0303
@@ -1108,14 +1082,13 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
     if not is_floattime:
         just[0]= False
 
-    for c in xrange(len(columnformat)):
-        f= columnformat[c]
+    for c, f in enumerate(columnformat):
         # pylint: disable=W0108
         #                          Unnecessary lambda
         try:
             _= f % "x"
             type_= "string"
-        except TypeError,_:
+        except TypeError as _:
             type_= "number"
         if type_=="number" and c==0 and (not is_floattime):
             columnformat[0]="%s"
@@ -1136,27 +1109,26 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
         else:
             val_tp= (date,)
         lst.append(tp(val_tp, columnformat[i], converters[i]))
-        for i in xrange(1,len(columns)):
+        for i in range(1,len(columns)):
             col= columns[i]
             val_tp= hashedlist2d.lookup(date,col)
             lst.append(tp(val_tp, columnformat[i], converters[i]))
 
-    widths= [None]*len(columns)
+    widths= [0]*len(columns)
     for line in lines:
-        for i in xrange(len(line)):
-            if widths[i] < len(line[i]):
-                widths[i]= len(line[i])
-    for r in xrange(len(lines)):
-        line= lines[r]
+        for i, l in enumerate(line):
+            if widths[i] < len(l):
+                widths[i]= len(l)
+    for line in lines:
         n= []
-        for c in xrange(len(line)):
+        for c, l in enumerate(line):
             if csv:
-                n.append(line[c].strip())
+                n.append(l.strip())
             elif not just[c]:
-                n.append(line[c].ljust(widths[c]))
+                n.append(l.ljust(widths[c]))
             else:
-                n.append(line[c].rjust(widths[c]))
-        print separator.join(n)
+                n.append(l.rjust(widths[c]))
+        print(separator.join(n))
 
 # pylint: enable=C0303
 #                          Trailing whitespace
@@ -1189,18 +1161,18 @@ def interpolate(hashedlist2d, col, row1, row2, empty_rows):
             hashedlist2d.set(row, col, val[:])
         return
     if isinstance(row1, datetime.datetime):
-        tm= lambda t : total_seconds_(t-row1)
+        tm= lambda t : time_total_seconds(t-row1)
     else:
         tm= lambda t : t-row1
     try:
         val1= float(hashedlist2d.lookup(row1, col)[0])
-    except ValueError, _:
+    except ValueError as _:
         sys.stderr.write("warning: no float at row %s, column %s" % \
                          (row1, col))
         return
     try:
         val2= float(hashedlist2d.lookup(row2, col)[0])
-    except ValueError, _:
+    except ValueError as _:
         sys.stderr.write("warning: no float at row %s, column %s" % \
                          (row2, col))
         return
@@ -1221,11 +1193,11 @@ def differentiate(hashedlist2d):
     def number(val):
         """try to return a number from val."""
         if val is None:
-            return
+            return None
         try:
             return float(val[0])
-        except ValueError, _:
-            return
+        except ValueError as _:
+            return None
 
     #print "hashedlist2d:", str(hashedlist2d)
     columns= hashedlist2d.columns()
@@ -1236,12 +1208,12 @@ def differentiate(hashedlist2d):
             t= 0
         else:
             if isinstance(r,datetime.datetime):
-                t= total_seconds_(r-last_row)
+                t= time_total_seconds(r-last_row)
             else:
                 t= r-last_row
         last_row= r
-        for i in xrange(len(columns)):
-            buf= hashedlist2d.lookup(r,columns[i])
+        for i, column in enumerate(columns):
+            buf= hashedlist2d.lookup(r,column)
             # each buf is a list of a number and optionally PV flags like
             # "NO_ALARM' etc.
             # if there hasn't been a value for that timestamp, buf is None.
@@ -1249,7 +1221,7 @@ def differentiate(hashedlist2d):
             # floating point number:
             no= number(buf)
             if no is None:
-                hashedlist2d.set(r,columns[i],[0])
+                hashedlist2d.set(r,column,[0])
                 continue
             if last[i] is None:
                 last[i]= no
@@ -1257,7 +1229,7 @@ def differentiate(hashedlist2d):
                 continue
             # the value is overwritten with the derivative:
             buf[0]= (no-last[i])/t
-            #hashedlist2d.set(r,columns[i], buf)
+            #hashedlist2d.set(r,column, buf)
             last[i]= no
 
 def collect_from_file(filename_, hashedlist2d=None,
@@ -1296,11 +1268,11 @@ def collect_from_file(filename_, hashedlist2d=None,
                         progress)
     except:
         if filename_ is not None:
-            print "in file %s" % filename_
+            print("in file %s" % filename_)
         raise
     in_file.close()
     if dump:
-        return
+        return None
     return result
 
 def process_files(options,args):
@@ -1335,7 +1307,7 @@ def process_files(options,args):
     if options.add_seconds:
         try:
             add_seconds= float(options.add_seconds)
-        except ValueError, _:
+        except ValueError as _:
             sys.exit("error: argument to --add-seconds must be a float")
         timedelta= datetime.timedelta(0, add_seconds)
     if options.time_rebase:
@@ -1385,7 +1357,7 @@ def process_files(options,args):
     if options.differentiate:
         differentiate(results)
     if options.raw:
-        print results
+        print(results)
     else:
         if options.separator is None:
             if options.csv:
@@ -1408,19 +1380,20 @@ def script_shortname():
 
 def print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: convert camonitor data to a table of values\n" % \
-          script_shortname()
+    print("%-20s: convert camonitor data to a table of values\n" % \
+          script_shortname())
 
 def print_doc():
     """print embedded reStructuredText documentation."""
-    print __doc__
+    print(__doc__)
 
 def _test():
     """does a self-test of some functions defined here."""
-    print "performing self test..."
+    print("performing self test...")
+    # pylint: disable= import-outside-toplevel
     import doctest
     doctest.testmod()
-    print "done!"
+    print("done!")
 
 def main():
     """The main function.
@@ -1429,221 +1402,210 @@ def main():
     """
 
     # command-line options and command-line help:
-    usage = "usage: %prog [options]"
-    parser = OptionParser(usage=usage,
-                          version="%%prog %s" % my_version,
-                          description="convert archiver data format to camonitor format")
-    parser.add_option("--summary",  # implies dest="nodelete"
-                      action="store_true", # default: None
-                      help= "print a one-line summary of the scripts function",
-                     )
+    usage = "%(prog)s [options]"
+    parser = argparse.ArgumentParser(\
+                 usage= usage,
+                 description="convert archiver data format to camonitor "
+                             "format",
+                 formatter_class=argparse.RawDescriptionHelpFormatter
+                                    )
+    parser.add_argument('--version', action='version',
+                        version='%%(prog)s %s' % my_version
+                       )
 
-    parser.add_option("-t", "--test",
-                      action="store_true",
-                      help="perform a simple self-test",
-                     )
-    parser.add_option("--raw",
-                      action="store_true",
-                      help="print the internal HashedList2D object, this "
-                           "is for debugging only.",
-                     )
-    parser.add_option("--dump",     # implies dest="switch"
-                      action="store_true", # default: None
-                      help="do not collect the data to a table but dump the "
-                           "data in camonitor format to the console. This "
-                           "may be useful if combined with some of the "
-                           "filter options or options that modify the "
-                           "timestamps or pv names.)",
-                     )
-    parser.add_option("-r", "--rjust",
-                      action="store_true",
-                      help="justify the values in each row to the right "
-                           "side. Note that the timestamps are always left "
-                           "justified except when the are converted to a "
-                           "floating point number (see --floattime).",
-                     )
-    parser.add_option("-c", "--columnformat",
-                      action="store",
-                      type="string",
-                      help="format columns with the given FORMAT. A FORMAT is "+\
-                           "a space separated list of format substrings that use "+\
-                           "the same conventions as C format strings. If only a single "+\
-                           "format is given, this is applied to all columns. If floattime "+\
-                           "is used, the same format is also applied to the timestamp field.",
-                      metavar="FORMAT"
-                     )
-    parser.add_option("-s", "--separator",
-                      action="store",
-                      type="string",
-                      help="specify the SEPARATOR that separates columns of "
-                           "the table. This string is also used to separate "
-                           "values when csv format is used (see --csv).",
-                      metavar="SEPARATOR"
-                     )
-    parser.add_option("--csv",
-                      action="store_true",
-                      help="format columns with the given FORMAT. A FORMAT "
-                           "is a space separated list of format substrings "
-                           "that use the same conventions as C format "
-                           "strings. If only a single format is given, this "
-                           "is applied to all columns. If floattime is used, "
-                           "the same format is also applied to the timestamp "
-                           "field.",
-                     )
-    parser.add_option("--floattime",
-                      action="store",
-                      type="string",
-                      help="convert timestamps floating point seconds when "
-                           "0 corresponds to STARTTIME.  If STARTTIME has "
-                           "the special value 'FIRST', the first timestamp "
-                           "is taken as STARTTIME.",
-                      metavar="START"
-                     )
-    parser.add_option("--from-time",
-                      action="store",
-                      type="string",
-                      help="use only data where the timestamp is newer "
-                           "or equal to STARTTIME.",
-                      metavar="TIMESTAMP"
-                     )
-    parser.add_option("--to-time",
-                      action="store",
-                      type="string",
-                      help="use only data where the timestamp is older "
-                           "or equal to ENDTIME.",
-                      metavar="TIMESTAMP"
-                     )
-    parser.add_option("--max-lines",
-                      action="store",
-                      type="int",
-                      help="stop after MAX lines have been fetched. This "
-                           "may be used for checking a command line with a "
-                           "very large file.",
-                      metavar="MAX"
-                     )
-    parser.add_option("--filter-pv",
-                      action="store",
-                      type="string",
-                      help="select only PVs that match REGEXP",
-                      metavar="REGEXP"
-                     )
-    parser.add_option("--filter-complete",
-                      action="store_true",
-                      help="select only rows where each column has a value",
-                     )
-    parser.add_option("--skip-flagged",
-                      action="store",
-                      type="string",
-                      help="Skip all lines where the flags match REGEXP, "
-                           "e.g. 'UDF' skips all lines where the flags "
-                           "contain 'UDF'. If REGEXP has the special "
-                           "value 'all' or 'ALL', all flags are removed.",
-                      metavar="REGEXP"
-                     )
-    parser.add_option("--rm-flags",
-                      action="store",
-                      type="string",
-                      help="remove all flags that match REGEXP from the "
-                           "data, e.g. 'HIHI|HI' removes 'HIHI' and 'HI' "
-                           "from the flags.",
-                      metavar="REGEXP"
-                     )
-    parser.add_option("--differentiate",
-                      action="store_true",
-                      help="differentiate all values, that means that "
-                           "each value is replaced with the difference of "
-                           "this and the previous value for the same PV "
-                           "divided by the difference of the timestamp in "
-                           "seconds. The values must be numbers in order to "
-                           "be able to do this.",
-                     )
-    parser.add_option("--fill",
-                      action="store_true",
-                      help="fill empty places in the table with the first "
-                           "non-empty value in the same column from a "
-                           "row above.",
-                     )
-    parser.add_option("--fill-interpolate",
-                      action="store_true",
-                      help="Like --fill but fill empty places with "
-                           "interpolated numbers taken from the first "
-                           "non-empty value above and below. If the "
-                           "value is not numerical, this works like --fill."
-                     )
-    parser.add_option("--add-seconds",
-                      action="store",
-                      type="string",
-                      help="add the seconds given (a floating point value) "
-                           "to the timestamps.",
-                      metavar="SECONDS"
-                     )
-    parser.add_option("--time-rebase",
-                      action="store",
-                      type="string",
-                      help="Add an offset to all timestamps. The offset is "
-                           "calculated to ensure that OLDTIME is changed "
-                           "to NEWTIME.",
-                      metavar="TIMESPEC"
-                     )
-    parser.add_option("-P", "--pvmap",
-                      action="append",
-                      type="string",
-                      help="Defines a mapping that replaces a pv with a "
-                           "new name. A PVMAP is a string with the form "
-                           "'OLDPV,NEWPV. You can specify more than one "
-                           "PVMAP.",
-                      metavar="PVMAP"
-                     )
-    parser.add_option("--pvmaprx",
-                      action="append",
-                      type="string",
-                      help="Apply a regular expression to each pv to modify "
-                           "it. The REGEXP should have the form "
-                           "'/match/replace/'. You can specify more than "
-                           "one REGEXP, in this case all are applied in the "
-                           "order you specify them. REGEXPs are applied "
-                           "*after* PVMAP changes (see above).",
-                      metavar="REGEXP"
-                     )
-    parser.add_option("--progress",
-                      action="store_true",
-                      help="show the progress of the program on stderr. 2 "
-                           "numbers are printed, the first is the current "
-                           "line in the data file, the second one is the "
-                           "number of fetched lines.",
-                     )
+    parser.add_argument("--summary",
+                        action="store_true",
+                        help= "print a one-line summary of the scripts "
+                              "function"
+                       )
 
-    parser.add_option("-f", "--file",
-                      action="append",
-                      type="string",
-                      help="read the data from FILE. If this parameter is "
-                           "missing, read from stdin.",
-                      metavar="FILE"
-                     )
-    parser.add_option("--doc",
-                      action="store_true",
-                      help="create online help in restructured text"
-                           "format. Use \"./txtcleanup.py --doc | rst2html\" "
-                           "to create html-help"
-                     )
+    parser.add_argument("-t", "--test",
+                        action="store_true",
+                        help="perform a simple self-test"
+                       )
+    parser.add_argument("--raw",
+                        action="store_true",
+                        help="print the internal HashedList2D object, this "
+                             "is for debugging only."
+                       )
+    parser.add_argument("--dump",
+                        action="store_true",
+                        help="do not collect the data to a table but dump the "
+                             "data in camonitor format to the console. This "
+                             "may be useful if combined with some of the "
+                             "filter options or options that modify the "
+                             "timestamps or pv names.)"
+                       )
+    parser.add_argument("-r", "--rjust",
+                        action="store_true",
+                        help="justify the values in each row to the right "
+                             "side. Note that the timestamps are always left "
+                             "justified except when the are converted to a "
+                             "floating point number (see --floattime)."
+                       )
+    parser.add_argument("-c", "--columnformat",
+                        help="format columns with the given FORMAT. A "
+                             "FORMAT is a space separated list of format "
+                             "substrings that use the same conventions as C "
+                             "format strings. If only a single format is "
+                             "given, this is applied to all columns. If "
+                             "floattime is used, the same format is also "
+                             "applied to the timestamp field.",
+                        metavar="FORMAT"
+                       )
+    parser.add_argument("-s", "--separator",
+                        help="specify the SEPARATOR that separates columns of "
+                             "the table. This string is also used to separate "
+                             "values when csv format is used (see --csv).",
+                        metavar="SEPARATOR"
+                       )
+    parser.add_argument("--csv",
+                        action="store_true",
+                        help="format columns with the given FORMAT. A FORMAT "
+                             "is a space separated list of format substrings "
+                             "that use the same conventions as C format "
+                             "strings. If only a single format is given, this "
+                             "is applied to all columns. If floattime is "
+                             "used, the same format is also applied to the "
+                             "timestamp field."
+                       )
+    parser.add_argument("--floattime",
+                        help="convert timestamps floating point seconds when "
+                             "0 corresponds to STARTTIME.  If STARTTIME has "
+                             "the special value 'FIRST', the first timestamp "
+                             "is taken as STARTTIME.",
+                        metavar="START"
+                       )
+    parser.add_argument("--from-time",
+                        help="use only data where the timestamp is newer "
+                             "or equal to STARTTIME.",
+                        metavar="TIMESTAMP"
+                       )
+    parser.add_argument("--to-time",
+                        help="use only data where the timestamp is older "
+                             "or equal to ENDTIME.",
+                        metavar="TIMESTAMP"
+                       )
+    parser.add_argument("--max-lines",
+                        type=int,
+                        help="stop after MAX lines have been fetched. This "
+                             "may be used for checking a command line with a "
+                             "very large file.",
+                        metavar="MAX"
+                       )
+    parser.add_argument("--filter-pv",
+                        help="select only PVs that match REGEXP",
+                        metavar="REGEXP"
+                       )
+    parser.add_argument("--filter-complete",
+                        action="store_true",
+                        help="select only rows where each column has a value"
+                       )
+    parser.add_argument("--skip-flagged",
+                        help="Skip all lines where the flags match REGEXP, "
+                             "e.g. 'UDF' skips all lines where the flags "
+                             "contain 'UDF'. If REGEXP has the special "
+                             "value 'all' or 'ALL', all flags are removed.",
+                        metavar="REGEXP"
+                       )
+    parser.add_argument("--rm-flags",
+                        help="remove all flags that match REGEXP from the "
+                             "data, e.g. 'HIHI|HI' removes 'HIHI' and 'HI' "
+                             "from the flags.",
+                        metavar="REGEXP"
+                       )
+    parser.add_argument("--differentiate",
+                        action="store_true",
+                        help="differentiate all values, that means that "
+                             "each value is replaced with the difference of "
+                             "this and the previous value for the same PV "
+                             "divided by the difference of the timestamp in "
+                             "seconds. The values must be numbers in order to "
+                             "be able to do this."
+                       )
+    parser.add_argument("--fill",
+                        action="store_true",
+                        help="fill empty places in the table with the first "
+                             "non-empty value in the same column from a "
+                             "row above."
+                       )
+    parser.add_argument("--fill-interpolate",
+                        action="store_true",
+                        help="Like --fill but fill empty places with "
+                             "interpolated numbers taken from the first "
+                             "non-empty value above and below. If the "
+                             "value is not numerical, this works like --fill."
+                       )
+    parser.add_argument("--add-seconds",
+                        help="add the seconds given (a floating point value) "
+                             "to the timestamps.",
+                        metavar="SECONDS"
+                       )
+    parser.add_argument("--time-rebase",
+                        help="Add an offset to all timestamps. The offset is "
+                             "calculated to ensure that OLDTIME is changed "
+                             "to NEWTIME.",
+                        metavar="TIMESPEC"
+                       )
+    parser.add_argument("-P", "--pvmap",
+                        action="append",
+                        help="Defines a mapping that replaces a pv with a "
+                             "new name. A PVMAP is a string with the form "
+                             "'OLDPV,NEWPV. You can specify more than one "
+                             "PVMAP.",
+                        metavar="PVMAP"
+                       )
+    parser.add_argument("--pvmaprx",
+                        action="append",
+                        type=str,
+                        help="Apply a regular expression to each pv to modify "
+                             "it. The REGEXP should have the form "
+                             "'/match/replace/'. You can specify more than "
+                             "one REGEXP, in this case all are applied in the "
+                             "order you specify them. REGEXPs are applied "
+                             "*after* PVMAP changes (see above).",
+                        metavar="REGEXP"
+                       )
+    parser.add_argument("--progress",
+                        action="store_true",
+                        help="show the progress of the program on stderr. 2 "
+                             "numbers are printed, the first is the current "
+                             "line in the data file, the second one is the "
+                             "number of fetched lines."
+                       )
 
-    (options, args) = parser.parse_args()
-    # options: the options-object
-    # args: list of left-over args
+    parser.add_argument("-f", "--file",
+                        action="append",
+                        help="read the data from FILE. If this parameter is "
+                             "missing, read from stdin.",
+                        metavar="FILE"
+                       )
+    parser.add_argument("--doc",
+                        action="store_true",
+                        help="create online help in restructured text"
+                             "format. Use \"./txtcleanup.py --doc | "
+                             "rst2html\" to create html-help"
+                       )
 
-    if options.summary:
+    (args, rest) = parser.parse_known_args()
+    if rest:
+        for r in rest:
+            if r.startswith("-"):
+                sys.exit("unknown option: %s" % repr(r))
+
+    if args.summary:
         print_summary()
         sys.exit(0)
 
-    if options.doc:
+    if args.doc:
         print_doc()
         sys.exit(0)
 
-    if options.test:
+    if args.test:
         _test()
         sys.exit(0)
 
-    process_files(options,args)
+    process_files(args, rest)
 
     sys.exit(0)
 
