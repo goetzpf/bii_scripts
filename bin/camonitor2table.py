@@ -255,7 +255,8 @@ Reference of command line options
   lines.
 
 -f, --file FILE
-  read the data from FILE. If this parameter is missing, read from stdin.
+  read the data from FILE. If this parameter is missing or if it is '-', read
+  from stdin.
 """
 
 # pylint: enable=C0301
@@ -1252,15 +1253,18 @@ def collect_from_file(filename_, hashedlist2d=None,
     """process input from standard-in or from a file.
 
     parameters:
-      filename_      -- name of the file or None for STDIN
+      filename_      -- name of the file, None or '-' for STDIN
+                        with None a warning is printed on stderr
       results        -- dictionary where the results are stored
       process_func   -- function to process each file
     """
-    # pylint: disable=R0913
-    #                          Too many arguments
-    if filename_ is None:
+    # pylint: disable=too-many-locals, too-many-arguments
+    use_stdin= False
+    if (filename_ is None) or (filename_=='-'):
+        use_stdin= True
         in_file= sys.stdin
-        sys.stderr.write("(read from stdin)\n")
+        if filename_ is None:
+            sys.stderr.write("(read from stdin)\n")
     else:
         in_file= open(filename_)
     try:
@@ -1273,10 +1277,12 @@ def collect_from_file(filename_, hashedlist2d=None,
                         max_lines,
                         progress)
     except:
-        if filename_ is not None:
+        if not use_stdin:
             print("in file %s" % filename_)
         raise
-    in_file.close()
+    finally:
+        if not use_stdin:
+            in_file.close()
     if dump:
         return None
     return result
@@ -1300,12 +1306,13 @@ def process_files(options,args):
     # pylint: disable=R0915
     #                          Too many statements
     filelist= []
-    if options.file:
+    if not options.file:
+        filelist= [None] # stdin with warning
+                         # '-' : stdin without warning
+    else:
         filelist=options.file
     if len(args)>0: # extra arguments
         filelist.extend(args)
-    if len(filelist)<=0:
-        filelist= [None] # None: read from stdin
     results= HashedList2D()
     from_time= str2date_ui(options.from_time)
     to_time= str2date_ui(options.to_time)
