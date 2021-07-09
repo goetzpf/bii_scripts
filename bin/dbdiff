@@ -379,18 +379,21 @@ Syntax:
   $sc_name {options} [arg1] [arg2]
 
   options:
-    -h: help
-    --summary: give a summary of the script
-    -t --textmode: use "diff" instead of "tkdiff"
-    -p --parse
-    -P --parse_table: the same as above but in
-      table format
-    -n [regexp]: apply this regexp to 
-      all record names before comparing them
-      (only with -p or -P)
+    -h         : help
+    --summary  : Give a summary of the script.
+    -t --textmode: 
+                 Use "diff" instead of "tkdiff".
+    -p --parse : Parse both db files and show a list of:
+                 - removed records
+                 - added records
+                 - changed records where each field that differs is shown
+    -P --parse_table:
+                 Like --parse but print each item on a single line.
+    -n [regexp]: Apply this regexp to all record names before comparing them.
+                 This has only an effect for option --parse of --parse_table.
 
-  environment variables:
-    the environment variable $graphdiff_env_var can be used to specify
+  Environment variables:
+    The environment variable $graphdiff_env_var can be used to specify
     a graphical diff viewer other than tkdiff.
 
 END
