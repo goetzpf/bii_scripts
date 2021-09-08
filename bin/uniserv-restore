@@ -30,6 +30,7 @@ verbose=""
 dryrun=""
 
 configfile=""
+info=""
 
 # directory to create:
 dir=""
@@ -97,6 +98,8 @@ function print_short_help {
     echo "OPTIONS:"
     echo "  -h --help :"
     echo "      this help"
+    echo "  --info    :"
+    echo "    Just show information about the version."
     echo "  --dir DIR :"
     echo "    Create source tree in directory DIR. Otherwise a"
     echo "    directory name is created from the SHORTVERSION string"
@@ -120,6 +123,10 @@ while true; do
         -h | --help)
             print_short_help
             exit 0
+            ;;
+        --info)
+            info="yes"
+            shift
             ;;
         --dir)
             dir="$2"
@@ -170,6 +177,7 @@ fi
 if [ -z "$configfile" ]; then
     # Take rsync-dist config file from bii_scripts share directory.
     # read bii_scripts configuration variables:
+    BII_SCRIPTS_TOP="$MYDIR/.."
     source $MYDIR/bii_scripts.config
     if [ $? -ne 0 ]; then
         echo "error, file bii_scripts.config not found" >&2
@@ -217,6 +225,23 @@ if [[ $VERSION =~ ^[0-9]+$ ]]; then
         exit 1
     fi
     VERSION=$(echo "$TAGFILE" | sed -e "s#$RSYNC_DIST_PATH/##;s#/.*##")
+else
+    # get rsync dist version name:
+    if [ -n "$info" ]; then
+        CMDRET "ssh $RSYNC_DIST_USER@$RSYNC_DIST_HOST ls $RSYNC_DIST_PATH/$VERSION/version"
+        if [ $cmdret -ne 0 ]; then
+            echo "ssh command failed" >&2
+            exit 1
+        fi
+        SHORTVERSION="$cmddata"
+    fi
+fi
+
+if [ -n "$info" ]; then
+    echo "ISOVERSION      : $VERSION"
+    echo "SHORTVERSION    : $SHORTVERSION"
+    echo "Install location: $RSYNC_DIST_PATH/$VERSION on host $RSYNC_DIST_HOST"
+    exit 0
 fi
 
 QVERSION=`echo $VERSION | sed -e 's/:/\\:/g'`
