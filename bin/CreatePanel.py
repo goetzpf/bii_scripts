@@ -20,7 +20,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from optparse import OptionParser
+from argparse import ArgumentParser
 import sys
 import re
 import os
@@ -970,7 +970,7 @@ def process_file(opts):
     target = "stdout"
     if opts['outFile'] != "-":
         path=opts['outFile'].split('/')
-        (target,ext) = path[-1].split('.')
+        target = ".".join(opts['outFile'].split('/')[-1].split('.')[0:-1])
     dN = display.find('name')
     dN.text = target
 #-------- create display by layout
@@ -1005,96 +1005,81 @@ def process_file(opts):
 
 #--------------------------------------------------
 def main():
-    usage = "usage: %prog [options] inFile.substitutions outFile.bob"
+    description="Convert EPICS substitution file/s to panels in phoebus .bob format\n"
 
-    parser = OptionParser(usage=usage,
-                          version="%%prog %s" % __version__,
-                          description="Convert EPICS substitution file/s to panels\n")
-    parser.add_option("--baseW",
-                      action="store",
-                      type="string",
+    parser = ArgumentParser(description=description, epilog="* Author: B. Kuner")
+    parser.add_argument('InOutFile', nargs='+',
+                    help='Input File in EPICS.substitutions format, output panel-filename.bob'
+                    )
+    parser.add_argument("--baseW",
                       help="Background display file, mandatory for for layout=xy",
                      )
-    parser.add_option("--border",
-                      action="store",
-                      type="string",
+    parser.add_argument("--border",
+                      type=int,
+                      default=0,
                       help="see spaceing. For compatibility to CreatePanel.pl option",
                      )
-    parser.add_option("--encoding",
-                      action="store",
-                      type="string",
+    parser.add_argument("--encoding",
                       help="Input file encoding, default: utf8. Files for edm, medm: latin",
                      )
-    parser.add_option("-I",
+    parser.add_argument("-I",
                       action="append",
-                      type="string",
+                      type=str,
+                      default=[],
                       help="Search path(s) for panel widgets, Delimiter: ':'",
                      )
-    parser.add_option("-i",
+    parser.add_argument("-i",
                       action="store_true",
                       help="Add ., .., \$EPICS_DISPLAY_PATH' variable to search path(s) for panel widgets",
                      )
-    parser.add_option("--layout",
-                      action="store",
-                      type="string",
+    parser.add_argument("--layout",
                       help=" line|xy|grid|table|collumn|rawline    placement of the widgets,(default: by Line)",
                      )
-    parser.add_option("-M",
+    parser.add_argument("-M",
                       action="store_true",
                       help="Create make dependencies",
                      )
-    parser.add_option("--sort",
-                      action="store",
-                      type="string",
+    parser.add_argument("--sort",
                       help="--sort KEY: Sort a group of signals by its substitutions key. Not for for layouts: 'grid' and 'xy'",
                      )
-    parser.add_option("--spaceing",
-                      action="store",
-                      type="string",
+    parser.add_argument("--spaceing",
+                      type=int,
+                      default=0,
                       help="extra space in pixel between widgets",
                      )
-    parser.add_option("--subst",
-                      action="store",
-                      type="string",
+    parser.add_argument("--subst",
                       help=" 'NAME=\"VALUE\";...' Panel substitutions from commandline, Item delimiter: ';'",
                      )
-    parser.add_option("--title",
-                      action="store",
-                      type="string",
+    parser.add_argument("--title",
                       help="TitleString | Title.type  Title of the panel (string or file).",
                      )
-    parser.add_option("--type",
-                      action="store",
-                      type="string",
+    parser.add_argument("--type",
                       help="Output type: bob, (adl, edm not supported yet)- Default is bob",
                      )
-    parser.add_option("-v", "--verbose",
+    parser.add_argument("-v", "--verbose",
                       action="store_true",
                       help="verbose",
                      )
-    parser.add_option("-w",
-                      action="store",
-                      type="string",
+    parser.add_argument("-w",
+                      type=int,
+                      default=900,
                       help="Panel width (default=900)",
                      )
-#    parser.add_option("-x",
-#                      action="store",
-#                      type="string",
+#    parser.add_argument("-x",
 #                      help="(pixel) X-Position of the panel (default=100)",
 #                     )
-#    parser.add_option("-y",
-#                      action="store",
-#                      type="string",
+#    parser.add_argument("-y",
 #                      help="(pixel) Y-Position of the panel (default=100)",
 #                     )
-    (options, args) = parser.parse_args()
+    options = parser.parse_args()
+
     opts = {}
     opts['inFile'] = None
     opts['outFile'] = None
     try:
-        (opts['inFile'], opts['outFile']) = args
+        (opts['inFile'], opts['outFile']) = options.InOutFile
     except ValueError:
-        sys.stderr.write("ERROR: missing argument for in-, out-file:"+str(args))
+        sys.stderr.write("ERROR: illegal argument for in-, out-file: '{}'".format(options.InOutFile))
         sys.exit(1)
     opts['encoding'] = 'utf8'
     if options.encoding: 
