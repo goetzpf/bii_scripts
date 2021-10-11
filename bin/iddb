@@ -15,7 +15,7 @@ import xmlrpc.client
 import pprint
 import importlib
 
-# pylint: disable=bad-whitespace, invalid-name
+# pylint: disable=invalid-name
 
 # -----------------------------------------------
 # global variables
@@ -495,39 +495,55 @@ def cmd_listcolumns():
     """perform listcolumns command."""
     print(" ".join(sorted(COLUMNS)))
 
-def cmd_paths(db_obj, rest):
+def cmd_paths(db_obj, dbquery, args, rest):
     """perform "paths" command."""
     if not rest:
-        sys.exit("error, 'PATTERN' parameter is mandatory.")
-    pattern= rest[0]
+        pattern="*"
+    else:
+        pattern= rest[0]
     paths=""
     if len(rest)>1:
         paths= rest[1:]
+    if args.id:
+        id_key= dbquery.find_sd_key(args.id)
+        pattern= "id-data.%s.%s" % (id_key, pattern)
     print("\n".join(db_obj.db_paths(pattern, paths)))
 
-def cmd_find(db_obj, rest):
+def cmd_find(db_obj, dbquery, args, rest):
     """perform "find" command."""
     if not rest:
-        sys.exit("error, 'PATTERN' parameter is mandatory.")
-    pattern= rest[0]
+        pattern="*"
+    else:
+        pattern= rest[0]
     paths=""
     if len(rest)>1:
         paths= rest[1:]
+    if args.id:
+        id_key= dbquery.find_sd_key(args.id)
+        pattern= "id-data.%s.%s" % (id_key, pattern)
+
     #for elm in db_find(pattern, paths):
     #    print("%s %s" % (elm[0], elm[1]))
     print(db_obj.db_txt_find(pattern, paths))
     #print("\n".join(db_txt_find(pattern, paths)))
     #console_print_table(t, heading=None)
 
-def cmd_get(db_obj, rest):
+def cmd_get(db_obj, dbquery, args, rest):
     """perform "find" command."""
     if not rest:
-        sys.exit("error, 'PATTERN' parameter is mandatory.")
-    pattern= rest[0]
+        pattern="*"
+    else:
+        pattern= rest[0]
     paths=""
     if len(rest)>1:
         paths= rest[1:]
-    pprint.pprint(db_obj.db_get(pattern, paths))
+    if args.id:
+        id_key= dbquery.find_sd_key(args.id)
+        pattern= "id-data.%s.%s" % (id_key, pattern)
+    if args.raw:
+        print(db_obj.db_get(pattern, paths))
+    else:
+        pprint.pprint(db_obj.db_get(pattern, paths))
 
 # -----------------------------------------------
 # main program
@@ -570,6 +586,12 @@ def process(args, rest):
     if rest[0]== "list":
         cmd_list(dbquery, args, rest[1:])
         return
+    if rest[0]== "name":
+        l= []
+        for n in rest[1:]:
+            l.append(dbquery.find_sd_key(n))
+        print(" ".join(l))
+        return
     if rest[0]== "devicename":
         l= []
         for n in rest[1:]:
@@ -582,6 +604,21 @@ def process(args, rest):
             l.append(dbquery.prefix(n))
         print(" ".join(l))
         return
+    if rest[0] in ("ioc", "console"):
+        result= {}
+        for n in rest[1:]:
+            sd_key= dbquery.find_sd_key(n)
+            ioc= dbobj.db_get("id-data.%s.network.ioc" % sd_key)
+            if rest[0]=="console":
+                result[sd_key]= ioc.split(".",1)[0]
+            else:
+                result[sd_key]= ioc
+        if len(result)==1:
+            result= list(result.values())[0]
+            print(result)
+        else:
+            pprint.pprint(result)
+        return
     if rest[0]== "dump":
         d={}
         for n in rest[1:]:
@@ -593,13 +630,13 @@ def process(args, rest):
         cmd_listcolumns()
         return
     if rest[0]== "paths":
-        cmd_paths(dbobj, rest[1:])
+        cmd_paths(dbobj, dbquery, args, rest[1:])
         return
     if rest[0]== "find":
-        cmd_find(dbobj, rest[1:])
+        cmd_find(dbobj, dbquery, args, rest[1:])
         return
     if rest[0]== "get":
-        cmd_get(dbobj, rest[1:])
+        cmd_get(dbobj, dbquery, args, rest[1:])
         return
     try:
         k= dbquery.find_sd_key(rest[0])
@@ -619,6 +656,10 @@ DESC= '''
 Show insertion device properties by querying the StructuredData database.
 
 Known commands:
+    name NAME [NAME ...]
+        Get the StructuredData name for the given insertion device. NAME may be
+        any common name that specifes an insertion device like: U49ID4R u49id4r
+        U49-1:Bii7 u49-1:bii7 7 U49-1 u49-1 U49/1 u49/1 idcp7
     devicename NAME [NAME ...]
         Get the devicename for the given insertion device. NAME may be any
         common name that specifes an insertion device like:
@@ -626,8 +667,13 @@ Known commands:
     prefix NAME [NAME ...]
         Show the prefix ("idcpNN") for the given insertion device. NAME is
         the same as for command "devicename" above.
+    console NAME [NAME ...]
+        Show the console name for the given insertion device(s).
+    ioc NAME [NAME ...]
+        Show the ioc name for the given insertion device(s).
     dump NAME [NAME ...]
-        Print all the StructuredData data for the given insertion device.
+        Print the StructuredData database for the given insertion device in
+        python pretty-print format.
     list [COLUMN [COLUMN...]]
         List properties for all insertion devices. If no COLUMN is specified,
         return all known columns (see command 'listcolumns' below).
@@ -636,13 +682,21 @@ Known commands:
     listcolumns
         List known column names
 
-Raw StructuredData access (note: most options are ignored for these):
+Raw StructuredData access (note: most options except "--id" are ignore
+for these commands).
+
+Option -i IDNAME causes "id_data.NAME." to be prepended to PATTERN, where 
+"NAME" is the StructuredData undulator name
+
     paths PATTERN [PATHS]
         Execute StructuredData "paths" command.
+        Example: iddb --id ue112 paths 'names.*'
     find PATTERN [PATHS]
         Execute StructuredData "find" command.
+        Example: iddb --id ue112 find 'names.*'
     get PATTERN [PATHS]
         Execute StructuredData "get" command.
+        Example: iddb --id ue112 get 'names.*'
 
 StructuredData paths in general are described here:
     https://yaml-structureddata.sourceforge.io/reference.html#paths
@@ -714,6 +768,11 @@ def main():
                               "default is %s:%s") % \
                               (HOST, PORT),
                         metavar="SERVER"
+                       )
+    parser.add_argument("-r", "--raw",
+                        action="store_true",
+                        help="do *not* use python pretty-print to print "
+                             "data, just print the raw value."
                        )
     parser.add_argument("-f", "--file",
                         help="Load STRUCTUREDDATAFILE instead of contacting "
