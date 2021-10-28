@@ -266,10 +266,11 @@
 sub parseDb
 {   my ($st,$filename) = @_;
 
-    my $r_h= parse_db::parse($st,$filename);
-    
+    my $r= parse_db::parse($st,$filename,'extended');
+    my $r_h = $r->{'realrecords'};
     my $rH_records;
     my $rH_recName2recType;
+    print Dumper($r_h);
     foreach my $recname (keys %$r_h) 
     { 
         foreach my $key (keys(%{$r_h->{$recname}->{FIELDS}}))
