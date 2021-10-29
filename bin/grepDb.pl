@@ -95,13 +95,13 @@
         "     grepDb.pl  -tf '(INP|OUT|LNK|DOL)' file.db\n\n".
         "   Means Show the record linkage of this file, same as 'grepDb.pl  -tl file.db'.\n\n";
 
-    my $trigRecType = ".";
-    my $trigRecName = ".";
-    my $trigFieldName = ".";
+    my $trigRecType    = ".";
+    my $trigRecName    = ".";
+    my $trigFieldName  = ".";
     my $trigFieldValue = ".";
-    my $prRecType = ".";
-    my $prRecName = ".";
-    my $prFieldName = ".";
+    my $prRecType      = ".";
+    my $prRecName      = ".";
+    my $prFieldName    = ".";
     my $ignore;
     my $links;
     my $verbose;
@@ -113,16 +113,31 @@
     my $rH_fields;
     my $rH_prTable={};
     my $ptable;
-    my $trIgRecType = "___";
-    my $trIgRecName = "___";
-    my $trIgFieldName = "___";
+    my $trIgRecType    = "___";
+    my $trIgRecName    = "___";
+    my $trIgFieldName  = "___";
     my $trIgFieldValue = "___";
-    my $igFieldName = "___";
+    my $igFieldName    = "___";
     
-    die $usage unless GetOptions("tt=s"=>\$trigRecType, "tr=s"=>\$trigRecName, "tf=s"=>\$trigFieldName, "tv=s"=>\$trigFieldValue,
-                            "it=s"=>\$trIgRecType, "ir=s"=>\$trIgRecName, "if=s"=>\$trIgFieldName, "iv=s"=>\$trIgFieldValue,
-                            "pt"=>\$prRecType, "pr=s"=>\$prRecName, "pf=s"=>\$prFieldName, "ipf=s"=>\$igFieldName,
-                            "i"=>\$ignore,"pT"=>\$ptable,"pH"=>\$pHash,"v"=>\$verbose,"q"=>\$quiet,"th"=>\$hwFields,"tl=s"=>\$links);
+    die $usage unless GetOptions("tt=s" =>\$trigRecType,
+                                 "tr=s" =>\$trigRecName,
+                                 "tf=s" =>\$trigFieldName,
+                                 "tv=s" =>\$trigFieldValue,
+                                 "it=s" =>\$trIgRecType,
+                                 "ir=s" =>\$trIgRecName,
+                                 "if=s" =>\$trIgFieldName,
+                                 "iv=s" =>\$trIgFieldValue,
+                                 "pt"   =>\$prRecType,
+                                 "pr=s" =>\$prRecName,
+                                 "pf=s" =>\$prFieldName,
+                                 "ipf=s"=>\$igFieldName,
+                                 "i"    =>\$ignore,
+                                 "pT"   =>\$ptable,
+                                 "pH"   =>\$pHash,
+                                 "v"    =>\$verbose,
+                                 "q"    =>\$quiet,
+                                 "th"   =>\$hwFields,
+                                 "tl=s" =>\$links);
 
     my( $filename ) = shift @ARGV;
     die $usage unless defined $filename;
@@ -133,6 +148,7 @@
         $verbose = undef;
     }
 
+    # define match function, -i = not case sensitive
     if( defined $ignore )
     {
         eval( "sub match { return( scalar (\$_[0]=~/\$_[1]/i) ); }" );
@@ -154,7 +170,7 @@
         if( $prFieldName ne "." ) {
            $prFieldName = "$prFieldName|DTYP|OUT|INP|PORT|OBJ|MUX\$";
         }
-        else {
+        else {                           # CAN link definition fields on hwLocal record
             $prFieldName = "DTYP|OUT|INP|MUX|BTYP|CLAS|OBJ|INHB|PORT|UTYP|ATYP|DLEN\$";
         }
         $ptable = 1;
@@ -194,7 +210,7 @@
         }
 
         my ($rH_records,$rH_recName2recType) = parseDb($file,$filename);
-        
+
         # process trigger options
         foreach my $record (keys(%$rH_records))
         {
