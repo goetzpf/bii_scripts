@@ -214,13 +214,13 @@
         # process trigger options
         foreach my $record (keys(%$rH_records))
         {
-            my $recT = $rH_recName2recType->{$record} ;
+            my $recT = $rH_records->{$record}->{'TYPE'} ;
 
             if( match($record,$trigRecName) && match($recT,$trigRecType) )
             {
-                foreach my $field ( keys( %{$rH_records->{$record}} ) )
+                foreach my $field ( keys( %{$rH_records->{$record}->{'FIELDS'}} ) )
                 {
-                    my $fVal = $rH_records->{$record}->{$field};
+                    my $fVal = $rH_records->{$record}->{'FIELDS'}->{$field};
                     next if(match($recT,$trIgRecType) );
                     next if(match($record,$trIgRecName) );
                     next if(match($field,$trIgFieldName) );
@@ -232,7 +232,7 @@
                     }
                     if( match($field,$trigFieldName) && match($fVal,$trigFieldValue) )
                     {
-                        printRecord($record,$rH_records,$rH_recName2recType);
+                        printRecord($record,$rH_records);
                     }
                 }
             }
@@ -285,39 +285,36 @@ sub parseDb
     my $r= parse_db::parse($st,$filename,'extended');
     my $r_h = $r->{'realrecords'};
     my $rH_records;
-    my $rH_recName2recType;
-    print Dumper($r_h);
     foreach my $recname (keys %$r_h) 
     { 
-        foreach my $key (keys(%{$r_h->{$recname}->{FIELDS}}))
+        foreach my $key (keys(%{$r_h->{$recname}->{'FIELDS'}}))
         {
-            $r_h->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),recursive\)/\$($1)/g;
-            $r_h->{$recname}->{FIELDS}->{$key} =~ s/\$\((.*?),undefined\)/\$($1)/g;
+            $r_h->{$recname}->{'FIELDS'}->{$key} =~ s/\$\((.*?),recursive\)/\$($1)/g;
+            $r_h->{$recname}->{'FIELDS'}->{$key} =~ s/\$\((.*?),undefined\)/\$($1)/g;
         }
-        $rH_records->{$recname}= $r_h->{$recname}->{FIELDS};
-        $rH_recName2recType->{$recname}= $r_h->{$recname}->{TYPE};
+        $rH_records->{$recname}= $r_h->{$recname};
     };
 
-    return ($rH_records,$rH_recName2recType);
+    return ($rH_records);
 }
 
 my $formerRec;
 # process print options
 sub printRecord
-{   my ($record,$rH_records,$rH_recName2recType) = @_;
+{   my ($record,$rH_records) = @_;
 
     return if $formerRec eq $record;    # print each record just once
     $formerRec = $record;
-    my $recT = $rH_recName2recType->{$record} ;
+    my $recT = $rH_records->{$record}->{'TYPE'} ;
 
     my $recordFlag;
     $prFieldName .= '|RTYP' unless $prFieldName =~ /RTYP/;
     if( defined $ptable )
-    {   $rH_records->{$record}->{'RTYP'} = $recT;
+    {   $rH_records->{$record}->{'TYPE'} = $recT;
 
-        foreach my $field ( sort(keys( %{$rH_records->{$record}} )) )
+        foreach my $field ( sort(keys( %{$rH_records->{$record}->{'FIELDS'}} )) )
         {
-            my $fVal = $rH_records->{$record}->{$field};
+            my $fVal = $rH_records->{$record}->{'FIELDS'}->{$field};
             if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
             {
                 $recordFlag = 1;
@@ -330,20 +327,32 @@ sub printRecord
         }
         return;
     }
-    foreach my $field ( sort(keys( %{$rH_records->{$record}} )) )
-    {
-        my $fVal = $rH_records->{$record}->{$field};
 
-        if( (not defined $recordFlag) && match($record,$prRecName) && match($recT,$prRecType) && match($field,$prFieldName) )
-        {
-            $printStr .= "record($recT,\"$record\")  {\n";
-            $recordFlag = 1;
-        }
-        if( (defined $recordFlag) && match($field,$prFieldName) )
+
+    my $r_infos= $rH_records->{$record}->{INFO};
+    my $r_alias= $rH_records->{$record}->{ALIAS};
+    my $rtype  = $rH_records->{$record}->{TYPE};
+    
+    $printStr .= "record($rtype,\"$record\") {\n";
+#print "pr:$prFieldName, ig:$igFieldName\n";
+    foreach my $info (sort keys %$r_infos)
+    {
+        $printStr .= "\tinfo(\"$info\",\"$r_infos->{$info}\")\n";
+    }
+    foreach my $alias (sort @$r_alias)
+    {
+        $printStr .= "\talias($alias)\n";
+    }
+    foreach my $field ( sort(keys( %{$rH_records->{$record}->{'FIELDS'}} )) )
+    {
+        my $fVal = $rH_records->{$record}->{'FIELDS'}->{$field};
+#print "$field=$fVal match:",match($field,$prFieldName)," Iig:",match($field,$igFieldName),"\n";
+        if( match($field,$prFieldName) )
         {   
             next if( match($field,$igFieldName) );
+#print "PRINT\tfield($field,\"$fVal\")\n";
             $printStr .= "\tfield($field,\"$fVal\")\n";
         }
     }
-    $printStr .= "}\n" if defined $recordFlag ;
+    $printStr .= "}\n";
 }
