@@ -444,7 +444,9 @@ class ParsedWidget:
                 self.w = int(self.w) + self.opts['spaceing']
                 self.h = display.find('height').text
                 self.h = int(self.h) + self.opts['spaceing']
-                wdgGroup = ET.XML('<widget type="group" version="2.0.0"> <name>{}</name> <x>{}</x> <y>{}</y> <width>1</width> <height>1</height> <style>3</style> <transparent>true</transparent></widget>'.format(widget,self.opts['spaceing'],self.opts['spaceing']))
+                wdgGroup = ET.XML(
+                '<widget type="group" version="2.0.0"><name>{}</name><x>{}</x><y>{}</y><width>{}</width><height>{}</height><style>3</style><transparent>true</transparent></widget>'.format(
+                    widget,self.opts['spaceing'],self.opts['spaceing'],self.w+self.opts['spaceing'],self.h+self.opts['spaceing']))
                 #print("    "+self.name+":\tSize",str(self.w),str(self.h))
                 for wdg in display.findall('widget'):
                     #print("\t",wdg.tag,wdg.get('type'))
@@ -790,6 +792,7 @@ def layoutGrid(substData,display,y0,opts):
             self.subst     = subst    
     dbg  = Dbg( ("Widget","x","y","substitutions") )
     itemList     = []
+
     for group in substData: # the .template files
         (wName,wExt) = getFileExt(group[0])
         items = group[1:len(group)]
@@ -813,7 +816,7 @@ def layoutGrid(substData,display,y0,opts):
                     xScale = item['SCALE']
                     del(item['SCALE'])
                 itemList.append( PanelItem(wdgItem,yPos,xPos,xScale,span,wdgItem.w,wdgItem.h,item) )
-                dbg.add(( ("{}:w={} h={}".format(wdgItem.name,wdgItem.w,wdgItem.h)) ,str(xPos),str(yPos),str(item)) )
+                dbg.add(( ("{}:w={} h={} sp={}".format(wdgItem.name,wdgItem.w,wdgItem.h,(0 if not span else span))) ,str(xPos),str(yPos),str(item)) )
         except ValueError as err:
             sys.stderr.write("Warning: skip: "+err+"\n")
             continue
@@ -834,9 +837,9 @@ def layoutGrid(substData,display,y0,opts):
     xLen += 1
     yLen += 1
     table = []
-    colMaxWidth  = [0]*xLen
-    rowMaxHeight = [0]*yLen
-    spannedRows  = [None]*xLen
+    colMaxWidth  = [0] * xLen
+    rowMaxHeight = [0] * yLen
+    spannedRows  = [None] * xLen
     for x in range(0,yLen,1): table.append([None]*xLen)
 
     for item in itemList:
@@ -850,15 +853,15 @@ def layoutGrid(substData,display,y0,opts):
         
         if rowMaxHeight[item.yGrid] < item.wdgHeight: rowMaxHeight[item.yGrid] = item.wdgHeight
 
-    for spnItem in reversed(spannedRows):  # calculate in pos direction, so later width has to be allready corected by span
+    for spnItem in spannedRows:  # calculate in pos direction, so later width has to be allready corected by span
         if spnItem == None:
             continue
-        spannedCols = colMaxWidth[spnItem.xGrid:(spnItem.xGrid+spnItem.span-1)];
+        spannedCols = colMaxWidth[spnItem.xGrid:(spnItem.xGrid+spnItem.span)];
         spannedWidth = 0
         for w in spannedCols:   # total width of the spanned collumns ..
             if w != None: spannedWidth += w
-        if spannedWidth < item.wdgWidth:  # .. if the spanned widget exceeds this ..
-            colMaxWidth[spnItem.xGrid] += spnItem.wdgWidth - spannedWidth # .. add to the first collumn
+        if spannedWidth < spnItem.wdgWidth:  # .. if the spanned widget exceeds this ..
+            colMaxWidth[spnItem.xGrid+spnItem.span-1] += spnItem.wdgWidth - spannedWidth # .. add to the first collumn
 
     displayWidth=0
     for x in colMaxWidth: displayWidth += x
@@ -873,9 +876,9 @@ def layoutGrid(substData,display,y0,opts):
         tblDbg.add(colMaxWidth)
         for row in table:
             R=[]
-            for c in row:
-                if c != None:
-                    R.append("{}:{},{}".format(c.widget.name,c.xGrid,c.yGrid))
+            for w in row:
+                if w != None:
+                    R.append("{}:{},{}".format(w.widget.name,w.xGrid,w.yGrid))
                 else:
                     R.append("None")
             tblDbg.add(R)
