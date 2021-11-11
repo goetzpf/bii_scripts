@@ -211,8 +211,7 @@ sub parse
     my $r_this_record;
     my $r_this_record_fields;
     my $r_this_record_info;
-    my $r_this_record_alias;
-    
+
     my $_treat_double_records= $treat_double_records;
 
     $_mode= $_modes{$mode};
@@ -265,14 +264,12 @@ sub parse
 
                 $r_this_record_fields= {};
                 $r_this_record_info= {};
-                $r_this_record_alias= [];
                 $r_this_record= { TYPE => $type,
                                   FIELDS => $r_this_record_fields
                                 };
                 if ($_mode eq 'extended')
                   {
                     $r_this_record->{INFO}= $r_this_record_info;
-                    $r_this_record->{ALIAS}= $r_this_record_alias;
                   };
                 if (exists $records{$this_record_name})
                   { if    ($_treat_double_records==0)
@@ -324,7 +321,6 @@ sub parse
               {
                 my $alias_name= (_empty($2)) ? $1 : $2;
                 $record_alias_hash{$alias_name}= $this_record_name;
-                push @{$r_this_record->{'ALIAS'}}, $alias_name if ($_mode eq 'extended');
                 next;
               };
 
@@ -454,16 +450,11 @@ sub create_record
   { my($recname, $r_hash)= @_;
     my $r_fields= $r_hash->{FIELDS};
     my $r_infos= $r_hash->{INFO};
-    my $r_alias= $r_hash->{ALIAS};
 
     print "record(",$r_hash->{TYPE},",\"$recname\") {\n";
     foreach my $f (sort keys %$r_infos)
       {
         print "\tinfo(",$f,",\"",$r_infos->{$f},"\")\n";
-      };
-    foreach my $f (sort @$r_alias)
-      {
-        print "\talias(\"",$f,"\")\n";
       };
     foreach my $f (sort keys %$r_fields)
       {
