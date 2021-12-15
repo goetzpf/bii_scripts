@@ -5,6 +5,7 @@ import sys
 import os
 import argparse
 import re
+import pydoc
 
 import socket
 import http
@@ -593,7 +594,7 @@ def cmd_get(db_obj, dbquery, args, rest):
 # -----------------------------------------------
 # main program
 
-def process(args, rest):
+def process(args, rest, parser):
     """do all the work.
     """
     #print("args:",args)
@@ -603,6 +604,10 @@ def process(args, rest):
     global HOST, PORT
     if args.summary:
         print_summary()
+        sys.exit(0)
+    if args.help:
+        helptext= parser.format_help()
+        pydoc.pager(helptext)
         sys.exit(0)
 
     dbobj= None
@@ -770,6 +775,7 @@ def main():
                  usage= USAGE,
                  description= DESC,
                  formatter_class=argparse.RawDescriptionHelpFormatter,
+                 add_help= False
                                     )
     parser.add_argument('--version', action='version', version='%%(prog)s %s' % VERSION)
 
@@ -777,6 +783,11 @@ def main():
                         action="store_true",
                         help="print a summary of the function of the program",
                        )
+    parser.add_argument("-h","--help",
+                        action="store_true",
+                        help="Print help (with pager)",
+                       )
+
     parser.add_argument("-S", "--sort-by",
                         help="specify the SORTCOLUMN",
                         metavar="SORTCOLUMN"
@@ -833,7 +844,7 @@ def main():
         print_summary()
         sys.exit(0)
 
-    process(args, rest)
+    process(args, rest, parser)
     sys.exit(0)
 
 if __name__ == "__main__":
