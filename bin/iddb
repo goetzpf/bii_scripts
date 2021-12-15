@@ -28,8 +28,11 @@ TIMEOUT=5.0 # timeout for XMLRPC
 
 DEFAULT_COLUMNS= ["name", "devicename","key","prefix","application",
                   "group","status"]
+EXTRA_COLUMNS= ["ioc", "console"]
+COLUMNS= set(DEFAULT_COLUMNS+EXTRA_COLUMNS)
+
 DEFAULT_COLUMNS_STR= " ".join(DEFAULT_COLUMNS)
-COLUMNS= set(DEFAULT_COLUMNS)
+COLUMNS_STR= " ".join(sorted(COLUMNS))
 
 # -----------------------------------------------
 # Database access by file loading and StructuredData libraries
@@ -500,6 +503,11 @@ def cmd_list(query_obj, args, rest):
                     if not rx_group.match(n[col]):
                         # must skip this entry
                         n["SKIP"]= True
+            elif col=="ioc":
+                n[col]= query_obj.ioc(sd_key, must_exist= False, default="")
+            elif col=="console":
+                n[col]= query_obj.console(sd_key, must_exist= False,
+                                          default="")
             else:
                 raise AssertionError("internal error")
 
@@ -715,6 +723,8 @@ Known commands:
         return the following columns in this order:
             %(def_columns)s.
         If columns are specified, only show these in the given order.
+        The list of all *available* columns is:
+            %(all_columns)s
         Unless option --sort-by is used, sort the results by the first column.
 
 Raw StructuredData access (note: most options except "--id" are ignore
@@ -740,7 +750,7 @@ The Insertion device database is described here:
     http://wiki.trs.bessy.de/bin/view/Controls/IdcpDb
 
 If no command is given, the program performs the "list" command.
-''' % {"def_columns": DEFAULT_COLUMNS_STR}
+''' % {"all_columns": COLUMNS_STR, "def_columns": DEFAULT_COLUMNS_STR}
 
 def script_shortname():
     """return the name of this script without a path component."""
