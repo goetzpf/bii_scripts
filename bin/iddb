@@ -21,6 +21,13 @@ import importlib
 # -----------------------------------------------
 # global variables
 
+_pyver= (sys.version_info[0], sys.version_info[1])
+
+if _pyver <= (3,2):
+    HTTPEXCEPTION= http.client.HTTPException
+else:
+    HTTPEXCEPTION= http.client.RemoteDisconnected
+
 DBNAME="id_db"
 HOST="gwc2c.acc.bessy.de"
 PORT=7643
@@ -113,7 +120,7 @@ class DbXML:
         """execute StructuredData "get" command."""
         try:
             return self.XML_OBJ.fun.get(pattern,False,paths,DBNAME)
-        except (http.client.RemoteDisconnected,
+        except (HTTPEXCEPTION,
                 socket.gaierror, socket.timeout) as e:
             sys.exit(self.errmsg(str(e)))
         except xmlrpc.client.Fault as e:
