@@ -602,19 +602,18 @@ def process(args, rest):
         print(" ".join(l))
         return
     if rest[0] in ("ioc", "console"):
-        result= {}
+        result= []
         for n in rest[1:]:
             sd_key= dbquery.find_sd_key(n)
             ioc= dbobj.db_get("id-data.%s.network.ioc" % sd_key)
             if rest[0]=="console":
-                result[sd_key]= ioc.split(".",1)[0]
+                result.append((sd_key, ioc.split(".",1)[0]))
             else:
-                result[sd_key]= ioc
+                result.append((sd_key, ioc))
         if len(result)==1:
-            result= list(result.values())[0]
-            print(result)
+            print(result[0][1])
         else:
-            pprint.pprint(result)
+            console_print_table(result, ("name", rest[0]))
         return
     if rest[0]== "dump":
         d={}
@@ -662,9 +661,13 @@ Known commands:
         Show the prefix ("idcpNN") for the given insertion device. NAME is
         the same as for command "devicename" above.
     console NAME [NAME ...]
-        Show the console name for the given insertion device(s).
+        Show the console name for the given insertion device(s). For a single
+        NAME, just print the console name, for more than one NAME print results
+        in a table.
     ioc NAME [NAME ...]
-        Show the ioc name for the given insertion device(s).
+        Show the ioc name for the given insertion device(s). For a single
+        NAME, just print the console name, for more than one NAME print results
+        in a table.
     dump NAME [NAME ...]
         Print the StructuredData database for the given insertion device in
         python pretty-print format.
