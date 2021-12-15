@@ -28,6 +28,7 @@ TIMEOUT=5.0 # timeout for XMLRPC
 
 DEFAULT_COLUMNS= ["name", "devicename","key","prefix","application",
                   "group","status"]
+DEFAULT_COLUMNS_STR= " ".join(DEFAULT_COLUMNS)
 COLUMNS= set(DEFAULT_COLUMNS)
 
 # -----------------------------------------------
@@ -491,10 +492,6 @@ def cmd_list(query_obj, args, rest):
         heading= print_columns
     console_print_table(table, heading)
 
-def cmd_listcolumns():
-    """perform listcolumns command."""
-    print(" ".join(sorted(COLUMNS)))
-
 def cmd_paths(db_obj, dbquery, args, rest):
     """perform "paths" command."""
     if not rest:
@@ -626,9 +623,6 @@ def process(args, rest):
             d[sd_key]= dbquery.id_all(sd_key)
         pprint.pprint(d)
         return
-    if rest[0]== "listcolumns":
-        cmd_listcolumns()
-        return
     if rest[0]== "paths":
         cmd_paths(dbobj, dbquery, args, rest[1:])
         return
@@ -676,11 +670,10 @@ Known commands:
         python pretty-print format.
     list [COLUMN [COLUMN...]]
         List properties for all insertion devices. If no COLUMN is specified,
-        return all known columns (see command 'listcolumns' below).
-        If COLUMN is specified, only show the specified columns in the given
-        order. Unless option --sort-by is used, sort by the first column.
-    listcolumns
-        List known column names
+        return the following columns in this order:
+            %(def_columns)s.
+        If columns are specified, only show these in the given order.
+        Unless option --sort-by is used, sort the results by the first column.
 
 Raw StructuredData access (note: most options except "--id" are ignore
 for these commands).
@@ -705,7 +698,7 @@ The Insertion device database is described here:
     http://wiki.trs.bessy.de/bin/view/Controls/IdcpDb
 
 If no command is given, the program performs the "list" command.
-'''
+''' % {"def_columns": DEFAULT_COLUMNS_STR}
 
 def script_shortname():
     """return the name of this script without a path component."""
