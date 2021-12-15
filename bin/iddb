@@ -112,6 +112,15 @@ class DbXML:
         except (http.client.RemoteDisconnected,
                 socket.gaierror, socket.timeout) as e:
             sys.exit(self.errmsg(str(e)))
+        except xmlrpc.client.Fault as e:
+            if "cannot marshal None" in str(e):
+                # XMLRPC returned None
+                # Note: Using "allow_none= True" in 
+                # xmlrpc.client.ServerProxy(self.URL) doesn't seem to avoid
+                # raising the xmlrpc.client.Fault exception, so we have to
+                # handle this in a bit more complicated way.
+                return None
+            raise
 
 # -----------------------------------------------
 # small structureddata emulation (sde)
@@ -238,6 +247,7 @@ class Query:
         self._id_sd_keys= set()
         self._id_names= {}
         self._id_global= {}
+        self._id_network= {}
         self._id_all= {}
         self._id_aliases= {}
     def sd_key_set(self):
@@ -267,6 +277,17 @@ class Query:
         if not sd_key:
             return self._id_global
         return self._id_global[sd_key]
+    def id_network(self,sd_key= None):
+        """return a dict with id_network properties."""
+        if not self._id_network:
+            for my_sd_key in self.sd_key_set():
+                self._id_network[my_sd_key]= \
+                    self.dbobj.db_get(sde_join_path(("id-data",
+                                                     my_sd_key,
+                                                     "network")))
+        if not sd_key:
+            return self._id_network
+        return self._id_network[sd_key]
     def id_all(self,sd_key):
         """return all data for an insertion device."""
         d= self._id_all.get(sd_key)
@@ -328,6 +349,25 @@ class Query:
         if must_exist:
             return self.id_global(sd_key)["rsync_dist_group"]
         return self.id_global(sd_key).get("rsync_dist_group", default)
+    def ioc(self,name, must_exist= True, default= None):
+        """find ioc name."""
+        sd_key= self.find_sd_key(name)
+        if must_exist:
+            return self.id_network(sd_key)["ioc"]
+        # Insertion devices not controlled by the idcp application do not have
+        # "network" parameters, so self.id_network(sd_key) may be None:
+        nw= self.id_network(sd_key)
+        if nw is None:
+            return default
+        return self.id_network(sd_key).get("ioc", default)
+    def console(self,name, must_exist= True, default= None):
+        """find console name."""
+        ioc= self.ioc(name, must_exist, default)
+        if ioc is None:
+            return ioc
+        if ioc==default:
+            return ioc
+        return ioc.split(".",1)[0]
 
 # -----------------------------------------------
 # console I/O
@@ -605,11 +645,10 @@ def process(args, rest):
         result= []
         for n in rest[1:]:
             sd_key= dbquery.find_sd_key(n)
-            ioc= dbobj.db_get("id-data.%s.network.ioc" % sd_key)
             if rest[0]=="console":
-                result.append((sd_key, ioc.split(".",1)[0]))
+                result.append((sd_key, dbquery.console(sd_key)))
             else:
-                result.append((sd_key, ioc))
+                result.append((sd_key, dbquery.ioc(sd_key)))
         if len(result)==1:
             print(result[0][1])
         else:
