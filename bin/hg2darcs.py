@@ -256,7 +256,6 @@ def darcs_replay(author, log,actions,verbose,dry_run):
             darcs_cmd("add --case-ok %s" % item[1],False,verbose,dry_run)
         elif action=="removed":
             # recreate the file so darcs can remove it:
-            # @@@
             mk_file(item[1], verbose, dry_run) # create empty file if
                                                # it doesn't exist
             darcs_cmd("revert --all %s" % item[1],False,verbose,dry_run)
@@ -269,7 +268,6 @@ def darcs_replay(author, log,actions,verbose,dry_run):
             raise ValueError("unknown action: \"%s\"" % action)
     if not dry_run:
         if maybe_removed_dirs:
-            print("MAYBE REMOVED:",maybe_removed_dirs)#@@@
             subs= all_subdirs(maybe_removed_dirs)
             pars= all_parent_dirs(maybe_removed_dirs)
             all_possible_removed_dirs= sorted(pars.union(subs))
@@ -295,15 +293,17 @@ def darcs_replay(author, log,actions,verbose,dry_run):
     if not dry_run:
         os.remove(path)
 
-def convert(revision, verbose, dry_run):
+def convert(revision, author, verbose, dry_run):
     """convert a mercurial revision to darcs."""
     hg_cmd("update -r %s" % revision, False, verbose, dry_run)
-    (author,log)= hg_log(revision, verbose)
+    (hg_author,log)= hg_log(revision, verbose)
+    if author is None:
+        author= hg_author
     changes= hg_status(revision, verbose)
     darcs_replay(author, log, changes, verbose, dry_run)
 
 
-def convert_from_to(revision1, revision2, verbose, dry_run):
+def convert_from_to(revision1, revision2, author, verbose, dry_run):
     """convert revisions in a range to darcs."""
     if not os.path.exists(".hg"):
         sys.exit("error: no mercurial repo (\".hg\") found")
@@ -312,7 +312,7 @@ def convert_from_to(revision1, revision2, verbose, dry_run):
                  "you can create one with \"darcs init\"")
     revs= hg_revision_range(revision1, revision2, verbose)
     for rev in revs:
-        convert(rev, verbose, dry_run)
+        convert(rev, author, verbose, dry_run)
 
 # version of the program:
 my_version= "1.0"
@@ -326,7 +326,8 @@ def process(options,_):
         sys.exit("error: only -r [rev] or -r [rev1:rev2] is valid")
     if len(revs)==1:
         revs.append("tip")
-    convert_from_to(revs[0],revs[1],options.verbose, options.dry_run)
+    convert_from_to(revs[0],revs[1],options.author,
+                    options.verbose, options.dry_run)
 
 def script_shortname():
     """return the name of this script without a path component."""
@@ -368,6 +369,13 @@ def main():
                             "\"tip\" are taken. Tags or strings like \"tip\" "+\
                             "may also be used as a revision specification.",
                       metavar="REVISION"  # for help-generation text
+                      )
+    parser.add_option("-A", "--author", # implies dest="file"
+                      action="store",   # OptionParser's default
+                      type="string",    # OptionParser's default
+                      help= "Specifies the AUTHOR. This overwrites the "
+                            "'author' field of *every* patch.",
+                      metavar="AUTHOR"  # for help-generation text
                       )
     parser.add_option("-v", "--verbose",   # implies dest="switch"
                       action="store_true", # default: None
