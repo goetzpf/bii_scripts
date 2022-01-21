@@ -23,6 +23,7 @@
 
 # pylint: disable=invalid-name, missing-module-docstring
 
+# pylint: disable= deprecated-module
 from optparse import OptionParser
 
 import subprocess
@@ -54,6 +55,7 @@ def _system(cmd, catch_stdout, verbose, dry_run):
         stdout_par=subprocess.PIPE
     else:
         stdout_par=None
+    # pylint: disable= consider-using-with
     p= subprocess.Popen(cmd, shell=True,
                         stdout=stdout_par, stderr=subprocess.PIPE,
                         close_fds=True)
@@ -61,7 +63,7 @@ def _system(cmd, catch_stdout, verbose, dry_run):
     if p.returncode!=0:
         raise IOError(p.returncode,"cmd \"%s\", errmsg \"%s\"" % (cmd,child_stderr))
     if child_stdout is None:
-        return
+        return None
     # decode: return result as <str> instead of <bytes>
     return child_stdout.decode()
 
@@ -89,6 +91,14 @@ def parent_dirs(d):
         yield d
         d= os.path.dirname(d)
 
+def all_subdirs(dirs):
+    """return all subdirs of dirs as complete paths."""
+    n= set()
+    for d in dirs:
+        for x in os.walk(d):
+            n.add(x[0])
+    return n
+
 def all_parent_dirs(dirs):
     """return sorted list of all the parent directories of a list of dirs.
     """
@@ -96,9 +106,44 @@ def all_parent_dirs(dirs):
     for d in dirs:
         for pd in parent_dirs(d):
             n.add(pd)
-    l= sorted(n)
-    l.reverse()
-    return l
+    return n
+
+def touch(path, verbose, dry_run):
+    """create empty file."""
+    if dry_run or verbose:
+        print("> create empty file %s" % path)
+    if dry_run:
+        return
+    with open(path, 'a'):
+        os.utime(path, None)
+
+def mk_file(path, verbose, dry_run):
+    """create a file as empty if it doesn't exist."""
+    if os.path.exists(path):
+        return
+    dir_= os.path.dirname(path)
+    if not os.path.exists(dir_):
+        if dry_run or verbose:
+            print("> create directory %s" % dir_)
+        if not dry_run:
+            os.makedirs(dir_)
+    touch(path, verbose, dry_run)
+
+def rm_file(path, verbose, dry_run):
+    """remove file if it exists."""
+    if dry_run or verbose:
+        print("> remove file %s" % path)
+    if dry_run:
+        return
+    os.remove(path)
+
+def rm_dir(path, verbose, dry_run):
+    """remove file if it exists."""
+    if dry_run or verbose:
+        print("> remove dir %s" % path)
+    if dry_run:
+        return
+    os.rmdir(path)
 
 # -----------------------------------------------
 # mercurial commands
@@ -112,10 +157,19 @@ def darcs_cmd(cmd, catch_stdout, verbose, dry_run):
     """get data from a hg command."""
     return _system("darcs %s" % cmd, catch_stdout, verbose, dry_run)
 
-def hg_simple_status(file_or_dir, verbose):
-    """run a simple "hg status -A".
+def hg_known_files(file_or_dir, verbose):
+    """run a simple "hg status -A", remove all unknown files.
     """
-    return hg_cmd("status -A %s" % file_or_dir, True, verbose, False)
+    result= hg_cmd("status -A %s" % file_or_dir, True, verbose, False)
+    for l in result.splitlines():
+        if not l.startswith("?"): # marker for an unknown file
+            return True
+    return False
+
+#def hg_simple_status(file_or_dir, verbose):
+#    """run a simple "hg status -A".
+#    """
+#    return hg_cmd("status -A %s" % file_or_dir, True, verbose, False)
 
 def hg_status(revision, verbose):
     """get status flags for the changes of a given revision.
@@ -175,6 +229,7 @@ def hg_revision_range(revision1, revision2, verbose):
 
 def darcs_replay(author, log,actions,verbose,dry_run):
     """replay actions in darcs."""
+    # pylint: disable= too-many-locals, too-many-branches, too-many-statements
     renames= [i for i in actions if i[0]=="rename"]
     rest   = [i for i in actions if i[0]!="rename"]
     actions_= renames
@@ -201,8 +256,12 @@ def darcs_replay(author, log,actions,verbose,dry_run):
             darcs_cmd("add --case-ok %s" % item[1],False,verbose,dry_run)
         elif action=="removed":
             # recreate the file so darcs can remove it:
+            # @@@
+            mk_file(item[1], verbose, dry_run) # create empty file if
+                                               # it doesn't exist
             darcs_cmd("revert --all %s" % item[1],False,verbose,dry_run)
             darcs_cmd("remove %s" % item[1],False,verbose,dry_run)
+            rm_file(item[1], verbose, dry_run)
             maybe_removed_dirs.add(os.path.dirname(item[1]))
         elif action=="modified":
             pass # nothing to do
@@ -210,11 +269,16 @@ def darcs_replay(author, log,actions,verbose,dry_run):
             raise ValueError("unknown action: \"%s\"" % action)
     if not dry_run:
         if maybe_removed_dirs:
-            all_possible_removed_dirs= all_parent_dirs(maybe_removed_dirs)
+            print("MAYBE REMOVED:",maybe_removed_dirs)#@@@
+            subs= all_subdirs(maybe_removed_dirs)
+            pars= all_parent_dirs(maybe_removed_dirs)
+            all_possible_removed_dirs= sorted(pars.union(subs))
+            all_possible_removed_dirs.reverse()
             for dir_ in all_possible_removed_dirs:
-                if not hg_simple_status(dir_, verbose):
-                    # if this is empty. the directory is unknown to mercurial
+                if not hg_known_files(dir_, verbose):
+                    # the directory is unknown to mercurial
                     darcs_cmd("remove %s" % dir_,False,verbose,dry_run)
+                    rm_dir(dir_, verbose, dry_run)
         (handle,path)= tempfile.mkstemp(prefix="hg-darcs-",text=True)
         fh= os.fdopen(handle,"w")
         fh.write(log)
