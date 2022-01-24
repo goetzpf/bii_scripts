@@ -482,6 +482,10 @@ Scripts
   | print log summaries for darcs or mercurial repositories.
   | `documentation <scripts/repo-loginfo.html>`__
 
+**repo-mirror.py**
+  | Mirror a repository in another one with a different version control system.
+  | `documentation <scripts/repo-mirror.html>`__
+
 **rsync-deploy**
   | tool for management for distribution of binary files with. The successor of
     this script is rsync-dist.pl.
