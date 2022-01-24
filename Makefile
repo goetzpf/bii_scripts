@@ -28,6 +28,10 @@
 # with no parameters at all
 #    add scriptname to the PLAINTXT_PL_SCRIPT_LIST variable
 
+# for scripts with name *.sh that generate help when called
+# with "-h" as the only parameter
+#    add scriptname to the PLAINTXT_H_SH_SCRIPT_LIST variable
+
 # for scripts with name *.pl that generate help when called
 # with "-h" as the only parameter
 #    add scriptname to the PLAINTXT_H_PL_SCRIPT_LIST variable
@@ -302,6 +306,11 @@ PLAINTXT_H_SCRIPT_LIST= \
 PLAINTXT_HELP_SCRIPT_LIST= \
 	darcs-kompare \
 	darcs-meld
+
+# scripts with no embedded documentation
+# create online help by executing "(script.sh -h 2>&1; true)
+PLAINTXT_H_SH_SCRIPT_LIST= \
+	repo-mirror.sh
         
 # scripts with no embedded documentation
 # create online help by executing "(script.p -h 2>&1; true)
@@ -335,7 +344,7 @@ PLAINTXT_H_PL_SCRIPT_LIST= \
 	gen_iocsh_reg.pl
 
 # scripts with no embedded documentation
-# create online help by executing "(script.pl -h 2>&1; true)
+# create online help by executing "(script.py -h 2>&1; true)
 PLAINTXT_H_PY_SCRIPT_LIST= \
 	csv2json.py pyone.py sqlutil.py ssh-pw.py \
 	hg2darcs.py hg2git.py python-modules.py subst-dump.py
@@ -501,6 +510,9 @@ _HTML_PLAINTXT_H_SCRIPT_BUILD_LIST=\
 _HTML_PLAINTXT_HELP_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_HELP_SCRIPT_LIST)))
 
+_HTML_PLAINTXT_H_SH_SCRIPT_BUILD_LIST=\
+  $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_H_SH_SCRIPT_LIST)))
+
 _HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_H_P_SCRIPT_LIST)))
 
@@ -512,6 +524,9 @@ _HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST=\
 
 _HTML_PLAINTXT_PL_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_PL_SCRIPT_LIST)))
+
+_HTML_PLAINTXT_SH_SCRIPT_BUILD_LIST=\
+  $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_SH_SCRIPT_LIST)))
 
 _HTML_PLAINTXT_SCRIPT_BUILD_LIST=\
   $(addprefix $(SCRIPT_HTML_BUILD_DIR)/,$(call force_extension_list,html,$(PLAINTXT_SCRIPT_LIST)))
@@ -525,6 +540,7 @@ _HTML_RST_PY_SCRIPT_BUILD_LIST=\
 # all plaintxt documentation scripts:
 _PLAINTXT_ALL_SCRIPT_LIST= \
     $(PLAINTXT_H_SCRIPT_LIST) \
+    $(PLAINTXT_H_SH_SCRIPT_LIST) \
     $(PLAINTXT_H_P_SCRIPT_LIST) \
     $(PLAINTXT_H_PL_SCRIPT_LIST) \
     $(PLAINTXT_H_PY_SCRIPT_LIST) \
@@ -764,6 +780,7 @@ $(_HTML_POD_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DI
 build_html_script_plaintxt: $(_HTML_PLAINTXT_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_HELP_SCRIPT_BUILD_LIST) \
+			    $(_HTML_PLAINTXT_H_SH_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_PL_SCRIPT_BUILD_LIST) \
 			    $(_HTML_PLAINTXT_H_PY_SCRIPT_BUILD_LIST) \
@@ -782,6 +799,11 @@ $(_HTML_PLAINTXT_H_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT
 $(_HTML_PLAINTXT_HELP_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/% | $(SCRIPT_HTML_BUILD_DIR) mk_exec
 	@echo "<PRE>"      >  $@
 	(. $(SETENV) && $< --help 2>&1; true) >> $@
+	@echo "</PRE>"     >> $@
+
+$(_HTML_PLAINTXT_H_SH_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.sh | $(SCRIPT_HTML_BUILD_DIR) mk_exec
+	@echo "<PRE>"      >  $@
+	(. $(SETENV) && $< -h 2>>$(ERRLOG); true) >> $@
 	@echo "</PRE>"     >> $@
 
 $(_HTML_PLAINTXT_H_P_SCRIPT_BUILD_LIST): $(SCRIPT_HTML_BUILD_DIR)/%.html: $(SCRIPT_SRC_DIR)/%.p | $(SCRIPT_HTML_BUILD_DIR) mk_exec
