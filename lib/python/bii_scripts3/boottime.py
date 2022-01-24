@@ -3,7 +3,7 @@
 """determine the time an IOC was booted by querying a PV.
 """
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2022 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>

@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 # pylint: disable=invalid-name
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2022 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>

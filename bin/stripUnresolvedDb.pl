@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2022 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Bernhard Kuner <bernhard.kuner@helmholtz-berlin.de>

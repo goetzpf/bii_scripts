@@ -3,7 +3,7 @@ eval 'exec perl -S $0 ${1+"$@"}' # -*- Mode: perl -*-
 # the above is a more portable way to find perl
 # ! /usr/bin/perl
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2022 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Victoria Laux <victoria.laux@helmholtz-berlin.de>

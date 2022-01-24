@@ -2,7 +2,7 @@ eval 'exec perl -w -p00 -S $0 ${1+"$@"}' # -*- Mode: perl -*-
     if 0;
 # the above is a more portable way to find perl
 
-# Copyright 2015 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+# Copyright 2022 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
 # <https://www.helmholtz-berlin.de>
 #
 # Author: Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
