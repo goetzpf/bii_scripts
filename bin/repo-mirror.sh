@@ -24,6 +24,8 @@ SCRIPT_FULL_NAME=$(readlink -e $0)
 MYDIR=$(dirname $SCRIPT_FULL_NAME)
 MYNAME=$(basename $SCRIPT_FULL_NAME)
 
+DARCS_HELPER="$MYDIR/darcs-fastimport-convert.py"
+
 # let python (mercurial) not fail on encoding errors:
 export HGENCODINGMODE="replace"
 
@@ -307,7 +309,7 @@ if [ "$DSTREPOTYPE" == "git" ]; then
     if [ "$SRCREPOTYPE" == "darcs" ]; then
         #CMD "touch $DST/darcs2git.marks"
         #CMD "darcs convert export --read-marks darcs2git.marks --write-marks darcs2git.marks | (cd \"$DST\" && git fast-import --import-marks=darcs2git.marks --export-marks=darcs2git.marks)"
-        CMD "darcs convert export | (cd \"$DST\" && git fast-import)"
+        CMD "darcs convert export | $DARCS_HELPER | (cd \"$DST\" && git fast-import)"
     elif [ "$SRCREPOTYPE" == "mercurial" ]; then
         python_check_module "hggit" "hg-git"
         hg_check_command "hggit" "hggit"
@@ -328,8 +330,13 @@ elif [ "$DSTREPOTYPE" == "mercurial" ]; then
         hg_check_command "fastimport" "fastimport"
         # note: python fastimport doesn't work when 
         # the export command uses --import-marks and --export-marks:
-        CMD "darcs convert export  > \"$DST/FASTIMPORT\""
-        CMD "(cd \"$DST\" && hg fastimport --traceback --sourcesort FASTIMPORT && rm -d FASTIMPORT)"
+        CMD "darcs convert export | $DARCS_HELPER > \"$DST/FASTIMPORT\""
+        # Note: Currently mercurial fastimport has a problem here:
+        #   If the mercurial repo already exists and the darcs
+        #   repo has just one new tag, nothing else, that tag 
+        #   is not imported. New Tags are only imported when they are 
+        #   accompanied by other new regular patches.
+        CMD "(cd \"$DST\" && hg fastimport --traceback FASTIMPORT && rm -f FASTIMPORT)"
     elif [ "$SRCREPOTYPE" == "git" ]; then
         python_check_module "hggit" "hg-git"
         hg_check_command "hggit" "hggit"
