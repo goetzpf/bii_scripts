@@ -613,7 +613,7 @@ def layoutRawLine(substData,display,yPos,opts):
     return panelStr
 
 def layoutColumn(substData,display,yPos,opts):
-    """ layoutLine:
+    """ layoutColumn:
     * The Widgets are placed in collumns. Each file.xx {} block in the substitutions
       file defines one collumn
     * The total width of the panel is given by the sum all widgets in a row, option
