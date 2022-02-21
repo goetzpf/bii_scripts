@@ -84,10 +84,21 @@ function CD {
     fi
 }
 
+function python_bin {
+    # get name of python binary
+    CMD "python3 --version >/dev/null 2>&1"
+    if [ $cmdret == 0 ]; then
+        echo "python3"
+    else
+        echo "python"
+    fi
+}
+
 function python_check_module {
     # $1: module name
     # $2: module name in pip
-    CMD "python -c 'import $1' 2>/dev/null"
+    _python=$(python_bin)
+    CMD "$_python -c 'import $1' 2>/dev/null"
     if [ $cmdret -ne 0 ]; then
         echo "error, you must run pip install --user $2 first"
         exit 1
