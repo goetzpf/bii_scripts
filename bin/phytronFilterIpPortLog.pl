@@ -12,7 +12,6 @@
 # 0M1.1P22R:XX
 # 2022/02/22 16:05:47.975 mou1s05l.blc05.bessy.de:22222 read 7
 # 0:0C
-
     use strict;
     use Getopt::Long;
 
@@ -78,6 +77,7 @@
             $lineNr++;
             if($line=~/(.*):../) {
                 $reply = $1;
+                $reply = getStatus($reply) if($command=~/M\d+\.\dSE/)
             }
             else {
                 chomp($line);
@@ -91,3 +91,28 @@
         }
     }
     close IN_FILE;
+
+sub getStatus 
+{   my ($reply) = @_;
+    my $hex  = sprintf("%X",$reply);
+    my $msg;
+
+    $msg .= " busy" if(($hex & 1));
+    $msg .= " Illegal" if(($hex & 2));
+    $msg .= " WaitSync" if(($hex & 4));
+    $msg .= " isInit" if(($hex & 0x8));
+    $msg .= " LS+" if(($hex & 0x10));
+    $msg .= " LS-" if(($hex & 0x20));
+    $msg .= " LSM" if(($hex & 0x40));
+    $msg .= " SwLS+" if(($hex & 80));
+    $msg .= " SwLS-" if(($hex & 100));
+    $msg .= " SwLS-" if(($hex & 100));
+    $msg .= " ready" if(($hex & 0x200));
+
+    $msg .= " LS_Err" if(($hex & 0x1000));
+    $msg .= " PwrStg_Err" if(($hex & 0x20000));
+
+    $msg .= " RUN" if(($hex & 0x10000));
+    $msg .= " DONE" if(($hex & 0x80000));
+    return "$reply, 0x$hex STAT:$msg";    
+}
