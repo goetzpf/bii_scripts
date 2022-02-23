@@ -58,8 +58,6 @@
                 $command = "ILLEGAL COMMAND: '$line'\n";
             }
             if( not ($command =~/$ignore/) ) {
-                print "$lineNr\t$timeWrite\twr\t$command\n";
-                $matchFilter = 1;
                 if( $command =~/$filter/) {
                     print "$lineNr\t$timeWrite\twr\t$command\n";
                     $matchFilter = 1;
