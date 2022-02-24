@@ -186,6 +186,9 @@ function print_short_help {
   echo "              This may be needed to convert repositories that"
   echo "              are not UTF-8 encoded. Example:"
   echo "                iso8859-1 : ISO8850-1 encoding"
+  echo "--hgrc HGRCFILE:"
+  echo "              Specify the .hgrc file. This sets the environment"
+  echo "              variable HGRCPATH (see mercurial documentation)."
   echo 
   echo "-y --yes    : Create destination reposity if it doesn't exist"
   echo "              without prompting the user"
@@ -223,6 +226,10 @@ while true; do
             if [ "$DSTREPOTYPE" == "hg" ]; then
                 DSTREPOTYPE="mercurial"
             fi
+            shift 2
+            ;;
+        --hgrc)
+            export HGRCPATH="$2"
             shift 2
             ;;
         -y | --yes)
