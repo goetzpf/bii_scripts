@@ -97,22 +97,22 @@ sub getStatus
     my $hex  = sprintf("%X",$reply);
     my $msg;
 
-    $msg .= " busy" if(($hex & 1));
-    $msg .= " Illegal" if(($hex & 2));
-    $msg .= " WaitSync" if(($hex & 4));
-    $msg .= " isInit" if(($hex & 0x8));
-    $msg .= " LS+" if(($hex & 0x10));
-    $msg .= " LS-" if(($hex & 0x20));
-    $msg .= " LSM" if(($hex & 0x40));
-    $msg .= " SwLS+" if(($hex & 80));
-    $msg .= " SwLS-" if(($hex & 100));
-    $msg .= " SwLS-" if(($hex & 100));
-    $msg .= " ready" if(($hex & 0x200));
+    $msg .= " busy" if(($reply & 1));
+    $msg .= " Illegal" if(($reply & 2));
+    $msg .= " WaitSync" if(($reply & 4));
+    $msg .= " isInit" if(($reply & 0x8));
+    $msg .= " LS+" if(($reply & 0x10));
+    $msg .= " LS-" if(($reply & 0x20));
+    $msg .= " LSM" if(($reply & 0x40));
+    $msg .= " SwLS+" if(($reply & 0x80));
+    $msg .= " SwLS-" if(($reply & 0x100));
+    $msg .= " SwLS-" if(($reply & 0x100));
+    $msg .= " ready" if(($reply & 0x200));
 
-    $msg .= " LS_Err" if(($hex & 0x1000));
-    $msg .= " PwrStg_Err" if(($hex & 0x20000));
+    $msg .= " LS_Err" if(($reply & 0x1000));
+    $msg .= " PwrStg_Err" if(($reply & 0x20000));
 
-    $msg .= " RUN" if(($hex & 0x10000));
-    $msg .= " DONE" if(($hex & 0x80000));
+    $msg .= " RUN" if(($reply & 0x10000));
+    $msg .= " DONE" if(($reply & 0x80000));
     return "$reply, 0x$hex STAT:$msg";    
 }
