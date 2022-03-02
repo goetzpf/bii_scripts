@@ -14,11 +14,28 @@
 # 0:0C
     use strict;
     use Getopt::Long;
-
     my $usage = "phytronFilterLog.pl [OPTIONS] phytronIpPortLogFile\n\t-h: help\n\t-f: filter e.g. M1.1 for motor 1\n";
     my $filter = ".*";     #default: get all
     my $ignore = "___";
     our($opt_h,$opt_f,$opt_i) = (undef,undef,undef);
+    my @msta = ("Dir=",
+         "DONE",
+         "LS+",
+         "LS_HOME",
+         "nn",
+         "POS",
+         "SLIP_STALL",
+         "HOME",
+         "PRESENT",
+         "PROBLEM",
+         "MOVING",
+         "GAIN_SUPPORT",
+         "COMM_ERR",
+         "LS-",
+         "HOMEDone",
+         "nn"
+         );
+
 
     Getopt::Long::config(qw(no_ignore_case));
     die unless GetOptions("h","f=s","i=s");
@@ -36,17 +53,19 @@
     my $timeWrite;
     my $timeRead;
     my $line;
-    my $lineNr = 0;
+    my $lineNr;
+    my @result;
     while( <IN_FILE> )
     {
         my $matchFilter = undef;
         $line = $_;
         $lineNr++;
-        $timeWrite = $1;
-# check write                    
+        $line = checkCaMonitorData($line,\@result); # return next line, if this is a monitor, same else
         if($line =~ /^.*?\s(.*?)\s.*?\s(\w+)/ && $2 eq 'write') {
+            $timeWrite = $1;
             $line = <IN_FILE>;
             $lineNr++;
+            $line = checkCaMonitorData($line,\@result); # return next line, if this is a monitor, same else
             if($line=~/\d(M.*):../) { # Axis command
                 $command=$1;
             }
@@ -54,44 +73,90 @@
                 $command=$1;
             }
             else {
-                $command = "ILLEGAL COMMAND: '$line'\n";
+                chomp $line;
+                push @result, "$timeWrite\terr\tILLEGAL COMMAND in $lineNr: '$line'\t\n";
             }
             if( not ($command =~/$ignore/) ) {
                 if( $command =~/$filter/) {
-                    print "$lineNr\t$timeWrite\twr\t$command\n";
+                    push @result, "$timeWrite\twr\t$command\n";
                     $matchFilter = 1;
                 }
             }
-        }
-        else {
-            chomp($line);
-            print "$lineNr\t$timeWrite\terr\tWRITE EXPECTED:\t'$line'\n";
-        }
-        
-# next should be 'read'
-        $line = <IN_FILE>;
-        $lineNr++;
-        $timeRead = $1;
-        if($line =~ /^.*?\s(.*?)\s.*?\s(\w+)/ && $2 eq 'read') {
             $line = <IN_FILE>;
             $lineNr++;
-            if($line=~/(.*):../) {
-                $reply = $1;
-                $reply = getStatus($reply) if($command=~/M\d+\.\dSE/)
+            $line = checkCaMonitorData($line,\@result); # return next line, if this is a monitor, same else
+            if($line =~ /^.*?\s(.*?)\s.*?\s(\w+)/ && $2 eq 'read') {
+                $timeRead = $1;
+                $line = <IN_FILE>;
+                $lineNr++;
+                if($line=~/(.*):../) {
+                    $reply = $1;
+                    $reply = getStatus($reply) if($command=~/M\d+\.\dSE/)
+                }
+                else {
+                    chomp($line);
+                    $reply = "ILLEGAL REPLY: '$line'";
+                }
+                push @result,"$timeRead\trd\t$reply\n" if($matchFilter);
             }
             else {
                 chomp($line);
-                $reply = "ILLEGAL REPLY: '$line'";
+                push @result, "$timeRead\terr\tMISS READ in $lineNr: '$line'\n";
             }
-            print "$lineNr\t$timeRead\trd\t$reply\n" if($matchFilter);
+
         }
         else {
             chomp($line);
-            print "$lineNr\t$timeRead\terr\tMISS READ\t'$line'\n";
+            push @result, "\n$timeWrite\terr\tWRITE EXPECTED in $lineNr:\t'$line'";
         }
-    }
+        
+    } # end while
     close IN_FILE;
 
+#    print $_ foreach (@result);
+    print $_ foreach (sort(@result));
+
+# n2str($value,@bitDescriptions)
+sub n2str
+{   my $value = shift @_;
+    my $rDesc = shift @_;
+    my $hex  = sprintf("%X",$value);
+    my $msg;
+    my $idx=0;
+
+    foreach my $dsc (@$rDesc){
+        my $bit = ($value >> $idx)&0x1;
+        if($dsc=~/=/) {
+            $dsc = $dsc.$bit;
+        }
+        if($dsc=~/!/) {
+            $msg .= " $dsc" if($bit == 0);
+        }
+        else {
+            $msg .= " $dsc" if($bit == 1);
+        }
+        $idx++;
+    }
+    return "0x$hex STAT:$msg";    
+}
+
+# check for camonitor data:
+sub checkCaMonitorData
+{   my ($line,$rResult) = @_;
+    while($line =~ /^(.*?)\.([\w\d]+)\s+\d+-\d+-\d+\s+(.*?)\s+(.*)/) {
+        my $pv=$1;
+        my $field=$2;
+        my $time=$3;
+        my $value=$4;
+        if($field eq "MSTA") {
+            $value = "$value\t".n2str($value,\@msta);
+        }
+        push @$rResult, "$time\t$pv.$field\t$value\n";
+        $line = <IN_FILE>;
+        $lineNr++;
+    }
+    return $line;
+}
 sub getStatus 
 {   my ($reply) = @_;
     my $hex  = sprintf("%X",$reply);
