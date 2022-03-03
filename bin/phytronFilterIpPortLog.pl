@@ -18,6 +18,8 @@
     my $filter = ".*";     #default: get all
     my $ignore = "___";
     our($opt_h,$opt_f,$opt_i) = (undef,undef,undef);
+
+    # Bits set in state done are inverted by '!'
     my @msta = ("Dir=",
          "DONE",
          "LS+",
@@ -25,17 +27,41 @@
          "nn",
          "POS",
          "SLIP_STALL",
-         "HOME",
-         "PRESENT",
+         "HOME!",
+         "PRESENT!",
          "PROBLEM",
          "MOVING",
          "GAIN_SUPPORT",
          "COMM_ERR",
          "LS-",
-         "HOMEDone",
+         "HOMEDone!",
          "nn"
          );
-
+    my @SystemStat_SE = ("busy", # 1
+        "IllegalCommand",        # 2      
+        "waitSync",              # 4
+        "isInit",                # 8 _______ 1
+        "LS+",                   # 10
+        "LS-",                   # 20
+        "LSM",                   # 40
+        "SwLS+",                 # 80 ______ 2
+        "SwLS-",                 # 100
+        "PwrStgReady!",          # 200
+        "Ramp",                  # 400
+        "internErr",             # 800 _____ 3 
+        "LS_Err",                # 1000
+        "PwrStgErr",             # 2000
+        "SFI_Err",               # 4000
+        "ENDAT_Err",             # 8000 ____ 4
+        "RUN",                   # 10000
+        "inCalmDownTimeP13/16",  # 20000
+        "inBoost",               # 40000
+        "DONE",                  # 80000 ___ 5
+        "APS_ready!",            # 100000
+        "PositionMode",          # 200000
+        "FreeRunMode",           # 400000
+        "MultiFRun",             # 800000 __ 6
+        "SyncEnable");           # 1000000 _ 
 
     Getopt::Long::config(qw(no_ignore_case));
     die unless GetOptions("h","f=s","i=s");
@@ -143,7 +169,9 @@ sub n2str
 # check for camonitor data:
 sub checkCaMonitorData
 {   my ($line,$rResult) = @_;
-    while($line =~ /^(.*?)\.([\w\d]+)\s+\d+-\d+-\d+\s+(.*?)\s+(.*)/) {
+    my $leave=undef;
+    # is pv with field
+    if($line =~ /^(.*?)\.([\w\d]+)\s+\d+-\d+-\d+\s+(.*?)\s+(.*)/) {
         my $pv=$1;
         my $field=$2;
         my $time=$3;
@@ -152,32 +180,26 @@ sub checkCaMonitorData
             $value = "$value\t".n2str($value,\@msta);
         }
         push @$rResult, "$time\t$pv.$field\t$value\n";
-        $line = <IN_FILE>;
-        $lineNr++;
     }
-    return $line;
+    # is pv without field
+    elsif($line =~ /^(.*?)\s+\d+-\d+-\d+\s+(.*?)\s+(.*)/) { 
+        my $pv=$1;
+        my $time=$2;
+        my $value=$3;
+        push @$rResult, "$time\t$pv\t$value\n";
+    }
+    # no camonitor data line
+    else {
+        return $line;
+    }
+    $line = <IN_FILE>;
+    $lineNr++;
+    checkCaMonitorData($line,$rResult);
 }
 sub getStatus 
 {   my ($reply) = @_;
     my $hex  = sprintf("%X",$reply);
-    my $msg;
+    
 
-    $msg .= " busy" if(($reply & 1));
-    $msg .= " Illegal" if(($reply & 2));
-    $msg .= " WaitSync" if(($reply & 4));
-    $msg .= " isInit" if(($reply & 0x8));
-    $msg .= " LS+" if(($reply & 0x10));
-    $msg .= " LS-" if(($reply & 0x20));
-    $msg .= " LSM" if(($reply & 0x40));
-    $msg .= " SwLS+" if(($reply & 0x80));
-    $msg .= " SwLS-" if(($reply & 0x100));
-    $msg .= " SwLS-" if(($reply & 0x100));
-    $msg .= " ready" if(($reply & 0x200));
-
-    $msg .= " LS_Err" if(($reply & 0x1000));
-    $msg .= " PwrStg_Err" if(($reply & 0x20000));
-
-    $msg .= " RUN" if(($reply & 0x10000));
-    $msg .= " DONE" if(($reply & 0x80000));
-    return "$reply, 0x$hex STAT:$msg";    
+    return "$reply, 0x$hex STAT:".n2str($reply,\@SystemStat_SE);    
 }
