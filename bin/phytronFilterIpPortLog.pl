@@ -54,14 +54,14 @@
         "SFI_Err",               # 4000
         "ENDAT_Err",             # 8000 ____ 4
         "RUN",                   # 10000
-        "inCalmDownTimeP13/16",  # 20000
+        "calmDownTm",  # 20000
         "inBoost",               # 40000
         "DONE",                  # 80000 ___ 5
         "APS_ready!",            # 100000
-        "PositionMode",          # 200000
+        "PosMode",          # 200000
         "FreeRunMode",           # 400000
         "MultiFRun",             # 800000 __ 6
-        "SyncEnable");           # 1000000 _ 
+        "SyncEna");           # 1000000 _ 
 
     Getopt::Long::config(qw(no_ignore_case));
     die unless GetOptions("h","f=s","i=s");
@@ -187,6 +187,12 @@ sub checkCaMonitorData
         my $time=$2;
         my $value=$3;
         push @$rResult, "$time\t$pv\t$value\n";
+    }
+    # is asyn driver read/write failed message
+    elsif($line =~ /^.*?\s(.*?)\s(.*reason \d+)/) {
+        my $time=$1;
+        my $value=$2;
+        push @$rResult, "$time\t$value\n";
     }
     # no camonitor data line
     else {
