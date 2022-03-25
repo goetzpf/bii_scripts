@@ -94,14 +94,28 @@ exit(0);
 
 sub mk_regexp
   { my($funcname,$regexp)= @_;
+    my $invert= 0;
 
     return if (!defined $regexp);
+
+    if ($regexp =~ /^!(.*)/)
+      { 
+        $regexp= $1;
+        $invert= 1;
+      }
 
     if ($regexp !~ /^\//)
       { $regexp= '/' . $regexp . '/'; };
 
 #die "eval:\"sub n_regexp { return(\$_[0]=~ $regexp); }\""; 
-    eval("sub $funcname { return(\$_[0]=~ $regexp); }");
+    if (!$invert)
+      {
+        eval("sub $funcname { return(\$_[0]=~ $regexp); }");
+      }
+    else
+      {
+        eval("sub $funcname { return(\$_[0]!~ $regexp); }");
+      }
     if ($@)
       { die "error: eval() failed, error-message:\n" . $@ . " "  };
   }
@@ -213,6 +227,9 @@ $l2
 
 Syntax:
   $sc_name {options} 
+
+  Note: every regexp that starts with '!' is a "do not match" regexp. In this
+  case theresults are the ones that DO NOT match.
 
   options:
     -h: help
