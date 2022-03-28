@@ -944,7 +944,7 @@ class MeasThread(object):
             return
 
 # compile regexp once
-regPvName = re.compile('^\s*([\d\w\.:]+)(.*)$') # 'pvName EXPR, e.g 'MDIZ3T5G:lt50' '< 0.1'
+regPvName = re.compile('^\s*(.*?)([<=>!].*)') # 'pvName EXPR, e.g 'MDIZ3T5G:lt50' '< 0.1'
 def parseFuncParameter(funcPar):
     """
     Parse a next/break function parameter to be used by MeasThread object
