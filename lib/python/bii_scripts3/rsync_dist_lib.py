@@ -1008,8 +1008,9 @@ class LLogByVersion():
                 last_date= sorted(datedict.keys())[-1]
                 names= sorted(datedict[last_date])
                 if not names:
-                    continue
-                lines.append("%-24s %s" % (ver, " ".join(names)))
+                    lines.append(ver)
+                else:
+                    lines.append("%-24s %s" % (ver, " ".join(names)))
             return "\n".join(lines)
         lines= ["ver. date                   name(s)"]
         first= True
