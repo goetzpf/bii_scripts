@@ -47,7 +47,7 @@ else:
     HTTPEXCEPTION= http.client.RemoteDisconnected
 
 DBNAME="id_db"
-HOST="gwc2c.acc.bessy.de"
+HOST="gwc1c.acc.bessy.de"
 PORT=7643
 
 TIMEOUT=5.0 # timeout for XMLRPC
