@@ -3,7 +3,7 @@
 HOSTNAME=$(hostname -f)
 
 if [ -z "$1" ]; then
-    if echo $HOSTNAME| grep '\(elbe\|stretch\)\.acc\.bessy\.de' -q ; then
+    if echo $HOSTNAME| grep -E '(elbe|stretch|bullseye)\.acc\.bessy\.de' -q ; then
         SHORTHOST=$(echo $HOSTNAME | sed -e 's/\..*//')
         echo "darcs pull is executed in order to prevent"
         echo "you from installing old program versions by accident"
