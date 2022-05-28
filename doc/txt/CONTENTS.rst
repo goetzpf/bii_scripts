@@ -323,6 +323,9 @@ Scripts
 **git-meld**
   | compares all files of two git versions with meld.
 
+**git-repo-merge.sh**
+  | Combines patches of two git repositories by creating a new git branch.
+
 **grab_xkeys.pl**
   | a little X11 utility that displays scan codes of pressed keys.
 

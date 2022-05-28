@@ -310,6 +310,7 @@ PLAINTXT_HELP_SCRIPT_LIST= \
 # scripts with no embedded documentation
 # create online help by executing "(script.sh -h 2>&1; true)
 PLAINTXT_H_SH_SCRIPT_LIST= \
+	git-repo-merge.sh \
 	repo-mirror.sh
         
 # scripts with no embedded documentation
