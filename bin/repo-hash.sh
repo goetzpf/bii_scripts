@@ -123,19 +123,22 @@ function repotype {
 
 function githash {
     # create hash for git repo
-    CMDRET "git log --pretty=format:'%H' | md5sum | sed -e 's/ .*//'"
+    # $1: dir
+    CMDRET "(cd $1 && git log --pretty=format:'%H' | md5sum | sed -e 's/ .*//')"
     echo "$cmddata"
 }
 
 function darcshash {
     # create hash for git repo
-    CMDRET "darcs log | grep patch | md5sum | sed -e 's/ .*//'"
+    # $1: dir
+    CMDRET "(cd $1 && darcs log | grep patch | md5sum | sed -e 's/ .*//')"
     echo "$cmddata"
 }
 
 function hghash {
     # create hash for git repo
-    CMDRET "hg log --template '{node}\n' | md5sum | sed -e 's/ .*//'"
+    # $1: dir
+    CMDRET "(cd $1 && hg log --template '{node}\n' | md5sum | sed -e 's/ .*//')"
     echo "$cmddata"
 }
 
@@ -143,28 +146,29 @@ function repohash {
     # hash for git repos
     # $1: directory
     # $2: hashfile (optional)
-    REPOTYPE=$(repotype "$1")
-    CD "$1"
+    local REPODIR="$1"
+    local HASHFILE="$2"
+    REPOTYPE=$(repotype "$REPODIR")
     if [ "$REPOTYPE" == "git" ]; then
-        HASH="$(githash)"
+        HASH="$(githash "$REPODIR")"
     elif [ "$REPOTYPE" == "mercurial" ]; then
-        HASH="$(hghash)"
+        HASH="$(hghash "$REPODIR")"
     elif [ "$REPOTYPE" == "darcs" ]; then
-        HASH="$(darcshash)"
+        HASH="$(darcshash "$REPODIR")"
     else
         echo "internal error, unexpected REPOTYPE $REPOTYPE" >&2
         exit 1
     fi
-    if [ -z "$2" ]; then
+    if [ -z "$HASHFILE" ]; then
         echo "$HASH"
         return
     fi
     OLDHASH=""
-    if [ -e $2 ]; then
-        OLDHASH=$(cat $2)
+    if [ -e $HASHFILE ]; then
+        OLDHASH=$(cat $HASHFILE)
     fi
     if [ "$OLDHASH" != "$HASH" ]; then
-        CMD "echo \"$HASH\" > $2"
+        CMD "echo \"$HASH\" > $HASHFILE"
     else
         returncode=1
     fi
