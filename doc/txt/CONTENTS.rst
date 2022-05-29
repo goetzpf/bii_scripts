@@ -481,6 +481,10 @@ Scripts
   | Show what python modules a python script uses, complete with file path.
   | `documentation <scripts/python-modules.html>`__
 
+**repo-hash.sh**
+  | Create a short hash or hash file for a repository.
+  | `documentation <scripts/repo-hash.html>`__
+
 **repo-loginfo.py**
   | print log summaries for darcs or mercurial repositories.
   | `documentation <scripts/repo-loginfo.html>`__
