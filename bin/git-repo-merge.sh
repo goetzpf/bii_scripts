@@ -48,6 +48,11 @@ OTHERREPO=$(readlink -e $OTHERREPO)
 # get the last common commit hash of the two repos:
 COMMIT=$(comm --nocheck-order -12 <(git -C "$MYREPO" log --reverse --pretty=format:"%H") <(git -C "$OTHERREPO" log --reverse --pretty=format:"%H") | tail -n 1)
 
+if [ -z "$COMMIT" ]; then
+    echo "ERROR, $MYREPO and $OTHERREPO have no common commits" >&2
+    exit 1
+fi
+
 cd $MYREPO
 # go to last common commit:
 git checkout $COMMIT
