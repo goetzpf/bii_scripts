@@ -14,19 +14,7 @@ system.
 bii_scripts is avaliable under the terms of the 
 `GNU General Public License v.3 <http://www.gnu.org/licenses/gpl-3.0.html>`_.
 
-| If you are interested in getting the scripts or libraries you can download 
-  them as tar.gz or zip
-| file from the 
-  `repository page <http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts/file>`_ 
-  (click on "bz2", "zip" or "gz").
-
-However, the preferred way is to clone the main darcs repository::
-
-  darcs get http://www-csr.bessy.de/control/bii_scripts/repo/bii_scripts
-
-or to clone the mercurial mirror repository::
-
-  hg clone http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts
+For downloading the project see `<https://www-csr.bessy.de/control/bii_scripts/>`_.
 
 For any questions feel free to contact one of the script authors:
 

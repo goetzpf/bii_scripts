@@ -12,33 +12,19 @@ You find documentation of the scripts here:
 
   `documentation <CONTENTS.html>`_
 
-Distribution
-------------
+License
+-------
 
-Some of the scripts can be downloaded from the documentation side.
+Copyright 2022 `Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
+<https://www.helmholtz-berlin.de>`_.
 
-However, you may want to download them from our software repositories.
+bii_scripts is avaliable under the terms of the 
+`GNU General Public License v.3 <http://www.gnu.org/licenses/gpl-3.0.html>`_.
 
-Repository access
------------------
+Repository access and Download
+------------------------------
 
-You can download our primary darcs repository::
+- `bii_scripts at darcs <https://www-csr.bessy.de/cgi-bin/darcsweb.cgi?r=bii_scripts;a=summary>`_
 
-  darcs get http://www-csr.bessy.de/control/bii_scripts/repo/bii_scripts
+- `bii_scripts at git <https://gitlab.helmholtz-berlin.de/acs/tools/bii_scripts>`_.
 
-and browse it at
-
-  `<https://www-csr.bessy.de/cgi-bin/darcsweb.cgi?r=bii_scripts;a=summary>`_
-
-We also maintain a mercurial repository that is created by converting the darcs
-repository. You can browse it here:
-
-  `<http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts>`_.
-
-or clone it::
-
-  hg clone http://www-csr.bessy.de/cgi-bin/hgweb.cgi/bii_scripts
-
-Our development takes place in the darcs repository, so if you want to have
-your changes commited in our repositories, it may be easier if you use darcs.
-But we can also convert mercurial bundles back to darcs.
