@@ -10,20 +10,23 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# pylint: disable= too-many-lines
 
 import sys
 import os
 import argparse
 import re
 import pydoc
+import configparser
 
 import socket
 import http
@@ -47,8 +50,14 @@ else:
     HTTPEXCEPTION= http.client.RemoteDisconnected
 
 DBNAME="id_db"
-HOST="gwc1c.acc.bessy.de"
-PORT=7643
+
+# environment variable IDDB_SOURCE:
+#   server:gwc1c.acc.bessy.de:7643
+#   file:/opt/OPI/idcp/id_db.SDCyml
+ENV_VAR_NAME="IDDB_SOURCE"
+
+#HOST="gwc1c.acc.bessy.de"
+#PORT=7643
 
 TIMEOUT=5.0 # timeout for XMLRPC
 
@@ -59,6 +68,175 @@ COLUMNS= set(DEFAULT_COLUMNS+EXTRA_COLUMNS)
 
 DEFAULT_COLUMNS_STR= " ".join(DEFAULT_COLUMNS)
 COLUMNS_STR= " ".join(sorted(COLUMNS))
+
+# -----------------------------------------------
+# read configuration file
+
+BII_SCRIPTS_CONFIG= os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "bii_scripts.config")
+
+CONFIG_FILE= "iddb.config"
+
+rx_def=re.compile(r'([^=]+)=(.*)')
+rx_comment=re.compile(r'^\s*#')
+
+def read_config(filename):
+    """read config file."""
+    if not os.path.exists(filename):
+        raise IOError("Error, file %s not found" % filename)
+    result= {}
+    with open(filename) as fp:
+        for line in fp:
+            line= line.strip()
+            if rx_comment.match(line):
+                continue
+            m= rx_def.match(line)
+            if not m:
+                continue
+            name= m.group(1)
+            val= m.group(2).strip()
+            val= os.path.expandvars(val)
+            result[name]= val
+    return result
+
+def read_biiscripts_config():
+    """read bii_scripts.config."""
+    if not os.path.exists(BII_SCRIPTS_CONFIG):
+        sys.stderr.write("Warning: File %s not found\n" % BII_SCRIPTS_CONFIG)
+        return {}
+    return read_config(BII_SCRIPTS_CONFIG)
+
+def get_share_dir():
+    """get SHARE_INSTALL_DIR."""
+    d= read_biiscripts_config()
+    if not d:
+        return None
+    return d["SHARE_INSTALL_DIR"]
+
+# -----------------------------------------------
+# read iddb config file
+
+def iddb_config():
+    """read iddb configuration."""
+    share_dir= get_share_dir()
+    if not share_dir:
+        return None
+    filename= os.path.join(share_dir, "bii_scripts", CONFIG_FILE)
+    if not os.path.exists(filename):
+        sys.stderr.write("Warning: File '%s' not found\n" % filename)
+        return None
+    config = configparser.ConfigParser()
+    config.read(filename)
+    return config
+
+# -----------------------------------------------
+# find sourcespec from hostname
+
+def sourcespec_by_hostname():
+    """get sourcespec by current hostname."""
+    def cget(config,section,key):
+        """read something from configuration data."""
+        if key not in config[section]:
+            return None
+        v= config[section][key].strip()
+        if not v:
+            return None
+        return v
+    # get configuration data from SHARE_INSTALL_DIR/bii_scripts/iddb.config:
+    config_data= iddb_config()
+    if not config_data:
+        return None
+    # get full qualified hostname:
+    fullhostname= socket.getfqdn()
+    # try to find it in the "HOSTS" section of the configuration:
+    if "HOSTS" in config_data:
+        spec= cget(config_data, "HOSTS", fullhostname)
+        if spec:
+            return spec
+    # examine the domain:
+    if "DOMAINS" in config_data:
+        domain= fullhostname
+        while "." in domain:
+            domain= domain.split(".", 1)[1]
+            spec= cget(config_data, "DOMAINS", domain)
+            if spec:
+                return spec
+    # finally examine if there is a default "*" in HOSTS section:
+    if "HOSTS" in config_data:
+        spec= cget(config_data, "HOSTS", "*")
+        if spec:
+            return spec
+    return None
+
+# -----------------------------------------------
+# parse server specification
+
+def parse_server(spec):
+    """parse a server-spec.
+
+    returns:
+        (host, port)  # port: an integer
+    raises ValueError on error.
+    """
+    errmsg= "%s has not the form 'HOST:PORT'" % spec
+    l= spec.split(":")
+    if not l:
+        raise ValueError(errmsg)
+    if len(l)!=2:
+        raise ValueError(errmsg)
+    try:
+        l[1]= int(l[1])
+    except ValueError as e:
+        raise ValueError(errmsg) from e
+    return l
+
+def parse_spec(spec):
+    """parse source spec.
+
+    spec: source specification, one of:
+              server:HOST:PORT
+              file:FILENAME
+
+    returns one of:
+      { "host": HOST, "port": PORT}
+      { "filename": FILENAME}
+
+    or raises a ValueError exception
+    """
+    l= spec.split(":", maxsplit=1)
+    while True:
+        if not l:
+            break
+        if l[0] == "server":
+            try:
+                (host, port)= parse_server(l[1])
+                return {"host": host, "port": port }
+            except ValueError:
+                break
+        if l[0] == "file":
+            if len(l)==2:
+                return { "filename": l[1] }
+            break
+        break
+    raise ValueError("Error, cannot parse source spec '%s'" % spec)
+
+def parse_env():
+    """parse environment variable IDDB_SOURCE.
+
+    returns one of:
+      { "host": HOST, "port": PORT}
+      { "filename": FILENAME}
+      None
+    """
+    var= os.environ.get(ENV_VAR_NAME)
+    if var is None:
+        return None
+    try:
+        return parse_spec(var)
+    except ValueError as e:
+        st= str(e).replace("Error", "Warning")
+        sys.stderr.write(st)
+    return None
 
 # -----------------------------------------------
 # Database access by file loading and StructuredData libraries
@@ -144,7 +322,7 @@ class DbXML:
         except xmlrpc.client.Fault as e:
             if "cannot marshal None" in str(e):
                 # XMLRPC returned None
-                # Note: Using "allow_none= True" in 
+                # Note: Using "allow_none= True" in
                 # xmlrpc.client.ServerProxy(self.URL) doesn't seem to avoid
                 # raising the xmlrpc.client.Fault exception, so we have to
                 # handle this in a bit more complicated way.
@@ -538,6 +716,7 @@ def cmd_list(query_obj, args, rest):
                 raise AssertionError("internal error")
 
     # calc sort keys:
+    # pylint: disable=consider-using-dict-items
     for k in result:
         sk= result[k][sort_column]
         if sk==0:
@@ -626,7 +805,7 @@ def process(args, rest, parser):
     #print("rest:",rest)
     # pylint: disable= global-statement, too-many-return-statements
     # pylint: disable= too-many-branches, too-many-statements
-    global HOST, PORT
+    # pylint: disable= too-many-locals
     if args.summary:
         print_summary()
         sys.exit(0)
@@ -635,23 +814,50 @@ def process(args, rest, parser):
         pydoc.pager(helptext)
         sys.exit(0)
 
-    dbobj= None
+    source_spec= None
+
     if args.file:
-        dbobj= DbFile(args.file)
-    else:
-        if args.server:
-            errmsg= "%s has not the form 'HOST:PORT'" % args.server
-            if not ":" in args.server:
-                sys.exit(errmsg)
-            l= args.server.split(":")
-            if len(l)!=2:
-                sys.exit(errmsg)
-            HOST= l[0]
+        source_spec= {"filename": args.file }
+    if args.server:
+        if args.file:
+            sys.exit("contradicting options: -f --server")
+        try:
+            (host, port)= parse_server(args.server)
+        except ValueError as e:
+            sys.exit(str(e)+" (option --server)")
+        source_spec= { "host": host, "port": port }
+
+    # Try to parse data source from environment variable. parse_env() may
+    # return None:
+    if not source_spec:
+        source_spec= parse_env()
+
+    if not source_spec:
+        # reads iddb configuration file:
+        sp= sourcespec_by_hostname()
+        if sp:
             try:
-                PORT= int(l[1])
-            except ValueError:
-                sys.exit(errmsg)
-        dbobj= DbXML(HOST, PORT)
+                source_spec= parse_spec(sp)
+            except ValueError as e:
+                sys.exit(str(e)+" (configuration file)")
+
+    if not source_spec:
+        sys.exit(("Error, no source specified.\n"
+                  "You must either:\n"
+                  "- set environment variable '%s'\n"
+                  "- provide a StructuredData file with option '-f'\n"
+                  "- provide a server with option --server\n"
+                  "- define %s in file:\n"
+                  "  %s") % \
+                 (ENV_VAR_NAME, ENV_VAR_NAME, CONFIG_FILE))
+
+    dbobj= None
+    if "filename" in source_spec:
+        dbobj= DbFile(source_spec["filename"])
+    elif "host" in source_spec:
+        dbobj= DbXML(source_spec["host"], source_spec["port"])
+    else:
+        raise AssertionError("unexpected sourcespec: %s" % repr(source_spec))
 
     dbquery= Query(dbobj)
 
@@ -725,7 +931,14 @@ USAGE= "%(prog)s [options] command"
 DESC= '''
 Show insertion device properties by querying the StructuredData database.
 
-Known commands:
+If no command is given, the program performs the "list" command.
+
+Commands
+--------
+
+Commands for undulator properties
++++++++++++++++++++++++++++++++++
+
     name NAME [NAME ...]
         Get the StructuredData name for the given insertion device. NAME may be
         any common name that specifes an insertion device like: U49ID4R u49id4r
@@ -757,11 +970,13 @@ Known commands:
             %(all_columns)s
         Unless option --sort-by is used, sort the results by the first column.
 
-Raw StructuredData access (note: most options except "--id" are ignore
-for these commands).
+Commands for raw StructuredData access
+++++++++++++++++++++++++++++++++++++++
 
-Option -i IDNAME causes "id_data.NAME." to be prepended to PATTERN, where 
-"NAME" is the StructuredData undulator name
+Note: most options except "--id" are ignore for these commands.
+
+Note: Option -i IDNAME causes "id_data.NAME." to be prepended to PATTERN, where
+      "NAME" is the StructuredData undulator name
 
     paths PATTERN [PATHS]
         Execute StructuredData "paths" command.
@@ -773,13 +988,46 @@ Option -i IDNAME causes "id_data.NAME." to be prepended to PATTERN, where
         Execute StructuredData "get" command.
         Example: iddb --id ue112 get 'names.*'
 
+Specification of the data source
+--------------------------------
+
+The data source is specified by order of precedence by these methods:
+
+    - options '-f' or '--server'
+    - environment variable 'IDDB_SOURCE'
+    - configuration file $SHARE_INSTALL_DIR/bii_scripts/iddb.config
+
+Environment variable 'IDDB_SOURCE'
+++++++++++++++++++++++++++++++++++
+
+    One of the strings:
+        - server:HOST:PORT
+        - file:FILENAME
+
+Configuration file
+++++++++++++++++++
+
+The configuration file is located at $SHARE_INSTALL_DIR/bii_scripts/iddb.config.
+$SHARE_INSTALL_DIR is the location of the 'share' directory.
+
+This is a file in windows-ini format. Source specifications have that same
+format as for the environment variable 'IDDB_SOURCE' (see above).
+
+Section [HOSTS] contains source specifications specific host names,
+    '*' is a default for all hosts.
+Section [DOMAINS] contains source specifications specific domains. Partial
+    matches of domains are supported, e.g. 'mycompany.com' matches
+    'subnet1.mycompany.com'
+
+Further documentation
+---------------------
+
 StructuredData paths in general are described here:
     https://yaml-structureddata.sourceforge.io/reference.html#paths
 
 The Insertion device database is described here:
     http://wiki.trs.bessy.de/bin/view/Controls/IdcpDb
 
-If no command is given, the program performs the "list" command.
 ''' % {"all_columns": COLUMNS_STR, "def_columns": DEFAULT_COLUMNS_STR}
 
 def script_shortname():
@@ -844,10 +1092,8 @@ def main():
                         metavar="STATUS"
                        )
     parser.add_argument("--server",
-                        help=("specify the StructuredData XML-RPC "
-                              "server in the form 'HOST:PORT'. The "
-                              "default is %s:%s") % \
-                              (HOST, PORT),
+                        help="specify the StructuredData XML-RPC "
+                             "server in the form 'HOST:PORT'",
                         metavar="SERVER"
                        )
     parser.add_argument("-r", "--raw",
@@ -857,9 +1103,9 @@ def main():
                        )
     parser.add_argument("-f", "--file",
                         help="Load STRUCTUREDDATAFILE instead of contacting "
-                             "the XMLRPC server. Note: For this the "
+                             "an XMLRPC server. Note: For this the "
                              "StructuredData python modules must be "
-                             "installed.",
+                             "installed on your system.",
                         metavar="STRUCTUREDDATAFILE"
                        )
 
