@@ -44,7 +44,7 @@ import importlib
 
 _pyver= (sys.version_info[0], sys.version_info[1])
 
-if _pyver <= (3,2):
+if _pyver <= (3,4):
     HTTPEXCEPTION= http.client.HTTPException
 else:
     HTTPEXCEPTION= http.client.RemoteDisconnected
