@@ -7354,15 +7354,18 @@ sub read_biiscripts_config
       }
     open(my $fh, '<:encoding(UTF-8)', $filename)
       or die "Could not open file '$filename' $!";
-    my $TOP= dirname("$FindBin::RealBin");
     while (my $line = <$fh>)
       {
         chomp $line;
+        if ($Line=~/^\s*#/)
+          { next; }
         if ($line!~/([^=]+)=(.*)/)
           { next; }
         my $name= $1;
         my $val= $2;
-        $val=~ s/\$TOP\b/$TOP/g;
+        # recipe for environment replacement from:
+        # https://unix.stackexchange.com/questions/294835/replace-environment-variables-in-a-file-with-their-actual-values
+        $val=~ s{\$(\{)?(\w+)(?(1)\})}{$ENV{$2} // $&}ge;
         $bii_config{$name}= $val;
     }
   close $fh;
