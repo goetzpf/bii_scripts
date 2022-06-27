@@ -203,7 +203,7 @@ def parse_spec(spec):
 
     or raises a ValueError exception
     """
-    l= spec.split(":", maxsplit=1)
+    l= spec.split(":", 1)
     while True:
         if not l:
             break
