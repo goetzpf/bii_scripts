@@ -21,13 +21,11 @@ Call for a generic installation::
 
   INSTALL_PREFIX=[DIR] make -sj install
 
-Call for an installation at BESSY development hosts::
+Call for an installation at BESSY development hosts or the bessy control
+system fileserver (HOST is the full qualified hostname e.g.
+'stretch.acc.bessy.de')::
 
-  BII_CONFIG=config.acc make -sj install
-
-Call for an installation at BESSY controlsystem hosts::
-
-  BII_CONFIG=config.ctl make -sj install
+  BII_CONFIG=config.HOST.acc make -sj install
 
 Installation with install.sh
 ----------------------------
