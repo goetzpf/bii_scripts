@@ -591,7 +591,6 @@ def parse(data, mode= "dict", errmsg_prefix= None):
                 pos= m.end()
                 #curr_file_list_defs= dict(global_defs)
                 pattern_name_list= []
-                pattern_value_list= []
                 state.append("pattern")
                 continue
             m= rx_bracket1.match(all_, pos)
@@ -627,6 +626,8 @@ def parse(data, mode= "dict", errmsg_prefix= None):
                     state.append("pattern names")
                 else:
                     state.append("pattern vars")
+                    # initialize list of values with an empty list:
+                    pattern_value_list= []
                 continue
             m= rx_bracket2.match(all_, pos)
             if m:
