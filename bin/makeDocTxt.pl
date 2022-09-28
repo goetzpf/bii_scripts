@@ -47,7 +47,7 @@ Options::register(
 
 my $usage = "makeDocTxt.pl [OPTIONS] infile.txt [outfile.html]\n".
     "  Create an html-document from a .txt-file with special format style\n".
-    "  for details see http://www-old.bessy.de/~kuner/makeDocs/makeDocEn.html\n".
+    "  for details see http://help.bessy.de/~kuner/makeDocs/makeDocEn.html\n".
     "OPTIONS: \n";
 
 
