@@ -44,7 +44,7 @@ sub blabla
   my $user_html = defined $user ? "	<META NAME=\"AUTHOR\" CONTENT=\"$user\">\n" : "";
   my $filetime_html = defined $filetime ? "	<META NAME=\"CREATED\" CONTENT=\"$filetime\">\n" : "";
   if (!defined $css)
-    { $css="http://www-old.bessy.de/~kuner/makeDocs/docStyle.css"; };
+    { $css="http://help.bessy.de//home/wwwhelp/homes/kuner/makeDocs/docStyle.css"; };
     
   my $fileHeader = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2//EN\">\n".
     "<HTML>\n".
