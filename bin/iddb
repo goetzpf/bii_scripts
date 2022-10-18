@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# pylint: disable= too-many-lines
+# pylint: disable= too-many-lines, consider-using-f-string
 
 import sys
 import os
@@ -85,7 +85,7 @@ def read_config(filename):
     if not os.path.exists(filename):
         raise IOError("Error, file %s not found" % filename)
     result= {}
-    with open(filename) as fp:
+    with open(filename) as fp: # pylint: disable= unspecified-encoding
         for line in fp:
             line= line.strip()
             if rx_comment.match(line):
@@ -267,6 +267,9 @@ class DbFile:
     def db_txt_find(self,pattern,paths=""):
         """execute StructuredData "txt.find" command."""
         return self.txt.find(pattern,"aligned",paths,self.SDC)
+    def db_txt_rxfind(self,pattern,paths=""):
+        """execute StructuredData "txt.rxfind" command."""
+        return self.txt.rxfind(pattern,"aligned",paths,self.SDC)
     def db_paths(self,pattern,paths=""):
         """execute StructuredData "paths" command."""
         return self.fun.paths(pattern,paths,self.SDC)
@@ -302,6 +305,13 @@ class DbXML:
         """execute StructuredData "txt.find" command."""
         try:
             return self.XML_OBJ.txt.find(pattern,"aligned",paths,DBNAME)
+        except (http.client.RemoteDisconnected,
+                socket.gaierror, socket.timeout) as e:
+            sys.exit(self.errmsg(str(e)))
+    def db_txt_rxfind(self,pattern,paths=""):
+        """execute StructuredData "txt.rxfind" command."""
+        try:
+            return self.XML_OBJ.txt.rxfind(pattern,"aligned",paths,DBNAME)
         except (http.client.RemoteDisconnected,
                 socket.gaierror, socket.timeout) as e:
             sys.exit(self.errmsg(str(e)))
@@ -778,6 +788,23 @@ def cmd_find(db_obj, dbquery, args, rest):
     #print("\n".join(db_txt_find(pattern, paths)))
     #console_print_table(t, heading=None)
 
+def cmd_rxfind(db_obj, dbquery, args, rest):
+    """perform "rxfind" command."""
+    if not rest:
+        pattern=".*"
+    else:
+        pattern= rest[0]
+    paths=""
+    if len(rest)>1:
+        paths= rest[1:]
+    if args.id:
+        id_key= dbquery.find_sd_key(args.id)
+        pattern= r"id-data\.%s\.%s" % (id_key, pattern)
+
+    print(db_obj.db_txt_rxfind(pattern, paths))
+    #print("\n".join(db_txt_rxfind(pattern, paths)))
+    #console_print_table(t, heading=None)
+
 def cmd_get(db_obj, dbquery, args, rest):
     """perform "find" command."""
     if not rest:
@@ -911,6 +938,9 @@ def process(args, rest, parser):
     if rest[0]== "find":
         cmd_find(dbobj, dbquery, args, rest[1:])
         return
+    if rest[0]== "rxfind":
+        cmd_rxfind(dbobj, dbquery, args, rest[1:])
+        return
     if rest[0]== "get":
         cmd_get(dbobj, dbquery, args, rest[1:])
         return
@@ -984,6 +1014,10 @@ Note: Option -i IDNAME causes "id_data.NAME." to be prepended to PATTERN, where
     find PATTERN [PATHS]
         Execute StructuredData "find" command.
         Example: iddb --id ue112 find 'names.*'
+    rxfind PATTERN [PATHS]
+        Execute StructuredData "rxfind" command. PATTERN is a regular
+        expression here. Usually your pattern should start with '.*'.
+        Example: iddb --id ue112 find '.*device'
     get PATTERN [PATHS]
         Execute StructuredData "get" command.
         Example: iddb --id ue112 get 'names.*'
