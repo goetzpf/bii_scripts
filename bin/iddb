@@ -51,7 +51,7 @@ else:
 
 DBNAME="id_db"
 
-# environment variable IDDB_SOURCE:
+# examples for environment variable IDDB_SOURCE:
 #   server:gwc1c.acc.bessy.de:7643
 #   file:/opt/OPI/idcp/id_db.SDCyml
 ENV_VAR_NAME="IDDB_SOURCE"
@@ -72,8 +72,11 @@ COLUMNS_STR= " ".join(sorted(COLUMNS))
 # -----------------------------------------------
 # read configuration file
 
-BII_SCRIPTS_CONFIG= os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "bii_scripts.config")
+BII_SCRIPTS_BIN= os.path.dirname(os.path.abspath(__file__))
+
+BII_SCRIPTS_TOP= os.path.dirname(BII_SCRIPTS_BIN)
+
+BII_SCRIPTS_CONFIG= os.path.join(BII_SCRIPTS_BIN, "bii_scripts.config")
 
 CONFIG_FILE= "iddb.config"
 
@@ -84,12 +87,19 @@ def read_config(filename):
     """read config file."""
     if not os.path.exists(filename):
         raise IOError("Error, file %s not found" % filename)
+    # Set environment variable BII_SCRIPTS_TOP if it is not already set.
+    # This environment variable may be used in file bii_scripts.config.
+    if "BII_SCRIPTS_TOP" not in os.environ:
+        os.environ["BII_SCRIPTS_TOP"]= BII_SCRIPTS_TOP
     result= {}
     with open(filename) as fp: # pylint: disable= unspecified-encoding
         for line in fp:
             line= line.strip()
             if rx_comment.match(line):
                 continue
+            # Do shell-like variable expansion in case bii_scripts.config uses
+            # environment variables:
+            line= os.path.expandvars(line)
             m= rx_def.match(line)
             if not m:
                 continue
