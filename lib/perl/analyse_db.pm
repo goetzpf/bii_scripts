@@ -179,7 +179,7 @@ sub rec_link_fields
         next if (!defined $result[0]);
 	if (exists ($dtyp_link_fields{$fieldname}))
 	  { # maybe a hardware link ?
-	    if (str_defined_different($r_fields->{DTYP},'Soft Channel'))
+	    if (!is_soft_dtyp($r_fields->{DTYP}))
 	      { next; };
 	  };
         # (RECNAME,RECFIELD,FLAGS...)
@@ -370,16 +370,16 @@ sub rem_capfast_defaults
       }
   }	  
 
-sub str_defined_different
+sub is_soft_dtyp
 # internal function
-# returns 1 when $str is actually defined
-# to be different from $compare_to
-# returns undef when $str is empty or undefined
+# returns 1 when $str is equvalent to "Soft Channel"
   { my($str,$compare_to)= @_;
 
-    return if (!defined $str);
-    return if ($str eq '');
-    return($str ne $compare_to);
+    return 1 if (!defined $str);
+    return 1 if ($str eq '');
+    return 1 if ($str =~ /^ *Soft Channel *$/);
+    return 1 if ($str == /^ *Raw Soft Channel *$/);
+    return 0;
   }
 
 sub error
