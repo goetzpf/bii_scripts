@@ -378,7 +378,7 @@ sub is_soft_dtyp
     return 1 if (!defined $str);
     return 1 if ($str eq '');
     return 1 if ($str =~ /^ *Soft Channel *$/);
-    return 1 if ($str == /^ *Raw Soft Channel *$/);
+    return 1 if ($str =~ /^ *Raw Soft Channel *$/);
     return 0;
   }
 
