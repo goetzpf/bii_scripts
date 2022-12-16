@@ -26,7 +26,6 @@ use IO::Scalar;
 use File::Spec;
 #use Carp;
 
-
 BEGIN {
     use Exporter   ();
     use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
@@ -341,7 +340,7 @@ sub parse_scalar_i
     my $local_match_pos;
 
     for(pos($$r_line)= 0, $p=0;
-        $$r_line=~ /\G(.*?)(\\@|\\\$|\$|\\\\n|\\n|\\\\$|\\$|\s+|$)/gsm;
+        $$r_line=~ /\G(.*?)(\\%|\\@|\\\$|\$|\\\\n|\\n|\\\\$|\\$|\s+|$)/gsm;
         #                    \$  $   \\n   \n  \\eol  \eol
         #$$r_line=~ /\G(.*?)(\\\$|\$|\\\\n|\\n|\\$)/gsm;
         $p= pos($$r_line))
@@ -372,9 +371,14 @@ sub parse_scalar_i
         if ($post eq "\\@") # backslashed at
           { 
             if ($escaped_at_chars) 
-	      { print $fh '@' if ($ifcond[-1]>0); }
-	    else
-	      { print $fh '\@' if ($ifcond[-1]>0); }
+	          { print $fh '@' if ($ifcond[-1]>0); }
+	        else
+	          { print $fh '\@' if ($ifcond[-1]>0); }
+            next; 
+          };
+
+        if ($post eq "\\%") # backslashed percent
+          { print $fh '%' if ($ifcond[-1]>0);
             next; 
           };
 
@@ -477,7 +481,7 @@ sub parse_scalar_i
                   };
                 my $r_backup= $m_stack[-1];
                 foreach my $sym (@symbols)
-                  { if ($sym!~/^[\$\@](\w+)$/)
+                  { if ($sym!~/^[\$\@%](\w+)$/)
                       { $err_pre= "symbol \"$sym\" is not a valid symbol";
                         $err_line= __LINE__;
                         fatal_parse_error($r_line,$p); 
@@ -636,7 +640,7 @@ sub parse_scalar_i
                       { my @elms= split(/\s*,\s*/,$rest);
                         foreach my $elm (@elms)
                           { 
-                            if ($elm!~/[\$\@](\w+)/)
+                            if ($elm!~/[\$\@%](\w+)/)
                               { $err_pre= "argument error in \$list: \"$sub\""; 
                                 $err_line= __LINE__;
                                 fatal_parse_error($r_line,$p); 
@@ -1447,6 +1451,9 @@ sub mk_perl_varnames
     #replace @{a} with \@{\$m{a}}
     $line=~ s/(?<!\\)\@\{(\w{2,}|[A-Za-z])\}/\@\{\\\$m\{$1\}\}/gs;
 
+    #replace %{a} with \%{\$m{a}}
+    $line=~ s/(?<!\\)%\{(\w{2,}|[A-Za-z])\}/%\{\\\$m\{$1\}\}/gs;
+
     # replace ${a} with \$m{a}
     $line=~ s/(?<!\\)\$(\{(?:\w{2,}|[A-Za-z])\})/\\\$m$1/gs;
 
@@ -1458,6 +1465,9 @@ sub mk_perl_varnames
     #replace @a with \@{\$m{a}}
     $line=~ s/(?<!\\)\@(\w{2,}|[A-Za-z])/\@\{\\\$m\{$1\}\}/gs;
 
+    #replace %a with \%{\$m{a}}
+    $line=~ s/(?<!\\)%(\w{2,}|[A-Za-z])/%\{\\\$m\{$1\}\}/gs;
+
     # replace $a with \$m{a}
     $line=~ s/(?<!\\)\$(\w{2,}|[A-Za-z])/\\\$m\{$1\}/gs; 
 
@@ -1466,6 +1476,9 @@ sub mk_perl_varnames
 
     # replace \@ with @
     $line=~ s/\\\@/\@/gs;
+
+    # replace \% with %
+    $line=~ s/\\%/%/gs;
 
 #warn "here: |$line|";
     if (defined $callback)
