@@ -787,13 +787,13 @@ Python Libraries
   | Utilities to numpy structured arrays. These arrays can be used to hold the
     data of number tables. This module is used by numpy_table.py and
     tableutil.py.
-  | `documentation <python/bii_scripts/numpy_util.html>`__
+  | `documentation <python/bii_scripts3/numpy_util.html>`__
 
 **numpy_table.py**
   | Implements a table class based on numpy structured arrays. This module is
     basically an object oriented wrapper for all functions in numpy_util.py. It
     is used by tableutil.py.
-  | `documentation <python/bii_scripts/numpy_table.html>`__
+  | `documentation <python/bii_scripts3/numpy_table.html>`__
 
 **pdict.py**
   | implements a dictionary for one-to-one relations.

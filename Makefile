@@ -406,9 +406,8 @@ PYDOC_PYTHON2LIB_LIST= $(addprefix bii_scripts/, \
 	putil.py \
 	rdump.py \
 	sqlpotion.py \
-	numpy_table.py \
-	numpy_util.py \
-	typecheck.py)
+	typecheck.py \
+	)
 
 # python3 libraries with embedded pydoc documentation
 PYDOC_PYTHON3LIB_LIST= $(addprefix bii_scripts3/, \
@@ -419,6 +418,8 @@ PYDOC_PYTHON3LIB_LIST= $(addprefix bii_scripts3/, \
 	FilterFile.py \
 	lslparser.py \
 	maillike.py \
+	numpy_table.py \
+	numpy_util.py \
 	parse_subst.py \
 	rsync_dist_lib.py \
 	)
