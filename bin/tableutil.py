@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 # Copyright 2022 Helmholtz-Zentrum Berlin für Materialien und Energie GmbH
@@ -10,12 +10,12 @@
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 # FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -46,8 +46,8 @@ of the table.
 This script can manipulate the table just by usage of the command line::
 
   tableutil.py -t test.tab --calc 'sum=(x+y)'
-  t   x   y    sum 
-  1.0 2.0 4.0  6.0 
+  t   x   y    sum
+  1.0 2.0 4.0  6.0
   2.0 4.0 8.0  12.0
   3.0 6.0 16.0 22.0
   4.0 8.0 32.0 40.0
@@ -57,7 +57,7 @@ Assume that the script "test.cmd" has this content::
 
   tab= Table_from_File(fn)
   ntab= tab.derive_add("t",["x","y"],["vx","vy"])
-  ntab.print_(formats=["%d","%d","%d","%.2f","%.2f"], 
+  ntab.print_(formats=["%d","%d","%d","%.2f","%.2f"],
               justifications=["R"])
 
 Then this command file can be used like this::
@@ -84,7 +84,7 @@ Format of the command file
 --------------------------
 
 As you may have recognized, the command file is simply Python code that is
-interpreted. It uses the numpy_table.py module to handle tables of numbers. 
+interpreted. It uses the numpy_table.py module to handle tables of numbers.
 
 The only difference to an ordinary python script is that there is no need to
 import numpy_table.py. All functions and classes from this module are already
@@ -104,7 +104,7 @@ Reference of command line options
   print a one-line summary of the script function
 
 --doc
-  create online help in restructured text format. 
+  create online help in restructured text format.
   Use "./tableutil.py --doc | rst2html" to create html-help"
 
 --test
@@ -143,7 +143,7 @@ Reference of command line options
   If there are fewer justifications than columns, the last justification is
   taken for all remaining columns. Note that the justification is done AFTER
   the format string is applied and that justification itself does not remove
-  leading or trailing spaces from column values. 
+  leading or trailing spaces from column values.
 
 --calc CALCEXPRESSION
   Calculate additional columns by applying a python expression to each line of
@@ -184,12 +184,12 @@ Print the table
 
 ::
 
-  ./tableutil.py -t test.tab 
-  time   x       y     
-  1.0    2.0     4.0   
-  20.0   4.1     8.12  
+  ./tableutil.py -t test.tab
+  time   x       y
+  1.0    2.0     4.0
+  20.0   4.1     8.12
   300.0  16.01   16.123
-  4000.0 181.001 32.0  
+  4000.0 181.001 32.0
 
 Read from stdin and print
 +++++++++++++++++++++++++
@@ -197,11 +197,11 @@ Read from stdin and print
 ::
 
   cat test.tab | ./tableutil.py -t -
-  time   x       y     
-  1.0    2.0     4.0   
-  20.0   4.1     8.12  
+  time   x       y
+  1.0    2.0     4.0
+  20.0   4.1     8.12
   300.0  16.01   16.123
-  4000.0 181.001 32.0  
+  4000.0 181.001 32.0
 
 Print the table with a different formatting
 +++++++++++++++++++++++++++++++++++++++++++
@@ -209,9 +209,9 @@ Print the table with a different formatting
 ::
 
   ./tableutil.py -t test.tab --separator "|" -p "%d %.2f %.4f"
-  time|x     |y      
-  1   |2.00  |4.0000 
-  20  |4.10  |8.1200 
+  time|x     |y
+  1   |2.00  |4.0000
+  20  |4.10  |8.1200
   300 |16.01 |16.1230
   4000|181.00|32.0000
 
@@ -267,7 +267,8 @@ Calculate two new columns that are the square-root of x and y
 Calculate with a command file
 +++++++++++++++++++++++++++++
 
-Suppose we want to calculate a velocity v=dx/dt and a distance r=sqrt(x**2+y**2) with a file "test.cmd" with content::
+Suppose we want to calculate a velocity v=dx/dt and a distance
+r=sqrt(x**2+y**2) with a file "test.cmd" with content::
 
   from math import *
   tab= Table_from_File("test.tab")
@@ -285,6 +286,9 @@ Now execute the script with this command::
   4000.00 181.00 32.00     0.04 183.81
 """
 
+# pylint: disable= invalid-name, consider-using-f-string
+
+# pylint: disable= deprecated-module
 from optparse import OptionParser
 #import string
 import os.path
@@ -292,9 +296,9 @@ import sys
 import re
 import inspect
 
-from bii_scripts.numpy_table import *
+from bii_scripts3.numpy_table import Table_from_File # type: ignore
 
-assert sys.version_info[0]==2
+assert sys.version_info[0]==3
 
 # version of the program:
 my_version= "1.0"
@@ -355,7 +359,7 @@ _rx_def= re.compile(r'^\s*def\s+(\w+)')
 def _compile_func(expression):
     """compiles a function definition and returns the function.
 
-    expression should be a string with a normal or an anonymous 
+    expression should be a string with a normal or an anonymous
     function definition.
 
     Here are some examples:
@@ -373,10 +377,13 @@ def _compile_func(expression):
     else:
         matched_= _rx_def.match(expression)
         if matched_ is None:
-            raise ValueError, "expression is not a function definition"
+            raise ValueError("expression is not a function definition")
         funcname_= matched_.group(1)
-    exec expression# in locals()
+    # pylint: disable= exec-used
+    exec(expression)# in locals()
     return locals()[funcname_]
+
+# pylint: disable= trailing-whitespace
 
 def _table_func(tab,expression):
     """generate a table function from a table expression.
@@ -404,7 +411,11 @@ def _table_func(tab,expression):
     pre_lst= [n.strip() for n in pre.split(",")]
     return (pre_lst,_compile_func("lambda %s:%s" % (",".join(names),post)))
 
+# pylint: enable= trailing-whitespace
+
 def _process_files(options,args):
+    """process."""
+    # pylint: disable= too-many-branches, too-many-locals
     if options.math:
         # import all symbols from the math module into the
         # global namespace:
@@ -415,8 +426,9 @@ def _process_files(options,args):
             globals()[n]= v
     table_names= []
     if options.eval is not None:
+        # pylint: disable= exec-used
         for expr in options.eval:
-            exec expr in globals()
+            exec(expr, globals())
     if options.table is not None:
         for spec in options.table:
             (tab,fn)= _scan_table_spec(spec)
@@ -433,16 +445,17 @@ def _process_files(options,args):
             (new_cols,fun)= _table_func(tab_obj,expr)
             globals()[tab]= tab_obj.map_add(new_cols,fun)
     filelist= []
-    if (options.cmdfile is not None):
+    if options.cmdfile is not None:
         filelist= options.cmdfile
     if len(args)>0: # extra arguments
         filelist.extend(args)
     for f in filelist:
+        # pylint: disable= exec-used, consider-using-with
         if f=="-":
             mydata= sys.stdin.read()
-            exec mydata in globals()
+            exec(mydata, globals())
         else:
-            execfile(f,globals())
+            exec(compile(open(f, "rb").read(), f, 'exec'),globals())
     if options.separator is None:
         sep= " "
     else:
@@ -454,9 +467,9 @@ def _process_files(options,args):
                                         justifications=justifications)
     elif len(filelist)<=0:
         # implicit print command only when no command file was given:
-        globals()[default_table].print_(sep=sep,justifications=["L"])
+        globals()[default_table].print_(sep=sep,justifications=["L"]) # type: ignore
 
-            
+
 
 def _script_shortname():
     """return the name of this script without a path component."""
@@ -464,18 +477,19 @@ def _script_shortname():
 
 def print_doc():
     """print embedded reStructuredText documentation."""
-    print __doc__
+    print(__doc__)
 
 def _print_summary():
     """print a short summary of the scripts function."""
-    print "%-20s: a tool to manipulate and print tables of numbers\n" % _script_shortname()
+    print("%-20s: a tool to manipulate and print tables of numbers\n" % _script_shortname())
 
 def _test():
     """does a self-test of some functions defined here."""
-    print "performing self test..."
+    print("performing self test...")
+    # pylint: disable= import-outside-toplevel
     import doctest
     doctest.testmod()
-    print "done!"
+    print("done!")
 
 def _main():
     """The _main function.
@@ -500,11 +514,11 @@ def _main():
 		      )
     parser.add_option("--test",  # implies dest="nodelete"
                       action="store_true", # default: None
-                      help="perform simple self-test", 
+                      help="perform simple self-test",
 		      )
     parser.add_option("--math",  # implies dest="nodelete"
                       action="store_true", # default: None
-                      help="import the python math module into the global namespace.", 
+                      help="import the python math module into the global namespace.",
 		      )
     parser.add_option("-t", "--table", # implies dest="file"
                       action="append", # OptionParser's default
@@ -555,14 +569,14 @@ def _main():
 		      metavar="PYTHONEXPRESSION"  # for help-generation text
 		      )
 
-    x= sys.argv
+    #x= sys.argv
     (options, args) = parser.parse_args()
     # options: the options-object
     # args: list of left-over args
 
     if options.summary:
         _print_summary()
-	sys.exit(0)
+        sys.exit(0)
 
     if options.doc:
         print_doc()
@@ -577,4 +591,3 @@ def _main():
 
 if __name__ == "__main__":
     _main()
-
