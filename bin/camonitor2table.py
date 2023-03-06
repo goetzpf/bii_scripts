@@ -34,16 +34,16 @@ Overview
 Camonitor, when used with more than one process variable, prints each new value
 in a new line. Here is an example::
 
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:04.022486 0
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:04.022486 -3491
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.022486 329
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.022486 -4577
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.122486 -7045
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.122486 1111
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.222486 1470
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.222486 -8137
-  U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.322486 1459
-  U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.322486 -8121
+  U3IV:AdiUn9PmsPosI             2023-01-25 14:22:04.022486 0
+  U3IV:AdiUn14PmsPosI            2023-01-25 14:22:04.022486 -3491
+  U3IV:AdiUn9PmsPosI             2023-01-25 14:22:15.022486 329
+  U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.022486 -4577
+  U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.122486 -7045
+  U3IV:AdiUn9PmsPosI             2023-01-25 14:22:15.122486 1111
+  U3IV:AdiUn9PmsPosI             2023-01-25 14:22:15.222486 1470
+  U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.222486 -8137
+  U3IV:AdiUn9PmsPosI             2023-01-25 14:22:15.322486 1459
+  U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.322486 -8121
 
 
 Comparing several variables at the same time is sometimes made difficult by
@@ -52,11 +52,11 @@ this, it creates a simple table from the output of a camonitor command that can
 for example be used for gnuplot. Here is an example of such a table::
 
   Timestamp                  U3IV:AdiUn9PmsPosI U3IV:AdiUn14PmsPosI
-  2011-01-25 14:22:04.022486 0                  -3491
-  2011-01-25 14:22:15.022486 329                -4577
-  2011-01-25 14:22:15.122486 1111               -7045
-  2011-01-25 14:22:15.222486 1470               -8137
-  2011-01-25 14:22:15.322486 1459               -8121
+  2023-01-25 14:22:04.022486 0                  -3491
+  2023-01-25 14:22:15.022486 329                -4577
+  2023-01-25 14:22:15.122486 1111               -7045
+  2023-01-25 14:22:15.222486 1470               -8137
+  2023-01-25 14:22:15.322486 1459               -8121
 
 Examples
 ========
@@ -66,22 +66,22 @@ Examples
     camonitor2table.py -f myfile
 
     Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:04.022486 -3491               0
-    2011-01-25 14:22:15.022486 -4577               329
-    2011-01-25 14:22:15.122486 -7045               1111
-    2011-01-25 14:22:15.222486 -8137               1470
-    2011-01-25 14:22:15.322486 -8121               1459
+    2023-01-25 14:22:04.022486 -3491               0
+    2023-01-25 14:22:15.022486 -4577               329
+    2023-01-25 14:22:15.122486 -7045               1111
+    2023-01-25 14:22:15.222486 -8137               1470
+    2023-01-25 14:22:15.322486 -8121               1459
 
 * convert a file, floating point format for each column, right justified::
 
     camonitor2table.py -f myfile -c '%f' --rjust
 
     Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:04.022486        -3491.000000           0.000000
-    2011-01-25 14:22:15.022486        -4577.000000         329.000000
-    2011-01-25 14:22:15.122486        -7045.000000        1111.000000
-    2011-01-25 14:22:15.222486        -8137.000000        1470.000000
-    2011-01-25 14:22:15.322486        -8121.000000        1459.000000
+    2023-01-25 14:22:04.022486        -3491.000000           0.000000
+    2023-01-25 14:22:15.022486        -4577.000000         329.000000
+    2023-01-25 14:22:15.122486        -7045.000000        1111.000000
+    2023-01-25 14:22:15.222486        -8137.000000        1470.000000
+    2023-01-25 14:22:15.322486        -8121.000000        1459.000000
 
 * convert a file, floating point format for each column, right justified,
   floattime::
@@ -125,22 +125,36 @@ Examples
     camonitor2table.py -f myfile -c '%f' --rjust --separator "|"
 
     Timestamp                 |U3IV:AdiUn14PmsPosI|U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:04.022486|       -3491.000000|          0.000000
-    2011-01-25 14:22:15.022486|       -4577.000000|        329.000000
-    2011-01-25 14:22:15.122486|       -7045.000000|       1111.000000
-    2011-01-25 14:22:15.222486|       -8137.000000|       1470.000000
-    2011-01-25 14:22:15.322486|       -8121.000000|       1459.000000
+    2023-01-25 14:22:04.022486|       -3491.000000|          0.000000
+    2023-01-25 14:22:15.022486|       -4577.000000|        329.000000
+    2023-01-25 14:22:15.122486|       -7045.000000|       1111.000000
+    2023-01-25 14:22:15.222486|       -8137.000000|       1470.000000
+    2023-01-25 14:22:15.322486|       -8121.000000|       1459.000000
 
 * convert a file, floating point format for each column, csv::
 
     camonitor2table.py -f myfile -c '%f' --csv
 
     Timestamp,U3IV:AdiUn14PmsPosI,U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:04.022486,-3491.000000,0.000000
-    2011-01-25 14:22:15.022486,-4577.000000,329.000000
-    2011-01-25 14:22:15.122486,-7045.000000,1111.000000
-    2011-01-25 14:22:15.222486,-8137.000000,1470.000000
-    2011-01-25 14:22:15.322486,-8121.000000,1459.000000
+    2023-01-25 14:22:04.022486,-3491.000000,0.000000
+    2023-01-25 14:22:15.022486,-4577.000000,329.000000
+    2023-01-25 14:22:15.122486,-7045.000000,1111.000000
+    2023-01-25 14:22:15.222486,-8137.000000,1470.000000
+    2023-01-25 14:22:15.322486,-8121.000000,1459.000000
+
+Waveform support
+================
+
+Currently the program handles waveform records by adding a column for each
+element in the waveform record, here is an example, this line::
+
+    U3IV:DiagSpdSet                2023-02-20 16:44:58.859846 2 3.0 4.0
+
+creates two columns, named "U3IV:DiagSpdSet_0" and "U3IV:DiagSpdSet_1" with the
+values 3.0 and 4.0. A Possible output of pretty_print() then loons like this::
+
+    Timestamp                  U3IV:DiagSpdSet_0 U3IV:DiagSpdSet_1
+    2023-02-20 16:44:58.859846 3.0               4.0
 
 Reference of command line options
 =================================
@@ -208,12 +222,8 @@ Reference of command line options
 
 --skip-flagged REGEXP
   Skip all lines where the flags match REGEXP, e.g. "UDF" skips all lines where
-  the flags contain "UDF". If REGEXP has the special value "all" or "ALL", all
-  flags are removed.
-
---rm-flags REGEXP
-  remove all flags that match REGEXP from the data, e.g. "HIHI|HI" removes
-  "HIHI" and "HI" from the flags.
+  the flags contain "UDF". If REGEXP has the value '.*', all lines with flags
+  are removed.
 
 --differentiate
   differentiate all values, that means that each value is replaced with the
@@ -266,6 +276,8 @@ import re
 import datetime
 import os.path
 
+from bii_scripts3 import camonitor_parse as cp # type: ignore
+
 assert sys.version_info[0]==3
 
 # version of the program:
@@ -280,10 +292,6 @@ _last_str2date_obj= None
 # unfortunately our development server has only python 2.5 as
 # newest version:
 
-def strftime(date,format_):
-    """returns date.strftime(format_)."""
-    return date.strftime(format_)
-
 def time_total_seconds(td):
     """return the total seconds in a timedelta object.
 
@@ -297,80 +305,15 @@ def time_total_seconds(td):
 # date and time utilities
 # ----------------------------------------
 
-def str2date(st):
-    """convert an ascii time to a datetime.datetime object.
-
-    Note that only 6 digits after a dot "." are significant. Extra
-    digits are ignored. Extra characters other than digits raise
-    a ValueError exception.
-
-    Note that there is an optimization here that returns THE SAME
-    date object when the string "st" given is the same as it was
-    at the last call of this function.
-
-    Here are some examples:
-    >>> str2date("2011-01-25 14:22:20.822485")
-    datetime.datetime(2011, 1, 25, 14, 22, 20, 822485)
-    >>> str2date("2011-01-25 14:22:20.8224")
-    datetime.datetime(2011, 1, 25, 14, 22, 20, 822400)
-    >>> str2date("2011-01-25 14:22:20")
-    datetime.datetime(2011, 1, 25, 14, 22, 20)
-    >>> str2date("2011-01-25T14:22:20.8224")
-    datetime.datetime(2011, 1, 25, 14, 22, 20, 822400)
-    >>> str2date("2011-01-25T14:22:20xy.8224")
-    Traceback (most recent call last):
-        ...
-    ValueError: time data '2011-01-25 14:22:20xy.8224' does not match format '%Y-%m-%d %H:%M:%S.%f'
-    >>> str2date("2011-01-25T14:22:20.12345")
-    datetime.datetime(2011, 1, 25, 14, 22, 20, 123450)
-    >>> str2date("2011-01-25T14:22:20.123456")
-    datetime.datetime(2011, 1, 25, 14, 22, 20, 123456)
-    >>> str2date("2011-01-25T14:22:20.1234567")
-    datetime.datetime(2011, 1, 25, 14, 22, 20, 123456)
-    >>> str2date("2011-01-25T14:22:20.12345678")
-    datetime.datetime(2011, 1, 25, 14, 22, 20, 123456)
-    >>> str2date("2011-01-25T14:22:20.12345678x")
-    Traceback (most recent call last):
-        ...
-    ValueError: extra characters found: "78x"
-    """
-    # pylint: disable=global-statement
-    global _last_str2date_str, _last_str2date_obj
-    st_= st.replace("T"," ",1)
-    if _last_str2date_str==st_:
-        return _last_str2date_obj
-    i= st_.find(".")
-    if i==-1:
-        date= datetime.datetime.strptime(st_,"%Y-%m-%d %H:%M:%S")
-    else:
-        if len(st_)-i > 7:
-            if not st_[i+7:].isdigit():
-                raise ValueError("extra characters found: \"%s\"" % \
-                                 st_[i+7:])
-        date= datetime.datetime.strptime(st_[0:i+7],"%Y-%m-%d %H:%M:%S.%f")
-    _last_str2date_str= st_
-    _last_str2date_obj= date
-    return date
-
 def str2date_ui(st):
-    """do str2date but with better error handling."""
+    """do cp.parse_date_str but with better error handling."""
     if st is None:
         return None
     try:
-        d= str2date(st)
+        d= cp.parse_date_str(st)
     except ValueError as _:
         sys.exit("error: \"%s\" is not a valid timestamp" % st)
     return d
-
-def date2str(date):
-    """convert a datetime.datetime object to ascii time.
-
-    Here is an example:
-    >>> d= str2date("2011-01-25 14:22:20.822485")
-    >>> date2str(d)
-    '2011-01-25 14:22:20.822485'
-    """
-    return strftime(date, "%Y-%m-%d %H:%M:%S.%f")
 
 def float_time(date, start_date):
     """convert timestamps to float-time.
@@ -382,11 +325,11 @@ def float_time(date, start_date):
       a float that gives the number of seconds passed since start_date.
 
     Here are some examples:
-    >>> float_time(str2date("2011-01-25 14:22:20.822485"),
-    ...            str2date("2011-01-24 14:22:20.822485"))
+    >>> float_time(cp.parse_date_str("2011-01-25 14:22:20.822485"),
+    ...            cp.parse_date_str("2011-01-24 14:22:20.822485"))
     86400.0
-    >>> float_time(str2date("2011-01-25 14:22:20.822485"),
-    ...            str2date("2011-01-24 14:22:20"))
+    >>> float_time(cp.parse_date_str("2011-01-25 14:22:20.822485"),
+    ...            cp.parse_date_str("2011-01-24 14:22:20"))
     86400.822485
     """
     return time_total_seconds(date-start_date)
@@ -803,46 +746,6 @@ def empty(string):
         return True
     return string.isspace()
 
-# pylint: disable= line-too-long
-
-def parse_line(line):
-    """parses a line from the camonitor command.
-
-    parameters:
-        line    -- a line from camonitor
-    returns:
-        (pv,date,lst) with
-        pv   -- the name of the process variable, a string
-        date -- a datetime.datetime object with the whole-second part of
-                the timestamp
-        lst  -- the value list consisting of the value and optional flags
-
-    Note that "<undefined>" as a timestamp is converted to the date
-    1970-01-01 00:00:00.
-
-    Here are some examples:
-    >>> parse_line("U41IT6R:AdiUnV1DrvDstG  2011-01-24 23:24:05.612206 -4.36907e+06")
-    ('U41IT6R:AdiUnV1DrvDstG', datetime.datetime(2011, 1, 24, 23, 24, 5, 612206), ['-4.36907e+06'])
-    >>> parse_line("U41IT6R:AcsDisable       2011-01-10 11:42:29.050755 enabled UDF INVALID")
-    ('U41IT6R:AcsDisable', datetime.datetime(2011, 1, 10, 11, 42, 29, 50755), ['enabled', 'UDF', 'INVALID'])
-    >>> parse_line("U41IT6R:AdiUn2GblVer    <undefined> 0 UDF INVALID")
-    ('U41IT6R:AdiUn2GblVer', datetime.datetime(1970, 1, 1, 0, 0), ['0', 'UDF', 'INVALID'])
-    """
-    elms= line.split()
-    val_i= 3
-    if elms[1]=="<undefined>":
-        val_i= 2
-        date= datetime.datetime(1970,1,1,0,0,0) # use 1970-01-01 00:00:00 instead of "None"
-    else:
-        date= str2date(" ".join(elms[1:3]))
-    return (elms[0],date,elms[val_i:])
-
-# pylint: enable= line-too-long
-
-def rebuild_line(tp):
-    """rebuild a line from the tuple that parse_line creates."""
-    return "%-24s %-26s %s" % (tp[0],date2str(tp[1])," ".join(tp[2]))
-
 # higher level functions
 # ----------------------------------------
 
@@ -869,7 +772,8 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
                        timestamp is before or equal that time are taken.
       filter_pv     -- If that parameter is given, only process variables that
                        match that regular expression are taken.
-      skip_flagged  -- If this parameter is True, items with flags are skipped
+      skip_flagged  -- If this parameter is not None (a regexp), items with
+                       matching flags are skipped
                        (ignored).
       rm_flags      -- If that parameter is given, flags that match that
                        regular expression are removed, the resulting item is taken.
@@ -898,14 +802,14 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
     ... '''
     >>> results=collect(t.splitlines())
     >>> print(results)
-    (2011-01-25 14:22:15.522486,U3IV:AdiUn14PmsPosI) : ['-12078']
+    (2011-01-25 14:22:15.522486,U3IV:AdiUn14PmsPosI) : -12078
     (2011-01-25 14:22:15.522486,U3IV:AdiUn9PmsPosI) : None
-    (2011-01-25 14:22:15.622486,U3IV:AdiUn14PmsPosI) : ['-12753']
-    (2011-01-25 14:22:15.622486,U3IV:AdiUn9PmsPosI) : ['2925']
-    (2011-01-25 14:22:15.722486,U3IV:AdiUn14PmsPosI) : ['-12741']
-    (2011-01-25 14:22:15.722486,U3IV:AdiUn9PmsPosI) : ['2915']
-    (2011-01-25 14:22:15.822486,U3IV:AdiUn14PmsPosI) : ['-14212']
-    (2011-01-25 14:22:15.822486,U3IV:AdiUn9PmsPosI) : ['3371']
+    (2011-01-25 14:22:15.622486,U3IV:AdiUn14PmsPosI) : -12753
+    (2011-01-25 14:22:15.622486,U3IV:AdiUn9PmsPosI) : 2925
+    (2011-01-25 14:22:15.722486,U3IV:AdiUn14PmsPosI) : -12741
+    (2011-01-25 14:22:15.722486,U3IV:AdiUn9PmsPosI) : 2915
+    (2011-01-25 14:22:15.822486,U3IV:AdiUn14PmsPosI) : -14212
+    (2011-01-25 14:22:15.822486,U3IV:AdiUn9PmsPosI) : 3371
     """
     # pylint: disable= too-many-branches, too-many-locals
     # pylint: disable= too-many-arguments, too-many-statements
@@ -933,11 +837,17 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
             progress_cnt+=1
             if progress_cnt >= 2659: # a prime number to make display nicer
                 progress_cnt= 0
-                sys.stderr.write("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b%8d %8d" % (lineno,lines))
+                sys.stderr.write('\b'*17)
+                sys.stderr.write("%8d %8d" % (lineno,lines))
         if empty(line):
             continue
         try:
-            (pv,date,val)= parse_line(line)
+            # pylint: disable=unbalanced-tuple-unpacking
+            tp= cp.parse_line(line, keep_undefined= False)
+            (pv,date,val,flags,_)= \
+                cp.convert_line_datatypes(tp,
+                                          parse_numbers= True,
+                                          parse_date= True)
         except:
             print("parse error in line %d" % lineno)
             raise
@@ -954,23 +864,27 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
             # we can skip a new regexp match:
             if not re.search(filter_pv,pv):
                 continue
-        if len(val)>1: # flags present
-            flag_str= " ".join(val[1:])
+        if flags is not None: # flags present
+            flag_str= " ".join(flags)
             if skip_flagged is not None:
                 if re.search(skip_flagged,flag_str) is not None:
                     continue
-            if rm_flags is not None:
-                flag_str= re.sub(rm_flags,"",flag_str)
-                val= [val[0]]+flag_str.split()
         if pvmap:
             pv= pvmap.get(pv, pv)
         if pvmaprx:
             pv= pvmaprx.sub(pv)
 
         if dump:
-            print(rebuild_line((pv, date, val)))
+            print(cp.create_line((pv, date, val, flags, None), False, None))
         else:
-            h.set( date, pv, val )
+            if type(val) in (list, tuple):
+                # waveform record
+                # add a column for each waveform number:
+                for i, n in enumerate(val):
+                    # create pseudo PV name
+                    h.set( date, "%s_%d" % (pv, i), n)
+            else:
+                h.set( date, pv, val )
         lines+=1
         if max_lines is not None:
             if lines>=max_lines:
@@ -981,7 +895,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
         return None
     return h
 
-# pylint: disable= trailing-whitespace
+# pylint: disable= trailing-whitespace, line-too-long
 
 def pretty_print(hashedlist2d, columnformat=None, rjust= False,
                  is_floattime= False, timecolumn=None,
@@ -990,57 +904,66 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
 
     Here are some examples:
     >>> t='''
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.522486 -12078
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.622486 2925
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.622486 -12753
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.722486 2915
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.722486 -12741
-    ... U3IV:AdiUn9PmsPosI             2011-01-25 14:22:15.822486 3371
-    ... U3IV:AdiUn14PmsPosI            2011-01-25 14:22:15.822486 -14212
+    ... U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.522486 -12078
+    ... U3IV:AdiUn9PmsPosI             2023-01-25 14:22:15.622486 2925
+    ... U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.622486 -12753
+    ... U3IV:AdiUn9PmsPosI             2023-01-25 14:22:15.722486 2915
+    ... U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.722486 -12741
+    ... U3IV:AdiUn9PmsPosI             2023-01-25 14:22:15.822486 3371
+    ... U3IV:AdiUn14PmsPosI            2023-01-25 14:22:15.822486 -14212
+    ... U3IV:DiagSpdSet                2023-02-20 16:44:58.859846 2 1 1
     ... '''
     >>> results=collect(t.splitlines())
     >>> pretty_print(results)
-    Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:15.522486 -12078                                
-    2011-01-25 14:22:15.622486 -12753              2925              
-    2011-01-25 14:22:15.722486 -12741              2915              
-    2011-01-25 14:22:15.822486 -14212              3371              
+    Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI U3IV:DiagSpdSet_0 U3IV:DiagSpdSet_1
+    2023-01-25 14:22:15.522486 -12078
+    2023-01-25 14:22:15.622486 -12753              2925
+    2023-01-25 14:22:15.722486 -12741              2915
+    2023-01-25 14:22:15.822486 -14212              3371
+    2023-02-20 16:44:58.859846                                        1                 1
+
     >>> pretty_print(results,columnformat=["%.1f"])
-    Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:15.522486 -12078.0                              
-    2011-01-25 14:22:15.622486 -12753.0            2925.0            
-    2011-01-25 14:22:15.722486 -12741.0            2915.0            
-    2011-01-25 14:22:15.822486 -14212.0            3371.0            
+    Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI U3IV:DiagSpdSet_0 U3IV:DiagSpdSet_1
+    2023-01-25 14:22:15.522486 -12078.0
+    2023-01-25 14:22:15.622486 -12753.0            2925.0
+    2023-01-25 14:22:15.722486 -12741.0            2915.0
+    2023-01-25 14:22:15.822486 -14212.0            3371.0
+    2023-02-20 16:44:58.859846                                        1.0               1.0
     >>> pretty_print(results,columnformat=["%30s","%d","%.1f"])
-    Timestamp                      U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-        2011-01-25 14:22:15.522486 -12078                                
-        2011-01-25 14:22:15.622486 -12753              2925.0            
-        2011-01-25 14:22:15.722486 -12741              2915.0            
-        2011-01-25 14:22:15.822486 -14212              3371.0            
+    Timestamp                      U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI U3IV:DiagSpdSet_0 U3IV:DiagSpdSet_1
+        2023-01-25 14:22:15.522486 -12078
+        2023-01-25 14:22:15.622486 -12753              2925.0
+        2023-01-25 14:22:15.722486 -12741              2915.0
+        2023-01-25 14:22:15.822486 -14212              3371.0
+        2023-02-20 16:44:58.859846                                        1.0               1.0
     >>> pretty_print(results,rjust=True)
-    Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:15.522486              -12078                   
-    2011-01-25 14:22:15.622486              -12753               2925
-    2011-01-25 14:22:15.722486              -12741               2915
-    2011-01-25 14:22:15.822486              -14212               3371
+    Timestamp                  U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI U3IV:DiagSpdSet_0 U3IV:DiagSpdSet_1
+    2023-01-25 14:22:15.522486              -12078
+    2023-01-25 14:22:15.622486              -12753               2925
+    2023-01-25 14:22:15.722486              -12741               2915
+    2023-01-25 14:22:15.822486              -14212               3371
+    2023-02-20 16:44:58.859846                                                        1                 1
     >>> pretty_print(results,separator="|")
-    Timestamp                 |U3IV:AdiUn14PmsPosI|U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:15.522486|-12078             |                  
-    2011-01-25 14:22:15.622486|-12753             |2925              
-    2011-01-25 14:22:15.722486|-12741             |2915              
-    2011-01-25 14:22:15.822486|-14212             |3371              
+    Timestamp                 |U3IV:AdiUn14PmsPosI|U3IV:AdiUn9PmsPosI|U3IV:DiagSpdSet_0|U3IV:DiagSpdSet_1
+    2023-01-25 14:22:15.522486|-12078             |                  |                 |
+    2023-01-25 14:22:15.622486|-12753             |2925              |                 |
+    2023-01-25 14:22:15.722486|-12741             |2915              |                 |
+    2023-01-25 14:22:15.822486|-14212             |3371              |                 |
+    2023-02-20 16:44:58.859846|                   |                  |1                |1
     >>> pretty_print(results,csv=True)
-    Timestamp U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:15.522486 -12078 
-    2011-01-25 14:22:15.622486 -12753 2925
-    2011-01-25 14:22:15.722486 -12741 2915
-    2011-01-25 14:22:15.822486 -14212 3371
+    Timestamp U3IV:AdiUn14PmsPosI U3IV:AdiUn9PmsPosI U3IV:DiagSpdSet_0 U3IV:DiagSpdSet_1
+    2023-01-25 14:22:15.522486 -12078
+    2023-01-25 14:22:15.622486 -12753 2925
+    2023-01-25 14:22:15.722486 -12741 2915
+    2023-01-25 14:22:15.822486 -14212 3371
+    2023-02-20 16:44:58.859846   1 1
     >>> pretty_print(results,csv=True,separator=",")
-    Timestamp,U3IV:AdiUn14PmsPosI,U3IV:AdiUn9PmsPosI
-    2011-01-25 14:22:15.522486,-12078,
-    2011-01-25 14:22:15.622486,-12753,2925
-    2011-01-25 14:22:15.722486,-12741,2915
-    2011-01-25 14:22:15.822486,-14212,3371
+    Timestamp,U3IV:AdiUn14PmsPosI,U3IV:AdiUn9PmsPosI,U3IV:DiagSpdSet_0,U3IV:DiagSpdSet_1
+    2023-01-25 14:22:15.522486,-12078,,,
+    2023-01-25 14:22:15.622486,-12753,2925,,
+    2023-01-25 14:22:15.722486,-12741,2915,,
+    2023-01-25 14:22:15.822486,-14212,3371,,
+    2023-02-20 16:44:58.859846,,,1,1
     """
     # pylint: disable= too-many-arguments, too-many-branches
     # pylint: disable= too-many-locals, too-many-statements
@@ -1048,10 +971,11 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
         """convert data."""
         if st is None:
             return ""
-        lst= list(st)
-        lst[0]= converter(st[0])
-        lst[0]= columnformat % lst[0]
-        return " ".join(lst)
+        if type(st) in (list, tuple):
+            raise AssertionError("waveform support not yet implemented: %s" % repr(st))
+        val= converter(st)
+        val= columnformat % val
+        return val
     if timecolumn is None:
         timecolumn= TIMECOLUMN
     columns= ["%-26s" % timecolumn]
@@ -1090,14 +1014,14 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
         lines.append(lst)
         i= 0
         if isinstance(date,datetime.datetime):
-            val_tp= (date2str(date),)
+            val_date= cp.date2str(date)
         else:
-            val_tp= (date,)
-        lst.append(tp(val_tp, columnformat[i], converters[i]))
+            val_date= date
+        lst.append(tp(val_date, columnformat[i], converters[i]))
         for i in range(1,len(columns)):
             col= columns[i]
-            val_tp= hashedlist2d.lookup(date,col)
-            lst.append(tp(val_tp, columnformat[i], converters[i]))
+            val= hashedlist2d.lookup(date,col)
+            lst.append(tp(val, columnformat[i], converters[i]))
 
     widths= [0]*len(columns)
     for line in lines:
@@ -1113,9 +1037,9 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
                 n.append(l.ljust(widths[c]))
             else:
                 n.append(l.rjust(widths[c]))
-        print(separator.join(n))
+        print(separator.join(n).rstrip())
 
-# pylint: enable= trailing-whitespace
+# pylint: enable= trailing-whitespace, line-too-long
 
 def convert_to_float_time(start_date, hashedlist2d):
     """convert all times in the HashedList2D object to float-time.
@@ -1299,7 +1223,7 @@ def process_files(options,args):
             sys.exit("error: argument to --add-seconds must be a float")
         timedelta= datetime.timedelta(0, add_seconds)
     if options.time_rebase:
-        (d1,d2)= (str2date(d) for d in options.time_rebase.split(","))
+        (d1,d2)= (cp.parse_date_str(d) for d in options.time_rebase.split(","))
         if timedelta is None:
             timedelta= d2-d1
         else:
