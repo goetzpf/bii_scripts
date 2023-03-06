@@ -11,3 +11,5 @@
 ^lib/python/__pycache__/
 \.pyc
 
+# ignore mypy cache:
+\.mypy_cache
