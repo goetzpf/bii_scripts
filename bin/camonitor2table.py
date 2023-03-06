@@ -1075,6 +1075,8 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
         lst[0]= converter(st[0])
         lst[0]= columnformat % lst[0]
         return " ".join(lst)
+    if timecolumn is None:
+        timecolumn= TIMECOLUMN
     columns= ["%-26s" % timecolumn]
     columns.extend(hashedlist2d.columns())
 
