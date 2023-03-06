@@ -19,7 +19,8 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# pylint: disable=too-many-lines
+# pylint: disable=invalid-name, too-many-lines, consider-using-f-string
+
 """
 ===================
  camonitor2table.py
@@ -259,11 +260,6 @@ Reference of command line options
   from stdin.
 """
 
-# pylint: enable=C0301
-#                          Line too long
-# pylint: disable=C0103
-#                          Invalid constant name
-
 import argparse
 import sys
 import re
@@ -288,9 +284,6 @@ def strftime(date,format_):
     """returns date.strftime(format_)."""
     return date.strftime(format_)
 
-# pylint: disable=C0301
-#                          Line too long
-
 def time_total_seconds(td):
     """return the total seconds in a timedelta object.
 
@@ -301,14 +294,8 @@ def time_total_seconds(td):
     """
     return td.total_seconds()
 
-# pylint: enable=C0301
-#                          Line too long
-
 # date and time utilities
 # ----------------------------------------
-
-# pylint: disable=C0301
-#                          Line too long
 
 def str2date(st):
     """convert an ascii time to a datetime.datetime object.
@@ -365,9 +352,6 @@ def str2date(st):
     _last_str2date_obj= date
     return date
 
-# pylint: enable=C0301
-#                          Line too long
-
 def str2date_ui(st):
     """do str2date but with better error handling."""
     if st is None:
@@ -412,8 +396,7 @@ def float_time(date, start_date):
 
 class RxReplace:
     """Change a string with a regular expression."""
-    # pylint: disable=R0903
-    #                          Too few public methods
+    # pylint: disable= too-few-public-methods
     _rx_re= re.compile(r'(?<!\\)/(.*)(?<!\\)/(.*)(?<!\\)/(.*)')
     def __init__(self, st):
         """initialize the object."""
@@ -440,8 +423,7 @@ class RxReplace:
 
 class RxReplacer:
     """Change a string with a regular expressions."""
-    # pylint: disable=R0903
-    #                          Too few public methods
+    # pylint: disable= too-few-public-methods
     def __init__(self, st_list):
         """initialize the container."""
         self.rxs= []
@@ -540,9 +522,6 @@ class HashIndex:
         """return "repr" string of the object."""
         return repr(self)
 
-# pylint: disable=C0301
-#                          Line too long
-
 class HashedList:
     """gives access to elements of a list by a hash key.
 
@@ -586,8 +565,6 @@ class HashedList:
     >>> I
     HashIndex(['A'])
     """
-    # pylint: enable=C0301
-    #                          Line too long
     def __init__(self, iterable=None, hashindex=None):
         """The object constructor.
 
@@ -610,6 +587,7 @@ class HashedList:
         i= self._h_index.index(key)
         if i<len(self._list):
             return i
+        # pylint: disable= unnecessary-lambda-assignment
         if value is not None:
             constructor= lambda: value
         else:
@@ -697,13 +675,18 @@ class HashedList2D:
         self._rows.delete(row)
     def lookup(self, row, column, value= None, constructor= None):
         """Lookup or create a value."""
-        val= self._rows.lookup(row, constructor=lambda: HashedList(hashindex= self._column_hashindex))
+        val= self._rows.lookup(row,
+                               constructor= \
+                                   lambda: HashedList(hashindex= \
+                                                      self._column_hashindex))
         return val.lookup(column, value= value, constructor= constructor)
     def set(self, row, column, set_value, value= None, constructor= None):
         """Set a value."""
-        # pylint: disable=R0913
-        #                          Too many arguments
-        val= self._rows.lookup(row, constructor=lambda: HashedList(hashindex= self._column_hashindex))
+        # pylint: disable= too-many-arguments
+        val= self._rows.lookup(row,
+                               constructor= \
+                                   lambda: HashedList(hashindex= \
+                                                      self._column_hashindex))
         return val.set(column, set_value= set_value, value= value, constructor= constructor)
     def rows(self):
         """Return all rows."""
@@ -722,6 +705,7 @@ class HashedList2D:
         self._rows.relabel(old_row, new_row)
     def fill_incomplete(self, is_empty_func=None):
         """Fills empty cells with the value from the previous row."""
+        # pylint: disable= unnecessary-lambda-assignment
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
         column_list= self.columns()
@@ -754,6 +738,7 @@ class HashedList2D:
                     row found
               empty_rows: a list of empty rows in-between
         """
+        # pylint: disable= unnecessary-lambda-assignment
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
         column_list= self.columns()
@@ -770,15 +755,16 @@ class HashedList2D:
                     befores[idx]= row
                 else:
                     if holes[idx] is None:
-                        holes[idx]= [row]
+                        holes[idx]= [row] # type: ignore
                     else:
-                        holes[idx].append(row)
+                        holes[idx].append(row) # type: ignore
         for (idx,col) in enumerate(column_list):
             if holes[idx] is not None:
                 interpolate_func(self, col, befores[idx], None,
                                  holes[idx])
     def filter_complete(self, is_empty_func=None):
         """Removes rows where not all columns have a value."""
+        # pylint: disable= unnecessary-lambda-assignment
         if is_empty_func is None:
             is_empty_func= lambda x: x is None
         row_list= list(self._rows.keys())
@@ -817,6 +803,8 @@ def empty(string):
         return True
     return string.isspace()
 
+# pylint: disable= line-too-long
+
 def parse_line(line):
     """parses a line from the camonitor command.
 
@@ -848,6 +836,8 @@ def parse_line(line):
     else:
         date= str2date(" ".join(elms[1:3]))
     return (elms[0],date,elms[val_i:])
+
+# pylint: enable= line-too-long
 
 def rebuild_line(tp):
     """rebuild a line from the tuple that parse_line creates."""
@@ -917,14 +907,8 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
     (2011-01-25 14:22:15.822486,U3IV:AdiUn14PmsPosI) : ['-14212']
     (2011-01-25 14:22:15.822486,U3IV:AdiUn9PmsPosI) : ['3371']
     """
-    # pylint: disable=R0913
-    #                          Too many arguments
-    # pylint: disable=R0914
-    #                          Too many local variables
-    # pylint: disable=R0912
-    #                          Too many branches
-    # pylint: disable=R0915
-    #                          Too many statements
+    # pylint: disable= too-many-branches, too-many-locals
+    # pylint: disable= too-many-arguments, too-many-statements
     if filter_pv is not None:
         filter_pv= re.compile(filter_pv)
     if skip_flagged is not None:
@@ -997,8 +981,7 @@ def collect(iterable, hashedlist2d=None, from_time=None, to_time=None,
         return None
     return h
 
-# pylint: disable=C0303
-#                          Trailing whitespace
+# pylint: disable= trailing-whitespace
 
 def pretty_print(hashedlist2d, columnformat=None, rjust= False,
                  is_floattime= False, timecolumn=None,
@@ -1059,14 +1042,8 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
     2011-01-25 14:22:15.722486,-12741,2915
     2011-01-25 14:22:15.822486,-14212,3371
     """
-    # pylint: disable=R0914
-    #                          Too many local variables
-    # pylint: disable=R0912
-    #                          Too many branches
-    # pylint: disable=R0915
-    #                          Too many statements
-    # pylint: disable=R0913
-    #                          Too many arguments
+    # pylint: disable= too-many-arguments, too-many-branches
+    # pylint: disable= too-many-locals, too-many-statements
     def tp(st,columnformat,converter):
         """convert data."""
         if st is None:
@@ -1092,8 +1069,6 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
         just[0]= False
 
     for c, f in enumerate(columnformat):
-        # pylint: disable=W0108
-        #                          Unnecessary lambda
         try:
             _= f % "x"
             type_= "string"
@@ -1103,14 +1078,15 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
             columnformat[0]="%s"
             type_= "string"
 
+        # pylint: disable= unnecessary-lambda
         if type_=="string":
             converters.append(lambda x: str(x))
         else:
-            converters.append(lambda x: float(x))
+            converters.append(lambda x: float(x)) # type: ignore
 
     lines= [columns[:]] # initialize with the heading
     for date in hashedlist2d.rows():
-        lst=[]
+        lst=[] # type: ignore
         lines.append(lst)
         i= 0
         if isinstance(date,datetime.datetime):
@@ -1139,8 +1115,7 @@ def pretty_print(hashedlist2d, columnformat=None, rjust= False,
                 n.append(l.rjust(widths[c]))
         print(separator.join(n))
 
-# pylint: enable=C0303
-#                          Trailing whitespace
+# pylint: enable= trailing-whitespace
 
 def convert_to_float_time(start_date, hashedlist2d):
     """convert all times in the HashedList2D object to float-time.
@@ -1169,6 +1144,7 @@ def interpolate(hashedlist2d, col, row1, row2, empty_rows):
             # note: val is a list, val[:] creates a copy:
             hashedlist2d.set(row, col, val[:])
         return
+    # pylint: disable= unnecessary-lambda-assignment
     if isinstance(row1, datetime.datetime):
         tm= lambda t : time_total_seconds(t-row1)
     else:
@@ -1261,6 +1237,7 @@ def collect_from_file(filename_, hashedlist2d=None,
       process_func   -- function to process each file
     """
     # pylint: disable=too-many-locals, too-many-arguments
+    # pylint: disable=consider-using-with
     use_stdin= False
     if (filename_ is None) or (filename_=='-'):
         use_stdin= True
@@ -1268,7 +1245,7 @@ def collect_from_file(filename_, hashedlist2d=None,
         if filename_ is None:
             sys.stderr.write("(read from stdin)\n")
     else:
-        in_file= open(filename_)
+        in_file= open(filename_, encoding="utf-8")
     try:
         result= collect(in_file, hashedlist2d, from_time, to_time,
                         filter_pv, skip_flagged, rm_flags,
@@ -1301,12 +1278,8 @@ def process_files(options,args):
     output:
       prints the sorted values to standard-out
     """
-    # pylint: disable=R0912
-    #                          Too many branches
-    # pylint: disable=R0914
-    #                          Too many local variables
-    # pylint: disable=R0915
-    #                          Too many statements
+    # pylint: disable=too-many-locals, too-many-statements
+    # pylint: disable=too-many-branches
     filelist= []
     if not options.file:
         filelist= [None] # stdin with warning
