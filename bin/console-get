@@ -299,7 +299,7 @@ def print_summary():
             script_shortname())
 
 usage = """usage: %%prog [OPTIONS] AREA [PATTERN]
-downloads and concatenates console log files"
+downloads and concatenates console log files
 
 AREA is a mandatory parameter. For each area
     there is a specific directory on the console server.
