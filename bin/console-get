@@ -62,7 +62,7 @@ areas= { \
                     },
          "tsc-mls" :{ "description": "mls control system (also via ssh)",
                       "directory"  : "conserver-mls/tsc",
-                      "ssh"        : "iocadm@nfs.mlscs.bessy.de:/var/log/conserver-mls/tsc/",
+                      "ssh"        : "iocadm@conserver.acc.bessy.de:/var/log/conserver/conserver-mls/tsc/",
                     },
          "xbpm" :   { "directory"  : "xbpm" },
        }
