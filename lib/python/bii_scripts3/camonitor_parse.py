@@ -77,7 +77,7 @@ rx_pv= re.compile(r'(\S+)\s+(.*)')
 rx_tm= re.compile(r'(<undefined>|\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s(.*)')
 
 rx_int= re.compile(r'[+-]?[0-9]+$')
-rx_float= re.compile(r'[Nn][Aa][Nn]|[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$')
+rx_float= re.compile(r'-?[Nn][Aa][Nn]|[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$')
 
 rx_spc= re.compile(r'\s')
 
