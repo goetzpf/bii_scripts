@@ -211,6 +211,9 @@ Reference of command line options
 -t, --test
   perform a simple self-test of some internal functions
 
+--debug
+  show executed rsync-dist.pl commands
+
 -c CONFIGFILE, --call CONFIGFILE
   call rsync-dist.pl directly with CONFIGFILE. With this option it
   is no longer necessary to call rsync-dist.pl directly.
@@ -393,7 +396,7 @@ def process(options):
         """
         if existent_versions_set[0] is not None:
             return existent_versions_set[0]
-        distLs= rd.DistLs(rd.get_dist_ls(options.config))
+        distLs= rd.DistLs(rd.get_dist_ls(options.config, debug= options.debug))
         existent_versions_set[0]= set(distLs.keys())
         existent_versions_set[0].add(None)
         # ^^^ in order to keep entries in logByName where the
@@ -407,7 +410,7 @@ def process(options):
         """
         if existent_names_set[0] is not None:
             return existent_names_set[0]
-        linkLs= rd.LinkLs(rd.get_link_ls(options.config))
+        linkLs= rd.LinkLs(rd.get_link_ls(options.config, debug= options.debug))
         existent_names_set[0]= set(linkLs.keys())
         return existent_names_set[0]
 
@@ -441,7 +444,8 @@ def process(options):
                     self.versionLifetimes.select_versions(keep)
 
     if options.version_info:
-        distLog= rd.DistLog(rd.get_dist_log(options.config))
+        distLog= rd.DistLog(rd.get_dist_log(options.config,
+                                            debug= options.debug))
         wanted_versions= options.version_info.split(",")
         # print wanted_versions
         # print "-" * 20
@@ -457,7 +461,8 @@ def process(options):
 
     objs= Objs()
 
-    objs.logByName= rd.LLogByName(rd.get_link_log(options.config))
+    objs.logByName= rd.LLogByName(rd.get_link_log(options.config,
+                                                  debug= options.debug))
     objs.logByVersion= rd.LLogByVersion(objs.logByName)
 
     if options.idle:
@@ -607,6 +612,10 @@ def main():
     parser.add_option("-t", "--test",     # implies dest="switch"
                       action="store_true", # default: None
                       help="perform simple self-test",
+                     )
+    parser.add_option("--debug",   # implies dest="switch"
+                      action="store_true", # default: None
+                      help="show executed rsync-dist.pl commands",
                      )
     parser.add_option("-c", "--config", # implies dest="file"
                       action="store", # OptionParser's default

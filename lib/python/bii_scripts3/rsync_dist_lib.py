@@ -73,7 +73,7 @@ def _rset(s):
     """returns repr of a set, only for python3 compabitability of the doctests."""
     return "set(%s)" % repr(sorted(list(s)))
 
-def get_link_log(config_file, extra_opts=""):
+def get_link_log(config_file, extra_opts="", debug= False):
     """returns the link-log file as a MailLikeRecords object.
 
     parameters:
@@ -85,11 +85,13 @@ def get_link_log(config_file, extra_opts=""):
     """
     cmd= "rsync-dist.pl -c %s --single-host %s cat-log l" % \
          (config_file,extra_opts)
+    if debug:
+        print(cmd)
     result= _system(cmd)
     parsed= MailLikeRecords(result)
     return parsed
 
-def get_dist_log(config_file, extra_opts=""):
+def get_dist_log(config_file, extra_opts="", debug= False):
     """returns the dist-log file as a MailLikeRecords object.
 
     parameters:
@@ -101,24 +103,30 @@ def get_dist_log(config_file, extra_opts=""):
     """
     cmd= "rsync-dist.pl -c %s --single-host %s cat-log d" % \
           (config_file,extra_opts)
+    if debug:
+        print(cmd)
     result= _system(cmd)
     parsed= MailLikeRecords(result)
     return parsed
 
-def get_link_ls(config_file, extra_opts=""):
+def get_link_ls(config_file, extra_opts="", debug= False):
     """returns the contents of the link-dir as LslEntries object.
     """
     cmd= "rsync-dist.pl -c %s --single-host %s ls l" % \
           (config_file, extra_opts)
+    if debug:
+        print(cmd)
     result= _system(cmd)
     return LslEntries(result)
 
 
-def get_dist_ls(config_file, extra_opts=""):
+def get_dist_ls(config_file, extra_opts="", debug= False):
     """returns the contents of the dist-dir as LslEntries object.
     """
     cmd= "rsync-dist.pl -c %s --single-host %s ls d" % \
           (config_file, extra_opts)
+    if debug:
+        print(cmd)
     result= _system(cmd)
     return LslEntries(result)
 
