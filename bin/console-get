@@ -38,31 +38,27 @@ assert sys.version_info[0]==3
 # version of the program:
 my_version= "1.1"
 
-CONSERVER_URL= "https://conserver.trs.bessy.de/"
+LOGSTORE_URL= "https://logstore.bessy.de/conserver/"
+LOGSTORE_SSH= "iocadm@logstore.bessy.de:/var/log/conserver/"
 
-areas= { \
-         "blc" :    { "description": "(also via ssh)",
+areas= {
+         "blc" :    { "description": "beamline control",
                       "directory"  : "blc",
-                      "ssh"        : "iocadm@conserver.acc.bessy.de:/var/log/conserver/blc/",
                     },
-         "id" :     { "description": "insertion devices (also via ssh)",
+         "id" :     { "description": "insertion devices",
                       "directory"  : "id",
-                      "ssh"        : "iocadm@conserver.acc.bessy.de:/var/log/conserver/id/",
                     },
          "il" :     { "directory"  : "il" },
-         "mono" :   { "description": "monochromators (also via ssh)",
+         "mono" :   { "description": "monochromators",
                       "directory"  : "mono",
-                      "ssh"        : "iocadm@conserver.acc.bessy.de:/var/log/conserver/mono/",
                     },
          "net" :    { "directory"  : "net" },
          "psd" :    { "directory"  : "psd" },
-         "tsc" :    { "description": "control system (also via ssh)",
+         "tsc" :    { "description": "bii control system",
                       "directory"  : "tsc",
-                      "ssh"        : "iocadm@conserver.acc.bessy.de:/var/log/conserver/tsc/",
                     },
-         "tsc-mls" :{ "description": "mls control system (also via ssh)",
+         "tsc-mls" :{ "description": "mls control system",
                       "directory"  : "conserver-mls/tsc",
-                      "ssh"        : "iocadm@conserver.acc.bessy.de:/var/log/conserver/conserver-mls/tsc/",
                     },
          "xbpm" :   { "directory"  : "xbpm" },
        }
@@ -122,7 +118,7 @@ def fetch_files(area, glob_patterns, ssh, verbose, dry_run):
     """fetch files and put them into current working directory."""
     ssh_opt= None
     if ssh:
-        ssh_opt= areas[area].get("ssh")
+        ssh_opt= LOGSTORE_SSH + areas[area].get("directory")
         if not ssh_opt:
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
@@ -131,7 +127,7 @@ def fetch_files(area, glob_patterns, ssh, verbose, dry_run):
         for p in glob_patterns:
             syscall(["wget", "--no-check-certificate", "--quiet", "-r",
                      "-l1", "--no-parent", "-nd",
-                     CONSERVER_URL + areas[area]["directory"],
+                     LOGSTORE_URL + areas[area]["directory"],
                      "-A", p],
                     verbose, dry_run)
     else:
@@ -208,7 +204,7 @@ def list_files(area, pattern, use_ssh, verbose, dry_run):
     """show avaliable files."""
     ssh_opt= None
     if use_ssh:
-        ssh_opt= areas[area].get("ssh")
+        ssh_opt= LOGSTORE_SSH + areas[area].get("directory")
         if not ssh_opt:
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
@@ -222,7 +218,7 @@ def list_files(area, pattern, use_ssh, verbose, dry_run):
                   r"sed -e 's/<[^>]*>/ /g' | "
                   r"grep '%s' | "
                   r"sed -e 's/^ *\([^ ]\+\).*/\1/' | sort") % \
-                  (CONSERVER_URL + areas[area]["directory"], mask)],
+                  (LOGSTORE_URL + areas[area]["directory"], mask)],
                 verbose, dry_run)
     else:
         if not pattern:
@@ -236,7 +232,7 @@ def list_all_files(area, pattern, use_ssh, verbose, dry_run):
     """show avaliable files."""
     ssh_opt= None
     if use_ssh:
-        ssh_opt= areas[area].get("ssh")
+        ssh_opt= LOGSTORE_SSH + areas[area].get("directory")
         if not ssh_opt:
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
@@ -252,7 +248,7 @@ def list_all_files(area, pattern, use_ssh, verbose, dry_run):
                   r"sed -e 's/<[^>]*>/ /g;s/^ *\([^ ]\+\) \+\([^ ]\+\) \+\([^ ]\+\).*/\1 \2 \3/g' | "
                   r"grep : | %s"
                   r"column -t" ) % \
-                  (CONSERVER_URL + areas[area]["directory"], extra)],
+                  (LOGSTORE_URL + areas[area]["directory"], extra)],
                 verbose, dry_run)
     else:
         if not pattern:
