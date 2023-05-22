@@ -67,6 +67,7 @@ I_FLAGS= 3
 I_STATUS=4  # special status like "<undefined>"
             # "*** Not connected (PV not found)"
             # in this case there is no timestamp and no value
+I_LAST  =4  # MUST be last index in tuple
 
 # -----------------------------------------------
 # regular expressions
@@ -291,7 +292,7 @@ def parse_line(line, keep_undefined):
         return (m_pv.group(1), None, None, None, m_pv.group(2))
     return (m_pv.group(1), tm, val, flags, None)
 
-def convert_line_datatypes(tp, parse_numbers, parse_date):
+def convert_line_datatypes(tp, parse_numbers, parse_date, extra_indices=None):
     """do data converstions on output of parse_line.
 
     arguments:
@@ -299,6 +300,7 @@ def convert_line_datatypes(tp, parse_numbers, parse_date):
     - parse_numbers: Convert value(s) to numbers, if possible
     - parse_date: Convert the timestamp to a datetime.datetime object, if
           possible.
+    - extra_indices: an extra list of indices in tp that is printed, too
 
     returns:
       A tuple (pv, time, value, flags, status). The fields are the same as
@@ -323,13 +325,16 @@ def convert_line_datatypes(tp, parse_numbers, parse_date):
         new.append(tp[I_VALUE])
     new.append(tp[I_FLAGS])
     new.append(tp[I_STATUS])
+    if extra_indices is not None:
+        for i in extra_indices:
+            new.append(tp[i])
     return tuple(new)
 
 # -----------------------------------------------
 # creation of 'camonitor' compatible output
 # -----------------------------------------------
 
-def create_line(d, rm_timestamp, delimiter):
+def create_line(d, rm_timestamp, delimiter, extra_indices=None):
     """re-create line from dict.
 
     arguments:
@@ -337,7 +342,9 @@ def create_line(d, rm_timestamp, delimiter):
       - rm_timestamp: if True, the timestamp is not printed
       - delimiter: delimiter of fields, if None, do separate the fields exactly
         the way 'camonitor' does.
+      - extra_indices: an extra list of indices in d that is printed, too
     """
+    # pylint: disable= too-many-branches
     if delimiter is None:
         res= [d[I_PV].ljust(PV_COLUMN_WIDTH)]
     else:
@@ -359,6 +366,9 @@ def create_line(d, rm_timestamp, delimiter):
         res.extend(d[I_FLAGS])
     if d[I_STATUS]:
         res.append(d[I_STATUS])
+    if extra_indices is not None:
+        for i in extra_indices:
+            res.append(str(d[i]))
     if delimiter is None:
         #print("RES:",repr(res))#@@@
         return " ".join(res)

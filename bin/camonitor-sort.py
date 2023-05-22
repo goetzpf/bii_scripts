@@ -214,6 +214,7 @@ def process(args, rest):
     """do all the work.
     """
     # pylint: disable= too-many-branches, too-many-statements
+    # pylint: disable= too-many-locals
     # print("args:",args)
     # print("rest:",rest)
     if args.summary:
@@ -262,12 +263,16 @@ def process(args, rest):
         if args.progress:
             sys.stderr.write('\n')
     else:
+        extra_indices= None
+        if args.timedelta:
+            extra_indices= (cp.I_LAST+1,)
         # sorting requires reading all the files
         l_func= line_filter(args)
         if is_stdin_ex(rest):
             rest= ['-']
         it= file_it(rest)
         data= {}
+        timestamps= {} # type: ignore
         line_no=0
         if args.progress:
             sys.stderr.write("reading lines...\n")
@@ -289,15 +294,30 @@ def process(args, rest):
                 tclass= 0
             else:
                 tclass= 1
+            if args.timedelta and (tclass==1):
+                d= list(d) # otherwise d is a tuple that cannot be modified
+                pv= d[cp.I_PV]
+                last_time= timestamps.get(pv)
+                this_time= cp.parse_date_str(d[cp.I_TIME])
+                if last_time is not None:
+                    dt= this_time - last_time
+                    d.append( dt.total_seconds() )
+                else:
+                    d.append(0)
+                timestamps[pv]= this_time
             # sort by time-class, time, pv:
             if args.keep_double:
                 key_= (tclass, d[cp.I_TIME], d[cp.I_PV], line_no) # type: ignore
             else:
                 key_= (tclass, d[cp.I_TIME], d[cp.I_PV]) # type: ignore
             if args.json:
-                data[key_]= cp.convert_line_datatypes(d, True, False)
+                data[key_]= cp.convert_line_datatypes(d, True, False,
+                                extra_indices= extra_indices)
             else:
-                data[key_]= cp.create_line(d, args.rm_timestamp, args.delimiter)
+                data[key_]= cp.create_line(d, args.rm_timestamp,
+                                           args.delimiter,
+                                           extra_indices= extra_indices)
+                #print("key:",repr(data[key_]))#@@@
         if args.progress:
             sys.stderr.write('\b'*10)
             sys.stderr.write("%10d\n" % line_no)
@@ -419,6 +439,11 @@ def main():
     parser.add_argument("--rm-timestamp",
                         action="store_true",
                         help="Remove timestamps in output.",
+                       )
+    parser.add_argument("--timedelta",
+                        action="store_true",
+                        help="Add time-difference field for every pv, only "
+                             "possible when --no-sort IS NOT used."
                        )
     parser.add_argument("--flags",
                         action="store_true",
