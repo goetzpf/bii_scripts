@@ -54,11 +54,8 @@ areas= {
                     },
          "net" :    { "directory"  : "net" },
          "psd" :    { "directory"  : "psd" },
-         "tsc" :    { "description": "bii control system",
+         "tsc" :    { "description": "bessy or mls or beamline control systems",
                       "directory"  : "tsc",
-                    },
-         "tsc-mls" :{ "description": "mls control system",
-                      "directory"  : "conserver-mls/tsc",
                     },
          "xbpm" :   { "directory"  : "xbpm" },
        }
