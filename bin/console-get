@@ -115,7 +115,7 @@ def fetch_files(area, glob_patterns, ssh, verbose, dry_run):
     """fetch files and put them into current working directory."""
     ssh_opt= None
     if ssh:
-        ssh_opt= LOGSTORE_SSH + areas[area].get("directory")
+        ssh_opt= LOGSTORE_SSH + areas[area].get("directory") + "/"
         if not ssh_opt:
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
@@ -201,7 +201,7 @@ def list_files(area, pattern, use_ssh, verbose, dry_run):
     """show avaliable files."""
     ssh_opt= None
     if use_ssh:
-        ssh_opt= LOGSTORE_SSH + areas[area].get("directory")
+        ssh_opt= LOGSTORE_SSH + areas[area].get("directory") + "/"
         if not ssh_opt:
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
@@ -229,7 +229,7 @@ def list_all_files(area, pattern, use_ssh, verbose, dry_run):
     """show avaliable files."""
     ssh_opt= None
     if use_ssh:
-        ssh_opt= LOGSTORE_SSH + areas[area].get("directory")
+        ssh_opt= LOGSTORE_SSH + areas[area].get("directory") + "/"
         if not ssh_opt:
             sys.stderr.write(("note: ssh not available for %s, using "
                               "wget instead") % area)
