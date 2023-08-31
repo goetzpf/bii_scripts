@@ -47,7 +47,7 @@ _pyver= (sys.version_info[0], sys.version_info[1])
 if _pyver <= (3,4):
     HTTPEXCEPTION= http.client.HTTPException
 else:
-    HTTPEXCEPTION= http.client.RemoteDisconnected
+    HTTPEXCEPTION= http.client.RemoteDisconnected # type: ignore
 
 DBNAME="id_db"
 
@@ -126,15 +126,19 @@ def get_share_dir():
 # -----------------------------------------------
 # read iddb config file
 
-def iddb_config():
+def iddb_config(trace):
     """read iddb configuration."""
     share_dir= get_share_dir()
     if not share_dir:
         return None
+    if trace:
+        print("share directory:", share_dir, file=sys.stderr)
     filename= os.path.join(share_dir, "bii_scripts", CONFIG_FILE)
     if not os.path.exists(filename):
         sys.stderr.write("Warning: File '%s' not found\n" % filename)
         return None
+    if trace:
+        print("configuration file:", filename, file=sys.stderr)
     config = configparser.ConfigParser()
     config.read(filename)
     return config
@@ -142,7 +146,7 @@ def iddb_config():
 # -----------------------------------------------
 # find sourcespec from hostname
 
-def sourcespec_by_hostname():
+def sourcespec_by_hostname(trace):
     """get sourcespec by current hostname."""
     def cget(config,section,key):
         """read something from configuration data."""
@@ -153,15 +157,21 @@ def sourcespec_by_hostname():
             return None
         return v
     # get configuration data from SHARE_INSTALL_DIR/bii_scripts/iddb.config:
-    config_data= iddb_config()
+    config_data= iddb_config(trace)
     if not config_data:
         return None
+    if trace:
+        print("configuration data:", file=sys.stderr)
+        # pprint doesn't work on a ConfigParser object:
+        config_data.write(sys.stderr)
     # get full qualified hostname:
     fullhostname= socket.getfqdn()
     # try to find it in the "HOSTS" section of the configuration:
     if "HOSTS" in config_data:
         spec= cget(config_data, "HOSTS", fullhostname)
         if spec:
+            if trace:
+                print("matched HOST:", fullhostname, file=sys.stderr)
             return spec
     # examine the domain:
     if "DOMAINS" in config_data:
@@ -170,11 +180,15 @@ def sourcespec_by_hostname():
             domain= domain.split(".", 1)[1]
             spec= cget(config_data, "DOMAINS", domain)
             if spec:
+                if trace:
+                    print("matched DOMAIN:", domain, file=sys.stderr)
                 return spec
     # finally examine if there is a default "*" in HOSTS section:
     if "HOSTS" in config_data:
         spec= cget(config_data, "HOSTS", "*")
         if spec:
+            if trace:
+                print("matched HOST: *", file=sys.stderr)
             return spec
     return None
 
@@ -230,7 +244,7 @@ def parse_spec(spec):
         break
     raise ValueError("Error, cannot parse source spec '%s'" % spec)
 
-def parse_env():
+def parse_env(show_datasource):
     """parse environment variable IDDB_SOURCE.
 
     returns one of:
@@ -239,14 +253,19 @@ def parse_env():
       None
     """
     var= os.environ.get(ENV_VAR_NAME)
+    spec= None
     if var is None:
         return None
     try:
-        return parse_spec(var)
+        spec= parse_spec(var)
+        if show_datasource:
+            print("take source specification from environment variable",
+                  file=sys.stderr)
+            print("%s= %s" % (ENV_VAR_NAME, var), file=sys.stderr)
     except ValueError as e:
         st= str(e).replace("Error", "Warning")
         sys.stderr.write(st)
-    return None
+    return spec
 
 # -----------------------------------------------
 # Database access by file loading and StructuredData libraries
@@ -688,7 +707,7 @@ def cmd_list(query_obj, args, rest):
     else:
         sd_keys= [query_obj.find_sd_key(args.id)]
 
-    result= {}
+    result= {} # type: ignore
     idx=0
     for sd_key in sd_keys:
         n= result.setdefault(sd_key, {})
@@ -855,9 +874,15 @@ def process(args, rest, parser):
 
     if args.file:
         source_spec= {"filename": args.file }
+        if args.trace:
+            print("take source specification from -f", args.file,
+                  file=sys.stderr)
     if args.server:
         if args.file:
             sys.exit("contradicting options: -f --server")
+        if args.trace:
+            print("take source specification from --server", args.server,
+                  file=sys.stderr)
         try:
             (host, port)= parse_server(args.server)
         except ValueError as e:
@@ -867,16 +892,20 @@ def process(args, rest, parser):
     # Try to parse data source from environment variable. parse_env() may
     # return None:
     if not source_spec:
-        source_spec= parse_env()
+        source_spec= parse_env(args.trace)
 
     if not source_spec:
         # reads iddb configuration file:
-        sp= sourcespec_by_hostname()
+        sp= sourcespec_by_hostname(args.trace)
         if sp:
             try:
                 source_spec= parse_spec(sp)
             except ValueError as e:
                 sys.exit(str(e)+" (configuration file)")
+
+    if args.trace:
+        print("source specification:", file=sys.stderr)
+        pprint.pprint(source_spec, stream=sys.stderr)
 
     if not source_spec:
         sys.exit(("Error, no source specified.\n"
@@ -890,9 +919,16 @@ def process(args, rest, parser):
 
     dbobj= None
     if "filename" in source_spec:
+        if args.trace:
+            print("read from file: ", source_spec["filename"],
+                  file=sys.stderr)
         dbobj= DbFile(source_spec["filename"])
     elif "host" in source_spec:
-        dbobj= DbXML(source_spec["host"], source_spec["port"])
+        if args.trace:
+            print("read from XMLRPC server: %s:%d" % \
+                  (source_spec["host"], source_spec["port"]),
+                  file=sys.stderr)
+        dbobj= DbXML(source_spec["host"], source_spec["port"]) # type: ignore
     else:
         raise AssertionError("unexpected sourcespec: %s" % repr(source_spec))
 
@@ -1105,6 +1141,10 @@ def main():
                         help="Print help (with pager)",
                        )
 
+    parser.add_argument("-T", "--trace",
+                        action="store_true",
+                        help="show where the program gets it's data from",
+                       )
     parser.add_argument("-S", "--sort-by",
                         help="specify the SORTCOLUMN",
                         metavar="SORTCOLUMN"
