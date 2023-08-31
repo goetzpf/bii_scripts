@@ -16,7 +16,7 @@ INSTALL_MKDIR=sg coredev -c "mkdir -m 775 -p $(1)"
 # Rsync configuration HTML file installation:
 # Rsync destination, may be "localhost", HOST or USER@HOST. If left empty
 # do not use ssh for rsync:
-HTML_RSYNC_HOST=wwwcsr@www-csr.bessy.de
+HTML_RSYNC_HOST=wwwhelp@help.bessy.de
 # Rsync options, you usually don't have to change these:
 HTML_RSYNC_OPTS=-crlEC --chmod=a+r,Da+x
 # Directory creation command. A make function, $(1) is the directory list:
@@ -48,4 +48,4 @@ PYTHON3LIB_INSTALL_DIR=$(INSTALL_PREFIX)/lib/python$(PYTHON3VERSION)
 
 # Root directory where the html documentation is copied to. If empty, do
 # not install html documentation.
-HTML_INSTALL_DIR=/home/wwwcsr/www/control
+HTML_INSTALL_DIR=www/apps
