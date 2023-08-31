@@ -9,9 +9,9 @@
 # do not use ssh for rsync:
 INSTALL_RSYNC_HOST=
 # Rsync options, you usually don't have to change these:
-INSTALL_RSYNC_OPTS=-crlEogC --chmod=Fa+r --groupmap=*:scrptdev 
+INSTALL_RSYNC_OPTS=-crlEogC --chmod=Fa+r --groupmap=*:coredev 
 # Directory creation command. A make function, $(1) is the directory list:
-INSTALL_MKDIR=sg scrptdev -c "mkdir -m 775 -p $(1)"
+INSTALL_MKDIR=sg coredev -c "mkdir -m 775 -p $(1)"
 
 # Rsync configuration HTML file installation:
 # Rsync destination, may be "localhost", HOST or USER@HOST. If left empty
