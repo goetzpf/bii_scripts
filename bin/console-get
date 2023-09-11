@@ -38,8 +38,8 @@ assert sys.version_info[0]==3
 # version of the program:
 my_version= "1.1"
 
-LOGSTORE_URL= "https://logstore.bessy.de/conserver/"
-LOGSTORE_SSH= "iocadm@logstore.bessy.de:/var/log/conserver/"
+LOGSTORE_URL= "https://conserver.acc.bessy.de/conserver/"
+LOGSTORE_SSH= "iocadm@conserver.acc.bessy.de:/var/log/conserver/"
 
 areas= {
          "blc" :    { "description": "beamline control",
